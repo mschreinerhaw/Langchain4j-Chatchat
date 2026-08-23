@@ -72,6 +72,14 @@ class UiArtifactServiceTest {
         assertThat(fixture.service().resource("tenant-a", artifactId, "visualization")).isEmpty();
         assertThat(fixture.service().resource("tenant-a", artifactId, "citations")).isPresent();
         assertThat(fixture.service().resource("tenant-a", artifactId, "evidence-premises")).isPresent();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> spec = (Map<String, Object>) manifest.get("spec");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> elements = (Map<String, Object>) spec.get("elements");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> report = (Map<String, Object>) elements.get("report");
+        assertThat(elements).containsKeys("citations", "evidence-premises");
+        assertThat(report.get("children")).isEqualTo(List.of("answer"));
         assertThat(fixture.service().manifest("tenant-b", artifactId)).isEmpty();
 
         UiArtifactEntity metadata = fixture.entities().get(artifactId);

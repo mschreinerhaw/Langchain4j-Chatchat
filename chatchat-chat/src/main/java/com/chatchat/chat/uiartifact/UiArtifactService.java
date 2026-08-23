@@ -93,7 +93,8 @@ public class UiArtifactService {
                 "title", "引用与证据",
                 "resourceId", "citations"
             ), List.of()));
-            reportChildren.add("citations");
+            // Keep the resource and manifest element for provenance/audit access, but do not
+            // render a citation-and-evidence accordion in the answer report.
         }
 
         Object evidencePremises = uiResponse.get("evidencePremises");
@@ -103,7 +104,7 @@ public class UiArtifactService {
                 "title", "证据前提",
                 "resourceId", "evidence-premises"
             ), List.of()));
-            reportChildren.add("evidence-premises");
+            // Keep premises as retained metadata without rendering them as answer content.
         }
 
         elements.put("report", element("Report", Map.of(

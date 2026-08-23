@@ -204,13 +204,20 @@ class AgentAnswerFinalizer {
         if (!toolEvidence.isEmpty()) {
             values.put("toolResultEvidence", toolEvidence);
             values.put("toolResultEvidenceCount", toolEvidence.size());
-            String answerWithEvidence = appendToolEvidence(finalAnswer, toolEvidence);
-            if (!answerWithEvidence.equals(finalAnswer)) {
-                finalAnswer = answerWithEvidence;
-                values.put("toolResultEvidenceMarkdownAppended", true);
-                values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
+            if (shouldExposeToolEvidence(query, values)) {
+                String answerWithEvidence = appendToolEvidence(finalAnswer, toolEvidence);
+                if (!answerWithEvidence.equals(finalAnswer)) {
+                    finalAnswer = answerWithEvidence;
+                    values.put("toolResultEvidenceMarkdownAppended", true);
+                    values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
+                }
+            } else {
+                values.put("toolResultEvidenceMarkdownAppended", false);
+                values.put("toolResultEvidenceMarkdownSuppressed", true);
+                finalAnswer = appendFailedToolLimitations(finalAnswer, toolEvidence);
             }
         }
+        finalAnswer = applyUserFacingSectionPolicy(finalAnswer, query, values);
         finalAnswer = bindReturnedEvidenceReferences(
             finalAnswer, values, observations, toolEvidence, "final_assembly");
         if (!finalAnswer.equals(selectedAnswer == null ? "" : selectedAnswer)) {
@@ -230,6 +237,7 @@ class AgentAnswerFinalizer {
         attachTaskResultAssessment(values, traces, observations);
         attachEvidenceAnswerContract(finalAnswer, values, observations);
         finalAnswer = attachAnswerEvidenceLedger(finalAnswer, values, observations, toolEvidence);
+        finalAnswer = applyUserFacingEvidenceReferencePolicy(finalAnswer, query, values);
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         attachGovernedSummaryResult(finalAnswer, values, traces, observations);
         return new AgentOrchestrator.AgentExecutionResult(
@@ -1001,11 +1009,20 @@ class AgentAnswerFinalizer {
         prompt.append("Do not wrap the response in code fences. Output JSON only when the Answer Contract explicitly requires JSON.\n");
         prompt.append("First understand the user's intent, then synthesize the evidence into a clear explanation instead of copying tool output or internal execution reports.\n");
         prompt.append("Preserve successful structured results even when incomplete or unexpected; present observed data before limitations and next checks.\n");
-        prompt.append("Treat data analysis as the primary deliverable and evidence mechanics as hidden support. Unless the user explicitly requests provenance, auditing, API debugging, or commands, do not include dedicated sections for evidence chains, API endpoints, tool calls, execution facts, diagnostic workflow, verification commands, or troubleshooting steps. Keep required citations inline and secondary.\n");
+        boolean userVisibleEvidence = shouldExposeEvidenceReferences(query, metadata)
+            || AnswerContract.EVIDENCE_REQUIRED.equals(qualityContext.contract().evidencePolicy());
+        prompt.append("Treat data analysis as the primary deliverable and evidence mechanics as hidden support. Unless the user explicitly requests provenance, auditing, citations, API debugging, or commands, do not include dedicated sections for evidence chains, sources, API endpoints, tool calls, execution facts, diagnostic workflow, verification commands, or troubleshooting steps.\n");
         prompt.append("For analysis requests, lead with concrete returned values, comparisons, distributions, anomalies, and their meaning. HTTP success, endpoint reachability, query completion, record counts, and coverage percentages are not substitutes for analytical findings. Never say values need to be expanded when the observations already contain them.\n");
+        prompt.append("Derive analytical dimensions, comparisons, conclusions, and headings only from the user's request, the actual returned fields and values, and supplied analysisContext. Do not impose a domain-specific framework or canned report structure that those inputs do not establish.\n");
+        prompt.append("Analyze returned business data rather than the evidence mechanism. Source, citation, trust, tool, and execution fields are internal grounding support and must remain secondary unless the user explicitly requests provenance or runtime diagnostics.\n");
+        prompt.append("Do not turn counter equality, status coexistence, or completed execution into causal claims such as normal completion, health, or absence of failures unless the returned fields explicitly establish that conclusion. State the observed counters first and label any broader interpretation as inference.\n");
         prompt.append("Keep execution success separate from evidence sufficiency. A successful result remains reportable while weak coverage lowers confidence.\n");
         prompt.append("Respect evidence semantics supplied at runtime, including scope, time basis, completeness, capability and source role. Do not infer beyond them.\n");
-        prompt.append("Keep an exact returned evidence URI (tool://, doc://, web://, or http(s)://) near every factual numeric, date, causal, comparative, or definitive claim. A tool display name alone is not an evidence reference.\n");
+        if (userVisibleEvidence) {
+            prompt.append("Keep an exact returned evidence URI or source citation near every factual numeric, date, causal, comparative, or definitive claim. A tool display name alone is not an evidence reference.\n");
+        } else {
+            prompt.append("Use returned evidence to ground every factual claim internally, but do not emit tool://, doc://, web://, evidenceId, [网页N], or [evidence: ...] markers in the user-facing answer. Runtime retains claim bindings and sources in metadata.\n");
+        }
         prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
         prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries as grounded evidence and keep the matching citation near every claim that relies on that evidence.\n");
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
@@ -1017,7 +1034,9 @@ class AgentAnswerFinalizer {
         } else if (qualityContext.gate().retrieveMoreRecommended()) {
             prompt.append("Evidence gate policy: answer from usable evidence, identify unresolved gaps explicitly, and avoid filling them with assumptions.\n");
         }
-        prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
+        if (userVisibleEvidence) {
+            prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
+        }
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("Before writing, internally enumerate every material factual claim. Bind each numeric, date, causal, comparative, and definitive claim to the exact returned evidence reference, and keep that reference immediately after the supported sentence. If returned evidence does not support a claim, weaken it explicitly or move it to limitations instead of presenting it as fact.\n");
         prompt.append("Do not use one citation as decoration for a paragraph containing unrelated claims. Preserve conflicts and distinguish verified facts, reasoned interpretation, and missing evidence.\n");
@@ -1884,6 +1903,108 @@ class AgentAnswerFinalizer {
             section.append("。\n");
         }
         return base.isBlank() ? section.toString().trim() : base + "\n\n" + section.toString().trim();
+    }
+
+    private String appendFailedToolLimitations(String answer, List<Map<String, Object>> evidence) {
+        List<Map<String, Object>> failures = evidence == null ? List.of() : evidence.stream()
+            .filter(item -> !Boolean.TRUE.equals(item.get("success")))
+            .toList();
+        String base = answer == null ? "" : answer.trim();
+        if (failures.isEmpty()) {
+            return base;
+        }
+        StringBuilder section = new StringBuilder("## 数据限制\n\n");
+        for (Map<String, Object> item : failures) {
+            String source = firstNonBlank(stringValue(item.get("displayName")),
+                firstNonBlank(stringValue(item.get("toolName")), "数据源"));
+            String reason = firstNonBlank(stringValue(item.get("errorMessage")), evidenceSummary(item));
+            section.append("- ").append(escapeInline(source)).append("：失败");
+            if (!reason.isBlank()) {
+                section.append("，").append(escapeInline(reason));
+            }
+            section.append("。\n");
+        }
+        String limitation = section.toString().trim();
+        if (base.contains(limitation)) {
+            return base;
+        }
+        return base.isBlank() ? limitation : base + "\n\n" + limitation;
+    }
+
+    boolean shouldExposeToolEvidence(String query, Map<String, Object> metadata) {
+        if (metadata != null && (Boolean.TRUE.equals(metadata.get("includeToolEvidence"))
+            || Boolean.TRUE.equals(metadata.get("showToolEvidence")))) {
+            return true;
+        }
+        String normalized = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        return containsAny(normalized,
+            "工具执行证据", "证据链", "调用详情", "执行详情", "审计信息", "审计报告", "数据溯源",
+            "tool execution evidence", "evidence chain", "tool calls", "execution details",
+            "audit trail", "provenance");
+    }
+
+    boolean shouldExposeEvidenceReferences(String query, Map<String, Object> metadata) {
+        if (shouldExposeToolEvidence(query, metadata)) {
+            return true;
+        }
+        if (metadata != null && (Boolean.TRUE.equals(metadata.get("showEvidenceReferences"))
+            || Boolean.TRUE.equals(metadata.get("includeCitations"))
+            || Boolean.TRUE.equals(metadata.get("answerEvidenceRequired"))
+            || AnswerContract.EVIDENCE_REQUIRED.equals(metadata.get("answerEvidencePolicy")))) {
+            return true;
+        }
+        String normalized = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        return containsAny(normalized,
+            "附上来源", "注明来源", "提供来源", "列出来源", "参考资料", "引用链接", "网页链接",
+            "给出出处", "标注出处", "可核验引用", "citation", "cite sources", "source links",
+            "provide sources", "references", "provenance", "cited", "citations", "web evidence");
+    }
+
+    private String applyUserFacingSectionPolicy(String answer,
+                                                String query,
+                                                Map<String, Object> metadata) {
+        String result = answer == null ? "" : answer.trim();
+        boolean evidenceRequested = shouldExposeToolEvidence(query, metadata);
+        if (!evidenceRequested) {
+            result = removeMarkdownSections(result,
+                "工具执行证据", "Tool Execution Evidence", "Evidence Chain");
+        }
+        if (metadata != null && !result.equals(answer == null ? "" : answer.trim())) {
+            metadata.put("userFacingSectionPolicyApplied", true);
+        }
+        return result;
+    }
+
+    private String applyUserFacingEvidenceReferencePolicy(String answer,
+                                                           String query,
+                                                           Map<String, Object> metadata) {
+        String original = answer == null ? "" : answer.trim();
+        if (original.isBlank() || query == null || shouldExposeEvidenceReferences(query, metadata)) {
+            return original;
+        }
+        String result = original
+            .replaceAll("(?im)^>\\s*\\*\\*证据完整性提示\\*\\*[:：].*$", "")
+            .replaceAll("(?i)\\s*\\[(?:evidence|证据)\\s*:[^]\\r\\n]*]", "")
+            .replaceAll("(?i)\\s*\\[(?:网页|web\\s*page)\\s*\\d+]", "")
+            .replaceAll("(?i)(?:tool|doc|web)://[^\\s，。；、！？,;]+", "")
+            .replaceAll("[ \\t]+([，。；、！？,;])", "$1")
+            .replaceAll("(?m)^[ \\t]+$", "")
+            .replaceAll("\\n{3,}", "\n\n")
+            .trim();
+        if (metadata != null && !result.equals(original)) {
+            metadata.put("userFacingEvidenceReferencesSuppressed", true);
+            metadata.put("userFacingEvidenceReferencePolicy", "METADATA_ONLY");
+        }
+        return result;
+    }
+
+    private String removeMarkdownSections(String answer, String... headings) {
+        String result = answer;
+        for (String heading : headings) {
+            result = result.replaceAll("(?ms)^##\\s*" + java.util.regex.Pattern.quote(heading)
+                + "\\s*$.*?(?=^##\\s+|\\z)", "");
+        }
+        return result.trim();
     }
 
     private void appendEvidenceField(StringBuilder section, String label, Object value) {

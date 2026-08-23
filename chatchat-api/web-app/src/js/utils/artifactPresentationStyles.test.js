@@ -62,6 +62,10 @@ describe("dynamic report presentation contract", () => {
     expect(artifactRegistry).toContain("collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered))");
   });
 
+  it("does not render retained evidence resources on answer pages", () => {
+    expect(artifactRegistry).toContain("EvidenceList: () => null");
+  });
+
   it("retains the table-chart event bridge into the existing analysis modal", () => {
     expect(artifactRenderer).toContain('defineEmits(["drill-down", "table-chart"])');
     expect(artifactRenderer).toContain('emit("table-chart"');

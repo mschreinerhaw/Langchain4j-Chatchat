@@ -1004,8 +1004,8 @@ class AgentOrchestratorTest {
             .contains("070200046604")
             .contains("returned-value-1", "returned-value-2", "returned-value-3",
                 "returned-value-4", "returned-value-5")
-            .contains("numericProfiles")
-            .doesNotContain("ToolCallBatchResult[", "unbounded-raw-body");
+            .contains("\"rows\"")
+            .doesNotContain("numericProfiles", "ToolCallBatchResult[", "unbounded-raw-body");
     }
 
     @Test
@@ -2396,9 +2396,18 @@ class AgentOrchestratorTest {
         );
         InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
             "success", true, false, null, null,
-            List.of(new InterpretationPlanRuntime.StepExecution(
-                1, "mcp_tool", "http_request_execute", true,
-                output, null, null, null, 10L, Map.of())),
+            List.of(
+                new InterpretationPlanRuntime.StepExecution(
+                    1, "mcp_tool", "mcp_chatchat_mcp_server_http_capability_query", true,
+                    Map.of("templates", java.util.stream.IntStream.range(0, 80)
+                        .mapToObj(index -> Map.of(
+                            "templateId", "routing-template-" + index,
+                            "responseSchema", Map.of("description", "x".repeat(2_000))))
+                        .toList()),
+                    null, null, null, 10L, Map.of()),
+                new InterpretationPlanRuntime.StepExecution(
+                    2, "mcp_tool", "http_request_execute", true,
+                    output, null, null, null, 10L, Map.of())),
             Map.of(), 10L);
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn("""
@@ -2415,7 +2424,8 @@ class AgentOrchestratorTest {
         assertThat(coverage.processedRecordCount()).isEqualTo(3);
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.promptEvidence())
-            .contains("totalMemory", "98304", "node-1", "node-2", "HEALTHY");
+            .contains("totalMemory", "98304", "node-1", "node-2", "HEALTHY")
+            .doesNotContain("routing-template-", "responseSchema");
         assertThat(metadata)
             .containsEntry("recordAnalysisReturnedRecordCount", 3)
             .containsEntry("recordAnalysisCoverageComplete", true);
@@ -3084,7 +3094,7 @@ class AgentOrchestratorTest {
 
         assertThat(result.answer())
             .contains("Use the internal definition handbook")
-            .contains("tool://document_search#result=1");
+            .doesNotContain("tool://document_search#result=1");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.metadata())
@@ -3571,7 +3581,7 @@ class AgentOrchestratorTest {
 
         assertThat(result.answer())
             .contains("Use web evidence fallback")
-            .contains("web://example.com/audit#result=1");
+            .doesNotContain("web://example.com/audit#result=1");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search", "web_search");
         assertThat(result.metadata())
@@ -3697,7 +3707,7 @@ class AgentOrchestratorTest {
 
         assertThat(result.answer())
             .contains("Use the internal definition handbook")
-            .contains("tool://document_search#result=1");
+            .doesNotContain("tool://document_search#result=1");
         assertThat(result.stopReason()).isEqualTo("final_answer");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -3761,7 +3771,7 @@ class AgentOrchestratorTest {
 
         assertThat(result.answer())
             .contains("Use the required document evidence")
-            .contains("doc://unknown#chunk=1");
+            .doesNotContain("doc://unknown#chunk=1");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");

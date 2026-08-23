@@ -23,6 +23,62 @@ import static org.mockito.Mockito.when;
 class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
+    void exposesToolEvidenceOnlyWhenUserExplicitlyRequestsIt() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+
+        assertThat(finalizer.shouldExposeToolEvidence("分析当前 YARN 资源使用情况", Map.of()))
+            .isFalse();
+        assertThat(finalizer.shouldExposeToolEvidence("分析 YARN 并附上工具执行证据", Map.of()))
+            .isTrue();
+        assertThat(finalizer.shouldExposeToolEvidence(null, Map.of("includeToolEvidence", true)))
+            .isTrue();
+        assertThat(finalizer.shouldExposeEvidenceReferences("分析最新融资融券数据", Map.of()))
+            .isFalse();
+        assertThat(finalizer.shouldExposeEvidenceReferences("分析最新融资融券数据并注明来源", Map.of()))
+            .isTrue();
+    }
+
+    @Test
+    void keepsEvidenceBindingsInMetadataButRemovesInternalMarkersFromOrdinaryAnalysis() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String answer = """
+            ## 资金流向
+
+            样本内融资余额为24亿元 [网页2] [evidence: web://example.com/margin#result=2]。
+
+            > **证据完整性提示**：内部审计提示。
+            """;
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "根据最新融资融券数据观察分析市场资金流向",
+            null,
+            List.of(),
+            new LinkedHashMap<>(),
+            List.of(),
+            answer,
+            () -> false,
+            "completed"
+        );
+
+        assertThat(result.answer())
+            .contains("样本内融资余额为24亿元")
+            .doesNotContain("[网页2]", "[evidence:", "web://", "证据完整性提示");
+        assertThat(result.metadata())
+            .containsEntry("userFacingEvidenceReferencesSuppressed", true)
+            .containsEntry("userFacingEvidenceReferencePolicy", "METADATA_ONLY");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void reportsFailedBatchAsFailureEvenWhenTransportSucceeded() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
@@ -100,10 +156,12 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .containsEntry("mcpAvailableResultCount", 1)
             .containsEntry("answerEvidenceStatus", "PARTIAL")
             .containsEntry("answerEvidenceUserVisible", false)
-            .containsEntry("answerEvidenceLimitations", List.of("TOOL_EXECUTION_FAILURE"))
             .containsEntry("analysisSummaryResultSchemaVersion", "analysis_summary_result.v1")
             .containsEntry("analysisSummaryObservable", true)
             .doesNotContainKeys("answerEvidenceLabel", "answerEvidenceDisclosure");
+        assertThat(((List<?>) result.metadata().get("answerEvidenceLimitations")).stream()
+            .map(String::valueOf).toList())
+            .contains("TOOL_EXECUTION_FAILURE");
         assertThat(result.metadata().get("analysisSummaryResult").toString())
             .contains("scope=FINAL_SYNTHESIS", "stage=answer_finalization")
             .contains("answerAssemblyComplete=true", "authority=RUNTIME_REQUEST_CONTEXT");
@@ -826,11 +884,11 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("## 工具执行证据")
-            .contains("linux_command")
-            .contains("退出码=0")
-            .contains("命令执行完成")
-            .doesNotContain("load average");
+            .contains("系统状态正常。")
+            .doesNotContain("工具执行证据", "linux_command", "退出码=0");
+        assertThat(result.metadata())
+            .containsEntry("toolResultEvidenceMarkdownAppended", false)
+            .containsEntry("toolResultEvidenceMarkdownSuppressed", true);
         List<Map<String, Object>> evidence = (List<Map<String, Object>>) result.metadata().get("toolResultEvidence");
         assertThat(evidence)
             .singleElement()
@@ -875,11 +933,11 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("## 工具执行证据")
-            .contains("http_response")
-            .contains("HTTP 状态=200")
-            .contains("HTTP 调用完成")
-            .doesNotContain("alertCount");
+            .contains("接口返回告警数量为 3")
+            .doesNotContain("工具执行证据", "http_response", "HTTP 状态=200");
+        assertThat(result.metadata())
+            .containsEntry("toolResultEvidenceMarkdownAppended", false)
+            .containsEntry("toolResultEvidenceMarkdownSuppressed", true);
         List<Map<String, Object>> evidence = (List<Map<String, Object>>) result.metadata().get("toolResultEvidence");
         assertThat(evidence)
             .singleElement()
@@ -933,14 +991,11 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("## 工具执行证据")
-            .contains("mcp_chatchat_mcp_server_database_query_template_query")
-            .contains("证据类型 `json`")
-            .contains("输出键=schemaVersion, querySchemaVersion")
-            .contains("已返回结构化 JSON")
-            .doesNotContain("bilingualIntent")
-            .doesNotContain("market volatility anomaly alert")
-            .doesNotContain("associatedTemplates");
+            .contains("已找到可执行查询模板。")
+            .doesNotContain("工具执行证据", "database_query_template_query", "证据类型 `json`");
+        assertThat(result.metadata())
+            .containsEntry("toolResultEvidenceMarkdownAppended", false)
+            .containsEntry("toolResultEvidenceMarkdownSuppressed", true);
         List<Map<String, Object>> evidence = (List<Map<String, Object>>) result.metadata().get("toolResultEvidence");
         assertThat(evidence)
             .singleElement()
@@ -1280,12 +1335,13 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
         assertThat(result.answer())
             .contains("\u5206\u652f\u673a\u6784\u8425\u9500\u6d3b\u52a8\u91cd\u70b9")
-            .contains("doc://marketing-plan#chunk=3")
+            .doesNotContain("doc://marketing-plan#chunk=3")
             .doesNotContain("Based on the executed evidence graph path")
             .doesNotContain("Evidence facts:");
         assertThat(result.metadata())
             .containsEntry("userFacingAnswerRegenerationRequired", true)
-            .containsEntry("userFacingAnswerRegenerationReason", "internal_protocol_or_unreadable_answer");
+            .containsEntry("userFacingAnswerRegenerationReason", "internal_protocol_or_unreadable_answer")
+            .containsEntry("userFacingEvidenceReferencesSuppressed", true);
     }
 
     @Test
@@ -1329,13 +1385,14 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
         assertThat(result.answer())
             .contains("\u7ed3\u8bba\uff1a\u6839\u636e\u5df2\u68c0\u7d22\u6587\u6863")
-            .contains("doc://ads#chunk=2")
+            .doesNotContain("doc://ads#chunk=2")
             .doesNotContain("uiResponse")
             .doesNotContain("reasoningTrace")
             .doesNotContain("debug");
         assertThat(result.metadata())
             .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
             .containsEntry("answerRewriteSource", "none")
+            .containsEntry("userFacingEvidenceReferencesSuppressed", true)
             .doesNotContainKey("finalMarkdownSummaryApplied")
             .doesNotContainKey("finalMarkdownSummaryReason");
     }

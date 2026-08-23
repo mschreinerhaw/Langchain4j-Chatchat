@@ -96,9 +96,12 @@ class AnswerQualityEvaluator {
         prompt.append("You are the final answer quality evaluator for an enterprise AI assistant.\n");
         prompt.append("Evaluate answer candidates against the user request and available observations.\n");
         prompt.append("Do not decide the final answer. Java code will apply hard filters and deterministic weighted aggregation.\n");
-        prompt.append("Score every candidate independently. Prefer answers that are correct, directly useful, complete, grounded in observations, and cite evidence when evidence citations are available.\n");
-        prompt.append("Do not reward unsupported extra facts. Flag answers that contradict observations, omit required citations, use failed-tool evidence, violate the response schema, or are unsafe.\n");
-        prompt.append("For analysis requests, strongly prefer candidates that analyze concrete returned values and explain their meaning. Treat answers dominated by evidence chains, API paths, tool-call chronology, verification commands, coverage bookkeeping, or repeated limitations as incomplete and not useful unless the user explicitly requested those details. Inline citations do not count against this rule.\n");
+        prompt.append("Score every candidate independently. Prefer answers that are correct, directly useful, complete, and grounded in observations. Reward user-visible citations only when the user explicitly requested sources or the supplied contract requires them.\n");
+        prompt.append("Do not reward unsupported extra facts. Flag answers that contradict observations, omit explicitly required citations, use failed-tool evidence, violate the response schema, or are unsafe.\n");
+        prompt.append("For analysis requests, strongly prefer candidates that analyze concrete returned values and explain their meaning. Treat answers dominated by evidence chains, source lists, API paths, tool-call chronology, verification commands, coverage bookkeeping, or repeated limitations as incomplete and not useful unless the user explicitly requested those details. Internal citation markers do not improve usefulness.\n");
+        prompt.append("Penalize candidates that impose analytical dimensions, comparisons, or a report template not established by the user's request, returned schema and values, or supplied analysisContext. Prefer analysis derived directly from the actual returned business data.\n");
+        prompt.append("Penalize candidates that make source, citation, trust, tool, or execution metadata the analysis subject when the user requested analysis of returned data.\n");
+        prompt.append("Penalize candidates that infer normal completion, health, causality, or absence of failure from counter equality, execution success, or status coexistence without explicit supporting returned fields.\n");
         prompt.append("When candidates have complementary strengths, produce synthesizedAnswer as the best user-facing Markdown answer. "
             + "It must retain the strongest supported analysis, correct contradictions, incorporate useful reviewer feedback, and use no fact absent from observations. "
             + "If synthesis cannot improve the candidates safely, return an empty synthesizedAnswer.\n");
@@ -131,12 +134,12 @@ class AnswerQualityEvaluator {
         prompt.append("- accuracy: factual consistency with observations and no unsupported claims.\n");
         prompt.append("- grounding: uses only available evidence when evidence is required.\n");
         prompt.append("- completeness: directly answers all important parts of the user request with actual data findings; operational metadata alone is incomplete for an analysis request.\n");
-        prompt.append("- citation: preserves required doc:// or web:// citations near claims.\n");
+        prompt.append("- citation: preserves citations near claims only when explicitly required; otherwise score clean, internally grounded presentation fully.\n");
         prompt.append("- usefulness: clear, actionable, analysis-first user-facing quality; do not reward internal evidence or execution narration.\n\n");
         prompt.append("Hard flags are booleans. Set them true only when the problem is present:\n");
         prompt.append("- contradictsObservation: candidate conflicts with available observations.\n");
         prompt.append("- usesFailedToolEvidence: candidate relies on a failed or unavailable tool result as fact.\n");
-        prompt.append("- missingRequiredCitation: evidence citations are available/required but omitted near factual claims.\n");
+        prompt.append("- missingRequiredCitation: the user or contract explicitly requires citations and they are omitted near factual claims. Mere citation availability does not make them user-visible requirements.\n");
         prompt.append("- schemaViolation: candidate violates explicit output/schema requirements.\n");
         prompt.append("- unsafe: candidate is unsafe or policy-inappropriate.\n\n");
         prompt.append("JSON schema:\n");

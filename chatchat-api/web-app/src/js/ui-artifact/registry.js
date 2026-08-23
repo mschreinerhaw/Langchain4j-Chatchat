@@ -197,6 +197,8 @@ export const { registry: enterpriseUiRegistry } = defineRegistry(enterpriseUiCat
     Markdown: ({ props }) => h(MarkdownResource, props),
     Notice: ({ props }) => h(NoticeResource, props),
     Visualization: ({ props }) => h(VisualizationResource, props),
-    EvidenceList: ({ props }) => h(EvidenceResource, props)
+    // Evidence resources remain retrievable from the artifact manifest for provenance and
+    // auditing, but answer pages intentionally do not render evidence/premise accordions.
+    EvidenceList: () => null
   }
 });

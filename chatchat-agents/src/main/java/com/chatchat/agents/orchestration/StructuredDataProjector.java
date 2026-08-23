@@ -18,6 +18,9 @@ import java.util.Set;
  * <p>The projection is intentionally schema- and domain-neutral. Collection names such as
  * {@code node}, {@code app}, or {@code queueInfos} are not special: every collection of objects
  * is a dataset, and every non-collection object containing scalar facts is a singleton dataset.
+ * Nested scalar objects inside a collection row are flattened into that row, while nested object
+ * collections become independent datasets. This prevents the same response subtree from being
+ * analyzed once as a large parent row and again as many singleton child datasets.
  * This keeps nested HTTP JSON usable by the governed analysis pipeline without teaching Runtime
  * product-specific response fields.</p>
  */
@@ -31,12 +34,21 @@ final class StructuredDataProjector {
     private final Gson gson = new Gson();
 
     List<Dataset> project(Object output) {
+        return project(output, false);
+    }
+
+    List<Dataset> projectForAnalysis(Object output) {
+        return project(output, true);
+    }
+
+    private List<Dataset> project(Object output, boolean includeSingletonObjects) {
         Root root = payloadRoot(normalizeJsonString(output));
         List<Dataset> datasets = new ArrayList<>();
         Set<String> identities = new LinkedHashSet<>();
-        collect(root.value(), root.path(), false, root.singletonObjectsAreDatasets(),
+        collect(root.value(), root.path(), false,
+            includeSingletonObjects || root.singletonObjectsAreDatasets(),
             0, datasets, identities);
-        return List.copyOf(datasets);
+        return coalesce(datasets);
     }
 
     private Root payloadRoot(Object output) {
@@ -74,6 +86,22 @@ final class StructuredDataProjector {
             return;
         }
         Object normalized = normalizeJsonString(value);
+        if (normalized instanceof Collection<?> collection) {
+            List<Map<String, Object>> rows = objectRows(collection);
+            if (!rows.isEmpty()) {
+                addDataset(path, rows, datasets, identities);
+            }
+            int index = 0;
+            for (Object item : collection) {
+                Map<String, Object> originalRow = asMap(normalizeJsonString(item));
+                if (!originalRow.isEmpty()) {
+                    collect(originalRow, path + "[" + index + "]", true,
+                        singletonObjectsAreDatasets, depth + 1, datasets, identities);
+                }
+                index++;
+            }
+            return;
+        }
         Map<String, Object> map = asMap(normalized);
         if (!map.isEmpty()) {
             Map<String, Object> scalarFacts = new LinkedHashMap<>();
@@ -84,15 +112,10 @@ final class StructuredDataProjector {
                 }
                 Object child = normalizeJsonString(entry.getValue());
                 String childPath = path + "." + key;
-                List<Map<String, Object>> rows = objectRows(child);
-                if (!rows.isEmpty()) {
-                    addDataset(childPath, rows, datasets, identities);
-                    for (int index = 0; index < rows.size(); index++) {
-                        collect(rows.get(index), childPath + "[" + index + "]", true,
-                            singletonObjectsAreDatasets, depth + 1, datasets, identities);
-                    }
+                if (scalarCollection(child)) {
+                    scalarFacts.put(key, child);
                 } else if (child instanceof Map<?, ?> || child instanceof Collection<?>) {
-                    collect(child, childPath, false, singletonObjectsAreDatasets,
+                    collect(child, childPath, collectionRow, singletonObjectsAreDatasets,
                         depth + 1, datasets, identities);
                 } else if (scalar(child)) {
                     scalarFacts.put(key, child);
@@ -104,10 +127,6 @@ final class StructuredDataProjector {
             }
             return;
         }
-        List<Map<String, Object>> rows = objectRows(normalized);
-        if (!rows.isEmpty()) {
-            addDataset(path, rows, datasets, identities);
-        }
     }
 
     private void addDataset(String path,
@@ -117,6 +136,9 @@ final class StructuredDataProjector {
         if (rows.isEmpty()) {
             return;
         }
+        // The same values can legitimately be returned through more than one source path
+        // (for example, a canonical structured-data member and a presentation result member).
+        // Keep both locations so the analysis model does not lose data lineage.
         String identity = path + "\u0000" + rows;
         if (!identities.add(identity)) {
             return;
@@ -136,9 +158,59 @@ final class StructuredDataProjector {
             if (row.isEmpty()) {
                 return List.of();
             }
-            rows.add(Collections.unmodifiableMap(new LinkedHashMap<>(row)));
+            Map<String, Object> flattened = new LinkedHashMap<>();
+            flattenRow(row, "", flattened, 0);
+            if (flattened.isEmpty()) {
+                return List.of();
+            }
+            rows.add(Collections.unmodifiableMap(flattened));
         }
         return List.copyOf(rows);
+    }
+
+    private void flattenRow(Map<String, Object> source,
+                            String prefix,
+                            Map<String, Object> target,
+                            int depth) {
+        if (depth > MAX_DEPTH) {
+            return;
+        }
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            if (RAW_DUPLICATE_FIELDS.contains(entry.getKey())) {
+                continue;
+            }
+            String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
+            Object child = normalizeJsonString(entry.getValue());
+            Map<String, Object> nested = asMap(child);
+            if (!nested.isEmpty()) {
+                flattenRow(nested, key, target, depth + 1);
+            } else if (scalar(child) || scalarCollection(child)) {
+                target.put(key, child);
+            }
+        }
+    }
+
+    private boolean scalarCollection(Object value) {
+        if (!(value instanceof Collection<?> collection)) {
+            return false;
+        }
+        return collection.stream().allMatch(this::scalar);
+    }
+
+    private List<Dataset> coalesce(List<Dataset> datasets) {
+        Map<String, MutableDataset> merged = new LinkedHashMap<>();
+        for (Dataset dataset : datasets) {
+            String normalizedPath = dataset.path().replaceAll("\\[\\d+]", "[]");
+            String key = normalizedPath + "\u0000" + dataset.columns();
+            MutableDataset target = merged.computeIfAbsent(
+                key, ignored -> new MutableDataset(normalizedPath, dataset.columns()));
+            for (Map<String, Object> row : dataset.rows()) {
+                target.rows.putIfAbsent(String.valueOf(row), row);
+            }
+        }
+        return merged.values().stream()
+            .map(item -> new Dataset(item.path, List.copyOf(item.rows.values()), item.columns))
+            .toList();
     }
 
     private Object normalizeJsonString(Object value) {
@@ -188,6 +260,17 @@ final class StructuredDataProjector {
     }
 
     record Dataset(String path, List<Map<String, Object>> rows, List<String> columns) {
+    }
+
+    private static final class MutableDataset {
+        private final String path;
+        private final List<String> columns;
+        private final Map<String, Map<String, Object>> rows = new LinkedHashMap<>();
+
+        private MutableDataset(String path, List<String> columns) {
+            this.path = path;
+            this.columns = columns;
+        }
     }
 
     private record Root(String path, Object value, boolean singletonObjectsAreDatasets) {

@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Builds compact, evidence-aware observations from tool output.
@@ -42,7 +44,6 @@ class ToolObservationBuilder {
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
-    private static final int BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD = 12;
 
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
     private final EvidenceNormalizer evidenceNormalizer = new EvidenceNormalizer();
@@ -125,6 +126,11 @@ class ToolObservationBuilder {
             observation.append(" Message: ").append(shortObservationText(message, 400));
         }
         Map<String, Object> root = asMap(data);
+        // Business data must lead the model context. Unified evidence can be substantially larger
+        // (web excerpts, citation stores and audit graphs), so placing it first can push returned
+        // structured observations out of the model's effective attention window. Keep grounding in
+        // the same observation, but only after the complete structured projection.
+        appendStructuredAnalysisData(observation, toolName, trustedUnifiedEvidenceData(toolName, data));
         appendUnifiedEvidence(observation, toolName, data, reviewMetadata, output);
         if (!root.isEmpty()) {
             String structuredObservationCount = firstNonBlank(
@@ -155,6 +161,9 @@ class ToolObservationBuilder {
                     .append("do not describe returned observations as discovery metadata only.");
             }
         }
+        observation.append("\nStructured data usage rule: analyze the returned datasets and fields that answer the user's request. ")
+            .append("Derive the analytical dimensions from the actual schema, values, and analysisContext; do not impose a predefined domain framework. ")
+            .append("Source, citation, trust, and execution fields support internal grounding only and are not the analysis subject unless the user explicitly asks for them.");
         List<WebCitation> citations = trustedWebCitations(data, observation);
         if (citations.isEmpty()) {
             String summary = observationText(outputText);
@@ -177,6 +186,39 @@ class ToolObservationBuilder {
         }
         observation.append("Citation rule: append the matching [网页N] label immediately after any sentence that uses facts from that page.");
         return normalizeWebCitationLabels(observation.toString());
+    }
+
+    private void appendStructuredAnalysisData(StringBuilder observation, String toolName, Object data) {
+        List<StructuredDataProjector.Dataset> datasets = structuredDataProjector.projectForAnalysis(data);
+        if (datasets.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> projected = datasets.stream()
+            .map(dataset -> {
+                Map<String, Object> value = new LinkedHashMap<>();
+                value.put("path", dataset.path());
+                value.put("columns", dataset.columns());
+                value.put("rows", dataset.rows());
+                return Map.copyOf(value);
+            })
+            .toList();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("schemaVersion", "structured_analysis_data.v1");
+        payload.put("evidenceRole", "RETURNED_STRUCTURED_DATA");
+        payload.put("analysisSource", Map.of(
+            "kind", "MCP_TOOL_RESULT",
+            "toolName", firstNonBlank(toolName, "unknown")
+        ));
+        payload.put("completeRowsIncluded", true);
+        payload.put("datasetCount", projected.size());
+        payload.put("datasets", projected);
+        payload.put("analysisRule",
+            "Analyze the complete returned rows directly. Treat analysisSource and each dataset path as data lineage, "
+                + "and preserve source fields carried by the returned data. Determine dataset relevance and field "
+                + "semantics before calculating comparisons; do not replace row analysis with source lists or execution metadata.");
+        observation.append("\nStructured analysis data (complete returned rows):\n")
+            .append(ModelProtocolJson.compact(payload))
+            .append('\n');
     }
 
     private String appendMcpEvidenceGovernance(String observation, ToolOutput output) {
@@ -439,10 +481,7 @@ class ToolObservationBuilder {
             "completeRowsIncluded", true,
             "recordRowsField", "results[].dataset.rows or results[].datasets[].rows",
             "analysisMode", "LOSSLESS_CHUNK_SUMMARY",
-            "maximumNumericProfileColumnsPerChild", BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD,
-            "allRawRowsLocation", "toolTrace",
-            "numericProfilesUseAllReturnedRows", true,
-            "numericProfileSemantics", "MECHANICAL_NO_ADDITIVITY_INFERENCE"
+            "allRawRowsLocation", "toolTrace"
         ));
         return ModelProtocolJson.compact(projection);
     }
@@ -577,10 +616,6 @@ class ToolObservationBuilder {
         if (!responseMetadata.isEmpty()) {
             dataset.put("responseMetadata", responseMetadata);
         }
-        Map<String, Object> numericProfiles = numericProfiles(records, columns);
-        if (!numericProfiles.isEmpty()) {
-            dataset.put("numericProfiles", numericProfiles);
-        }
         return Map.copyOf(dataset);
     }
 
@@ -590,33 +625,6 @@ class ToolObservationBuilder {
         private static BatchDatasetSource absent() {
             return new BatchDatasetSource(false, List.of(), Map.of());
         }
-    }
-
-    private Map<String, Object> numericProfiles(List<Map<String, Object>> records,
-                                                Set<String> columns) {
-        Map<String, Object> profiles = new LinkedHashMap<>();
-        for (String column : columns) {
-            if (profiles.size() >= BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD) {
-                break;
-            }
-            List<Double> values = records.stream()
-                .map(record -> record.get(column))
-                .filter(Number.class::isInstance)
-                .map(Number.class::cast)
-                .map(Number::doubleValue)
-                .toList();
-            if (values.isEmpty()) {
-                continue;
-            }
-            double sum = values.stream().mapToDouble(Double::doubleValue).sum();
-            profiles.put(column, Map.of(
-                "observedCount", values.size(),
-                "min", values.stream().min(Double::compareTo).orElse(0D),
-                "max", values.stream().max(Double::compareTo).orElse(0D),
-                "sum", sum
-            ));
-        }
-        return Map.copyOf(profiles);
     }
 
     private String buildStructuredProtocolObservation(String toolName, ToolOutput output, String protocolEvidence) {
@@ -1639,11 +1647,11 @@ class ToolObservationBuilder {
             }
             byUrl.put(url, new WebCitation(
                 url,
-                firstNonBlank(
+                sanitizeWebCitationText(firstNonBlank(
                     stringValue(item.get("title")),
                     firstNonBlank(stringValue(item.get("name")), stringValue(item.get("source")))
-                ),
-                firstNonBlank(
+                )),
+                sanitizeWebCitationText(firstNonBlank(
                     stringValue(item.get("snippet")),
                     firstNonBlank(
                         stringValue(item.get("excerpt")),
@@ -1655,7 +1663,7 @@ class ToolObservationBuilder {
                             )
                         )
                     )
-                )
+                ))
             ));
         }
 
@@ -1899,6 +1907,25 @@ class ToolObservationBuilder {
             return value;
         }
         return value.replace("[缃戦〉", "[网页");
+    }
+
+    private String sanitizeWebCitationText(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        String normalized = value.replaceAll("[\\p{Cc}&&[^\\r\\n\\t]]", " ")
+            .replaceAll("\\s+", " ").trim();
+        Matcher marker = Pattern.compile("[?？]\\d+\\s*[:：]\\s*").matcher(normalized);
+        if (marker.find() && marker.start() >= 20) {
+            String prefix = normalized.substring(0, marker.start());
+            long mojibakeSignals = prefix.codePoints()
+                .filter(codePoint -> "闂鍊柟婵缁閹濠鈧瑰嫭娴犻崐鎼佸磹".indexOf(codePoint) >= 0)
+                .count();
+            if (mojibakeSignals >= 5 && marker.end() < normalized.length()) {
+                normalized = normalized.substring(marker.end()).trim();
+            }
+        }
+        return normalized;
     }
 
     private String stringValue(Object value) {

@@ -139,10 +139,7 @@ class ToolObservationBuilderEvidenceTest {
             .contains("\"KHH\":\"070200046604\"")
             .contains("\"ZQDM\":\"300805\"")
             .contains("\"WTSL\":2000")
-            .contains("\"numericProfiles\"")
-            .contains("\"numericProfileSemantics\":\"MECHANICAL_NO_ADDITIVITY_INFERENCE\"")
-            .contains("\"sum\":4000.0")
-            .doesNotContain("RAW_BODY_MUST_NOT_BE_DUPLICATED", "ToolCallBatchResult[");
+            .doesNotContain("numericProfiles", "RAW_BODY_MUST_NOT_BE_DUPLICATED", "ToolCallBatchResult[");
     }
 
     @Test
@@ -574,6 +571,51 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void putsCompleteWebSearchStructuredDataBeforeSupplementalEvidenceContext() {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("instrument", "sample-etf");
+        row.put("observation_date", "2026-08-21");
+        row.put("metric_a", 570_000_000);
+        row.put("metric_b", -42_000_000);
+
+        Map<String, Object> dataset = new LinkedHashMap<>();
+        dataset.put("dataset", "returned_dataset");
+        dataset.put("count", 1);
+        dataset.put("runtimeEvidenceType", "structured_data_observation");
+        dataset.put("rows", List.of(row));
+
+        Map<String, Object> webPage = new LinkedHashMap<>();
+        webPage.put("title", "Supplemental page");
+        webPage.put("url", "https://example.com/supplemental");
+        webPage.put("snippet", "Supplemental narrative that is not a substitute for returned rows.");
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("query", "analyze returned observations");
+        result.put("structuredDatasetCount", 1);
+        result.put("structuredObservationCount", 1);
+        result.put("financialData", List.of(dataset));
+        result.put("structuredData", List.of(dataset));
+        result.put("results", List.of(webPage));
+
+        String observation = builder.buildSuccessObservation(
+            "mcp_chatchat_mcp_server_web_search",
+            ToolOutput.success(result, "Unified search completed"),
+            "unused raw output"
+        );
+
+        assertThat(observation)
+            .contains("Structured analysis data (complete returned rows)")
+            .contains("\"analysisSource\"")
+            .contains("\"kind\":\"MCP_TOOL_RESULT\"")
+            .contains("\"toolName\":\"mcp_chatchat_mcp_server_web_search\"")
+            .contains("\"instrument\":\"sample-etf\"")
+            .contains("\"metric_a\":570000000")
+            .contains("\"metric_b\":-42000000");
+        assertThat(observation.indexOf("Structured analysis data (complete returned rows)"))
+            .isLessThan(observation.indexOf("Web citation map"));
+    }
+
+    @Test
     void sqlExecutionObservationPreservesRowsAndExplicitPartialSemantics() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("schemaVersion", "tool_execution_result.v1");
@@ -944,6 +986,37 @@ class ToolObservationBuilderEvidenceTest {
             .contains("type: WEB")
             .contains("citation: web://example.com/a#result=1")
             .contains("Web search summary");
+    }
+
+    @Test
+    void givesCompleteStructuredWebRowsToAnalysisModelWithoutPrecomputingTheConclusion() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "query", "最新融资融券数据",
+            "financialRows", List.of(
+                Map.of("symbol", "ETF-A", "financingBalance", 2400000000L,
+                    "financingBuy", 310000000L, "financingRepayment", 280000000L),
+                Map.of("symbol", "ETF-B", "financingBalance", 1400000000L,
+                    "financingBuy", 180000000L, "financingRepayment", 220000000L)
+            ),
+            "results", List.of(Map.of(
+                "title", "融资与对外担保制度",
+                "url", "https://example.com/unrelated",
+                "snippet", "公司治理制度"
+            ))
+        ), "ok");
+
+        String observation = builder.buildSuccessObservation("web_search", output, "");
+
+        assertThat(observation)
+            .contains("Structured analysis data (complete returned rows)")
+            .contains("structured_analysis_data.v1")
+            .contains("$.financialRows")
+            .contains("ETF-A", "2400000000", "310000000", "280000000")
+            .contains("ETF-B", "1400000000", "180000000", "220000000")
+            .contains("analyze the returned datasets and fields")
+            .contains("do not impose a predefined domain framework")
+            .contains("are not the analysis subject")
+            .doesNotContain("average", "minimum", "maximum");
     }
 
     @Test

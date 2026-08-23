@@ -144,6 +144,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         new HierarchicalAnalysisReducer();
     private final DeterministicInsightEngine deterministicInsightEngine =
         new DeterministicInsightEngine();
+    private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
     private final McpAnalysisContextAdapter mcpAnalysisContextAdapter;
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
@@ -3060,6 +3061,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- Use this answer order unless the user requests another format: direct conclusion; evidence-backed findings grouped by the user's requested dimensions; coverage and material limitations; smallest useful next action only when evidence is incomplete.\n");
         prompt.append("- Do not begin with asset discovery, template counts, tool calls, plan attempts, or execution chronology. Include execution details only when they explain evidence coverage, failure, or provenance requested by the user.\n");
         prompt.append("- Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer.\n");
+        prompt.append("- Data analysis is the deliverable; evidence plumbing is not. Unless the user explicitly asks for provenance, audit details, API debugging, or commands, do not create sections for evidence chains, API endpoints, tool calls, execution facts, diagnostic workflow, verification commands, or manual troubleshooting. Keep required citations inline and visually secondary.\n");
+        prompt.append("- For an analysis request, the opening conclusion and each major finding must state concrete returned values, comparisons, distributions, or anomalies and explain what they mean. HTTP success, endpoint availability, query completion, row counts, and coverage percentages are operational metadata, not analytical findings.\n");
+        prompt.append("- Do not replace analysis with a catalogue of what could be calculated or with repeated statements that values need expansion. If returned values exist, analyze them now. Mention a material limitation once, after the supported findings, and only for conclusions that the missing data actually blocks.\n");
         prompt.append("- Use source/document references only as support after the synthesized conclusion. Avoid copying retrieved heading paths or raw chunk structure unless the user explicitly asks for provenance.\n");
         prompt.append("- If retrieved text is noisy, deduplicate repeated headings, repair line-break artifacts, and summarize the underlying meaning instead of echoing the retrieval format.\n");
         prompt.append("- If a required metadata search was blocked by workflow dependency validation, report it as a runtime workflow blockage. Do not claim that enterprise standards, terms, dictionaries, or other governed metadata do not exist unless the corresponding search tool executed successfully and returned an empty result.\n");
@@ -3081,10 +3085,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- System instructions and conversation history provide behavior and context only. A documentId, timestamp, metric, command output, or concrete result appearing there is not current-turn evidence unless the executed attempts below return the same value.\n");
         prompt.append("- Resolve conflicts explicitly. If three iterations still leave a material gap, report that gap instead of filling it with model knowledge.\n");
         prompt.append("- Do not hide earlier partial or failed attempts when they contain usable evidence. State unresolved limitations after considering all attempts.\n");
-        prompt.append("- When diagnosticRun is present, report required/completed/failed/missing counts and the coverage ratio. List missing checks with their exact runtime reason.\n");
+        prompt.append("- diagnosticRun is internal completeness metadata, not the report subject. Use completed checks to produce data findings first. Only when an incomplete check materially limits the requested conclusion, mention that check and its exact runtime reason once in a short limitations paragraph after the analysis. Do not present diagnostic counts, coverage ratios, required-check tables, or optional-check inventories unless the user explicitly requests execution coverage or audit details.\n");
         prompt.append("- A missing diagnostic child with no ToolCallResult is NOT_EXECUTED. Do not speculate that it timed out, hit resource contention, lacked permissions, or failed remotely unless a child result explicitly records that status/reason.\n");
         prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
-        prompt.append("- For batch_execution_evidence.v1, enforce resultSetContract.mode=ONE_TEMPLATE_ONE_RESULT_SET: every results[] item is one independently addressable template result set identified by resultSetId and templateId. Never merge rows from different templates before interpreting their individual semantics. Preserve successful empty result sets as facts when the template contract defines empty as success. results[].dataset.rows contains the complete returned dataset; row coverage is losslessly processed through record_grounded_analysis.v1 chunk summaries, never capped or sampled. numericProfiles are mechanical statistics: use sum only when the field semantics prove additivity, and never sum identifiers, dates, prices, rates, or categorical codes merely because they are numeric. Never reduce a successful non-empty batch to execution metadata or claim that concrete values are unavailable when these dataset fields are present.\n");
+        prompt.append("- For batch_execution_evidence.v1, enforce resultSetContract.mode=ONE_TEMPLATE_ONE_RESULT_SET: every results[] item is one independently addressable template result set identified by resultSetId and templateId. Never merge rows from different templates before interpreting their individual semantics. Preserve successful empty result sets as facts when the template contract defines empty as success. results[].dataset.rows or results[].datasets[].rows contains the complete returned dataset; path identifies the original nested JSON location. Row coverage is losslessly processed through record_grounded_analysis.v1 chunk summaries, never capped or sampled. numericProfiles are mechanical statistics: use sum only when the field semantics prove additivity, and never sum identifiers, dates, prices, rates, or categorical codes merely because they are numeric. Never reduce a successful non-empty batch to execution metadata or claim that concrete values are unavailable when these dataset fields are present.\n");
         prompt.append(analysisSummaryGovernanceBridge.finalSynthesisInstruction());
         prompt.append("- Mandatory analysis deliverable: tables and returned rows are evidence attachments, not the summary itself. For every non-empty structured dataset, write a business-readable analysis paragraph using its governed analysisContext. State the dataset identity and purpose, explain material values/differences/anomalies supported by the rows, and relate datasets only when relationships are explicitly supplied. A heading, data-source label, row count, or table without analytical findings is incomplete.\n");
         prompt.append("- A successful template inventory is not a business result. When returned rows exist, do not replace them with phrases such as '可返回', '可获取', '可计算', template capability descriptions, or execution-count tables. Present the returned values first; execution metadata is secondary.\n");
@@ -4045,7 +4049,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (!linuxSets.isEmpty()) {
             return linuxSets;
         }
-        return externalizedPreviewRecordSets(output, reference, toolMetadata, rootAnalysisContext);
+        List<BatchRecordSet> externalizedSets = externalizedPreviewRecordSets(
+            output, reference, toolMetadata, rootAnalysisContext);
+        if (!externalizedSets.isEmpty()) {
+            return externalizedSets;
+        }
+        return structuredDataProjector.project(output).stream()
+            .map(dataset -> new BatchRecordSet(
+                reference + dataset.path(), rootAnalysisContext, dataset.rows()))
+            .toList();
     }
 
     /**
@@ -4400,31 +4412,30 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 metadata.put("recordAnalysisEveryRecordReferencedByModel", everyRecordReferenced);
                 metadata.put("recordAnalysisGovernedSummaryCount", governedSummaryCount);
             }
-            return firstNonBlank(governedAnswer, "")
-                + "\n\n> 证据覆盖：已处理 " + coverage.processedRecordCount() + "/"
-                + coverage.returnedRecordCount() + " 条返回记录，共形成 "
-                + governedSummaryCount + " 个受治理证据摘要；该说明仅表示覆盖范围，不构成新增结论。";
+            return governedAnswer;
         }
         if (metadata != null) {
-            metadata.put("recordAnalysisCoverageAppendixApplied", true);
+            metadata.put("recordAnalysisCoverageAppendixApplied", false);
+            metadata.put("recordAnalysisDataFallbackApplied", true);
             metadata.put("recordAnalysisEveryRecordReferencedByModel", everyRecordReferenced);
         }
+        String limitation = !coverage.coverageComplete()
+            ? "\n\n> 限制：部分已返回数据未完成分析，当前结论仅基于已处理数据。"
+            : !coverage.sourceContentComplete()
+                ? "\n\n> 限制：以上结果仅基于已返回的预览数据，不能代表完整源数据。"
+                : "";
         return firstNonBlank(governedAnswer, "")
-            + "\n\n## \u5168\u91cf\u8bb0\u5f55\u8986\u76d6\u5206\u6790\n\n"
+            + "\n\n## 已返回数据\n\n"
             + coverage.appendix()
-            + "\n\u8986\u76d6\u6821\u9a8c\uff1a"
-            + coverage.processedRecordCount() + "/" + coverage.returnedRecordCount()
-            + (!coverage.coverageComplete()
-                ? "\uff08\u672a\u5b8c\u6574\uff09"
-                : coverage.sourceContentComplete()
-                    ? "\uff08\u5b8c\u6574\uff09"
-                    : "\uff08\u5df2\u5b8c\u6574\u5904\u7406\u8fd4\u56de\u9884\u89c8\uff0c\u6e90\u5185\u5bb9\u4e0d\u5b8c\u6574\uff09");
+            + limitation;
     }
 
     private String ensureGovernedNarrativeAnalysis(String answer,
                                                    RecordCoverageBundle coverage,
                                                    Map<String, Object> metadata) {
-        if (hasNarrativeAnalysis(answer)) {
+        boolean containsReturnedValue = coverage.recordValueGroups().stream()
+            .anyMatch(values -> containsAnyConcreteValue(answer, values));
+        if (hasNarrativeAnalysis(answer) && containsReturnedValue) {
             return answer;
         }
         List<AnalysisSummaryResult> modelSummaries = coverage.summaryResults().stream()
@@ -4435,7 +4446,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             if (metadata != null) metadata.put("governedNarrativeAnalysisUnavailable", true);
             return answer;
         }
-        StringBuilder appendix = new StringBuilder(firstNonBlank(answer, ""));
+        StringBuilder appendix = new StringBuilder(
+            containsReturnedValue ? firstNonBlank(answer, "") : "");
         appendix.append("\n\n## 数据分析总结\n\n");
         for (AnalysisSummaryResult summary : modelSummaries) {
             String dataset = stringValue(summary.position().get("datasetReference"));
@@ -4448,6 +4460,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         if (metadata != null) {
             metadata.put("governedNarrativeAnalysisAppended", true);
+            metadata.put("governedNarrativeAnalysisReplacedOperationalDraft", !containsReturnedValue);
             metadata.put("governedNarrativeAnalysisSummaryCount", modelSummaries.size());
         }
         return appendix.toString().trim();
@@ -5900,17 +5913,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     "dimension", check.dimension(),
                     "reason", firstNonBlank(check.reason(), "missing_diagnostic_evidence")
                 ));
-            }
-            conclusions.add("Diagnostic coverage completed "
-                + diagnosticRun.coverage().completed() + "/" + diagnosticRun.coverage().required()
-                + " required checks in this attempt.");
-            if (diagnosticRun.confidenceEngine() != null) {
-                conclusions.add("Weighted evidence coverage is "
-                    + diagnosticRun.confidenceEngine().weightedCoverage()
-                    + " with evidence level "
-                    + diagnosticRun.confidenceEngine().evidenceLevel()
-                    + "; completion status="
-                    + diagnosticRun.confidenceEngine().completionStatus() + ".");
             }
         }
         for (Map<String, Object> item : toolEvidence) {
@@ -7530,8 +7532,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
             if (diagnosticAssessment != null) {
                 metadata.put("diagnosticAssessment", diagnosticAssessment);
             }
-            observations.add("InterpretationPlan " + stage + " diagnostic coverage: "
-                + shortObservationText(stringify(diagnosticRun), 2000));
         }
         if (result.errorMessage() != null && !result.errorMessage().isBlank()) {
             metadata.put("interpretationPlan" + capitalize(stage) + "Error", result.errorMessage());

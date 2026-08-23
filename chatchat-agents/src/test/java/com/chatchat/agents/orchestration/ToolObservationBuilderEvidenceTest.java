@@ -146,6 +146,50 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void batchExecutionEvidenceProjectsNestedHttpJsonWithoutDomainSpecificFieldNames() {
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "http-health", "PARALLEL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(2, 2, 0, 0, 0, 2),
+            List.of(
+                new ToolCallResult(
+                    "metrics", "http_request_execute", "metrics-template", "asset-metrics",
+                    "SUCCESS", 10L, "e-metrics",
+                    Map.of("data", Map.of("statusCode", 200, "body", Map.of(
+                        "serviceMetrics", Map.of(
+                            "totalMemory", 98304,
+                            "availableMemory", 98304,
+                            "totalCores", 96,
+                            "allocatedCores", 0)))),
+                    Map.of()),
+                new ToolCallResult(
+                    "nodes", "http_request_execute", "nodes-template", "asset-nodes",
+                    "SUCCESS", 11L, "e-nodes",
+                    Map.of("data", Map.of("statusCode", 200, "body", """
+                        {"members":{"member":[
+                          {"id":"node-1","state":"HEALTHY","usedMemory":0,"usedCores":0},
+                          {"id":"node-2","state":"HEALTHY","usedMemory":0,"usedCores":0}
+                        ]}}
+                        """)),
+                    Map.of())
+            ));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_http_request_execute", batch);
+
+        assertThat(evidence)
+            .contains("\"datasets\"")
+            .contains("\"path\":\"$.data.body.serviceMetrics\"")
+            .contains("\"recordCount\":1")
+            .contains("\"totalMemory\":98304")
+            .contains("\"availableMemory\":98304")
+            .contains("\"path\":\"$.data.body.members.member\"")
+            .contains("\"recordCount\":2")
+            .contains("\"id\":\"node-1\"")
+            .contains("\"state\":\"HEALTHY\"")
+            .doesNotContain("concrete values are unavailable");
+    }
+
+    @Test
     void batchExecutionKeepsEachSqlTemplateAsAnIndependentResultSetIncludingEmptySuccess() {
         ToolCallBatchResult batch = new ToolCallBatchResult(
             "oracle-health", "SEQUENTIAL", "start", "end", "SUCCESS",

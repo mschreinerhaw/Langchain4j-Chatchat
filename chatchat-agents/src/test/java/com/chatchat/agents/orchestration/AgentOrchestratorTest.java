@@ -679,6 +679,10 @@ class AgentOrchestratorTest {
             .contains("Do not make the tool evidence list, document heading path, execution trace, or JSON field names the body of the answer")
             .contains("Primary answer contract (outcome-first)")
             .contains("Do not begin with asset discovery, template counts, tool calls, plan attempts, or execution chronology")
+            .contains("Data analysis is the deliverable; evidence plumbing is not")
+            .contains("HTTP success, endpoint availability, query completion, row counts, and coverage percentages are operational metadata, not analytical findings")
+            .contains("do not create sections for evidence chains, API endpoints, tool calls, execution facts")
+            .contains("If returned values exist, analyze them now")
             .contains("Treat commandContext as the authoritative description and execution-lineage map")
             .contains("Follow the reference to the canonical data object and summarize that object once")
             .contains("write the user-facing answer by finding or requested dimension rather than by execution order")
@@ -1237,8 +1241,7 @@ class AgentOrchestratorTest {
                     "authority=RUNTIME_REQUEST_CONTEXT"));
         assertThat(answer)
             .contains("chunk evidence summary")
-            .contains("60/60")
-            .contains("受治理证据摘要")
+            .doesNotContain("60/60", "证据覆盖", "受治理证据摘要")
             .doesNotContain("\u5168\u91cf\u8bb0\u5f55\u8986\u76d6\u5206\u6790", "value-59-");
         assertThat(metadata)
             .containsEntry("recordAnalysisCoverageComplete", true)
@@ -1418,6 +1421,7 @@ class AgentOrchestratorTest {
             .contains("数据分析总结", "资产与盈亏概览", "总资产为 847174.25", "当日盈亏为 42263.81");
         assertThat(metadata)
             .containsEntry("governedNarrativeAnalysisAppended", true)
+            .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true)
             .containsEntry("governedNarrativeAnalysisSummaryCount", 1);
         verify(model).chat(argThat((String prompt) ->
             prompt.contains("客户资产快照")
@@ -1585,11 +1589,13 @@ class AgentOrchestratorTest {
             .contains("PARTIAL_PREVIEW")
             .contains("absence from a preview never proves absence in the target");
         assertThat(guardedAnswer)
-            .contains("全量记录覆盖分析", "324493", "inceptor-executor",
-                "覆盖校验：1/1（已完整处理返回预览，源内容不完整）");
+            .contains("已返回数据", "324493", "inceptor-executor",
+                "仅基于已返回的预览数据")
+            .doesNotContain("全量记录覆盖分析", "覆盖校验：1/1");
         assertThat(metadata)
             .containsEntry("recordAnalysisSourceContentComplete", false)
-            .containsEntry("recordAnalysisCoverageAppendixApplied", true);
+            .containsEntry("recordAnalysisCoverageAppendixApplied", false)
+            .containsEntry("recordAnalysisDataFallbackApplied", true);
         verify(model, never()).chat(any(String.class));
     }
 
@@ -2367,6 +2373,52 @@ class AgentOrchestratorTest {
         assertThat(((java.util.Set<?>) snapshot.get("previouslyCompletedDiagnosticChecks")).stream()
             .map(String::valueOf).toList())
             .contains("databaseavailability");
+    }
+
+    @Test
+    void nestedHttpJsonParticipatesInGovernedRecordAnalysis() {
+        Map<String, Object> output = Map.of(
+            "schemaVersion", "tool_execution_result.v1",
+            "data", Map.of(
+                "statusCode", 200,
+                "body", Map.of(
+                    "cluster", Map.of(
+                        "totalMemory", 98304,
+                        "availableMemory", 98304,
+                        "totalCores", 96,
+                        "allocatedCores", 0),
+                    "nodes", Map.of("node", List.of(
+                        Map.of("id", "node-1", "state", "HEALTHY", "usedMemory", 0),
+                        Map.of("id", "node-2", "state", "HEALTHY", "usedMemory", 0)
+                    ))
+                )
+            )
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "http_request_execute", true,
+                output, null, null, null, 10L, Map.of())),
+            Map.of(), 10L);
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("""
+            {"summary":"Returned metrics analyzed.","facts":[],"entities":[],
+             "crossChunkKeys":[],"conflicts":[],"limitations":[],"rawReplayRecommended":false}
+            """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(
+                model, "analyze cluster resources", result, Map.of(), metadata, () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(3);
+        assertThat(coverage.processedRecordCount()).isEqualTo(3);
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.promptEvidence())
+            .contains("totalMemory", "98304", "node-1", "node-2", "HEALTHY");
+        assertThat(metadata)
+            .containsEntry("recordAnalysisReturnedRecordCount", 3)
+            .containsEntry("recordAnalysisCoverageComplete", true);
     }
 
     @Test

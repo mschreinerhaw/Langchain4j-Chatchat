@@ -58,6 +58,7 @@ class ToolObservationBuilder {
     private final IndirectPromptInjectionDetector promptInjectionDetector = new IndirectPromptInjectionDetector();
     private final StructuredReasoningEvidenceAdapterRegistry structuredEvidenceAdapters =
         new StructuredReasoningEvidenceAdapterRegistry();
+    private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
 
     ToolObservationBuilder(EvidenceTrustEvaluator evidenceTrustEvaluator) {
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
@@ -436,7 +437,7 @@ class ToolObservationBuilder {
         projection.put("projection", Map.of(
             "completeChildSetIncluded", true,
             "completeRowsIncluded", true,
-            "recordRowsField", "results[].dataset.rows",
+            "recordRowsField", "results[].dataset.rows or results[].datasets[].rows",
             "analysisMode", "LOSSLESS_CHUNK_SUMMARY",
             "maximumNumericProfileColumnsPerChild", BATCH_NUMERIC_PROFILE_COLUMNS_PER_CHILD,
             "allRawRowsLocation", "toolTrace",
@@ -481,17 +482,36 @@ class ToolObservationBuilder {
             projection.put("resultSetState", dataset.records().isEmpty() ? "EMPTY" : "RETURNED");
             projection.put("emptyResult", dataset.records().isEmpty());
         } else {
-            Object bodyValue = data.get("body");
-            Map<String, Object> body = asMap(bodyValue);
-            projection.put("resultSetState", result.evidenceUsable() ? "NON_TABULAR" : "UNAVAILABLE");
-            if (!body.isEmpty()) {
-                Map<String, Object> returnedBody = new LinkedHashMap<>(body);
-                returnedBody.remove("rawBody");
-                projection.put("returnedBody", returnedBody);
+            List<StructuredDataProjector.Dataset> projectedDatasets =
+                structuredDataProjector.project(result.output());
+            if (!projectedDatasets.isEmpty()) {
+                List<Map<String, Object>> datasets = projectedDatasets.stream()
+                    .map(item -> {
+                        Map<String, Object> projected = new LinkedHashMap<>(
+                            batchDatasetProjection(item.rows(), Map.of()));
+                        projected.put("path", item.path());
+                        return Map.copyOf(projected);
+                    })
+                    .toList();
+                projection.put("datasets", datasets);
+                if (datasets.size() == 1) {
+                    projection.put("dataset", datasets.get(0));
+                }
+                projection.put("resultSetState", "RETURNED");
+                projection.put("emptyResult", false);
             } else {
-                Map<String, Object> returnedOutput = new LinkedHashMap<>(output);
-                returnedOutput.remove("rawBody");
-                projection.put("returnedOutput", returnedOutput);
+                Object bodyValue = data.get("body");
+                Map<String, Object> body = asMap(bodyValue);
+                projection.put("resultSetState", result.evidenceUsable() ? "NON_TABULAR" : "UNAVAILABLE");
+                if (!body.isEmpty()) {
+                    Map<String, Object> returnedBody = new LinkedHashMap<>(body);
+                    returnedBody.remove("rawBody");
+                    projection.put("returnedBody", returnedBody);
+                } else {
+                    Map<String, Object> returnedOutput = new LinkedHashMap<>(output);
+                    returnedOutput.remove("rawBody");
+                    projection.put("returnedOutput", returnedOutput);
+                }
             }
         }
         return Map.copyOf(projection);

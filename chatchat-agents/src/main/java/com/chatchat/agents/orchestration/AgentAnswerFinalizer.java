@@ -20,6 +20,7 @@ import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.interaction.UserFacingAnswerSanitizer;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -240,6 +241,12 @@ class AgentAnswerFinalizer {
         finalAnswer = applyUserFacingEvidenceReferencePolicy(finalAnswer, query, values);
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         attachGovernedSummaryResult(finalAnswer, values, traces, observations);
+        String userFacingAnswer = UserFacingAnswerSanitizer.sanitize(finalAnswer);
+        if (!userFacingAnswer.equals(finalAnswer)) {
+            values.put("userFacingReconciliationDetailsSuppressed", true);
+        }
+        finalAnswer = userFacingAnswer;
+        values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         return new AgentOrchestrator.AgentExecutionResult(
             finalAnswer,
             traces == null ? List.of() : List.copyOf(traces),

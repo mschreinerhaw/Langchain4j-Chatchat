@@ -79,6 +79,38 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    void alwaysRemovesInternalReconciliationIndexFromUserFacingAnswer() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String answer = """
+            证据索引 SQL-1 =`9001fee4-482b-4851-9eb9-df269765291f:acde92df-f1bb-45a2-91ac-88fd10504f15:mcp_chatchat_mcp_server_sql_schema_context_query#chunk-1`
+
+            已召回五张候选表 [SQL-1]，请结合业务口径确认 [STEP-1]。
+            """;
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "请注明来源并提供审计信息",
+            null,
+            List.of(),
+            new LinkedHashMap<>(),
+            List.of(),
+            answer,
+            () -> false,
+            "completed"
+        );
+
+        assertThat(result.answer())
+            .isEqualTo("已召回五张候选表，请结合业务口径确认。")
+            .doesNotContain("证据索引", "SQL-1", "STEP-1", "#chunk-1");
+        assertThat(result.metadata())
+            .containsEntry("userFacingReconciliationDetailsSuppressed", true);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void reportsFailedBatchAsFailureEvenWhenTransportSucceeded() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(

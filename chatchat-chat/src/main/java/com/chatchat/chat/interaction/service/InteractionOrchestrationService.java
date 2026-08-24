@@ -5,6 +5,7 @@ import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.image.ImageUnderstandingService;
+import com.chatchat.common.interaction.UserFacingAnswerSanitizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -117,6 +118,8 @@ public class InteractionOrchestrationService {
                 .answer("No response generated")
                 .build();
         }
+
+        response.setAnswer(UserFacingAnswerSanitizer.sanitize(response.getAnswer()));
 
         if (response.getAnswer() != null && !response.getAnswer().isBlank()) {
             memoryService.append(

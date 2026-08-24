@@ -1,7 +1,6 @@
 package com.chatchat.mcpserver.api;
 
 import io.modelcontextprotocol.server.McpSyncServer;
-import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -11,25 +10,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiRequirementAnalysisMcpToolPublisherTest {
 
     @Test
-    void publishesQueryShorthandWithoutIncorrectlyRequiringStructuredRequirements() {
+    void refreshKeepsRequirementAnalysisInternalToTheApiBridge() {
         McpSyncServer server = mock(McpSyncServer.class);
         ApiRequirementAnalysisMcpToolPublisher publisher = new ApiRequirementAnalysisMcpToolPublisher(
             server, mock(ApiTemplateDiscoveryMcpToolPublisher.class));
 
         publisher.refresh();
 
-        ArgumentCaptor<io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification> specification =
-            ArgumentCaptor.forClass(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
-        verify(server).addTool(specification.capture());
-        assertThat(specification.getValue().tool().inputSchema().properties())
-            .containsKeys("query", "requirements");
-        assertThat(specification.getValue().tool().inputSchema().required()).isEmpty();
+        verify(server).removeTool(ApiRequirementAnalysisMcpToolPublisher.TOOL_NAME);
+        verify(server, never()).addTool(any());
+        verify(server, never()).notifyToolsListChanged();
     }
 
     @Test

@@ -297,7 +297,8 @@ class EnterpriseMetadataMcpToolPublisherTest {
         verify(server).addTool(tool.capture());
         assertThat(tool.getValue().tool().name())
             .isEqualTo(EnterpriseMetadataMcpToolPublisher.TOOL_NAME);
-        Map<String, Object> properties = tool.getValue().tool().inputSchema().properties();
+        Map<String, Object> properties =
+            (Map<String, Object>) tool.getValue().tool().inputSchema().get("properties");
         assertThat((Map<String, Object>) properties.get("limit"))
             .containsEntry("minimum", 1)
             .doesNotContainKey("maximum");

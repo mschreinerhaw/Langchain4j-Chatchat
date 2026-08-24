@@ -57,7 +57,6 @@
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp</artifactId>
-            <version>1.1.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.modelcontextprotocol.sdk</groupId>
@@ -68,7 +67,6 @@
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp-json-jackson2</artifactId>
-            <version>1.1.1</version>
         </dependency>
 
         <dependency>

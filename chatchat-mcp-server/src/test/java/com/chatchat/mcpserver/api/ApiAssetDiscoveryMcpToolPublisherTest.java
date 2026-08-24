@@ -14,13 +14,14 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiAssetDiscoveryMcpToolPublisherTest {
 
     @Test
-    void refreshExposesApiAssetQueryTool() {
+    void refreshKeepsApiAssetQueryInternalToTheApiBridge() {
         McpSyncServer server = mock(McpSyncServer.class);
         ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
             server,
@@ -30,12 +31,9 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
 
         publisher.refresh();
 
-        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> captor =
-            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
         verify(server).removeTool(ApiAssetDiscoveryMcpToolPublisher.TOOL_NAME);
-        verify(server).addTool(captor.capture());
-        assertThat(captor.getValue().tool().name()).isEqualTo(ApiAssetDiscoveryMcpToolPublisher.TOOL_NAME);
-        verify(server).notifyToolsListChanged();
+        verify(server, never()).addTool(org.mockito.ArgumentMatchers.any());
+        verify(server, never()).notifyToolsListChanged();
     }
 
     @Test

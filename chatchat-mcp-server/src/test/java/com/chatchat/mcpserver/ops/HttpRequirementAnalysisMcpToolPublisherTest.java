@@ -27,9 +27,9 @@ class HttpRequirementAnalysisMcpToolPublisherTest {
         ArgumentCaptor<io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification> specification =
             ArgumentCaptor.forClass(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
         verify(server).addTool(specification.capture());
-        assertThat(specification.getValue().tool().inputSchema().properties())
+        assertThat((Map<String, Object>) specification.getValue().tool().inputSchema().get("properties"))
             .containsKeys("query", "requirements");
-        assertThat(specification.getValue().tool().inputSchema().required()).isEmpty();
+        assertThat((List<?>) specification.getValue().tool().inputSchema().get("required")).isEmpty();
         verify(server).notifyToolsListChanged();
     }
 

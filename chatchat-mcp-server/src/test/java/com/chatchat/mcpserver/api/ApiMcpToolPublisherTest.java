@@ -33,7 +33,8 @@ class ApiMcpToolPublisherTest {
 
         verify(mcpSyncServer).addTool(org.mockito.ArgumentMatchers.argThat(specification ->
             ApiMcpToolPublisher.BRIDGE_TOOL_NAME.equals(specification.tool().name())));
-        verify(mcpSyncServer).addTool(executor);
+        verify(mcpSyncServer).addTool(org.mockito.ArgumentMatchers.argThat(specification ->
+            ApiMcpToolPublisher.EXECUTE_TOOL_NAME.equals(specification.tool().name())));
         verify(mcpSyncServer).notifyToolsListChanged();
     }
 }

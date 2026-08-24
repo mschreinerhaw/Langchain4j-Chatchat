@@ -133,6 +133,36 @@ class UiArtifactServiceTest {
     }
 
     @Test
+    void removesReconciliationIndexFromStoredArtifactAnswer() {
+        Fixture fixture = fixture(64);
+        String answer = """
+            # 证券持仓信息表设计方案（证据校准版）
+
+            本方案为人工设计草案。
+
+            ## 证据索引
+
+            SQL-1 = `9001fee4-482b-4851-9eb9-df269765291f:acde92df-f1bb-45a2-91ac-88fd10504f15:mcp_chatchat_mcp_server_sql_schema_context_query#chunk-1`
+            META-1 = `9001fee4-482b-4851-9eb9-df269765291f:acde92df-f1bb-45a2-91ac-88fd10504f15:mcp_chatchat_mcp_server_enterprise_metadata_search#chunk-1`
+            STEP-1 = `iteration:1:step:1:tool:mcp_chatchat_mcp_server_sql_schema_context_query`
+            """;
+
+        UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
+            "tenant-a", "task-reconciliation-report", Map.of(
+                "answer", answer,
+                "status", "SUCCESS"
+            ));
+
+        String artifactId = String.valueOf(presentation.reference().get("artifactId"));
+        assertThat(fixture.service().resource("tenant-a", artifactId, "answer"))
+            .hasValue("# 证券持仓信息表设计方案（证据校准版）\n\n本方案为人工设计草案。")
+            .hasValueSatisfying(value -> assertThat(String.valueOf(value))
+                .doesNotContain("证据索引", "SQL-1", "META-1", "STEP-1", "#chunk-1"));
+        assertThat(String.valueOf(presentation.uiResponse().get("answer")))
+            .doesNotContain("证据索引", "SQL-1", "META-1", "STEP-1", "#chunk-1");
+    }
+
+    @Test
     void prefersExplicitHtmlAndPersistsItAsAnHtmlFile() {
         Fixture fixture = fixture(64);
         String html = "<section class=\"custom-report\"><h1>Dynamic report</h1></section>";
@@ -229,6 +259,23 @@ class UiArtifactServiceTest {
         assertThat(presentation.externalized()).isFalse();
         assertThat(presentation.uiResponse()).isEqualTo(response);
         assertThat(presentation.reference()).isNull();
+        assertThat(fixture.entities()).isEmpty();
+    }
+
+    @Test
+    void sanitizesInlineUiResponseWhenArtifactExternalizationIsSkipped() {
+        Fixture fixture = fixture(10_000, false);
+        Map<String, Object> response = Map.of(
+            "answer", "结论 [SQL-1]。\n\n## 证据索引\nSQL-1 = `iteration:1:step:1:tool:mcp_server_tool`",
+            "status", "SUCCESS"
+        );
+
+        UiArtifactService.Presentation presentation = fixture.service().externalizeIfNeeded(
+            "tenant-a", "task-inline-sanitize", response);
+
+        assertThat(presentation.externalized()).isFalse();
+        assertThat(presentation.uiResponse()).containsEntry("answer", "结论。")
+            .doesNotContainValue(response.get("answer"));
         assertThat(fixture.entities()).isEmpty();
     }
 

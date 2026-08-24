@@ -14,14 +14,63 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class McpInvocationLoggingFilterTest {
+
+    @Test
+    void restoresCallerContextFromStandardMcpRequestMeta() throws Exception {
+        InvocationAuditService auditService = mock(InvocationAuditService.class);
+        McpLicenseService licenseService = mock(McpLicenseService.class);
+        McpAuthorizationService authorizationService = mock(McpAuthorizationService.class);
+        when(licenseService.toolDenialReason("python_analysis_query")).thenReturn(null);
+        when(authorizationService.authorize(eq("python_analysis_query"), anyMap()))
+            .thenReturn(McpAuthorizationService.AuthorizationDecision.allowDecision());
+        McpInvocationLoggingFilter filter = new McpInvocationLoggingFilter(
+            auditService,
+            new ObjectMapper(),
+            new McpAuthorizationProperties(),
+            authorizationService,
+            licenseService,
+            mock(McpServiceRegistryService.class)
+        );
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
+        request.setContentType("application/json");
+        request.setContent("""
+            {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+              "name":"python_analysis_query",
+              "arguments":{"query":"分析持仓数据"},
+              "_meta":{
+                "traceId":"request-1",
+                "tenant":{"tenantId":"tenant-1"},
+                "user":{"userId":"user-1","username":"analyst","roles":"role-a"}
+              }
+            }}
+            """.getBytes(StandardCharsets.UTF_8));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+        McpInvocationContext.Context[] captured = new McpInvocationContext.Context[1];
+        doAnswer(invocation -> {
+            captured[0] = McpInvocationContext.current();
+            return null;
+        }).when(chain).doFilter(any(), any());
+
+        filter.doFilterInternal(request, response, chain);
+
+        assertThat(captured[0]).isNotNull();
+        assertThat(captured[0].tenantId()).isEqualTo("tenant-1");
+        assertThat(captured[0].userId()).isEqualTo("user-1");
+        assertThat(captured[0].username()).isEqualTo("analyst");
+        assertThat(captured[0].roles()).isEqualTo("role-a");
+        assertThat(captured[0].traceId()).isEqualTo("request-1");
+    }
 
     @Test
     void rejectsMcpInitializationWhenLicenseIsExpired() throws Exception {

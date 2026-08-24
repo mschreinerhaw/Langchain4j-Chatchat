@@ -48,10 +48,11 @@ public class UiArtifactService {
     public Presentation externalizeIfNeeded(String tenantId,
                                             String taskId,
                                             Map<String, Object> uiResponse) {
+        uiResponse = UserFacingContentSanitizer.sanitizeUiResponse(uiResponse);
         if (!properties.isEnabled() || uiResponse == null || uiResponse.isEmpty()
             || (!properties.isAlwaysExternalize()
                 && serializedSize(uiResponse) < properties.getExternalizeThresholdBytes())) {
-            return new Presentation(uiResponse == null ? Map.of() : uiResponse, null, false);
+            return new Presentation(uiResponse, null, false);
         }
 
         String artifactId = "ui_" + UUID.randomUUID().toString().replace("-", "");

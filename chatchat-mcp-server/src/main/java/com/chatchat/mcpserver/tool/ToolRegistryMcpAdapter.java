@@ -11,7 +11,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
-import com.chatchat.mcpserver.mcp.McpInvocationContext;
+import com.chatchat.mcpserver.mcp.McpInvocationArguments;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -157,7 +157,7 @@ public class ToolRegistryMcpAdapter {
         McpSchema.CallToolRequest request
     ) {
         Map<String, Object> arguments = applyDefaults(metadata, request.arguments());
-        injectProtocolContext(toolName, arguments);
+        injectProtocolContext(toolName, arguments, request.meta());
         McpAuthorizationService.AuthorizationDecision authorization = authorizationService.authorize(toolName, arguments);
         if (!authorization.allowed()) {
             log.warn("MCP server tool call denied tool={} reason={}", toolName, authorization.reason());
@@ -237,43 +237,8 @@ public class ToolRegistryMcpAdapter {
         return null;
     }
 
-    private void injectProtocolContext(String toolName, Map<String, Object> arguments) {
-        McpInvocationContext.Context context = McpInvocationContext.current();
-        if (context == null || arguments == null) {
-            return;
-        }
-        putIfAbsent(arguments, "tenantId", context.tenantId());
-        putIfAbsent(arguments, "userId", context.userId());
-        putIfAbsent(arguments, "roles", context.roles());
-        putIfAbsent(arguments, "traceId", context.traceId());
-        if (!isDocumentSearchToolName(toolName)) {
-            putIfAbsent(arguments, "workspaceId", context.workspaceId());
-            putIfAbsent(arguments, "env", context.environment());
-            putIfAbsent(arguments, "username", context.username());
-            putIfAbsent(arguments, "assetType", context.assetType());
-            putIfAbsent(arguments, "domain", context.domain());
-            putIfAbsent(arguments, "permissionLevel", context.permissionLevel());
-            putIfAbsent(arguments, "scopeExpression", context.scopeExpression());
-        }
-        Map<String, Object> mcpContext = new LinkedHashMap<>();
-        mcpContext.put("traceId", context.traceId());
-        mcpContext.put("user", Map.of(
-            "userId", context.userId() == null ? "" : context.userId(),
-            "username", context.username() == null ? "" : context.username(),
-            "roles", context.roles() == null ? "" : context.roles()
-        ));
-        mcpContext.put("tenant", Map.of(
-            "tenantId", context.tenantId() == null ? "" : context.tenantId(),
-            "workspaceId", context.workspaceId() == null ? "" : context.workspaceId(),
-            "env", context.environment() == null ? "" : context.environment()
-        ));
-        mcpContext.put("scope", Map.of(
-            "assetType", context.assetType() == null ? "" : context.assetType(),
-            "domain", context.domain() == null ? "" : context.domain(),
-            "permissionLevel", context.permissionLevel() == null ? "" : context.permissionLevel(),
-            "scopeExpression", context.scopeExpression() == null ? "" : context.scopeExpression()
-        ));
-        arguments.putIfAbsent("mcpContext", mcpContext);
+    void injectProtocolContext(String toolName, Map<String, Object> arguments, Map<String, Object> requestMeta) {
+        McpInvocationArguments.enrich(toolName, arguments, requestMeta);
     }
 
     private void putIfAbsent(Map<String, Object> arguments, String key, String value) {

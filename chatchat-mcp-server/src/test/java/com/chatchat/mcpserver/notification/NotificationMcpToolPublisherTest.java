@@ -35,7 +35,8 @@ class NotificationMcpToolPublisherTest {
 
         publisher.refresh();
 
-        verify(mcpSyncServer).addTool(specification);
+        verify(mcpSyncServer).addTool(org.mockito.ArgumentMatchers.argThat(published ->
+            "notify_email".equals(published.tool().name())));
         verify(mcpSyncServer).notifyToolsListChanged();
     }
 

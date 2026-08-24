@@ -1,11 +1,15 @@
 package com.chatchat.mcpserver.tool;
 
 import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.mcpserver.mcp.McpInvocationArguments;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.spec.McpSchema;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Central naming gate for tools added to a running MCP server. */
 public final class McpToolPublicationReviewer {
@@ -29,7 +33,23 @@ public final class McpToolPublicationReviewer {
                 .toList());
             publicationNames.add(pendingName);
             McpToolNamePolicy.auditPublicationNames(publicationNames);
-            server.addTool(specification);
+            server.addTool(withInvocationContext(specification));
         }
+    }
+
+    private static McpServerFeatures.SyncToolSpecification withInvocationContext(
+        McpServerFeatures.SyncToolSpecification specification
+    ) {
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(specification.tool())
+            .callHandler((exchange, request) -> {
+                Map<String, Object> arguments = new LinkedHashMap<>(
+                    request.arguments() == null ? Map.of() : request.arguments());
+                McpInvocationArguments.enrich(request.name(), arguments, request.meta());
+                McpSchema.CallToolRequest enrichedRequest = new McpSchema.CallToolRequest(
+                    request.name(), arguments, request.meta());
+                return specification.callHandler().apply(exchange, enrichedRequest);
+            })
+            .build();
     }
 }

@@ -79,6 +79,15 @@ public class McpGatewayClient {
     private static final String STATE_SUCCEEDED = "SUCCEEDED";
     private static final String STATE_FAILED = "FAILED";
     private static final String STATE_STOPPED = "STOPPED";
+    private static final Set<String> STANDALONE_TRANSPORT_CONTEXT_ARGUMENTS = Set.of(
+        "tenantId", "tenant_id", "tenant",
+        "userId", "user_id", "username", "userName",
+        "roles", "roleIds",
+        "requestId", "request_id", "traceId", "trace_id",
+        "conversationId", "conversation_id",
+        "mcpExecutionContext", "mcpContext",
+        "defaultDataAsset", "assetSelectionPolicy"
+    );
 
     private final ObjectMapper objectMapper;
     private final McpCenterProperties centerProperties;
@@ -476,8 +485,11 @@ public class McpGatewayClient {
     private McpToolInvokeResult invokeSdkTool(McpServiceConfig config, TransportKind kind, int requestTimeoutMs,
                                               String toolName, Map<String, Object> arguments) {
         McpSyncClient client = getOrCreateSdkClient(config, kind, requestTimeoutMs, toolName);
-        Object raw = client.callTool(new McpSchema.CallToolRequest(toolName,
-            arguments == null ? Map.of() : arguments));
+        Object raw = client.callTool(new McpSchema.CallToolRequest(
+            toolName,
+            toolArgumentsForTransport(config, arguments),
+            invocationMeta(arguments)
+        ));
         Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
         return normalizeInvokeResult(mapped);
     }
@@ -515,8 +527,13 @@ public class McpGatewayClient {
             try {
                 Map<String, Object> params = new LinkedHashMap<>();
                 params.put("name", toolName);
-                params.put("arguments", arguments == null ? Map.of() : arguments);
-                Object raw = directJsonRpcRequest(session, "tools/call", params, requestTimeoutMs);
+                params.put("arguments", toolArgumentsForTransport(config, arguments));
+                Map<String, Object> invocationMeta = invocationMeta(arguments);
+                if (!invocationMeta.isEmpty()) {
+                    params.put("_meta", invocationMeta);
+                }
+                Object raw = directJsonRpcRequest(
+                    session, "tools/call", params, requestTimeoutMs, arguments);
                 McpToolInvokeResult result = normalizeInvokeResult(raw);
                 result = withExecutionState(
                     result,
@@ -605,6 +622,15 @@ public class McpGatewayClient {
 
     private Object directJsonRpcRequest(DirectMcpSession session, String method, Object params, int requestTimeoutMs)
         throws Exception {
+        return directJsonRpcRequest(session, method, params, requestTimeoutMs, null);
+    }
+
+    private Object directJsonRpcRequest(DirectMcpSession session,
+                                        String method,
+                                        Object params,
+                                        int requestTimeoutMs,
+                                        Map<String, Object> invocationArguments)
+        throws Exception {
         String requestId = nextDirectRequestId(method);
         HttpResponse<String> response = sendDirectJsonRpc(
             session.client(),
@@ -613,7 +639,8 @@ public class McpGatewayClient {
             session.sessionId(),
             session.protocolVersion(),
             jsonRpcRequest(requestId, method, params),
-            requestTimeoutMs
+            requestTimeoutMs,
+            invocationArguments
         );
         return directResponsePayload(response, requestId);
     }
@@ -634,6 +661,17 @@ public class McpGatewayClient {
     private HttpResponse<String> sendDirectJsonRpc(java.net.http.HttpClient client, McpServiceConfig config, URI uri,
                                                    String sessionId, String protocolVersion, String body,
                                                    int requestTimeoutMs) throws Exception {
+        return sendDirectJsonRpc(client, config, uri, sessionId, protocolVersion, body, requestTimeoutMs, null);
+    }
+
+    private HttpResponse<String> sendDirectJsonRpc(java.net.http.HttpClient client,
+                                                   McpServiceConfig config,
+                                                   URI uri,
+                                                   String sessionId,
+                                                   String protocolVersion,
+                                                   String body,
+                                                   int requestTimeoutMs,
+                                                   Map<String, Object> invocationArguments) throws Exception {
         HttpRequest.Builder builder = buildHttpRequestBuilder(config)
             .copy()
             .uri(uri)
@@ -645,7 +683,11 @@ public class McpGatewayClient {
         if (sessionId != null && !sessionId.isBlank()) {
             builder.header(io.modelcontextprotocol.spec.HttpHeaders.MCP_SESSION_ID, sessionId);
         }
-        applyDirectContextHeaders(builder, body);
+        if (invocationArguments == null) {
+            applyDirectContextHeaders(builder, body);
+        } else {
+            applyDirectContextHeaders(builder, invocationArguments);
+        }
         if (requestTimeoutMs > 0) {
             builder.timeout(Duration.ofMillis(requestTimeoutMs));
         }
@@ -657,36 +699,49 @@ public class McpGatewayClient {
             Map<String, Object> envelope = objectMapper.readValue(body, new TypeReference<>() {});
             Map<String, Object> params = asMap(envelope.get("params"));
             Map<String, Object> arguments = asMap(params.get("arguments"));
-            Map<String, Object> mcpContext = asMap(arguments.get("mcpContext"));
+            applyDirectContextHeaders(builder, arguments);
+        } catch (Exception ex) {
+            log.debug("Failed to attach direct MCP context headers: {}", ex.getMessage());
+        }
+    }
+
+    private void applyDirectContextHeaders(HttpRequest.Builder builder, Map<String, Object> arguments) {
+        try {
+            Map<String, Object> safeArguments = arguments == null ? Map.of() : arguments;
+            Map<String, Object> mcpContext = asMap(safeArguments.get("mcpContext"));
 
             String tenantId = firstText(
-                stringValue(arguments.get("tenantId")),
-                stringValue(arguments.get("tenant_id")),
+                stringValue(safeArguments.get("tenantId")),
+                stringValue(safeArguments.get("tenant_id")),
                 stringValue(mcpContext.get("tenantId")),
                 stringValue(mcpContext.get("tenant_id")),
                 stringValue(mcpContext.get("tenant"))
             );
             String userId = firstText(
-                stringValue(arguments.get("userId")),
-                stringValue(arguments.get("user_id")),
+                stringValue(safeArguments.get("userId")),
+                stringValue(safeArguments.get("user_id")),
                 stringValue(mcpContext.get("userId")),
                 stringValue(mcpContext.get("user_id"))
             );
             String username = firstText(
-                stringValue(arguments.get("username")),
+                stringValue(safeArguments.get("username")),
                 stringValue(mcpContext.get("username"))
             );
             String roles = firstText(
-                stringValue(arguments.get("roles")),
-                stringValue(arguments.get("roleIds")),
+                stringValue(safeArguments.get("roles")),
+                stringValue(safeArguments.get("roleIds")),
                 stringValue(mcpContext.get("roles")),
                 stringValue(mcpContext.get("roleIds"))
             );
             String requestId = firstText(
-                stringValue(arguments.get("requestId")),
-                stringValue(arguments.get("request_id")),
+                stringValue(safeArguments.get("requestId")),
+                stringValue(safeArguments.get("request_id")),
+                stringValue(safeArguments.get("traceId")),
+                stringValue(safeArguments.get("trace_id")),
                 stringValue(mcpContext.get("requestId")),
-                stringValue(mcpContext.get("request_id"))
+                stringValue(mcpContext.get("request_id")),
+                stringValue(mcpContext.get("traceId")),
+                stringValue(mcpContext.get("trace_id"))
             );
 
             setHeaderIfPresent(builder, "X-Tenant-Id", tenantId);
@@ -697,6 +752,72 @@ public class McpGatewayClient {
             setHeaderIfPresent(builder, "X-Correlation-Id", requestId);
         } catch (Exception ex) {
             log.debug("Failed to attach direct MCP context headers: {}", ex.getMessage());
+        }
+    }
+
+    Map<String, Object> toolArgumentsForTransport(McpServiceConfig config, Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return Map.of();
+        }
+        if (!isStandaloneCenterService(config)) {
+            return new LinkedHashMap<>(arguments);
+        }
+        Map<String, Object> filtered = new LinkedHashMap<>(arguments);
+        STANDALONE_TRANSPORT_CONTEXT_ARGUMENTS.forEach(filtered::remove);
+        return filtered;
+    }
+
+    Map<String, Object> invocationMeta(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> mcpContext = asMap(arguments.get("mcpContext"));
+        Map<String, Object> contextTenant = asMap(mcpContext.get("tenant"));
+        Map<String, Object> contextUser = asMap(mcpContext.get("user"));
+        Map<String, Object> contextIdentity = asMap(mcpContext.get("identity"));
+        Map<String, Object> contextScope = asMap(mcpContext.get("scope"));
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        putText(meta, "traceId", requestIdFrom(arguments));
+
+        Map<String, Object> tenant = new LinkedHashMap<>();
+        putText(tenant, "tenantId", tenantIdFrom(arguments));
+        putText(tenant, "workspaceId", firstText(
+            stringValue(arguments.get("workspaceId")), stringValue(contextTenant.get("workspaceId"))));
+        putText(tenant, "env", firstText(
+            stringValue(arguments.get("env")), stringValue(contextTenant.get("env"))));
+        if (!tenant.isEmpty()) meta.put("tenant", tenant);
+
+        Map<String, Object> user = new LinkedHashMap<>();
+        putText(user, "userId", firstText(
+            stringValue(arguments.get("userId")), stringValue(arguments.get("user_id")),
+            stringValue(mcpContext.get("userId")), stringValue(contextUser.get("userId")),
+            stringValue(contextIdentity.get("userId"))));
+        putText(user, "username", firstText(
+            stringValue(arguments.get("username")), stringValue(mcpContext.get("username")),
+            stringValue(contextUser.get("username")), stringValue(contextIdentity.get("username"))));
+        putText(user, "roles", firstText(
+            stringValue(arguments.get("roles")), stringValue(arguments.get("roleIds")),
+            stringValue(mcpContext.get("roles")), stringValue(contextUser.get("roles")),
+            stringValue(contextIdentity.get("roles"))));
+        if (!user.isEmpty()) meta.put("user", user);
+
+        Map<String, Object> scope = new LinkedHashMap<>();
+        putText(scope, "assetType", firstText(
+            stringValue(arguments.get("assetType")), stringValue(contextScope.get("assetType"))));
+        putText(scope, "domain", firstText(
+            stringValue(arguments.get("domain")), stringValue(contextScope.get("domain"))));
+        putText(scope, "permissionLevel", firstText(
+            stringValue(arguments.get("permissionLevel")), stringValue(contextScope.get("permissionLevel"))));
+        if (!scope.isEmpty()) meta.put("scope", scope);
+        putText(meta, "scopeExpression", firstText(
+            stringValue(arguments.get("scopeExpression")), stringValue(contextScope.get("scopeExpression"))));
+        return meta;
+    }
+
+    private void putText(Map<String, Object> target, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            target.put(key, value.trim());
         }
     }
 
@@ -1085,10 +1206,36 @@ public class McpGatewayClient {
     }
 
     private boolean isStandaloneCenterService(McpServiceConfig config) {
+        if (config == null || centerProperties == null) {
+            return false;
+        }
         String standaloneId = normalizeText(centerProperties.getStandaloneServiceId());
         String standaloneName = normalizeText(centerProperties.getStandaloneServiceName());
         return (standaloneId != null && standaloneId.equalsIgnoreCase(normalizeText(config.getId())))
-            || (standaloneName != null && standaloneName.equalsIgnoreCase(normalizeText(config.getName())));
+            || (standaloneName != null && standaloneName.equalsIgnoreCase(normalizeText(config.getName())))
+            || isStandaloneCenterEndpoint(config);
+    }
+
+    private boolean isStandaloneCenterEndpoint(McpServiceConfig config) {
+        String centerBase = trimTrailingSlash(normalizeText(centerProperties.getBaseUrl()));
+        String serviceBase = trimTrailingSlash(normalizeText(config.getBaseUrl()));
+        if (centerBase == null || serviceBase == null) {
+            return false;
+        }
+        return centerBase.equalsIgnoreCase(serviceBase)
+            || serviceBase.regionMatches(true, 0, centerBase + "/", 0, centerBase.length() + 1)
+            || centerBase.regionMatches(true, 0, serviceBase + "/", 0, serviceBase.length() + 1);
+    }
+
+    private String trimTrailingSlash(String value) {
+        if (value == null) {
+            return null;
+        }
+        String result = value;
+        while (result.endsWith("/") && result.length() > 1) {
+            result = result.substring(0, result.length() - 1);
+        }
+        return result;
     }
 
     private String normalizeText(String value) {

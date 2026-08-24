@@ -1,5 +1,7 @@
 package com.chatchat.chat.presentation;
 
+import com.chatchat.common.interaction.UserFacingAnswerSanitizer;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -19,7 +21,8 @@ public final class UserFacingContentSanitizer {
         }
         String text = INTERNAL_EVIDENCE_MARKER_PATTERN.matcher(value).replaceAll("");
         text = text.replaceAll("[ \\t]+([,.;:!?，。；：！？])", "$1");
-        return text.replaceAll("(?m)[ \\t]+$", "").trim();
+        text = text.replaceAll("(?m)[ \\t]+$", "").trim();
+        return UserFacingAnswerSanitizer.sanitize(text);
     }
 
     public static Map<String, Object> sanitizeUiResponse(Map<String, Object> uiResponse) {

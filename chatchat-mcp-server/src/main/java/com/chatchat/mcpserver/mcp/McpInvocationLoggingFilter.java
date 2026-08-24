@@ -152,6 +152,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 request.getHeader("X-User-Id"),
                 request.getHeader("X-Operator-Id"),
                 request.getHeader("X-Principal-Id"),
+                textAt(body, "params", "_meta", "user", "userId"),
                 textAt(body, "params", "arguments", "userId"),
                 textAt(body, "params", "arguments", "user_id"),
                 textAt(body, "params", "arguments", "mcpContext", "userId"),
@@ -162,6 +163,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 request.getHeader("X-User-Name"),
                 request.getHeader("X-Operator"),
                 request.getHeader("X-Forwarded-User"),
+                textAt(body, "params", "_meta", "user", "username"),
                 textAt(body, "params", "arguments", "username"),
                 textAt(body, "params", "arguments", "mcpContext", "username"),
                 textAt(body, "params", "arguments", "mcpContext", "identity", "username")

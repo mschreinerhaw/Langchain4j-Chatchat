@@ -49,7 +49,7 @@ class SqlMcpToolPublisherTest {
     private final McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
 
     @Test
-    void refreshPublishesOnlyUnifiedDataQueryBridge() {
+    void refreshPublishesOnlyDedicatedSchemaContextBridgeForMetadata() {
         SqlQueryExecuteService executeService = mock(SqlQueryExecuteService.class);
         when(executeService.minRowsLimit()).thenReturn(1);
         when(executeService.maxRowsLimit()).thenReturn(1000);
@@ -76,12 +76,108 @@ class SqlMcpToolPublisherTest {
 
         ArgumentCaptor<McpServerFeatures.SyncToolSpecification> tools =
             ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
-        verify(mcpSyncServer, times(2)).addTool(tools.capture());
+        verify(mcpSyncServer, times(3)).addTool(tools.capture());
         assertThat(tools.getAllValues().stream().map(tool -> tool.tool().name()).toList())
-            .containsExactly(SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL, "sql_query_execute")
-            .doesNotContain("sql_metadata_search", "sql_script_execute");
+            .containsExactly(
+                SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL,
+                SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL,
+                "sql_query_execute")
+            .doesNotContain(SqlMcpToolPublisher.SQL_METADATA_SEARCH_TOOL, "sql_script_execute");
         verify(mcpSyncServer).removeTool("sql_script_execute");
         verify(mcpSyncServer).notifyToolsListChanged();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void schemaContextBridgeNormalizesIntentAndPreservesMetadataResultContract() throws Exception {
+        when(metadataSearchService.search(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+            "schemaVersion", SqlMetadataSearchService.RESULT_SCHEMA_VERSION,
+            "count", 0,
+            "totalMatched", 0,
+            "tableCatalog", List.of(),
+            "topTables", List.of(),
+            "results", List.of()
+        ));
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, mock(SqlQueryExecuteService.class), scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService, executionTargetRouter,
+            assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper());
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod(
+            "executeMetadataSearch", Map.class, String.class, boolean.class);
+        method.setAccessible(true);
+
+        McpSchema.CallToolResult result = (McpSchema.CallToolResult) method.invoke(publisher,
+            Map.of("intent", "find customer order tables", "useCase", "sql_generation"),
+            SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL,
+            true);
+
+        ArgumentCaptor<Map<String, Object>> arguments = ArgumentCaptor.forClass(Map.class);
+        verify(metadataSearchService).search(arguments.capture());
+        assertThat(arguments.getValue())
+            .containsEntry("query", "find customer order tables")
+            .containsEntry("catalogLimit", SqlMcpToolPublisher.SQL_METADATA_BRIDGE_MAX_TABLES)
+            .containsEntry("detailLimit", SqlMcpToolPublisher.SQL_METADATA_BRIDGE_MAX_TABLES)
+            .doesNotContainKeys("intent", "useCase");
+        assertThat((Map<String, Object>) result.structuredContent())
+            .containsEntry("schemaVersion", SqlMetadataSearchService.RESULT_SCHEMA_VERSION)
+            .containsEntry("invokedCapability", SqlMcpToolPublisher.SQL_METADATA_SEARCH_TOOL)
+            .containsEntry("bridgeTool", SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL)
+            .containsEntry("bridgeManaged", true)
+            .containsEntry("useCase", "sql_generation")
+            .containsEntry("doesNotExecuteSql", true);
+    }
+
+    @Test
+    void schemaContextBridgeCapsCallerRequestedTableCountsAtTopFive() throws Exception {
+        when(metadataSearchService.search(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+            "schemaVersion", SqlMetadataSearchService.RESULT_SCHEMA_VERSION,
+            "count", 0,
+            "totalMatched", 0,
+            "tableCatalog", List.of(),
+            "topTables", List.of(),
+            "results", List.of()
+        ));
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, mock(SqlQueryExecuteService.class), scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService, executionTargetRouter,
+            assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper());
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod(
+            "executeMetadataSearch", Map.class, String.class, boolean.class);
+        method.setAccessible(true);
+
+        method.invoke(publisher,
+            Map.of("query", "orders", "catalogLimit", 200, "detailLimit", 100, "limit", 500),
+            SqlMcpToolPublisher.SQL_METADATA_BRIDGE_TOOL,
+            true);
+
+        ArgumentCaptor<Map<String, Object>> arguments = ArgumentCaptor.forClass(Map.class);
+        verify(metadataSearchService).search(arguments.capture());
+        assertThat(arguments.getValue())
+            .containsEntry("catalogLimit", 5)
+            .containsEntry("detailLimit", 5)
+            .doesNotContainKey("limit");
+    }
+
+    @Test
+    void dataQueryBridgeRedirectsLegacyMetadataStageToDedicatedBridge() throws Exception {
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, mock(SqlQueryExecuteService.class), scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService, executionTargetRouter,
+            assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper());
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeDataQueryBridge", Map.class);
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(publisher, Map.of("stage", "metadata", "query", "orders")))
+            .hasRootCauseInstanceOf(IllegalArgumentException.class)
+            .hasRootCauseMessage(
+                "USE_SQL_SCHEMA_CONTEXT_QUERY: database schema metadata has a dedicated bridge");
+        verifyNoInteractions(metadataSearchService);
     }
 
     @Test

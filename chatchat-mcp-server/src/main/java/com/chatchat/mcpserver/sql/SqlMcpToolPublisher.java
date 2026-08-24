@@ -47,6 +47,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SqlMcpToolPublisher {
 
     public static final String DATA_QUERY_BRIDGE_TOOL = "data_query_query";
+    public static final String SQL_METADATA_BRIDGE_TOOL = "sql_schema_context_query";
+    public static final String SQL_METADATA_SEARCH_TOOL = "sql_metadata_search";
+    public static final int SQL_METADATA_BRIDGE_MAX_TABLES = 5;
 
     private final McpSyncServer mcpSyncServer;
     private final SqlDatasourceConfigService datasourceConfigService;
@@ -89,7 +92,8 @@ public class SqlMcpToolPublisher {
     public synchronized void refresh() {
         remove("sql_query_execute");
         remove("sql_script_execute");
-        remove("sql_metadata_search");
+        remove(SQL_METADATA_SEARCH_TOOL);
+        remove(SQL_METADATA_BRIDGE_TOOL);
         remove(DATA_QUERY_BRIDGE_TOOL);
         datasourceConfigService.listAll().forEach(datasource -> remove(datasource.getToolName()));
         managedToolNames.forEach(this::remove);
@@ -97,18 +101,44 @@ public class SqlMcpToolPublisher {
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, dataQueryBridgeTool());
         com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
+            mcpSyncServer, sqlMetadataBridgeTool());
+        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
             mcpSyncServer, sqlQueryGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Unified data discovery bridge refreshed: {}; Runtime SQL executor retained: sql_query_execute",
-            DATA_QUERY_BRIDGE_TOOL);
+        log.info("SQL discovery tools refreshed: dataBridge={}, metadataBridge={}; "
+                + "sql_metadata_search retained as an internal capability; Runtime SQL executor retained: sql_query_execute",
+            DATA_QUERY_BRIDGE_TOOL, SQL_METADATA_BRIDGE_TOOL);
+    }
+
+    private McpServerFeatures.SyncToolSpecification sqlMetadataBridgeTool() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name(SQL_METADATA_BRIDGE_TOOL)
+            .title("Existing database schema context")
+            .description("Dedicated read-only bridge for retrieving indexed metadata from existing databases. "
+                + "Use it to obtain authoritative database, schema, table, column, type, key and comment context "
+                + "before designing a table or generating/reviewing SQL. It never executes SQL, reads business rows, "
+                + "or exposes connection details. It returns at most the five highest-scoring tables. "
+                + "Physical identifiers must come from its result and must not be guessed.")
+            .inputSchema(sqlMetadataBridgeInputSchema())
+            .meta(sqlMetadataBridgeMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                SQL_METADATA_BRIDGE_TOOL,
+                "read_only",
+                request.arguments(),
+                () -> executeMetadataSearch(request.arguments(), SQL_METADATA_BRIDGE_TOOL, true)))
+            .build();
     }
 
     private McpServerFeatures.SyncToolSpecification dataQueryBridgeTool() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(DATA_QUERY_BRIDGE_TOOL)
             .title("数据查询与元数据分析")
-            .description("One read-only facade for governed SQL template and metadata discovery. "
+            .description("Read-only discovery of governed business SQL templates. "
                 + "It never executes a query; selected templates remain owned by sql_query_execute and Agent Runtime batch governance. "
+                + "Existing database schema context is handled by sql_schema_context_query. "
                 + "Writes, DDL, permissions and concrete connection information are forbidden.")
             .inputSchema(dataQueryBridgeInputSchema())
             .meta(dataQueryBridgeMeta())
@@ -136,24 +166,11 @@ public class SqlMcpToolPublisher {
                 arguments);
             return dataQueryDiscoveryResult(discovery, "business_database_query");
         }
-        if (!"metadata".equalsIgnoreCase(text(arguments, "stage"))) {
-            return discoverDataQueryTemplates(arguments);
+        if ("metadata".equalsIgnoreCase(text(arguments, "stage"))) {
+            throw new IllegalArgumentException(
+                "USE_SQL_SCHEMA_CONTEXT_QUERY: database schema metadata has a dedicated bridge");
         }
-        Map<String, Object> metadataArguments = new LinkedHashMap<>(arguments);
-        Object intent = metadataArguments.get("intent");
-        if (!metadataArguments.containsKey("query") && intent != null) {
-            metadataArguments.put("query", intent);
-        }
-        Map<String, Object> result = metadataSearchService.search(metadataArguments);
-        Map<String, Object> structured = new LinkedHashMap<>(result == null ? Map.of() : result);
-        structured.put("schemaVersion", "data_query_bridge_result.v1");
-        structured.put("status", "METADATA_FOUND");
-        structured.put("bridgeManaged", true);
-        return McpSchema.CallToolResult.builder()
-            .addTextContent(summarizeMetadataSearchResultV2(result))
-            .structuredContent(structured)
-            .isError(false)
-            .build();
+        return discoverDataQueryTemplates(arguments);
     }
 
     private McpSchema.CallToolResult dataQueryDiscoveryResult(Map<String, Object> discovery, String targetKind) {
@@ -236,10 +253,10 @@ public class SqlMcpToolPublisher {
 
     private McpSchema.JsonSchema dataQueryBridgeInputSchema() {
         Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("query", Map.of("type", "string", "description", "Complete natural-language metadata or data question"));
+        properties.put("query", Map.of("type", "string", "description", "Complete natural-language business data question"));
         properties.put("intent", Map.of("type", "string", "description", "Alias of query"));
-        properties.put("stage", Map.of("type", "string", "enum", List.of("templates", "metadata"),
-            "description", "templates by default; metadata searches tables and columns only"));
+        properties.put("stage", Map.of("type", "string", "enum", List.of("templates"),
+            "description", "Business query-template discovery only; schema metadata uses sql_schema_context_query"));
         properties.put("targetKind", Map.of("type", "string", "enum", List.of("business_database_query"),
             "description", "Optional explicit business data-query scope; database operations use database_capability_query"));
         properties.put("tableName", Map.of("type", "string"));
@@ -270,7 +287,7 @@ public class SqlMcpToolPublisher {
             List.of(
                 "Call data_query_query with the complete question to retrieve multiple governed template candidates.",
                 "Semantically review all candidates, then execute accepted templates through sql_query_execute using Agent Runtime's standard ordered batch envelope.",
-                "Use stage=metadata only for table and column discovery; retrieval rank is not semantic acceptance."),
+                "Use sql_schema_context_query for existing database, table and column metadata; retrieval rank is not semantic acceptance."),
             List.of(
                 "Never invent datasource ids, database endpoints, table names, columns, SQL templates or parameter values.",
                 "Never submit writes, DDL, permission changes or connection information.",
@@ -725,44 +742,55 @@ public class SqlMcpToolPublisher {
         return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
-    private McpServerFeatures.SyncToolSpecification sqlMetadataSearchTool() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name("sql_metadata_search")
-            .title("SQL metadata table search")
-            .description("Read-only Lucene-backed metadata retrieval tool for locating datasource/database/table entries before SQL template execution. "
-                + "Use this before database_ops_template_search and sql_query_execute when the user mentions a table name, table comment, business meaning, or when schema/database is unknown. "
-                + "The structured result separates tableCatalog, the lightweight matched table list, from topTables, the detailed Top 5 tables with cached column metadata. "
-                + "Never treat topTables/results as the full matched table count; use totalMatched, catalogReturnedCount, and catalogTruncated. "
-                + "In user-facing answers always cite exact physical identifiers from tableCatalog/topTables.location and list exact topTables.columns under the corresponding table when returned; never replace identifiers with translated business descriptions or guessed fields. "
-                + "It returns logical routing context and table locations from the metadata index; it never returns JDBC URLs or raw SQL.")
-            .inputSchema(metadataSearchInputSchema())
-            .meta(metadataSearchMeta())
+    private McpSchema.CallToolResult executeMetadataSearch(Map<String, Object> rawArguments,
+                                                            String invokedTool,
+                                                            boolean bridgeManaged) {
+        Map<String, Object> arguments = rawArguments == null
+            ? new LinkedHashMap<>()
+            : new LinkedHashMap<>(rawArguments);
+        if (bridgeManaged && !arguments.containsKey("query") && arguments.get("intent") != null) {
+            arguments.put("query", arguments.get("intent"));
+        }
+        if (bridgeManaged) {
+            arguments.put("catalogLimit", bridgeTableLimit(arguments.get("catalogLimit")));
+            arguments.put("detailLimit", bridgeTableLimit(arguments.get("detailLimit")));
+            arguments.remove("limit");
+        }
+        // useCase describes why the caller needs schema context; it is not a Lucene filter.
+        Object useCase = arguments.remove("useCase");
+        arguments.remove("intent");
+
+        long startedAt = System.currentTimeMillis();
+        Map<String, Object> result = metadataSearchService.search(arguments);
+        long searchDurationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        Map<String, Object> structured = new LinkedHashMap<>(result == null ? Map.of() : result);
+        structured.put("invokedCapability", SQL_METADATA_SEARCH_TOOL);
+        structured.put("bridgeTool", bridgeManaged ? SQL_METADATA_BRIDGE_TOOL : SQL_METADATA_SEARCH_TOOL);
+        structured.put("bridgeManaged", bridgeManaged);
+        structured.put("doesNotExecuteSql", true);
+        if (useCase != null && !String.valueOf(useCase).isBlank()) {
+            structured.put("useCase", String.valueOf(useCase));
+        }
+        long summaryStartedAt = System.currentTimeMillis();
+        String summary = summarizeMetadataSearchResultV2(structured);
+        long summaryDurationMs = Math.max(0L, System.currentTimeMillis() - summaryStartedAt);
+        log.info("{} tool result prepared count={} searchDurationMs={} summaryDurationMs={} diagnostics={}",
+            invokedTool,
+            structured.get("count"),
+            searchDurationMs,
+            summaryDurationMs,
+            structured.get("diagnostics"));
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(summary)
+            .structuredContent(structured)
+            .isError(false)
             .build();
-        return McpServerFeatures.SyncToolSpecification.builder()
-            .tool(tool)
-            .callHandler((exchange, request) -> concurrencyManager.execute(
-                "sql_metadata_search",
-                "sql",
-                request.arguments(),
-                () -> {
-                    long startedAt = System.currentTimeMillis();
-                    Map<String, Object> result = metadataSearchService.search(request.arguments());
-                    long searchDurationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
-                    long summaryStartedAt = System.currentTimeMillis();
-                    String summary = summarizeMetadataSearchResultV2(result);
-                    long summaryDurationMs = Math.max(0L, System.currentTimeMillis() - summaryStartedAt);
-                    log.info("sql_metadata_search tool result prepared count={} searchDurationMs={} summaryDurationMs={} diagnostics={}",
-                        result == null ? null : result.get("count"),
-                        searchDurationMs,
-                        summaryDurationMs,
-                        result == null ? null : result.get("diagnostics"));
-                    return McpSchema.CallToolResult.builder()
-                        .addTextContent(summary)
-                        .structuredContent(result)
-                        .isError(false)
-                        .build();
-                }))
-            .build();
+    }
+
+    private int bridgeTableLimit(Object value) {
+        return Math.max(1, Math.min(
+            SQL_METADATA_BRIDGE_MAX_TABLES,
+            intValue(value, SQL_METADATA_BRIDGE_MAX_TABLES)));
     }
 
     private McpSchema.JsonSchema inputSchema() {
@@ -803,31 +831,33 @@ public class SqlMcpToolPublisher {
         ), List.of("executionContext"), false, null, null);
     }
 
-    private McpSchema.JsonSchema metadataSearchInputSchema() {
-        return new McpSchema.JsonSchema("object", Map.ofEntries(
-            Map.entry("query", Map.of("type", "string", "description", "Free-text table/database search query, for example a table name, table comment/business meaning, database description, schema.table, or asset.database.table path.")),
-            Map.entry("searchTerm", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
-            Map.entry("keyword", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
-            Map.entry("keywords", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
-            Map.entry("searchText", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
-            Map.entry("tableName", Map.of("type", "string", "description", "Optional explicit table name from the user request.")),
-            Map.entry("database", Map.of("type", "string", "description", "Optional database/schema name filter.")),
-            Map.entry("schema", Map.of("type", "string", "description", "Alias of database.")),
-            Map.entry("assetId", Map.of("type", "string", "description", "Optional logical datasource asset id resolved by asset discovery or configured default data asset.")),
-            Map.entry("assetName", Map.of("type", "string", "description", "Optional logical datasource asset name.")),
-            Map.entry("defaultDataAsset", Map.of(
-                "type", "object",
-                "description", "Configured default data asset context copied from the agent skill; used only as metadata retrieval scope fallback."
-            )),
-            Map.entry("executionContext", Map.of(
-                "type", "object",
-                "description", "Logical datasource context such as assetId, assetName, env, databaseType, database/schema, or tableName. Concrete endpoint fields are forbidden."
-            )),
-            Map.entry("limit", Map.of("type", "integer", "minimum", 1, "description", "Deprecated legacy field. It is not used for detailed table count; use catalogLimit or detailLimit instead.")),
-            Map.entry("catalogLimit", Map.of("type", "integer", "minimum", 1, "description", "Optional maximum number of lightweight tableCatalog rows returned. Defaults to 200.")),
-            Map.entry("detailLimit", Map.of("type", "integer", "minimum", 1, "description", "Optional maximum number of detailed topTables returned. Defaults to 5.")),
-            Map.entry("includeColumns", Map.of("type", "boolean", "description", "Optional; true includes cached column metadata for matched tables. Defaults to true; set false only for lightweight routing lookup."))
-        ), List.of(), false, null, null);
+    private McpSchema.JsonSchema sqlMetadataBridgeInputSchema() {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("query", Map.of("type", "string", "description",
+            "Natural-language or physical-name search for existing database/table/column metadata."));
+        properties.put("intent", Map.of("type", "string", "description", "Alias of query."));
+        properties.put("useCase", Map.of(
+            "type", "string",
+            "enum", List.of("schema_lookup", "table_design", "sql_generation", "sql_review", "schema_comparison"),
+            "description", "How the returned authoritative schema context will be used."));
+        properties.put("tableName", Map.of("type", "string", "description", "Optional exact or partial physical table name."));
+        properties.put("database", Map.of("type", "string", "description", "Optional database/schema filter."));
+        properties.put("schema", Map.of("type", "string", "description", "Optional schema filter; also accepted as a database alias by legacy indexes."));
+        properties.put("assetId", Map.of("type", "string", "description", "Optional logical datasource asset id."));
+        properties.put("assetName", Map.of("type", "string", "description", "Optional logical datasource asset name."));
+        properties.put("executionContext", Map.of("type", "object", "description",
+            "Logical asset/environment/database scope only. JDBC URLs and connection strings are forbidden."));
+        properties.put("catalogLimit", Map.of(
+            "type", "integer", "minimum", 1, "maximum", SQL_METADATA_BRIDGE_MAX_TABLES,
+            "default", SQL_METADATA_BRIDGE_MAX_TABLES,
+            "description", "Number of highest-scoring lightweight table catalog rows; capped at 5."));
+        properties.put("detailLimit", Map.of(
+            "type", "integer", "minimum", 1, "maximum", SQL_METADATA_BRIDGE_MAX_TABLES,
+            "default", SQL_METADATA_BRIDGE_MAX_TABLES,
+            "description", "Number of highest-scoring tables with detailed column metadata; capped at 5."));
+        properties.put("includeColumns", Map.of("type", "boolean", "description",
+            "Whether to include cached column metadata. Defaults to true and should remain true for design or SQL generation."));
+        return new McpSchema.JsonSchema("object", properties, List.of(), false, null, null);
     }
 
     private Map<String, Object> meta(SqlDatasourceConfig datasource) {
@@ -924,9 +954,13 @@ public class SqlMcpToolPublisher {
         );
     }
 
-    private Map<String, Object> metadataSearchMeta() {
+    private Map<String, Object> sqlMetadataBridgeMeta() {
+        return metadataMeta(SQL_METADATA_BRIDGE_TOOL, true);
+    }
+
+    private Map<String, Object> metadataMeta(String toolName, boolean bridgeManaged) {
         Map<String, Object> governance = new LinkedHashMap<>();
-        governance.put("category", "sql_metadata_search");
+        governance.put("category", bridgeManaged ? "sql_schema_context" : "sql_metadata_search");
         governance.put("operation_type", "read_metadata_index");
         governance.put("risk_level", "low");
         governance.put("data_scope", "database:metadata");
@@ -934,9 +968,13 @@ public class SqlMcpToolPublisher {
         governance.put("confirmation", mutableMap("default", "none", "allow_user_override", false));
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
         Map<String, Object> meta = new LinkedHashMap<>(
-            governanceFactory.toMeta("sql_gateway", "sql_metadata_search", governance, null));
+            governanceFactory.toMeta("sql_gateway", toolName, governance, null));
         meta.put("runtime_action", "allow");
         meta.put("runtimeAction", "allow");
+        meta.put("readOnly", true);
+        meta.put("bridgeManaged", bridgeManaged);
+        meta.put("invokedCapability", SQL_METADATA_SEARCH_TOOL);
+        meta.put("preferredBridgeTool", SQL_METADATA_BRIDGE_TOOL);
         meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
             "sql_datasource:schema_discovery",
             "SQL schema metadata discovery",
@@ -967,6 +1005,14 @@ public class SqlMcpToolPublisher {
             "results", "Backward-compatible alias of topTables."
         ));
         meta.put("doesNotExecuteSql", true);
+        meta.put("supportedUseCases", List.of(
+            "schema_lookup", "table_design", "sql_generation", "sql_review", "schema_comparison"));
+        meta.put("tableReturnPolicy", mutableMap(
+            "ranking", "SCORE_DESC",
+            "defaultTables", SQL_METADATA_BRIDGE_MAX_TABLES,
+            "maximumTables", SQL_METADATA_BRIDGE_MAX_TABLES,
+            "appliesTo", List.of("tableCatalog", "topTables", "results")
+        ));
         meta.put("indexBackend", "lucene_metadata_table_index");
         meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
         meta.put("resultShape", mutableMap(
@@ -993,7 +1039,20 @@ public class SqlMcpToolPublisher {
             "guidance", "Expand table and column business meanings into concise bilingual metadata-search terms. "
                 + "Never invent or replace physical table, database, schema or datasource identifiers."
         ));
-        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_metadata_search", "sql"));
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(
+            toolName, bridgeManaged ? "read_only" : "sql"));
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.DIRECT, "mcp.sql-schema-context.v1", "query+executionContext"));
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
+            "mcp.sql-schema-context.v1",
+            List.of(
+                "Use returned physical database, schema, table and column identifiers as authoritative context for table design or SQL generation.",
+                "Keep includeColumns=true when column types, keys or comments are needed.",
+                "Use logical asset routing only; this capability reads the local metadata index and never executes SQL."),
+            List.of(
+                "Never invent identifiers or fields that are absent from the returned metadata.",
+                "Never pass JDBC URLs, credentials or connection strings.",
+                "Never treat a truncated topTables payload as the complete match set; inspect totalMatched and tableCatalog.")));
         return meta;
     }
 

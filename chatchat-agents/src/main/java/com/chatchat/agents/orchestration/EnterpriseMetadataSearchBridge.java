@@ -250,11 +250,13 @@ class EnterpriseMetadataSearchBridge {
         Set<String> terms = new LinkedHashSet<>();
         addTexts(terms, original.get("queryTerms"));
         addTexts(terms, profile.get("queryTerms"));
-        addText(terms, original.get("query"));
         for (Map<String, Object> field : fields) {
             addText(terms, field.get("fieldName"));
             addText(terms, field.get("fieldCnName"));
             addText(terms, field.get("description"));
+        }
+        if (terms.isEmpty()) {
+            addText(terms, original.get("query"));
         }
         return terms.stream().limit(Math.max(1, limit)).toList();
     }

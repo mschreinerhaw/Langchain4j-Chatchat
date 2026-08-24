@@ -147,7 +147,9 @@ class EnterpriseMetadataSearchBridgeTest {
         );
 
         assertThat(result).doesNotContainKeys("fields", "purpose");
-        assertThat((List<String>) result.get("queryTerms")).hasSizeLessThanOrEqualTo(32);
+        assertThat((List<String>) result.get("queryTerms"))
+            .hasSizeLessThanOrEqualTo(32)
+            .doesNotContain("璇勪及鐜版湁瀵硅薄鏄惁绗﹀悎鏍囧噯");
         assertThat((Map<String, Object>) result.get("schemaEvidence"))
             .containsEntry("mode", "MODEL_ASSISTED_DISCOVERY_TERMS")
             .containsEntry("sourceFieldCount", 0)

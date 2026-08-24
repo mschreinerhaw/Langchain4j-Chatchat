@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -133,6 +134,71 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .containsEntry("count", 0);
         verify(searchService).searchRequirements(any(), any());
         verifyNoInteractions(matchingService);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryOnlySplitsIndependentMetadataRequirementsInsteadOfCreatingOneDemandSlot() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
+        when(searchService.searchRequirements(any(), any())).thenReturn(Map.of(
+            "schemaVersion", EnterpriseMetadataSearchService.CARDINALITY_SCHEMA_VERSION,
+            "success", true,
+            "count", 0,
+            "results", List.of(),
+            "evidenceObjects", List.of()
+        ));
+
+        publisher.executeSearch(Map.of(
+            "query", "security_code security_name exchange customer_id position_quantity available_quantity"
+        ));
+
+        ArgumentCaptor<List<String>> requirements = ArgumentCaptor.forClass(List.class);
+        verify(searchService).searchRequirements(any(), requirements.capture());
+        assertThat(requirements.getValue()).containsExactly(
+            "security_code", "security_name", "exchange", "customer_id",
+            "position_quantity", "available_quantity");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void explicitQueryTermsTakePrecedenceOverNarrativeQueryContext() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
+        when(searchService.searchRequirements(any(), any())).thenReturn(Map.of(
+            "schemaVersion", EnterpriseMetadataSearchService.CARDINALITY_SCHEMA_VERSION,
+            "success", true,
+            "count", 0,
+            "results", List.of(),
+            "evidenceObjects", List.of()
+        ));
+
+        publisher.executeSearch(Map.of(
+            "query", "Design a securities position table using enterprise standards",
+            "queryTerms", List.of("security code", "exchange", "position quantity")
+        ));
+
+        ArgumentCaptor<List<String>> requirements = ArgumentCaptor.forClass(List.class);
+        verify(searchService).searchRequirements(any(), requirements.capture());
+        assertThat(requirements.getValue())
+            .containsExactly("security code", "exchange", "position quantity")
+            .doesNotContain("Design a securities position table using enterprise standards");
+    }
+
+    @Test
+    void rejectsNarrativeAnswerContaminationBeforeMetadataRetrieval() {
+        EnterpriseMetadataMatchingService matchingService = mock(EnterpriseMetadataMatchingService.class);
+        EnterpriseMetadataSearchService searchService = mock(EnterpriseMetadataSearchService.class);
+        EnterpriseMetadataMcpToolPublisher publisher = publisher(matchingService, searchService);
+        String contaminated = "security position fields " + "final answer retrieval evidence ".repeat(30);
+
+        assertThatThrownBy(() -> publisher.executeSearch(Map.of("query", contaminated)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("ENTERPRISE_METADATA_QUERY_CONTRACT_FAILED")
+            .hasMessageContaining("use queryTerms");
+        verifyNoInteractions(searchService, matchingService);
     }
 
     @Test

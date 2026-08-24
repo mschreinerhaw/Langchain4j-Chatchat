@@ -217,10 +217,10 @@ Asset Registry
   -> Metadata Refresh
   -> RocksDB schema cache
   -> Lucene search index
-  -> sql_metadata_search
+  -> sql_schema_context_query
 ```
 
-`sql_metadata_search` 是 MCP 对外暴露的元数据检索入口，用于按资产、库/schema、表名、表注释、字段注释召回结构化表位置和列信息。
+`sql_schema_context_query` 是 MCP 对外暴露的元数据检索入口，用于按资产、库/schema、表名、表注释、字段注释召回结构化表位置和列信息。底层复用内部 `sql_metadata_search` 检索能力，但不再单独发布该内部工具。
 
 ### 模板检索工具
 
@@ -247,7 +247,7 @@ template_discovery(assetType)
 本地检索工具不直接访问外部系统，主要消费已经刷新到本地的索引或缓存：
 
 ```text
-sql_metadata_search
+sql_schema_context_query
 document_search
 ```
 

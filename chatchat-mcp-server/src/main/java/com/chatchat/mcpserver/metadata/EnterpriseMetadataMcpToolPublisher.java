@@ -26,6 +26,9 @@ public class EnterpriseMetadataMcpToolPublisher {
 
     public static final String TOOL_NAME = "enterprise_metadata_search";
     public static final String RETIRED_MATCH_TOOL_NAME = "enterprise_metadata_match";
+    private static final int MAX_DISCOVERY_QUERY_CHARS = 512;
+    private static final int MAX_DISCOVERY_TERMS = 120;
+    private static final int MAX_DISCOVERY_TERM_CHARS = 128;
 
     private final McpSyncServer mcpSyncServer;
     private final EnterpriseMetadataMatchingService matchingService;
@@ -157,18 +160,68 @@ public class EnterpriseMetadataMcpToolPublisher {
 
     private Map<String, Object> normalizeSearchArguments(Map<String, Object> arguments) {
         Map<String, Object> normalized = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        String rawQuery = text(normalized.get("query"));
+        if (maps(normalized.get("fields")).isEmpty()) {
+            validateDiscoveryQuery(rawQuery);
+        }
         LinkedHashSet<String> terms = new LinkedHashSet<>();
-        addText(terms, normalized.get("query"));
         addTexts(terms, normalized.get("queryTerms"));
         addTexts(terms, normalized.get("searchTerms"));
         addTexts(terms, normalized.get("keywords"));
         addText(terms, normalized.get("keyword"));
         addTexts(terms, normalized.get("queries"));
+        if (rawQuery != null && terms.size() > 1) {
+            terms.remove(rawQuery);
+        }
+        if (terms.isEmpty() || (terms.size() == 1 && terms.contains(rawQuery))) {
+            terms.clear();
+            terms.addAll(discoveryTerms(rawQuery));
+        }
+        validateDiscoveryTerms(terms);
         if (!terms.isEmpty()) {
-            normalized.put("query", String.join(" ", terms));
+            normalized.put("query", rawQuery == null ? String.join(" ", terms) : rawQuery);
             normalized.put("queryTerms", List.copyOf(terms));
         }
         return normalized;
+    }
+
+    private List<String> discoveryTerms(String query) {
+        if (query == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        for (String item : query.split("[\\s,，、;；|]+")) {
+            String term = text(item);
+            if (term != null) {
+                terms.add(term);
+            }
+            if (terms.size() >= MAX_DISCOVERY_TERMS) {
+                break;
+            }
+        }
+        return List.copyOf(terms);
+    }
+
+    private void validateDiscoveryQuery(String query) {
+        if (query != null && query.length() > MAX_DISCOVERY_QUERY_CHARS) {
+            throw new IllegalArgumentException(
+                "ENTERPRISE_METADATA_QUERY_CONTRACT_FAILED: query must contain retrieval concepts only; "
+                    + "remove narrative/final-answer text and use queryTerms for multiple requirements");
+        }
+    }
+
+    private void validateDiscoveryTerms(LinkedHashSet<String> terms) {
+        if (terms.size() > MAX_DISCOVERY_TERMS) {
+            throw new IllegalArgumentException(
+                "ENTERPRISE_METADATA_QUERY_CONTRACT_FAILED: queryTerms exceeds " + MAX_DISCOVERY_TERMS);
+        }
+        for (String term : terms) {
+            if (term.length() > MAX_DISCOVERY_TERM_CHARS) {
+                throw new IllegalArgumentException(
+                    "ENTERPRISE_METADATA_QUERY_CONTRACT_FAILED: each queryTerms item must be at most "
+                        + MAX_DISCOVERY_TERM_CHARS + " characters and contain no narrative answer text");
+            }
+        }
     }
 
     private boolean discoveryRequest(Map<String, Object> arguments) {
@@ -300,18 +353,21 @@ public class EnterpriseMetadataMcpToolPublisher {
         return new McpSchema.JsonSchema("object", mapOf(
             "query", Map.of(
                 "type", "string",
-                "description", "Unified retrieval expression assembled from the user request and prior structured evidence"
+                "maxLength", MAX_DISCOVERY_QUERY_CHARS,
+                "description", "Short overall retrieval context only. For multiple independently matched fields or concepts, use queryTerms. Never include explanations, tool results or final-answer prose."
             ),
             "queryTerms", mapOf(
                 "type", "array",
-                "items", Map.of("type", "string"),
+                "maxItems", MAX_DISCOVERY_TERMS,
+                "items", Map.of("type", "string", "maxLength", MAX_DISCOVERY_TERM_CHARS),
                 "aliases", List.of("keywords", "keyword", "queries"),
                 "acceptedSources", List.of("keywords", "keyword", "queries"),
-                "description", "Model-extracted business concepts and candidate field meanings for new-table metadata discovery"
+                "description", "Independent model-extracted business concepts and candidate field meanings. Each array item is one retrieval requirement and returns at most one qualified record."
             ),
             "searchTerms", mapOf(
                 "type", "array",
-                "items", Map.of("type", "string"),
+                "maxItems", MAX_DISCOVERY_TERMS,
+                "items", Map.of("type", "string", "maxLength", MAX_DISCOVERY_TERM_CHARS),
                 "description", "Compatibility alias for queryTerms"
             ),
             "purpose", Map.of(

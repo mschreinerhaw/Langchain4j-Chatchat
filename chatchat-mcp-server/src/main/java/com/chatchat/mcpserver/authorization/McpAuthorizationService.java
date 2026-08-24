@@ -854,6 +854,7 @@ public class McpAuthorizationService {
             case "sql_query_execute" -> new ToolScope("sql_datasource", "execute", "query");
             case "sql_script_execute" -> new ToolScope("sql_datasource", "execute", "script");
             case "sql_metadata_search" -> new ToolScope("sql_datasource", "metadata", "search");
+            case "sql_schema_context_query" -> new ToolScope("sql_datasource", "metadata", "query");
             case "data_query_query" -> new ToolScope("sql_datasource", "data", "query");
             case "enterprise_metadata_search" -> new ToolScope("enterprise_metadata", "metadata", "search");
             default -> new ToolScope(null, null, null);

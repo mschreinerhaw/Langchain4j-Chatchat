@@ -36,6 +36,8 @@ public class DatabaseQueryConfigService {
     private static final Set<String> RESERVED_TOOL_NAMES = Set.of(
         "database_query",
         "database_query_execute",
+        "sql_metadata_search",
+        "sql_schema_context_query",
         "enterprise_metadata_search",
         "enterprise_metadata_match"
     );

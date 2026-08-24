@@ -1310,6 +1310,70 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void bindsUniqueObservedTemplateForAnyConventionalTemplateExecutorWhenBatchChildOmitsId() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_runtime_capability_query")
+            .success(true)
+            .output("""
+                {
+                  "executionTool":"custom_template_execute",
+                  "candidates":[{
+                    "templateId":"template-log",
+                    "parameterSchema":{"type":"object","properties":{},"required":[]}
+                  }]
+                }
+                """)
+            .build();
+        Map<String, Object> batch = Map.of(
+            "calls", List.of(Map.of(
+                "callId", "log-analysis",
+                "toolName", "custom_template_execute",
+                "arguments", Map.of("parameters", Map.of())
+            ))
+        );
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_custom_template_execute", batch, List.of(discovery));
+
+        assertThat(result).doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls ->
+            assertThat(calls.toString()).contains("templateId=template-log"));
+    }
+
+    @Test
+    void keepsGenericBatchFailClosedWhenTemplateIdIsMissingAndDiscoveryHasMultipleCandidates() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_vendor_runtime_capability_query")
+            .success(true)
+            .output("""
+                {
+                  "executionTool":"custom_template_execute",
+                  "candidates":[
+                    {"templateId":"template-a","parameterSchema":{"type":"object","properties":{},"required":[]}},
+                    {"templateId":"template-b","parameterSchema":{"type":"object","properties":{},"required":[]}}
+                  ]
+                }
+                """)
+            .build();
+        Map<String, Object> batch = Map.of(
+            "calls", List.of(Map.of(
+                "callId", "ambiguous",
+                "toolName", "custom_template_execute",
+                "arguments", Map.of("parameters", Map.of())
+            ))
+        );
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_custom_template_execute", batch, List.of(discovery));
+
+        assertThat(result)
+            .containsEntry("__runtimeParamBindingStatus", "DENIED")
+            .containsEntry("__runtimeParamBindingCode", "INVALID_TOOL_ARGUMENTS");
+        assertThat(result.get("__runtimeParamBindingError").toString())
+            .contains("template null was not returned");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void mandatoryRecoveryResolvesJsonPathTemplateAndCarriesCanonicalAssetIdentity() {
         String discoveryTool = "mcp_runtime_server_capability_query";

@@ -2,6 +2,7 @@ package com.chatchat.integration.mcp.service;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
@@ -47,6 +48,8 @@ public class McpToolRegistryBridge {
     private final ObjectMapper objectMapper;
     private final DynamicMcpToolRouteService routeService;
     private final ToolWorkflowContractCatalog contractCatalog;
+    private final McpInvocationArgumentAdapter invocationArgumentAdapter =
+        new McpInvocationArgumentAdapter();
 
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private final Map<String, RegisteredMcpTool> registeredTools = new ConcurrentHashMap<>();
@@ -314,7 +317,8 @@ public class McpToolRegistryBridge {
             service.getId(),
             definition.name(),
             route,
-            metadata);
+            metadata,
+            runtimeInput);
         toolRegistry.registerTool(localName, metadata, tool);
         managedToolNames.add(localName);
         registeredTools.put(localName, new RegisteredMcpTool(
@@ -570,6 +574,7 @@ public class McpToolRegistryBridge {
         private final String requestedToolName;
         private final DynamicMcpToolRouteService.RouteDefinition route;
         private final ToolMetadata metadata;
+        private final Map<String, Object> inputSchema;
 
         /**
          * Creates a new McpToolRegistryBridge instance.
@@ -580,11 +585,13 @@ public class McpToolRegistryBridge {
          */
         private McpEnhancedTool(String serviceId, String requestedToolName,
                                 DynamicMcpToolRouteService.RouteDefinition route,
-                                ToolMetadata metadata) {
+                                ToolMetadata metadata,
+                                Map<String, Object> inputSchema) {
             this.serviceId = serviceId;
             this.requestedToolName = requestedToolName;
             this.route = route;
             this.metadata = metadata;
+            this.inputSchema = inputSchema == null ? Map.of() : Map.copyOf(inputSchema);
         }
 
         /**
@@ -605,12 +612,32 @@ public class McpToolRegistryBridge {
          */
         @Override
         public ToolOutput execute(ToolInput input) {
-            Map<String, Object> arguments = new LinkedHashMap<>();
+            Map<String, Object> semanticArguments = new LinkedHashMap<>();
             if (input.getParameters() != null) {
-                arguments.putAll(input.getParameters());
+                semanticArguments.putAll(input.getParameters());
             }
-            if (arguments.isEmpty() && input.getRawInput() != null && !input.getRawInput().isBlank()) {
-                arguments.put("query", input.getRawInput());
+            if (semanticArguments.isEmpty() && input.getRawInput() != null && !input.getRawInput().isBlank()) {
+                semanticArguments.put("query", input.getRawInput());
+            }
+
+            // Adapt every MCP invocation against the remote tool's original contract at
+            // the bridge boundary. Agent orchestration envelopes are useful locally, but
+            // must never be validated or transported as remote business parameters.
+            // Using the unaugmented schema is important: the Agent-facing batch anyOf
+            // contract intentionally has no top-level properties.
+            ToolArgumentCompiler.CompilationResult compilation = invocationArgumentAdapter.adapt(
+                semanticArguments,
+                inputSchema
+            );
+            if (!compilation.valid()) {
+                ToolOutput failure = ToolOutput.failure(
+                    compilation.structuredError(metadata.getId(), "mcp_bridge_adapt"));
+                failure.setExceptionType("INVALID_TOOL_ARGUMENTS");
+                return failure;
+            }
+            Map<String, Object> arguments = new LinkedHashMap<>(compilation.parameters());
+            if (!compilation.repairs().isEmpty() && input.getContext() != null) {
+                input.getContext().put("mcpInvocationArgumentRepairs", compilation.repairs());
             }
             enrichInvocationContext(arguments, input);
             DynamicMcpToolRouteService.InvocationPlan plan = route == null

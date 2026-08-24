@@ -503,14 +503,32 @@ class AgentToolArgumentResolver {
                 scalarText(firstPresent(call, "toolName", "tool_name")), toolName);
             String childTemplateId = scalarText(firstPresent(
                 childInput, "template", "templateId", "template_id", "commandTemplate", "command_template"));
-            Map<String, Object> template = candidates.stream()
+            if (childTemplateId == null) {
+                childTemplateId = scalarText(firstPresent(
+                    call, "template", "templateId", "template_id", "commandTemplate", "command_template"));
+            }
+            List<Map<String, Object>> compatibleCandidates = candidates.stream()
                 .filter(candidate -> sameExecutor(childTool, discoveredExecutor(candidate)))
-                .filter(candidate -> childTemplateId != null && childTemplateId.equalsIgnoreCase(templateId(candidate)))
+                .toList();
+            if (childTemplateId == null && compatibleCandidates.size() == 1) {
+                childTemplateId = templateId(compatibleCandidates.get(0));
+            }
+            String resolvedTemplateId = childTemplateId;
+            Map<String, Object> template = compatibleCandidates.stream()
+                .filter(candidate -> resolvedTemplateId != null
+                    && resolvedTemplateId.equalsIgnoreCase(templateId(candidate)))
                 .findFirst()
                 .orElse(null);
             if (template == null) {
                 return deniedBatch(values, "Batch call " + index + " template " + childTemplateId
                     + " was not returned by the observed discovery contract");
+            }
+            if (usesTemplateIdField(childTool)) {
+                childInput.put("templateId", childTemplateId);
+                childInput.remove("template");
+            } else {
+                childInput.put("template", childTemplateId);
+                childInput.remove("templateId");
             }
             try {
                 TemplateInvocationBridge.BridgeResult bridged = TEMPLATE_INVOCATION_BRIDGE.prepare(
@@ -525,6 +543,9 @@ class AgentToolArgumentResolver {
                 finishObservedTemplateInput(childTool, compiledInput, output, templateBoundContext);
                 call.put("arguments", compiledInput);
                 call.remove("input");
+                call.remove("template");
+                call.remove("templateId");
+                call.remove("template_id");
                 compiledCalls.add(call);
             } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
                 return deniedBatch(values, "Batch call " + index + " rejected: " + ex.getMessage());
@@ -996,7 +1017,7 @@ class AgentToolArgumentResolver {
                 .anyMatch(name -> "template".equals(name.replace("_", "").toLowerCase(Locale.ROOT)));
             if (acceptsTemplate) return false;
         }
-        return apiTemplateExecutor(toolName);
+        return conventionalTemplateIdExecutor(toolName);
     }
 
     private boolean sameExecutor(String actualTool, String declaredExecutor) {
@@ -1008,12 +1029,12 @@ class AgentToolArgumentResolver {
         return actual.equals(declared) || actual.endsWith("_" + declared);
     }
 
-    private boolean apiTemplateExecutor(String toolName) {
+    private boolean conventionalTemplateIdExecutor(String toolName) {
         if (toolName == null) {
             return false;
         }
         String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return "api_template_execute".equals(normalized) || normalized.endsWith("_api_template_execute");
+        return "template_execute".equals(normalized) || normalized.endsWith("_template_execute");
     }
 
     @SuppressWarnings("unchecked")

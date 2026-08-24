@@ -2,6 +2,8 @@ package com.chatchat.integration.mcp.service;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
@@ -282,6 +284,67 @@ class McpToolRegistryBridgeLifecycleTest {
 
         assertThat((Map<String, Object>) arguments.get("mcpContext"))
             .containsEntry("internalPurpose", "final_summary_web_enhancement");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mcpBridgeUniformlySeparatesRuntimeEnvelopesFromStrictBusinessArguments() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("chatchat-mcp-server");
+        service.setName("ChatChat MCP Server");
+        Map<String, Object> inputSchema = Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "templateId", Map.of("type", "string"),
+                "parameters", Map.of("type", "object"),
+                "purpose", Map.of("type", "string")
+            ),
+            "required", List.of("templateId", "parameters"),
+            "additionalProperties", false
+        );
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(configService.getById("chatchat-mcp-server")).thenReturn(service);
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(
+            new McpToolDefinition("python_template_execute", "execute", inputSchema)
+        ));
+        when(gateway.invokeTool(eq(service), eq("python_template_execute"), anyMap(), eq(null)))
+            .thenReturn(new com.chatchat.integration.mcp.model.McpToolInvokeResult(
+                true, Map.of("status", "ok"), null, null));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry(0);
+
+        ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
+            ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
+        verify(registry).registerTool(anyString(), any(ToolMetadata.class), toolCaptor.capture());
+        ToolOutput output = toolCaptor.getValue().execute(ToolInput.builder()
+            .parameters(new LinkedHashMap<>(Map.of(
+                "executionContext", Map.of("env", "PROD"),
+                "template", "legacy-template-alias",
+                "runtimeTemplateBinding", Map.of(
+                    "schemaVersion", "runtime_template_binding.v1",
+                    "templateId", "template-123",
+                    "executorTool", "python_template_execute"
+                ),
+                "parameters", Map.of("source_file", "error.log", "limit", 100)
+            )))
+            .context(new LinkedHashMap<>(Map.of("tenantId", "tenant-1")))
+            .requestId("request-1")
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        ArgumentCaptor<Map<String, Object>> arguments = ArgumentCaptor.forClass(Map.class);
+        verify(gateway).invokeTool(eq(service), eq("python_template_execute"), arguments.capture(), eq(null));
+        assertThat(arguments.getValue())
+            .containsEntry("templateId", "template-123")
+            .containsEntry("parameters", Map.of("source_file", "error.log", "limit", 100))
+            .doesNotContainKeys("executionContext", "template", "runtimeTemplateBinding");
+        assertThat((Map<String, Object>) arguments.getValue().get("mcpContext"))
+            .containsEntry("tenantId", "tenant-1");
     }
 
     @Test

@@ -175,6 +175,18 @@ function normalizedAnswerContent(message = {}) {
     .trim();
 }
 
+function normalizedRawContent(message = {}) {
+  return String(message?.content || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sameAssistantTask(first = {}, second = {}) {
+  const firstTaskId = String(first?.taskId || "").trim();
+  const secondTaskId = String(second?.taskId || "").trim();
+  return !!firstTaskId && firstTaskId === secondTaskId;
+}
+
 function assistantPresentationScore(message = {}) {
   return (Array.isArray(message.steps) ? message.steps.length * 4 : 0)
     + (Array.isArray(message.traces) ? message.traces.length * 3 : 0)
@@ -183,7 +195,7 @@ function assistantPresentationScore(message = {}) {
     + (message.taskId ? 2 : 0);
 }
 
-function collapseDuplicateAssistantResults(messages = []) {
+export function collapseDuplicateAssistantResults(messages = []) {
   const collapsed = [];
   for (const message of messages) {
     const previous = collapsed[collapsed.length - 1];
@@ -193,6 +205,9 @@ function collapseDuplicateAssistantResults(messages = []) {
       && !!answer
       && !!normalizedAnswerContent(previous)
       && (normalizedAnswerContent(previous) === answer
+        || (!!normalizedRawContent(previous)
+          && normalizedRawContent(previous) === normalizedRawContent(message))
+        || sameAssistantTask(previous, message)
         || (!!previous.taskId !== !!message.taskId));
     if (!duplicateAssistant) {
       collapsed.push(message);

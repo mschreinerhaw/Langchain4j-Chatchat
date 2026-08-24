@@ -113,6 +113,22 @@ class PythonTemplatePublicationLifecycleTest {
         verify(mcp).setTemplateEnabled("new-template", false);
     }
 
+    @Test
+    void returnsExistingTemplateForOwnedScriptSoUiCanPrefillUpdateDialog() {
+        PythonScriptEntity script = script("print('version 2')", 2);
+        PythonTemplateEntity template = publishedTemplate();
+        when(scriptRepository.findByIdAndTenantIdAndOwnerId("script-1", "tenant-1", "alice"))
+                .thenReturn(Optional.of(script));
+        when(templateRepository.findFirstByScriptIdOrderByPublishedAtDesc("script-1"))
+                .thenReturn(Optional.of(template));
+
+        PythonTemplateEntity result = service.templateForScript("tenant-1", "alice", "script-1");
+
+        assertThat(result).isSameAs(template);
+        assertThat(result.getTemplateName()).isEqualTo("Log analysis");
+        assertThat(result.getInputSchemaJson()).isEqualTo("{}");
+    }
+
     private PythonScriptEntity script(String source, int version) {
         PythonScriptEntity script = new PythonScriptEntity();
         script.setId("script-1");

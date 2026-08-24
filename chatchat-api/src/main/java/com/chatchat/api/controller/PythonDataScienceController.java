@@ -75,6 +75,14 @@ public class PythonDataScienceController {
         });
     }
 
+    @GetMapping("/scripts/{id}/template")
+    public ApiResponse<?> template(@PathVariable("id") String id, HttpServletRequest request) {
+        return call(() -> {
+            Scope s = scope(request);
+            return service.templateForScript(s.tenant(), s.user(), id);
+        });
+    }
+
     @PostMapping("/scripts/{id}/execute")
     public ApiResponse<?> execute(@PathVariable("id") String id, @RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
         return call(() -> {

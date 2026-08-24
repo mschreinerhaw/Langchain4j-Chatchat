@@ -14,6 +14,7 @@ import {
   downloadPythonDataFile,
   deletePythonDataFile,
   publishPythonScript,
+  fetchPythonScriptTemplate,
   requestPythonCodeAssist,
   savePythonScript,
   deletePythonScript,
@@ -108,6 +109,7 @@ export default {
     environmentCatalog: [],
     assetOpen: false,
     publishOpen: false,
+    publishUpdating: false,
     consoleText: "",
     parametersText: "{}",
     inputSchemaText: defaultInputSchema,
@@ -1006,17 +1008,49 @@ export default {
       }
     },
     async publish() {
+      const updating = this.publishUpdating;
       await this.action(async () => {
         this.inputSchemaText = this.publishForm.inputSchema;
         await publishPythonScript(this.form.id, this.publishForm);
         this.publishOpen = false;
-        this.showTransientMessage("Python 模板已发布并注册到 Agent Runtime");
+        this.showTransientMessage(
+          updating ? "Python 模板已更新并同步到 MCP" : "Python 模板已发布并同步到 MCP"
+        );
         await this.load();
       });
     },
-    openPublishDialog() {
-      this.publishForm.inputSchema = this.inputSchemaText || defaultInputSchema;
-      this.publishOpen = true;
+    async openPublishDialog() {
+      if (!this.form.id || this.busy) return;
+      if (this.dirty) {
+        this.showTransientError("当前脚本有未保存的修改，请先保存并重新运行测试后再发布");
+        return;
+      }
+      await this.action(async () => {
+        const template = await fetchPythonScriptTemplate(this.form.id);
+        this.publishUpdating = Boolean(template?.id);
+        this.publishForm = template
+          ? {
+              templateName: template.templateName || "",
+              scenario: template.scenario || "",
+              description: template.description || "",
+              keywords: template.keywords || "",
+              domain: template.domain || "",
+              version: template.version || "1.0.0",
+              inputSchema: template.inputSchemaJson || this.inputSchemaText || defaultInputSchema,
+              outputSchema: template.outputSchemaJson || '{"type":"object"}'
+            }
+          : {
+              templateName: "",
+              scenario: "",
+              description: "",
+              keywords: "",
+              domain: "",
+              version: "1.0.0",
+              inputSchema: this.inputSchemaText || defaultInputSchema,
+              outputSchema: '{"type":"object"}'
+            };
+        this.publishOpen = true;
+      });
     },
     useAiExample(value) {
       this.aiPrompt = value;

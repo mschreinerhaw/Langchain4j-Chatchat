@@ -226,6 +226,13 @@ public class PythonDataScienceService {
         return versionRepository.findByScriptIdOrderByVersionNumberDesc(scriptId);
     }
 
+    public PythonTemplateEntity templateForScript(String tenant, String owner, String scriptId) {
+        ownedScript(scriptId, tenant, owner);
+        return templateRepository.findFirstByScriptIdOrderByPublishedAtDesc(scriptId)
+                .filter(template -> !"DELETED".equals(template.getStatus()))
+                .orElse(null);
+    }
+
     @Transactional
     public void deleteScript(String tenant, String owner, String scriptId) {
         PythonScriptEntity script = ownedScript(scriptId, tenant, owner);

@@ -84,6 +84,7 @@ export function deletePythonScriptFolder(id) { return apiRequest(`/data-science/
 export function importPythonSystemExampleData(id) { return apiRequest(`/data-science/python/system-examples/${encodeURIComponent(id)}/data`, { method: "POST" }); }
 export function executePythonScript(scriptId, parameters = {}, inputSchema = {}) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/execute`, { method: "POST", body: JSON.stringify({ parameters, inputSchema: typeof inputSchema === "string" ? inputSchema : JSON.stringify(inputSchema) }) }); }
 export function publishPythonScript(scriptId, payload) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/publish`, { method: "POST", body: JSON.stringify(payload) }); }
+export function fetchPythonScriptTemplate(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/template`); }
 export function fetchPythonScriptVersions(scriptId) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(scriptId)}/versions`); }
 export function requestPythonCodeAssist(payload) { return apiRequest("/data-science/python/assist", { method: "POST", body: JSON.stringify(payload) }); }
 export async function uploadPythonDataFile(formData) {

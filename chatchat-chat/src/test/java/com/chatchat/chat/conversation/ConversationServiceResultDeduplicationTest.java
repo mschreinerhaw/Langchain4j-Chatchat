@@ -93,6 +93,48 @@ class ConversationServiceResultDeduplicationTest {
     }
 
     @Test
+    void collapsesTwoCopiesFromTheSameTaskWhenBothCarryTheTaskId() {
+        Conversation.Message plainCopy = Conversation.Message.builder()
+            .id("assistant-history")
+            .role("assistant")
+            .content("Plain persisted answer")
+            .uiResponse(Map.of("answer", "Plain persisted answer"))
+            .taskId("task-1")
+            .build();
+        Conversation.Message runtimeCopy = Conversation.Message.builder()
+            .id("assistant-runtime")
+            .role("assistant")
+            .content("Rich runtime answer")
+            .uiResponse(Map.of("answer", "Rich runtime answer"))
+            .steps(List.of(Map.of("type", "TOOL_RESULT")))
+            .taskId("task-1")
+            .build();
+
+        assertThat(ConversationService.collapseDuplicateAssistantResults(List.of(plainCopy, runtimeCopy)))
+            .containsExactly(runtimeCopy);
+    }
+
+    @Test
+    void collapsesCopiesWhoseUiAnswersDifferButRawContentMatches() {
+        Conversation.Message artifactCopy = Conversation.Message.builder()
+            .id("assistant-artifact")
+            .role("assistant")
+            .content("## Customer analysis\n\nThe complete answer")
+            .uiResponse(Map.of("answer", "Artifact preview"))
+            .build();
+        Conversation.Message runtimeCopy = Conversation.Message.builder()
+            .id("assistant-runtime")
+            .role("assistant")
+            .content("## Customer analysis The complete answer")
+            .uiResponse(Map.of("answer", "Runtime presentation"))
+            .steps(List.of(Map.of("type", "MODEL_RESULT")))
+            .build();
+
+        assertThat(ConversationService.collapseDuplicateAssistantResults(List.of(artifactCopy, runtimeCopy)))
+            .containsExactly(runtimeCopy);
+    }
+
+    @Test
     void conversationDetailCollapsesAlreadyPersistedRuntimeAndMemoryCopies() {
         ChatSessionRepository sessions = mock(ChatSessionRepository.class);
         ChatMessageIndexRepository indexes = mock(ChatMessageIndexRepository.class);

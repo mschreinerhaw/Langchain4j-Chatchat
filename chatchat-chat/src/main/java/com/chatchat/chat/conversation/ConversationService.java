@@ -454,7 +454,9 @@ public class ConversationService {
         if (firstAnswer.isBlank() || secondAnswer.isBlank()) {
             return false;
         }
-        if (firstAnswer.equals(secondAnswer)) {
+        if (firstAnswer.equals(secondAnswer)
+            || sameTaskId(first, second)
+            || sameRawContent(first, second)) {
             return true;
         }
 
@@ -467,6 +469,18 @@ public class ConversationService {
 
     private static boolean hasTaskId(Conversation.Message message) {
         return message != null && message.getTaskId() != null && !message.getTaskId().isBlank();
+    }
+
+    private static boolean sameTaskId(Conversation.Message first, Conversation.Message second) {
+        return hasTaskId(first)
+            && hasTaskId(second)
+            && first.getTaskId().trim().equals(second.getTaskId().trim());
+    }
+
+    private static boolean sameRawContent(Conversation.Message first, Conversation.Message second) {
+        String firstContent = normalizedText(first == null ? null : first.getContent());
+        String secondContent = normalizedText(second == null ? null : second.getContent());
+        return !firstContent.isBlank() && firstContent.equals(secondContent);
     }
 
     private static boolean preferAssistantResult(Conversation.Message candidate,
@@ -485,6 +499,10 @@ public class ConversationService {
         String content = uiAnswer == null || String.valueOf(uiAnswer).isBlank()
             ? message.getContent()
             : String.valueOf(uiAnswer);
+        return normalizedText(content);
+    }
+
+    private static String normalizedText(String content) {
         return content == null ? "" : content.replaceAll("\\s+", " ").trim();
     }
 

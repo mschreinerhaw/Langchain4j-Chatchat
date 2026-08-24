@@ -778,11 +778,26 @@ public class DataQueryController {
         if (firstAnswer.isBlank() || secondAnswer.isBlank()) {
             return false;
         }
-        return firstAnswer.equals(secondAnswer) || hasTaskId(first) != hasTaskId(second);
+        return firstAnswer.equals(secondAnswer)
+            || sameTaskId(first, second)
+            || sameRawContent(first, second)
+            || hasTaskId(first) != hasTaskId(second);
     }
 
     private boolean hasTaskId(ConversationMessage message) {
         return message != null && message.getTaskId() != null && !message.getTaskId().isBlank();
+    }
+
+    private boolean sameTaskId(ConversationMessage first, ConversationMessage second) {
+        return hasTaskId(first)
+            && hasTaskId(second)
+            && first.getTaskId().trim().equals(second.getTaskId().trim());
+    }
+
+    private boolean sameRawContent(ConversationMessage first, ConversationMessage second) {
+        String firstContent = normalizedText(first == null ? null : first.getContent());
+        String secondContent = normalizedText(second == null ? null : second.getContent());
+        return !firstContent.isBlank() && firstContent.equals(secondContent);
     }
 
     private boolean preferAssistantResult(ConversationMessage candidate, ConversationMessage current) {
@@ -799,6 +814,10 @@ public class DataQueryController {
         String content = uiAnswer == null || String.valueOf(uiAnswer).isBlank()
             ? message == null ? "" : message.getContent()
             : String.valueOf(uiAnswer);
+        return normalizedText(content);
+    }
+
+    private String normalizedText(String content) {
         return content == null ? "" : content.replaceAll("\\s+", " ").trim();
     }
 

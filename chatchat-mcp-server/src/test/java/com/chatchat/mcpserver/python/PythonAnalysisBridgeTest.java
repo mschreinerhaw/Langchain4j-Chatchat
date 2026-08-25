@@ -150,6 +150,41 @@ class PythonAnalysisBridgeTest {
     }
 
     @Test
+    void discoveryPublishesDeterministicBindingForOnlyAvailableRuntimeFile() {
+        PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);
+        PythonDataFileService dataFiles = mock(PythonDataFileService.class);
+        @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);
+        PythonTemplate template = template("template-log", "asset-log", "env-python", "log_analysis.py");
+        template.setInputSchemaJson("""
+            {"type":"object","properties":{"source_file":{"type":"FILE"},"limit":{"type":"integer","default":100}},"required":["source_file"]}
+            """);
+        when(templates.findByTenantIdAndStatus("tenant-a", "PUBLISHED")).thenReturn(List.of(template));
+        when(dataFiles.discover(org.mockito.ArgumentMatchers.eq("tenant-a"),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.eq(20))).thenReturn(List.of());
+        when(dataFiles.discover(org.mockito.ArgumentMatchers.eq("tenant-a"),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(""),
+            org.mockito.ArgumentMatchers.eq(2))).thenReturn(List.of(
+            new PythonDataFileService.DataFileView("file-only", "application.log", 128L, 1000L)));
+        when(dataFiles.discover(org.mockito.ArgumentMatchers.eq("tenant-a"),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq("file-only"),
+            org.mockito.ArgumentMatchers.eq(20))).thenReturn(List.of(
+            new PythonDataFileService.DataFileView("file-only", "application.log", 128L, 1000L)));
+        ObjectMapper mapper = new ObjectMapper();
+        PythonAnalysisBridge bridge = new PythonAnalysisBridge(templates, services,
+            new PythonTemplateArgumentResolver(mapper), dataFiles, mapper);
+
+        PythonAnalysisBridge.Result result = bridge.run(Map.of(
+            "tenantId", "tenant-a", "username", "alice", "query", "日志分析"));
+
+        assertThat(result.body()).containsEntry("status", "CANDIDATES_FOUND");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> candidate = (Map<String, Object>) ((List<?>) result.body().get("candidates")).get(0);
+        assertThat(candidate.get("executionArguments").toString())
+            .contains("template-log", "source_file", "file-only");
+    }
+
+    @Test
     void returnsChoicesInsteadOfGuessingWhenTwoEnvironmentsTie() {
         PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);
         @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);

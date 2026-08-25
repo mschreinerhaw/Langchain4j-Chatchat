@@ -89,11 +89,22 @@ public final class TemplateInvocationBridge {
             parameters.clear();
             parameters.putAll(parameterAudit.parameters());
             protocolApplied = true;
-        } else if (!parameters.isEmpty()) {
-            parameterAudit = auditRuntimeRecoverableParameters(
+        } else {
+            ParameterAudit recoveredInput = parameters.isEmpty()
+                ? ParameterAudit.empty()
+                : auditRuntimeRecoverableParameters(
                 runtimeTemplateId, parameters, schema, request.evidenceContext());
+            ParameterAudit discoveredBinding = auditRuntimeDiscoveredParameters(
+                template, schema, runtimeTemplateId);
             parameters.clear();
-            parameters.putAll(parameterAudit.parameters());
+            parameters.putAll(recoveredInput.parameters());
+            parameters.putAll(discoveredBinding.parameters());
+            Map<String, ParameterEvidence> combinedEvidence = new LinkedHashMap<>(recoveredInput.evidence());
+            combinedEvidence.putAll(discoveredBinding.evidence());
+            List<String> combinedUnresolved = new ArrayList<>(recoveredInput.unresolved());
+            combinedUnresolved.removeAll(discoveredBinding.parameters().keySet());
+            parameterAudit = new ParameterAudit(
+                Map.copyOf(parameters), Map.copyOf(combinedEvidence), List.copyOf(combinedUnresolved));
             runtimeEvidenceRecovered = !parameterAudit.evidence().isEmpty();
         }
 
@@ -245,6 +256,46 @@ public final class TemplateInvocationBridge {
         // default are checked after default compilation and still fail this child only.
         return new ParameterAudit(
             Map.copyOf(recovered), Map.copyOf(evidence), List.copyOf(denied));
+    }
+
+    /**
+     * Accepts parameters that were resolved by a completed, Runtime-owned template discovery
+     * tool. In particular, FILE values are opaque ids selected inside the tenant/owner sandbox;
+     * they are not expected to occur verbatim in the user's natural-language query.
+     */
+    private ParameterAudit auditRuntimeDiscoveredParameters(Map<String, Object> template,
+                                                             Map<String, Object> schema,
+                                                             String templateId) {
+        Map<String, Object> executionArguments = objectMap(firstPresent(template,
+            "executionArguments", "execution_arguments"));
+        Map<String, Object> observed = objectMap(firstPresent(executionArguments,
+            "parameters", "arguments"));
+        if (observed.isEmpty()) {
+            return ParameterAudit.empty();
+        }
+        String observedTemplateId = canonicalTemplateId(firstPresent(executionArguments,
+            "templateId", "template_id", "template"));
+        if (observedTemplateId != null && !templateId.equals(observedTemplateId)) {
+            throw failure("TEMPLATE_ARGUMENT_CONTRACT_FAILED",
+                "discovery execution arguments do not match Runtime template " + templateId);
+        }
+        Map<String, Object> properties = objectMap(schema.get("properties"));
+        Map<String, Object> recovered = new LinkedHashMap<>();
+        Map<String, ParameterEvidence> evidence = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : observed.entrySet()) {
+            if (!properties.containsKey(entry.getKey()) || !hasValue(entry.getValue())) {
+                continue;
+            }
+            recovered.put(entry.getKey(), entry.getValue());
+            evidence.put(entry.getKey(), new ParameterEvidence(
+                TOOL_RESULT_SOURCE,
+                Map.of(
+                    "templateId", templateId,
+                    "output_path", "executionArguments.parameters." + entry.getKey(),
+                    "verifiedBy", "runtime_discovery_binding"),
+                entry.getValue()));
+        }
+        return new ParameterAudit(Map.copyOf(recovered), Map.copyOf(evidence), List.of());
     }
 
     private void recoverUniqueRequiredFileAlias(Map<String, Object> proposed,

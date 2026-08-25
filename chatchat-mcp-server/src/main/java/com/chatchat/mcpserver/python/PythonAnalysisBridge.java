@@ -85,6 +85,7 @@ public class PythonAnalysisBridge {
     }
 
     private Result candidates(String tenantId, Map<String, Object> arguments) {
+        String ownerId = optionalOwnerId(arguments);
         String assetId = text(arguments.get("assetId"));
         String environmentId = text(arguments.get("environmentId"));
         String script = firstText(text(arguments.get("script")), text(arguments.get("scriptFileName")));
@@ -101,7 +102,11 @@ public class PythonAnalysisBridge {
         Map<String, Object> body = base(ranked.isEmpty() ? "NOT_FOUND" : "CANDIDATES_FOUND", false);
         body.put("requiresModelReview", !ranked.isEmpty());
         body.put("candidateCount", ranked.size());
-        body.put("candidates", ranked.stream().map(this::templateChoice).toList());
+        body.put("candidates", ranked.stream()
+            .map(candidate -> ownerId == null
+                ? templateChoice(candidate)
+                : templateChoiceWithFileBinding(candidate, tenantId, ownerId, arguments))
+            .toList());
         body.put("executionTool", PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL);
         body.put("selectionPolicy", "Review every candidate; invoke the Runtime executor once per accepted template");
         return new Result(Map.copyOf(body), ranked.isEmpty());
@@ -183,6 +188,17 @@ public class PythonAnalysisBridge {
             FileResolution resolution = resolveFile(query, tenantId, ownerId, false);
             if (resolution.result() != null) return new FileBinding(Map.of(), resolution.result());
             if (resolution.fileId() != null) parameters.put(fileFields.get(0), resolution.fileId());
+        }
+        // A chat attachment is transferred into the tenant/owner-scoped Runtime data area before
+        // discovery. If there is exactly one available file, binding it is deterministic and does
+        // not require the model to invent a filename or container path. Multiple files remain
+        // unresolved so the normal clarification boundary is preserved.
+        if (genericFile == null && fileFields.size() == 1 && !parameters.containsKey(fileFields.get(0))) {
+            List<PythonDataFileService.DataFileView> available = dataFiles.discover(
+                tenantId, ownerId, "", 2);
+            if (available.size() == 1) {
+                parameters.put(fileFields.get(0), available.get(0).fileId());
+            }
         }
         for (String field : fileFields) {
             Object value = parameters.get(field);
@@ -305,6 +321,20 @@ public class PythonAnalysisBridge {
         return Map.copyOf(choice);
     }
 
+    private Map<String, Object> templateChoiceWithFileBinding(ScoredTemplate candidate,
+                                                               String tenantId,
+                                                               String ownerId,
+                                                               Map<String, Object> arguments) {
+        Map<String, Object> choice = new LinkedHashMap<>(templateChoice(candidate));
+        FileBinding binding = bindFiles(candidate.template(), tenantId, ownerId, arguments);
+        if (binding.result() == null && !binding.parameters().isEmpty()) {
+            choice.put("executionArguments", Map.of(
+                "templateId", candidate.template().getId(),
+                "parameters", binding.parameters()));
+        }
+        return Map.copyOf(choice);
+    }
+
     private Result clarification(String type, String message, List<Map<String, Object>> choices) {
         Map<String, Object> body = base("NEEDS_CLARIFICATION", true);
         body.put("clarificationType", type);
@@ -341,6 +371,13 @@ public class PythonAnalysisBridge {
     }
 
     private String ownerId(Map<String, Object> arguments) {
+        String value = optionalOwnerId(arguments);
+        if (value == null)
+            throw new IllegalArgumentException("Authenticated user identity is required for Python data access");
+        return value;
+    }
+
+    private String optionalOwnerId(Map<String, Object> arguments) {
         McpInvocationContext.Context invocation = McpInvocationContext.current();
         Map<String, Object> context = map(arguments.get("mcpContext"));
         Map<String, Object> user = map(context.get("user"));
@@ -348,9 +385,7 @@ public class PythonAnalysisBridge {
                 invocation == null ? null : text(invocation.userId()), text(arguments.get("username")),
                 text(context.get("username")), text(user.get("username")), text(arguments.get("userId")),
                 text(context.get("userId")), text(user.get("userId")));
-        if (value == null || "anonymous".equalsIgnoreCase(value))
-            throw new IllegalArgumentException("Authenticated user identity is required for Python data access");
-        return value;
+        return value == null || "anonymous".equalsIgnoreCase(value) ? null : value;
     }
 
     private boolean equalsIgnoreCase(String left, String right) {

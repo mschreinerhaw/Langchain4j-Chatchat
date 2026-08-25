@@ -1167,6 +1167,55 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void mandatoryRecoveryUsesRuntimeDiscoveredFileBindingWithoutModelProtocol() {
+        String discoveryTool = "mcp_runtime_python_analysis_query";
+        String executionTool = "mcp_runtime_python_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(executionTool)).thenReturn(ToolMetadata.builder()
+            .id(executionTool)
+            .parameters(List.of(ToolParameter.builder()
+                .name("templateId").type("string").required(true).build()))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName(discoveryTool)
+            .success(true)
+            .output("""
+                {
+                  "executionTool":"python_template_execute",
+                  "candidates":[{
+                    "templateId":"template-log",
+                    "parameterSchema":{
+                      "type":"object",
+                      "properties":{"source_file":{"type":"FILE"},"limit":{"type":"integer","default":100}},
+                      "required":["source_file"]
+                    },
+                    "executionArguments":{
+                      "templateId":"template-log",
+                      "parameters":{"source_file":"file-only"}
+                    }
+                  }]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = contractResolver.applyDeterministicDependencyContracts(
+            executionTool,
+            Map.of("purpose", "日志分析", "parameters", Map.of("source_file", "VALUE_REQUIRED_FROM_USER")),
+            List.of(discovery),
+            "帮我执行 log_analysis.py 分析日志文件内容并给出建议"
+        );
+
+        assertThat(result)
+            .containsEntry("templateId", "template-log")
+            .containsEntry("parameters", Map.of("source_file", "file-only", "limit", 100))
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+    }
+
+    @Test
     void repeatedExecutionCompilationKeepsUserQueryBackedRequiredParameter() {
         String discoveryTool = "mcp_runtime_any_discovery";
         String executionTool = "mcp_runtime_python_template_execute";

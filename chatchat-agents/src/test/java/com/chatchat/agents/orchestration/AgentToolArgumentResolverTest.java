@@ -832,6 +832,31 @@ class AgentToolArgumentResolverTest {
         assertThat(result.get("__runtimeParamBindingError").toString())
             .contains("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED")
             .contains("tableName");
+        assertThat(result.get("templateResolutionEvent").toString())
+            .contains("TEMPLATE_PARAMETERS_MISSING", "tableName", "REQUEST_PARAMETERS");
+    }
+
+    @Test
+    void consumesCanonicalSearchResultWithoutDependingOnPublisherShape() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .success(true)
+            .toolName("mcp_vendor_template_query")
+            .output("""
+                {"schemaVersion":"knowledge_search_result.v1","searchResult":{
+                  "status":"FOUND","hits":[{"rank":1,"score":1.0,"document":{
+                    "schemaVersion":"template_knowledge.v1","templateId":"STANDARD_HEALTH_CHECK",
+                    "executorTool":"sql_query_execute","parameterSchema":{
+                      "type":"object","properties":{},"required":[]}}}]}}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_vendor_sql_query_execute", Map.of("parameters", Map.of()), List.of(discovery));
+
+        assertThat(result)
+            .containsEntry("template", "STANDARD_HEALTH_CHECK")
+            .containsEntry("parameters", Map.of())
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
     }
 
     @Test

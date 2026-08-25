@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.template;
 
+import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
+import com.chatchat.common.knowledge.template.TemplateResolutionException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -40,11 +42,10 @@ public class TemplateParameterValidator {
         List<String> required = stringList(schema.get("required"));
         Map<String, Object> normalized = new LinkedHashMap<>();
 
-        for (String name : required) {
-            if (isBlankValue(input.get(name))) {
-                throw new IllegalArgumentException("Template parameter is required: " + name
-                    + " for template " + templateId + ". Pass it under parameters." + name);
-            }
+        List<String> missing = required.stream().filter(name -> isBlankValue(input.get(name))).toList();
+        if (!missing.isEmpty()) {
+            throw new TemplateResolutionException(
+                TemplateResolutionEvent.missingParameters(null, templateId, missing));
         }
 
         for (Map.Entry<String, Object> entry : input.entrySet()) {
@@ -86,11 +87,10 @@ public class TemplateParameterValidator {
             }
         }
 
-        for (String name : required) {
-            if (isBlankValue(collected.get(name))) {
-                throw new IllegalArgumentException("Template parameter is required: " + name
-                    + " for template " + templateId + ". Pass it under parameters." + name);
-            }
+        List<String> missing = required.stream().filter(name -> isBlankValue(collected.get(name))).toList();
+        if (!missing.isEmpty()) {
+            throw new TemplateResolutionException(
+                TemplateResolutionEvent.missingParameters(null, templateId, missing));
         }
 
         Map<String, Object> normalized = new LinkedHashMap<>();

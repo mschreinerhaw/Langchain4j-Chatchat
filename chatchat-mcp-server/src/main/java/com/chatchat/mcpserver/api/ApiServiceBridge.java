@@ -7,6 +7,10 @@ import com.chatchat.common.bridge.BridgeResponse;
 import com.chatchat.common.kernel.KernelDataDomain;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
+import com.chatchat.common.knowledge.StandardSearchResult;
+import com.chatchat.common.knowledge.template.StandardTemplateKnowledge;
+import com.chatchat.common.knowledge.template.TemplateKnowledgeProtocol;
+import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,10 +67,10 @@ public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>,
 
     @Override
     protected Map<String, Object> exchangePayload(BridgeRequest<Map<String, Object>> request) {
-        return queryPayload(request.payload());
+        return queryPayload(request.payload(), request.requestId());
     }
 
-    private Map<String, Object> queryPayload(Map<String, Object> rawArguments) {
+    private Map<String, Object> queryPayload(Map<String, Object> rawArguments, String requestId) {
         Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
         String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
         Map<String, Object> discovery = childToolName.isBlank()
@@ -75,9 +79,26 @@ public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>,
                 childToolName, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME, arguments);
         Map<String, Object> body = new LinkedHashMap<>(discovery);
         List<Map<String, Object>> candidates = maps(discovery.get("templates"));
+        String query = firstText(text(arguments.get("query")), text(arguments.get("intent")),
+            text(map(arguments.get("filters")).get("query")));
+        int limit = number(discovery.get("limit"), candidates.size());
+        boolean truncated = Boolean.TRUE.equals(discovery.get("possiblyTruncated"));
+        StandardSearchResult<StandardTemplateKnowledge> searchResult = TemplateKnowledgeProtocol.searchResult(
+            query, candidates, candidates.size(), limit, truncated,
+            Map.of("source", ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME, "targetKind", "api_service"));
+        boolean hasCandidates = !searchResult.hits().isEmpty();
+        boolean malformedCandidates = searchResult.hits().size() < candidates.size();
         body.put("schemaVersion", "api_service_query_result.v1");
-        body.put("status", candidates.isEmpty() ? "NO_CANDIDATE" : "CANDIDATES_FOUND");
-        body.put("requiresModelReview", !candidates.isEmpty());
+        body.put("searchSchemaVersion", StandardSearchResult.SCHEMA_VERSION);
+        body.put("templateSchemaVersion", StandardTemplateKnowledge.SCHEMA_VERSION);
+        body.put("searchResult", searchResult);
+        body.put("events", malformedCandidates
+            ? List.of(TemplateResolutionEvent.missingId(requestId,
+                ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME))
+            : hasCandidates ? List.of() : List.of(TemplateResolutionEvent.searchEmpty(requestId, query,
+                ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME)));
+        body.put("status", hasCandidates ? "CANDIDATES_FOUND" : "NO_CANDIDATE");
+        body.put("requiresModelReview", hasCandidates);
         body.put("bridgeManaged", true);
         body.put("bridgeTool", ApiMcpToolPublisher.BRIDGE_TOOL_NAME);
         body.put("executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
@@ -131,6 +152,12 @@ public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>,
         if (value == null) return null;
         String text = String.valueOf(value).trim();
         return text.isEmpty() ? null : text;
+    }
+
+    private int number(Object value, int fallback) {
+        if (value instanceof Number number) return Math.max(0, number.intValue());
+        try { return value == null ? fallback : Math.max(0, Integer.parseInt(String.valueOf(value))); }
+        catch (NumberFormatException ignored) { return fallback; }
     }
 
     public record Result(Map<String, Object> body, boolean error) { }

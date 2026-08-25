@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.bridge.RuntimeBridge;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
+import com.chatchat.common.knowledge.SearchStatus;
+import com.chatchat.common.knowledge.StandardSearchResult;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -39,6 +41,12 @@ class ApiServiceBridgeTest {
             .containsEntry("requiresModelReview", true)
             .containsEntry("executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
         assertThat(result.body().get("templates").toString()).contains("orders_v1", "orders_v2");
+        assertThat(result.body()).containsKeys("searchResult", "searchSchemaVersion", "templateSchemaVersion", "events");
+        assertThat(result.body().get("searchResult"))
+            .isInstanceOfSatisfying(StandardSearchResult.class, search -> {
+                assertThat(search.status()).isEqualTo(SearchStatus.FOUND);
+                assertThat(search.hits()).hasSize(2);
+            });
     }
 
     @Test
@@ -52,6 +60,7 @@ class ApiServiceBridgeTest {
             "query", "orders", "templateIds", List.of("orders_v1", "orders_v2"), "limit", 50));
 
         assertThat(result.body()).containsEntry("status", "NO_CANDIDATE").containsKey("selectionProtocol");
+        assertThat(result.body().get("events").toString()).contains("TEMPLATE_NOT_FOUND", "SEARCH_TEMPLATE");
         ArgumentCaptor<Map<String, Object>> request = ArgumentCaptor.forClass(Map.class);
         verify(discovery).query(request.capture());
         assertThat(request.getValue()).containsEntry("templateIds", List.of("orders_v1", "orders_v2"))
@@ -78,5 +87,18 @@ class ApiServiceBridgeTest {
             org.mockito.ArgumentMatchers.eq(ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME),
             org.mockito.ArgumentMatchers.anyMap());
         verifyNoInteractions(discovery);
+    }
+
+    @Test
+    void surfacesMalformedCandidatesAsTemplateIdResolutionEvents() {
+        ApiTemplateDiscoveryMcpToolPublisher discovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
+        when(discovery.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+            "templates", List.of(Map.of("title", "missing id"))));
+
+        ApiServiceBridge.Result result = new ApiServiceBridge(discovery).query(Map.of("query", "orders"));
+
+        assertThat(result.body()).containsEntry("status", "NO_CANDIDATE")
+            .containsEntry("requiresModelReview", false);
+        assertThat(result.body().get("events").toString()).contains("TEMPLATE_ID_MISSING", "SEARCH_TEMPLATE");
     }
 }

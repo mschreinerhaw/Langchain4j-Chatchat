@@ -3,6 +3,8 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
+import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
+import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
@@ -170,6 +172,7 @@ class AgentToolArgumentResolver {
             List<Map<String, Object>> eligible = eligibleTemplates(candidates, requestedTemplateId);
             TemplateInvocationBridge.TemplateBridgeException lastFailure = null;
             Map<String, Object> failedInput = null;
+            Map<String, Object> failedTemplate = null;
             String failedTemplateId = null;
             for (Map<String, Object> template : eligible) {
                 String templateId = templateId(template);
@@ -205,6 +208,7 @@ class AgentToolArgumentResolver {
                 } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
                     lastFailure = ex;
                     failedInput = candidateInput;
+                    failedTemplate = template;
                     failedTemplateId = templateId;
                     // With no explicit template selection, keep walking the ranked discovery
                     // result. A parameterized first candidate must not mask a later executable
@@ -224,6 +228,8 @@ class AgentToolArgumentResolver {
             values.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
             values.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
             values.put(McpParamBindingResolver.ERROR_KEY, lastFailure.getMessage());
+            values.put("templateResolutionEvent", templateResolutionEvent(
+                lastFailure, failedTemplateId, failedTemplate, trace.getToolName()));
             logObservedTemplateContract(toolName, requestedTemplateId, failedTemplateId, trace,
                 values, Map.of(), List.of(), false);
             return values;
@@ -969,10 +975,39 @@ class AgentToolArgumentResolver {
             templates.add(candidate);
             return;
         }
-        for (String key : List.of("templates", "candidates", "associatedTemplates", "associated_templates", "results", "items",
-            "data", "result", "payload", "structuredContent", "structured_content", "routingProjection")) {
+        for (String key : List.of("templates", "candidates", "associatedTemplates", "associated_templates",
+            "searchResult", "hits", "document", "item", "results", "items", "data", "result", "payload",
+            "structuredContent", "structured_content", "routingProjection")) {
             collectDiscoveredTemplates(map.get(key), templates, depth + 1, executor);
         }
+    }
+
+    private TemplateResolutionEvent templateResolutionEvent(
+        TemplateInvocationBridge.TemplateBridgeException failure,
+        String templateId,
+        Map<String, Object> template,
+        String searchTool
+    ) {
+        if (templateId == null || templateId.isBlank() || "TEMPLATE_REQUIRED".equals(failure.code())) {
+            return TemplateResolutionEvent.missingId(null, searchTool);
+        }
+        List<String> missing = failure.validationErrors().stream()
+            .filter(error -> error != null && ("REQUIRED_PARAMETER_MISSING".equals(error.errorCode())
+                || String.valueOf(error.message()).toLowerCase(Locale.ROOT).contains("required")))
+            .map(ToolArgumentCompiler.ValidationError::field)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (missing.isEmpty()) {
+            Object declared = nested(template == null ? Map.of() : template, "parameterSchema", "required");
+            if (declared instanceof List<?> values) {
+                missing = values.stream().map(this::scalarText).filter(Objects::nonNull).distinct().toList();
+            }
+        }
+        if (!missing.isEmpty() || String.valueOf(failure.code()).contains("PARAMETER")) {
+            return TemplateResolutionEvent.missingParameters(null, templateId, missing);
+        }
+        return TemplateResolutionEvent.notFound(null, templateId, searchTool);
     }
 
     private String discoveredExecutor(Map<String, Object> template) {

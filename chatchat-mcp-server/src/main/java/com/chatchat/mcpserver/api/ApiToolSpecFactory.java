@@ -5,6 +5,8 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
+import com.chatchat.common.knowledge.template.TemplateResolutionException;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,15 +60,24 @@ public class ApiToolSpecFactory {
                 () -> {
                     Object rawTemplateId = request.arguments() == null ? null : request.arguments().get("templateId");
                     String templateId = rawTemplateId == null ? null : String.valueOf(rawTemplateId).trim();
+                    String requestId = text(request.arguments() == null ? null : request.arguments().get("requestId"));
                     if (templateId == null || templateId.isBlank()) {
-                        throw new IllegalArgumentException("templateId is required and must come from api_template_query");
+                        return templateResolutionResult(TemplateResolutionEvent.missingId(
+                            requestId, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME));
                     }
                     ApiServiceConfig config = configService.findByToolName(templateId)
-                        .filter(ApiServiceConfig::isEnabled)
-                        .orElseThrow(() -> new IllegalArgumentException("API template not found or disabled: " + templateId));
+                        .filter(ApiServiceConfig::isEnabled).orElse(null);
+                    if (config == null) {
+                        return templateResolutionResult(TemplateResolutionEvent.notFound(
+                            requestId, templateId, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME));
+                    }
                     log.info("MCP API template execution received templateId={} argKeys={}",
                         templateId, argumentKeys(request.arguments()));
-                    return toCallToolResult(config, invokeService.invoke(config, request.arguments()));
+                    try {
+                        return toCallToolResult(config, invokeService.invoke(config, request.arguments()));
+                    } catch (TemplateResolutionException resolution) {
+                        return templateResolutionResult(withRequestId(resolution.event(), requestId));
+                    }
                 }))
             .build();
     }
@@ -170,6 +181,30 @@ public class ApiToolSpecFactory {
             .structuredContent(structured)
             .isError(!result.success())
             .build();
+    }
+
+    private McpSchema.CallToolResult templateResolutionResult(TemplateResolutionEvent event) {
+        Map<String, Object> structured = Map.of(
+            "schemaVersion", "template_execution_resolution.v1",
+            "success", false,
+            "status", "RESOLUTION_REQUIRED",
+            "event", event,
+            "events", List.of(event));
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(event.message()).structuredContent(structured).isError(true).build();
+    }
+
+    private TemplateResolutionEvent withRequestId(TemplateResolutionEvent event, String requestId) {
+        if (event.requestId() != null || requestId == null) return event;
+        return new TemplateResolutionEvent(event.schemaVersion(), event.eventId(), requestId, event.type(),
+            event.templateId(), event.missingParameters(), event.recoveryAction(), event.recoverable(),
+            event.message(), event.context(), event.occurredAt());
+    }
+
+    private String text(Object value) {
+        if (value == null) return null;
+        String text = String.valueOf(value).trim();
+        return text.isEmpty() ? null : text;
     }
 
     private String firstText(String... values) {

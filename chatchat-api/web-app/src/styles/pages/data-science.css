@@ -102,6 +102,8 @@ body.ds-pane-resizing-bottom{cursor:row-resize!important}
 
 @media(max-width:650px){.editor-tools{display:none!important}.editor-tab{min-width:135px}}
 
+.publish-progress{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 12px;margin:14px 0;padding:12px;border:1px solid #bfd5fb;border-radius:10px;background:#f5f9ff;color:#24589f}.publish-progress-track{grid-column:1/-1;height:6px;overflow:hidden;border-radius:99px;background:#dce9fb}.publish-progress-track i{display:block;width:42%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#65a3ff);animation:publish-progress-slide 1.15s ease-in-out infinite}.publish-progress strong{font-size:12px}.publish-progress small{color:#6f83a0;font-size:10px}.ds-modal :disabled{cursor:not-allowed;opacity:.7}@keyframes publish-progress-slide{0%{transform:translateX(-110%)}100%{transform:translateX(345%)}}
+
 /* Dynamic FILE parameter binding in the run drawer. */
 .parameter-heading select{max-width:150px;border:1px solid #bfd0e5;border-radius:5px;background:#fff;color:#24589f;padding:5px 8px;font-size:9px}
 .parameter-schema{font-size:9px;color:#718199}

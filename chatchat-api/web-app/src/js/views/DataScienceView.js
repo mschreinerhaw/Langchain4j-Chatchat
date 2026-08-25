@@ -110,6 +110,7 @@ export default {
     assetOpen: false,
     publishOpen: false,
     publishUpdating: false,
+    publishBusy: false,
     consoleText: "",
     parametersText: "{}",
     inputSchemaText: defaultInputSchema,
@@ -1008,16 +1009,24 @@ export default {
       }
     },
     async publish() {
+      if (this.publishBusy) return;
       const updating = this.publishUpdating;
-      await this.action(async () => {
+      this.publishBusy = true;
+      this.error = "";
+      this.message = "";
+      try {
         this.inputSchemaText = this.publishForm.inputSchema;
         await publishPythonScript(this.form.id, this.publishForm);
+        await this.load(true);
         this.publishOpen = false;
         this.showTransientMessage(
           updating ? "Python 模板已更新并同步到 MCP" : "Python 模板已发布并同步到 MCP"
         );
-        await this.load();
-      });
+      } catch (error) {
+        this.showTransientError(errorMessage(error, "Python 模板发布失败"));
+      } finally {
+        this.publishBusy = false;
+      }
     },
     async openPublishDialog() {
       if (!this.form.id || this.busy) return;

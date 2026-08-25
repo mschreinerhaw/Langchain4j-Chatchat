@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   calculateBottomPanelMaximum,
@@ -25,5 +26,20 @@ describe("Python workbench helpers", () => {
     expect(calculateBottomPanelMaximum(532)).toBe(311);
     expect(calculateBottomPanelMaximum(250)).toBe(100);
     expect(calculateBottomPanelMaximum(900)).toBe(520);
+  });
+
+  it("publishes with local progress and refreshes without rebuilding the workbench", () => {
+    const script = readFileSync(new URL("./DataScienceView.js", import.meta.url), "utf8");
+    const view = readFileSync(new URL("../../views/DataScienceView.vue", import.meta.url), "utf8");
+    const publishMethod = script.slice(
+      script.indexOf("async publish()"),
+      script.indexOf("async openPublishDialog()")
+    );
+
+    expect(publishMethod).toContain("this.publishBusy = true");
+    expect(publishMethod).toContain("await this.load(true)");
+    expect(publishMethod).not.toContain("await this.load();");
+    expect(view).toContain('class="publish-progress"');
+    expect(view).toContain(':disabled="publishBusy"');
   });
 });

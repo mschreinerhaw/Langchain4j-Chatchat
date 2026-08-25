@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -8,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Lossless fallback that makes every otherwise unknown bounded result available to analysis. */
-final class GenericResultAnalysisAdapter implements McpResultAnalysisAdapter {
+final class GenericResultAnalysisAdapter implements RuntimeResultAnalysisAdapter {
 
     @Override
     public String id() {

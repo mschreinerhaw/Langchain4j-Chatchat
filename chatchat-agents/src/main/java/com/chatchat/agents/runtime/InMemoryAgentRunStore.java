@@ -8,7 +8,6 @@ import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -25,8 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @ConditionalOnProperty(prefix = "chatchat.agent-runtime", name = "store-type", havingValue = "memory")
-@Slf4j
-public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanStore {
+public class InMemoryAgentRunStore extends AbstractAgentRunStore implements InterpretationPlanStore {
 
     protected final Map<String, AgentRun> runs = new ConcurrentHashMap<>();
     protected final Map<String, InterpretationPlanRecord> planSnapshots = new ConcurrentHashMap<>();
@@ -34,7 +32,6 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
     protected final Map<String, String> planDags = new ConcurrentHashMap<>();
     protected final Map<String, String> planIdIndex = new ConcurrentHashMap<>();
     protected final Map<String, Map<Integer, PlanStepCheckpoint>> planStepCheckpoints = new ConcurrentHashMap<>();
-    private final AgentRunEventPublisher eventPublisher;
     private final AgentRuntimeProperties properties;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final InterpretationPlanDagConverter planDagConverter = new InterpretationPlanDagConverter();
@@ -49,7 +46,7 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
 
     @Autowired
     public InMemoryAgentRunStore(AgentRunEventPublisher eventPublisher, AgentRuntimeProperties properties) {
-        this.eventPublisher = eventPublisher == null ? new NoopAgentRunEventPublisher() : eventPublisher;
+        super(eventPublisher);
         this.properties = properties == null ? new AgentRuntimeProperties() : properties;
     }
 
@@ -672,15 +669,6 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
             return run.events().get(run.events().size() - 1).createdAt();
         }
         return run.startedAt();
-    }
-
-    private void publishEvent(AgentRunEvent event) {
-        try {
-            eventPublisher.publish(event);
-        } catch (RuntimeException ex) {
-            log.warn("Agent run event publisher failed. runId={} eventType={} error={}",
-                event.runId(), event.type(), ex.getMessage());
-        }
     }
 
     private Map<String, Object> stepPayload(AgentRunStep step) {

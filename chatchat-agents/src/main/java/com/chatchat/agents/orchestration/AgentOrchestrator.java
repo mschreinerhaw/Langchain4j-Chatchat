@@ -17,7 +17,6 @@ import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.AnalysisEvidenceSpillStore;
-import com.chatchat.agents.runtime.McpEvidenceGovernanceBridge;
 import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
@@ -25,6 +24,12 @@ import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
+import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
+import com.chatchat.agents.runtime.protocol.RuntimeProtocolRegistry;
+import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
@@ -40,6 +45,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
+import com.chatchat.agents.runtime.workflow.RuntimeWorkflowGuard;
 import com.chatchat.agents.runtime.plan.EvidenceBasedAssetCandidateEvaluator;
 import com.chatchat.agents.runtime.plan.EvidenceBasedTemplateCandidateEvaluator;
 import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
@@ -107,7 +113,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
     private final AgentRunStore runStore;
     private final AgentObservationPipeline observationPipeline;
-    private final AgentWorkflowDecisionEngine workflowDecisionEngine;
+    private final AgentWorkflowDecisionPort workflowDecisionEngine;
     private final AgentRuntimeGuard runtimeGuard = new AgentRuntimeGuard(
         DEFAULT_MAX_STEPS,
         AGENT_CANCELLATION_ATTRIBUTE,
@@ -118,7 +124,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     );
     private final AgentPlanner planner;
     private final AgentRunResultAdapter runResultAdapter;
-    private final ToolObservationBuilder toolObservationBuilder;
+    private ToolObservationBuilder toolObservationBuilder;
     private final AgentChatModelResolver chatModelResolver;
     private final AgentToolNameResolver toolNames;
     private final AgentToolArgumentResolver toolArguments;
@@ -126,11 +132,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
     private final ModelAssistedContextParameterBridge modelAssistedContextParameterBridge;
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
-    private final AgentWorkflowStateTracker workflowStateTracker;
+    private final AgentWorkflowStatePort workflowStateTracker;
     private final AgentAnswerFinalizer answerFinalizer;
     private final InterpretationPlanStore interpretationPlanStore;
     private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
-    private final InterpretationPlanWorkflowGuard interpretationPlanWorkflowGuard = new InterpretationPlanWorkflowGuard();
+    private final RuntimeWorkflowGuard<InterpretationPlanWorkflowGuard.GuardContext,
+        InterpretationPlanWorkflowGuard.GuardResult> interpretationPlanWorkflowGuard =
+        new InterpretationPlanWorkflowGuard();
     private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
     private final AgentContextBudget contextBudget;
     private final int recordAnalysisChunkMaxChars;
@@ -140,16 +148,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final long analysisSummaryTaskTimeoutMs;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
-    private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
-        new AnalysisSummaryGovernanceBridge();
-    private final McpEvidenceGovernanceBridge evidenceGovernanceBridge =
-        new McpEvidenceGovernanceBridge();
+    private RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> analysisSummaryGovernanceBridge =
+        RuntimeProtocolDefaults.analysisSummary();
+    private RuntimeResultAnalysisProtocol evidenceGovernanceBridge =
+        RuntimeProtocolDefaults.resultAnalysis();
     private final HierarchicalAnalysisReducer hierarchicalAnalysisReducer =
         new HierarchicalAnalysisReducer();
     private final DeterministicInsightEngine deterministicInsightEngine =
         new DeterministicInsightEngine();
     private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
-    private final McpAnalysisContextAdapter mcpAnalysisContextAdapter;
+    private RuntimeAnalysisContextProtocol mcpAnalysisContextAdapter;
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
     private SemanticInsightContractProvider semanticInsightContractProvider =
@@ -248,7 +256,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.workflowStateTracker = new AgentWorkflowStateTracker(toolRegistry);
         this.toolRuntimeService = toolRuntimeService;
         this.objectMapper = objectMapper;
-        this.mcpAnalysisContextAdapter = new McpAnalysisContextAdapter(objectMapper);
+        this.mcpAnalysisContextAdapter = RuntimeProtocolDefaults.analysisContext(objectMapper);
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
         this.runStore = runStore == null ? new InMemoryAgentRunStore() : runStore;
         this.observationPipeline = observationPipeline == null ? new DefaultAgentObservationPipeline() : observationPipeline;
@@ -419,6 +427,21 @@ public class AgentOrchestrator implements AgentRunExecutor {
             AgentRun failed = runStore.fail(run.runId(), ex);
             return failedAgentRunResult(failed);
         }
+    }
+
+    /** Installs the Runtime OS protocol suite without coupling orchestration to implementations. */
+    @Autowired(required = false)
+    @SuppressWarnings("unchecked")
+    public void setRuntimeProtocolRegistry(RuntimeProtocolRegistry registry) {
+        if (registry == null) return;
+        this.evidenceGovernanceBridge = registry.require(RuntimeResultAnalysisProtocol.class);
+        this.mcpAnalysisContextAdapter = registry.require(RuntimeAnalysisContextProtocol.class);
+        this.analysisSummaryGovernanceBridge =
+            (RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult>) (RuntimeAnalysisSummaryProtocol<?>)
+                registry.require(RuntimeAnalysisSummaryProtocol.class);
+        this.toolObservationBuilder = new ToolObservationBuilder(
+            this.evidenceTrustEvaluator, this.evidenceGovernanceBridge);
+        this.answerFinalizer.setAnalysisSummaryProtocol(this.analysisSummaryGovernanceBridge);
     }
 
     private boolean isEvidenceObservation(com.chatchat.agents.runtime.AgentObservation observation) {
@@ -1285,11 +1308,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return answerFinalizer.finishExecution("", traces, metadata, observations);
         }
         InterpretationPlanWorkflowGuard.GuardResult firstWorkflowGuard = interpretationPlanWorkflowGuard.evaluate(
-            plan,
-            firstResult,
-            metadataStringList(metadata, "mandatoryTools"),
-            metadataStringList(runtimeAttributes, "workflowCompletedTools")
-        );
+            new InterpretationPlanWorkflowGuard.GuardContext(
+                plan,
+                firstResult,
+                metadataStringList(metadata, "mandatoryTools"),
+                metadataStringList(runtimeAttributes, "workflowCompletedTools")
+            ));
         if (firstResult.success() && !firstWorkflowGuard.allowed()) {
             firstResult = blockIncompleteWorkflow("initial", firstResult, firstWorkflowGuard, observations, metadata);
         }
@@ -1594,11 +1618,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 return answerFinalizer.finishExecution("", traces, metadata, observations);
             }
             InterpretationPlanWorkflowGuard.GuardResult currentWorkflowGuard = interpretationPlanWorkflowGuard.evaluate(
-                currentPlan,
-                currentResult,
-                metadataStringList(metadata, "mandatoryTools"),
-                metadataStringList(runtimeAttributes, "workflowCompletedTools")
-            );
+                new InterpretationPlanWorkflowGuard.GuardContext(
+                    currentPlan,
+                    currentResult,
+                    metadataStringList(metadata, "mandatoryTools"),
+                    metadataStringList(runtimeAttributes, "workflowCompletedTools")
+                ));
             if (currentResult.success() && !currentWorkflowGuard.allowed()) {
                 currentResult = blockIncompleteWorkflow(
                     rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
@@ -3597,7 +3622,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 runtimeGuard.checkCancelled(cancellationCheck);
                 int to = from + chunk.size() - 1;
                 iterations++;
-                AnalysisSummaryGovernanceBridge.ChunkPosition position =
+                RuntimeAnalysisPosition position =
                     analysisSummaryGovernanceBridge.position(evidenceReference, chunkOffset + 1,
                         chunkPlan.ranges().size(), from, to, recordSet.records().size());
                 boolean governedModelSummaryRequired =
@@ -3874,7 +3899,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 List<Map<String, Object>> chunk = List.copyOf(recordSet.records()
                     .subList(range.fromInclusive(), range.toExclusive()));
                 int to = from + chunk.size() - 1;
-                AnalysisSummaryGovernanceBridge.ChunkPosition position =
+                RuntimeAnalysisPosition position =
                     analysisSummaryGovernanceBridge.position(evidenceReference, chunkOffset + 1,
                         chunkPlan.ranges().size(), from, to, recordSet.records().size());
                 String rawJson = ModelProtocolJson.compact(chunk);
@@ -3925,7 +3950,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             dispatched, tasks, taskIdsByChunkKey, fallbacksByTaskId);
     }
 
-    private String summaryTaskKey(AnalysisSummaryGovernanceBridge.ChunkPosition position) {
+    private String summaryTaskKey(RuntimeAnalysisPosition position) {
         return position.datasetReference() + "#chunk-" + position.chunkIndex();
     }
 
@@ -3953,7 +3978,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private boolean hasTraceableChunkEvidence(AnalysisSummaryResult summary) {
         if (summary == null || summary.evidence() == null) return false;
         Map<String, Object> evidence = summary.evidence();
-        return AnalysisSummaryGovernanceBridge.EVIDENCE_SCHEMA_VERSION.equals(evidence.get("schemaVersion"))
+        return RuntimeAnalysisSummaryProtocol.EVIDENCE_SCHEMA_VERSION.equals(evidence.get("schemaVersion"))
             && !firstNonBlank(stringValue(evidence.get("evidenceId")), "").isBlank()
             && !firstNonBlank(stringValue(evidence.get("contentSha256")), "").isBlank()
             && Boolean.TRUE.equals(booleanValue(evidence.get("rawReplayAvailable")));
@@ -4314,12 +4339,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
     }
 
     private String summaryCheckpointInputSha256(String contentSha256,
-                                                AnalysisSummaryGovernanceBridge.ChunkPosition position,
+                                                RuntimeAnalysisPosition position,
                                                 Map<String, Object> governedContext,
                                                 String query,
                                                 boolean modelSummaryRequired) {
         return ModelProtocolJson.sha256Hex(Map.of(
-            "bridgeSchemaVersion", AnalysisSummaryGovernanceBridge.BRIDGE_SCHEMA_VERSION,
+            "bridgeSchemaVersion", RuntimeAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION,
             "contentSha256", firstNonBlank(contentSha256, ""),
             "position", position == null ? Map.of() : position.toMap(),
             "governedContext", governedContext == null ? Map.of() : governedContext,

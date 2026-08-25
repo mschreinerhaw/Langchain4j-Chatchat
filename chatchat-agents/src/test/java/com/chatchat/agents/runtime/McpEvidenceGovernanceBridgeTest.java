@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -46,7 +48,7 @@ class McpEvidenceGovernanceBridgeTest {
             )
         );
 
-        Map<String, Object> projection = new McpEvidenceGovernanceBridge()
+        Map<String, Object> projection = new McpResultAnalysisBridge()
             .analysisProjection("check-result", payload, 1_000);
 
         assertThat(projection)
@@ -65,20 +67,20 @@ class McpEvidenceGovernanceBridgeTest {
             "data", Map.of("stdout", "ordinary business field")
         );
 
-        Map<String, Object> projection = new McpEvidenceGovernanceBridge()
+        Map<String, Object> projection = new McpResultAnalysisBridge()
             .analysisProjection("customer-result", payload);
 
         assertThat(projection)
             .containsEntry("adapterId", "generic_bounded_result.v1")
             .containsEntry("sourceSchemaVersion", "business_records.v1");
         assertThat(projection.toString()).contains("ordinary business field");
-        assertThat(new McpEvidenceGovernanceBridge()
+        assertThat(new McpResultAnalysisBridge()
             .protocolAnalysisProjection("customer-result", payload, 1_000)).isEmpty();
     }
 
     @Test
     void acceptsCustomProtocolAdapterThroughThePublicContract() {
-        McpResultAnalysisAdapter custom = new McpResultAnalysisAdapter() {
+        RuntimeResultAnalysisAdapter custom = new RuntimeResultAnalysisAdapter() {
             @Override public String id() { return "custom.metrics.v1"; }
             @Override public int priority() { return 500; }
             @Override public boolean supports(AnalysisRequest request) {
@@ -92,7 +94,7 @@ class McpEvidenceGovernanceBridgeTest {
             }
         };
 
-        Map<String, Object> projection = new McpEvidenceGovernanceBridge(List.of(custom))
+        Map<String, Object> projection = new McpResultAnalysisBridge(List.of(custom))
             .analysisProjection("custom-result", Map.of("schemaVersion", "custom.v1"));
 
         assertThat(projection).containsEntry("adapterId", "custom.metrics.v1");

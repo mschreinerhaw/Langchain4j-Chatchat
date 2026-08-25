@@ -1,5 +1,8 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
+import com.chatchat.agents.runtime.protocol.RuntimeProtocolRegistry;
+
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.BatchExecutionMode;
 import com.chatchat.agents.runtime.batch.TemplateExecutionLayer;
@@ -71,7 +74,18 @@ public class ToolRuntimeService {
     private final List<ToolRuntimePolicyProvider> policyProviders;
     private final List<ToolRuntimeAuditSink> auditSinks;
     private final TemplateExecutionLayer templateExecutionLayer = new TemplateExecutionLayer();
-    private final McpEvidenceGovernanceBridge evidenceGovernanceBridge = new McpEvidenceGovernanceBridge();
+    private RuntimeEvidenceProtocol<McpEvidenceResult> evidenceGovernanceBridge =
+        new McpEvidenceGovernanceBridge();
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @SuppressWarnings("unchecked")
+    public void setRuntimeProtocolRegistry(RuntimeProtocolRegistry registry) {
+        if (registry != null) {
+            this.evidenceGovernanceBridge =
+                (RuntimeEvidenceProtocol<McpEvidenceResult>) (RuntimeEvidenceProtocol<?>)
+                    registry.require(RuntimeEvidenceProtocol.class);
+        }
+    }
     private final ToolArgumentCompiler toolArgumentCompiler = new ToolArgumentCompiler();
     private final ToolInputSchemaResolver toolInputSchemaResolver = new ToolInputSchemaResolver();
     private final ToolRuntimeUserPolicyStore userPolicyStore;

@@ -21,7 +21,8 @@ import com.chatchat.agents.evidence.IndirectPromptInjectionDetector;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
-import com.chatchat.agents.runtime.McpEvidenceGovernanceBridge;
+import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
+import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.common.tool.ToolOutput;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -61,11 +62,18 @@ class ToolObservationBuilder {
     private final StructuredReasoningEvidenceAdapterRegistry structuredEvidenceAdapters =
         new StructuredReasoningEvidenceAdapterRegistry();
     private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
-    private final McpEvidenceGovernanceBridge evidenceGovernanceBridge =
-        new McpEvidenceGovernanceBridge();
+    private final RuntimeResultAnalysisProtocol evidenceGovernanceBridge;
 
     ToolObservationBuilder(EvidenceTrustEvaluator evidenceTrustEvaluator) {
+        this(evidenceTrustEvaluator, RuntimeProtocolDefaults.resultAnalysis());
+    }
+
+    ToolObservationBuilder(EvidenceTrustEvaluator evidenceTrustEvaluator,
+                           RuntimeResultAnalysisProtocol resultAnalysisProtocol) {
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
+        this.evidenceGovernanceBridge = resultAnalysisProtocol == null
+            ? RuntimeProtocolDefaults.resultAnalysis()
+            : resultAnalysisProtocol;
     }
 
     String buildSuccessObservation(String toolName, ToolOutput output, String outputText) {

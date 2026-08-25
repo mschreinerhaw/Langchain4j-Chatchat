@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime;
 
-public interface AgentRunEventPublisher {
+import com.chatchat.agents.runtime.event.RuntimeEventPublisher;
 
-    void publish(AgentRunEvent event);
+public interface AgentRunEventPublisher extends RuntimeEventPublisher<AgentRunEvent> {
 }

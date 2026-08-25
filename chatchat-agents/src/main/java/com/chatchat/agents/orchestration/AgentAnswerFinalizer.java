@@ -17,6 +17,8 @@ import com.chatchat.agents.runtime.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.DraftArtifactRuntimePolicy;
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
+import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -80,8 +82,8 @@ class AgentAnswerFinalizer {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
-    private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
-        new AnalysisSummaryGovernanceBridge();
+    private RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> analysisSummaryGovernanceBridge =
+        RuntimeProtocolDefaults.analysisSummary();
     private final AnswerEvidenceLedgerCompiler answerEvidenceLedgerCompiler =
         new AnswerEvidenceLedgerCompiler();
     private final AnswerContractCompiler answerContractCompiler = new AnswerContractCompiler();
@@ -89,6 +91,14 @@ class AgentAnswerFinalizer {
     private final AnswerCriticRepairer answerCriticRepairer;
     private final FinalSummaryWebSearchEnhancer finalSummaryWebSearchEnhancer;
     private final AgentRuntimeProperties agentRuntimeProperties;
+
+    void setAnalysisSummaryProtocol(
+        RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> analysisSummaryProtocol
+    ) {
+        if (analysisSummaryProtocol != null) {
+            this.analysisSummaryGovernanceBridge = analysisSummaryProtocol;
+        }
+    }
 
     AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer, AgentRuntimeGuard runtimeGuard) {
         this(answerReviewer, runtimeGuard, null);

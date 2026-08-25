@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -60,8 +61,8 @@ public record AnalysisTask(
         return taskId + ":" + inputSha256;
     }
 
-    public AnalysisSummaryGovernanceBridge.ChunkPosition position() {
-        return new AnalysisSummaryGovernanceBridge.ChunkPosition(
+    public RuntimeAnalysisPosition position() {
+        return new RuntimeAnalysisPosition(
             datasetReference, chunkIndex, chunkCount, recordFrom, recordTo, totalRecords);
     }
 

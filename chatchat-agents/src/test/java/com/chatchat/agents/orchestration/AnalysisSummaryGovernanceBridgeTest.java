@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             .thenReturn("第 2 分块总结");
         Map<String, Object> context = bridge.govern("positions", Map.of(),
             List.of(Map.of("VALUE", 1)));
-        AnalysisSummaryGovernanceBridge.ChunkPosition position =
+        RuntimeAnalysisPosition position =
             bridge.position("positions", 2, 3, 51, 75, 120);
 
         AnalysisSummaryResult summary = bridge.summarize(

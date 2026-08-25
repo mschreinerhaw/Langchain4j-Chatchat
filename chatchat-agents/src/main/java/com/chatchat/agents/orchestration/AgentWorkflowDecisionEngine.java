@@ -21,7 +21,7 @@ import java.util.Set;
 /**
  * Central decision engine for MCP workflow tool execution and final-answer gates.
  */
-class AgentWorkflowDecisionEngine {
+class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
 
     private final ToolRegistry toolRegistry;
 
@@ -37,7 +37,7 @@ class AgentWorkflowDecisionEngine {
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
 
-    WorkflowMandatoryResolution resolveWorkflowMandatoryTools(List<String> tools,
+    public WorkflowMandatoryResolution resolveWorkflowMandatoryTools(List<String> tools,
                                                               Map<String, Object> runtimeAttributes,
                                                               String query) {
         if (tools == null || tools.isEmpty() || runtimeAttributes == null || runtimeAttributes.isEmpty()) {
@@ -330,7 +330,7 @@ class AgentWorkflowDecisionEngine {
         return step.aliases().isEmpty() ? step.toolName() : step.aliases().get(0);
     }
 
-    ToolExecutionDecision resolveToolExecution(String requestedToolName,
+    public ToolExecutionDecision resolveToolExecution(String requestedToolName,
                                                boolean required,
                                                String condition,
                                                Map<String, Object> conditionContext,
@@ -412,7 +412,7 @@ class AgentWorkflowDecisionEngine {
         return new FinalExecutionDecision(false, "MISSING_REQUIRED_TOOLS", missing);
     }
 
-    boolean policyAllowsEarlyFinal(Map<String, Object> runtimeAttributes) {
+    public boolean policyAllowsEarlyFinal(Map<String, Object> runtimeAttributes) {
         if (runtimeAttributes == null || runtimeAttributes.isEmpty()) {
             return false;
         }
@@ -425,7 +425,7 @@ class AgentWorkflowDecisionEngine {
     }
 
     @SuppressWarnings("unchecked")
-    void recordWorkflowDecision(Map<String, Object> metadata, ToolExecutionDecision decision) {
+    public void recordWorkflowDecision(Map<String, Object> metadata, ToolExecutionDecision decision) {
         if (metadata == null || decision == null) {
             return;
         }
@@ -443,7 +443,7 @@ class AgentWorkflowDecisionEngine {
         }
     }
 
-    List<Map<String, Object>> decisionRecords(List<ToolExecutionDecision> decisions) {
+    public List<Map<String, Object>> decisionRecords(List<ToolExecutionDecision> decisions) {
         if (decisions == null || decisions.isEmpty()) {
             return List.of();
         }

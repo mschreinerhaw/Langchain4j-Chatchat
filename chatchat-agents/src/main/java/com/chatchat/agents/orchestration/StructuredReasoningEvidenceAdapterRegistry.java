@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
+import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -23,10 +25,17 @@ final class StructuredReasoningEvidenceAdapterRegistry {
 
     private final Map<String, Function<Map<String, Object>, Map<String, Object>>> exact = new LinkedHashMap<>();
     private final Map<String, Function<Map<String, Object>, Map<String, Object>>> prefixes = new LinkedHashMap<>();
-    private final AnalysisSummaryGovernanceBridge summaryGovernanceBridge =
-        new AnalysisSummaryGovernanceBridge();
+    private final RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> summaryGovernanceBridge;
 
     StructuredReasoningEvidenceAdapterRegistry() {
+        this(RuntimeProtocolDefaults.analysisSummary());
+    }
+
+    StructuredReasoningEvidenceAdapterRegistry(
+        RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> summaryGovernanceBridge
+    ) {
+        this.summaryGovernanceBridge = summaryGovernanceBridge == null
+            ? RuntimeProtocolDefaults.analysisSummary() : summaryGovernanceBridge;
         exact.put("structured_data_search_result.v1", this::structuredData);
         exact.put("api_requirement_analysis.v1", this::requirementCoverage);
         exact.put("http_requirement_analysis.v1", this::requirementCoverage);

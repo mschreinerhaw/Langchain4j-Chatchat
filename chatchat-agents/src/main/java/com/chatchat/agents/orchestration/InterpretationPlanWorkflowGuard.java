@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.workflow.RuntimeWorkflowGuard;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -13,7 +14,15 @@ import java.util.Set;
 /**
  * Supervises configured MCP orchestration contracts without encoding tool-specific business rules.
  */
-class InterpretationPlanWorkflowGuard {
+class InterpretationPlanWorkflowGuard implements RuntimeWorkflowGuard<InterpretationPlanWorkflowGuard.GuardContext, InterpretationPlanWorkflowGuard.GuardResult> {
+
+    @Override
+    public GuardResult evaluate(GuardContext context) {
+        if (context == null) {
+            return evaluate(null, null, List.of(), List.of());
+        }
+        return evaluate(context.plan(), context.result(), context.requiredTools(), context.externallyCompletedTools());
+    }
 
     GuardResult evaluate(InterpretationPlan plan,
                          InterpretationPlanRuntime.ExecutionResult result,
@@ -241,6 +250,18 @@ class InterpretationPlanWorkflowGuard {
     ) {
         static GuardResult allowed(String code, Map<String, Object> metadata) {
             return new GuardResult(true, code, "", List.of(), List.of(), metadata);
+        }
+    }
+
+    record GuardContext(
+        InterpretationPlan plan,
+        InterpretationPlanRuntime.ExecutionResult result,
+        List<String> requiredTools,
+        List<String> externallyCompletedTools
+    ) {
+        GuardContext {
+            requiredTools = requiredTools == null ? List.of() : List.copyOf(requiredTools);
+            externallyCompletedTools = externallyCompletedTools == null ? List.of() : List.copyOf(externallyCompletedTools);
         }
     }
 }

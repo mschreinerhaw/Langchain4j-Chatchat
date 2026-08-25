@@ -2,6 +2,8 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,10 +21,13 @@ import java.util.Objects;
  * Bridges source-neutral summary governance into model analysis and records every chunk's
  * position. It may supplement structural metadata, but never invents business semantics.
  */
-public final class AnalysisSummaryGovernanceBridge {
+public final class AnalysisSummaryGovernanceBridge
+    implements RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> {
 
-    public static final String BRIDGE_SCHEMA_VERSION = "analysis_summary_bridge.v1";
-    public static final String EVIDENCE_SCHEMA_VERSION = "traceable_chunk_evidence.v1";
+    public static final String BRIDGE_SCHEMA_VERSION =
+        RuntimeAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION;
+    public static final String EVIDENCE_SCHEMA_VERSION =
+        RuntimeAnalysisSummaryProtocol.EVIDENCE_SCHEMA_VERSION;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -108,19 +113,19 @@ public final class AnalysisSummaryGovernanceBridge {
         return immutable(governed);
     }
 
-    public ChunkPosition position(String reference,
+    public RuntimeAnalysisPosition position(String reference,
                                   int chunkIndex,
                                   int chunkCount,
                                   int from,
                                   int to,
                                   int totalRecords) {
-        return new ChunkPosition(safeReference(reference), chunkIndex, chunkCount,
+        return new RuntimeAnalysisPosition(safeReference(reference), chunkIndex, chunkCount,
             from, to, totalRecords);
     }
 
     public AnalysisSummaryResult summarize(ChatModel model,
                                            GovernanceIsolationScope isolationScope,
-                                           ChunkPosition position,
+                                           RuntimeAnalysisPosition position,
                                            Map<String, Object> governedContext,
                                            List<Map<String, Object>> records) {
         return summarize(model, isolationScope, position, governedContext, records, null);
@@ -128,7 +133,7 @@ public final class AnalysisSummaryGovernanceBridge {
 
     public AnalysisSummaryResult summarize(ChatModel model,
                                            GovernanceIsolationScope isolationScope,
-                                           ChunkPosition position,
+                                           RuntimeAnalysisPosition position,
                                            Map<String, Object> governedContext,
                                            List<Map<String, Object>> records,
                                            String userObjective) {
@@ -188,7 +193,7 @@ public final class AnalysisSummaryGovernanceBridge {
     }
 
     public AnalysisSummaryResult preserve(GovernanceIsolationScope isolationScope,
-                                          ChunkPosition position,
+                                          RuntimeAnalysisPosition position,
                                           Map<String, Object> governedContext,
                                           List<Map<String, Object>> records) {
         return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
@@ -197,7 +202,7 @@ public final class AnalysisSummaryGovernanceBridge {
     }
 
     public AnalysisSummaryResult fallback(GovernanceIsolationScope isolationScope,
-                                          ChunkPosition position,
+                                          RuntimeAnalysisPosition position,
                                           Map<String, Object> governedContext,
                                           List<Map<String, Object>> records) {
         return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
@@ -257,7 +262,7 @@ public final class AnalysisSummaryGovernanceBridge {
     }
 
     private EvidenceCapsule evidenceCapsule(GovernanceIsolationScope isolationScope,
-                                            ChunkPosition position,
+                                            RuntimeAnalysisPosition position,
                                             Map<String, Object> governedContext,
                                             List<Map<String, Object>> records,
                                             String modelOutput) {
@@ -309,7 +314,7 @@ public final class AnalysisSummaryGovernanceBridge {
         return new EvidenceCapsule(content, Collections.unmodifiableMap(evidence));
     }
 
-    private LinkedHashSet<Integer> citedRecordIndexes(ChunkPosition position,
+    private LinkedHashSet<Integer> citedRecordIndexes(RuntimeAnalysisPosition position,
                                                        List<Map<String, Object>> facts) {
         LinkedHashSet<Integer> indexes = new LinkedHashSet<>();
         if (facts == null) return indexes;
@@ -329,7 +334,7 @@ public final class AnalysisSummaryGovernanceBridge {
     }
 
     private Map<String, Object> rawEvidence(GovernanceIsolationScope isolationScope,
-                                            ChunkPosition position,
+                                            RuntimeAnalysisPosition position,
                                             Map<String, Object> governedContext,
                                             List<Map<String, Object>> records,
                                             boolean structured,
@@ -370,7 +375,7 @@ public final class AnalysisSummaryGovernanceBridge {
             .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
     }
 
-    private boolean validRecordReference(ChunkPosition position, String reference) {
+    private boolean validRecordReference(RuntimeAnalysisPosition position, String reference) {
         if (reference == null || reference.isBlank()) return false;
         String prefix = position.datasetReference() + ".records[";
         if (!reference.startsWith(prefix) || !reference.endsWith("]")) return false;
@@ -386,7 +391,7 @@ public final class AnalysisSummaryGovernanceBridge {
         }
     }
 
-    private boolean exactValueSupported(ChunkPosition position,
+    private boolean exactValueSupported(RuntimeAnalysisPosition position,
                                         List<Map<String, Object>> records,
                                         List<String> references,
                                         String exactValue) {
@@ -407,7 +412,7 @@ public final class AnalysisSummaryGovernanceBridge {
         return false;
     }
 
-    private Integer recordIndex(ChunkPosition position, String reference) {
+    private Integer recordIndex(RuntimeAnalysisPosition position, String reference) {
         String prefix = position.datasetReference() + ".records[";
         if (reference == null || !reference.startsWith(prefix) || !reference.endsWith("]")) return null;
         String value = reference.substring(prefix.length(), reference.length() - 1);
@@ -514,25 +519,6 @@ public final class AnalysisSummaryGovernanceBridge {
 
     private Map<String, Object> immutable(Map<String, Object> value) {
         return Collections.unmodifiableMap(new LinkedHashMap<>(value));
-    }
-
-    public record ChunkPosition(String datasetReference,
-                                int chunkIndex,
-                                int chunkCount,
-                                int recordFrom,
-                                int recordTo,
-                                int totalRecords) {
-        public Map<String, Object> toMap() {
-            return Map.of(
-                "datasetReference", datasetReference,
-                "chunkIndex", chunkIndex,
-                "chunkCount", chunkCount,
-                "recordFrom", recordFrom,
-                "recordTo", recordTo,
-                "totalRecords", totalRecords,
-                "recordPath", datasetReference + ".records[" + recordFrom + ".." + recordTo + "]"
-            );
-        }
     }
 
 }

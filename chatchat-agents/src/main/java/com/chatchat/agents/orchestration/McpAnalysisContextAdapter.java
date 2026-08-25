@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -15,7 +16,7 @@ import java.util.Map;
  * source-neutral summary-governance contract. It deliberately extracts an analytical
  * allow-list instead of copying runtime identity, credentials, or arbitrary MCP metadata.
  */
-public final class McpAnalysisContextAdapter {
+public final class McpAnalysisContextAdapter implements RuntimeAnalysisContextProtocol {
 
     private static final List<String> CONTEXT_PATHS = List.of(
         "structuredContent", "structured_content", "payload", "result", "data");

@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -7,7 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /** Protocol adapter for command-execution results that publish stdout/stderr streams. */
-final class CommandStreamResultAnalysisAdapter implements McpResultAnalysisAdapter {
+final class CommandStreamResultAnalysisAdapter implements RuntimeResultAnalysisAdapter {
 
     @Override
     public String id() {

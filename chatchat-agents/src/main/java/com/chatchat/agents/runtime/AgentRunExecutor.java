@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.workflow.RuntimeWorkflow;
+
 /**
  * Runtime-facing execution port implemented by the upper orchestration layer.
  *
@@ -7,7 +9,5 @@ package com.chatchat.agents.runtime;
  * application composition layer to inject its implementation.</p>
  */
 @FunctionalInterface
-public interface AgentRunExecutor {
-
-    AgentRunResult execute(AgentRunRequest request);
+public interface AgentRunExecutor extends RuntimeWorkflow<AgentRunRequest, AgentRunResult> {
 }

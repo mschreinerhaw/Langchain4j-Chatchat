@@ -11,6 +11,7 @@ import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.workflow.AbstractRuntimeWorkflow;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
@@ -58,7 +59,7 @@ import java.util.UUID;
  * Executes validated InterpretationPlan DAGs against the MCP tool runtime.
  */
 @Slf4j
-public class InterpretationPlanRuntime {
+public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<InterpretationPlanRuntime.ExecutionRequest, InterpretationPlanRuntime.ExecutionResult> {
 
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final String ORIGINAL_USER_QUERY_ATTRIBUTE = "originalUserQuery";
@@ -223,7 +224,8 @@ public class InterpretationPlanRuntime {
      * @param request the execution request
      * @return the execution result
      */
-    public ExecutionResult execute(ExecutionRequest request) {
+    @Override
+    protected ExecutionResult doExecute(ExecutionRequest request) {
         long startedAt = System.currentTimeMillis();
         if (request == null || request.plan() == null) {
             return ExecutionResult.failed("INVALID_REQUEST", "Execution request and plan are required", List.of(), Map.of(), null, 0L);

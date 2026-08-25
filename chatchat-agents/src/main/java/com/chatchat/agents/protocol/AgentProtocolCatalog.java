@@ -27,6 +27,10 @@ public final class AgentProtocolCatalog {
     public static final String ROUTING_TRACE = "routing_trace.v1";
     public static final String RUNTIME_ARGUMENT_RESOLUTION = "runtime_argument_resolution.v1";
     public static final String RUNTIME_ANSWER_CANDIDATE = "runtime_answer_candidate_v1";
+    public static final String RUNTIME_EVIDENCE = "mcp_evidence_result.v1";
+    public static final String RUNTIME_RESULT_ANALYSIS = "mcp_analysis_projection.v1";
+    public static final String RUNTIME_ANALYSIS_CONTEXT = "data_analysis_context.v1";
+    public static final String RUNTIME_ANALYSIS_SUMMARY = "analysis_summary_bridge.v1";
 
     private static final Map<String, ProtocolDescriptor> CURRENT = currentProtocols();
 
@@ -79,6 +83,14 @@ public final class AgentProtocolCatalog {
             "runtime bindings -> executor", "Resolved argument provenance");
         register(protocols, RUNTIME_ANSWER_CANDIDATE, "assessment",
             "runtime stages -> assessment -> finalizer", "Intermediate answer candidate lifecycle");
+        register(protocols, RUNTIME_EVIDENCE, "runtime.protocol",
+            "tool runtime -> evidence store/observation", "Authoritative Runtime evidence envelope");
+        register(protocols, RUNTIME_RESULT_ANALYSIS, "runtime.protocol",
+            "tool result -> analysis datasets", "Extensible model-analysis projection");
+        register(protocols, RUNTIME_ANALYSIS_CONTEXT, "runtime.protocol",
+            "tool metadata/result -> analysis governance", "Source-neutral analysis semantics");
+        register(protocols, RUNTIME_ANALYSIS_SUMMARY, "runtime.protocol",
+            "analysis records -> final synthesis", "Governed summary and evidence lineage");
         return Map.copyOf(protocols);
     }
 

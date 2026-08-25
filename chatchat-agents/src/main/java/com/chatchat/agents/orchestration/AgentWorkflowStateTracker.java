@@ -17,7 +17,7 @@ import java.util.Set;
 /**
  * Maintains workflow completion state derived from terminal tool observations.
  */
-class AgentWorkflowStateTracker {
+class AgentWorkflowStateTracker implements AgentWorkflowStatePort {
 
     private final ToolRegistry toolRegistry;
 
@@ -29,7 +29,7 @@ class AgentWorkflowStateTracker {
         this.toolRegistry = toolRegistry;
     }
 
-    Map<String, Object> attributesWithCompletedTools(Map<String, Object> runtimeAttributes,
+    public Map<String, Object> attributesWithCompletedTools(Map<String, Object> runtimeAttributes,
                                                      Set<String> completedTools) {
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         Set<String> merged = new LinkedHashSet<>();
@@ -52,7 +52,7 @@ class AgentWorkflowStateTracker {
         return attributes;
     }
 
-    Map<String, Object> attributesWithCompletedWorkflowState(Map<String, Object> runtimeAttributes,
+    public Map<String, Object> attributesWithCompletedWorkflowState(Map<String, Object> runtimeAttributes,
                                                              Set<String> completedTools,
                                                              List<InteractionToolTrace> traces) {
         Map<String, Object> attributes = attributesWithCompletedTools(runtimeAttributes, completedTools);
@@ -80,7 +80,7 @@ class AgentWorkflowStateTracker {
         return attributes;
     }
 
-    void rememberCompletedWorkflowTool(Set<String> completedTools, AgentOrchestrator.ToolCallExecution execution) {
+    public void rememberCompletedWorkflowTool(Set<String> completedTools, AgentOrchestrator.ToolCallExecution execution) {
         if (completedTools == null || execution == null || execution.trace() == null) {
             return;
         }
@@ -92,7 +92,7 @@ class AgentWorkflowStateTracker {
         }
     }
 
-    Set<String> completedToolsFromTraces(List<InteractionToolTrace> traces) {
+    public Set<String> completedToolsFromTraces(List<InteractionToolTrace> traces) {
         Set<String> completed = new LinkedHashSet<>();
         if (traces == null || traces.isEmpty()) {
             return completed;
@@ -105,7 +105,7 @@ class AgentWorkflowStateTracker {
         return completed;
     }
 
-    Set<String> completedToolsFromEvents(List<AgentRunEvent> events) {
+    public Set<String> completedToolsFromEvents(List<AgentRunEvent> events) {
         WorkflowEventSnapshot snapshot = WorkflowEventSnapshot.from(events);
         return snapshot.completedTools();
     }
@@ -114,7 +114,7 @@ class AgentWorkflowStateTracker {
         return WorkflowEventSnapshot.from(events);
     }
 
-    boolean isConfirmationRequired(AgentOrchestrator.ToolCallExecution execution) {
+    public boolean isConfirmationRequired(AgentOrchestrator.ToolCallExecution execution) {
         if (execution == null || execution.trace() == null || execution.trace().getRuntimeMetadata() == null) {
             return false;
         }

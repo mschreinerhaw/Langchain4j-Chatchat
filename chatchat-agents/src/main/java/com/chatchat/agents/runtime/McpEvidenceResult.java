@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.protocol.RuntimeEvidenceEnvelope;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -12,9 +14,10 @@ public record McpEvidenceResult(
     GovernanceIsolationScope isolationScope,
     Object payload,
     Map<String, Object> governance
-) {
+) implements RuntimeEvidenceEnvelope {
 
-    public static final String SCHEMA_VERSION = "mcp_evidence_result.v1";
+    public static final String SCHEMA_VERSION =
+        com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol.EVIDENCE_SCHEMA_VERSION;
 
     public McpEvidenceResult {
         schemaVersion = SCHEMA_VERSION;

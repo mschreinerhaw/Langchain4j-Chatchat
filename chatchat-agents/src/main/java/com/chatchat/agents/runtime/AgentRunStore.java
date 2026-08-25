@@ -1,11 +1,12 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.event.RuntimeEventJournal;
 import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface AgentRunStore {
+public interface AgentRunStore extends RuntimeEventJournal<AgentRunEvent> {
 
     AgentRun submit(AgentRunRequest request);
 
@@ -24,10 +25,6 @@ public interface AgentRunStore {
     Optional<AgentRun> find(String runId);
 
     List<AgentRun> list(AgentRunQuery query);
-
-    List<AgentRunEvent> events(String runId);
-
-    List<AgentRunEvent> events(String runId, long afterCreatedAt, int limit);
 
     List<AgentRunStep> steps(String runId);
 

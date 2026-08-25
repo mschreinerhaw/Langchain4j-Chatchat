@@ -1758,7 +1758,7 @@ public class McpGatewayClient {
      * @return the operation result
      */
     @SuppressWarnings("unchecked")
-    private McpToolInvokeResult normalizeInvokeResult(Object raw) {
+    McpToolInvokeResult normalizeInvokeResult(Object raw) {
         if (!(raw instanceof Map<?, ?> rawMap)) {
             return new McpToolInvokeResult(true, raw, "ok", null);
         }
@@ -1774,7 +1774,8 @@ public class McpGatewayClient {
             String errorCode = ERROR_MCP_HTTP.equals(classified.errorCode())
                 ? ERROR_MCP_HTTP + "_" + code
                 : classified.errorCode();
-            return McpToolInvokeResult.failure(msg, errorCode, classified.retryable(), classified.action());
+            return new McpToolInvokeResult(false, null, map, null, msg, errorCode,
+                classified.retryable(), classified.action(), Map.of());
         }
 
         Object isError = map.get("isError");
@@ -1805,7 +1806,8 @@ public class McpGatewayClient {
             map.get("result"),
             map
         );
-        return new McpToolInvokeResult(true, data, stringValue(map.get("message")), null);
+        return new McpToolInvokeResult(true, data, map, stringValue(map.get("message")), null,
+            null, false, null, Map.of());
     }
 
     private String toolErrorMessage(Map<String, Object> map) {

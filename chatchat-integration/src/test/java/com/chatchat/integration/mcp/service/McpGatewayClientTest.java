@@ -83,6 +83,24 @@ class McpGatewayClientTest {
     }
 
     @Test
+    void normalizationKeepsCompleteRawMcpPayload() {
+        McpGatewayClient client = new McpGatewayClient(
+            new ObjectMapper(), new McpCenterProperties(), new InternalCredentialProperties(),
+            mock(McpStdioProxyService.class));
+        Map<String, Object> raw = Map.of(
+            "structuredContent", Map.of("execution", Map.of("stdoutLength", 2208)),
+            "content", java.util.List.of(Map.of("type", "text", "text", "mysql:8\npostgres:16")),
+            "isError", false);
+
+        McpToolInvokeResult result = client.normalizeInvokeResult(raw);
+
+        assertThat(result.data()).isEqualTo(raw.get("structuredContent"));
+        assertThat(result.rawData()).isEqualTo(raw);
+        assertThat(result.rawData()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsKey("content");
+    }
+
+    @Test
     void recognizesRenamedStandaloneServiceByConfiguredEndpoint() {
         McpCenterProperties properties = new McpCenterProperties();
         properties.setBaseUrl("http://127.0.0.1:18080");

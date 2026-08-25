@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CommonRuntimeOsContractBoundaryTest {
     @Test
     void bridgeAndMcpContractsDoNotDependOnImplementationModulesOrFrameworks() throws IOException {
-        List<String> violations = List.of(bridgeRoot(), mcpContractRoot(), knowledgeRoot()).stream()
+        List<String> violations = List.of(bridgeRoot(), mcpContractRoot(), mcpServiceRoot(), mcpAuditRoot(), knowledgeRoot()).stream()
             .flatMap(root -> sourceFiles(root).stream())
             .flatMap(path -> read(path).lines()
                 .filter(line -> line.startsWith("import "))
@@ -36,6 +36,8 @@ class CommonRuntimeOsContractBoundaryTest {
 
     private Path bridgeRoot() { return sourceRoot("bridge"); }
     private Path mcpContractRoot() { return sourceRoot("mcp/contract"); }
+    private Path mcpServiceRoot() { return sourceRoot("mcp/service"); }
+    private Path mcpAuditRoot() { return sourceRoot("mcp/audit"); }
     private Path knowledgeRoot() { return sourceRoot("knowledge"); }
 
     private Path sourceRoot(String relative) {

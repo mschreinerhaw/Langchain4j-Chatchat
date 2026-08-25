@@ -8,6 +8,7 @@ import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSearchQuery;
 import com.chatchat.runtime.news.search.DisabledWebSearchCache;
 import com.chatchat.runtime.news.search.NewsRelevanceRanker;
+import com.chatchat.runtime.news.search.NewsLocalQueryPlanner;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
 import com.chatchat.runtime.news.search.WebSearchCache;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
@@ -19,9 +20,11 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /** Public bridge: local news first, internal external_web_search only when evidence is insufficient. */
 @Component
@@ -64,18 +67,47 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         List<Map<String, Object>> external = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         boolean localSucceeded = false;
+        NewsLocalQueryPlanner.QueryPlan localQueryPlan = NewsLocalQueryPlanner.plan(
+            query, firstPresent(input, "queryTerms", "query_terms", "keywords", "searchTerms"),
+            properties.getWebSearch().getMaximumLocalQueryTerms());
         if (localEnabled) {
-            try {
-                List<NewsDocument> candidates = store.search(
-                    new NewsSearchQuery(query, List.of(), null, null, List.of(), size));
-                localCandidateCount = candidates == null ? 0 : candidates.size();
-                NewsRelevanceRanker.rank(query, candidates, size)
-                    .forEach(ranked -> local.add(localItem(ranked)));
-                localSucceeded = true;
-            } catch (Exception ex) {
-                CancellationSupport.rethrowIfCancelled(ex, "web_search local retrieval");
-                warnings.add("news_index: " + safe(ex));
+            Map<String, NewsDocument> mergedCandidates = new LinkedHashMap<>();
+            Map<String, NewsDocument> qualifiedCandidates = new LinkedHashMap<>();
+            Map<String, NewsRelevanceRanker.RankedNews> perQueryRankings = new LinkedHashMap<>();
+            Map<String, Set<String>> matchedQueries = new LinkedHashMap<>();
+            for (String localQuery : localQueryPlan.queries()) {
+                CancellationSupport.throwIfCancelled(NewsToolNames.WEB_SEARCH);
+                try {
+                    List<NewsDocument> recalled = store.search(
+                        new NewsSearchQuery(localQuery, List.of(), null, null, List.of(), size));
+                    localSucceeded = true;
+                    for (NewsDocument document : recalled == null ? List.<NewsDocument>of() : recalled) {
+                        String key = localDocumentKey(document);
+                        mergedCandidates.putIfAbsent(key, document);
+                    }
+                    for (NewsRelevanceRanker.RankedNews ranked : NewsRelevanceRanker.rank(
+                        localQuery, recalled, size)) {
+                        String key = localDocumentKey(ranked.document());
+                        qualifiedCandidates.putIfAbsent(key, ranked.document());
+                        perQueryRankings.putIfAbsent(key, ranked);
+                        matchedQueries.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).add(localQuery);
+                    }
+                } catch (Exception ex) {
+                    CancellationSupport.rethrowIfCancelled(ex, "web_search local retrieval");
+                    warnings.add("news_index[" + auditQuery(localQuery) + "]: " + safe(ex));
+                }
             }
+            localCandidateCount = mergedCandidates.size();
+            List<NewsRelevanceRanker.RankedNews> aggregated = new ArrayList<>(
+                NewsRelevanceRanker.rank(query, List.copyOf(qualifiedCandidates.values()), size));
+            Set<String> aggregatedKeys = new LinkedHashSet<>();
+            aggregated.forEach(ranked -> aggregatedKeys.add(localDocumentKey(ranked.document())));
+            for (Map.Entry<String, NewsRelevanceRanker.RankedNews> entry : perQueryRankings.entrySet()) {
+                if (aggregated.size() >= size) break;
+                if (aggregatedKeys.add(entry.getKey())) aggregated.add(entry.getValue());
+            }
+            aggregated.forEach(ranked -> local.add(localItem(
+                ranked, matchedQueries.getOrDefault(localDocumentKey(ranked.document()), Set.of()))));
         }
 
         CancellationSupport.throwIfCancelled(NewsToolNames.WEB_SEARCH);
@@ -129,6 +161,9 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         data.put("newsIndexCandidateCount", localCandidateCount);
         data.put("qualifiedLocalNewsCount", qualifiedLocalNewsCount);
         data.put("localEvidenceQualityStrategy", NewsRelevanceRanker.STRATEGY);
+        data.put("localSearchStrategy", NewsLocalQueryPlanner.STRATEGY);
+        data.put("localSearchTerms", localQueryPlan.keywords());
+        data.put("localSearchQueryCount", localEnabled ? localQueryPlan.queries().size() : 0);
         data.put("externalWebCount", external.size());
         data.put("webSearchCacheEnabled", externalData.getOrDefault("webSearchCacheEnabled", false));
         data.put("webSearchCacheHit", externalData.getOrDefault("webSearchCacheHit", false));
@@ -157,7 +192,8 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         catch (NumberFormatException ignored) { return 0; }
     }
 
-    private Map<String, Object> localItem(NewsRelevanceRanker.RankedNews ranked) {
+    private Map<String, Object> localItem(NewsRelevanceRanker.RankedNews ranked,
+                                          Set<String> matchedQueries) {
         NewsDocument document = ranked.document();
         Map<String, Object> item = NewsToolSupport.evidenceItem(document);
         item.put("resultType", "news");
@@ -166,9 +202,32 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         item.put("relevanceCoverage", ranked.coverage());
         item.put("matchedTermCount", ranked.matchedTerms());
         item.put("relevanceStrategy", NewsRelevanceRanker.STRATEGY);
+        item.put("matchedLocalQueries", matchedQueries == null ? List.of() : List.copyOf(matchedQueries));
         item.put("snippet", document.summary() == null || document.summary().isBlank()
             ? NewsToolSupport.abbreviate(document.content(), 500) : document.summary());
         return item;
+    }
+
+    private String localDocumentKey(NewsDocument document) {
+        if (document == null) return "null";
+        if (document.documentId() != null && !document.documentId().isBlank()) {
+            return "id:" + document.documentId();
+        }
+        if (document.sourceUrl() != null && !document.sourceUrl().isBlank()) {
+            return "url:" + document.sourceUrl().trim().toLowerCase(Locale.ROOT).replaceFirst("[/#]+$", "");
+        }
+        return "title:" + String.valueOf(document.title()).trim().toLowerCase(Locale.ROOT)
+            .replaceAll("\\s+", "");
+    }
+
+    private Object firstPresent(ToolInput input, String... keys) {
+        if (input == null || input.getParameters() == null) return null;
+        for (String key : keys) {
+            if (input.getParameters().containsKey(key) && input.getParameters().get(key) != null) {
+                return input.getParameters().get(key);
+            }
+        }
+        return null;
     }
 
     private List<Map<String, Object>> fuse(List<Map<String, Object>> local,

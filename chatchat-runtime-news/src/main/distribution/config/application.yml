@@ -74,6 +74,8 @@ chatchat:
         max-snippet-chars: 1200
         # 联网 API 仅作补充；本地新闻索引达到该数量时不再发起付费联网请求。
         minimum-local-results: 3
+        # One full-query search plus at most this many local keyword subqueries.
+        maximum-local-query-terms: 8
         # Dedicated OpenSearch cache for paid web-search responses.
         cache:
           enabled: true

@@ -65,6 +65,8 @@ chatchat:
         max-snippet-chars: 1200
         # Paid internet search is supplemental: skip it when the local news index reaches this count.
         minimum-local-results: 3
+        # One full-query search plus at most this many local keyword subqueries.
+        maximum-local-query-terms: 8
         # Dedicated OpenSearch cache for paid web-search responses.
         cache:
           enabled: true

@@ -24,6 +24,20 @@ import static org.mockito.Mockito.verify;
 class RemoteNewsMcpToolProviderTest {
 
     @Test
+    void webSearchPublishesIndependentLocalNewsQueryTerms() {
+        RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(
+            new NewsSearchService(mock(NewsRuntimeClient.class)), java.util.Optional.empty());
+
+        var parameter = provider.definitions().stream().findFirst().orElseThrow().parameters().stream()
+            .filter(item -> "queryTerms".equals(item.getName())).findFirst().orElseThrow();
+
+        assertThat(parameter.getType()).isEqualTo("array");
+        assertThat(parameter.getMetadata())
+            .containsEntry("items", Map.of("type", "string"))
+            .containsEntry("maxItems", 8);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void newsSearchRemainsAvailableWhenFinancialEnrichmentIsNotInstalled() {
         NewsRuntimeClient news = mock(NewsRuntimeClient.class);

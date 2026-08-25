@@ -40,6 +40,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 + "external API. Financial asset mapping is an internal stage of this tool and always receives the "
                 + "same query. For an exact dataset follow-up, call web_search again with dataset.",
             List.of(text("query", "News topic, business question, or financial data keywords", false),
+                stringArray("queryTerms", "Optional independent news keywords. The local news index searches and aggregates each item; when omitted, keywords are extracted from query automatically.", 8),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
                 bool("financial_data_required", "Compatibility marker for callers that explicitly require financial "
                     + "observations. Normal web_search calls already retrieve dynamically matched local financial data; "
@@ -389,6 +390,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
     }
     private ToolParameter object(String name, String description) {
         return ToolParameter.builder().name(name).type("object").description(description).required(false).build();
+    }
+    private ToolParameter stringArray(String name, String description, int maxItems) {
+        return ToolParameter.builder().name(name).type("array").description(description).required(false)
+            .metadata(Map.of("items", Map.of("type", "string"), "maxItems", maxItems)).build();
     }
     private ToolParameter bool(String name, String description, boolean value) {
         return ToolParameter.builder().name(name).type("boolean").description(description).required(false)

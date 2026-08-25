@@ -5,6 +5,7 @@ import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsAnalysisStatus;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSourceType;
+import com.chatchat.runtime.news.model.NewsSearchQuery;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
 import com.chatchat.runtime.news.search.WebSearchCache;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
@@ -20,9 +21,47 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class WebSearchToolExecutorTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void splitsLocalNewsKeywordsAndAggregatesUniqueCandidatesBeforeRanking() throws Exception {
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        properties.getOpenSearch().setEnabled(true);
+        properties.getWebSearch().setMinimumLocalResults(3);
+        NewsDocumentStore store = mock(NewsDocumentStore.class);
+        when(store.search(any())).thenAnswer(invocation -> {
+            NewsSearchQuery search = invocation.getArgument(0);
+            return switch (search.query()) {
+                case "芯片" -> List.of(topicDocument("chip", "芯片"));
+                case "人工智能" -> List.of(topicDocument("ai", "人工智能"));
+                case "算力" -> List.of(topicDocument("compute", "算力"));
+                default -> List.of();
+            };
+        });
+        TencentWebSearchClient external = mock(TencentWebSearchClient.class);
+        when(external.enabled()).thenReturn(true);
+
+        var output = new WebSearchToolExecutor(store, properties, external).execute(
+            ToolInput.builder().parameters(Map.of(
+                "query", "芯片、人工智能、算力", "num_results", 10)).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("localSearchStrategy", "original_plus_keyword_fanout_v1")
+            .containsEntry("localSearchTerms", List.of("芯片", "人工智能", "算力"))
+            .containsEntry("localSearchQueryCount", 4)
+            .containsEntry("newsIndexCandidateCount", 3)
+            .containsEntry("qualifiedLocalNewsCount", 3)
+            .containsEntry("localEvidenceSufficient", true);
+        assertThat((List<Map<String, Object>>) data.get("results")).hasSize(3);
+        verify(store, times(4)).search(any());
+        verify(external, never()).search(any(), any(Integer.class));
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -251,6 +290,14 @@ class WebSearchToolExecutorTest {
             "Local title " + id, "Local content " + id, "Local summary " + id, "author",
             "https://example.com/" + id, Instant.parse("2026-08-09T00:00:00Z"),
             Instant.parse("2026-08-09T00:01:00Z"), "en", List.of("market"), List.of(),
+            "hash-" + id, NewsAnalysisStatus.COMPLETED, Map.of());
+    }
+
+    private NewsDocument topicDocument(String id, String topic) {
+        return new NewsDocument(id, 1L, "local source", NewsSourceType.RSS,
+            topic + "产业进展", topic + "行业最新进展与市场动态", topic + "行业摘要", "author",
+            "https://example.com/" + id, Instant.parse("2026-08-09T00:00:00Z"),
+            Instant.parse("2026-08-09T00:01:00Z"), "zh-CN", List.of(topic), List.of(),
             "hash-" + id, NewsAnalysisStatus.COMPLETED, Map.of());
     }
 

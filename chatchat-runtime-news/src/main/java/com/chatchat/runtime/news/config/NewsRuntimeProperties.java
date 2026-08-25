@@ -45,6 +45,8 @@ public class NewsRuntimeProperties {
          * is satisfied by one local hit.
          */
         private int minimumLocalResults = 3;
+        /** Maximum keyword subqueries used to fan out one local-news request. */
+        private int maximumLocalQueryTerms = 8;
         private Cache cache = new Cache();
     }
 

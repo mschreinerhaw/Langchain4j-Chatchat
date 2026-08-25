@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Collections;
 
 /** Canonical inbound envelope used at every Runtime OS communication bridge. */
 public record BridgeRequest<I>(
@@ -29,7 +30,8 @@ public record BridgeRequest<I>(
         if (scope == null) throw new IllegalArgumentException("bridge scope is required");
         requestedReadData = requestedReadData == null ? Set.of() : Set.copyOf(requestedReadData);
         requestedWriteData = requestedWriteData == null ? Set.of() : Set.copyOf(requestedWriteData);
-        metadata = metadata == null ? Map.of() : Map.copyOf(new LinkedHashMap<>(metadata));
+        metadata = metadata == null ? Map.of()
+            : Collections.unmodifiableMap(new LinkedHashMap<>(metadata));
         createdAt = createdAt <= 0 ? System.currentTimeMillis() : createdAt;
     }
 

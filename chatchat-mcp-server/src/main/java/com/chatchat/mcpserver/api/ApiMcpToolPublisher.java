@@ -1,5 +1,10 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.common.bridge.BridgeResponse;
+import com.chatchat.common.bridge.api.McpApiBridge;
+import com.chatchat.common.bridge.api.McpApiCall;
+import com.chatchat.common.bridge.api.McpApiResult;
+import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -9,21 +14,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ApiMcpToolPublisher {
 
     public static final String BRIDGE_TOOL_NAME = "api_service_query";
@@ -34,10 +39,22 @@ public class ApiMcpToolPublisher {
         "api_asset_query", "api_template_query", "api_requirement_analyze", EXECUTE_TOOL_NAME);
 
     private final McpSyncServer mcpSyncServer;
-    private final ApiServiceBridge bridge;
+    private final McpApiBridge bridge;
     private final ApiToolSpecFactory toolSpecFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
+
+    public ApiMcpToolPublisher(McpSyncServer mcpSyncServer,
+                               @Qualifier("apiServiceBridge") McpApiBridge bridge,
+                               ApiToolSpecFactory toolSpecFactory,
+                               McpToolConcurrencyManager concurrencyManager,
+                               ObjectMapper objectMapper) {
+        this.mcpSyncServer = mcpSyncServer;
+        this.bridge = bridge;
+        this.toolSpecFactory = toolSpecFactory;
+        this.concurrencyManager = concurrencyManager;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * Performs the on application ready operation.
@@ -84,13 +101,21 @@ public class ApiMcpToolPublisher {
             .meta(meta()).build();
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
             Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-            return concurrencyManager.execute(BRIDGE_TOOL_NAME, "read_only", arguments, () -> callResult(bridge.query(arguments)));
+            return concurrencyManager.execute(BRIDGE_TOOL_NAME, "read_only", arguments, () -> {
+                KernelDataScope scope = scope(arguments);
+                McpApiCall call = McpApiCall.search(
+                    firstText(text(arguments.get("query")), text(arguments.get("intent"))),
+                    map(arguments.get("filters")), scope.attributes(), arguments);
+                return callResult(bridge.communicate(call, scope));
+            });
         }).build();
     }
 
     private Map<String, Object> meta() {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("schemaVersion", "api_service_query.v1");
+        meta.put("communicationInputSchemaVersion", McpApiCall.SCHEMA_VERSION);
+        meta.put("communicationOutputSchemaVersion", McpApiResult.SCHEMA_VERSION);
         meta.put("assetType", "api_service");
         meta.put("runtime_action", "read_only");
         meta.put("runtimeAction", "read_only");
@@ -113,11 +138,48 @@ public class ApiMcpToolPublisher {
         return Map.copyOf(meta);
     }
 
-    private McpSchema.CallToolResult callResult(ApiServiceBridge.Result result) {
+    private McpSchema.CallToolResult callResult(BridgeResponse<McpApiResult> response) {
+        Map<String, Object> body;
+        if (response.successful()) {
+            body = response.data().toPayload();
+        } else {
+            Map<String, Object> failure = new LinkedHashMap<>();
+            failure.put("communicationSchemaVersion", McpApiResult.SCHEMA_VERSION);
+            failure.put("communicationRequestId", response.requestId());
+            failure.put("communicationStatus", "FAILED");
+            if (response.errorCode() != null) failure.put("errorCode", response.errorCode());
+            if (response.errorMessage() != null) failure.put("errorMessage", response.errorMessage());
+            body = Map.copyOf(failure);
+        }
         String text;
-        try { text = objectMapper.writeValueAsString(result.body()); }
-        catch (Exception ex) { text = String.valueOf(result.body()); }
-        return McpSchema.CallToolResult.builder().addTextContent(text).structuredContent(result.body())
-            .isError(result.error()).build();
+        try { text = objectMapper.writeValueAsString(body); }
+        catch (Exception ex) { text = String.valueOf(body); }
+        return McpSchema.CallToolResult.builder().addTextContent(text).structuredContent(body)
+            .isError(!response.successful()).build();
+    }
+
+    private KernelDataScope scope(Map<String, Object> arguments) {
+        String requestId = firstText(text(arguments.get("requestId")), UUID.randomUUID().toString());
+        return new KernelDataScope(firstText(text(arguments.get("tenantId")), "system"),
+            text(arguments.get("userId")), requestId, text(arguments.get("conversationId")),
+            text(arguments.get("runId")), firstText(text(arguments.get("environment")), text(arguments.get("env"))),
+            Map.of("source", "mcp-api-tool"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> map(Object value) {
+        return value instanceof Map<?, ?> source
+            ? new LinkedHashMap<>((Map<String, Object>) source) : Map.of();
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) if (value != null && !value.isBlank()) return value.trim();
+        return null;
+    }
+
+    private String text(Object value) {
+        if (value == null) return null;
+        String valueText = String.valueOf(value).trim();
+        return valueText.isEmpty() ? null : valueText;
     }
 }

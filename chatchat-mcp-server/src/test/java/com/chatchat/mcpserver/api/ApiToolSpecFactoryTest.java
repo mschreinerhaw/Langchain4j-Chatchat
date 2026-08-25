@@ -2,6 +2,11 @@ package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
 import com.chatchat.common.knowledge.template.TemplateResolutionEventType;
+import com.chatchat.common.bridge.api.McpApiBridge;
+import com.chatchat.common.bridge.api.McpApiOperation;
+import com.chatchat.common.bridge.api.McpApiCall;
+import com.chatchat.common.bridge.api.McpApiResultStatus;
+import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -17,10 +22,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ApiToolSpecFactoryTest {
+
+    @Test
+    void implementsTheTypedApiExecutionBridgeContract() {
+        ApiToolSpecFactory factory = new ApiToolSpecFactory(mock(ApiInvokeService.class),
+            mock(ApiServiceConfigService.class), new ObjectMapper(),
+            mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class),
+            mock(StandardToolExecutionResultFactory.class));
+
+        assertThat(factory).isInstanceOf(McpApiBridge.class);
+        assertThat(factory.bridgeContract().operations())
+            .containsExactly(McpApiOperation.TEMPLATE_EXECUTE.operationCode());
+    }
 
     @Test
     void returnsStructuredEventsForMissingAndUnknownTemplateIds() {
@@ -45,6 +63,32 @@ class ApiToolSpecFactoryTest {
 
         assertResolution(missing, TemplateResolutionEventType.TEMPLATE_ID_MISSING, "req-missing");
         assertResolution(unknown, TemplateResolutionEventType.TEMPLATE_NOT_FOUND, "req-unknown");
+    }
+
+    @Test
+    void executesThroughTheTypedBridgeAndPreservesTheCompleteApiPayload() {
+        ApiServiceConfig config = mock(ApiServiceConfig.class);
+        when(config.isEnabled()).thenReturn(true);
+        ApiServiceConfigService configs = mock(ApiServiceConfigService.class);
+        when(configs.findByToolName("customer_profile_v1")).thenReturn(Optional.of(config));
+        ApiInvokeService invoke = mock(ApiInvokeService.class);
+        ApiInvokeResult invoked = new ApiInvokeResult(true, 200, Map.of(),
+            Map.of("customerId", "C-1", "rawEvidence", "complete-payload"), null, null);
+        when(invoke.invoke(eq(config), anyMap())).thenReturn(invoked);
+        StandardToolExecutionResultFactory results = mock(StandardToolExecutionResultFactory.class);
+        when(results.fromApi(config, invoked)).thenReturn(Map.of(
+            "success", true, "payload", invoked.body(), "statusCode", 200));
+        ApiToolSpecFactory factory = new ApiToolSpecFactory(invoke, configs, new ObjectMapper(),
+            mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class), results);
+
+        var response = factory.communicate(McpApiCall.execute("customer_profile_v1",
+            Map.of("customerId", "C-1"), Map.of(), "task-1", 0),
+            KernelDataScope.system("execute-request"));
+
+        assertThat(response.successful()).isTrue();
+        assertThat(response.data().status()).isEqualTo(McpApiResultStatus.SUCCESS);
+        assertThat(response.data().data().get("payload")).isEqualTo(invoked.body());
+        assertThat(response.data().toPayload()).containsEntry("communicationRequestId", "execute-request");
     }
 
     private void assertResolution(McpSchema.CallToolResult result,

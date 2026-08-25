@@ -2,6 +2,7 @@ package com.chatchat.common.bridge;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Collections;
 
 /** Canonical outbound envelope; payload is never replaced by execution summaries. */
 public record BridgeResponse<O>(
@@ -20,7 +21,8 @@ public record BridgeResponse<O>(
         }
         if (requestId == null || requestId.isBlank()) throw new IllegalArgumentException("requestId is required");
         status = status == null ? BridgeStatus.FAILURE : status;
-        metadata = metadata == null ? Map.of() : Map.copyOf(new LinkedHashMap<>(metadata));
+        metadata = metadata == null ? Map.of()
+            : Collections.unmodifiableMap(new LinkedHashMap<>(metadata));
         completedAt = completedAt <= 0 ? System.currentTimeMillis() : completedAt;
     }
 

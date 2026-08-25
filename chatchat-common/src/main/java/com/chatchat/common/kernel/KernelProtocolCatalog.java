@@ -25,13 +25,13 @@ public final class KernelProtocolCatalog {
     );
     public static final KernelDataBoundary MCP_BOUNDARY = new KernelDataBoundary(
         Set.of(KernelDataDomain.CONTROL, KernelDataDomain.TOOL_ARGUMENTS),
-        Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE),
+        Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE, KernelDataDomain.EVENTS),
         true,
         false
     );
     public static final KernelDataBoundary API_BOUNDARY = new KernelDataBoundary(
         Set.of(KernelDataDomain.CONTROL, KernelDataDomain.TOOL_ARGUMENTS),
-        Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE),
+        Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE, KernelDataDomain.EVENTS),
         true,
         false
     );

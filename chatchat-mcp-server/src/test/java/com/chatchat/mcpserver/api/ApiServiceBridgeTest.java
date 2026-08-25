@@ -1,6 +1,10 @@
 package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.bridge.RuntimeBridge;
+import com.chatchat.common.bridge.api.McpApiBridge;
+import com.chatchat.common.bridge.api.McpApiCall;
+import com.chatchat.common.bridge.api.McpApiResultStatus;
+import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.common.knowledge.SearchStatus;
 import com.chatchat.common.knowledge.StandardSearchResult;
@@ -23,8 +27,25 @@ class ApiServiceBridgeTest {
         ApiServiceBridge bridge = new ApiServiceBridge(mock(ApiTemplateDiscoveryMcpToolPublisher.class));
 
         assertThat(RuntimeBridge.class).isAssignableFrom(ApiServiceBridge.class);
+        assertThat(McpApiBridge.class).isAssignableFrom(ApiServiceBridge.class);
         assertThat(bridge.bridgeContract().version()).isEqualTo("api_service_bridge.v1");
         assertThat(bridge.bridgeContract().protocol()).isEqualTo(KernelProtocolCatalog.API_BRIDGE);
+    }
+
+    @Test
+    void exposesTypedServiceToServiceCommunicationAlongsideLegacyMapProjection() {
+        ApiTemplateDiscoveryMcpToolPublisher discovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
+        when(discovery.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+            "templates", List.of(Map.of("templateId", "orders_v1"))));
+        ApiServiceBridge bridge = new ApiServiceBridge(discovery);
+
+        var response = bridge.communicate(McpApiCall.search("orders", Map.of(), Map.of(), Map.of()),
+            KernelDataScope.system("typed-request"));
+
+        assertThat(response.successful()).isTrue();
+        assertThat(response.data().requestId()).isEqualTo("typed-request");
+        assertThat(response.data().status()).isEqualTo(McpApiResultStatus.SUCCESS);
+        assertThat(response.data().data()).containsKeys("searchResult", "templates");
     }
 
     @Test

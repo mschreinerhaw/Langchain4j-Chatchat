@@ -2,9 +2,15 @@ package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.bridge.AbstractRuntimeBridge;
 import com.chatchat.common.bridge.BridgeContract;
+import com.chatchat.common.bridge.BridgeException;
 import com.chatchat.common.bridge.BridgeRequest;
 import com.chatchat.common.bridge.BridgeResponse;
-import com.chatchat.common.kernel.KernelDataDomain;
+import com.chatchat.common.bridge.BridgeStatus;
+import com.chatchat.common.bridge.api.McpApiBridge;
+import com.chatchat.common.bridge.api.McpApiCall;
+import com.chatchat.common.bridge.api.McpApiOperation;
+import com.chatchat.common.bridge.api.McpApiResult;
+import com.chatchat.common.bridge.api.McpApiResultStatus;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.common.knowledge.StandardSearchResult;
@@ -25,9 +31,9 @@ import java.util.UUID;
 /** Read-only facade over the existing API template discovery protocol. */
 @Component
 @RequiredArgsConstructor
-public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>, Map<String, Object>> {
+public class ApiServiceBridge extends AbstractRuntimeBridge<McpApiCall, McpApiResult> implements McpApiBridge {
     public static final String BRIDGE_VERSION = "api_service_bridge.v1";
-    public static final String QUERY_OPERATION = "api.service/query";
+    public static final String QUERY_OPERATION = McpApiOperation.TEMPLATE_SEARCH.operationCode();
     private static final BridgeContract CONTRACT = new BridgeContract(
         "api-service", BRIDGE_VERSION, KernelProtocolCatalog.API_BRIDGE,
         Set.of(QUERY_OPERATION), KernelProtocolCatalog.API_BOUNDARY);
@@ -48,10 +54,11 @@ public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>,
             firstText(requestId, UUID.randomUUID().toString()), text(arguments.get("conversationId")),
             text(arguments.get("runId")), firstText(text(arguments.get("environment")), text(arguments.get("env"))),
             Map.of("source", "api-service-bridge"));
-        BridgeResponse<Map<String, Object>> response = exchange(BridgeRequest.of(CONTRACT, QUERY_OPERATION,
-            scope, Set.of(KernelDataDomain.TOOL_ARGUMENTS),
-            Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE), arguments));
-        if (response.successful()) return new Result(response.data(), false);
+        McpApiCall call = McpApiCall.search(
+            firstText(text(arguments.get("query")), text(arguments.get("intent"))),
+            map(arguments.get("filters")), scope.attributes(), arguments);
+        BridgeResponse<McpApiResult> response = communicate(call, scope);
+        if (response.successful()) return new Result(response.data().toPayload(), false);
         return new Result(Map.of(
             "schemaVersion", "api_service_query_result.v1",
             "status", "BRIDGE_FAILED",
@@ -66,11 +73,30 @@ public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>,
     }
 
     @Override
-    protected Map<String, Object> exchangePayload(BridgeRequest<Map<String, Object>> request) {
-        return queryPayload(request.payload(), request.requestId());
+    protected McpApiResult exchangePayload(BridgeRequest<McpApiCall> request) {
+        McpApiCall call = request.payload();
+        if (call == null) {
+            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_CALL_MISSING", "MCP/API call is required");
+        }
+        if (!request.operation().equals(call.operation().operationCode())) {
+            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_OPERATION_MISMATCH",
+                "Bridge operation does not match MCP/API payload operation");
+        }
+        if (call.expired(System.currentTimeMillis())) {
+            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_DEADLINE_EXCEEDED",
+                "MCP/API call deadline has expired");
+        }
+        if (call.operation() != McpApiOperation.TEMPLATE_SEARCH) {
+            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_OPERATION_UNSUPPORTED",
+                "API service bridge does not implement operation: " + call.operation());
+        }
+        Map<String, Object> arguments = new LinkedHashMap<>(call.extensions());
+        putIfPresent(arguments, "query", call.query());
+        if (!call.filters().isEmpty()) arguments.put("filters", call.filters());
+        return queryPayload(arguments, request.requestId());
     }
 
-    private Map<String, Object> queryPayload(Map<String, Object> rawArguments, String requestId) {
+    private McpApiResult queryPayload(Map<String, Object> rawArguments, String requestId) {
         Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
         String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
         Map<String, Object> discovery = childToolName.isBlank()
@@ -92,17 +118,22 @@ public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>,
         body.put("searchSchemaVersion", StandardSearchResult.SCHEMA_VERSION);
         body.put("templateSchemaVersion", StandardTemplateKnowledge.SCHEMA_VERSION);
         body.put("searchResult", searchResult);
-        body.put("events", malformedCandidates
+        List<TemplateResolutionEvent> events = malformedCandidates
             ? List.of(TemplateResolutionEvent.missingId(requestId,
                 ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME))
             : hasCandidates ? List.of() : List.of(TemplateResolutionEvent.searchEmpty(requestId, query,
-                ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME)));
+                ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME));
         body.put("status", hasCandidates ? "CANDIDATES_FOUND" : "NO_CANDIDATE");
         body.put("requiresModelReview", hasCandidates);
         body.put("bridgeManaged", true);
         body.put("bridgeTool", ApiMcpToolPublisher.BRIDGE_TOOL_NAME);
         body.put("executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
-        return Map.copyOf(body);
+        McpApiResultStatus status = malformedCandidates ? McpApiResultStatus.RESOLUTION_REQUIRED
+            : hasCandidates ? McpApiResultStatus.SUCCESS : McpApiResultStatus.EMPTY;
+        return new McpApiResult(McpApiResult.SCHEMA_VERSION, requestId,
+            McpApiOperation.TEMPLATE_SEARCH, status, body, events, false,
+            Map.of("bridgeId", CONTRACT.bridgeId(), "bridgeVersion", CONTRACT.version()),
+            System.currentTimeMillis());
     }
 
     private TemplateQueryMcpToolPublisher requireDynamicTemplateQueries() {

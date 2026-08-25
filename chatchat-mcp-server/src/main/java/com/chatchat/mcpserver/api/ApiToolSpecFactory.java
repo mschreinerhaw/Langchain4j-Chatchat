@@ -1,5 +1,18 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.common.bridge.AbstractRuntimeBridge;
+import com.chatchat.common.bridge.BridgeContract;
+import com.chatchat.common.bridge.BridgeException;
+import com.chatchat.common.bridge.BridgeRequest;
+import com.chatchat.common.bridge.BridgeResponse;
+import com.chatchat.common.bridge.BridgeStatus;
+import com.chatchat.common.bridge.api.McpApiBridge;
+import com.chatchat.common.bridge.api.McpApiCall;
+import com.chatchat.common.bridge.api.McpApiOperation;
+import com.chatchat.common.bridge.api.McpApiResult;
+import com.chatchat.common.bridge.api.McpApiResultStatus;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
@@ -22,11 +35,18 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ApiToolSpecFactory {
+public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApiResult> implements McpApiBridge {
+
+    public static final String BRIDGE_VERSION = "api_execution_bridge.v1";
+    private static final BridgeContract CONTRACT = new BridgeContract(
+        "api-execution", BRIDGE_VERSION, KernelProtocolCatalog.API_BRIDGE,
+        Set.of(McpApiOperation.TEMPLATE_EXECUTE.operationCode()), KernelProtocolCatalog.API_BOUNDARY);
 
     private final ApiInvokeService invokeService;
     private final ApiServiceConfigService configService;
@@ -58,33 +78,65 @@ public class ApiToolSpecFactory {
                 "http",
                 request.arguments(),
                 () -> {
-                    Object rawTemplateId = request.arguments() == null ? null : request.arguments().get("templateId");
-                    String templateId = rawTemplateId == null ? null : String.valueOf(rawTemplateId).trim();
-                    String requestId = text(request.arguments() == null ? null : request.arguments().get("requestId"));
-                    if (templateId == null || templateId.isBlank()) {
-                        return templateResolutionResult(TemplateResolutionEvent.missingId(
-                            requestId, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME));
-                    }
-                    ApiServiceConfig config = configService.findByToolName(templateId)
-                        .filter(ApiServiceConfig::isEnabled).orElse(null);
-                    if (config == null) {
-                        return templateResolutionResult(TemplateResolutionEvent.notFound(
-                            requestId, templateId, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME));
-                    }
-                    log.info("MCP API template execution received templateId={} argKeys={}",
-                        templateId, argumentKeys(request.arguments()));
-                    try {
-                        return toCallToolResult(config, invokeService.invoke(config, request.arguments()));
-                    } catch (TemplateResolutionException resolution) {
-                        return templateResolutionResult(withRequestId(resolution.event(), requestId));
-                    }
+                    Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
+                    McpApiCall call = McpApiCall.execute(text(arguments.get("templateId")),
+                        readMap(arguments.get("parameters")), executionContext(arguments),
+                        text(arguments.get("sourceTaskId")), deadline(arguments.get("deadlineAt")));
+                    return gatewayCallResult(communicate(call, executionScope(arguments)));
                 }))
             .build();
+    }
+
+    @Override
+    public BridgeContract bridgeContract() {
+        return CONTRACT;
+    }
+
+    @Override
+    protected McpApiResult exchangePayload(BridgeRequest<McpApiCall> request) {
+        McpApiCall call = request.payload();
+        if (call == null || call.operation() != McpApiOperation.TEMPLATE_EXECUTE
+            || !request.operation().equals(call.operation().operationCode())) {
+            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_OPERATION_MISMATCH",
+                "API execution bridge requires a matching template execution call");
+        }
+        if (call.expired(System.currentTimeMillis())) {
+            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_DEADLINE_EXCEEDED",
+                "MCP/API execution deadline has expired");
+        }
+        String templateId = call.templateId();
+        if (templateId == null) {
+            return resolutionResult(request.requestId(), call.operation(), TemplateResolutionEvent.missingId(
+                request.requestId(), ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME));
+        }
+        ApiServiceConfig config = configService.findByToolName(templateId)
+            .filter(ApiServiceConfig::isEnabled).orElse(null);
+        if (config == null) {
+            return resolutionResult(request.requestId(), call.operation(), TemplateResolutionEvent.notFound(
+                request.requestId(), templateId, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME));
+        }
+        Map<String, Object> arguments = new LinkedHashMap<>(call.context());
+        arguments.put("templateId", templateId);
+        arguments.put("parameters", call.parameters());
+        log.info("MCP API template execution received templateId={} argKeys={}",
+            templateId, argumentKeys(arguments));
+        try {
+            ApiInvokeResult invoked = invokeService.invoke(config, arguments);
+            Map<String, Object> data = standardResultFactory.fromApi(config, invoked);
+            return new McpApiResult(McpApiResult.SCHEMA_VERSION, request.requestId(), call.operation(),
+                invoked.success() ? McpApiResultStatus.SUCCESS : McpApiResultStatus.FAILED,
+                data, List.of(), false, Map.of("templateId", templateId), System.currentTimeMillis());
+        } catch (TemplateResolutionException resolution) {
+            return resolutionResult(request.requestId(), call.operation(),
+                withRequestId(resolution.event(), request.requestId()));
+        }
     }
 
     private Map<String, Object> apiTemplateGatewayMeta() {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("schemaVersion", "api_template_execute.v1");
+        meta.put("communicationInputSchemaVersion", McpApiCall.SCHEMA_VERSION);
+        meta.put("communicationOutputSchemaVersion", McpApiResult.SCHEMA_VERSION);
         meta.put("runtime_action", "execute");
         meta.put("runtimeAction", "execute");
         meta.put("templateGoverned", true);
@@ -183,15 +235,34 @@ public class ApiToolSpecFactory {
             .build();
     }
 
-    private McpSchema.CallToolResult templateResolutionResult(TemplateResolutionEvent event) {
-        Map<String, Object> structured = Map.of(
-            "schemaVersion", "template_execution_resolution.v1",
-            "success", false,
-            "status", "RESOLUTION_REQUIRED",
-            "event", event,
-            "events", List.of(event));
+    private McpSchema.CallToolResult gatewayCallResult(BridgeResponse<McpApiResult> response) {
+        if (!response.successful()) {
+            Map<String, Object> failure = new LinkedHashMap<>();
+            failure.put("communicationSchemaVersion", McpApiResult.SCHEMA_VERSION);
+            failure.put("communicationRequestId", response.requestId());
+            failure.put("communicationStatus", "FAILED");
+            if (response.errorCode() != null) failure.put("errorCode", response.errorCode());
+            if (response.errorMessage() != null) failure.put("errorMessage", response.errorMessage());
+            return McpSchema.CallToolResult.builder()
+                .addTextContent(response.errorMessage() == null ? "API bridge failed" : response.errorMessage())
+                .structuredContent(Map.copyOf(failure)).isError(true).build();
+        }
+        McpApiResult result = response.data();
+        Map<String, Object> structured = result.toPayload();
+        String summary = result.events().isEmpty()
+            ? summarizeBody(structured, null) : result.events().get(0).message();
         return McpSchema.CallToolResult.builder()
-            .addTextContent(event.message()).structuredContent(structured).isError(true).build();
+            .addTextContent(summary == null ? "" : summary).structuredContent(structured)
+            .isError(!result.successful()).build();
+    }
+
+    private McpApiResult resolutionResult(String requestId, McpApiOperation operation,
+                                          TemplateResolutionEvent event) {
+        return new McpApiResult(McpApiResult.SCHEMA_VERSION, requestId, operation,
+            McpApiResultStatus.RESOLUTION_REQUIRED,
+            Map.of("schemaVersion", "template_execution_resolution.v1", "success", false,
+                "status", "RESOLUTION_REQUIRED", "event", event),
+            List.of(event), false, Map.of(), System.currentTimeMillis());
     }
 
     private TemplateResolutionEvent withRequestId(TemplateResolutionEvent event, String requestId) {
@@ -205,6 +276,29 @@ public class ApiToolSpecFactory {
         if (value == null) return null;
         String text = String.valueOf(value).trim();
         return text.isEmpty() ? null : text;
+    }
+
+    private KernelDataScope executionScope(Map<String, Object> arguments) {
+        String requestId = firstText(text(arguments.get("requestId")), UUID.randomUUID().toString());
+        return new KernelDataScope(firstText(text(arguments.get("tenantId")), "system"),
+            text(arguments.get("userId")), requestId, text(arguments.get("conversationId")),
+            text(arguments.get("runId")), firstText(text(arguments.get("environment")), text(arguments.get("env"))),
+            Map.of("source", "mcp-api-execution-tool"));
+    }
+
+    private Map<String, Object> executionContext(Map<String, Object> arguments) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        for (String key : List.of("purpose", "sourceTaskId", "requestId", "tenantId", "userId",
+            "conversationId", "runId", "environment", "env")) {
+            if (arguments.containsKey(key) && arguments.get(key) != null) context.put(key, arguments.get(key));
+        }
+        return context;
+    }
+
+    private long deadline(Object value) {
+        if (value instanceof Number number) return Math.max(0, number.longValue());
+        try { return value == null ? 0 : Math.max(0, Long.parseLong(String.valueOf(value))); }
+        catch (NumberFormatException ignored) { return 0; }
     }
 
     private String firstText(String... values) {

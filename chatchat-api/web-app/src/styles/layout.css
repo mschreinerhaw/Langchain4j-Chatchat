@@ -798,11 +798,40 @@
 }
 
 .recent-block .more-link {
-  min-height: 30px;
-  display: block;
+  width: fit-content;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   margin-top: 6px;
-  padding: 0 8px 0 10px;
-  color: var(--muted);
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #667085;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  appearance: none;
+}
+
+.recent-block .more-link:hover:not(:disabled) {
+  background: #f2f4f7;
+  color: #475467;
+}
+
+.recent-block .more-link:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 1px;
+}
+
+.recent-block .more-link:disabled {
+  cursor: not-allowed;
+  color: #b0b8c6;
 }
 
 .user-card {

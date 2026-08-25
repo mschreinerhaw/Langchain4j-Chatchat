@@ -202,6 +202,19 @@ public class ConversationService {
     ) {
     }
 
+    @Transactional
+    public Conversation renameConversation(String tenantId, String conversationId, String title) {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Conversation title is required");
+        }
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        ChatSessionEntity session = sessionRepository
+            .findBySessionIdAndTenantId(conversationId, normalizedTenantId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + conversationId));
+        session.setTitle(normalizeTitle(title));
+        return toConversation(sessionRepository.save(session), List.of());
+    }
+
     /**
      * Updates the conversation summary.
      *
@@ -300,6 +313,24 @@ public class ConversationService {
         messageIndexRepository.deleteByTenantIdAndSessionId(normalizedTenantId, session.getSessionId());
         summaryRepository.deleteBySessionId(session.getSessionId());
         sessionRepository.delete(session);
+    }
+
+    @Transactional
+    public void deleteMessage(String tenantId, String conversationId, String messageId) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        ChatSessionEntity session = sessionRepository
+            .findBySessionIdAndTenantId(conversationId, normalizedTenantId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + conversationId));
+        ChatMessageIndexEntity index = messageIndexRepository
+            .findByMessageIdAndTenantIdAndSessionId(messageId, normalizedTenantId, session.getSessionId())
+            .orElseThrow(() -> new IllegalArgumentException("Message not found in conversation: " + messageId));
+        detailStore.delete(index.getRocksKey());
+        messageIndexRepository.delete(index);
+        // A persisted summary may contain content from the removed answer. Invalidate it so
+        // future context assembly cannot resurrect deleted user-visible content.
+        summaryRepository.deleteBySessionId(session.getSessionId());
+        session.setUpdatedAt(Instant.now());
+        sessionRepository.save(session);
     }
 
     /**

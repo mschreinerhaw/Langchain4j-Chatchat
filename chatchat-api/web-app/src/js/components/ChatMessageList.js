@@ -1,5 +1,5 @@
 import MarkdownIt from "markdown-it";
-import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, RefreshCw, TriangleAlert, Wrench } from "@lucide/vue";
+import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, RefreshCw, Trash2, TriangleAlert, Wrench } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import { defineAsyncComponent } from "vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
@@ -109,18 +109,23 @@ export default {
     Copy,
     FileDown,
     RefreshCw,
+    Trash2,
     TriangleAlert,
     Wrench,
     ResponseReferences,
     EnterpriseUiArtifactRenderer
   },
-  emits: ["feedback", "visualization-drill-down"],
+  emits: ["delete-message", "feedback", "visualization-drill-down"],
   props: {
     messages: {
       type: Array,
       default: () => []
     },
     loading: {
+      type: Boolean,
+      default: false
+    },
+    allowMessageDelete: {
       type: Boolean,
       default: false
     },

@@ -11,6 +11,7 @@ import {
   LogOut,
   MessageCircle,
   MessageSquare,
+  Pencil,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -32,6 +33,7 @@ export default {
     MessageCircle,
     PanelLeftClose,
     PanelLeftOpen,
+    Pencil,
     Search,
     Star,
     Trash2,
@@ -120,6 +122,7 @@ export default {
     "load-history-manager",
     "navigate",
     "refresh-history",
+    "rename-conversation",
     "select-conversation",
     "toggle-sidebar"
   ],
@@ -348,6 +351,9 @@ export default {
     },
     deleteConversation(conversation) {
       this.$emit("delete-conversation", conversation);
+    },
+    renameConversation(conversation) {
+      this.$emit("rename-conversation", conversation);
     },
     openHistoryManager() {
       this.managerKeyword = "";

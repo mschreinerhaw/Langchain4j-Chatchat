@@ -35,6 +35,16 @@
               <Check v-if="copiedMessageId === message.id" :size="14" stroke-width="2.4" />
               <Copy v-else :size="14" stroke-width="2.2" />
             </button>
+            <button
+              v-if="allowMessageDelete && message.role === 'assistant' && !message.streaming"
+              type="button"
+              class="message-delete-button"
+              title="删除这条回答"
+              aria-label="删除这条回答"
+              @click="$emit('delete-message', message)"
+            >
+              <Trash2 :size="14" stroke-width="2.2" />
+            </button>
           </div>
         </div>
         <section

@@ -29,6 +29,7 @@
     @refresh-history="loadConversationHistory"
     @load-more-history="loadMoreConversationHistory"
     @load-history-manager="loadHistoryManager"
+    @rename-conversation="renameConversation"
     @select-conversation="selectConversation"
     @logout="handleLogout"
   >

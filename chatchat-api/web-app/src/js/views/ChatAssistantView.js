@@ -4,6 +4,7 @@ import {
   analyzeChatImage,
   apiRequest,
   cancelSearchDocumentUpload,
+  deleteConversationMessage,
   fetchAgentTaskEvents,
   fetchAgentRuntimeSummary,
   fetchResearchLibrary,
@@ -2989,6 +2990,21 @@ export default {
           activeHistoryId: active ? context.conversationId || context.historyId : "",
           activeStatus: active ? status : ""
         });
+      }
+    },
+    async deleteMessage(message) {
+      if (!this.conversationId || !message?.id || message.streaming || this.loading) return;
+      if (!window.confirm("确定删除这条回答吗？删除后无法恢复。")) return;
+      this.errorMessage = "";
+      try {
+        await deleteConversationMessage(this.conversationId, message.id, this.effectiveTenantId());
+        this.messages = this.messages.filter((item) => item.id !== message.id);
+        const context = this.runningContexts[this.historyId];
+        if (context) context.messages = context.messages.filter((item) => item.id !== message.id);
+        this.emitActiveConversationSnapshot(
+          this.lastUserQuestion(this.messages), this.conversationStatus || "completed");
+      } catch (error) {
+        this.errorMessage = error.message || "回答删除失败";
       }
     },
     restoreConversation(conversation) {

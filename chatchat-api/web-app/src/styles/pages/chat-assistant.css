@@ -734,7 +734,8 @@
   flex: 0 0 auto;
 }
 
-.message-copy-button {
+.message-copy-button,
+.message-delete-button {
   width: 26px;
   height: 26px;
   display: inline-grid;
@@ -749,7 +750,9 @@
 }
 
 .chat-message:hover .message-copy-button,
+.chat-message:hover .message-delete-button,
 .chat-message:focus-within .message-copy-button,
+.chat-message:focus-within .message-delete-button,
 .message-copy-button[data-copied="true"] {
   opacity: 1;
   pointer-events: auto;
@@ -822,6 +825,12 @@
   line-height: 1.75;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.message-delete-button:hover {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #be123c;
 }
 
 .message-markdown > *,

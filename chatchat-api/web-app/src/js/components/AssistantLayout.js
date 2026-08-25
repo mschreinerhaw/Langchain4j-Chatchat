@@ -73,6 +73,7 @@ export default {
     "load-history-manager",
     "navigate",
     "refresh-history",
+    "rename-conversation",
     "select-conversation"
   ],
   methods: {

@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ChatMessageIndexRepository extends JpaRepository<ChatMessageIndexEntity, String> {
 
@@ -16,6 +17,9 @@ public interface ChatMessageIndexRepository extends JpaRepository<ChatMessageInd
     List<ChatMessageIndexEntity> findBySessionIdOrderByCreatedAtAsc(String sessionId);
 
     List<ChatMessageIndexEntity> findByTenantIdAndSessionIdOrderByCreatedAtAsc(String tenantId, String sessionId);
+
+    Optional<ChatMessageIndexEntity> findByMessageIdAndTenantIdAndSessionId(
+        String messageId, String tenantId, String sessionId);
 
     /**
      * Finds the by session id order by created at desc.

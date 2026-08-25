@@ -93,9 +93,11 @@
       ref="messageList"
       :messages="messages"
       :loading="loading"
+      :allow-message-delete="!!conversationId && !loading"
       :user-id="userId"
       :active-agent="selectedAgent"
       @feedback="handleMessageFeedback"
+      @delete-message="deleteMessage"
       @visualization-drill-down="handleVisualizationDrillDown"
     />
       <p v-if="statusNotice" class="chat-status-notice">{{ statusNotice }}</p>

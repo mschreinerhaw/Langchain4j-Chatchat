@@ -128,6 +128,17 @@
             <Star :size="13" stroke-width="2" :fill="isConversationFavorited(conversation) ? 'currentColor' : 'none'" />
           </span>
           <span
+            class="recent-rename"
+            role="button"
+            tabindex="0"
+            title="重命名会话"
+            aria-label="重命名会话"
+            @click.stop="renameConversation(conversation)"
+            @keydown.enter.stop.prevent="renameConversation(conversation)"
+          >
+            <Pencil :size="13" stroke-width="2" />
+          </span>
+          <span
             class="recent-delete"
             role="button"
             tabindex="0"

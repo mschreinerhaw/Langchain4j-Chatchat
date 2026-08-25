@@ -1,0 +1,1 @@
+import{_ as n,o as c,a,b as e}from"./index-Cx1oYXt-.js";const o={},t={class:"access-denied-view"};function r(l,s){return c(),a("main",t,[...s[0]||(s[0]=[e("section",null,[e("strong",null,"暂无访问权限"),e("p",null,"当前角色未授权访问此功能，请联系管理员调整菜单权限。")],-1)])])}const d=n(o,[["render",r],["__scopeId","data-v-cf477aa3"]]);export{d as default};

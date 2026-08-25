@@ -1,6 +1,7 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.chat.conversation.ConversationService;
+import com.chatchat.chat.conversation.Conversation;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -12,6 +13,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -208,5 +211,40 @@ public class ConversationControllerTest {
         mockMvc.perform(get("/api/v1/conversations/" + conversationId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(404));
+    }
+
+    @Test
+    public void testRenameConversation() throws Exception {
+        Conversation conversation = conversationService.createConversation("default", "user-rename", "Old title");
+
+        mockMvc.perform(patch("/api/v1/conversations/" + conversation.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Quarterly analysis\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.title").value("Quarterly analysis"));
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversation.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.title").value("Quarterly analysis"));
+    }
+
+    @Test
+    public void testDeleteOneConversationMessage() throws Exception {
+        Conversation conversation = conversationService.createConversation("default", "user-message-delete", "Delete answer");
+        Conversation.Message question = new Conversation.Message(
+            "question-1", "user", "Question", java.time.LocalDateTime.now(), List.of(), null);
+        Conversation.Message answer = new Conversation.Message(
+            "answer-1", "assistant", "Answer to remove", java.time.LocalDateTime.now(), List.of(), null);
+        conversationService.replaceMessages(
+            "default", conversation.getId(), "user-message-delete", List.of(question, answer));
+
+        mockMvc.perform(delete("/api/v1/conversations/" + conversation.getId() + "/messages/answer-1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversation.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.messages.length()").value(1))
+            .andExpect(jsonPath("$.data.messages[0].id").value("question-1"));
     }
 }

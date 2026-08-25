@@ -762,6 +762,25 @@ export function removeUserFavorite(favoriteId, filters = {}) {
   });
 }
 
+export function renameConversationHistory(conversationId, title, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) params.set("tenantId", tenantId);
+  const query = params.toString();
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}${query ? `?${query}` : ""}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title })
+  });
+}
+
+export function deleteConversationMessage(conversationId, messageId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) params.set("tenantId", tenantId);
+  const query = params.toString();
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}${query ? `?${query}` : ""}`, {
+    method: "DELETE"
+  });
+}
+
 export function fetchAgentTaskPage(filters = {}) {
   const params = new URLSearchParams();
   if (filters.tenantId) params.set("tenantId", filters.tenantId);

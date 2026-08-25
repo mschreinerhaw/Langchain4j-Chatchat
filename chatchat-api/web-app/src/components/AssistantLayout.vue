@@ -32,6 +32,7 @@
       @refresh-history="$emit('refresh-history')"
       @load-more-history="$emit('load-more-history')"
       @load-history-manager="$emit('load-history-manager', $event)"
+      @rename-conversation="$emit('rename-conversation', $event)"
       @select-conversation="$emit('select-conversation', $event)"
       @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
       @logout="$emit('logout')"

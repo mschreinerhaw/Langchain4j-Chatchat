@@ -21,6 +21,7 @@ import {
   killRuntimeTask,
   loginEnterpriseWithEmbedToken,
   removeUserFavorite,
+  renameConversationHistory,
   storeAuthSession,
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
@@ -925,6 +926,32 @@ export default {
       } catch (error) {
         this.historyError = error.message || "历史会话删除失败";
         await this.loadConversationHistory();
+      }
+    },
+    async renameConversation(conversation) {
+      const conversationId = conversation?.conversationId || conversation?.id || "";
+      if (!conversationId) return;
+      const currentTitle = conversation.title || conversation.question || "";
+      const requestedTitle = window.prompt("请输入新的会话名称", currentTitle);
+      if (requestedTitle == null) return;
+      const title = requestedTitle.trim();
+      if (!title || title === currentTitle) return;
+      try {
+        const updated = await renameConversationHistory(conversationId, title, this.tenantId);
+        const applyTitle = (item) => (
+          item?.id === conversationId || item?.conversationId === conversationId
+            ? { ...item, ...updated, title, question: title }
+            : item
+        );
+        this.conversationHistory = this.conversationHistory.map(applyTitle);
+        this.historyManagerItems = this.historyManagerItems.map(applyTitle);
+        if (this.selectedConversation
+            && (this.selectedConversation.id === conversationId
+              || this.selectedConversation.conversationId === conversationId)) {
+          this.selectedConversation = applyTitle(this.selectedConversation);
+        }
+      } catch (error) {
+        this.historyError = error.message || "会话重命名失败";
       }
     },
     async deleteConversations(conversations = []) {

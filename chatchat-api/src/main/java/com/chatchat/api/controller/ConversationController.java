@@ -115,6 +115,32 @@ public class ConversationController {
         ));
     }
 
+    @PatchMapping("/{conversationId}")
+    @Operation(summary = "Rename a conversation")
+    public ApiResponse<Conversation> renameConversation(
+        @PathVariable("conversationId") String conversationId,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestBody RenameConversationRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        Conversation conversation = conversationService.renameConversation(
+            resolveTenantId(servletRequest, tenantId), conversationId, request.title());
+        return ApiResponse.success(conversation, "Conversation renamed successfully");
+    }
+
+    @DeleteMapping("/{conversationId}/messages/{messageId}")
+    @Operation(summary = "Delete one message from a conversation")
+    public ApiResponse<Void> deleteConversationMessage(
+        @PathVariable("conversationId") String conversationId,
+        @PathVariable("messageId") String messageId,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        HttpServletRequest servletRequest
+    ) {
+        conversationService.deleteMessage(
+            resolveTenantId(servletRequest, tenantId), conversationId, messageId);
+        return ApiResponse.success(null, "Conversation message deleted successfully");
+    }
+
     /**
      * Delete conversation
      */
@@ -151,6 +177,9 @@ public class ConversationController {
         public CreateConversationRequest(String userId, String title) {
             this(null, userId, title);
         }
+    }
+
+    public record RenameConversationRequest(String title) {
     }
 
     public record ConversationListItem(

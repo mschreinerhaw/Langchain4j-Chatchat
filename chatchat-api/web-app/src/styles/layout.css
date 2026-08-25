@@ -596,10 +596,10 @@
   width: 100%;
   min-height: 42px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 20px 20px;
+  grid-template-columns: minmax(0, 1fr) auto 20px 20px 20px;
   grid-template-areas:
-    "title status favorite delete"
-    "created created favorite delete";
+    "title status favorite rename delete"
+    "created created favorite rename delete";
   align-items: center;
   column-gap: 6px;
   row-gap: 2px;
@@ -613,6 +613,7 @@
 }
 
 .recent-favorite,
+.recent-rename,
 .recent-delete {
   width: 20px;
   height: 20px;
@@ -628,6 +629,15 @@
 
 .recent-delete {
   grid-area: delete;
+}
+
+.recent-rename {
+  grid-area: rename;
+}
+
+.recent-rename:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
 }
 
 .recent-favorite:hover,

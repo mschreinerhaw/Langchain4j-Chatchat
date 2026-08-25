@@ -69,14 +69,16 @@ public class EnterpriseMetadataSearchService {
         if (demand.isEmpty()) {
             throw new IllegalArgumentException("query or queryTerms is required");
         }
-        int requested = effective.limit() == null
-            ? demand.size() : Math.min(effective.limit(), demand.size());
-        if (requested < 1) {
+        if (effective.limit() != null && effective.limit() < 1) {
             throw new IllegalArgumentException("limit must be greater than 0");
         }
-        demand = demand.subList(0, requested);
-        int candidateLimit = expandedCandidateLimit(Math.max(1, requested));
-        Set<String> selectedKeys = new LinkedHashSet<>();
+        // queryTerms is the public demand contract.  A legacy limit controls how
+        // many candidates are inspected for each term, but must never silently
+        // discard terms supplied by the caller.
+        int requested = demand.size();
+        int candidateHint = effective.limit() == null ? requested
+            : Math.max(requested, effective.limit());
+        int candidateLimit = expandedCandidateLimit(Math.max(1, candidateHint));
         List<Map<String, Object>> selected = new ArrayList<>();
         List<Map<String, Object>> slots = new ArrayList<>();
         Set<String> backends = new LinkedHashSet<>();
@@ -92,9 +94,11 @@ public class EnterpriseMetadataSearchService {
             ), true);
             backends.add(String.valueOf(retrieval.getOrDefault("backend", "none")));
             List<Map<String, Object>> retrievedCandidates = maps(retrieval.get("results"));
-            List<Map<String, Object>> candidates = retrievedCandidates.stream()
-                .filter(candidate -> !selectedKeys.contains(resultKey(candidate)))
-                .toList();
+            // Requirements are independent slots.  Two synonymous query terms
+            // may legitimately resolve to the same governed record; collapsing
+            // that record here makes the returned row count unrelated to the
+            // caller's keyword count.
+            List<Map<String, Object>> candidates = retrievedCandidates;
             Selection selection = selectCandidate(candidates);
             Map<String, Object> retrievalCoverage = objectMap(retrieval.get("requiredRetrieval"));
             Map<String, Object> slot = new LinkedHashMap<>();
@@ -102,7 +106,7 @@ public class EnterpriseMetadataSearchService {
             slot.put("requirement", requirement);
             slot.put("retrievedCandidateCount", retrievedCandidates.size());
             slot.put("eligibleCandidateCount", candidates.size());
-            slot.put("duplicateCandidateCount", retrievedCandidates.size() - candidates.size());
+            slot.put("duplicateCandidateCount", 0);
             slot.put("allMetadataTypesAttempted",
                 Boolean.TRUE.equals(retrievalCoverage.get("allTypesAttempted")));
             slot.put("retrievedCountsByType",
@@ -112,9 +116,9 @@ public class EnterpriseMetadataSearchService {
             slot.put("qualityThreshold", searchPolicy().getMinimumQualityScore());
             slot.put("selectionMargin", selection.margin());
             if (selection.selected() != null) {
-                Map<String, Object> result = selection.selected();
+                Map<String, Object> result = requirementResult(
+                    selection.selected(), index, requirement);
                 selected.add(result);
-                selectedKeys.add(resultKey(result));
                 slot.put("selectedResult", selectionReference(result));
             }
             slots.add(Map.copyOf(slot));
@@ -133,6 +137,7 @@ public class EnterpriseMetadataSearchService {
         response.put("matchedRequirementCount", selected.size());
         response.put("unmatchedRequirementCount", demand.size() - selected.size());
         response.put("cardinalityPreserved", selected.size() <= demand.size());
+        response.put("keywordCardinalitySatisfied", selected.size() == demand.size());
         response.put("candidateExpansionInternalOnly", true);
         response.put("candidateReturnPolicy", "ONE_OR_ZERO_PER_REQUIREMENT");
         response.put("backend", aggregateValues(backends));
@@ -548,9 +553,13 @@ public class EnterpriseMetadataSearchService {
         return Map.copyOf(result);
     }
 
-    private String resultKey(Map<String, Object> result) {
-        return String.valueOf(result.getOrDefault("metadataType", "metadata")) + ":"
-            + String.valueOf(result.getOrDefault("id", ""));
+    private Map<String, Object> requirementResult(Map<String, Object> result,
+                                                  int requirementIndex,
+                                                  String requirement) {
+        Map<String, Object> scoped = new LinkedHashMap<>(result);
+        scoped.put("requirementIndex", requirementIndex);
+        scoped.put("matchedQueryTerm", requirement);
+        return Map.copyOf(scoped);
     }
 
     private Map<String, Object> selectionReference(Map<String, Object> result) {

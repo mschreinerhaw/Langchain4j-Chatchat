@@ -77,6 +77,59 @@ class EnterpriseMetadataSearchServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void returnsOneRowPerMatchedKeywordEvenWhenKeywordsResolveToSameRecordAndLimitIsOne() {
+        EnterpriseMetadataProperties properties = new EnterpriseMetadataProperties();
+        EnterpriseMetadataWorkbookLoader loader = mock(EnterpriseMetadataWorkbookLoader.class);
+        OpenSearchMcpSearchService openSearch = mock(OpenSearchMcpSearchService.class);
+        EnterpriseMetadataTaxonomyService taxonomyService = mock(EnterpriseMetadataTaxonomyService.class);
+        when(taxonomyService.taxonomy()).thenReturn(new EnterpriseMetadataTaxonomyService.TaxonomySnapshot(
+            List.of(),
+            new EnterpriseMetadataTaxonomyService.ScenarioDefinition(
+                "fallback", "general_metadata", "General", "General metadata", "common",
+                List.of(), 999, true, List.of()
+            )
+        ));
+        EnterpriseMetadataScenarioClassifier classifier =
+            new EnterpriseMetadataScenarioClassifier(properties, taxonomyService);
+        EnterpriseMetadataVectorizer vectorizer = new EnterpriseMetadataVectorizer(properties);
+        when(openSearch.enabled()).thenReturn(false);
+        properties.setSourceLocationPattern("memory:keyword-cardinality");
+        when(loader.load("memory:keyword-cardinality")).thenReturn(List.of(
+            new EnterpriseMetadataRecord(
+                "F001", "metadata_field", "enterprise_field_catalog",
+                "Profit And Loss", "PL", "Profit and loss amount", "active", "fields#1",
+                Map.of("englishName", "Profit And Loss", "abbreviation", "PL")
+            )
+        ));
+        EnterpriseMetadataCatalog catalog =
+            new EnterpriseMetadataCatalog(properties, loader, classifier, vectorizer, openSearch);
+        catalog.refresh();
+        EnterpriseMetadataSearchService service = new EnterpriseMetadataSearchService(
+            catalog, properties, openSearch, classifier, vectorizer,
+            EnterpriseMetadataTestProperties.policyService());
+
+        Map<String, Object> response = service.searchRequirements(
+            new EnterpriseMetadataSearchService.SearchRequest(
+                "PL Profit And Loss", List.of(), List.of(), 1),
+            List.of("PL", "Profit And Loss")
+        );
+
+        assertThat(response)
+            .containsEntry("requestedRequirementCount", 2)
+            .containsEntry("returnedMetadataCount", 2)
+            .containsEntry("matchedRequirementCount", 2)
+            .containsEntry("unmatchedRequirementCount", 0);
+        assertThat((List<Map<String, Object>>) response.get("results"))
+            .hasSize(2)
+            .extracting(item -> item.get("matchedQueryTerm"))
+            .containsExactly("PL", "Profit And Loss");
+        assertThat((List<Map<String, Object>>) response.get("results"))
+            .extracting(item -> item.get("id"))
+            .containsExactly("F001", "F001");
+    }
+
+    @Test
     void expandsBusinessRootAndReturnsTraceableFieldEvidence() {
         EnterpriseMetadataProperties properties = new EnterpriseMetadataProperties();
         EnterpriseMetadataWorkbookLoader loader = mock(EnterpriseMetadataWorkbookLoader.class);

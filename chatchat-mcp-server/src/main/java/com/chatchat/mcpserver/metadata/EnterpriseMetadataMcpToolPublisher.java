@@ -445,7 +445,7 @@ public class EnterpriseMetadataMcpToolPublisher {
             "limit", Map.of(
                 "type", "integer",
                 "minimum", 1,
-                "description", "Maximum returned metadata count. It never enlarges queryTerms demand cardinality"
+                "description", "Legacy per-term candidate hint. It never truncates queryTerms; every queryTerms item is evaluated independently"
             ),
             "candidateLimitPerType", mapOf(
                 "type", "integer",

@@ -5,6 +5,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.mcp.contract.McpToolGovernance;
 import com.chatchat.integration.mcp.service.McpCapabilityService;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
@@ -33,8 +34,8 @@ public class McpToolRegistry {
         Map<String, String> publishedSemanticNames = new LinkedHashMap<>();
         for (McpToolProvider provider : providers) {
             for (McpToolDefinition definition : provider.definitions()) {
-                validateProvider(provider, definition);
                 validatePublicationName(definition.name(), publishedSemanticNames);
+                validateProvider(provider, definition);
                 McpToolExecutor executor = provider.findExecutor(definition.name())
                     .orElseThrow(() -> new IllegalStateException("MCP tool has no executor: " + definition.name()));
                 RegisteredMcpTool registered = configured(definition, executor);
@@ -78,11 +79,14 @@ public class McpToolRegistry {
     private void publishOne(RegisteredMcpTool registered) {
         McpToolDefinition definition = registered.definition();
         if (!registered.enabled() || !capabilityEnabled(definition.capabilityCode())) return;
+        definition.validateContract();
+        McpToolGovernance governance = definition.governance();
         ToolMetadata metadata = ToolMetadata.builder()
             .id(definition.name()).title(definition.displayName()).description(definition.description())
             .version("1.0.0").author("ChatChat MCP Registry")
             .categories(List.of("mcp", definition.capabilityCode())).category(definition.capabilityCode())
-            .riskLevel("low").operationType("read").runtimeLevel("readonly")
+            .riskLevel(governance.riskLevel()).operationType(governance.operationType())
+            .runtimeLevel(governance.runtimeLevel())
             .userVisible(true).outputType("json").returnDirect(false)
             .agentCompatible(registered.agentCallable()).parameters(definition.parameters())
             .timeoutMillis(registered.timeout().toMillis())
@@ -90,7 +94,11 @@ public class McpToolRegistry {
                 "mcpCapability", true,
                 "mcpCapabilityCode", definition.capabilityCode(),
                 "providerModule", definition.provider(),
-                "runtimeStatus", registered.runtimeStatus().name()
+                "runtimeStatus", registered.runtimeStatus().name(),
+                "contractVersion", definition.contractVersion(),
+                "inputSchema", definition.inputSchema(),
+                "outputSchema", definition.outputSchema(),
+                "governance", governance
             )).build();
         agentToolRegistry.registerTool(definition.name(), metadata, new ToolRegistry.EnhancedTool() {
             @Override public ToolMetadata getMetadata() { return metadata; }
@@ -127,6 +135,12 @@ public class McpToolRegistry {
     }
 
     private void validateProvider(McpToolProvider provider, McpToolDefinition definition) {
+        try {
+            definition.validateContract();
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("Invalid MCP tool contract for " + definition.name()
+                + ": " + ex.getMessage(), ex);
+        }
         if (!provider.capabilityCode().equals(definition.capabilityCode())) {
             throw new IllegalStateException("MCP provider capability mismatch for tool: " + definition.name());
         }

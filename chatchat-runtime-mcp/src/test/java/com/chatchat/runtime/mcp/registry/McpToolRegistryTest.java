@@ -1,9 +1,13 @@
 package com.chatchat.runtime.mcp.registry;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.mcp.contract.McpToolContractValidator;
+import com.chatchat.common.mcp.contract.McpToolGovernance;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.integration.mcp.service.McpCapabilityService;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -77,9 +81,38 @@ class McpToolRegistryTest {
         verify(agentRegistry, never()).registerTool(anyString(), any(), any());
     }
 
+    @Test
+    void publishesGovernanceAndSchemasFromToolContract() {
+        ToolRegistry agentRegistry = mock(ToolRegistry.class);
+        McpCapabilityService capabilityService = mock(McpCapabilityService.class);
+        when(capabilityService.findByCode("news")).thenReturn(Optional.empty());
+        McpToolGovernance governance = new McpToolGovernance("high", "write", "controlled", true,
+            java.util.Map.of("scope", "news:write"), java.util.Map.of(),
+            java.util.Map.of("preservePayload", true), null);
+        McpToolDefinition definition = new McpToolDefinition("news_publish", "Publish", "Publish news",
+            "news", "test-provider", List.of(), true, true, Duration.ofSeconds(10),
+            McpToolContractValidator.CONTRACT_VERSION, java.util.Map.of("type", "object"),
+            java.util.Map.of("type", "object"), governance);
+        McpToolProvider provider = provider(definition);
+
+        new McpToolRegistry(List.of(provider), agentRegistry, capabilityService,
+            new McpCapabilitiesProperties()).publish();
+
+        ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
+        verify(agentRegistry).registerTool(anyString(), metadata.capture(), any());
+        assertThat(metadata.getValue().getRiskLevel()).isEqualTo("high");
+        assertThat(metadata.getValue().getOperationType()).isEqualTo("write");
+        assertThat(metadata.getValue().getMetadata()).containsEntry("contractVersion", "mcp_tool_contract.v1")
+            .containsKey("inputSchema").containsKey("outputSchema").containsKey("governance");
+    }
+
     private McpToolProvider provider(String name) {
         McpToolDefinition definition = new McpToolDefinition(name, name, "description", "news", "test-provider",
             List.of(), true, true, Duration.ofSeconds(10));
+        return provider(definition);
+    }
+
+    private McpToolProvider provider(McpToolDefinition definition) {
         McpToolExecutor executor = input -> ToolOutput.success("ok");
         return new McpToolProvider() {
             @Override public String capabilityCode() { return "news"; }

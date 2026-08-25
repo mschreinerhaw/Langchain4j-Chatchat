@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.common.bridge.RuntimeBridge;
+import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -14,6 +16,15 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ApiServiceBridgeTest {
+    @Test
+    void implementsVersionedRuntimeBridgeContract() {
+        ApiServiceBridge bridge = new ApiServiceBridge(mock(ApiTemplateDiscoveryMcpToolPublisher.class));
+
+        assertThat(RuntimeBridge.class).isAssignableFrom(ApiServiceBridge.class);
+        assertThat(bridge.bridgeContract().version()).isEqualTo("api_service_bridge.v1");
+        assertThat(bridge.bridgeContract().protocol()).isEqualTo(KernelProtocolCatalog.API_BRIDGE);
+    }
+
     @Test
     void returnsAllCandidatesForModelReviewWithoutExecuting() {
         ApiTemplateDiscoveryMcpToolPublisher discovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);

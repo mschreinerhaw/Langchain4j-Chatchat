@@ -1,5 +1,6 @@
 package com.chatchat.runtime.mcp.registry;
 
+import com.chatchat.common.bridge.RuntimeBridge;
 import com.chatchat.common.kernel.KernelDataDomain;
 import com.chatchat.common.kernel.KernelInvocation;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
@@ -36,6 +37,7 @@ class McpKernelBridgeTest {
         ToolOutput bridged = McpKernelBridge.invoke("linux", executor, input);
 
         assertThat(RuntimeOsKernel.class).isAssignableFrom(McpToolExecutor.class);
+        assertThat(RuntimeBridge.class).isAssignableFrom(McpKernelBridge.class);
         assertThat(kernelResult.successful()).isTrue();
         assertThat(tenant.get()).isEqualTo("tenant-1");
         assertThat(bridged.isSuccess()).isTrue();

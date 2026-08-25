@@ -5,6 +5,7 @@ import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
+import com.chatchat.common.mcp.contract.McpToolGovernance;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
@@ -252,7 +253,15 @@ public class McpToolRegistryBridge {
         Map<String, Object> effectiveMeta = activeContract == null
             ? definition.meta() : activeContract.extensions();
         McpToolDefinition runtimeDefinition = withRuntimeContract(
-            definition, runtimeInput, effectiveMeta);
+            definition, runtimeInput, runtimeOutput, effectiveMeta);
+        try {
+            runtimeDefinition.validateContract();
+        } catch (IllegalArgumentException invalidContract) {
+            log.warn("MCP tool excluded because its unified contract is invalid: serviceId={} tool={} error={}",
+                service.getId(), definition.name(), invalidContract.getMessage());
+            return null;
+        }
+        McpToolGovernance governance = runtimeDefinition.governance();
 
         Map<String, Object> extraMetadata = new LinkedHashMap<>();
         extraMetadata.put("serviceId", service.getId());
@@ -261,6 +270,9 @@ public class McpToolRegistryBridge {
             definition.name(),
             runtimeInput
         ));
+        extraMetadata.put("outputSchema", runtimeDefinition.outputSchema());
+        extraMetadata.put("contractVersion", runtimeDefinition.contractVersion());
+        extraMetadata.put("governance", governance);
         if (activeContract != null) {
             extraMetadata.put(ToolWorkflowContract.METADATA_KEY, activeContract.asMetadata());
             extraMetadata.put("workflowContractVersion", activeContract.version());
@@ -297,14 +309,14 @@ public class McpToolRegistryBridge {
             .author("MCP:" + service.getName())
             .categories(categories)
             .category(category)
-            .riskLevel(firstText(definition.riskLevel(), "medium"))
-            .operationType(firstText(definition.operationType(), "read"))
-            .runtimeLevel(definition.runtimeLevel())
+            .riskLevel(governance.riskLevel())
+            .operationType(governance.operationType())
+            .runtimeLevel(governance.runtimeLevel())
             .userVisible(definition.userVisible() == null || definition.userVisible())
-            .confirmation(emptyToNull(definition.confirmation()))
-            .permissions(emptyToNull(definition.permissions()))
-            .inputPolicy(emptyToNull(definition.inputPolicy()))
-            .outputPolicy(emptyToNull(definition.outputPolicy()))
+            .confirmation(emptyToNull(runtimeDefinition.confirmation()))
+            .permissions(emptyToNull(governance.permissions()))
+            .inputPolicy(emptyToNull(governance.inputPolicy()))
+            .outputPolicy(emptyToNull(governance.outputPolicy()))
             .outputType("json")
             .timeoutMillis(definition.timeoutMillis())
             .agentCompatible(true)
@@ -370,13 +382,16 @@ public class McpToolRegistryBridge {
 
     private McpToolDefinition withRuntimeContract(McpToolDefinition definition,
                                                   Map<String, Object> inputSchema,
+                                                  Map<String, Object> outputSchema,
                                                   Map<String, Object> metadata) {
+        Map<String, Object> contractMetadata = new LinkedHashMap<>(metadata == null ? Map.of() : metadata);
+        contractMetadata.put("outputSchema", outputSchema == null ? Map.of() : outputSchema);
         return new McpToolDefinition(
             definition.name(), definition.description(), inputSchema,
             definition.category(), definition.riskLevel(), definition.operationType(),
             definition.runtimeLevel(), definition.userVisible(), definition.confirmation(),
             definition.permissions(), definition.inputPolicy(), definition.outputPolicy(),
-            definition.timeoutMillis(), metadata == null ? Map.of() : metadata);
+            definition.timeoutMillis(), Map.copyOf(contractMetadata));
     }
 
     /**

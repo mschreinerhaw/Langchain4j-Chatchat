@@ -1,5 +1,12 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.common.bridge.AbstractRuntimeBridge;
+import com.chatchat.common.bridge.BridgeContract;
+import com.chatchat.common.bridge.BridgeRequest;
+import com.chatchat.common.bridge.BridgeResponse;
+import com.chatchat.common.kernel.KernelDataDomain;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,11 +15,19 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /** Read-only facade over the existing API template discovery protocol. */
 @Component
 @RequiredArgsConstructor
-public class ApiServiceBridge {
+public class ApiServiceBridge extends AbstractRuntimeBridge<Map<String, Object>, Map<String, Object>> {
+    public static final String BRIDGE_VERSION = "api_service_bridge.v1";
+    public static final String QUERY_OPERATION = "api.service/query";
+    private static final BridgeContract CONTRACT = new BridgeContract(
+        "api-service", BRIDGE_VERSION, KernelProtocolCatalog.API_BRIDGE,
+        Set.of(QUERY_OPERATION), KernelProtocolCatalog.API_BOUNDARY);
+
     private final ApiTemplateDiscoveryMcpToolPublisher templateDiscovery;
     private TemplateQueryMcpToolPublisher dynamicTemplateQueries;
 
@@ -22,6 +37,36 @@ public class ApiServiceBridge {
     }
 
     public Result query(Map<String, Object> rawArguments) {
+        Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
+        String requestId = text(arguments.get("requestId"));
+        KernelDataScope scope = new KernelDataScope(
+            firstText(text(arguments.get("tenantId")), "system"), text(arguments.get("userId")),
+            firstText(requestId, UUID.randomUUID().toString()), text(arguments.get("conversationId")),
+            text(arguments.get("runId")), firstText(text(arguments.get("environment")), text(arguments.get("env"))),
+            Map.of("source", "api-service-bridge"));
+        BridgeResponse<Map<String, Object>> response = exchange(BridgeRequest.of(CONTRACT, QUERY_OPERATION,
+            scope, Set.of(KernelDataDomain.TOOL_ARGUMENTS),
+            Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE), arguments));
+        if (response.successful()) return new Result(response.data(), false);
+        return new Result(Map.of(
+            "schemaVersion", "api_service_query_result.v1",
+            "status", "BRIDGE_FAILED",
+            "errorCode", response.errorCode(),
+            "errorMessage", response.errorMessage(),
+            "requestId", response.requestId()), true);
+    }
+
+    @Override
+    public BridgeContract bridgeContract() {
+        return CONTRACT;
+    }
+
+    @Override
+    protected Map<String, Object> exchangePayload(BridgeRequest<Map<String, Object>> request) {
+        return queryPayload(request.payload());
+    }
+
+    private Map<String, Object> queryPayload(Map<String, Object> rawArguments) {
         Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
         String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
         Map<String, Object> discovery = childToolName.isBlank()
@@ -36,7 +81,7 @@ public class ApiServiceBridge {
         body.put("bridgeManaged", true);
         body.put("bridgeTool", ApiMcpToolPublisher.BRIDGE_TOOL_NAME);
         body.put("executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
-        return new Result(Map.copyOf(body), false);
+        return Map.copyOf(body);
     }
 
     private TemplateQueryMcpToolPublisher requireDynamicTemplateQueries() {

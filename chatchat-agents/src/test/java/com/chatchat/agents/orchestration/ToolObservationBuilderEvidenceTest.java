@@ -143,6 +143,48 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void batchExecutionEvidencePreservesInlineLinuxStdoutThroughSourceAdapter() {
+        Map<String, Object> linuxOutput = Map.of(
+            "schemaVersion", "tool_execution_result.v1",
+            "dataSchema", "ssh_steps.v1",
+            "target", Map.of("name", "Docker DEV host", "environment", "DEV"),
+            "data", Map.of(
+                "transportSuccess", true,
+                "commandSuccess", true,
+                "exitCode", 0,
+                "stdout", "CONTAINER ID IMAGE STATUS NAMES\nabc123 postgres:16 Up 3 days db-dev",
+                "stderr", "",
+                "outputLimits", Map.of(
+                    "stdoutTruncated", false,
+                    "stderrTruncated", false),
+                "steps", List.of(Map.of(
+                    "stepIndex", 1,
+                    "success", true,
+                    "exitCode", 0,
+                    "stdout", "CONTAINER ID IMAGE STATUS NAMES\nabc123 postgres:16 Up 3 days db-dev",
+                    "stderr", ""))
+            )
+        );
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "docker-batch", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1),
+            List.of(new ToolCallResult(
+                "containers", "linux_command_execute", "CHECK_DOCKER_CONTAINERS", "host-1",
+                "SUCCESS", 20L, "evidence-containers", linuxOutput, Map.of()))
+        );
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence(
+            "mcp_chatchat_mcp_server_linux_command_execute", batch);
+
+        assertThat(evidence)
+            .contains("\"nonTabularEvidenceField\":\"results[].executionEvidence\"")
+            .contains("\"rawEvidenceAuthority\":\"RUNTIME_EVIDENCE\"")
+            .contains("\"executionEvidence\"")
+            .contains("BEGIN STEP STDOUT", "abc123 postgres:16 Up 3 days db-dev")
+            .doesNotContain("\"allRawRowsLocation\":\"toolTrace\"");
+    }
+
+    @Test
     void batchExecutionEvidenceProjectsNestedHttpJsonWithoutDomainSpecificFieldNames() {
         ToolCallBatchResult batch = new ToolCallBatchResult(
             "http-health", "PARALLEL", "start", "end", "SUCCESS",

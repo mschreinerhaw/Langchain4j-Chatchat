@@ -1546,6 +1546,41 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void extractsBatchLinuxStdoutByToolSemanticContractWhenSchemaAliasEvolves() {
+        Map<String, Object> output = Map.of(
+            "dataSchema", "command_execution_result.v2",
+            "data", Map.of(
+                "stdout", "CONTAINER ID IMAGE STATUS\nabc123 postgres:16 Up 3 days",
+                "stderr", "",
+                "outputLimits", Map.of("stdoutTruncated", false, "stderrTruncated", false)
+            )
+        );
+        ToolCallResult child = new ToolCallResult(
+            "containers", "mcp_vendor_linux_command_execute", "CHECK_DOCKER_CONTAINERS", "host-1",
+            "SUCCESS", 20L, "evidence-containers", output, Map.of());
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "docker-batch", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(child));
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_vendor_linux_command_execute", true,
+                batch, null, null, null, 10L, Map.of())),
+            Map.of(), 10L);
+        ChatModel model = mock(ChatModel.class);
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(model, "analyze docker containers", result,
+                Map.of(), new LinkedHashMap<>(), () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(coverage.promptEvidence())
+            .contains("CHECK_DOCKER_CONTAINERS#stdout")
+            .contains("abc123 postgres:16 Up 3 days");
+    }
+
+    @Test
     void analyzesNonEmptyExternalizedPreviewWhenFullEvidenceCannotBeResolved() {
         String preview = "USER PID CPU MEM COMMAND\n"
             + "hive 324493 2.0 8.1 /usr/java/bin/java inceptor-executor\n"

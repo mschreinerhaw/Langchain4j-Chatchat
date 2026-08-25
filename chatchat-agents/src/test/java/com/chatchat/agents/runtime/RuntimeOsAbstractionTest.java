@@ -6,6 +6,7 @@ import com.chatchat.agents.runtime.event.RuntimeEventPublisher;
 import com.chatchat.agents.runtime.workflow.AbstractRuntimeWorkflow;
 import com.chatchat.agents.runtime.workflow.RuntimeWorkflow;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.common.kernel.RuntimeOsKernel;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -52,6 +53,7 @@ class RuntimeOsAbstractionTest {
 
     @Test
     void concreteRuntimeTypesImplementStablePorts() {
+        assertThat(RuntimeOsKernel.class).isAssignableFrom(AgentRuntime.class);
         assertThat(RuntimeWorkflow.class).isAssignableFrom(AgentRunExecutor.class);
         assertThat(RuntimeWorkflow.class).isAssignableFrom(InterpretationPlanRuntime.class);
         assertThat(RuntimeEvent.class).isAssignableFrom(AgentRunEvent.class);

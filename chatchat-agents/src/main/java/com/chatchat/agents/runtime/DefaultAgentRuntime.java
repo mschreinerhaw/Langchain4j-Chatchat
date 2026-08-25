@@ -1,5 +1,10 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.common.kernel.KernelDataDomain;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.kernel.KernelInvocation;
+import com.chatchat.common.kernel.KernelResult;
+import com.chatchat.common.kernel.KernelViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -8,6 +13,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -49,6 +56,30 @@ public class DefaultAgentRuntime implements AgentRuntime {
 
     @Override
     public AgentRunResult run(AgentRunRequest request) {
+        KernelInvocation<AgentRunRequest> invocation = KernelInvocation.of(
+            "agent.run",
+            kernelProtocol(),
+            kernelScope(request),
+            Set.of(KernelDataDomain.CONTROL, KernelDataDomain.TOOL_ARGUMENTS),
+            Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE,
+                KernelDataDomain.OBSERVATIONS, KernelDataDomain.EVENTS),
+            request
+        );
+        KernelResult<AgentRunResult> result = invoke(invocation);
+        if (result.successful()) return result.data();
+        throw new IllegalStateException(result.errorCode() + ": " + result.errorMessage());
+    }
+
+    @Override
+    public AgentRunResult executeKernel(AgentRunRequest request, KernelDataScope scope) {
+        if (request == null) {
+            throw new KernelViolationException("KERNEL_PAYLOAD_REQUIRED", "Agent run request is required");
+        }
+        if (request.getTenantId() != null && !request.getTenantId().isBlank()
+            && !request.getTenantId().equals(scope.tenantId())) {
+            throw new KernelViolationException("KERNEL_TENANT_MISMATCH",
+                "Agent request tenant does not match Kernel scope");
+        }
         return runExecutor.execute(request);
     }
 
@@ -66,7 +97,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
                                 runStore.cancel(submitted.runId(), "Agent run cancellation requested")));
                             return;
                         }
-                        completion.complete(runExecutor.execute(request));
+                        completion.complete(run(request));
                     } catch (Throwable failure) {
                         completion.completeExceptionally(failure);
                     } finally {
@@ -151,6 +182,35 @@ public class DefaultAgentRuntime implements AgentRuntime {
     @Override
     public AgentRuntimeSnapshot snapshot() {
         return runStore.snapshot().withActiveCancellationSignals(cancellationSignals.size());
+    }
+
+    private KernelDataScope kernelScope(AgentRunRequest request) {
+        Map<String, Object> attributes = request == null || request.getAttributes() == null
+            ? Map.of() : request.getAttributes();
+        String requestId = firstText(request == null ? null : request.getRequestId(), UUID.randomUUID().toString());
+        return new KernelDataScope(
+            firstText(request == null ? null : request.getTenantId(), "default"),
+            request == null ? null : request.getUserId(),
+            requestId,
+            request == null ? null : request.getConversationId(),
+            request == null ? null : request.getRunId(),
+            firstText(stringValue(attributes.get("agentRuntimeEnvironment")),
+                stringValue(attributes.get("environment")), stringValue(attributes.get("env"))),
+            Map.of("source", "default-agent-runtime")
+        );
+    }
+
+    private String firstText(String... values) {
+        if (values != null) {
+            for (String value : values) {
+                if (value != null && !value.isBlank()) return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private AtomicBoolean installCancellationSignal(AgentRunRequest request, String runId) {

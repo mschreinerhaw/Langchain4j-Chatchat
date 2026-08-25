@@ -15,7 +15,6 @@ public class McpToolInvocationService {
     public ToolOutput invoke(String toolName, ToolInput input) {
         RegisteredMcpTool tool = registry.require(toolName);
         if (!registry.isActive(tool)) return ToolOutput.failure("MCP tool or capability is disabled: " + toolName);
-        // Let the domain executor return its structured unavailable/degraded contract.
-        return tool.executor().execute(input);
+        return McpKernelBridge.invoke(toolName, tool.executor(), input);
     }
 }

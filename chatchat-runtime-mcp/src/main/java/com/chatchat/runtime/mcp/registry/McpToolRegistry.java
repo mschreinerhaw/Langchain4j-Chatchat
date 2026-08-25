@@ -94,7 +94,9 @@ public class McpToolRegistry {
             )).build();
         agentToolRegistry.registerTool(definition.name(), metadata, new ToolRegistry.EnhancedTool() {
             @Override public ToolMetadata getMetadata() { return metadata; }
-            @Override public ToolOutput execute(ToolInput input) { return registered.executor().execute(input); }
+            @Override public ToolOutput execute(ToolInput input) {
+                return McpKernelBridge.invoke(definition.name(), registered.executor(), input);
+            }
         });
     }
 

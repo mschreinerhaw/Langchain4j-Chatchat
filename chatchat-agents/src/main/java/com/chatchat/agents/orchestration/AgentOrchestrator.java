@@ -17,6 +17,7 @@ import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.AnalysisEvidenceSpillStore;
+import com.chatchat.agents.runtime.McpEvidenceGovernanceBridge;
 import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
@@ -141,6 +142,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AnalysisSummaryGovernanceBridge analysisSummaryGovernanceBridge =
         new AnalysisSummaryGovernanceBridge();
+    private final McpEvidenceGovernanceBridge evidenceGovernanceBridge =
+        new McpEvidenceGovernanceBridge();
     private final HierarchicalAnalysisReducer hierarchicalAnalysisReducer =
         new HierarchicalAnalysisReducer();
     private final DeterministicInsightEngine deterministicInsightEngine =
@@ -3091,7 +3094,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- diagnosticRun is internal completeness metadata, not the report subject. Use completed checks to produce data findings first. Only when an incomplete check materially limits the requested conclusion, mention that check and its exact runtime reason once in a short limitations paragraph after the analysis. Do not present diagnostic counts, coverage ratios, required-check tables, or optional-check inventories unless the user explicitly requests execution coverage or audit details.\n");
         prompt.append("- A missing diagnostic child with no ToolCallResult is NOT_EXECUTED. Do not speculate that it timed out, hit resource contention, lacked permissions, or failed remotely unless a child result explicitly records that status/reason.\n");
         prompt.append("- Do not recommend manual one-by-one execution as the product solution when an ordered runtime batch is expected. Report the missing batch dispatch/evidence and recommend repairing or retrying the batch workflow.\n");
-        prompt.append("- For batch_execution_evidence.v1, enforce resultSetContract.mode=ONE_TEMPLATE_ONE_RESULT_SET: every results[] item is one independently addressable template result set identified by resultSetId and templateId. Never merge rows from different templates before interpreting their individual semantics. Preserve successful empty result sets as facts when the template contract defines empty as success. results[].dataset.rows or results[].datasets[].rows contains the complete returned structured rows; path identifies the original nested JSON location. For non-tabular child results, results[].executionEvidence contains the source-adapted authoritative content, including inline command stdout/stderr when returned. Analyze these values directly. Row and stream coverage is losslessly processed through record_grounded_analysis.v1 model chunk summaries, never capped or sampled. Never reduce a successful non-empty batch to execution metadata or claim that concrete values are unavailable when dataset rows or executionEvidence are present.\n");
+        prompt.append("- For batch_execution_evidence.v1, enforce resultSetContract.mode=ONE_TEMPLATE_ONE_RESULT_SET: every results[] item is one independently addressable template result set identified by resultSetId and templateId. Never merge rows from different templates before interpreting their individual semantics. Preserve successful empty result sets as facts when the template contract defines empty as success. results[].dataset.rows or results[].datasets[].rows contains the complete returned structured rows; path identifies the original nested JSON location. For non-tabular child results, results[].analysisProjection.datasets[].records contains the Runtime evidence bridge's protocol-governed analysis records. Analyze these values directly. Row and stream coverage is losslessly processed through record_grounded_analysis.v1 model chunk summaries, never capped or sampled. Never reduce a successful non-empty batch to execution metadata or claim that concrete values are unavailable when dataset rows or analysis projection records are present.\n");
         prompt.append(analysisSummaryGovernanceBridge.finalSynthesisInstruction());
         prompt.append("- Mandatory analysis deliverable: tables and returned rows are evidence attachments, not the summary itself. For every non-empty structured dataset, write a business-readable analysis paragraph using its governed analysisContext. State the dataset identity and purpose, explain material values/differences/anomalies supported by the rows, and relate datasets only when relationships are explicitly supplied. A heading, data-source label, row count, or table without analytical findings is incomplete.\n");
         prompt.append("- A successful template inventory is not a business result. When returned rows exist, do not replace them with phrases such as '可返回', '可获取', '可计算', template capability descriptions, or execution-count tables. Present the returned values first; execution metadata is secondary.\n");
@@ -3984,7 +3987,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     }
                     String reference = firstNonBlank(child.templateId(),
                         firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
-                    sets.addAll(outputRecordSets(child.output(), reference, child.toolName(),
+                    sets.addAll(outputRecordSets(child.output(), reference,
                         toolMetadataOrNull(child.toolName())));
                 }
                 continue;
@@ -3996,7 +3999,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             // routing metadata, not datasets to summarize record by record.
             if (McpToolNamePolicy.isRoutingDiscovery(step.toolName())) continue;
             sets.addAll(outputRecordSets(
-                resolvedStepOutput, step.toolName(), step.toolName(), toolMetadataOrNull(step.toolName())));
+                resolvedStepOutput, step.toolName(), toolMetadataOrNull(step.toolName())));
         }
         return List.copyOf(sets);
     }
@@ -4014,7 +4017,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 if (!"SUCCESS".equalsIgnoreCase(child.status()) || !child.evidenceUsable()) continue;
                 String reference = firstNonBlank(child.templateId(),
                     firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
-                if (outputRecordSets(child.output(), reference, child.toolName(),
+                if (outputRecordSets(child.output(), reference,
                     toolMetadataOrNull(child.toolName())).isEmpty()) {
                     excluded.add(metadataOf(
                         "datasetReference", reference,
@@ -4035,10 +4038,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
 
     private List<BatchRecordSet> outputRecordSets(Object output,
                                                   String reference,
-                                                  String sourceToolName,
                                                   ToolMetadata toolMetadata) {
         Map<String, Object> rootAnalysisContext =
             mcpAnalysisContextAdapter.adapt(reference, toolMetadata, output);
+        List<BatchRecordSet> governedSets = governedProjectionRecordSets(
+            output, reference, rootAnalysisContext, false);
+        if (!governedSets.isEmpty()) {
+            return governedSets;
+        }
         List<BatchRecordSet> sqlSets = sqlRecordSets(output, reference, rootAnalysisContext);
         if (!sqlSets.isEmpty()) {
             return sqlSets;
@@ -4052,21 +4059,48 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (!records.isEmpty()) {
             return List.of(new BatchRecordSet(reference, rootAnalysisContext, records));
         }
-        List<BatchRecordSet> linuxSets = linuxStreamRecordSets(
-            output, reference, firstNonBlank(sourceToolName,
-                toolMetadata == null ? null : toolMetadata.getId()), rootAnalysisContext);
-        if (!linuxSets.isEmpty()) {
-            return linuxSets;
-        }
         List<BatchRecordSet> externalizedSets = externalizedPreviewRecordSets(
-            output, reference, sourceToolName, toolMetadata, rootAnalysisContext);
+            output, reference, toolMetadata, rootAnalysisContext);
         if (!externalizedSets.isEmpty()) {
             return externalizedSets;
         }
-        return structuredDataProjector.project(output).stream()
+        List<BatchRecordSet> projectedSets = structuredDataProjector.project(output).stream()
             .map(dataset -> new BatchRecordSet(
                 reference + dataset.path(), rootAnalysisContext, dataset.rows()))
             .toList();
+        if (!projectedSets.isEmpty()) {
+            return projectedSets;
+        }
+        return governedProjectionRecordSets(output, reference, rootAnalysisContext, true);
+    }
+
+    private List<BatchRecordSet> governedProjectionRecordSets(Object output,
+                                                              String reference,
+                                                              Map<String, Object> rootAnalysisContext,
+                                                              boolean includeFallback) {
+        int maximumRecordChars = Math.max(1_000, recordAnalysisChunkMaxChars - 2_000);
+        Map<String, Object> projection = includeFallback
+            ? evidenceGovernanceBridge.analysisProjection(reference, output, maximumRecordChars)
+            : evidenceGovernanceBridge.protocolAnalysisProjection(reference, output, maximumRecordChars);
+        List<BatchRecordSet> sets = new ArrayList<>();
+        for (Map<String, Object> dataset : objectMapList(projection.get("datasets"))) {
+            List<Map<String, Object>> records = objectMapList(dataset.get("records"));
+            if (records.isEmpty()) continue;
+            sets.add(new BatchRecordSet(
+                firstNonBlank(stringValue(dataset.get("datasetReference")), reference),
+                mergeAnalysisContext(rootAnalysisContext, objectMap(dataset.get("analysisContext"))),
+                records
+            ));
+        }
+        return List.copyOf(sets);
+    }
+
+    private Map<String, Object> mergeAnalysisContext(Map<String, Object> root,
+                                                     Map<String, Object> adapterContext) {
+        if (adapterContext == null || adapterContext.isEmpty()) return root;
+        Map<String, Object> merged = new LinkedHashMap<>(root == null ? Map.of() : root);
+        merged.putAll(adapterContext);
+        return Map.copyOf(merged);
     }
 
     /**
@@ -4109,7 +4143,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
      */
     private List<BatchRecordSet> externalizedPreviewRecordSets(Object output,
                                                                String reference,
-                                                               String sourceToolName,
                                                                ToolMetadata toolMetadata,
                                                                Map<String, Object> rootAnalysisContext) {
         Map<String, Object> root = objectMap(output);
@@ -4123,7 +4156,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> structuredPreview = objectMap(preview);
         if (!structuredPreview.isEmpty() && structuredPreview != root) {
             List<BatchRecordSet> nested = outputRecordSets(
-                structuredPreview, reference + "#externalized-preview", sourceToolName, toolMetadata);
+                structuredPreview, reference + "#externalized-preview", toolMetadata);
             if (!nested.isEmpty()) {
                 return nested;
             }
@@ -4210,63 +4243,6 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return step.toolExecution() == null
             ? data
             : toolRuntimeService.resolveOutputForEvidenceReview(step.toolExecution().output());
-    }
-
-    private List<BatchRecordSet> linuxStreamRecordSets(Object output,
-                                                       String reference,
-                                                       String toolName,
-                                                       Map<String, Object> rootAnalysisContext) {
-        Map<String, Object> root = objectMap(output);
-        String dataSchema = stringValue(root.get("dataSchema"));
-        String kind = stringValue(root.get("kind"));
-        String operationType = stringValue(objectMap(root.get("operation")).get("type"));
-        String semanticTool = McpToolNamePolicy.workflowSemanticKey(toolName);
-        boolean linuxResult = "ssh_steps.v1".equals(dataSchema)
-            || (dataSchema != null && dataSchema.toLowerCase(Locale.ROOT).startsWith("ssh_"))
-            || "ssh_command".equalsIgnoreCase(kind)
-            || (operationType != null && operationType.toLowerCase(Locale.ROOT).startsWith("ssh."))
-            || "linux_command_execute".equals(semanticTool)
-            || semanticTool.endsWith("_linux_command_execute");
-        if (!linuxResult) {
-            return List.of();
-        }
-        Map<String, Object> data = objectMap(root.get("data"));
-        Map<String, Object> limits = objectMap(data.get("outputLimits"));
-        List<BatchRecordSet> sets = new ArrayList<>();
-        appendLinuxStreamRecordSet(sets, reference, "stdout", stringValue(data.get("stdout")),
-            !Boolean.parseBoolean(stringValue(limits.get("stdoutTruncated"))), rootAnalysisContext);
-        appendLinuxStreamRecordSet(sets, reference, "stderr", stringValue(data.get("stderr")),
-            !Boolean.parseBoolean(stringValue(limits.get("stderrTruncated"))), rootAnalysisContext);
-        return List.copyOf(sets);
-    }
-
-    private void appendLinuxStreamRecordSet(List<BatchRecordSet> target,
-                                            String reference,
-                                            String stream,
-                                            String text,
-                                            boolean sourceComplete,
-                                            Map<String, Object> rootAnalysisContext) {
-        if (text == null || text.isBlank()) {
-            return;
-        }
-        int chunkChars = Math.max(1_000, recordAnalysisChunkMaxChars - 2_000);
-        List<Map<String, Object>> chunks = new ArrayList<>();
-        int chunkIndex = 0;
-        for (int from = 0; from < text.length(); from += chunkChars) {
-            int to = Math.min(text.length(), from + chunkChars);
-            Map<String, Object> chunk = new LinkedHashMap<>();
-            chunk.put("stream", stream);
-            chunk.put("chunkIndex", ++chunkIndex);
-            chunk.put("fromChar", from);
-            chunk.put("toChar", to);
-            chunk.put("sourceComplete", sourceComplete);
-            chunk.put("content", text.substring(from, to));
-            chunks.add(Map.copyOf(chunk));
-        }
-        target.add(new BatchRecordSet(
-            reference + "#" + stream,
-            rootAnalysisContext == null ? Map.of() : rootAnalysisContext,
-            List.copyOf(chunks)));
     }
 
     private List<Map<String, Object>> protocolRecords(Object output) {

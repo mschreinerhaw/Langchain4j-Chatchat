@@ -1546,9 +1546,10 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void extractsBatchLinuxStdoutByToolSemanticContractWhenSchemaAliasEvolves() {
+    void extractsBatchCommandStreamByProtocolDiscriminatorWhenSchemaAliasEvolves() {
         Map<String, Object> output = Map.of(
             "dataSchema", "command_execution_result.v2",
+            "kind", "ssh_command",
             "data", Map.of(
                 "stdout", "CONTAINER ID IMAGE STATUS\nabc123 postgres:16 Up 3 days",
                 "stderr", "",

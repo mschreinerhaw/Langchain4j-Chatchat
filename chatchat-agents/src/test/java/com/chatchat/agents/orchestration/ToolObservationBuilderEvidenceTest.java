@@ -177,10 +177,10 @@ class ToolObservationBuilderEvidenceTest {
             "mcp_chatchat_mcp_server_linux_command_execute", batch);
 
         assertThat(evidence)
-            .contains("\"nonTabularEvidenceField\":\"results[].executionEvidence\"")
+            .contains("\"nonTabularEvidenceField\":\"results[].analysisProjection.datasets[].records\"")
             .contains("\"rawEvidenceAuthority\":\"RUNTIME_EVIDENCE\"")
-            .contains("\"executionEvidence\"")
-            .contains("BEGIN STEP STDOUT", "abc123 postgres:16 Up 3 days db-dev")
+            .contains("\"schemaVersion\":\"mcp_analysis_projection.v1\"")
+            .contains("\"analysisProjection\"", "abc123 postgres:16 Up 3 days db-dev")
             .doesNotContain("\"allRawRowsLocation\":\"toolTrace\"");
     }
 

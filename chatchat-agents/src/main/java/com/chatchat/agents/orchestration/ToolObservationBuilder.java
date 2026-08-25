@@ -21,6 +21,7 @@ import com.chatchat.agents.evidence.IndirectPromptInjectionDetector;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
+import com.chatchat.agents.runtime.McpEvidenceGovernanceBridge;
 import com.chatchat.common.tool.ToolOutput;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -60,6 +61,8 @@ class ToolObservationBuilder {
     private final StructuredReasoningEvidenceAdapterRegistry structuredEvidenceAdapters =
         new StructuredReasoningEvidenceAdapterRegistry();
     private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
+    private final McpEvidenceGovernanceBridge evidenceGovernanceBridge =
+        new McpEvidenceGovernanceBridge();
 
     ToolObservationBuilder(EvidenceTrustEvaluator evidenceTrustEvaluator) {
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
@@ -481,7 +484,7 @@ class ToolObservationBuilder {
             "completeRowsIncluded", true,
             "recordRowsField", "results[].dataset.rows or results[].datasets[].rows",
             "analysisMode", "LOSSLESS_CHUNK_SUMMARY",
-            "nonTabularEvidenceField", "results[].executionEvidence",
+            "nonTabularEvidenceField", "results[].analysisProjection.datasets[].records",
             "rawEvidenceAuthority", "RUNTIME_EVIDENCE"
         ));
         return ModelProtocolJson.compact(projection);
@@ -509,20 +512,13 @@ class ToolObservationBuilder {
         Map<String, Object> output = asMap(result.output());
         if (output.isEmpty()) {
             putIfPresent(projection, "output", result.output());
+            putAnalysisProjection(projection, resultSetId, result.output(), true);
             return Map.copyOf(projection);
         }
         putIfPresent(projection, "sourceSchemaVersion", output.get("schemaVersion"));
         putIfPresent(projection, "target", output.get("target"));
         putIfPresent(projection, "analysisContext", output.get("analysisContext"));
-        String childToolName = firstNonBlank(result.normalizedToolName(), result.toolName());
-        if (isLinuxExecutionResult(childToolName, result.output())
-            && hasInlineLinuxStream(result.output())) {
-            // A batch is only an execution envelope. Its children retain their source contract.
-            // Reuse the Linux adapter so scalar stdout/stderr cannot be displaced by generic
-            // object-array projections such as execution.steps or diagnostics.steps.
-            projection.put("executionEvidence",
-                buildLinuxCommandObservation(childToolName, null, result.output()));
-        }
+        putAnalysisProjection(projection, resultSetId, result.output(), false);
         Map<String, Object> data = asMap(output.get("data"));
         putIfPresent(projection, "statusCode", data.get("statusCode"));
         BatchDatasetSource dataset = findBatchDataset(result.output(), 0);
@@ -549,6 +545,7 @@ class ToolObservationBuilder {
                 projection.put("resultSetState", "RETURNED");
                 projection.put("emptyResult", false);
             } else {
+                putAnalysisProjection(projection, resultSetId, result.output(), true);
                 Object bodyValue = data.get("body");
                 Map<String, Object> body = asMap(bodyValue);
                 projection.put("resultSetState", result.evidenceUsable() ? "NON_TABULAR" : "UNAVAILABLE");
@@ -566,18 +563,14 @@ class ToolObservationBuilder {
         return Map.copyOf(projection);
     }
 
-    private boolean hasInlineLinuxStream(Object value) {
-        Map<String, Object> root = unwrapStructuredRoot(value);
-        Map<String, Object> data = asMap(root.get("data"));
-        if (nonBlankStream(data.get("stdout")) || nonBlankStream(data.get("stderr"))) {
-            return true;
-        }
-        return mapList(data.get("steps")).stream().anyMatch(step ->
-            nonBlankStream(step.get("stdout")) || nonBlankStream(step.get("stderr")));
-    }
-
-    private boolean nonBlankStream(Object value) {
-        return value != null && !String.valueOf(value).isBlank();
+    private void putAnalysisProjection(Map<String, Object> target,
+                                       String resultSetId,
+                                       Object output,
+                                       boolean includeFallback) {
+        Map<String, Object> analysisProjection = includeFallback
+            ? evidenceGovernanceBridge.analysisProjection(resultSetId, output)
+            : evidenceGovernanceBridge.protocolAnalysisProjection(resultSetId, output, 10_000);
+        if (!analysisProjection.isEmpty()) target.put("analysisProjection", analysisProjection);
     }
 
     private BatchDatasetSource findBatchDataset(Object value, int depth) {

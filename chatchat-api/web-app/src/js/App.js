@@ -914,6 +914,10 @@ export default {
       if (!conversation?.id) {
         return;
       }
+      if (["running", "streaming", "pending"].includes(String(conversation.status || "").toLowerCase())) {
+        this.historyError = "进行中的会话不能删除";
+        return;
+      }
       const deletedId = conversation.id;
       const deletedConversationId = conversation.conversationId || "";
       const deletedActiveConversation = this.isActiveConversationId(deletedId, deletedConversationId);
@@ -928,13 +932,12 @@ export default {
         await this.loadConversationHistory();
       }
     },
-    async renameConversation(conversation) {
+    async renameConversation(payload) {
+      const conversation = payload?.conversation || payload;
       const conversationId = conversation?.conversationId || conversation?.id || "";
       if (!conversationId) return;
       const currentTitle = conversation.title || conversation.question || "";
-      const requestedTitle = window.prompt("请输入新的会话名称", currentTitle);
-      if (requestedTitle == null) return;
-      const title = requestedTitle.trim();
+      const title = String(payload?.title || "").trim();
       if (!title || title === currentTitle) return;
       try {
         const updated = await renameConversationHistory(conversationId, title, this.tenantId);
@@ -957,7 +960,9 @@ export default {
     async deleteConversations(conversations = []) {
       const uniqueConversations = conversations.filter((conversation, index, items) => {
         const id = conversation?.id;
-        return id && items.findIndex((item) => item?.id === id) === index;
+        const inProgress = ["running", "streaming", "pending"]
+          .includes(String(conversation?.status || "").toLowerCase());
+        return id && !inProgress && items.findIndex((item) => item?.id === id) === index;
       });
       if (uniqueConversations.length === 0 || this.historyDeleting) {
         return;

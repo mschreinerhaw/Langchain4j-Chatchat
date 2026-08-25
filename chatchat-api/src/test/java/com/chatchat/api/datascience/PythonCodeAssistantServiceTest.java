@@ -43,6 +43,21 @@ class PythonCodeAssistantServiceTest {
     }
 
     @Test
+    void supportsEveryAdvertisedAssistantAction() {
+        when(defaultModel.chat(anyString())).thenReturn("print('suggestion')");
+
+        for (String action : List.of("generate", "continue", "fix", "optimize")) {
+            PythonCodeAssistantService.AssistResponse response = service.assist(
+                new PythonCodeAssistantService.AssistRequest(
+                    action, "Improve the script", "print('old')", "print('selected')", "general-model"));
+
+            assertThat(response.action()).isEqualTo(action);
+            assertThat(response.code()).isEqualTo("print('suggestion')");
+            assertThat(response.replaceSelection()).isEqualTo(!"continue".equals(action));
+        }
+    }
+
+    @Test
     void rejectsModelOutsideConfiguredCatalog() {
         assertThatThrownBy(() -> service.assist(
             new PythonCodeAssistantService.AssistRequest("generate", "生成测试代码", "", "", "unknown-model")))

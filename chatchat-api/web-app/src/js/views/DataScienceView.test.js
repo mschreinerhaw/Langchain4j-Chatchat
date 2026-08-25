@@ -5,6 +5,7 @@ import {
   formatPythonSource,
   parsePythonExecutionParameters
 } from "../utils/pythonWorkbench";
+import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 
 describe("Python workbench helpers", () => {
   it("accepts only JSON objects as execution parameters", () => {
@@ -26,6 +27,19 @@ describe("Python workbench helpers", () => {
     expect(calculateBottomPanelMaximum(532)).toBe(311);
     expect(calculateBottomPanelMaximum(250)).toBe(100);
     expect(calculateBottomPanelMaximum(900)).toBe(520);
+  });
+
+  it("builds Git-style line markers for AI fixes and optimizations", () => {
+    const diff = buildPythonLineDiff(
+      "def total(values):\n    return sum(values)\nprint(total(items))",
+      "def total(values):\n    cleaned = [value for value in values if value is not None]\n    return sum(cleaned)\nprint(total(items))"
+    );
+
+    expect(diff.additions).toBe(2);
+    expect(diff.deletions).toBe(1);
+    expect(diff.changed).toBe(true);
+    expect(diff.lines.some((line) => line.type === "added" && line.content.includes("cleaned"))).toBe(true);
+    expect(diff.lines.some((line) => line.type === "deleted" && line.content.includes("sum(values)"))).toBe(true);
   });
 
   it("publishes with local progress and refreshes without rebuilding the workbench", () => {

@@ -346,6 +346,52 @@
         </form>
       </div>
 
+      <Teleport to="body">
+        <div
+          v-if="deleteMessageCandidate"
+          class="conversation-delete-backdrop"
+          role="presentation"
+          @mousedown.self="closeDeleteMessageDialog"
+        >
+          <section
+            class="conversation-delete-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="message-delete-title"
+            aria-describedby="message-delete-description"
+            @keydown.esc="closeDeleteMessageDialog"
+          >
+            <div class="conversation-delete-icon" aria-hidden="true">
+              <Trash2 :size="22" stroke-width="2" />
+            </div>
+            <div class="conversation-delete-copy">
+              <h2 id="message-delete-title">删除回答</h2>
+              <p id="message-delete-description">确定删除这条回答吗？</p>
+              <strong>{{ String(deleteMessageCandidate.content || "这条回答") }}</strong>
+              <small>删除后无法恢复。</small>
+            </div>
+            <footer class="conversation-delete-actions">
+              <button
+                ref="deleteMessageCancel"
+                type="button"
+                class="conversation-delete-cancel"
+                :disabled="deleteMessagePending"
+                @click="closeDeleteMessageDialog"
+              >取消</button>
+              <button
+                type="button"
+                class="conversation-delete-confirm"
+                :disabled="deleteMessagePending"
+                @click="confirmDeleteMessage"
+              >
+                <Trash2 :size="15" stroke-width="2" />
+                {{ deleteMessagePending ? "删除中…" : "确认删除" }}
+              </button>
+            </footer>
+          </section>
+        </div>
+      </Teleport>
+
       <p class="risk-note">内容由AI生成，仅供参考，不构成投资建议。市场有风险，投资需谨慎。</p>
     </div>
   </div>

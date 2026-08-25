@@ -25,6 +25,8 @@ import {
 import { errorMessage, formatDateTime } from "../utils/uiFormatters";
 import { calculateBottomPanelMaximum, formatPythonSource, parsePythonExecutionParameters } from "../utils/pythonWorkbench";
 import { pythonCompletionItems } from "../utils/pythonCompletions";
+import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
+import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
 
@@ -65,6 +67,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
+  components: { PythonCodeDiff },
   props: {
     initialTab: {
       type: String,
@@ -148,6 +151,8 @@ export default {
     aiAction: "generate",
     aiBusy: false,
     aiSuggestion: null,
+    aiDiff: null,
+    aiChangeRequest: "",
     aiSelection: null,
     aiStage: "idle",
     aiProgressStep: 0,
@@ -317,6 +322,15 @@ export default {
     },
     aiSuggestionLines() {
       return this.aiSuggestion?.code ? String(this.aiSuggestion.code).split("\n").length : 0;
+    },
+    aiShowsDiff() {
+      return ["fix", "optimize"].includes(this.aiSuggestion?.action) && this.aiDiff?.changed;
+    },
+    aiChangeScope() {
+      if (!this.aiSelection) return "当前完整脚本";
+      const start = this.aiSelection.startLineNumber;
+      const end = this.aiSelection.endLineNumber;
+      return start === end ? `选中代码 · 第 ${start} 行` : `选中代码 · 第 ${start}-${end} 行`;
     },
     aiApplyLabel() {
       if (this.aiSuggestion?.replaceSelection && this.aiSelection) return "替换选中代码";
@@ -693,7 +707,6 @@ export default {
       };
       this.editorTabs.push(editorTab);
       this.activateEditorTab(editorTab, { capture: false, navigate: navigate !== false });
-      nextTick(() => this.focusFileNameEditor());
     },
     selectScript(script, navigate = true) {
       const existingTab = this.editorTabs.find((item) => item.form.id === script.id);
@@ -796,7 +809,6 @@ export default {
       const fileName = String(this.form.fileName || "").trim();
       if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\.py$/.test(fileName)) {
         this.showTransientError("脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾");
-        this.focusFileNameEditor();
         return;
       }
       this.form.fileName = fileName;
@@ -1083,19 +1095,26 @@ export default {
         : null;
       this.aiBusy = true;
       this.aiSuggestion = null;
+      this.aiDiff = null;
+      this.aiChangeRequest = this.aiPrompt;
       this.aiAppliedInfo = null;
       this.aiStage = "generating";
       this.error = "";
       const startedAt = Date.now();
       this.startAiProgress();
       try {
-        this.aiSuggestion = await requestPythonCodeAssist({
+        const suggestion = await requestPythonCodeAssist({
           action: this.aiAction,
           prompt: this.aiPrompt,
           sourceCode: this.form.sourceCode,
           selectedCode,
           modelName: this.aiModel
         });
+        const originalCode = hasSelection && suggestion.action !== "continue"
+          ? selectedCode
+          : suggestion.action === "continue" ? "" : this.form.sourceCode;
+        this.aiSuggestion = suggestion;
+        this.aiDiff = buildPythonLineDiff(originalCode, suggestion.code);
         this.aiElapsedMs = Date.now() - startedAt;
         this.aiStage = "ready";
         this.aiProgressStep = 4;
@@ -1185,6 +1204,8 @@ export default {
     },
     resetAiSuggestion() {
       this.aiSuggestion = null;
+      this.aiDiff = null;
+      this.aiChangeRequest = "";
       this.aiAppliedInfo = null;
       this.aiStage = "idle";
       this.aiProgressStep = 0;
@@ -1203,17 +1224,6 @@ export default {
       this.form.sourceCode = model.getValue();
       this.showTransientMessage(this.form.sourceCode === before ? "代码格式已符合规范" : "代码格式化完成");
       this.editor.focus();
-    },
-    focusFileNameEditor() {
-      nextTick(() => {
-        const input = this.$el?.querySelector(".editor-tab.active .file-name-input");
-        input?.focus();
-        input?.select();
-      });
-    },
-    restoreFileName() {
-      this.form.fileName = this.savedFileName || "analysis.py";
-      this.editor?.focus();
     },
     executionLog(result, startedAt) {
       const duration = result.durationMs ?? Date.now() - startedAt;

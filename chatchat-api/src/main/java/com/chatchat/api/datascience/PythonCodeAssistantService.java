@@ -74,7 +74,8 @@ public class PythonCodeAssistantService {
         if (generated.isBlank()) {
             throw new IllegalStateException("模型未生成可用的 Python 代码");
         }
-        return new AssistResponse(generated, action, !selection.isBlank(), modelName);
+        boolean replaceSelection = !"continue".equals(action) && !selection.isBlank();
+        return new AssistResponse(generated, action, replaceSelection, modelName);
     }
 
     private String resolveModelName(String requested) {

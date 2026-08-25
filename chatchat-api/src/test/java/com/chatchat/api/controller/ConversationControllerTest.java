@@ -214,6 +214,25 @@ public class ConversationControllerTest {
     }
 
     @Test
+    public void testCannotDeleteConversationInProgress() throws Exception {
+        Conversation conversation = conversationService.createConversation(
+            "default", "user-running", "Running conversation");
+        conversationService.updateConversationSummary(
+            "default", conversation.getId(), "user-running", conversation.getTitle(), "running");
+
+        mockMvc.perform(delete("/api/v1/conversations/" + conversation.getId()))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value(409))
+            .andExpect(jsonPath("$.message").value(
+                "Conversation is still in progress and cannot be deleted: " + conversation.getId()));
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversation.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(conversation.getId()))
+            .andExpect(jsonPath("$.data.status").value("running"));
+    }
+
+    @Test
     public void testRenameConversation() throws Exception {
         Conversation conversation = conversationService.createConversation("default", "user-rename", "Old title");
 

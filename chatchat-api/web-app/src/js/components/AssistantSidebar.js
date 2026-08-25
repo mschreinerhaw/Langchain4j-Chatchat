@@ -11,6 +11,7 @@ import {
   LogOut,
   MessageCircle,
   MessageSquare,
+  MoreHorizontal,
   Pencil,
   PanelLeftClose,
   PanelLeftOpen,
@@ -31,6 +32,7 @@ export default {
     ChevronDown,
     LogOut,
     MessageCircle,
+    MoreHorizontal,
     PanelLeftClose,
     PanelLeftOpen,
     Pencil,
@@ -141,6 +143,10 @@ export default {
       managerCurrentPage: 1,
       managerSearchTimer: null,
       deleteConfirmOpen: false,
+      deleteConversationCandidate: null,
+      renameConversationCandidate: null,
+      renameConversationTitle: "",
+      conversationMenuKey: "",
       selectedHistoryKeys: [],
       showAllHistory: false
     };
@@ -181,20 +187,25 @@ export default {
     },
     selectedManagerConversations() {
       const selected = new Set(this.selectedHistoryKeys);
-      return this.historyManagerItems.filter((conversation) => selected.has(this.conversationKey(conversation)));
+      return this.historyManagerItems.filter((conversation) =>
+        selected.has(this.conversationKey(conversation)) && !this.isConversationInProgress(conversation)
+      );
     },
     managerPageConversations() {
       return this.historyManagerItems;
     },
+    deletableManagerConversations() {
+      return this.managerPageConversations.filter((conversation) => !this.isConversationInProgress(conversation));
+    },
     allManagerConversationsSelected() {
-      return this.managerPageConversations.length > 0
-        && this.managerPageConversations.every((conversation) => this.selectedHistoryKeys.includes(this.conversationKey(conversation)));
+      return this.deletableManagerConversations.length > 0
+        && this.deletableManagerConversations.every((conversation) => this.selectedHistoryKeys.includes(this.conversationKey(conversation)));
     },
     someManagerConversationsSelected() {
       if (this.allManagerConversationsSelected) {
         return false;
       }
-      return this.managerPageConversations.some((conversation) => this.selectedHistoryKeys.includes(this.conversationKey(conversation)));
+      return this.deletableManagerConversations.some((conversation) => this.selectedHistoryKeys.includes(this.conversationKey(conversation)));
     },
     displayUserId() {
       return this.userId || "default-user";
@@ -225,6 +236,10 @@ export default {
   },
   beforeUnmount() {
     window.clearTimeout(this.managerSearchTimer);
+    document.removeEventListener("click", this.closeConversationMenu);
+  },
+  mounted() {
+    document.addEventListener("click", this.closeConversationMenu);
   },
   methods: {
     iconComponent(icon) {
@@ -327,6 +342,9 @@ export default {
       const lastMessage = messages[messages.length - 1];
       return lastMessage?.role === "user" ? "pending" : "completed";
     },
+    isConversationInProgress(conversation) {
+      return ["running", "streaming", "pending"].includes(this.resolveStatus(conversation));
+    },
     statusLabel(conversation) {
       const status = this.resolveStatus(conversation);
       if (status === "running") {
@@ -341,6 +359,7 @@ export default {
       return "";
     },
     selectConversation(conversation) {
+      this.closeConversationMenu();
       this.$emit("select-conversation", conversation);
     },
     favoriteConversation(conversation) {
@@ -350,10 +369,61 @@ export default {
       this.$emit("favorite-conversation", conversation);
     },
     deleteConversation(conversation) {
+      if (this.isConversationInProgress(conversation)) {
+        return;
+      }
       this.$emit("delete-conversation", conversation);
     },
-    renameConversation(conversation) {
-      this.$emit("rename-conversation", conversation);
+    openDeleteConversationDialog(conversation) {
+      if (this.isConversationInProgress(conversation)) {
+        return;
+      }
+      this.closeConversationMenu();
+      this.deleteConversationCandidate = conversation;
+      this.$nextTick(() => this.$refs.deleteConversationCancel?.focus());
+    },
+    closeDeleteConversationDialog() {
+      this.deleteConversationCandidate = null;
+    },
+    confirmDeleteConversation() {
+      const conversation = this.deleteConversationCandidate;
+      if (!conversation) {
+        return;
+      }
+      this.deleteConversationCandidate = null;
+      this.deleteConversation(conversation);
+    },
+    conversationMenuOpen(conversation) {
+      return this.conversationMenuKey === this.conversationKey(conversation);
+    },
+    toggleConversationMenu(conversation) {
+      const key = this.conversationKey(conversation);
+      this.conversationMenuKey = this.conversationMenuKey === key ? "" : key;
+    },
+    closeConversationMenu() {
+      this.conversationMenuKey = "";
+    },
+    openRenameConversationDialog(conversation) {
+      this.closeConversationMenu();
+      this.renameConversationCandidate = conversation;
+      this.renameConversationTitle = this.conversationTitle(conversation);
+      this.$nextTick(() => {
+        this.$refs.renameConversationInput?.focus();
+        this.$refs.renameConversationInput?.select();
+      });
+    },
+    closeRenameConversationDialog() {
+      this.renameConversationCandidate = null;
+      this.renameConversationTitle = "";
+    },
+    confirmRenameConversation() {
+      const conversation = this.renameConversationCandidate;
+      const title = this.renameConversationTitle.trim();
+      if (!conversation || !title || title === this.conversationTitle(conversation)) {
+        return;
+      }
+      this.closeRenameConversationDialog();
+      this.$emit("rename-conversation", { conversation, title });
     },
     openHistoryManager() {
       this.managerKeyword = "";
@@ -373,7 +443,7 @@ export default {
       this.deleteConfirmOpen = false;
     },
     toggleAllManagerConversations(event) {
-      const visibleKeys = this.managerPageConversations.map((conversation) => this.conversationKey(conversation));
+      const visibleKeys = this.deletableManagerConversations.map((conversation) => this.conversationKey(conversation));
       const selected = new Set(this.selectedHistoryKeys);
       if (event.target.checked) {
         visibleKeys.forEach((key) => selected.add(key));
@@ -399,10 +469,19 @@ export default {
       if (this.selectedManagerConversations.length === 0 || this.historyDeleting) {
         return;
       }
-      if (!this.deleteConfirmOpen) {
-        this.deleteConfirmOpen = true;
+      this.deleteConfirmOpen = true;
+      this.$nextTick(() => this.$refs.deleteSelectedHistoryCancel?.focus());
+    },
+    closeSelectedHistoryDeleteDialog() {
+      if (!this.historyDeleting) {
+        this.deleteConfirmOpen = false;
+      }
+    },
+    confirmDeleteSelectedHistory() {
+      if (this.selectedManagerConversations.length === 0 || this.historyDeleting) {
         return;
       }
+      this.deleteConfirmOpen = false;
       this.$emit("delete-conversations", [...this.selectedManagerConversations]);
     }
   }

@@ -1,8 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { collapseDuplicateAssistantResults } from "./ChatAssistantView";
+import ChatAssistantView, { collapseDuplicateAssistantResults } from "./ChatAssistantView";
 
 describe("restored assistant result deduplication", () => {
+  it("opens the product confirmation dialog before deleting an answer", () => {
+    const message = { id: "answer-1", role: "assistant", content: "回答内容" };
+    const context = {
+      conversationId: "conversation-1",
+      loading: false,
+      deleteMessageCandidate: null,
+      $refs: {},
+      $nextTick: (callback) => callback()
+    };
+
+    ChatAssistantView.methods.deleteMessage.call(context, message);
+
+    expect(context.deleteMessageCandidate).toBe(message);
+  });
+
   it("keeps one rich result when two restored messages share a task id", () => {
     const plain = {
       id: "assistant-history",

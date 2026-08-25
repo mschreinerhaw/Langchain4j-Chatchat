@@ -91,17 +91,21 @@
         </label>
         <p v-if="historyError" class="recent-error">{{ historyError }}</p>
         <p v-else-if="!historyLoading && filteredConversations.length === 0" class="recent-empty">暂无匹配的历史会话</p>
-        <button
+        <article
           v-for="conversation in visibleConversations"
           :key="conversationKey(conversation)"
+          class="recent-card"
           :class="{
             active: isConversationActive(conversation),
             unfinished: isUnfinished(conversation),
             running: resolveStatus(conversation) === 'running',
-            failed: resolveStatus(conversation) === 'failed'
+            failed: resolveStatus(conversation) === 'failed',
+            'menu-open': conversationMenuOpen(conversation)
           }"
-          type="button"
+          role="button"
+          tabindex="0"
           @click="selectConversation(conversation)"
+          @keydown.enter.prevent="selectConversation(conversation)"
         >
           <span class="recent-title">{{ conversationTitle(conversation) }}</span>
           <time
@@ -128,28 +132,36 @@
             <Star :size="13" stroke-width="2" :fill="isConversationFavorited(conversation) ? 'currentColor' : 'none'" />
           </span>
           <span
-            class="recent-rename"
+            class="recent-more"
+            :class="{ active: conversationMenuOpen(conversation) }"
             role="button"
             tabindex="0"
-            title="重命名会话"
-            aria-label="重命名会话"
-            @click.stop="renameConversation(conversation)"
-            @keydown.enter.stop.prevent="renameConversation(conversation)"
+            title="会话操作"
+            aria-label="打开会话操作菜单"
+            :aria-expanded="conversationMenuOpen(conversation)"
+            @click.stop="toggleConversationMenu(conversation)"
+            @keydown.enter.stop.prevent="toggleConversationMenu(conversation)"
           >
-            <Pencil :size="13" stroke-width="2" />
+            <MoreHorizontal :size="16" stroke-width="2" />
           </span>
-          <span
-            class="recent-delete"
-            role="button"
-            tabindex="0"
-            title="删除历史会话"
-            aria-label="删除历史会话"
-            @click.stop="deleteConversation(conversation)"
-            @keydown.enter.stop.prevent="deleteConversation(conversation)"
-          >
-            <Trash2 :size="13" stroke-width="2" />
-          </span>
-        </button>
+          <div v-if="conversationMenuOpen(conversation)" class="recent-action-menu" role="menu" @click.stop>
+            <button type="button" role="menuitem" @click="openRenameConversationDialog(conversation)">
+              <Pencil :size="14" stroke-width="2" />
+              重命名
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="danger"
+              :disabled="isConversationInProgress(conversation)"
+              :title="isConversationInProgress(conversation) ? '进行中的会话不能删除' : '删除会话'"
+              @click="openDeleteConversationDialog(conversation)"
+            >
+              <Trash2 :size="14" stroke-width="2" />
+              删除
+            </button>
+          </div>
+        </article>
         <button
           v-if="filteredConversations.length > 5"
           class="more-link"
@@ -231,7 +243,7 @@
                 type="checkbox"
                 :checked="allManagerConversationsSelected"
                 :indeterminate.prop="someManagerConversationsSelected"
-                :disabled="managerPageConversations.length === 0 || historyDeleting || historyManagerLoading"
+                :disabled="deletableManagerConversations.length === 0 || historyDeleting || historyManagerLoading"
                 @change="toggleAllManagerConversations"
               />
               <span>全选本页</span>
@@ -248,13 +260,17 @@
               v-else
               :key="`manager-${conversationKey(conversation)}`"
               class="history-manager-item"
-              :class="{ active: isConversationActive(conversation) }"
+              :class="{
+                active: isConversationActive(conversation),
+                locked: isConversationInProgress(conversation)
+              }"
             >
               <input
                 type="checkbox"
                 :value="conversationKey(conversation)"
                 v-model="selectedHistoryKeys"
-                :disabled="historyDeleting"
+                :disabled="historyDeleting || isConversationInProgress(conversation)"
+                :title="isConversationInProgress(conversation) ? '进行中的会话不能删除' : ''"
               />
               <span class="history-manager-item-copy">
                 <strong>{{ conversationTitle(conversation) }}</strong>
@@ -287,10 +303,147 @@
                 @click="deleteSelectedHistory"
               >
                 <Trash2 :size="15" stroke-width="2" />
-                {{ historyDeleting ? "删除中…" : deleteConfirmOpen ? `确认删除（${selectedManagerConversations.length}）` : `删除所选（${selectedManagerConversations.length}）` }}
+                {{ historyDeleting ? "删除中…" : `删除所选（${selectedManagerConversations.length}）` }}
               </button>
             </div>
           </footer>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="deleteConfirmOpen"
+        class="conversation-delete-backdrop"
+        role="presentation"
+        @mousedown.self="closeSelectedHistoryDeleteDialog"
+      >
+        <section
+          class="conversation-delete-dialog"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="selected-history-delete-title"
+          aria-describedby="selected-history-delete-description"
+          @keydown.esc="closeSelectedHistoryDeleteDialog"
+        >
+          <div class="conversation-delete-icon" aria-hidden="true">
+            <Trash2 :size="22" stroke-width="2" />
+          </div>
+          <div class="conversation-delete-copy">
+            <h2 id="selected-history-delete-title">批量删除会话</h2>
+            <p id="selected-history-delete-description">
+              确定删除已选择的 {{ selectedManagerConversations.length }} 条历史会话吗？
+            </p>
+            <small>删除后无法恢复，这些会话中的历史消息也将一并移除。</small>
+          </div>
+          <footer class="conversation-delete-actions">
+            <button
+              ref="deleteSelectedHistoryCancel"
+              type="button"
+              class="conversation-delete-cancel"
+              :disabled="historyDeleting"
+              @click="closeSelectedHistoryDeleteDialog"
+            >取消</button>
+            <button
+              type="button"
+              class="conversation-delete-confirm"
+              :disabled="historyDeleting"
+              @click="confirmDeleteSelectedHistory"
+            >
+              <Trash2 :size="15" stroke-width="2" />
+              {{ historyDeleting ? "删除中…" : "确认删除" }}
+            </button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="deleteConversationCandidate"
+        class="conversation-delete-backdrop"
+        role="presentation"
+        @mousedown.self="closeDeleteConversationDialog"
+      >
+        <section
+          class="conversation-delete-dialog"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="conversation-delete-title"
+          aria-describedby="conversation-delete-description"
+          @keydown.esc="closeDeleteConversationDialog"
+        >
+          <div class="conversation-delete-icon" aria-hidden="true">
+            <Trash2 :size="22" stroke-width="2" />
+          </div>
+          <div class="conversation-delete-copy">
+            <h2 id="conversation-delete-title">删除会话</h2>
+            <p id="conversation-delete-description">确定要删除下面这条历史会话吗？</p>
+            <strong>{{ conversationTitle(deleteConversationCandidate) }}</strong>
+            <small>删除后无法恢复，会话中的历史消息也将一并移除。</small>
+          </div>
+          <footer class="conversation-delete-actions">
+            <button
+              ref="deleteConversationCancel"
+              type="button"
+              class="conversation-delete-cancel"
+              @click="closeDeleteConversationDialog"
+            >
+              取消
+            </button>
+            <button type="button" class="conversation-delete-confirm" @click="confirmDeleteConversation">
+              <Trash2 :size="15" stroke-width="2" />
+              确认删除
+            </button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="renameConversationCandidate"
+        class="conversation-delete-backdrop"
+        role="presentation"
+        @mousedown.self="closeRenameConversationDialog"
+      >
+        <section
+          class="conversation-delete-dialog conversation-rename-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="conversation-rename-title"
+          @keydown.esc="closeRenameConversationDialog"
+        >
+          <div class="conversation-rename-icon" aria-hidden="true">
+            <Pencil :size="20" stroke-width="2" />
+          </div>
+          <form class="conversation-delete-copy" @submit.prevent="confirmRenameConversation">
+            <h2 id="conversation-rename-title">重命名会话</h2>
+            <p>修改后的名称会同步显示在最近对话和历史记录中。</p>
+            <label class="conversation-rename-field">
+              <span>会话名称</span>
+              <input
+                ref="renameConversationInput"
+                v-model="renameConversationTitle"
+                type="text"
+                maxlength="256"
+                autocomplete="off"
+                placeholder="请输入会话名称"
+              />
+            </label>
+            <footer class="conversation-delete-actions">
+              <button type="button" class="conversation-delete-cancel" @click="closeRenameConversationDialog">
+                取消
+              </button>
+              <button
+                type="submit"
+                class="conversation-rename-confirm"
+                :disabled="!renameConversationTitle.trim() || renameConversationTitle.trim() === conversationTitle(renameConversationCandidate)"
+              >
+                确认修改
+              </button>
+            </footer>
+          </form>
         </section>
       </div>
     </Teleport>

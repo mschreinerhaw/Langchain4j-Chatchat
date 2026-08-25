@@ -13,8 +13,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -22,6 +24,7 @@ public class ConversationService {
 
     private static final String DEFAULT_TENANT_ID = "default";
     private static final String DEFAULT_USER_ID = "anonymous";
+    private static final Set<String> IN_PROGRESS_STATUSES = Set.of("running", "streaming", "pending");
 
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageIndexRepository messageIndexRepository;
@@ -293,18 +296,22 @@ public class ConversationService {
      */
     @Transactional
     public void deleteConversation(String conversationId) {
+        ChatSessionEntity session = sessionRepository.findLockedBySessionId(conversationId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + conversationId));
+        ensureConversationCanBeDeleted(session);
         List<ChatMessageIndexEntity> indexes = messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId);
         indexes.forEach(index -> detailStore.delete(index.getRocksKey()));
         messageIndexRepository.deleteBySessionId(conversationId);
         summaryRepository.deleteBySessionId(conversationId);
-        sessionRepository.deleteById(conversationId);
+        sessionRepository.delete(session);
     }
 
     @Transactional
     public void deleteConversation(String tenantId, String conversationId) {
         String normalizedTenantId = normalizeTenantId(tenantId);
-        ChatSessionEntity session = sessionRepository.findBySessionIdAndTenantId(conversationId, normalizedTenantId)
+        ChatSessionEntity session = sessionRepository.findLockedBySessionIdAndTenantId(conversationId, normalizedTenantId)
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + conversationId));
+        ensureConversationCanBeDeleted(session);
         List<ChatMessageIndexEntity> indexes = messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(
             normalizedTenantId,
             session.getSessionId()
@@ -313,6 +320,15 @@ public class ConversationService {
         messageIndexRepository.deleteByTenantIdAndSessionId(normalizedTenantId, session.getSessionId());
         summaryRepository.deleteBySessionId(session.getSessionId());
         sessionRepository.delete(session);
+    }
+
+    private void ensureConversationCanBeDeleted(ChatSessionEntity session) {
+        String status = session == null || session.getStatus() == null
+            ? ""
+            : session.getStatus().trim().toLowerCase(Locale.ROOT);
+        if (IN_PROGRESS_STATUSES.contains(status)) {
+            throw new ConversationInProgressException(session.getSessionId());
+        }
     }
 
     @Transactional

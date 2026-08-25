@@ -3,6 +3,7 @@ package com.chatchat.api.exception;
 import com.chatchat.api.config.JsonRequestSizeFilter;
 import com.chatchat.api.config.RequestCorrelationFilter;
 import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.chat.conversation.ConversationInProgressException;
 import com.chatchat.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -103,6 +104,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
             ApiResponse.badRequest(ex.getMessage()),
             HttpStatus.BAD_REQUEST
+        );
+    }
+
+    @ExceptionHandler(ConversationInProgressException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConversationInProgressException(
+            ConversationInProgressException ex,
+            WebRequest request) {
+
+        log.warn("Conversation deletion rejected: {}", ex.getMessage());
+        return new ResponseEntity<>(
+            ApiResponse.error(HttpStatus.CONFLICT.value(), ex.getMessage()),
+            HttpStatus.CONFLICT
         );
     }
 

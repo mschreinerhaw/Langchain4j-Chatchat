@@ -1,5 +1,6 @@
 ﻿import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
+import { Trash2 } from "@lucide/vue";
 import {
   analyzeChatImage,
   apiRequest,
@@ -1383,7 +1384,8 @@ export default {
   name: "ChatAssistantView",
   components: {
     ChatMessageList,
-    PromptComposer
+    PromptComposer,
+    Trash2
   },
   props: {
     selectedConversation: {
@@ -1413,6 +1415,8 @@ export default {
       conversationId: "",
       conversationStatus: "completed",
       messages: [],
+      deleteMessageCandidate: null,
+      deleteMessagePending: false,
       analysisTree: emptyAnalysisTree(),
       lastResponse: { ...EMPTY_RESPONSE },
       suggestions: [],
@@ -2992,19 +2996,33 @@ export default {
         });
       }
     },
-    async deleteMessage(message) {
+    deleteMessage(message) {
       if (!this.conversationId || !message?.id || message.streaming || this.loading) return;
-      if (!window.confirm("确定删除这条回答吗？删除后无法恢复。")) return;
+      this.deleteMessageCandidate = message;
+      this.$nextTick(() => this.$refs.deleteMessageCancel?.focus());
+    },
+    closeDeleteMessageDialog() {
+      if (!this.deleteMessagePending) {
+        this.deleteMessageCandidate = null;
+      }
+    },
+    async confirmDeleteMessage() {
+      const message = this.deleteMessageCandidate;
+      if (!this.conversationId || !message?.id || message.streaming || this.loading || this.deleteMessagePending) return;
       this.errorMessage = "";
+      this.deleteMessagePending = true;
       try {
         await deleteConversationMessage(this.conversationId, message.id, this.effectiveTenantId());
         this.messages = this.messages.filter((item) => item.id !== message.id);
         const context = this.runningContexts[this.historyId];
         if (context) context.messages = context.messages.filter((item) => item.id !== message.id);
+        this.deleteMessageCandidate = null;
         this.emitActiveConversationSnapshot(
           this.lastUserQuestion(this.messages), this.conversationStatus || "completed");
       } catch (error) {
         this.errorMessage = error.message || "回答删除失败";
+      } finally {
+        this.deleteMessagePending = false;
       }
     },
     restoreConversation(conversation) {

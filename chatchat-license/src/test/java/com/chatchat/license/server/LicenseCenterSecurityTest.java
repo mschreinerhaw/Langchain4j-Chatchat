@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
@@ -28,6 +29,14 @@ class LicenseCenterSecurityTest {
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("登录授权中心")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("灵动智联")));
+    }
+
+    @Test
+    void loginPageLogoIsPubliclyAvailable() throws Exception {
+        mockMvc.perform(get("/lingdong-mark.svg"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Content-Type", org.hamcrest.Matchers.containsString("image/svg+xml")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("<svg")));
     }
 
     @Test

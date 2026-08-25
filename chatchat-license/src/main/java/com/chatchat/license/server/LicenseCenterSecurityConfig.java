@@ -17,7 +17,7 @@ public class LicenseCenterSecurityConfig {
         return http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login.html", "/login.css", "/login.js").permitAll()
+                .requestMatchers("/login.html", "/login.css", "/login.js", "/lingdong-mark.svg").permitAll()
                 .anyRequest().authenticated())
             .httpBasic(Customizer.withDefaults())
             .formLogin(form -> form

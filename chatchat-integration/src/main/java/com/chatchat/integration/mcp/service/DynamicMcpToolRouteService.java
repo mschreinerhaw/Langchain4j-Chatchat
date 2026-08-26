@@ -85,6 +85,13 @@ public class DynamicMcpToolRouteService {
         routes.remove(routeKey(serviceId, childToolName));
     }
 
+    public boolean hasImplementation(String serviceId, String parentToolName) {
+        if (serviceId == null || parentToolName == null) return false;
+        return routes.values().stream().anyMatch(route ->
+            route.serviceId().equalsIgnoreCase(serviceId.trim())
+                && route.parentToolName().equalsIgnoreCase(parentToolName.trim()));
+    }
+
     private InvocationPlan directPlan(String serviceId, String requestedToolName,
                                       Map<String, Object> arguments) {
         Map<String, Object> directArguments = mutableArguments(arguments);

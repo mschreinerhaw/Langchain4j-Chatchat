@@ -9,6 +9,7 @@ import com.chatchat.common.mcp.contract.McpToolGovernance;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.mcp.capability.McpCapabilityNodeKind;
+import com.chatchat.common.mcp.capability.McpCapabilityFallbackPolicy;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
@@ -196,6 +197,7 @@ public class McpToolRegistryBridge {
         McpCapabilityNode abstractNode = new McpCapabilityNode(
             node.serviceId(), node.toolName(), null,
             McpCapabilityNodeKind.ABSTRACT_CAPABILITY,
+            node.fallbackPolicy(),
             node.relationType(), node.routingMode(), node.attributes());
         return new RegisteredMcpTool(
             tool.localToolName(), tool.serviceId(), tool.serviceName(), tool.remoteToolName(),
@@ -350,11 +352,20 @@ public class McpToolRegistryBridge {
             extraMetadata.put("parentRemoteToolName", route.parentToolName());
             extraMetadata.put("routingMode", route.routingMode());
         }
+        McpCapabilityNodeKind declaredKind = McpCapabilityNodeKind.parse(
+            effectiveMeta == null ? null : effectiveMeta.get("nodeKind"),
+            McpCapabilityNodeKind.STANDALONE);
+        McpCapabilityFallbackPolicy declaredFallback = McpCapabilityFallbackPolicy.parse(
+            effectiveMeta == null ? null : effectiveMeta.get("fallbackPolicy"),
+            declaredKind == McpCapabilityNodeKind.ABSTRACT_CAPABILITY
+                ? McpCapabilityFallbackPolicy.DENY_WHEN_NO_IMPLEMENTATION
+                : McpCapabilityFallbackPolicy.ALLOW_STANDALONE);
         McpCapabilityNode capabilityNode = new McpCapabilityNode(
             service.getId(), localName,
             route == null ? null : route.parentToolName(),
-            route == null ? McpCapabilityNodeKind.STANDALONE
+            route == null ? declaredKind
                 : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION,
+            route == null ? declaredFallback : McpCapabilityFallbackPolicy.ALLOW_STANDALONE,
             route == null ? McpCapabilityNode.RELATION_ROOT
                 : McpCapabilityNode.RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY,
             route == null ? null : route.routingMode(),
@@ -717,6 +728,29 @@ public class McpToolRegistryBridge {
          */
         @Override
         public ToolOutput execute(ToolInput input) {
+            McpCapabilityNode declaredNode = McpCapabilityNode.fromMetadata(
+                mapValue(metadata.getMetadata() == null ? null
+                    : metadata.getMetadata().get(McpCapabilityHierarchy.METADATA_KEY)),
+                serviceId, metadata.getId()).orElse(null);
+            if (route == null && declaredNode != null && declaredNode.abstractCapability()
+                && declaredNode.fallbackPolicy()
+                == McpCapabilityFallbackPolicy.DENY_WHEN_NO_IMPLEMENTATION) {
+                boolean implementationAvailable = routeService.hasImplementation(
+                    serviceId, requestedToolName);
+                String code = implementationAvailable
+                    ? "MCP_ABSTRACT_CAPABILITY_REQUIRES_IMPLEMENTATION"
+                    : "MCP_CAPABILITY_IMPLEMENTATION_UNAVAILABLE";
+                ToolOutput failure = ToolOutput.failure(implementationAvailable
+                    ? "Abstract MCP capability must be invoked through a concrete business implementation"
+                    : "Abstract MCP capability has no available business implementation");
+                failure.setExceptionType(code);
+                failure.setMetadata(new LinkedHashMap<>(Map.of(
+                    "mcpErrorCode", code,
+                    "capabilityNode", declaredNode.toMetadata(),
+                    "implementationAvailable", implementationAvailable
+                )));
+                return failure;
+            }
             Map<String, Object> semanticArguments = new LinkedHashMap<>();
             if (input.getParameters() != null) {
                 semanticArguments.putAll(input.getParameters());

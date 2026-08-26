@@ -62,6 +62,13 @@ public interface McpCapabilityHierarchy {
             .toList();
     }
 
+    default boolean directlyInvocable(String toolName) {
+        return node(toolName)
+            .map(value -> !value.abstractCapability()
+                || value.fallbackPolicy() == McpCapabilityFallbackPolicy.ALLOW_STANDALONE)
+            .orElse(true);
+    }
+
     default List<String> mostSpecific(Collection<String> toolNames) {
         if (toolNames == null || toolNames.isEmpty()) return List.of();
         List<String> ordered = toolNames.stream()

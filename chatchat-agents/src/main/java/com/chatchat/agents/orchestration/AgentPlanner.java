@@ -3113,13 +3113,17 @@ class AgentPlanner {
         }
         if (matches.isEmpty()) return null;
         List<String> mostSpecific = capabilityHierarchy.mostSpecific(matches);
-        if (mostSpecific.size() == 1) return mostSpecific.get(0);
+        if (mostSpecific.size() == 1) {
+            String selected = mostSpecific.get(0);
+            return capabilityHierarchy.directlyInvocable(selected) ? selected : null;
+        }
         // Multiple business implementations require intent/governance selection;
         // never pick an arbitrary leaf merely because of registry order.
         return matches.stream()
             .filter(tool -> capabilityHierarchy.node(tool)
                 .map(node -> node.abstractCapability() || !node.businessImplementation())
                 .orElse(true))
+            .filter(capabilityHierarchy::directlyInvocable)
             .findFirst()
             .orElse(null);
     }

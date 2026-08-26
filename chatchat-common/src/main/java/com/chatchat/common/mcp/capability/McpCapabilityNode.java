@@ -19,6 +19,7 @@ public record McpCapabilityNode(
     String toolName,
     String parentToolName,
     McpCapabilityNodeKind nodeKind,
+    McpCapabilityFallbackPolicy fallbackPolicy,
     String relationType,
     String routingMode,
     Map<String, Object> attributes
@@ -38,6 +39,11 @@ public record McpCapabilityNode(
             ? (parentToolName == null ? McpCapabilityNodeKind.STANDALONE
             : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION)
             : nodeKind;
+        fallbackPolicy = fallbackPolicy == null
+            ? (nodeKind == McpCapabilityNodeKind.ABSTRACT_CAPABILITY
+            ? McpCapabilityFallbackPolicy.DENY_WHEN_NO_IMPLEMENTATION
+            : McpCapabilityFallbackPolicy.ALLOW_STANDALONE)
+            : fallbackPolicy;
         relationType = normalized(relationType);
         if (relationType == null) {
             relationType = parentToolName == null
@@ -71,6 +77,7 @@ public record McpCapabilityNode(
         result.put("toolName", toolName);
         if (parentToolName != null) result.put("parentToolName", parentToolName);
         result.put("nodeKind", nodeKind.name());
+        result.put("fallbackPolicy", fallbackPolicy.name());
         result.put("relationType", relationType);
         if (routingMode != null) result.put("routingMode", routingMode);
         if (!attributes.isEmpty()) result.put("attributes", attributes);
@@ -91,6 +98,7 @@ public record McpCapabilityNode(
             toolName,
             text(metadata.get("parentToolName")),
             McpCapabilityNodeKind.parse(metadata.get("nodeKind"), null),
+            McpCapabilityFallbackPolicy.parse(metadata.get("fallbackPolicy"), null),
             text(metadata.get("relationType")),
             text(metadata.get("routingMode")),
             metadata.get("attributes") instanceof Map<?, ?> values

@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.never;
 import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
@@ -527,5 +528,36 @@ class McpToolRegistryBridgeLifecycleTest {
                 com.chatchat.common.mcp.capability.McpCapabilityNodeKind.ABSTRACT_CAPABILITY)
             .containsEntry("customer_service_template_query",
                 com.chatchat.common.mcp.capability.McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION);
+    }
+
+    @Test
+    void explicitAbstractCapabilityWithoutImplementationFailsClosed() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("abstract-service");
+        service.setName("Abstract service");
+        McpToolDefinition parent = new McpToolDefinition(
+            "business_query", "abstract business capability", Map.of(),
+            "template_discovery", "low", "read", null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null, Map.of(
+                "nodeKind", "ABSTRACT_CAPABILITY",
+                "fallbackPolicy", "DENY_WHEN_NO_IMPLEMENTATION"));
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(parent));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry(0);
+        ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
+            ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
+        verify(registry).registerTool(anyString(), any(ToolMetadata.class), toolCaptor.capture());
+        com.chatchat.common.tool.ToolOutput output = toolCaptor.getValue().execute(
+            com.chatchat.common.tool.ToolInput.builder().parameters(Map.of()).build());
+
+        assertThat(output.isSuccess()).isFalse();
+        assertThat(output.getExceptionType()).isEqualTo("MCP_CAPABILITY_IMPLEMENTATION_UNAVAILABLE");
+        verify(gateway, never()).invokeTool(eq(service), anyString(), anyMap(), any());
     }
 }

@@ -4,6 +4,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.mcp.capability.McpCapabilityNodeKind;
+import com.chatchat.common.mcp.capability.McpCapabilityFallbackPolicy;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolMetadata;
 
@@ -39,6 +40,10 @@ final class RegistryMcpCapabilityHierarchy implements McpCapabilityHierarchy {
                 declared.get("nodeKind"), parent == null
                     ? McpCapabilityNodeKind.STANDALONE
                     : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION);
+            McpCapabilityFallbackPolicy fallbackPolicy = McpCapabilityFallbackPolicy.parse(
+                declared.get("fallbackPolicy"), nodeKind == McpCapabilityNodeKind.ABSTRACT_CAPABILITY
+                    ? McpCapabilityFallbackPolicy.DENY_WHEN_NO_IMPLEMENTATION
+                    : McpCapabilityFallbackPolicy.ALLOW_STANDALONE);
             if (parent == null && hasBusinessImplementations(serviceId, registeredName)) {
                 nodeKind = McpCapabilityNodeKind.ABSTRACT_CAPABILITY;
             }
@@ -47,6 +52,7 @@ final class RegistryMcpCapabilityHierarchy implements McpCapabilityHierarchy {
                 registeredName,
                 resolvedParent == null ? parent : resolvedParent,
                 nodeKind,
+                fallbackPolicy,
                 relationType,
                 routingMode,
                 declared

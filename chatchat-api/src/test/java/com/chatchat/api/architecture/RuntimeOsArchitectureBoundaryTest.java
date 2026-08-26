@@ -157,7 +157,7 @@ class RuntimeOsArchitectureBoundaryTest {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityHierarchy.java"))
             .contains("interface McpCapabilityHierarchy", "sameNode", "lineage",
-                "isImplementationOf", "mostSpecific");
+                "isImplementationOf", "mostSpecific", "directlyInvocable");
         assertThat(source(
             "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpToolRegistryBridge.java"))
             .contains("McpCapabilityHierarchy.METADATA_KEY", "McpCapabilityNode");

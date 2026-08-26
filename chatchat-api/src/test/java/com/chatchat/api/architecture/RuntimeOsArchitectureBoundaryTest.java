@@ -45,6 +45,23 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void mcpAdministrationControllerDependsOnlyOnCommonControlPlanePort() {
+        String port = source(
+            "chatchat-common/src/main/java/com/chatchat/common/mcp/admin/McpAdministrationPort.java");
+        assertThat(port).contains("interface McpAdministrationPort extends RuntimeProtocolPort",
+            "runtime_os.mcp.administration.v1");
+
+        String controller = source("chatchat-api/src/main/java/com/chatchat/api/controller/McpServiceController.java");
+        assertThat(controller).contains("private final McpAdministrationPort administrationPort");
+        assertThat(controller).doesNotContain("com.chatchat.integration", "com.chatchat.agents",
+            "McpToolRegistryBridge", "McpServiceConfigService", "McpStdioProxyService");
+
+        String adapter = source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/admin/DefaultMcpAdministrationAdapter.java");
+        assertThat(adapter).contains("implements McpAdministrationPort");
+    }
+
+    @Test
     void agentMcpExecutionUsesKernelInsteadOfTransportAdapter() {
         String runtime = source("chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java");
         assertThat(runtime).contains("kernel.execute(new McpServiceCall");

@@ -1,23 +1,11 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.api.service.ApiKernelScopeResolver;
-import com.chatchat.integration.mcp.entity.McpServiceConfig;
-import com.chatchat.integration.mcp.model.McpToolDefinition;
-import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.admin.McpAdministrationPort;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
-import com.chatchat.integration.mcp.service.McpCenterSyncService;
-import com.chatchat.integration.mcp.service.McpCenterRecoveryService;
-import com.chatchat.integration.mcp.service.McpServiceConfigService;
-import com.chatchat.integration.mcp.service.McpStdioProxyService;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.common.tool.ToolParameter;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +23,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * MCP service config and tool management APIs.
@@ -49,14 +35,7 @@ import java.util.Set;
 @Tag(name = "MCP", description = "MCP service configuration and tool gateway")
 public class McpServiceController {
 
-    private final McpServiceConfigService configService;
-    private final McpStdioProxyService stdioProxyService;
-    private final McpToolRegistryBridge registryBridge;
-    private final McpRuntimeKernel runtimeKernel;
-    private final McpCenterSyncService centerSyncService;
-    private final McpCenterRecoveryService centerRecoveryService;
-    private final ToolRegistry toolRegistry;
-    private final ObjectMapper objectMapper;
+    private final McpAdministrationPort administrationPort;
     private final ApiKernelScopeResolver scopeResolver;
 
     /**
@@ -67,7 +46,7 @@ public class McpServiceController {
     @GetMapping("/services")
     @Operation(summary = "List MCP service configurations")
     public ApiResponse<List<McpServiceView>> listServices() {
-        List<McpServiceView> data = configService.listAll().stream().map(this::toView).toList();
+        List<McpServiceView> data = administrationPort.listServices().stream().map(this::toView).toList();
         return ApiResponse.success(data);
     }
 
@@ -80,11 +59,8 @@ public class McpServiceController {
     @PostMapping("/services")
     @Operation(summary = "Create MCP service configuration")
     public ApiResponse<McpServiceView> createService(@RequestBody McpServiceUpsertRequest request) {
-        McpServiceConfig config = fromRequest(request);
-        McpServiceConfig saved = configService.create(config);
-        stdioProxyService.closeSession(saved.getId());
-        runtimeKernel.refresh();
-        return ApiResponse.success(toView(saved), "MCP service created");
+        return ApiResponse.success(toView(administrationPort.createService(fromRequest(request))),
+            "MCP service created");
     }
 
     /**
@@ -98,10 +74,8 @@ public class McpServiceController {
     @Operation(summary = "Update MCP service configuration")
     public ApiResponse<McpServiceView> updateService(@PathVariable("serviceId") String serviceId,
                                                      @RequestBody McpServiceUpsertRequest request) {
-        McpServiceConfig saved = configService.update(serviceId, fromRequest(request));
-        stdioProxyService.closeSession(serviceId);
-        runtimeKernel.refresh();
-        return ApiResponse.success(toView(saved), "MCP service updated");
+        return ApiResponse.success(toView(administrationPort.updateService(serviceId, fromRequest(request))),
+            "MCP service updated");
     }
 
     /**
@@ -113,9 +87,7 @@ public class McpServiceController {
     @DeleteMapping("/services/{serviceId}")
     @Operation(summary = "Delete MCP service configuration")
     public ApiResponse<Void> deleteService(@PathVariable("serviceId") String serviceId) {
-        configService.delete(serviceId);
-        stdioProxyService.closeSession(serviceId);
-        runtimeKernel.refresh();
+        administrationPort.deleteService(serviceId);
         return ApiResponse.success(null, "MCP service deleted");
     }
 
@@ -128,7 +100,7 @@ public class McpServiceController {
     @GetMapping("/services/{serviceId}/versions")
     @Operation(summary = "List MCP service setting versions")
     public ApiResponse<List<McpServiceVersionView>> listServiceVersions(@PathVariable("serviceId") String serviceId) {
-        List<McpServiceVersionView> versions = configService.listVersions(serviceId).stream()
+        List<McpServiceVersionView> versions = administrationPort.listServiceVersions(serviceId).stream()
             .map(v -> new McpServiceVersionView(
                 v.id(),
                 v.serviceId(),
@@ -158,10 +130,8 @@ public class McpServiceController {
     @Operation(summary = "Rollback MCP service settings to one version")
     public ApiResponse<McpServiceView> rollbackService(@PathVariable("serviceId") String serviceId,
                                                        @PathVariable("versionId") String versionId) {
-        McpServiceConfig saved = configService.rollbackToVersion(serviceId, versionId);
-        stdioProxyService.closeSession(serviceId);
-        runtimeKernel.refresh();
-        return ApiResponse.success(toView(saved), "MCP service rolled back");
+        return ApiResponse.success(toView(administrationPort.rollbackService(serviceId, versionId)),
+            "MCP service rolled back");
     }
 
     /**
@@ -175,12 +145,8 @@ public class McpServiceController {
     @Operation(summary = "Enable or disable MCP service")
     public ApiResponse<McpServiceView> setEnabled(@PathVariable("serviceId") String serviceId,
                                                   @RequestParam("enabled") boolean enabled) {
-        McpServiceConfig updated = configService.setEnabled(serviceId, enabled);
-        if (!enabled) {
-            stdioProxyService.closeSession(serviceId);
-        }
-        runtimeKernel.refresh();
-        return ApiResponse.success(toView(updated), "MCP service status updated");
+        return ApiResponse.success(toView(administrationPort.setServiceEnabled(serviceId, enabled)),
+            "MCP service status updated");
     }
 
     /**
@@ -191,8 +157,9 @@ public class McpServiceController {
      */
     @GetMapping("/services/{serviceId}/discover")
     @Operation(summary = "Discover tools from one MCP service")
-    public ApiResponse<List<McpToolDefinition>> discoverTools(@PathVariable("serviceId") String serviceId) {
-        return ApiResponse.success(registryBridge.discoverTools(serviceId));
+    public ApiResponse<List<McpAdministrationPort.DiscoveredTool>> discoverTools(
+        @PathVariable("serviceId") String serviceId) {
+        return ApiResponse.success(administrationPort.discoverTools(serviceId));
     }
 
     /**
@@ -213,7 +180,7 @@ public class McpServiceController {
         Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
         McpServiceCall call = new McpServiceCall(null, null, serviceId, request.toolName(), arguments,
             Map.of("invocationSource", "mcp_service_admin_api"), 0);
-        McpServiceResult result = runtimeKernel.execute(scopeResolver.bind(call, servletRequest));
+        McpServiceResult result = administrationPort.invoke(scopeResolver.bind(call, servletRequest));
         return ApiResponse.success(result);
     }
 
@@ -224,8 +191,8 @@ public class McpServiceController {
      */
     @GetMapping("/tools")
     @Operation(summary = "List MCP tools registered into ToolRegistry")
-    public ApiResponse<List<McpToolRegistryBridge.RegisteredMcpTool>> listRegisteredTools() {
-        return ApiResponse.success(registryBridge.listRegisteredTools());
+    public ApiResponse<List<McpAdministrationPort.RegisteredTool>> listRegisteredTools() {
+        return ApiResponse.success(administrationPort.listRegisteredTools());
     }
 
     /**
@@ -284,9 +251,9 @@ public class McpServiceController {
     @PostMapping("/refresh")
     @Operation(summary = "Refresh MCP tool registration")
     public ApiResponse<Map<String, Object>> refresh() {
-        runtimeKernel.refresh();
+        McpAdministrationPort.RefreshResult result = administrationPort.refresh();
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("registeredTools", registryBridge.listRegisteredTools().size());
+        data.put("registeredTools", result.registeredToolCount());
         return ApiResponse.success(data, "MCP registry refreshed");
     }
 
@@ -297,14 +264,14 @@ public class McpServiceController {
      */
     @GetMapping("/center/status")
     @Operation(summary = "Get external MCP center integration status")
-    public ApiResponse<McpCenterSyncService.CenterStatus> centerStatus() {
-        return ApiResponse.success(centerSyncService.status());
+    public ApiResponse<McpAdministrationPort.CenterStatus> centerStatus() {
+        return ApiResponse.success(administrationPort.centerStatus());
     }
 
     @GetMapping("/center/recovery/status")
     @Operation(summary = "Get MCP center heartbeat and automatic recovery status")
-    public ApiResponse<McpCenterRecoveryService.RecoveryStatus> centerRecoveryStatus() {
-        return ApiResponse.success(centerRecoveryService.status());
+    public ApiResponse<McpAdministrationPort.CenterRecoveryStatus> centerRecoveryStatus() {
+        return ApiResponse.success(administrationPort.centerRecoveryStatus());
     }
 
     /**
@@ -314,8 +281,8 @@ public class McpServiceController {
      */
     @PostMapping("/center/sync")
     @Operation(summary = "Sync services from external ChatChat MCP center")
-    public ApiResponse<McpCenterSyncService.SyncResult> syncCenter() {
-        return ApiResponse.success(centerRecoveryService.syncManually(), "MCP center synced");
+    public ApiResponse<McpAdministrationPort.CenterSyncResult> syncCenter() {
+        return ApiResponse.success(administrationPort.syncCenter(), "MCP center synced");
     }
 
     /**
@@ -324,29 +291,14 @@ public class McpServiceController {
      * @param request the request value
      * @return the operation result
      */
-    private McpServiceConfig fromRequest(McpServiceUpsertRequest request) {
-        McpServiceConfig config = new McpServiceConfig();
-        config.setName(request.name());
-        config.setBaseUrl(request.baseUrl());
-        config.setToolDiscoveryPath(request.toolDiscoveryPath());
-        config.setToolInvokePath(request.toolInvokePath());
-        config.setAuthToken(request.authToken());
-        config.setEnabled(request.enabled() == null || request.enabled());
-        config.setContractAutoPublish(request.contractAutoPublish() == null || request.contractAutoPublish());
-        config.setTimeoutMs(request.timeoutMs() == null ? 0 : Math.max(0, request.timeoutMs()));
-        config.setCustomHeadersJson(writeHeadersJson(request.customHeaders()));
-        config.setProtocol(request.protocol());
-        config.setStdioCommand(request.stdioCommand());
-        config.setStdioArgsJson(request.stdioArgsJson());
-        config.setStdioEnvJson(request.stdioEnvJson());
-        config.setStdioWorkingDirectory(request.stdioWorkingDirectory());
-        config.setProxyEnabled(request.proxyEnabled() != null && request.proxyEnabled());
-        config.setProxyType(request.proxyType());
-        config.setProxyHost(request.proxyHost());
-        config.setProxyPort(request.proxyPort());
-        config.setProxyUsername(request.proxyUsername());
-        config.setProxyPassword(request.proxyPassword());
-        return config;
+    private McpAdministrationPort.ServiceConfigurationDraft fromRequest(McpServiceUpsertRequest request) {
+        if (request == null) throw new IllegalArgumentException("service configuration is required");
+        return new McpAdministrationPort.ServiceConfigurationDraft(
+            request.name(), request.baseUrl(), request.toolDiscoveryPath(), request.toolInvokePath(),
+            request.protocol(), request.stdioCommand(), request.stdioArgsJson(), request.stdioEnvJson(),
+            request.stdioWorkingDirectory(), request.authToken(), request.timeoutMs(), request.enabled(),
+            request.contractAutoPublish(), request.customHeaders(), request.proxyEnabled(), request.proxyType(),
+            request.proxyHost(), request.proxyPort(), request.proxyUsername(), request.proxyPassword());
     }
 
     /**
@@ -355,37 +307,15 @@ public class McpServiceController {
      * @return the built tool cards
      */
     private List<ToolCardView> buildToolCards() {
-        Map<String, McpToolRegistryBridge.RegisteredMcpTool> mcpToolsByName = new LinkedHashMap<>();
-        for (McpToolRegistryBridge.RegisteredMcpTool tool : registryBridge.listRegisteredTools()) {
-            mcpToolsByName.put(tool.localToolName(), tool);
-        }
-
-        Set<String> names = new LinkedHashSet<>(toolRegistry.getAllToolNames());
-        names.addAll(mcpToolsByName.keySet());
-
-        return names.stream()
-            .filter(name -> name != null && !name.isBlank())
-            .filter(name -> isUserVisibleTool(name, mcpToolsByName.containsKey(name)))
-            .map(name -> toToolCard(name, mcpToolsByName.get(name)))
-            .sorted(Comparator
-                .comparing(ToolCardView::sourceType)
-                .thenComparing(ToolCardView::localToolName))
-            .toList();
-    }
-
-    /**
-     * Returns whether is user visible tool.
-     *
-     * @param localToolName the local tool name value
-     * @param registeredMcpTool the registered mcp tool value
-     * @return whether the condition is satisfied
-     */
-    private boolean isUserVisibleTool(String localToolName, boolean registeredMcpTool) {
-        if (registeredMcpTool) {
-            return true;
-        }
-        ToolMetadata metadata = toolRegistry.getToolMetadata(localToolName);
-        return metadata == null || metadata.isUserVisible();
+        return administrationPort.listToolCatalog().stream().map(tool -> new ToolCardView(
+            tool.localToolName(), tool.displayName(), tool.description(), tool.sourceType(), tool.sourceLabel(),
+            tool.serviceId(), tool.serviceName(), tool.remoteToolName(), tool.outputType(), tool.agentCompatible(),
+            tool.requiresAuth(), tool.rateLimited(), tool.timeoutMillis(), tool.parameters().size(),
+            tool.functionalCategory(), tool.categories(), tool.tags(), tool.parameters().stream()
+                .map(parameter -> new ToolParameterView(parameter.name(), parameter.type(), parameter.description(),
+                    parameter.required()))
+                .toList(),
+            tool.inputSchema())).toList();
     }
 
     /**
@@ -607,132 +537,6 @@ public class McpServiceController {
     }
 
     /**
-     * Converts the value to tool card.
-     *
-     * @param localToolName the local tool name value
-     * @param mcpTool the mcp tool value
-     * @return the converted tool card
-     */
-    private ToolCardView toToolCard(String localToolName, McpToolRegistryBridge.RegisteredMcpTool mcpTool) {
-        ToolMetadata metadata = toolRegistry.getToolMetadata(localToolName);
-        ToolRegistry.Tool simpleTool = toolRegistry.getTool(localToolName);
-        Map<String, Object> metadataMap = metadata == null || metadata.getMetadata() == null
-            ? Map.of()
-            : metadata.getMetadata();
-        boolean internalMcpCapability = Boolean.TRUE.equals(metadataMap.get("mcpCapability"));
-        String sourceType = mcpTool == null && !internalMcpCapability ? "backend" : "mcp";
-        String displayName = firstNonBlank(
-            metadata == null ? null : metadata.getTitle(),
-            mcpTool == null ? null : mcpTool.remoteToolName(),
-            simpleTool == null ? null : simpleTool.getName(),
-            localToolName
-        );
-        String description = firstNonBlank(
-            metadata == null ? null : metadata.getDescription(),
-            mcpTool == null ? null : mcpTool.description(),
-            simpleTool == null ? null : simpleTool.getDescription(),
-            "暂无工具说明"
-        );
-        List<String> categories = metadata == null ? List.of() : safeList(metadata.getCategories());
-        List<String> tags = metadata == null ? List.of() : safeList(metadata.getTags());
-        String functionalCategory = mcpTool == null
-            ? firstNonBlank(metadata == null ? null : metadata.getCategory(), "未分类")
-            : firstNonBlank(mcpTool.backendServiceType(), "未分类");
-        List<ToolParameterView> parameters = metadata == null || metadata.getParameters() == null
-            ? List.of()
-            : metadata.getParameters().stream().map(this::toParameterView).toList();
-        Object inputSchema = metadataMap.get("inputSchema");
-        return new ToolCardView(
-            localToolName,
-            displayName,
-            description,
-            sourceType,
-            sourceTypeLabel(sourceType),
-            mcpTool == null ? stringValue(metadataMap.get("mcpCapabilityCode")) : mcpTool.serviceId(),
-            mcpTool == null ? stringValue(metadataMap.get("mcpCapabilityName")) : mcpTool.serviceName(),
-            mcpTool == null ? null : mcpTool.remoteToolName(),
-            metadata == null ? null : metadata.getOutputType(),
-            metadata != null && metadata.isAgentCompatible(),
-            metadata != null && metadata.isRequiresAuth(),
-            metadata != null && metadata.isRateLimited(),
-            metadata == null ? null : metadata.getTimeoutMillis(),
-            parameters.size(),
-            functionalCategory,
-            categories,
-            tags,
-            parameters,
-            safeObjectMap(inputSchema)
-        );
-    }
-
-    /**
-     * Converts the value to parameter view.
-     *
-     * @param parameter the parameter value
-     * @return the converted parameter view
-     */
-    private ToolParameterView toParameterView(ToolParameter parameter) {
-        return new ToolParameterView(
-            parameter.getName(),
-            parameter.getType(),
-            parameter.getDescription(),
-            parameter.isRequired()
-        );
-    }
-
-    /**
-     * Performs the safe list operation.
-     *
-     * @param values the values value
-     * @return the operation result
-     */
-    private List<String> safeList(List<String> values) {
-        if (values == null || values.isEmpty()) {
-            return List.of();
-        }
-        List<String> normalized = new ArrayList<>();
-        for (String value : values) {
-            if (value != null && !value.isBlank() && !normalized.contains(value.trim())) {
-                normalized.add(value.trim());
-            }
-        }
-        return List.copyOf(normalized);
-    }
-
-    /**
-     * Performs the safe object map operation.
-     *
-     * @param value the value value
-     * @return the operation result
-     */
-    private Map<String, Object> safeObjectMap(Object value) {
-        if (!(value instanceof Map<?, ?> source) || source.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, Object> normalized = new LinkedHashMap<>();
-        for (Map.Entry<?, ?> entry : source.entrySet()) {
-            if (entry.getKey() != null) {
-                normalized.put(String.valueOf(entry.getKey()), entry.getValue());
-            }
-        }
-        return normalized;
-    }
-
-    /**
-     * Performs the source type label operation.
-     *
-     * @param sourceType the source type value
-     * @return the operation result
-     */
-    private String sourceTypeLabel(String sourceType) {
-        return "mcp".equals(sourceType) ? "MCP工具" : "后端工具";
-    }
-
-    private String stringValue(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
-
-    /**
      * Performs the first non blank operation.
      *
      * @param values the values value
@@ -756,65 +560,14 @@ public class McpServiceController {
      * @param config the config value
      * @return the converted view
      */
-    private McpServiceView toView(McpServiceConfig config) {
+    private McpServiceView toView(McpAdministrationPort.ServiceConfiguration config) {
         return new McpServiceView(
-            config.getId(),
-            config.getName(),
-            config.getBaseUrl(),
-            config.getToolDiscoveryPath(),
-            config.getToolInvokePath(),
-            config.getProtocol(),
-            config.getStdioCommand(),
-            config.getStdioArgsJson(),
-            config.getStdioEnvJson(),
-            config.getStdioWorkingDirectory(),
-            config.isEnabled(),
-            config.isContractAutoPublish(),
-            config.getTimeoutMs(),
-            readHeaders(config.getCustomHeadersJson()),
-            config.isProxyEnabled(),
-            config.getProxyType(),
-            config.getProxyHost(),
-            config.getProxyPort(),
-            config.getProxyUsername(),
-            config.getCreatedAt() == null ? null : config.getCreatedAt().toEpochMilli(),
-            config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli()
+            config.id(), config.name(), config.baseUrl(), config.toolDiscoveryPath(), config.toolInvokePath(),
+            config.protocol(), config.stdioCommand(), config.stdioArgsJson(), config.stdioEnvJson(),
+            config.stdioWorkingDirectory(), config.enabled(), config.contractAutoPublish(), config.timeoutMs(),
+            config.customHeaders(), config.proxyEnabled(), config.proxyType(), config.proxyHost(), config.proxyPort(),
+            config.proxyUsername(), config.createdAt(), config.updatedAt()
         );
-    }
-
-    /**
-     * Writes the headers json.
-     *
-     * @param headers the headers value
-     * @return the operation result
-     */
-    private String writeHeadersJson(Map<String, String> headers) {
-        if (headers == null || headers.isEmpty()) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(headers);
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("customHeaders is not valid JSON map");
-        }
-    }
-
-    /**
-     * Reads the headers.
-     *
-     * @param headersJson the headers json value
-     * @return the operation result
-     */
-    private Map<String, String> readHeaders(String headersJson) {
-        if (headersJson == null || headersJson.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(headersJson, objectMapper.getTypeFactory()
-                .constructMapType(Map.class, String.class, String.class));
-        } catch (Exception ex) {
-            return Map.of();
-        }
     }
 
     public record McpServiceUpsertRequest(

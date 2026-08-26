@@ -4,6 +4,7 @@ import com.chatchat.common.mcp.audit.McpContractAuditReport;
 import com.chatchat.common.mcp.audit.McpContractFinding;
 import com.chatchat.common.mcp.audit.McpContractSeverity;
 import com.chatchat.common.mcp.audit.McpContractSource;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.mcp.audit.McpRuntimeContractService;
 import com.chatchat.common.mcp.service.McpResultRepairResult;
 import com.chatchat.common.mcp.service.McpServiceDirectory;
@@ -64,6 +65,30 @@ class DefaultMcpRuntimeKernelTest {
         assertThat(result.data()).isEqualTo(Map.of("text", "container-a Up"));
         assertThat(result.rawData()).isSameAs(raw);
         assertThat(result.metadata()).containsKeys("kernelProtocolVersion", "preflightAudit", "postflightAudit", "automaticRepair");
+    }
+
+    @Test
+    void acceptsRuntimeOwnedDynamicTemplateBindingWithoutStaticTemplateMetadata() {
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
+        when(contracts.audit(any())).thenReturn(report(true));
+        when(directory.invoke(any())).thenReturn(new McpServiceResult(null, "request-1", "python",
+            "python_template_execute", McpServiceResultStatus.SUCCESS, Map.of("status", "ok"),
+            Map.of("structuredContent", Map.of("status", "ok")), null, null, false, null, Map.of(), 0));
+        DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
+        McpTemplateBindingEvidence binding = new McpTemplateBindingEvidence(
+            McpTemplateBindingEvidence.SCHEMA_VERSION, "plan_binding_from_template_discovery",
+            "template-123", "python_template_execute");
+        McpServiceCall call = new McpServiceCall(null, "request-1", "python", "python_template_execute",
+            Map.of("templateId", "template-123"),
+            Map.of("templateId", "template-123", McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap()), 0);
+
+        McpServiceResult result = kernel.execute(call);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.metadata().get("templateBindingValidation")).asString()
+            .contains("runtimeEvidenceValidated=true", "plan_binding_from_template_discovery");
+        verify(directory).invoke(call);
     }
 
     @Test

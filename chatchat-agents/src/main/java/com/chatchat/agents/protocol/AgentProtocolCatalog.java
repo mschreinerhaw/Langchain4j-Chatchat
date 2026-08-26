@@ -1,5 +1,7 @@
 package com.chatchat.agents.protocol;
 
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -21,7 +23,7 @@ public final class AgentProtocolCatalog {
         TEMPLATE_PARAMETER,
         "template_parameter_protocol_v1"
     );
-    public static final String RUNTIME_TEMPLATE_BINDING = "runtime_template_binding.v1";
+    public static final String RUNTIME_TEMPLATE_BINDING = McpTemplateBindingEvidence.SCHEMA_VERSION;
     public static final String RUNTIME_DEPENDENCY_EVIDENCE = "runtime_dependency_evidence.v1";
     public static final String TARGET_FILTERS = "target_filters.v1";
     public static final String ROUTING_TRACE = "routing_trace.v1";

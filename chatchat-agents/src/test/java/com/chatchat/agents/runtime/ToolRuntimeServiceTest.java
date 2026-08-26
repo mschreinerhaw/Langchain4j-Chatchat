@@ -5,6 +5,8 @@ import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
+import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.common.tool.ToolMetadata;
@@ -29,6 +31,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class ToolRuntimeServiceTest {
 
@@ -70,6 +73,42 @@ class ToolRuntimeServiceTest {
                 .containsEntry("mcpKernelProtocolVersion", "runtime_os_mcp_kernel.v1");
             verify(kernel).execute(any());
             verify(registry, never()).executeEnhancedTool(any(), any());
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
+    void forwardsOnlyRuntimeOwnedTemplateBindingEvidenceToKernelContext() {
+        String toolName = "mcp_python_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Python execute").categories(List.of("mcp"))
+            .metadata(Map.of("serviceId", "python", "inputSchema", Map.of("type", "object")))
+            .build());
+        McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
+        when(kernel.execute(any())).thenReturn(new McpServiceResult(null, "request-1", "python", toolName,
+            McpServiceResultStatus.SUCCESS, Map.of("status", "ok"), Map.of("status", "ok"),
+            null, null, false, null, Map.of(), 0));
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        service.setMcpRuntimeKernel(kernel);
+        Map<String, Object> binding = new McpTemplateBindingEvidence(
+            McpTemplateBindingEvidence.SCHEMA_VERSION, "plan_binding_from_template_discovery",
+            "template-123", toolName).toMap();
+        try {
+            service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName).requestId("request-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of(toolName))
+                .toolInput(ToolInput.builder().parameters(Map.of("templateId", "template-123")).build())
+                .attributes(Map.of("executionPlan", Map.of("parameters",
+                    Map.of(McpTemplateBindingEvidence.CONTEXT_KEY, binding))))
+                .build());
+
+            ArgumentCaptor<McpServiceCall> call = ArgumentCaptor.forClass(McpServiceCall.class);
+            verify(kernel).execute(call.capture());
+            assertThat(call.getValue().context())
+                .containsEntry(McpTemplateBindingEvidence.CONTEXT_KEY, binding);
         } finally {
             service.shutdown();
         }

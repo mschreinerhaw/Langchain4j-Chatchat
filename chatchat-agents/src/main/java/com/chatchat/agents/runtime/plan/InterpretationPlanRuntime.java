@@ -18,6 +18,7 @@ import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.agents.routing.McpToolRouter;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
@@ -7961,15 +7962,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                            String templateId,
                                            String executorTool,
                                            String source) {
-        if (input == null || templateId == null || templateId.isBlank()) {
+        if (input == null || templateId == null || templateId.isBlank()
+            || executorTool == null || executorTool.isBlank()) {
             return;
         }
-        input.put("runtimeTemplateBinding", Map.of(
-            "schemaVersion", AgentProtocolCatalog.RUNTIME_TEMPLATE_BINDING,
-            "source", source,
-            "templateId", templateId,
-            "executorTool", executorTool == null ? "" : executorTool
-        ));
+        input.put(McpTemplateBindingEvidence.CONTEXT_KEY, new McpTemplateBindingEvidence(
+            McpTemplateBindingEvidence.SCHEMA_VERSION, source, templateId, executorTool).toMap());
     }
 
     private String runtimeOwnedTemplateId(Map<String, Object> input) {

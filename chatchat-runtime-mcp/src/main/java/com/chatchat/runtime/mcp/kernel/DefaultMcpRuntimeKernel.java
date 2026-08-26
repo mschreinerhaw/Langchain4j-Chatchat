@@ -4,6 +4,7 @@ import com.chatchat.common.mcp.audit.McpContractAuditReport;
 import com.chatchat.common.mcp.audit.McpContractAuditRequest;
 import com.chatchat.common.mcp.audit.McpDomainContractDescriptor;
 import com.chatchat.common.mcp.audit.McpRuntimeContractService;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.mcp.service.McpResultRepairRequest;
 import com.chatchat.common.mcp.service.McpResultRepairResult;
@@ -89,8 +90,13 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
     @Override
     public McpServiceResult invoke(McpServiceCall call) {
         if (call == null) throw new IllegalArgumentException("call is required");
+        String requestedTemplateId = text(call.context().get("templateId"));
+        McpTemplateBindingEvidence templateBinding = McpTemplateBindingEvidence
+            .from(call.context().get(McpTemplateBindingEvidence.CONTEXT_KEY))
+            .filter(binding -> binding.authorizes(requestedTemplateId, call.toolName()))
+            .orElse(null);
         McpContractAuditRequest preflightRequest = new McpContractAuditRequest(
-            call.serviceId(), call.toolName(), text(call.context().get("templateId")),
+            call.serviceId(), call.toolName(), templateBinding == null ? requestedTemplateId : null,
             stringSet(call.context().get("requiredArguments")), null);
         McpContractAuditReport preflight = audit(preflightRequest);
         boolean discoveryRefreshAttempted = false;
@@ -102,6 +108,8 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         if (!preflight.compliant()) {
             Map<String, Object> rejectionMetadata = new LinkedHashMap<>(kernelMetadata(preflight, null, null));
             rejectionMetadata.put("discoveryRefreshAttempted", discoveryRefreshAttempted);
+            rejectionMetadata.put("templateBindingValidation", templateBindingMetadata(
+                requestedTemplateId, call.toolName(), templateBinding));
             List<String> findingCodes = preflight.findings().stream().map(finding -> finding.code()).distinct().toList();
             rejectionMetadata.put("preflightFindingCodes", findingCodes);
             String rejectionMessage = findingCodes.isEmpty()
@@ -125,11 +133,24 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
             }
         }
         McpContractAuditReport postflight = audit(new McpContractAuditRequest(
-            call.serviceId(), call.toolName(), text(call.context().get("templateId")),
+            call.serviceId(), call.toolName(), templateBinding == null ? requestedTemplateId : null,
             stringSet(call.context().get("requiredArguments")), invoked));
         Map<String, Object> metadata = new LinkedHashMap<>(kernelMetadata(preflight, postflight, repaired));
         metadata.put("discoveryRefreshAttempted", discoveryRefreshAttempted);
+        metadata.put("templateBindingValidation", templateBindingMetadata(
+            requestedTemplateId, call.toolName(), templateBinding));
         return copyWithMetadata(invoked, metadata);
+    }
+
+    private Map<String, Object> templateBindingMetadata(String templateId, String toolName,
+                                                         McpTemplateBindingEvidence binding) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("schemaVersion", McpTemplateBindingEvidence.SCHEMA_VERSION);
+        metadata.put("templateIdPresent", templateId != null);
+        metadata.put("executorTool", toolName);
+        metadata.put("runtimeEvidenceValidated", binding != null);
+        if (binding != null) metadata.put("source", binding.source());
+        return Map.copyOf(metadata);
     }
 
     private McpServiceResult copyWithMetadata(McpServiceResult result, Map<String, Object> kernelMetadata) {

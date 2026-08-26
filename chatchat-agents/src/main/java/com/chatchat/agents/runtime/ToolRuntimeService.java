@@ -18,6 +18,7 @@ import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
@@ -2009,7 +2010,11 @@ public class ToolRuntimeService {
             toolInput.getParameters() == null ? null : toolInput.getParameters().get("templateCode"),
             toolInput.getParameters() == null ? null : toolInput.getParameters().get("template_code"),
             toolInput.getParameters() == null ? null : toolInput.getParameters().get("template"));
-        if (templateId != null) context.putIfAbsent("templateId", String.valueOf(templateId));
+        String boundTemplateId = templateId == null ? null : String.valueOf(templateId);
+        if (boundTemplateId != null) context.putIfAbsent("templateId", boundTemplateId);
+        runtimeTemplateBindingEvidence(request)
+            .filter(binding -> binding.authorizes(boundTemplateId, toolName))
+            .ifPresent(binding -> context.put(McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap()));
         long deadlineAt = 0L;
         if (request != null && request.getAttributes() != null) {
             Long configuredDeadline = longValue(firstPresent(request.getAttributes().get("__agentDeadlineAt"),
@@ -2034,6 +2039,15 @@ public class ToolRuntimeService {
             .metadata(outputMetadata)
             .build();
         return output;
+    }
+
+    private Optional<McpTemplateBindingEvidence> runtimeTemplateBindingEvidence(ToolRuntimeRequest request) {
+        if (request == null || request.getAttributes() == null) return Optional.empty();
+        Object executionPlan = request.getAttributes().get("executionPlan");
+        if (!(executionPlan instanceof Map<?, ?> plan)) return Optional.empty();
+        Object parameters = plan.get("parameters");
+        if (!(parameters instanceof Map<?, ?> values)) return Optional.empty();
+        return McpTemplateBindingEvidence.from(values.get(McpTemplateBindingEvidence.CONTEXT_KEY));
     }
 
     private Object losslessMcpAnalysisPayload(ToolOutput output,

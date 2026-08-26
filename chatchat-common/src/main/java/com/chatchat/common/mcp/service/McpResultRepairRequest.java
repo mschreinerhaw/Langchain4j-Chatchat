@@ -30,4 +30,9 @@ public record McpResultRepairRequest(
         return new McpResultRepairRequest(schemaVersion, requestId, serviceId, toolName, rawResult,
             parseError, schema, context);
     }
+
+    public McpResultRepairRequest withContext(Map<String, Object> governedContext) {
+        return new McpResultRepairRequest(schemaVersion, requestId, serviceId, toolName, rawResult,
+            parseError, expectedOutputSchema, governedContext);
+    }
 }

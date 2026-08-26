@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
 
 import java.util.Map;
 

@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime;
 
-import com.chatchat.agents.runtime.event.RuntimeEventSubscriber;
+import com.chatchat.common.runtime.event.RuntimeEventSubscriber;
 
 /** Typed subscriber port for the agent-run event stream. */
 @FunctionalInterface

@@ -1,5 +1,7 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.runtime.mcp.kernel.DefaultMcpRuntimeKernel;
+
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolInput;

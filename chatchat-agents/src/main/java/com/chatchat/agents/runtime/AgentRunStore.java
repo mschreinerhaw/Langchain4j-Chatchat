@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime;
 
-import com.chatchat.agents.runtime.event.RuntimeEventJournal;
+import com.chatchat.common.runtime.event.RuntimeEventJournal;
 import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
 
 import java.util.List;

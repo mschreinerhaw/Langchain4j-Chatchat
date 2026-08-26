@@ -25,6 +25,10 @@
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-agents</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-runtime-mcp</artifactId>
+        </dependency>
 
         <!-- LangChain4j core -->
         <dependency>

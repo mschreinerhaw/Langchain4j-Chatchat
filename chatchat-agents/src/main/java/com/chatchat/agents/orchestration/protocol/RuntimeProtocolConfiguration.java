@@ -4,7 +4,7 @@ import com.chatchat.agents.runtime.McpEvidenceGovernanceBridge;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
-import com.chatchat.agents.runtime.protocol.RuntimeProtocolRegistry;
+import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.fasterxml.jackson.databind.ObjectMapper;

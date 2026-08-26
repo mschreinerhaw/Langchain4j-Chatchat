@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
+import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
 import java.util.Map;
 
 /** Converts arbitrary Runtime results into the canonical model-analysis projection. */

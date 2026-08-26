@@ -1,7 +1,9 @@
-package com.chatchat.integration.mcp.service;
+package com.chatchat.runtime.mcp.kernel;
 
 import com.chatchat.common.mcp.audit.McpContractAuditReport;
+import com.chatchat.common.mcp.audit.McpRuntimeContractService;
 import com.chatchat.common.mcp.service.McpResultRepairResult;
+import com.chatchat.common.mcp.service.McpServiceDirectory;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
@@ -16,13 +18,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 class DefaultMcpRuntimeKernelTest {
 
     @Test
     void rejectsInvocationWhenContractPreflightFails() {
-        DynamicMcpServiceDirectory directory = mock(DynamicMcpServiceDirectory.class);
-        DynamicMcpRuntimeContractService contracts = mock(DynamicMcpRuntimeContractService.class);
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
         when(contracts.audit(any())).thenReturn(report(false));
         DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
 
@@ -35,8 +38,8 @@ class DefaultMcpRuntimeKernelTest {
 
     @Test
     void repairsMissingNormalizedDataAndPreservesRawResult() {
-        DynamicMcpServiceDirectory directory = mock(DynamicMcpServiceDirectory.class);
-        DynamicMcpRuntimeContractService contracts = mock(DynamicMcpRuntimeContractService.class);
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
         when(contracts.audit(any())).thenReturn(report(true));
         Map<String, Object> raw = Map.of("content", List.of(Map.of("type", "text", "text", "container-a Up")));
         when(directory.invoke(any())).thenReturn(new McpServiceResult(null, "request-1", "docker", "docker_ps",
@@ -52,6 +55,22 @@ class DefaultMcpRuntimeKernelTest {
         assertThat(result.data()).isEqualTo(Map.of("text", "container-a Up"));
         assertThat(result.rawData()).isSameAs(raw);
         assertThat(result.metadata()).containsKeys("kernelProtocolVersion", "preflightAudit", "postflightAudit", "automaticRepair");
+    }
+
+    @Test
+    void reportsDegradedHealthWithoutFailingApplicationStartup() {
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
+        when(directory.services()).thenReturn(List.of());
+        when(directory.tools(any())).thenReturn(List.of());
+        when(contracts.contracts()).thenReturn(List.of());
+        doThrow(new IllegalStateException("remote registry unavailable")).when(directory).refresh();
+        DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
+
+        kernel.initialize();
+
+        assertThat(kernel.kernelHealth().state().name()).isEqualTo("DEGRADED");
+        assertThat(kernel.kernelHealth().lastFailure()).contains("remote registry unavailable");
     }
 
     private McpServiceCall call() {

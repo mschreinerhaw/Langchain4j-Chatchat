@@ -1,14 +1,9 @@
 package com.chatchat.runtime.mcp.registry;
 
-import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.McpToolNamePolicy;
-import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.mcp.contract.McpToolGovernance;
-import com.chatchat.integration.mcp.service.McpCapabilityService;
 import jakarta.annotation.PostConstruct;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -18,17 +13,16 @@ import java.util.List;
 import java.util.Map;
 
 /** The single registration point for built-in MCP tools. */
-@Component
 public class McpToolRegistry {
-    private final ToolRegistry agentToolRegistry;
-    private final McpCapabilityService capabilityService;
+    private final McpToolPublicationPort publicationPort;
+    private final McpCapabilityStatePort capabilityStatePort;
     private final McpCapabilitiesProperties properties;
     private final Map<String, RegisteredMcpTool> tools;
 
-    public McpToolRegistry(List<McpToolProvider> providers, ToolRegistry agentToolRegistry,
-                           McpCapabilityService capabilityService, McpCapabilitiesProperties properties) {
-        this.agentToolRegistry = agentToolRegistry;
-        this.capabilityService = capabilityService;
+    public McpToolRegistry(List<McpToolProvider> providers, McpToolPublicationPort publicationPort,
+                           McpCapabilityStatePort capabilityStatePort, McpCapabilitiesProperties properties) {
+        this.publicationPort = publicationPort;
+        this.capabilityStatePort = capabilityStatePort;
         this.properties = properties;
         Map<String, RegisteredMcpTool> discovered = new LinkedHashMap<>();
         Map<String, String> publishedSemanticNames = new LinkedHashMap<>();
@@ -71,7 +65,7 @@ public class McpToolRegistry {
         tools.values().stream()
             .filter(tool -> tool.definition().capabilityCode().equals(capabilityCode))
             .forEach(tool -> {
-                agentToolRegistry.unregisterTool(tool.definition().name());
+                publicationPort.unpublish(tool.definition().name());
                 publishOne(tool);
             });
     }
@@ -100,12 +94,8 @@ public class McpToolRegistry {
                 "outputSchema", definition.outputSchema(),
                 "governance", governance
             )).build();
-        agentToolRegistry.registerTool(definition.name(), metadata, new ToolRegistry.EnhancedTool() {
-            @Override public ToolMetadata getMetadata() { return metadata; }
-            @Override public ToolOutput execute(ToolInput input) {
-                return McpKernelBridge.invoke(definition.name(), registered.executor(), input);
-            }
-        });
+        publicationPort.publish(definition.name(), metadata,
+            input -> McpKernelBridge.invoke(definition.name(), registered.executor(), input));
     }
 
     private RegisteredMcpTool current(RegisteredMcpTool registered) {
@@ -131,7 +121,7 @@ public class McpToolRegistry {
     private boolean capabilityEnabled(String capabilityCode) {
         McpCapabilitiesProperties.Capability config = properties.getCapabilities().get(capabilityCode);
         if (config != null && Boolean.FALSE.equals(config.getEnabled())) return false;
-        return capabilityService.findByCode(capabilityCode).map(capability -> capability.isEnabled()).orElse(true);
+        return capabilityStatePort == null || capabilityStatePort.enabled(capabilityCode);
     }
 
     private void validateProvider(McpToolProvider provider, McpToolDefinition definition) {

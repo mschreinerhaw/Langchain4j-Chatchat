@@ -1,8 +1,9 @@
-package com.chatchat.integration.mcp.service;
+package com.chatchat.runtime.mcp.kernel;
 
 import com.chatchat.common.mcp.audit.McpContractAuditReport;
 import com.chatchat.common.mcp.audit.McpContractAuditRequest;
 import com.chatchat.common.mcp.audit.McpDomainContractDescriptor;
+import com.chatchat.common.mcp.audit.McpRuntimeContractService;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.mcp.service.McpResultRepairRequest;
 import com.chatchat.common.mcp.service.McpResultRepairResult;
@@ -13,7 +14,9 @@ import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
-import org.springframework.stereotype.Service;
+import com.chatchat.common.kernel.KernelHealth;
+import com.chatchat.common.kernel.KernelOperationalState;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
@@ -23,15 +26,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Default Runtime OS MCP kernel: discover, audit, invoke, repair and audit again. */
-@Service
+@Slf4j
 public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
     private final McpServiceDirectory directory;
-    private final DynamicMcpRuntimeContractService contracts;
+    private final McpRuntimeContractService contracts;
+    private final AtomicLong revision = new AtomicLong();
+    private volatile KernelOperationalState operationalState = KernelOperationalState.STARTING;
+    private volatile long lastSuccessfulRefreshAt;
+    private volatile String lastFailure;
 
-    public DefaultMcpRuntimeKernel(DynamicMcpServiceDirectory directory,
-                                   DynamicMcpRuntimeContractService contracts) {
+    public DefaultMcpRuntimeKernel(McpServiceDirectory directory,
+                                   McpRuntimeContractService contracts) {
         this.directory = directory;
         this.contracts = contracts;
     }
@@ -40,13 +48,41 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void initialize() {
-        refresh();
+        try {
+            refresh();
+        } catch (RuntimeException failure) {
+            log.warn("MCP Runtime OS kernel started in DEGRADED state: {}", failure.getMessage(), failure);
+        }
     }
 
     @Override public List<McpServiceDescriptor> services() { return directory.services(); }
     @Override public List<McpToolDescriptor> tools(McpToolQuery query) { return directory.tools(query); }
     @Override public McpResultRepairResult repair(McpResultRepairRequest request) { return directory.repair(request); }
-    @Override public void refresh() { directory.refresh(); }
+    @Override
+    public void refresh() {
+        try {
+            directory.refresh();
+            revision.incrementAndGet();
+            lastSuccessfulRefreshAt = System.currentTimeMillis();
+            lastFailure = null;
+            operationalState = KernelOperationalState.READY;
+        } catch (RuntimeException failure) {
+            lastFailure = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
+            operationalState = KernelOperationalState.DEGRADED;
+            throw failure;
+        }
+    }
+
+    @Override
+    public KernelHealth kernelHealth() {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("serviceCount", safeCount(this::services));
+        details.put("toolCount", safeCount(() -> tools(McpToolQuery.all())));
+        details.put("contractCount", safeCount(this::contracts));
+        details.put("protocol", kernelProtocol().id());
+        return new KernelHealth(null, kernelDescriptor(), operationalState, revision.get(),
+            lastSuccessfulRefreshAt, lastFailure, details, 0);
+    }
     @Override public List<McpDomainContractDescriptor> contracts() { return contracts.contracts(); }
     @Override public McpContractAuditReport audit(McpContractAuditRequest request) { return contracts.audit(request); }
 
@@ -59,7 +95,7 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         McpContractAuditReport preflight = audit(preflightRequest);
         boolean discoveryRefreshAttempted = false;
         if (hasFinding(preflight, "MCP_SERVICE_NOT_FOUND", "MCP_TOOL_NOT_FOUND")) {
-            directory.refresh();
+            refresh();
             discoveryRefreshAttempted = true;
             preflight = audit(preflightRequest);
         }
@@ -130,5 +166,14 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
     private boolean hasFinding(McpContractAuditReport report, String... codes) {
         Set<String> expected = Set.of(codes);
         return report != null && report.findings().stream().anyMatch(finding -> expected.contains(finding.code()));
+    }
+
+    private int safeCount(java.util.function.Supplier<? extends java.util.Collection<?>> source) {
+        try {
+            java.util.Collection<?> values = source.get();
+            return values == null ? 0 : values.size();
+        } catch (RuntimeException unavailable) {
+            return -1;
+        }
     }
 }

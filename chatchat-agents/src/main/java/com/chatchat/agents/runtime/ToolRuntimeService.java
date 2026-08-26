@@ -1,7 +1,7 @@
 package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
-import com.chatchat.agents.runtime.protocol.RuntimeProtocolRegistry;
+import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.BatchExecutionMode;

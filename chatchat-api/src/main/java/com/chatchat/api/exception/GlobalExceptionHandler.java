@@ -107,6 +107,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(RuntimeScopeAccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRuntimeScopeAccessDenied(
+            RuntimeScopeAccessDeniedException ex, WebRequest request) {
+        log.warn("Runtime Kernel scope denied: {}", ex.getMessage());
+        return new ResponseEntity<>(
+            ApiResponse.error(HttpStatus.FORBIDDEN.value(), ex.getMessage()),
+            HttpStatus.FORBIDDEN
+        );
+    }
+
     @ExceptionHandler(ConversationInProgressException.class)
     public ResponseEntity<ApiResponse<Void>> handleConversationInProgressException(
             ConversationInProgressException ex,

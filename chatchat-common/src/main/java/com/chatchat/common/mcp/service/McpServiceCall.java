@@ -29,4 +29,9 @@ public record McpServiceCall(
     }
 
     public boolean expired(long now) { return deadlineAt > 0 && now > deadlineAt; }
+
+    public McpServiceCall withContext(Map<String, Object> governedContext) {
+        return new McpServiceCall(schemaVersion, requestId, serviceId, toolName, arguments,
+            governedContext, deadlineAt);
+    }
 }

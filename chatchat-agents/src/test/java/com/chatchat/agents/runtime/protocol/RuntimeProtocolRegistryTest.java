@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration;
+import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

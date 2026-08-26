@@ -11,7 +11,7 @@ import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
-import com.chatchat.agents.runtime.workflow.AbstractRuntimeWorkflow;
+import com.chatchat.common.runtime.workflow.AbstractRuntimeWorkflow;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;

@@ -11,6 +11,7 @@ import com.chatchat.common.mcp.service.McpServiceDescriptor;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
+import com.chatchat.common.kernel.KernelHealth;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,4 +32,5 @@ public class McpRuntimeAccessService {
     public void refresh() { kernel.refresh(); }
     public List<McpDomainContractDescriptor> contracts() { return kernel.contracts(); }
     public McpContractAuditReport audit(McpContractAuditRequest request) { return kernel.audit(request); }
+    public KernelHealth health() { return kernel.kernelHealth(); }
 }

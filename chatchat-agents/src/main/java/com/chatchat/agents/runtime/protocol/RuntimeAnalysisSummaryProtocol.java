@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
+import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
 import dev.langchain4j.model.chat.ChatModel;
 
 import java.util.List;

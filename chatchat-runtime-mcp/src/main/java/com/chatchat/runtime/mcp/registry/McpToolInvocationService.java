@@ -2,9 +2,6 @@ package com.chatchat.runtime.mcp.registry;
 
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
-import org.springframework.stereotype.Service;
-
-@Service
 public class McpToolInvocationService {
     private final McpToolRegistry registry;
 

@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime;
 
-import com.chatchat.agents.runtime.event.RuntimeEvent;
+import com.chatchat.common.runtime.event.RuntimeEvent;
 import lombok.Builder;
 
 import java.util.LinkedHashMap;

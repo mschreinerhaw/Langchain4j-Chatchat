@@ -1,6 +1,7 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.api.service.ApiKernelScopeResolver;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -55,6 +57,7 @@ public class McpServiceController {
     private final McpCenterRecoveryService centerRecoveryService;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
+    private final ApiKernelScopeResolver scopeResolver;
 
     /**
      * Lists the services.
@@ -202,13 +205,15 @@ public class McpServiceController {
     @PostMapping("/services/{serviceId}/invoke")
     @Operation(summary = "Invoke a remote MCP tool for testing")
     public ApiResponse<McpServiceResult> invokeTool(@PathVariable("serviceId") String serviceId,
-                                                    @RequestBody McpInvokeRequest request) {
+                                                    @RequestBody McpInvokeRequest request,
+                                                    HttpServletRequest servletRequest) {
         if (request == null || request.toolName() == null || request.toolName().isBlank()) {
             return ApiResponse.badRequest("toolName is required");
         }
         Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-        McpServiceResult result = runtimeKernel.execute(new McpServiceCall(null, null, serviceId,
-            request.toolName(), arguments, Map.of("invocationSource", "mcp_service_admin_api"), 0));
+        McpServiceCall call = new McpServiceCall(null, null, serviceId, request.toolName(), arguments,
+            Map.of("invocationSource", "mcp_service_admin_api"), 0);
+        McpServiceResult result = runtimeKernel.execute(scopeResolver.bind(call, servletRequest));
         return ApiResponse.success(result);
     }
 

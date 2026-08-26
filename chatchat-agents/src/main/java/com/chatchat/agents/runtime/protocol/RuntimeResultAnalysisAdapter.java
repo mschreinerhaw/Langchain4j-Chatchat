@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime.protocol;
 
+import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
+
 import java.util.List;
 import java.util.Map;
 

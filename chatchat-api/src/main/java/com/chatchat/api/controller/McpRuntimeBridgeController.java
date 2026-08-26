@@ -1,6 +1,7 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.api.service.McpRuntimeAccessService;
+import com.chatchat.api.service.ApiKernelScopeResolver;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.mcp.audit.McpContractAuditReport;
 import com.chatchat.common.mcp.audit.McpContractAuditRequest;
@@ -13,6 +14,7 @@ import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.common.kernel.KernelHealth;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Set;
@@ -31,13 +34,23 @@ import java.util.Set;
 @Tag(name = "MCP Runtime Bridge", description = "Dynamic MCP discovery, invocation and lossless result repair")
 public class McpRuntimeBridgeController {
     private final McpRuntimeAccessService runtime;
+    private final ApiKernelScopeResolver scopeResolver;
 
-    public McpRuntimeBridgeController(McpRuntimeAccessService runtime) { this.runtime = runtime; }
+    public McpRuntimeBridgeController(McpRuntimeAccessService runtime, ApiKernelScopeResolver scopeResolver) {
+        this.runtime = runtime;
+        this.scopeResolver = scopeResolver;
+    }
 
     @GetMapping("/services")
     @Operation(summary = "List dynamically injected MCP services")
     public ApiResponse<List<McpServiceDescriptor>> services() {
         return ApiResponse.success(runtime.services());
+    }
+
+    @GetMapping("/health")
+    @Operation(summary = "Read MCP Runtime Kernel readiness, revision and discovery health")
+    public ApiResponse<KernelHealth> health() {
+        return ApiResponse.success(runtime.health());
     }
 
     @GetMapping("/tools")
@@ -51,14 +64,15 @@ public class McpRuntimeBridgeController {
 
     @PostMapping("/invoke")
     @Operation(summary = "Invoke any MCP tool through the common protocol")
-    public ApiResponse<McpServiceResult> invoke(@RequestBody McpServiceCall call) {
-        return ApiResponse.success(runtime.invoke(call));
+    public ApiResponse<McpServiceResult> invoke(@RequestBody McpServiceCall call, HttpServletRequest request) {
+        return ApiResponse.success(runtime.invoke(scopeResolver.bind(call, request)));
     }
 
     @PostMapping("/repair")
     @Operation(summary = "Repair a failed model parse without discarding the raw MCP result")
-    public ApiResponse<McpResultRepairResult> repair(@RequestBody McpResultRepairRequest request) {
-        return ApiResponse.success(runtime.repair(request));
+    public ApiResponse<McpResultRepairResult> repair(@RequestBody McpResultRepairRequest repair,
+                                                     HttpServletRequest request) {
+        return ApiResponse.success(runtime.repair(scopeResolver.bind(repair, request)));
     }
 
     @PostMapping("/refresh")

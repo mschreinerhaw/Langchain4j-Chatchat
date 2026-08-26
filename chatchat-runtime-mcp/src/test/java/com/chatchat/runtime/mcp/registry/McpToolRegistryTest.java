@@ -1,11 +1,9 @@
 package com.chatchat.runtime.mcp.registry;
 
-import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.contract.McpToolContractValidator;
 import com.chatchat.common.mcp.contract.McpToolGovernance;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
-import com.chatchat.integration.mcp.service.McpCapabilityService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -26,22 +24,20 @@ import static org.mockito.Mockito.when;
 class McpToolRegistryTest {
     @Test
     void discoversAndPublishesProviderToolsOnce() {
-        ToolRegistry agentRegistry = mock(ToolRegistry.class);
-        McpCapabilityService capabilityService = mock(McpCapabilityService.class);
-        when(capabilityService.findByCode("news")).thenReturn(Optional.empty());
-        McpToolRegistry registry = new McpToolRegistry(List.of(provider("web_search")), agentRegistry,
-            capabilityService, new McpCapabilitiesProperties());
+        McpToolPublicationPort publication = mock(McpToolPublicationPort.class);
+        McpToolRegistry registry = new McpToolRegistry(List.of(provider("web_search")), publication,
+            capability -> true, new McpCapabilitiesProperties());
 
         registry.publish();
 
         assertThat(registry.listTools()).extracting(tool -> tool.definition().name()).containsExactly("web_search");
-        verify(agentRegistry).registerTool(anyString(), any(), any());
+        verify(publication).publish(anyString(), any(), any());
     }
 
     @Test
     void rejectsDuplicateNamesAcrossProviders() {
         assertThatThrownBy(() -> new McpToolRegistry(List.of(provider("web_search"), provider("web_search")),
-            mock(ToolRegistry.class), mock(McpCapabilityService.class), new McpCapabilitiesProperties()))
+            mock(McpToolPublicationPort.class), capability -> true, new McpCapabilitiesProperties()))
             .isInstanceOf(IllegalStateException.class).hasMessageContaining("Duplicate MCP tool");
     }
 
@@ -50,7 +46,7 @@ class McpToolRegistryTest {
         assertThatThrownBy(() -> new McpToolRegistry(List.of(
             provider("api-template-query"),
             provider("mcp_chatchat_mcp_server_api_template_query")),
-            mock(ToolRegistry.class), mock(McpCapabilityService.class), new McpCapabilitiesProperties()))
+            mock(McpToolPublicationPort.class), capability -> true, new McpCapabilitiesProperties()))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("conflicts with API workflow review")
             .hasMessageContaining("api_template_query");
@@ -59,7 +55,7 @@ class McpToolRegistryTest {
     @Test
     void rejectsInvalidNameBeforePublishing() {
         assertThatThrownBy(() -> new McpToolRegistry(List.of(provider("invalid tool name")),
-            mock(ToolRegistry.class), mock(McpCapabilityService.class), new McpCapabilitiesProperties()))
+            mock(McpToolPublicationPort.class), capability -> true, new McpCapabilitiesProperties()))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("Invalid MCP tool publication name");
     }
@@ -72,20 +68,18 @@ class McpToolRegistryTest {
         tool.setEnabled(false);
         capability.setTools(java.util.Map.of("web_search", tool));
         properties.setCapabilities(java.util.Map.of("news", capability));
-        ToolRegistry agentRegistry = mock(ToolRegistry.class);
-        McpToolRegistry registry = new McpToolRegistry(List.of(provider("web_search")), agentRegistry,
-            mock(McpCapabilityService.class), properties);
+        McpToolPublicationPort publication = mock(McpToolPublicationPort.class);
+        McpToolRegistry registry = new McpToolRegistry(List.of(provider("web_search")), publication,
+            capabilityCode -> true, properties);
 
         registry.publish();
 
-        verify(agentRegistry, never()).registerTool(anyString(), any(), any());
+        verify(publication, never()).publish(anyString(), any(), any());
     }
 
     @Test
     void publishesGovernanceAndSchemasFromToolContract() {
-        ToolRegistry agentRegistry = mock(ToolRegistry.class);
-        McpCapabilityService capabilityService = mock(McpCapabilityService.class);
-        when(capabilityService.findByCode("news")).thenReturn(Optional.empty());
+        McpToolPublicationPort publication = mock(McpToolPublicationPort.class);
         McpToolGovernance governance = new McpToolGovernance("high", "write", "controlled", true,
             java.util.Map.of("scope", "news:write"), java.util.Map.of(),
             java.util.Map.of("preservePayload", true), null);
@@ -95,11 +89,11 @@ class McpToolRegistryTest {
             java.util.Map.of("type", "object"), governance);
         McpToolProvider provider = provider(definition);
 
-        new McpToolRegistry(List.of(provider), agentRegistry, capabilityService,
+        new McpToolRegistry(List.of(provider), publication, capabilityCode -> true,
             new McpCapabilitiesProperties()).publish();
 
         ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
-        verify(agentRegistry).registerTool(anyString(), metadata.capture(), any());
+        verify(publication).publish(anyString(), metadata.capture(), any());
         assertThat(metadata.getValue().getRiskLevel()).isEqualTo("high");
         assertThat(metadata.getValue().getOperationType()).isEqualTo("write");
         assertThat(metadata.getValue().getMetadata()).containsEntry("contractVersion", "mcp_tool_contract.v1")

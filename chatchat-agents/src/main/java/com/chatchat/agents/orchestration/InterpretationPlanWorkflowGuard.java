@@ -2,7 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
-import com.chatchat.agents.runtime.workflow.RuntimeWorkflowGuard;
+import com.chatchat.common.runtime.workflow.RuntimeWorkflowGuard;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;

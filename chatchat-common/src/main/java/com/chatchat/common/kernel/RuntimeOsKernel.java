@@ -17,6 +17,13 @@ public interface RuntimeOsKernel<I, O> {
 
     O executeKernel(I payload, KernelDataScope scope);
 
+    /** Control-plane health is part of the Kernel ABI, not an adapter-specific convention. */
+    default KernelHealth kernelHealth() {
+        return new KernelHealth(KernelProtocolCatalog.KERNEL_ABI_VERSION, kernelDescriptor(),
+            KernelOperationalState.READY, 0, 0, null,
+            java.util.Map.of("protocol", kernelProtocol().id(), "protocolVersion", kernelProtocol().version()), 0);
+    }
+
     default KernelResult<O> invoke(KernelInvocation<I> invocation) {
         if (invocation == null) {
             throw new IllegalArgumentException("Kernel invocation is required");

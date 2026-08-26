@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime;
 
-import com.chatchat.agents.runtime.workflow.RuntimeWorkflow;
+import com.chatchat.common.runtime.workflow.RuntimeWorkflow;
 
 /**
  * Runtime-facing execution port implemented by the upper orchestration layer.

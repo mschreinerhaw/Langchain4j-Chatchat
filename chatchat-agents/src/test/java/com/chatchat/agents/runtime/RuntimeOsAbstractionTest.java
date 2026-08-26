@@ -1,10 +1,10 @@
 package com.chatchat.agents.runtime;
 
-import com.chatchat.agents.runtime.event.RuntimeEvent;
-import com.chatchat.agents.runtime.event.RuntimeEventJournal;
-import com.chatchat.agents.runtime.event.RuntimeEventPublisher;
-import com.chatchat.agents.runtime.workflow.AbstractRuntimeWorkflow;
-import com.chatchat.agents.runtime.workflow.RuntimeWorkflow;
+import com.chatchat.common.runtime.event.RuntimeEvent;
+import com.chatchat.common.runtime.event.RuntimeEventJournal;
+import com.chatchat.common.runtime.event.RuntimeEventPublisher;
+import com.chatchat.common.runtime.workflow.AbstractRuntimeWorkflow;
+import com.chatchat.common.runtime.workflow.RuntimeWorkflow;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.common.kernel.RuntimeOsKernel;
 import org.junit.jupiter.api.Test;

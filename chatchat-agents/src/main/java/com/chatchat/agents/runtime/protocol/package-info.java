@@ -1,7 +1,8 @@
 /**
  * Stable cross-layer contracts of the Agent Runtime OS.
  *
- * <p>The package owns ports and immutable protocol models only. Orchestration and tool code must
+ * <p>The package owns Agent-specific ports and immutable protocol models only. The generic marker
+ * and registry live in {@code com.chatchat.common.runtime.protocol}. Orchestration and tool code must
  * depend on these interfaces rather than concrete bridges. Default implementations are composed
  * by {@link com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration}; extensions add a
  * new adapter/port implementation without modifying the Runtime scheduler or final synthesizer.</p>

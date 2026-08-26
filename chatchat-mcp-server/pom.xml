@@ -48,6 +48,10 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-integration</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-runtime-market</artifactId>
         </dependency>
         <dependency>

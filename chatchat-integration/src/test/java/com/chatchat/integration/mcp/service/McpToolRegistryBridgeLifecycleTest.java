@@ -179,31 +179,25 @@ class McpToolRegistryBridgeLifecycleTest {
 
         verifyNoInteractions(configService);
 
-        Method initialize = McpToolRegistryBridge.class.getMethod("initialize");
+        Method initialize = DefaultMcpRuntimeKernel.class.getMethod("initialize");
         EventListener eventListener = initialize.getAnnotation(EventListener.class);
         Order order = initialize.getAnnotation(Order.class);
 
         assertThat(eventListener).isNotNull();
         assertThat(eventListener.value()).containsExactly(ApplicationReadyEvent.class);
         assertThat(order).isNotNull();
-        assertThat(order.value()).isEqualTo(Ordered.LOWEST_PRECEDENCE);
+        assertThat(order.value()).isEqualTo(Ordered.HIGHEST_PRECEDENCE);
     }
 
     @Test
     void readyCallbackRefreshesEnabledServices() {
-        McpServiceConfigService configService = mock(McpServiceConfigService.class);
-        when(configService.listEnabled()).thenReturn(List.of());
-        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
-            mock(ToolRegistry.class),
-            configService,
-            mock(McpGatewayClient.class),
-            new ObjectMapper(),
-            new DynamicMcpToolRouteService()
-        );
+        DynamicMcpServiceDirectory directory = mock(DynamicMcpServiceDirectory.class);
+        DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(
+            directory, mock(DynamicMcpRuntimeContractService.class));
 
-        bridge.initialize();
+        kernel.initialize();
 
-        org.mockito.Mockito.verify(configService).listEnabled();
+        org.mockito.Mockito.verify(directory).refresh();
     }
 
     @Test

@@ -2,6 +2,9 @@ package com.chatchat.enterprise.service;
 
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.PasswordHashCodec;
+import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.service.McpToolDescriptor;
+import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.enterprise.entity.DataSourceConfig;
 import com.chatchat.enterprise.entity.EmbedLoginToken;
 import com.chatchat.enterprise.entity.ExternalOrg;
@@ -34,7 +37,6 @@ import com.chatchat.enterprise.repository.SysRoleRepository;
 import com.chatchat.enterprise.repository.SysTenantRepository;
 import com.chatchat.enterprise.repository.SysUserRepository;
 import com.chatchat.enterprise.repository.SysUserRoleRepository;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -84,7 +86,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final McpToolPermissionRepository toolPermissionRepository;
     private final DataSourceConfigRepository dataSourceRepository;
     private final SysAuditLogRepository auditLogRepository;
-    private final McpToolRegistryBridge registryBridge;
+    private final McpRuntimeKernel runtimeKernel;
     private final EmbedLoginTokenRepository embedLoginTokenRepository;
     private final InternalCredentialProperties internalCredentialProperties;
     private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
@@ -831,7 +833,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
      */
     @Transactional
     public List<McpToolAsset> syncMcpTools() {
-        registryBridge.refreshRegistry();
+        runtimeKernel.refresh();
         return syncRegisteredMcpTools();
     }
 
@@ -842,13 +844,14 @@ public class EnterpriseAdminService implements ApplicationRunner {
      */
     @Transactional
     public List<McpToolAsset> syncRegisteredMcpTools() {
-        List<McpToolRegistryBridge.RegisteredMcpTool> registered = registryBridge.listRegisteredTools();
-        for (McpToolRegistryBridge.RegisteredMcpTool tool : registered) {
+        List<McpToolDescriptor> registered = runtimeKernel.tools(McpToolQuery.all());
+        for (McpToolDescriptor tool : registered) {
             McpToolAsset asset = toolAssetRepository.findByLocalToolName(tool.localToolName())
                 .orElseGet(McpToolAsset::new);
             asset.setLocalToolName(tool.localToolName());
             asset.setServiceId(tool.serviceId());
-            asset.setServiceName(tool.serviceName());
+            Object serviceName = tool.metadata().get("serviceName");
+            asset.setServiceName(trimToNull(serviceName == null ? tool.serviceId() : String.valueOf(serviceName)));
             asset.setRemoteToolName(tool.remoteToolName());
             asset.setDescription(trimToNull(tool.description()));
             asset.setResourceType("tool");
@@ -1541,6 +1544,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed(null, "platform", "平台管理", "menu", "/index.html#tasks", null, "boxes", 30),
             new PermissionSeed("platform", "mcp", "MCP服务", "menu", "/index.html#mcp", null, "plug", 31),
             new PermissionSeed("mcp", "mcp:service:manage", "服务管理", "button", "/api/v1/mcp/**", "*", "server", 32),
+            new PermissionSeed("mcp", "mcp:runtime:read", "Runtime契约查询", "button", "/api/v1/mcp/runtime/**", "GET", "scan-search", 32),
+            new PermissionSeed("mcp", "mcp:runtime:invoke", "Runtime工具执行", "button", "/api/v1/mcp/runtime/invoke*", "POST", "play", 32),
+            new PermissionSeed("mcp", "mcp:runtime:repair", "Runtime结果修复", "button", "/api/v1/mcp/runtime/repair*", "POST", "wrench", 32),
+            new PermissionSeed("mcp", "mcp:runtime:refresh", "Runtime目录刷新", "button", "/api/v1/mcp/runtime/refresh*", "POST", "refresh-cw", 32),
+            new PermissionSeed("mcp", "mcp:runtime:audit", "Runtime契约审计", "button", "/api/v1/mcp/runtime/contracts/audit*", "POST", "shield-check", 32),
             new PermissionSeed("mcp", "mcp:tool:authorize", "工具授权", "button", "/api/v1/enterprise/tool-permissions", "*", "key-round", 33),
             new PermissionSeed("platform", "platform:agents", "Agent管理", "menu", "/index.html#agents", null, "bot", 34),
             new PermissionSeed("platform", "platform:schedules", "Agent调度", "menu", "/index.html#schedules", null, "calendar-clock", 35),

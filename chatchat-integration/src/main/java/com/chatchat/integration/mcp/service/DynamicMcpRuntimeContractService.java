@@ -9,6 +9,7 @@ import com.chatchat.common.mcp.audit.McpRuntimeContractService;
 import com.chatchat.common.mcp.service.McpServiceDirectory;
 import com.chatchat.common.mcp.service.McpToolQuery;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -22,7 +23,9 @@ public class DynamicMcpRuntimeContractService implements McpRuntimeContractServi
     private final McpContractAuditor auditor;
     private final ObjectProvider<McpDomainServiceContract> contractBeans;
 
-    public DynamicMcpRuntimeContractService(McpServiceDirectory directory, McpContractAuditor auditor,
+    public DynamicMcpRuntimeContractService(
+                                            @Qualifier("dynamicMcpServiceDirectory") McpServiceDirectory directory,
+                                            McpContractAuditor auditor,
                                             ObjectProvider<McpDomainServiceContract> contractBeans) {
         this.directory = directory;
         this.auditor = auditor;

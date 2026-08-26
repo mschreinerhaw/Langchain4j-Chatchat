@@ -3,7 +3,9 @@ package com.chatchat.api.controller;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
-import com.chatchat.integration.mcp.model.McpToolInvokeResult;
+import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.service.McpServiceCall;
+import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.integration.mcp.service.McpCenterSyncService;
 import com.chatchat.integration.mcp.service.McpCenterRecoveryService;
 import com.chatchat.integration.mcp.service.McpServiceConfigService;
@@ -48,6 +50,7 @@ public class McpServiceController {
     private final McpServiceConfigService configService;
     private final McpStdioProxyService stdioProxyService;
     private final McpToolRegistryBridge registryBridge;
+    private final McpRuntimeKernel runtimeKernel;
     private final McpCenterSyncService centerSyncService;
     private final McpCenterRecoveryService centerRecoveryService;
     private final ToolRegistry toolRegistry;
@@ -77,7 +80,7 @@ public class McpServiceController {
         McpServiceConfig config = fromRequest(request);
         McpServiceConfig saved = configService.create(config);
         stdioProxyService.closeSession(saved.getId());
-        registryBridge.refreshRegistry();
+        runtimeKernel.refresh();
         return ApiResponse.success(toView(saved), "MCP service created");
     }
 
@@ -94,7 +97,7 @@ public class McpServiceController {
                                                      @RequestBody McpServiceUpsertRequest request) {
         McpServiceConfig saved = configService.update(serviceId, fromRequest(request));
         stdioProxyService.closeSession(serviceId);
-        registryBridge.refreshRegistry();
+        runtimeKernel.refresh();
         return ApiResponse.success(toView(saved), "MCP service updated");
     }
 
@@ -109,7 +112,7 @@ public class McpServiceController {
     public ApiResponse<Void> deleteService(@PathVariable("serviceId") String serviceId) {
         configService.delete(serviceId);
         stdioProxyService.closeSession(serviceId);
-        registryBridge.refreshRegistry();
+        runtimeKernel.refresh();
         return ApiResponse.success(null, "MCP service deleted");
     }
 
@@ -154,7 +157,7 @@ public class McpServiceController {
                                                        @PathVariable("versionId") String versionId) {
         McpServiceConfig saved = configService.rollbackToVersion(serviceId, versionId);
         stdioProxyService.closeSession(serviceId);
-        registryBridge.refreshRegistry();
+        runtimeKernel.refresh();
         return ApiResponse.success(toView(saved), "MCP service rolled back");
     }
 
@@ -173,7 +176,7 @@ public class McpServiceController {
         if (!enabled) {
             stdioProxyService.closeSession(serviceId);
         }
-        registryBridge.refreshRegistry();
+        runtimeKernel.refresh();
         return ApiResponse.success(toView(updated), "MCP service status updated");
     }
 
@@ -198,13 +201,14 @@ public class McpServiceController {
      */
     @PostMapping("/services/{serviceId}/invoke")
     @Operation(summary = "Invoke a remote MCP tool for testing")
-    public ApiResponse<McpToolInvokeResult> invokeTool(@PathVariable("serviceId") String serviceId,
-                                                       @RequestBody McpInvokeRequest request) {
+    public ApiResponse<McpServiceResult> invokeTool(@PathVariable("serviceId") String serviceId,
+                                                    @RequestBody McpInvokeRequest request) {
         if (request == null || request.toolName() == null || request.toolName().isBlank()) {
             return ApiResponse.badRequest("toolName is required");
         }
         Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-        McpToolInvokeResult result = registryBridge.invoke(serviceId, request.toolName(), arguments);
+        McpServiceResult result = runtimeKernel.execute(new McpServiceCall(null, null, serviceId,
+            request.toolName(), arguments, Map.of("invocationSource", "mcp_service_admin_api"), 0));
         return ApiResponse.success(result);
     }
 
@@ -275,7 +279,7 @@ public class McpServiceController {
     @PostMapping("/refresh")
     @Operation(summary = "Refresh MCP tool registration")
     public ApiResponse<Map<String, Object>> refresh() {
-        registryBridge.refreshRegistry();
+        runtimeKernel.refresh();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("registeredTools", registryBridge.listRegisteredTools().size());
         return ApiResponse.success(data, "MCP registry refreshed");

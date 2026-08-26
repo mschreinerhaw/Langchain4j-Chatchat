@@ -1,6 +1,7 @@
 package com.chatchat.enterprise.service;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.enterprise.entity.DataSourceConfig;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.SysOrg;
@@ -8,7 +9,6 @@ import com.chatchat.enterprise.entity.SysRole;
 import com.chatchat.enterprise.entity.SysTenant;
 import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.repository.SysTenantRepository;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -196,8 +196,8 @@ class EnterpriseAdminServiceIntegrationTest {
     @Import(EnterpriseAdminService.class)
     static class Config {
         @Bean
-        McpToolRegistryBridge registryBridge() {
-            return mock(McpToolRegistryBridge.class);
+        McpRuntimeKernel runtimeKernel() {
+            return mock(McpRuntimeKernel.class);
         }
 
         @Bean

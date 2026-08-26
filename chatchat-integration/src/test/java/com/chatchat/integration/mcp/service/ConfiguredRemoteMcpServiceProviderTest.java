@@ -14,6 +14,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 class ConfiguredRemoteMcpServiceProviderTest {
     @Test
@@ -24,7 +25,7 @@ class ConfiguredRemoteMcpServiceProviderTest {
         Map<String, Object> normalized = Map.of("execution", Map.of("stdoutLength", 25));
         Map<String, Object> raw = Map.of("structuredContent", normalized,
             "content", List.of(Map.of("type", "text", "text", "container-a\ncontainer-b")));
-        when(registry.invoke("docker", "docker_ps", Map.of())).thenReturn(
+        when(registry.invoke(any(McpServiceCall.class))).thenReturn(
             new McpToolInvokeResult(true, normalized, raw, "ok", null, null, false, null, Map.of()));
         ConfiguredRemoteMcpServiceProvider provider = new ConfiguredRemoteMcpServiceProvider(
             mock(McpServiceConfigService.class), registry, mock(ToolRegistry.class));

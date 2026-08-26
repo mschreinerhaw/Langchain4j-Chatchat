@@ -17,6 +17,10 @@ import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
+import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.service.McpServiceCall;
+import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
@@ -93,6 +97,7 @@ public class ToolRuntimeService {
     private final ExecutorService auditExecutor;
     private volatile AgentEvidenceStore evidenceStore;
     private volatile DistributedToolRateLimiter distributedRateLimiter;
+    private volatile McpRuntimeKernel mcpRuntimeKernel;
 
     private final Map<String, Deque<Long>> rateWindows = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
@@ -114,6 +119,11 @@ public class ToolRuntimeService {
         this.distributedRateLimiter = distributedRateLimiter;
     }
 
+    /** Injects the common Runtime OS kernel without coupling Agents to an MCP implementation. */
+    public void setMcpRuntimeKernel(McpRuntimeKernel mcpRuntimeKernel) {
+        this.mcpRuntimeKernel = mcpRuntimeKernel;
+    }
+
     /**
      * Creates a new ToolRuntimeService instance.
      *
@@ -126,7 +136,6 @@ public class ToolRuntimeService {
      * @param userPolicyStores the user policy stores value
      * @param auditSinks the audit sinks value
      */
-    @Autowired
     public ToolRuntimeService(ToolRegistry toolRegistry,
                               ObjectMapper objectMapper,
                               ToolRuntimeProperties properties,
@@ -167,6 +176,22 @@ public class ToolRuntimeService {
             },
             new ThreadPoolExecutor.AbortPolicy()
         );
+    }
+
+    /** Production constructor: a Spring-managed ToolRuntime cannot exist without the Runtime OS kernel. */
+    @Autowired
+    public ToolRuntimeService(ToolRegistry toolRegistry,
+                              ObjectMapper objectMapper,
+                              ToolRuntimeProperties properties,
+                              McpPolicyProperties mcpPolicyProperties,
+                              McpWorkflowProperties mcpWorkflowProperties,
+                              List<ToolRuntimePolicyProvider> policyProviders,
+                              List<ToolRuntimeUserPolicyStore> userPolicyStores,
+                              List<ToolRuntimeAuditSink> auditSinks,
+                              McpRuntimeKernel mcpRuntimeKernel) {
+        this(toolRegistry, objectMapper, properties, mcpPolicyProperties, mcpWorkflowProperties,
+            policyProviders, userPolicyStores, auditSinks);
+        this.mcpRuntimeKernel = Objects.requireNonNull(mcpRuntimeKernel, "mcpRuntimeKernel");
     }
 
     /**
@@ -807,11 +832,12 @@ public class ToolRuntimeService {
                 output.setMetadata(new LinkedHashMap<>());
             }
             output.setData(processResultData(output.getData(), metadata, request, output));
+            Object evidencePayload = losslessMcpAnalysisPayload(output, metadata, request);
             McpEvidenceResult governedEvidence = evidenceGovernanceBridge.capture(
                 request,
                 toolName,
                 output.isSuccess() ? "success" : "failed",
-                output.getData()
+                evidencePayload
             );
             output.setData(governedEvidence.payload());
             output.getMetadata().put("mcpEvidenceResult", governedEvidence.descriptor());
@@ -1081,7 +1107,9 @@ public class ToolRuntimeService {
         }
         CompletableFuture<ToolOutput> future;
         try {
-            future = CompletableFuture.supplyAsync(() -> toolRegistry.executeEnhancedTool(toolName, toolInput), toolExecutionExecutor);
+            future = CompletableFuture.supplyAsync(
+                () -> executeThroughRuntimeKernel(toolName, toolInput, request, metadata),
+                toolExecutionExecutor);
         } catch (RejectedExecutionException ex) {
             ToolOutput output = ToolOutput.failure("Tool execution queue is full: " + toolName);
             output.setExceptionType("TOOL_EXECUTION_REJECTED");
@@ -1950,6 +1978,69 @@ public class ToolRuntimeService {
                 "The outer batch tool must be a registered batch-capable executor");
         }
         return BatchValidation.accepted();
+    }
+
+    private ToolOutput executeThroughRuntimeKernel(String toolName,
+                                                   ToolInput toolInput,
+                                                   ToolRuntimeRequest request,
+                                                   ToolMetadata metadata) {
+        McpRuntimeKernel kernel = this.mcpRuntimeKernel;
+        Map<String, Object> contractMetadata = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        String serviceId = stringValue(contractMetadata.get("serviceId"));
+        if (kernel == null || serviceId == null || !isMcpGovernedTool(toolName, metadata)) {
+            return toolRegistry.executeEnhancedTool(toolName, toolInput);
+        }
+        Map<String, Object> context = toolInput.getContext() == null
+            ? new LinkedHashMap<>() : new LinkedHashMap<>(toolInput.getContext());
+        putIfAbsentText(context, "tenantId", request == null ? null : request.getTenantId());
+        putIfAbsentText(context, "userId", request == null ? null : request.getUserId());
+        putIfAbsentText(context, "conversationId", request == null ? null : request.getConversationId());
+        putIfAbsentText(context, "runtimeMode", request == null ? null : request.getRuntimeMode());
+        Object templateId = firstPresent(
+            context.get("templateId"),
+            toolInput.getParameters() == null ? null : toolInput.getParameters().get("templateId"),
+            toolInput.getParameters() == null ? null : toolInput.getParameters().get("template_id"),
+            toolInput.getParameters() == null ? null : toolInput.getParameters().get("templateCode"),
+            toolInput.getParameters() == null ? null : toolInput.getParameters().get("template_code"),
+            toolInput.getParameters() == null ? null : toolInput.getParameters().get("template"));
+        if (templateId != null) context.putIfAbsent("templateId", String.valueOf(templateId));
+        long deadlineAt = 0L;
+        if (request != null && request.getAttributes() != null) {
+            Long configuredDeadline = longValue(firstPresent(request.getAttributes().get("__agentDeadlineAt"),
+                request.getAttributes().get("diagnosticDeadlineAt"), request.getAttributes().get("deadlineAt")));
+            deadlineAt = configuredDeadline == null ? 0L : configuredDeadline;
+        }
+        McpServiceResult result = kernel.execute(new McpServiceCall(null,
+            firstText(toolInput.getRequestId(), request == null ? null : request.getRequestId()),
+            serviceId, toolName,
+            toolInput.getParameters() == null ? Map.of() : toolInput.getParameters(), context, deadlineAt));
+        Map<String, Object> outputMetadata = new LinkedHashMap<>(result.metadata());
+        outputMetadata.put("mcpServiceResult", result);
+        outputMetadata.put("mcpKernelProtocolVersion", McpRuntimeKernel.KERNEL_PROTOCOL_VERSION);
+        outputMetadata.put("mcpAction", result.recoveryAction());
+        outputMetadata.put("mcpRetryable", result.retryable());
+        ToolOutput output = ToolOutput.builder()
+            .success(result.successful())
+            .data(result.data())
+            .message(result.successful() ? "MCP Runtime OS kernel invocation completed" : null)
+            .errorMessage(result.successful() ? null : result.errorMessage())
+            .exceptionType(result.successful() ? null : result.errorCode())
+            .metadata(outputMetadata)
+            .build();
+        return output;
+    }
+
+    private Object losslessMcpAnalysisPayload(ToolOutput output,
+                                              ToolMetadata metadata,
+                                              ToolRuntimeRequest request) {
+        if (output == null || output.getMetadata() == null) return output == null ? null : output.getData();
+        Object resultValue = output.getMetadata().remove("mcpServiceResult");
+        if (!(resultValue instanceof McpServiceResult result)) return output.getData();
+        Object governedRawData = processResultData(result.rawData(), metadata, request, output);
+        output.getMetadata().put("mcpRawDataPreserved", result.rawData() != null);
+        output.getMetadata().put("mcpAnalysisPayloadSchemaVersion", McpAnalysisPayload.SCHEMA_VERSION);
+        return McpAnalysisPayload.from(result, output.getData(), governedRawData).toMap();
     }
 
     private String validateDiagnosticTemplateAsset(String callId,

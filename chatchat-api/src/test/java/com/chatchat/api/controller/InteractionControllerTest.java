@@ -3,6 +3,10 @@ package com.chatchat.api.controller;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.service.McpServiceCall;
+import com.chatchat.common.mcp.service.McpServiceResult;
+import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.SysAuditLog;
@@ -59,6 +63,9 @@ class InteractionControllerTest {
     @MockBean
     private ChatModel chatModel;
 
+    @MockBean
+    private McpRuntimeKernel mcpRuntimeKernel;
+
     @Test
     void toolDirectWritesPersistentAuditLog() throws Exception {
         String tenantId = "tenant-p4-001";
@@ -71,6 +78,12 @@ class InteractionControllerTest {
             .build());
         when(toolRegistry.executeEnhancedTool(ArgumentMatchers.eq(toolName), any()))
             .thenReturn(ToolOutput.success(Map.of("result", "ok")));
+        when(mcpRuntimeKernel.execute(any())).thenAnswer(invocation -> {
+            McpServiceCall call = invocation.getArgument(0);
+            return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
+                McpServiceResultStatus.SUCCESS, Map.of("result", "ok"), Map.of("result", "ok"),
+                null, null, false, null, Map.of(), 0);
+        });
 
         String requestBody = objectMapper.writeValueAsString(Map.of(
             "tenantId", tenantId,

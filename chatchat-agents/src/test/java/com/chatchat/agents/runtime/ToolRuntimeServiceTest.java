@@ -4,6 +4,9 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.service.McpServiceResult;
+import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
@@ -28,6 +31,49 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ToolRuntimeServiceTest {
+
+    @Test
+    void routesMcpThroughKernelAndExposesLosslessAnalysisPayload() {
+        String toolName = "mcp_docker_docker_ps";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Docker ps").categories(List.of("mcp"))
+            .metadata(Map.of("serviceId", "docker", "remoteToolName", "docker_ps",
+                "inputSchema", Map.of("type", "object", "properties", Map.of())))
+            .build());
+        McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
+        Map<String, Object> raw = Map.of("content", List.of(
+            Map.of("type", "text", "text", "CONTAINER ID  NAMES\nabc123  database")));
+        when(kernel.execute(any())).thenReturn(new McpServiceResult(null, "kernel-1", "docker", toolName,
+            McpServiceResultStatus.SUCCESS, Map.of("stdoutLength", 42), raw,
+            null, null, false, null, Map.of("kernelProtocolVersion", "runtime_os_mcp_kernel.v1"), 0));
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        service.setMcpRuntimeKernel(kernel);
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName).runtimeMode("agent_chat").requestId("kernel-1")
+                .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
+                .allowedTools(List.of(toolName))
+                .toolInput(ToolInput.builder().parameters(Map.of()).build())
+                .build());
+
+            assertThat(execution.output().isSuccess()).isTrue();
+            assertThat(execution.output().getData()).isInstanceOf(Map.class);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> analysisPayload = (Map<String, Object>) execution.output().getData();
+            assertThat(analysisPayload)
+                .containsEntry("schemaVersion", "mcp_analysis_payload.v1")
+                .containsEntry("rawData", raw);
+            assertThat(execution.output().getMetadata())
+                .containsEntry("mcpRawDataPreserved", true)
+                .containsEntry("mcpKernelProtocolVersion", "runtime_os_mcp_kernel.v1");
+            verify(kernel).execute(any());
+            verify(registry, never()).executeEnhancedTool(any(), any());
+        } finally {
+            service.shutdown();
+        }
+    }
 
     @Test
     void rejectsExecutionWhenPublishedRegistryRevisionChangedMidWorkflow() {

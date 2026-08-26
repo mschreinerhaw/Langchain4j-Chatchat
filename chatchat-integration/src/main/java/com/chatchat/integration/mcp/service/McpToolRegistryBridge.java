@@ -6,6 +6,7 @@ import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.common.mcp.contract.McpToolGovernance;
+import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
@@ -20,10 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -88,19 +85,6 @@ public class McpToolRegistryBridge {
         this.objectMapper = objectMapper;
         this.routeService = routeService;
         this.contractCatalog = contractCatalog;
-    }
-
-    /**
-     * Performs the initialize operation.
-     */
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void initialize() {
-        try {
-            refreshRegistry();
-        } catch (Exception ex) {
-            log.warn("MCP tool registry initial refresh failed: {}", ex.getMessage(), ex);
-        }
     }
 
     /**
@@ -208,11 +192,46 @@ public class McpToolRegistryBridge {
      * @param arguments the arguments value
      * @return the operation result
      */
-    public McpToolInvokeResult invoke(String serviceId, String toolName, Map<String, Object> arguments) {
+    @Deprecated(forRemoval = true)
+    McpToolInvokeResult invoke(String serviceId, String toolName, Map<String, Object> arguments) {
         McpServiceConfig config = configService.getById(serviceId);
         DynamicMcpToolRouteService.InvocationPlan plan =
             routeService.plan(serviceId, toolName, arguments);
         return gatewayClient.invokeTool(config, plan.remoteToolName(), plan.arguments());
+    }
+
+    /** Executes a canonical kernel call through the registered contract adapter. */
+    public McpToolInvokeResult invoke(McpServiceCall call) {
+        RegisteredMcpTool registered = registeredTools.values().stream()
+            .filter(tool -> tool.serviceId().equals(call.serviceId()))
+            .filter(tool -> tool.localToolName().equals(call.toolName())
+                || tool.remoteToolName().equals(call.toolName()))
+            .findFirst()
+            .orElse(null);
+        if (registered == null) {
+            return McpToolInvokeResult.failure("MCP tool is not registered in the active runtime snapshot",
+                "MCP_TOOL_NOT_FOUND", true, "REFRESH_OR_DISCOVER");
+        }
+        Map<String, Object> context = new LinkedHashMap<>(call.context());
+        ToolInput input = ToolInput.builder()
+            .parameters(new LinkedHashMap<>(call.arguments()))
+            .requestId(call.requestId())
+            .userId(stringValue(context.get("userId")))
+            .conversationId(stringValue(context.get("conversationId")))
+            .context(context)
+            .build();
+        ToolOutput output = toolRegistry.executeEnhancedTool(registered.localToolName(), input);
+        if (output == null) {
+            return McpToolInvokeResult.failure("MCP registered tool returned no output",
+                "MCP_EMPTY_TOOL_OUTPUT", true, "RETRY_OR_REPAIR");
+        }
+        Map<String, Object> metadata = output.getMetadata() == null ? Map.of() : output.getMetadata();
+        Object rawData = metadata.get("mcpRawData");
+        Map<String, Object> executionState = mapValue(metadata.get("executionState"));
+        String action = firstText(stringValue(metadata.get("mcpAction")), stringValue(metadata.get("action")));
+        boolean retryable = Boolean.TRUE.equals(firstPresent(metadata.get("mcpRetryable"), metadata.get("retryable")));
+        return new McpToolInvokeResult(output.isSuccess(), output.getData(), rawData, output.getMessage(),
+            output.getErrorMessage(), output.getExceptionType(), retryable, action, executionState);
     }
 
     /**
@@ -737,6 +756,7 @@ public class McpToolRegistryBridge {
         }
         output.getMetadata().put("mcpAction", result.action());
         output.getMetadata().put("mcpRetryable", result.retryable());
+        output.getMetadata().put("mcpRawData", result.rawData());
     }
 
     @SuppressWarnings("unchecked")

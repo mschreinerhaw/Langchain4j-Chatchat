@@ -2,6 +2,7 @@ package com.chatchat.api.enterprise;
 
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.PasswordHashCodec;
+import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.repository.DataSourceConfigRepository;
 import com.chatchat.enterprise.repository.EmbedLoginTokenRepository;
@@ -20,7 +21,6 @@ import com.chatchat.enterprise.repository.SysTenantRepository;
 import com.chatchat.enterprise.repository.SysUserRepository;
 import com.chatchat.enterprise.repository.SysUserRoleRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -68,7 +68,7 @@ class EnterpriseAdminProtectedUserTest {
             mock(McpToolPermissionRepository.class),
             mock(DataSourceConfigRepository.class),
             mock(SysAuditLogRepository.class),
-            mock(McpToolRegistryBridge.class),
+            mock(McpRuntimeKernel.class),
             mock(EmbedLoginTokenRepository.class),
             internalCredentials
         );

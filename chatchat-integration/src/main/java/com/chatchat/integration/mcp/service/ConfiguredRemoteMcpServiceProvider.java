@@ -55,7 +55,7 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
 
     @Override
     public McpServiceResult invoke(McpServiceCall call) {
-        McpToolInvokeResult result = registryBridge.invoke(call.serviceId(), call.toolName(), call.arguments());
+        McpToolInvokeResult result = registryBridge.invoke(call);
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
             result.success() ? McpServiceResultStatus.SUCCESS : McpServiceResultStatus.FAILED,
             result.data(), result.rawData(), result.errorCode(), result.errorMessage(), result.retryable(), result.action(),

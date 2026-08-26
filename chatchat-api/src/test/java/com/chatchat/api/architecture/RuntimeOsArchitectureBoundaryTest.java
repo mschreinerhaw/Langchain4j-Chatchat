@@ -78,6 +78,22 @@ class RuntimeOsArchitectureBoundaryTest {
         assertThat(runtime).doesNotContain("McpGatewayClient", "McpToolRegistryBridge");
     }
 
+    @Test
+    void bridgeCoreHasNoApiSpecialCaseAndTemplateCapabilityOwnsItsPort() {
+        assertThat(root().resolve(
+            "chatchat-common/src/main/java/com/chatchat/common/bridge/api"))
+            .doesNotExist();
+        assertThat(allJava("chatchat-common/src/main/java/com/chatchat/common/bridge"))
+            .doesNotContain("McpApi", "KernelChannel.API", "chatchat.api.bridge");
+
+        String port = source(
+            "chatchat-common/src/main/java/com/chatchat/common/knowledge/template/TemplateServicePort.java");
+        assertThat(port).contains("interface TemplateServicePort extends RuntimeBridge");
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/knowledge/template/TemplateServiceCall.java"))
+            .doesNotContain("caller", "targetService", "Http", "URL");
+    }
+
     private String allJava(String relativeRoot) {
         try (var files = Files.walk(root().resolve(relativeRoot))) {
             return files.filter(path -> path.toString().endsWith(".java"))

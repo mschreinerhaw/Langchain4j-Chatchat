@@ -10,8 +10,8 @@ public final class KernelProtocolCatalog {
         "chatchat.runtime.execution", "1.0", KernelChannel.IN_PROCESS, "application/json");
     public static final KernelProtocol MCP_BRIDGE = new KernelProtocol(
         "chatchat.mcp.bridge", "1.0", KernelChannel.MCP, "application/json");
-    public static final KernelProtocol API_BRIDGE = new KernelProtocol(
-        "chatchat.api.bridge", "1.0", KernelChannel.API, "application/json");
+    public static final KernelProtocol TEMPLATE_SERVICE = new KernelProtocol(
+        "chatchat.template.service", "1.0", KernelChannel.IN_PROCESS, "application/json");
 
     public static final KernelDataBoundary RUNTIME_BOUNDARY = new KernelDataBoundary(
         Set.of(KernelDataDomain.CONTROL, KernelDataDomain.TOOL_ARGUMENTS,
@@ -29,7 +29,7 @@ public final class KernelProtocolCatalog {
         true,
         false
     );
-    public static final KernelDataBoundary API_BOUNDARY = new KernelDataBoundary(
+    public static final KernelDataBoundary SERVICE_BOUNDARY = new KernelDataBoundary(
         Set.of(KernelDataDomain.CONTROL, KernelDataDomain.TOOL_ARGUMENTS),
         Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE, KernelDataDomain.EVENTS),
         true,

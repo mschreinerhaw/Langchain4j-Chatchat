@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RuntimeBridgeTest {
     private final BridgeContract contract = new BridgeContract("test-api", "test_bridge.v1",
-        KernelProtocolCatalog.API_BRIDGE, Set.of("query"), KernelProtocolCatalog.API_BOUNDARY);
+        KernelProtocolCatalog.RUNTIME_EXECUTION, Set.of("query"), KernelProtocolCatalog.SERVICE_BOUNDARY);
     private final RuntimeBridge<Map<String, Object>, Map<String, Object>> bridge =
         new AbstractRuntimeBridge<>() {
             @Override public BridgeContract bridgeContract() { return contract; }

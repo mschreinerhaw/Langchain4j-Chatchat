@@ -1,2 +1,2 @@
-/** Governed MCP template knowledge, recall and recovery-event protocol. */
+/** Governed template knowledge, recall, execution-port and recovery-event protocols. */
 package com.chatchat.common.knowledge.template;

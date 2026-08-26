@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 
-/** Immutable template document used on MCP/API communication boundaries. */
+/** Immutable template document used across Runtime OS communication boundaries. */
 public record StandardTemplateKnowledge(
     String templateId,
     String templateType,

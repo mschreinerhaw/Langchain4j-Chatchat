@@ -2,10 +2,10 @@ package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
 import com.chatchat.common.knowledge.template.TemplateResolutionEventType;
-import com.chatchat.common.bridge.api.McpApiBridge;
-import com.chatchat.common.bridge.api.McpApiOperation;
-import com.chatchat.common.bridge.api.McpApiCall;
-import com.chatchat.common.bridge.api.McpApiResultStatus;
+import com.chatchat.common.knowledge.template.TemplateServiceCall;
+import com.chatchat.common.knowledge.template.TemplateServiceOperation;
+import com.chatchat.common.knowledge.template.TemplateServicePort;
+import com.chatchat.common.knowledge.template.TemplateServiceResultStatus;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
@@ -35,9 +35,9 @@ class ApiToolSpecFactoryTest {
             mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class),
             mock(StandardToolExecutionResultFactory.class));
 
-        assertThat(factory).isInstanceOf(McpApiBridge.class);
+        assertThat(factory).isInstanceOf(TemplateServicePort.class);
         assertThat(factory.bridgeContract().operations())
-            .containsExactly(McpApiOperation.TEMPLATE_EXECUTE.operationCode());
+            .containsExactly(TemplateServiceOperation.EXECUTE.operationCode());
     }
 
     @Test
@@ -81,14 +81,17 @@ class ApiToolSpecFactoryTest {
         ApiToolSpecFactory factory = new ApiToolSpecFactory(invoke, configs, new ObjectMapper(),
             mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class), results);
 
-        var response = factory.communicate(McpApiCall.execute("customer_profile_v1",
+        var response = factory.invoke(TemplateServiceCall.execute("customer_profile_v1",
             Map.of("customerId", "C-1"), Map.of(), "task-1", 0),
             KernelDataScope.system("execute-request"));
 
         assertThat(response.successful()).isTrue();
-        assertThat(response.data().status()).isEqualTo(McpApiResultStatus.SUCCESS);
+        assertThat(response.data().status()).isEqualTo(TemplateServiceResultStatus.SUCCESS);
         assertThat(response.data().data().get("payload")).isEqualTo(invoked.body());
-        assertThat(response.data().toPayload()).containsEntry("communicationRequestId", "execute-request");
+        assertThat(TemplateServicePayloadMapper.payload(response.data()))
+            .containsEntry("communicationRequestId", "execute-request")
+            .containsEntry("communicationSchemaVersion", "mcp_api_result.v1")
+            .containsEntry("communicationOperation", "api.service/execute");
     }
 
     private void assertResolution(McpSchema.CallToolResult result,

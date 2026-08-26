@@ -6,11 +6,6 @@ import com.chatchat.common.bridge.BridgeException;
 import com.chatchat.common.bridge.BridgeRequest;
 import com.chatchat.common.bridge.BridgeResponse;
 import com.chatchat.common.bridge.BridgeStatus;
-import com.chatchat.common.bridge.api.McpApiBridge;
-import com.chatchat.common.bridge.api.McpApiCall;
-import com.chatchat.common.bridge.api.McpApiOperation;
-import com.chatchat.common.bridge.api.McpApiResult;
-import com.chatchat.common.bridge.api.McpApiResultStatus;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
@@ -20,6 +15,11 @@ import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
 import com.chatchat.common.knowledge.template.TemplateResolutionException;
+import com.chatchat.common.knowledge.template.TemplateServiceCall;
+import com.chatchat.common.knowledge.template.TemplateServiceOperation;
+import com.chatchat.common.knowledge.template.TemplateServicePort;
+import com.chatchat.common.knowledge.template.TemplateServiceResult;
+import com.chatchat.common.knowledge.template.TemplateServiceResultStatus;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,12 +41,13 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApiResult> implements McpApiBridge {
+public class ApiToolSpecFactory extends AbstractRuntimeBridge<TemplateServiceCall, TemplateServiceResult>
+    implements TemplateServicePort {
 
-    public static final String BRIDGE_VERSION = "api_execution_bridge.v1";
+    public static final String BRIDGE_VERSION = "template_service_execution.v1";
     private static final BridgeContract CONTRACT = new BridgeContract(
-        "api-execution", BRIDGE_VERSION, KernelProtocolCatalog.API_BRIDGE,
-        Set.of(McpApiOperation.TEMPLATE_EXECUTE.operationCode()), KernelProtocolCatalog.API_BOUNDARY);
+        "template-service-execution", BRIDGE_VERSION, KernelProtocolCatalog.TEMPLATE_SERVICE,
+        Set.of(TemplateServiceOperation.EXECUTE.operationCode()), KernelProtocolCatalog.SERVICE_BOUNDARY);
 
     private final ApiInvokeService invokeService;
     private final ApiServiceConfigService configService;
@@ -79,10 +80,10 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApi
                 request.arguments(),
                 () -> {
                     Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-                    McpApiCall call = McpApiCall.execute(text(arguments.get("templateId")),
+                    TemplateServiceCall call = TemplateServiceCall.execute(text(arguments.get("templateId")),
                         readMap(arguments.get("parameters")), executionContext(arguments),
                         text(arguments.get("sourceTaskId")), deadline(arguments.get("deadlineAt")));
-                    return gatewayCallResult(communicate(call, executionScope(arguments)));
+                    return gatewayCallResult(invoke(call, executionScope(arguments)));
                 }))
             .build();
     }
@@ -93,16 +94,16 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApi
     }
 
     @Override
-    protected McpApiResult exchangePayload(BridgeRequest<McpApiCall> request) {
-        McpApiCall call = request.payload();
-        if (call == null || call.operation() != McpApiOperation.TEMPLATE_EXECUTE
+    protected TemplateServiceResult exchangePayload(BridgeRequest<TemplateServiceCall> request) {
+        TemplateServiceCall call = request.payload();
+        if (call == null || call.operation() != TemplateServiceOperation.EXECUTE
             || !request.operation().equals(call.operation().operationCode())) {
-            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_OPERATION_MISMATCH",
-                "API execution bridge requires a matching template execution call");
+            throw new BridgeException(BridgeStatus.REJECTED, "TEMPLATE_SERVICE_OPERATION_MISMATCH",
+                "Template execution adapter requires a matching template service call");
         }
         if (call.expired(System.currentTimeMillis())) {
-            throw new BridgeException(BridgeStatus.REJECTED, "MCP_API_DEADLINE_EXCEEDED",
-                "MCP/API execution deadline has expired");
+            throw new BridgeException(BridgeStatus.REJECTED, "TEMPLATE_SERVICE_DEADLINE_EXCEEDED",
+                "Template service execution deadline has expired");
         }
         String templateId = call.templateId();
         if (templateId == null) {
@@ -123,8 +124,8 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApi
         try {
             ApiInvokeResult invoked = invokeService.invoke(config, arguments);
             Map<String, Object> data = standardResultFactory.fromApi(config, invoked);
-            return new McpApiResult(McpApiResult.SCHEMA_VERSION, request.requestId(), call.operation(),
-                invoked.success() ? McpApiResultStatus.SUCCESS : McpApiResultStatus.FAILED,
+            return new TemplateServiceResult(TemplateServiceResult.SCHEMA_VERSION, request.requestId(), call.operation(),
+                invoked.success() ? TemplateServiceResultStatus.SUCCESS : TemplateServiceResultStatus.FAILED,
                 data, List.of(), false, Map.of("templateId", templateId), System.currentTimeMillis());
         } catch (TemplateResolutionException resolution) {
             return resolutionResult(request.requestId(), call.operation(),
@@ -135,8 +136,10 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApi
     private Map<String, Object> apiTemplateGatewayMeta() {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("schemaVersion", "api_template_execute.v1");
-        meta.put("communicationInputSchemaVersion", McpApiCall.SCHEMA_VERSION);
-        meta.put("communicationOutputSchemaVersion", McpApiResult.SCHEMA_VERSION);
+        meta.put("communicationInputSchemaVersion", TemplateServicePayloadMapper.WIRE_CALL_SCHEMA_VERSION);
+        meta.put("communicationOutputSchemaVersion", TemplateServicePayloadMapper.WIRE_RESULT_SCHEMA_VERSION);
+        meta.put("kernelInputSchemaVersion", TemplateServiceCall.SCHEMA_VERSION);
+        meta.put("kernelOutputSchemaVersion", TemplateServiceResult.SCHEMA_VERSION);
         meta.put("runtime_action", "execute");
         meta.put("runtimeAction", "execute");
         meta.put("templateGoverned", true);
@@ -235,20 +238,20 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApi
             .build();
     }
 
-    private McpSchema.CallToolResult gatewayCallResult(BridgeResponse<McpApiResult> response) {
+    private McpSchema.CallToolResult gatewayCallResult(BridgeResponse<TemplateServiceResult> response) {
         if (!response.successful()) {
             Map<String, Object> failure = new LinkedHashMap<>();
-            failure.put("communicationSchemaVersion", McpApiResult.SCHEMA_VERSION);
+            failure.put("communicationSchemaVersion", TemplateServicePayloadMapper.WIRE_RESULT_SCHEMA_VERSION);
             failure.put("communicationRequestId", response.requestId());
             failure.put("communicationStatus", "FAILED");
             if (response.errorCode() != null) failure.put("errorCode", response.errorCode());
             if (response.errorMessage() != null) failure.put("errorMessage", response.errorMessage());
             return McpSchema.CallToolResult.builder()
-                .addTextContent(response.errorMessage() == null ? "API bridge failed" : response.errorMessage())
+                .addTextContent(response.errorMessage() == null ? "Template service bridge failed" : response.errorMessage())
                 .structuredContent(Map.copyOf(failure)).isError(true).build();
         }
-        McpApiResult result = response.data();
-        Map<String, Object> structured = result.toPayload();
+        TemplateServiceResult result = response.data();
+        Map<String, Object> structured = TemplateServicePayloadMapper.payload(result);
         String summary = result.events().isEmpty()
             ? summarizeBody(structured, null) : result.events().get(0).message();
         return McpSchema.CallToolResult.builder()
@@ -256,10 +259,10 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<McpApiCall, McpApi
             .isError(!result.successful()).build();
     }
 
-    private McpApiResult resolutionResult(String requestId, McpApiOperation operation,
+    private TemplateServiceResult resolutionResult(String requestId, TemplateServiceOperation operation,
                                           TemplateResolutionEvent event) {
-        return new McpApiResult(McpApiResult.SCHEMA_VERSION, requestId, operation,
-            McpApiResultStatus.RESOLUTION_REQUIRED,
+        return new TemplateServiceResult(TemplateServiceResult.SCHEMA_VERSION, requestId, operation,
+            TemplateServiceResultStatus.RESOLUTION_REQUIRED,
             Map.of("schemaVersion", "template_execution_resolution.v1", "success", false,
                 "status", "RESOLUTION_REQUIRED", "event", event),
             List.of(event), false, Map.of(), System.currentTimeMillis());

@@ -1,4 +1,4 @@
-package com.chatchat.common.bridge.api;
+package com.chatchat.common.knowledge.template;
 
 import com.chatchat.common.bridge.BridgeRequest;
 import com.chatchat.common.bridge.BridgeResponse;
@@ -8,13 +8,13 @@ import com.chatchat.common.kernel.KernelDataScope;
 
 import java.util.Set;
 
-/** Strongly typed service port used by MCP adapters to communicate with governed API services. */
-public interface McpApiBridge extends RuntimeBridge<McpApiCall, McpApiResult> {
+/** Domain port for template discovery and execution, implemented by any transport adapter. */
+public interface TemplateServicePort extends RuntimeBridge<TemplateServiceCall, TemplateServiceResult> {
 
-    default BridgeResponse<McpApiResult> communicate(McpApiCall call, KernelDataScope scope) {
-        if (call == null) throw new IllegalArgumentException("MCP/API call is required");
+    default BridgeResponse<TemplateServiceResult> invoke(TemplateServiceCall call, KernelDataScope scope) {
+        if (call == null) throw new IllegalArgumentException("template service call is required");
         if (scope == null) throw new IllegalArgumentException("Kernel data scope is required");
-        BridgeRequest<McpApiCall> request = new BridgeRequest<>(bridgeContract().version(),
+        BridgeRequest<TemplateServiceCall> request = new BridgeRequest<>(bridgeContract().version(),
             scope.requestId(), call.operation().operationCode(), scope,
             Set.of(KernelDataDomain.CONTROL, KernelDataDomain.TOOL_ARGUMENTS),
             Set.of(KernelDataDomain.TOOL_RESULTS, KernelDataDomain.EVIDENCE, KernelDataDomain.EVENTS),

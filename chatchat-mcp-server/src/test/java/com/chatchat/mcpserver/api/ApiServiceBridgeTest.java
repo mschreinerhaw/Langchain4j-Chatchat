@@ -1,13 +1,13 @@
 package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.bridge.RuntimeBridge;
-import com.chatchat.common.bridge.api.McpApiBridge;
-import com.chatchat.common.bridge.api.McpApiCall;
-import com.chatchat.common.bridge.api.McpApiResultStatus;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.common.knowledge.SearchStatus;
 import com.chatchat.common.knowledge.StandardSearchResult;
+import com.chatchat.common.knowledge.template.TemplateServiceCall;
+import com.chatchat.common.knowledge.template.TemplateServicePort;
+import com.chatchat.common.knowledge.template.TemplateServiceResultStatus;
 import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,9 +27,9 @@ class ApiServiceBridgeTest {
         ApiServiceBridge bridge = new ApiServiceBridge(mock(ApiTemplateDiscoveryMcpToolPublisher.class));
 
         assertThat(RuntimeBridge.class).isAssignableFrom(ApiServiceBridge.class);
-        assertThat(McpApiBridge.class).isAssignableFrom(ApiServiceBridge.class);
-        assertThat(bridge.bridgeContract().version()).isEqualTo("api_service_bridge.v1");
-        assertThat(bridge.bridgeContract().protocol()).isEqualTo(KernelProtocolCatalog.API_BRIDGE);
+        assertThat(TemplateServicePort.class).isAssignableFrom(ApiServiceBridge.class);
+        assertThat(bridge.bridgeContract().version()).isEqualTo("template_service_search.v1");
+        assertThat(bridge.bridgeContract().protocol()).isEqualTo(KernelProtocolCatalog.TEMPLATE_SERVICE);
     }
 
     @Test
@@ -39,12 +39,12 @@ class ApiServiceBridgeTest {
             "templates", List.of(Map.of("templateId", "orders_v1"))));
         ApiServiceBridge bridge = new ApiServiceBridge(discovery);
 
-        var response = bridge.communicate(McpApiCall.search("orders", Map.of(), Map.of(), Map.of()),
+        var response = bridge.invoke(TemplateServiceCall.search("orders", Map.of(), Map.of(), Map.of()),
             KernelDataScope.system("typed-request"));
 
         assertThat(response.successful()).isTrue();
         assertThat(response.data().requestId()).isEqualTo("typed-request");
-        assertThat(response.data().status()).isEqualTo(McpApiResultStatus.SUCCESS);
+        assertThat(response.data().status()).isEqualTo(TemplateServiceResultStatus.SUCCESS);
         assertThat(response.data().data()).containsKeys("searchResult", "templates");
     }
 

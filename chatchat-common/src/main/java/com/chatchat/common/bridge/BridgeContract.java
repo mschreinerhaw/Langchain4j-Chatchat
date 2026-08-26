@@ -5,7 +5,7 @@ import com.chatchat.common.kernel.KernelProtocol;
 
 import java.util.Set;
 
-/** Stable contract published by every API, MCP or in-process bridge. */
+/** Stable contract published by every Runtime OS communication adapter. */
 public record BridgeContract(
     String bridgeId,
     String version,

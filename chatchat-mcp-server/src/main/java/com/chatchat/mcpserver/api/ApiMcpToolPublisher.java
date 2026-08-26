@@ -1,10 +1,10 @@
 package com.chatchat.mcpserver.api;
 
 import com.chatchat.common.bridge.BridgeResponse;
-import com.chatchat.common.bridge.api.McpApiBridge;
-import com.chatchat.common.bridge.api.McpApiCall;
-import com.chatchat.common.bridge.api.McpApiResult;
 import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.knowledge.template.TemplateServiceCall;
+import com.chatchat.common.knowledge.template.TemplateServicePort;
+import com.chatchat.common.knowledge.template.TemplateServiceResult;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -39,13 +39,13 @@ public class ApiMcpToolPublisher {
         "api_asset_query", "api_template_query", "api_requirement_analyze", EXECUTE_TOOL_NAME);
 
     private final McpSyncServer mcpSyncServer;
-    private final McpApiBridge bridge;
+    private final TemplateServicePort bridge;
     private final ApiToolSpecFactory toolSpecFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
 
     public ApiMcpToolPublisher(McpSyncServer mcpSyncServer,
-                               @Qualifier("apiServiceBridge") McpApiBridge bridge,
+                               @Qualifier("apiServiceBridge") TemplateServicePort bridge,
                                ApiToolSpecFactory toolSpecFactory,
                                McpToolConcurrencyManager concurrencyManager,
                                ObjectMapper objectMapper) {
@@ -103,10 +103,10 @@ public class ApiMcpToolPublisher {
             Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
             return concurrencyManager.execute(BRIDGE_TOOL_NAME, "read_only", arguments, () -> {
                 KernelDataScope scope = scope(arguments);
-                McpApiCall call = McpApiCall.search(
+                TemplateServiceCall call = TemplateServiceCall.search(
                     firstText(text(arguments.get("query")), text(arguments.get("intent"))),
                     map(arguments.get("filters")), scope.attributes(), arguments);
-                return callResult(bridge.communicate(call, scope));
+                return callResult(bridge.invoke(call, scope));
             });
         }).build();
     }
@@ -114,8 +114,10 @@ public class ApiMcpToolPublisher {
     private Map<String, Object> meta() {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("schemaVersion", "api_service_query.v1");
-        meta.put("communicationInputSchemaVersion", McpApiCall.SCHEMA_VERSION);
-        meta.put("communicationOutputSchemaVersion", McpApiResult.SCHEMA_VERSION);
+        meta.put("communicationInputSchemaVersion", TemplateServicePayloadMapper.WIRE_CALL_SCHEMA_VERSION);
+        meta.put("communicationOutputSchemaVersion", TemplateServicePayloadMapper.WIRE_RESULT_SCHEMA_VERSION);
+        meta.put("kernelInputSchemaVersion", TemplateServiceCall.SCHEMA_VERSION);
+        meta.put("kernelOutputSchemaVersion", TemplateServiceResult.SCHEMA_VERSION);
         meta.put("assetType", "api_service");
         meta.put("runtime_action", "read_only");
         meta.put("runtimeAction", "read_only");
@@ -138,13 +140,13 @@ public class ApiMcpToolPublisher {
         return Map.copyOf(meta);
     }
 
-    private McpSchema.CallToolResult callResult(BridgeResponse<McpApiResult> response) {
+    private McpSchema.CallToolResult callResult(BridgeResponse<TemplateServiceResult> response) {
         Map<String, Object> body;
         if (response.successful()) {
-            body = response.data().toPayload();
+            body = TemplateServicePayloadMapper.payload(response.data());
         } else {
             Map<String, Object> failure = new LinkedHashMap<>();
-            failure.put("communicationSchemaVersion", McpApiResult.SCHEMA_VERSION);
+            failure.put("communicationSchemaVersion", TemplateServicePayloadMapper.WIRE_RESULT_SCHEMA_VERSION);
             failure.put("communicationRequestId", response.requestId());
             failure.put("communicationStatus", "FAILED");
             if (response.errorCode() != null) failure.put("errorCode", response.errorCode());

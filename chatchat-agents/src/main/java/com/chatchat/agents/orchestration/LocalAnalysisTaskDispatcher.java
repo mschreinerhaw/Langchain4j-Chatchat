@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.common.runtime.summary.ModelSummaryWorker;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;
@@ -28,7 +29,7 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
     @Override
     public DispatchBatch dispatch(
         List<AnalysisTask> tasks,
-        AnalysisTaskWorker worker,
+        ModelSummaryWorker<AnalysisTask, AnalysisSummaryResult> worker,
         BooleanSupplier cancellationCheck
     ) {
         List<AnalysisTask> safeTasks = tasks == null ? List.of() : List.copyOf(tasks);
@@ -53,7 +54,10 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
         return new LocalDispatchBatch(executor, submitted, cancellationCheck, workerCount);
     }
 
-    private AnalysisTaskResult execute(AnalysisTask task, AnalysisTaskWorker worker) {
+    private AnalysisTaskResult execute(
+        AnalysisTask task,
+        ModelSummaryWorker<AnalysisTask, AnalysisSummaryResult> worker
+    ) {
         String workerId = Thread.currentThread().getName();
         long startedAt = System.nanoTime();
         log.info("analysisTaskWorkerClaimed taskId={} idempotencyKey={} dataset={}/{} chunk={}/{} worker={}",

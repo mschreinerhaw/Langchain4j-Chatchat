@@ -2,7 +2,8 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
-import dev.langchain4j.model.chat.ChatModel;
+import com.chatchat.common.runtime.summary.ModelSummaryReducer;
+import com.chatchat.common.runtime.summary.ModelSummaryModel;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,12 +12,13 @@ import java.util.List;
 import java.util.Map;
 
 /** Reduces chunk evidence into dataset summaries and explicitly-related dataset groups. */
-public final class HierarchicalAnalysisReducer {
+public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
+    AnalysisSummaryResult, HierarchicalAnalysisReducer.Context, HierarchicalAnalysisReducer.Result> {
 
     public static final String SCHEMA_VERSION = "hierarchical_analysis_reduce.v1";
     private static final int MAX_SUMMARY_INPUT_CHARS = 24_000;
 
-    public Result reduce(ChatModel model,
+    public Result reduce(ModelSummaryModel model,
                          GovernanceIsolationScope isolationScope,
                          DatasetRelationshipPlan relationshipPlan,
                          List<AnalysisSummaryResult> chunkSummaries,
@@ -63,7 +65,16 @@ public final class HierarchicalAnalysisReducer {
             List.copyOf(groupSummaries), List.copyOf(finalInputs), uncovered);
     }
 
-    private AnalysisSummaryResult reduceDataset(ChatModel model,
+    @Override
+    public Result reduce(Context context, List<AnalysisSummaryResult> summaries) {
+        if (context == null) {
+            throw new IllegalArgumentException("summary reduction context is required");
+        }
+        return reduce(context.model(), context.isolationScope(), context.relationshipPlan(),
+            summaries, context.userObjective());
+    }
+
+    private AnalysisSummaryResult reduceDataset(ModelSummaryModel model,
                                                 GovernanceIsolationScope scope,
                                                 String dataset,
                                                 List<AnalysisSummaryResult> chunks,
@@ -94,7 +105,7 @@ public final class HierarchicalAnalysisReducer {
         );
     }
 
-    private AnalysisSummaryResult reduceGroup(ChatModel model,
+    private AnalysisSummaryResult reduceGroup(ModelSummaryModel model,
                                               GovernanceIsolationScope scope,
                                               DatasetRelationshipPlan.Group group,
                                               DatasetRelationshipPlan plan,
@@ -143,7 +154,7 @@ public final class HierarchicalAnalysisReducer {
         return Collections.unmodifiableMap(evidence);
     }
 
-    private String synthesize(ChatModel model,
+    private String synthesize(ModelSummaryModel model,
                               String scope,
                               String objective,
                               List<AnalysisSummaryResult> inputs,
@@ -160,7 +171,7 @@ public final class HierarchicalAnalysisReducer {
             + "and cite upstream resultId values inline. Do not infer relationships beyond the reduction context. "
             + "Do not output raw rows or execution metadata.";
         try {
-            String result = model.chat(prompt);
+            String result = model.generate(prompt);
             return result == null || result.isBlank() ? null : result.trim();
         } catch (RuntimeException ignored) {
             return null;
@@ -247,6 +258,20 @@ public final class HierarchicalAnalysisReducer {
                 }
             }
             return projection;
+        }
+    }
+
+    /** Agent-owned reduction context; the common reducer port remains model-SDK neutral. */
+    public record Context(
+        ModelSummaryModel model,
+        GovernanceIsolationScope isolationScope,
+        DatasetRelationshipPlan relationshipPlan,
+        String userObjective
+    ) {
+        public Context {
+            relationshipPlan = relationshipPlan == null
+                ? DatasetRelationshipPlan.create(List.of()) : relationshipPlan;
+            userObjective = userObjective == null ? "" : userObjective;
         }
     }
 }

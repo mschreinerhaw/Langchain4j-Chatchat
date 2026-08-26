@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.common.runtime.summary.ModelSummaryTaskResult;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,7 +17,7 @@ public record AnalysisTaskResult(
     int attempt,
     AnalysisSummaryResult summary,
     String error
-) {
+) implements ModelSummaryTaskResult<AnalysisSummaryResult> {
     public static final String SCHEMA_VERSION = "analysis_task_result.v1";
 
     public AnalysisTaskResult {

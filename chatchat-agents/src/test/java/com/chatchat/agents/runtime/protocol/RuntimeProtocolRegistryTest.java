@@ -2,6 +2,8 @@ package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
+import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +28,11 @@ class RuntimeProtocolRegistryTest {
             .isInstanceOf(RuntimeAnalysisContextProtocol.class);
         assertThat(registry.require(RuntimeAnalysisSummaryProtocol.class))
             .isInstanceOf(RuntimeAnalysisSummaryProtocol.class);
-        assertThat(registry.ports()).hasSize(4);
+        assertThat(registry.require(ModelSummaryDispatcher.class))
+            .isInstanceOf(ModelSummaryDispatcher.class);
+        assertThat(registry.require(ModelSummaryReducer.class))
+            .isInstanceOf(ModelSummaryReducer.class);
+        assertThat(registry.ports()).hasSize(6);
     }
 
     @Test

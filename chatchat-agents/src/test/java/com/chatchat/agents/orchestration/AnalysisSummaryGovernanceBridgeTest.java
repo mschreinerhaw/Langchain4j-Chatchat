@@ -58,7 +58,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             bridge.position("positions", 2, 3, 51, 75, 120);
 
         AnalysisSummaryResult summary = bridge.summarize(
-            model, isolationScope, position, context, List.of(Map.of("VALUE", 1)),
+            model::chat, isolationScope, position, context, List.of(Map.of("VALUE", 1)),
             "Identify position concentration risk");
         Map<String, Object> ledger = bridge.ledger(List.of(summary), 120, 25, false);
 
@@ -102,7 +102,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             List.of(Map.of("SECURITY_CODE", "600000", "MARKET_VALUE", 12000)));
 
         AnalysisSummaryResult result = bridge.summarize(
-            model,
+            model::chat,
             isolationScope,
             bridge.position("positions", 1, 1, 1, 1, 1),
             context,
@@ -143,7 +143,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             """);
 
         AnalysisSummaryResult result = bridge.summarize(
-            model,
+            model::chat,
             isolationScope,
             bridge.position("metrics", 1, 1, 1, 1, 1),
             bridge.govern("metrics", Map.of(), List.of(Map.of("VALUE", 42))),
@@ -176,7 +176,7 @@ class AnalysisSummaryGovernanceBridgeTest {
         List<Map<String, Object>> records = List.of(Map.of("VALUE", 42), Map.of("VALUE", 99));
 
         AnalysisSummaryResult result = bridge.summarize(
-            model,
+            model::chat,
             isolationScope,
             bridge.position("metrics", 1, 1, 1, 2, 2),
             bridge.govern("metrics", Map.of(), records),

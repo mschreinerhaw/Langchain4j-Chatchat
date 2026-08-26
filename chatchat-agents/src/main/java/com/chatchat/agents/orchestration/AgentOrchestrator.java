@@ -29,6 +29,8 @@ import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
+import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
@@ -154,7 +156,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         RuntimeProtocolDefaults.analysisSummary();
     private RuntimeResultAnalysisProtocol evidenceGovernanceBridge =
         RuntimeProtocolDefaults.resultAnalysis();
-    private final HierarchicalAnalysisReducer hierarchicalAnalysisReducer =
+    private ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
+        HierarchicalAnalysisReducer.Result> hierarchicalAnalysisReducer =
         new HierarchicalAnalysisReducer();
     private final DeterministicInsightEngine deterministicInsightEngine =
         new DeterministicInsightEngine();
@@ -482,6 +485,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.analysisSummaryGovernanceBridge =
             (RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult>) (RuntimeAnalysisSummaryProtocol<?>)
                 registry.require(RuntimeAnalysisSummaryProtocol.class);
+        this.analysisTaskDispatcher = (AnalysisTaskDispatcher) (ModelSummaryDispatcher<?, ?, ?>)
+            registry.require(ModelSummaryDispatcher.class);
+        this.hierarchicalAnalysisReducer =
+            (ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
+                HierarchicalAnalysisReducer.Result>) (ModelSummaryReducer<?, ?, ?>)
+                    registry.require(ModelSummaryReducer.class);
         this.toolObservationBuilder = new ToolObservationBuilder(
             this.evidenceTrustEvaluator, this.evidenceGovernanceBridge);
         this.answerFinalizer.setAnalysisSummaryProtocol(this.analysisSummaryGovernanceBridge);
@@ -3735,7 +3744,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         ? parallelSummary != null
                             ? parallelSummary
                             : analysisSummaryGovernanceBridge.summarize(
-                                activeChatModel, isolationScope, position, governedContext, chunk, query)
+                                activeChatModel::chat, isolationScope, position, governedContext, chunk, query)
                         : analysisSummaryGovernanceBridge.preserve(
                             isolationScope, position, governedContext, chunk);
                     if (spillReference != null
@@ -3820,7 +3829,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .append(", evidenceTraceComplete=").append(evidenceTraceComplete)
             .append(", rawReplayChunkCount=").append(rawReplayChunkCount).append(".\n");
         HierarchicalAnalysisReducer.Result hierarchicalResult = hierarchicalAnalysisReducer.reduce(
-            activeChatModel, isolationScope, relationshipPlan, governedSummaryResults, query);
+            new HierarchicalAnalysisReducer.Context(
+                activeChatModel::chat, isolationScope, relationshipPlan, query),
+            governedSummaryResults);
         promptEvidence.append(hierarchicalResult.promptEvidence());
         if (!rawReplayEvidence.isEmpty()) {
             promptEvidence.append("Raw evidence replay (lossless, selected by generic integrity rules). "
@@ -3995,7 +4006,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             task -> {
                 runtimeGuard.checkCancelled(cancellationCheck);
                 return analysisSummaryGovernanceBridge.summarize(
-                    activeChatModel, task.isolationScope(), task.position(),
+                    activeChatModel::chat, task.isolationScope(), task.position(),
                     task.analysisContext(), task.records(), task.userObjective());
             },
             cancellationCheck);

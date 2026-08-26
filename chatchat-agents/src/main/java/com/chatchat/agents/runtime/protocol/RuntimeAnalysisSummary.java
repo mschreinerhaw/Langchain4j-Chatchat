@@ -1,12 +1,13 @@
 package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
+import com.chatchat.common.runtime.summary.ModelSummary;
 
 import java.util.List;
 import java.util.Map;
 
 /** Read-only contract for a governed analysis product and its evidence lineage. */
-public interface RuntimeAnalysisSummary {
+public interface RuntimeAnalysisSummary extends ModelSummary {
     String schemaVersion();
     String resultId();
     String scope();

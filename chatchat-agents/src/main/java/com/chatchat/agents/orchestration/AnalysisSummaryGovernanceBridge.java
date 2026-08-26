@@ -5,9 +5,9 @@ import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
+import com.chatchat.common.runtime.summary.ModelSummaryModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.model.chat.ChatModel;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -123,7 +123,7 @@ public final class AnalysisSummaryGovernanceBridge
             from, to, totalRecords);
     }
 
-    public AnalysisSummaryResult summarize(ChatModel model,
+    public AnalysisSummaryResult summarize(ModelSummaryModel model,
                                            GovernanceIsolationScope isolationScope,
                                            RuntimeAnalysisPosition position,
                                            Map<String, Object> governedContext,
@@ -131,7 +131,7 @@ public final class AnalysisSummaryGovernanceBridge
         return summarize(model, isolationScope, position, governedContext, records, null);
     }
 
-    public AnalysisSummaryResult summarize(ChatModel model,
+    public AnalysisSummaryResult summarize(ModelSummaryModel model,
                                            GovernanceIsolationScope isolationScope,
                                            RuntimeAnalysisPosition position,
                                            Map<String, Object> governedContext,
@@ -170,7 +170,7 @@ public final class AnalysisSummaryGovernanceBridge
             + "Governed analysis context: " + ModelProtocolJson.compact(governedContext) + "\n"
             + "Returned records: " + ModelProtocolJson.compact(records);
         try {
-            String modelOutput = model.chat(prompt);
+            String modelOutput = model.generate(prompt);
             if (modelOutput != null && !modelOutput.isBlank()) {
                 EvidenceCapsule capsule = evidenceCapsule(
                     isolationScope, position, governedContext, records, modelOutput);

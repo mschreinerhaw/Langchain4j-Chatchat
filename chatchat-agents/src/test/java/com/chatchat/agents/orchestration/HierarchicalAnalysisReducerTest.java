@@ -71,7 +71,7 @@ class HierarchicalAnalysisReducerTest {
             .thenReturn("assets and positions combined analysis");
 
         HierarchicalAnalysisReducer.Result result = new HierarchicalAnalysisReducer().reduce(
-            model, scope, plan, chunks, "analyze portfolio activity");
+            model::chat, scope, plan, chunks, "analyze portfolio activity");
 
         assertThat(result.datasetSummaries()).hasSize(3)
             .allSatisfy(summary -> assertThat(summary.scope()).isEqualTo("DATASET_SYNTHESIS"));

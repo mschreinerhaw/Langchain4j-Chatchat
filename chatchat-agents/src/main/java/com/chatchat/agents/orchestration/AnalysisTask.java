@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
+import com.chatchat.common.runtime.summary.ModelSummaryTask;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -28,7 +29,7 @@ public record AnalysisTask(
     String userObjective,
     long timeoutMs,
     int attempt
-) {
+) implements ModelSummaryTask {
     public static final String SCHEMA_VERSION = "analysis_task.v1";
 
     public AnalysisTask {

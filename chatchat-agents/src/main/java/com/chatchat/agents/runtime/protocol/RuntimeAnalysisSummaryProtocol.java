@@ -3,7 +3,7 @@ package com.chatchat.agents.runtime.protocol;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.agents.runtime.GovernanceIsolationScope;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
-import dev.langchain4j.model.chat.ChatModel;
+import com.chatchat.common.runtime.summary.ModelSummaryModel;
 
 import java.util.List;
 import java.util.Map;
@@ -24,11 +24,11 @@ public interface RuntimeAnalysisSummaryProtocol<S extends RuntimeAnalysisSummary
     RuntimeAnalysisPosition position(String reference, int chunkIndex, int chunkCount,
                                      int from, int to, int totalRecords);
 
-    S summarize(ChatModel model, GovernanceIsolationScope isolationScope,
+    S summarize(ModelSummaryModel model, GovernanceIsolationScope isolationScope,
                 RuntimeAnalysisPosition position, Map<String, Object> governedContext,
                 List<Map<String, Object>> records);
 
-    S summarize(ChatModel model, GovernanceIsolationScope isolationScope,
+    S summarize(ModelSummaryModel model, GovernanceIsolationScope isolationScope,
                 RuntimeAnalysisPosition position, Map<String, Object> governedContext,
                 List<Map<String, Object>> records, String userObjective);
 

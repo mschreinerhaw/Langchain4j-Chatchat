@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.common.mcp.notification.McpNotificationPort;
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.integration.mcp.config.McpCenterProperties;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,7 @@ import java.util.Map;
 /** Reads enabled MCP notification channels and dispatches pre-authorized scheduler notifications. */
 @Service
 @RequiredArgsConstructor
-public class McpNotificationClient {
+public class McpNotificationClient implements McpNotificationPort {
 
     private static final String OPTIONS_PATH = "/api/v1/notifications/enabled-options";
 
@@ -26,7 +27,8 @@ public class McpNotificationClient {
     private final WebClient webClient = WebClient.builder().build();
     private volatile CachedToken cachedToken;
 
-    public List<NotificationChannelOption> listEnabled() {
+    @Override
+    public List<NotificationChannel> listEnabled() {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("MCP center integration is disabled");
         }
@@ -38,7 +40,8 @@ public class McpNotificationClient {
         }
     }
 
-    public NotificationChannelOption requireEnabled(String id) {
+    @Override
+    public NotificationChannel requireEnabled(String id) {
         String normalized = text(id);
         if (normalized.isBlank()) {
             throw new IllegalArgumentException("完成后通知已启用，请选择通知类型");
@@ -49,6 +52,7 @@ public class McpNotificationClient {
             .orElseThrow(() -> new IllegalArgumentException("所选通知类型不存在或已停用，请重新选择"));
     }
 
+    @Override
     public void dispatch(String id, Map<String, Object> payload) {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("MCP center integration is disabled");
@@ -61,7 +65,7 @@ public class McpNotificationClient {
         }
     }
 
-    private List<NotificationChannelOption> requestOptions() {
+    private List<NotificationChannel> requestOptions() {
         Map<String, Object> response = block(webClient.get()
             .uri(buildUrl(OPTIONS_PATH))
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken())
@@ -72,7 +76,7 @@ public class McpNotificationClient {
             return List.of();
         }
         return rows.stream().filter(Map.class::isInstance).map(Map.class::cast).map(row ->
-            new NotificationChannelOption(
+            new NotificationChannel(
                 text(row.get("id")), text(row.get("channel")), text(row.get("toolName")),
                 text(row.get("title")), text(row.get("description")), text(row.get("deliveryMode")),
                 Boolean.TRUE.equals(row.get("recipientAware"))
@@ -145,17 +149,6 @@ public class McpNotificationClient {
 
     private String text(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
-    }
-
-    public record NotificationChannelOption(
-        String id,
-        String channel,
-        String toolName,
-        String title,
-        String description,
-        String deliveryMode,
-        boolean recipientAware
-    ) {
     }
 
     private record CachedToken(String value, long expiresAt) {

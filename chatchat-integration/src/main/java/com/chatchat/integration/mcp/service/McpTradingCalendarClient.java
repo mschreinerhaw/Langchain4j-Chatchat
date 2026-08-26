@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.common.mcp.calendar.McpTradingCalendarPort;
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.integration.mcp.config.McpCenterProperties;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ import java.util.Map;
 /** Calls the trading-calendar decision endpoint maintained by the MCP server. */
 @Service
 @RequiredArgsConstructor
-public class McpTradingCalendarClient {
+public class McpTradingCalendarClient implements McpTradingCalendarPort {
 
     private static final String CHECK_PATH = "/api/v1/dynamic-date-params/trading-calendar/check";
 
@@ -25,6 +26,7 @@ public class McpTradingCalendarClient {
     private final WebClient webClient = WebClient.builder().build();
     private volatile CachedToken cachedToken;
 
+    @Override
     public TradingDayResult check(LocalDate date) {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("MCP center integration is disabled");
@@ -112,9 +114,6 @@ public class McpTradingCalendarClient {
 
     private String text(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
-    }
-
-    public record TradingDayResult(boolean tradingDay, String message) {
     }
 
     private record CachedToken(String value, long expiresAt) {

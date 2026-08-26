@@ -36,6 +36,8 @@
         <dependency>
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-integration</artifactId>
+            <!-- Executable composition root loads adapter beans, but API source cannot compile against them. -->
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>

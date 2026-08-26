@@ -1,6 +1,6 @@
 package com.chatchat.api.datascience;
 
-import com.chatchat.integration.mcp.service.McpPythonControlPlaneClient;
+import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +26,7 @@ class PythonDataScienceScriptDeletionTest {
     @Mock PythonScriptVersionRepository versionRepository;
     @Mock PythonTemplateRepository templateRepository;
     @Mock PythonExecutionRepository executionRepository;
-    @Mock McpPythonControlPlaneClient mcp;
+    @Mock McpPythonControlPlanePort mcp;
     @Mock PythonTemplateIndexService indexService;
     @Mock PythonTemplateToolRegistry registry;
     @Mock ObjectMapper objectMapper;

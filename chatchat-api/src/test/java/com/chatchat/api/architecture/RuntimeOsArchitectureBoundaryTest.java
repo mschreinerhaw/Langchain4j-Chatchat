@@ -62,6 +62,16 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void entireApiMainSourceIsIndependentFromIntegrationImplementations() {
+        assertThat(allJava("chatchat-api/src/main/java"))
+            .doesNotContain("import com.chatchat.integration.");
+
+        String pom = source("chatchat-api/pom.xml");
+        assertThat(pom).containsPattern(
+            "(?s)<artifactId>chatchat-integration</artifactId>\\s*.*?<scope>runtime</scope>");
+    }
+
+    @Test
     void agentMcpExecutionUsesKernelInsteadOfTransportAdapter() {
         String runtime = source("chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java");
         assertThat(runtime).contains("kernel.execute(new McpServiceCall");

@@ -1,7 +1,7 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.knowledgebase.search.LibraryDocumentItem;
 import com.chatchat.knowledgebase.search.SearchService;
 import com.chatchat.chat.skills.SkillCatalogService;
@@ -50,7 +50,7 @@ public class AgentWorkshopController {
 
     private final SkillCatalogService skillCatalogService;
     private final ToolRegistry toolRegistry;
-    private final McpToolRegistryBridge registryBridge;
+    private final McpToolCatalogQueryPort mcpCatalog;
     private final ModelsConfig modelsConfig;
     private final SearchService searchService;
     private final EnterpriseAdminService enterpriseAdminService;
@@ -108,13 +108,13 @@ public class AgentWorkshopController {
             (int) allAgents.stream().filter(agent -> "published".equalsIgnoreCase(agent.marketStatus())).count(),
             (int) allAgents.stream().filter(agent -> !"published".equalsIgnoreCase(agent.marketStatus())).count(),
             availableTools.size(),
-            registryBridge.listRegisteredTools().size()
+            mcpCatalog.registeredTools().size()
         );
         return ApiResponse.success(new WorkshopPayload(
             summary,
             agents,
             availableTools,
-            registryBridge.listRegisteredTools(),
+            mcpCatalog.registeredTools(),
             modelOptions(),
             modelsConfig.getDefaultChatModel(),
             searchService.listLibrary("all", null, 1, 500).documents(),
@@ -519,7 +519,7 @@ public class AgentWorkshopController {
      */
     private Map<String, List<String>> mcpToolsByServiceId() {
         Map<String, List<String>> toolsByService = new LinkedHashMap<>();
-        for (McpToolRegistryBridge.RegisteredMcpTool tool : registryBridge.listRegisteredTools()) {
+        for (McpToolCatalogQueryPort.RegisteredTool tool : mcpCatalog.registeredTools()) {
             if (tool.serviceId() == null || tool.localToolName() == null) {
                 continue;
             }
@@ -663,7 +663,7 @@ public class AgentWorkshopController {
         WorkshopSummary summary,
         List<AgentCard> agents,
         List<String> availableTools,
-        List<McpToolRegistryBridge.RegisteredMcpTool> registeredMcpTools,
+        List<McpToolCatalogQueryPort.RegisteredTool> registeredMcpTools,
         List<ModelOption> models,
         String defaultModelName,
         List<LibraryDocumentItem> documents,

@@ -23,7 +23,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,7 +61,7 @@ public class AgentTaskController {
     private final ObjectMapper objectMapper;
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeProperties toolRuntimeProperties;
-    private final McpToolRegistryBridge mcpToolRegistryBridge;
+    private final McpToolCatalogQueryPort mcpCatalog;
     private final AgentLearningService learningService;
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentTodoService todoService;
@@ -538,11 +538,11 @@ public class AgentTaskController {
                                                              HttpServletRequest servletRequest) {
         try {
             String normalizedTenant = scopedTenantId(servletRequest, tenantId);
-            Map<String, McpToolRegistryBridge.RegisteredMcpTool> mcpToolsByName = mcpToolRegistryBridge
-                .listRegisteredTools()
+            Map<String, McpToolCatalogQueryPort.RegisteredTool> mcpToolsByName = mcpCatalog
+                .registeredTools()
                 .stream()
                 .collect(Collectors.toMap(
-                    McpToolRegistryBridge.RegisteredMcpTool::localToolName,
+                    McpToolCatalogQueryPort.RegisteredTool::localToolName,
                     Function.identity(),
                     (left, right) -> left,
                     LinkedHashMap::new
@@ -647,7 +647,7 @@ public class AgentTaskController {
     }
 
     private ToolGovernanceView toToolGovernanceView(String toolName,
-                                                    McpToolRegistryBridge.RegisteredMcpTool mcpTool,
+                                                    McpToolCatalogQueryPort.RegisteredTool mcpTool,
                                                     ToolRuntimeSnapshot.ToolMetric metric) {
         ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
         ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);

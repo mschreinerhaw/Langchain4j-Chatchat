@@ -1,8 +1,6 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.integration.mcp.entity.McpServiceConfig;
-import com.chatchat.integration.mcp.service.McpServiceConfigService;
-import com.chatchat.integration.mcp.service.McpStdioProxyService;
+import com.chatchat.common.mcp.proxy.McpTransportProxyPort;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,10 +24,7 @@ import java.util.Map;
 @Tag(name = "MCP Proxy", description = "HTTP to stdio MCP proxy endpoints")
 public class McpProxyController {
 
-    private static final String PROTOCOL_STDIO_PROXY = "mcp_stdio_proxy";
-
-    private final McpServiceConfigService configService;
-    private final McpStdioProxyService stdioProxyService;
+    private final McpTransportProxyPort proxyPort;
 
     /**
      * Performs the forward operation.
@@ -42,12 +37,11 @@ public class McpProxyController {
     @Operation(summary = "Forward one JSON-RPC request to local stdio MCP server")
     public ApiResponse<Map<String, Object>> forward(@PathVariable("serviceId") String serviceId,
                                                     @RequestBody Map<String, Object> request) {
-        McpServiceConfig config = configService.getById(serviceId);
-        if (!PROTOCOL_STDIO_PROXY.equalsIgnoreCase(config.getProtocol())) {
-            return ApiResponse.badRequest("service protocol is not mcp_stdio_proxy");
+        try {
+            return ApiResponse.success(proxyPort.forward(serviceId, request));
+        } catch (IllegalArgumentException error) {
+            return ApiResponse.badRequest(error.getMessage());
         }
-        Map<String, Object> response = stdioProxyService.forwardJsonRpc(config, request);
-        return ApiResponse.success(response);
     }
 
     /**
@@ -59,7 +53,7 @@ public class McpProxyController {
     @PostMapping("/services/{serviceId}/close")
     @Operation(summary = "Close one stdio proxy session")
     public ApiResponse<Map<String, Object>> closeSession(@PathVariable("serviceId") String serviceId) {
-        stdioProxyService.closeSession(serviceId);
+        proxyPort.closeSession(serviceId);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("closed", true);
         data.put("serviceId", serviceId);

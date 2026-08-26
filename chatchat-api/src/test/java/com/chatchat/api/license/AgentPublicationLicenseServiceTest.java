@@ -2,7 +2,7 @@ package com.chatchat.api.license;
 
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
-import com.chatchat.integration.mcp.service.McpLicenseEntitlementClient;
+import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -18,7 +18,7 @@ import static org.mockito.Mockito.when;
 class AgentPublicationLicenseServiceTest {
 
     private final SkillCatalogService catalog = mock(SkillCatalogService.class);
-    private final McpLicenseEntitlementClient client = mock(McpLicenseEntitlementClient.class);
+    private final McpLicenseEntitlementPort client = mock(McpLicenseEntitlementPort.class);
     private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final AgentPublicationLicenseService service =
         new AgentPublicationLicenseService(catalog, client, jdbcTemplate);
@@ -29,7 +29,7 @@ class AgentPublicationLicenseServiceTest {
         SkillDefinition draft = agent("agent-two", "draft");
         when(catalog.list()).thenReturn(List.of(published, draft));
         when(client.agentPublicationLimit()).thenReturn(
-            new McpLicenseEntitlementClient.AgentPublicationLimit(true, "VALID", "ok", 1, true));
+            new McpLicenseEntitlementPort.AgentPublicationLimit(true, "VALID", "ok", 1, true));
 
         assertThatThrownBy(() -> service.publish("agent-two"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -44,7 +44,7 @@ class AgentPublicationLicenseServiceTest {
         SkillDefinition saved = agent("agent-two", "published");
         when(catalog.list()).thenReturn(List.of(draft));
         when(client.agentPublicationLimit()).thenReturn(
-            new McpLicenseEntitlementClient.AgentPublicationLimit(true, "VALID", "ok", 2, true));
+            new McpLicenseEntitlementPort.AgentPublicationLimit(true, "VALID", "ok", 2, true));
         when(catalog.publishToMarket("agent-two")).thenReturn(saved);
 
         assertThat(service.publish("agent-two")).isSameAs(saved);

@@ -1,6 +1,6 @@
 package com.chatchat.api.datascience;
 
-import com.chatchat.integration.mcp.service.McpPythonControlPlaneClient;
+import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class PythonDataScienceService {
     private final PythonScriptVersionRepository versionRepository;
     private final PythonTemplateRepository templateRepository;
     private final PythonExecutionRepository executionRepository;
-    private final McpPythonControlPlaneClient mcp;
+    private final McpPythonControlPlanePort mcp;
     private final PythonTemplateIndexService indexService;
     private final PythonTemplateToolRegistry registry;
     private final ObjectMapper objectMapper;
@@ -41,7 +41,7 @@ public class PythonDataScienceService {
         return new Workbench(assetRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner), folderRepository.findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(tenant, owner), scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant, owner), executionRepository.findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(tenant, owner), dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner), exampleCatalog.list());
     }
 
-    public List<McpPythonControlPlaneClient.EnvironmentView> publishedEnvironments() {
+    public List<McpPythonControlPlanePort.EnvironmentView> publishedEnvironments() {
         return mcp.environments();
     }
 
@@ -214,7 +214,7 @@ public class PythonDataScienceService {
             try {
                 PythonScriptEntity script = scriptRepository.findById(template.getScriptId()).orElseThrow(() -> new IllegalStateException("脚本不存在"));
                 PythonAssetEntity asset = assetRepository.findById(template.getAssetId()).orElseThrow(() -> new IllegalStateException("运行环境不存在"));
-                mcp.synchronizeTemplate(template.getId(), new McpPythonControlPlaneClient.TemplatePayload(template.getTenantId(), template.getOwnerId(), asset.getId(), asset.getName(), asset.getDescription(), asset.getMcpEnvironmentId(), script.getFileName(), template.getTemplateName(), template.getToolName(), template.getVersion(), template.getScenario(), template.getDescription(), template.getKeywords(), template.getDomain(), template.getInputSchemaJson(), template.getOutputSchemaJson(), template.getSourceSnapshot()));
+                mcp.synchronizeTemplate(template.getId(), new McpPythonControlPlanePort.TemplatePayload(template.getTenantId(), template.getOwnerId(), asset.getId(), asset.getName(), asset.getDescription(), asset.getMcpEnvironmentId(), script.getFileName(), template.getTemplateName(), template.getToolName(), template.getVersion(), template.getScenario(), template.getDescription(), template.getKeywords(), template.getDomain(), template.getInputSchemaJson(), template.getOutputSchemaJson(), template.getSourceSnapshot()));
             } catch (RuntimeException ex) {
                 log.warn("Unable to reconcile published Python template {} with MCP: {}", template.getId(), ex.getMessage());
             }
@@ -388,7 +388,7 @@ public class PythonDataScienceService {
         return t;
     }
 
-    private PythonExecutionEntity recordExecution(PythonAssetEntity asset, String scriptId, String templateId, String tenant, String owner, Map<String, Object> params, McpPythonControlPlaneClient.ExecutionResult r) {
+    private PythonExecutionEntity recordExecution(PythonAssetEntity asset, String scriptId, String templateId, String tenant, String owner, Map<String, Object> params, McpPythonControlPlanePort.ExecutionResult r) {
         PythonExecutionEntity e = new PythonExecutionEntity();
         e.setTenantId(tenant);
         e.setOwnerId(owner);
@@ -461,11 +461,11 @@ public class PythonDataScienceService {
         }
     }
 
-    private McpPythonControlPlaneClient.TemplatePayload templatePayload(PythonTemplateEntity template,
+    private McpPythonControlPlanePort.TemplatePayload templatePayload(PythonTemplateEntity template,
                                                                          PythonAssetEntity asset,
                                                                          String scriptFileName,
                                                                          String source) {
-        return new McpPythonControlPlaneClient.TemplatePayload(template.getTenantId(), template.getOwnerId(),
+        return new McpPythonControlPlanePort.TemplatePayload(template.getTenantId(), template.getOwnerId(),
                 asset.getId(), asset.getName(), asset.getDescription(), asset.getMcpEnvironmentId(),
                 scriptFileName, template.getTemplateName(), template.getToolName(), template.getVersion(),
                 template.getScenario(), template.getDescription(), template.getKeywords(), template.getDomain(),

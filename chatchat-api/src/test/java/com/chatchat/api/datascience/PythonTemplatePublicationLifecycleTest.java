@@ -1,6 +1,6 @@
 package com.chatchat.api.datascience;
 
-import com.chatchat.integration.mcp.service.McpPythonControlPlaneClient;
+import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +30,7 @@ class PythonTemplatePublicationLifecycleTest {
     @Mock PythonScriptVersionRepository versionRepository;
     @Mock PythonTemplateRepository templateRepository;
     @Mock PythonExecutionRepository executionRepository;
-    @Mock McpPythonControlPlaneClient mcp;
+    @Mock McpPythonControlPlanePort mcp;
     @Mock PythonTemplateIndexService indexService;
     @Mock PythonTemplateToolRegistry registry;
     @Mock PythonDataFileRepository dataFileRepository;
@@ -63,7 +63,7 @@ class PythonTemplatePublicationLifecycleTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         String sourceHash = sha256(script.getSourceCode());
         when(mcp.synchronizeTemplate(eq("template-1"), any()))
-                .thenReturn(new McpPythonControlPlaneClient.SyncResult(
+                .thenReturn(new McpPythonControlPlanePort.SyncResult(
                         "template-1", "PUBLISHED", "python_log_stable", "env-1", sourceHash));
         when(indexService.index(any(PythonTemplateEntity.class)))
                 .thenReturn(new PythonTemplateIndexService.IndexResult(true, "LOCAL_ONLY", ""));
@@ -78,8 +78,8 @@ class PythonTemplatePublicationLifecycleTest {
         assertThat(result.getSourceSnapshot()).isEqualTo("print('version 2')");
         assertThat(result.getStatus()).isEqualTo("PUBLISHED");
         assertThat(result.getMcpSyncStatus()).isEqualTo("SYNCED");
-        ArgumentCaptor<McpPythonControlPlaneClient.TemplatePayload> payload =
-                ArgumentCaptor.forClass(McpPythonControlPlaneClient.TemplatePayload.class);
+        ArgumentCaptor<McpPythonControlPlanePort.TemplatePayload> payload =
+                ArgumentCaptor.forClass(McpPythonControlPlanePort.TemplatePayload.class);
         verify(mcp).synchronizeTemplate(eq("template-1"), payload.capture());
         assertThat(payload.getValue().source()).isEqualTo("print('version 2')");
         assertThat(payload.getValue().toolName()).isEqualTo("python_log_stable");

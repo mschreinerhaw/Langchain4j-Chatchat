@@ -1,8 +1,6 @@
 package com.chatchat.api.sidebar;
 
-import com.chatchat.integration.mcp.entity.McpServiceConfig;
-import com.chatchat.integration.mcp.service.McpServiceConfigService;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import org.springframework.stereotype.Service;
@@ -28,22 +26,18 @@ public class SidebarCardService {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final SkillCatalogService skillCatalogService;
-    private final McpServiceConfigService mcpServiceConfigService;
-    private final McpToolRegistryBridge mcpToolRegistryBridge;
+    private final McpToolCatalogQueryPort mcpCatalog;
 
     /**
      * Creates a new SidebarCardService instance.
      *
      * @param skillCatalogService the skill catalog service value
-     * @param mcpServiceConfigService the mcp service config service value
-     * @param mcpToolRegistryBridge the mcp tool registry bridge value
+     * @param mcpCatalog the MCP catalog query port
      */
     public SidebarCardService(SkillCatalogService skillCatalogService,
-                              McpServiceConfigService mcpServiceConfigService,
-                              McpToolRegistryBridge mcpToolRegistryBridge) {
+                              McpToolCatalogQueryPort mcpCatalog) {
         this.skillCatalogService = skillCatalogService;
-        this.mcpServiceConfigService = mcpServiceConfigService;
-        this.mcpToolRegistryBridge = mcpToolRegistryBridge;
+        this.mcpCatalog = mcpCatalog;
     }
 
     /**
@@ -55,8 +49,8 @@ public class SidebarCardService {
      */
     public SidebarPayload buildSidebar(String skillId, String conversationId) {
         SkillDefinition skill = skillCatalogService.resolve(skillId);
-        List<McpServiceConfig> enabledServices = mcpServiceConfigService.listEnabled();
-        List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools = mcpToolRegistryBridge.listRegisteredTools();
+        List<McpToolCatalogQueryPort.ServiceSummary> enabledServices = mcpCatalog.enabledServices();
+        List<McpToolCatalogQueryPort.RegisteredTool> registeredTools = mcpCatalog.registeredTools();
 
         return new SidebarPayload(
             buildServiceUsage(skill, enabledServices, registeredTools),
@@ -123,15 +117,15 @@ public class SidebarCardService {
      * @return the built service usage
      */
     private ServiceUsageCard buildServiceUsage(SkillDefinition skill,
-                                               List<McpServiceConfig> enabledServices,
-                                               List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools) {
+                                               List<McpToolCatalogQueryPort.ServiceSummary> enabledServices,
+                                               List<McpToolCatalogQueryPort.RegisteredTool> registeredTools) {
         List<ServiceUsageItem> items = new ArrayList<>();
         List<String> preferredServiceIds = skill.boundMcpServiceIds() == null ? List.of() : skill.boundMcpServiceIds();
         List<String> preferredToolNames = skill.boundMcpToolNames() == null ? List.of() : skill.boundMcpToolNames();
 
         for (String serviceId : preferredServiceIds) {
             enabledServices.stream()
-                .filter(service -> service.getId() != null && service.getId().equals(serviceId))
+                .filter(service -> service.id() != null && service.id().equals(serviceId))
                 .findFirst()
                 .ifPresent(service -> items.add(toUsageItem(service, null)));
         }
@@ -149,7 +143,8 @@ public class SidebarCardService {
 
         if (items.isEmpty()) {
             enabledServices.stream()
-                .sorted(Comparator.comparing(McpServiceConfig::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(McpToolCatalogQueryPort.ServiceSummary::updatedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(2)
                 .forEach(service -> items.add(toUsageItem(service, null)));
         }
@@ -169,16 +164,16 @@ public class SidebarCardService {
      * @param tool the tool value
      * @return the converted usage item
      */
-    private ServiceUsageItem toUsageItem(McpServiceConfig service,
-                                         McpToolRegistryBridge.RegisteredMcpTool tool) {
-        String key = tool != null ? tool.localToolName() : safe(service == null ? null : service.getId(), "service-preview");
+    private ServiceUsageItem toUsageItem(McpToolCatalogQueryPort.ServiceSummary service,
+                                         McpToolCatalogQueryPort.RegisteredTool tool) {
+        String key = tool != null ? tool.localToolName() : safe(service == null ? null : service.id(), "service-preview");
         String serviceName = tool != null
             ? safe(tool.serviceName(), "业务服务")
-            : safe(service == null ? null : service.getName(), "业务服务");
+            : safe(service == null ? null : service.name(), "业务服务");
         String title = tool != null
             ? normalizeUsageTitle(tool.remoteToolName(), serviceName)
             : normalizeUsageTitle(serviceName, serviceName);
-        String updatedAt = formatTime(tool == null && service != null ? service.getUpdatedAt() : Instant.now());
+        String updatedAt = formatTime(tool == null && service != null ? service.updatedAt() : Instant.now());
         return new ServiceUsageItem(
             key,
             title,
@@ -197,20 +192,21 @@ public class SidebarCardService {
      * @param enabledServices the enabled services value
      * @return the built data sources
      */
-    private DataSourceCard buildDataSources(List<McpServiceConfig> enabledServices) {
+    private DataSourceCard buildDataSources(List<McpToolCatalogQueryPort.ServiceSummary> enabledServices) {
         List<DataSourceItem> items = enabledServices.stream()
-            .sorted(Comparator.comparing(McpServiceConfig::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+            .sorted(Comparator.comparing(McpToolCatalogQueryPort.ServiceSummary::updatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
             .limit(4)
             .map(service -> new DataSourceItem(
-                safe(service.getId(), UUID.randomUUID().toString()),
-                safe(service.getName(), "业务数据源"),
-                service.isEnabled() ? "实时数据" : "待接入",
-                iconTypeFor(service.getName())
+                safe(service.id(), UUID.randomUUID().toString()),
+                safe(service.name(), "业务数据源"),
+                service.enabled() ? "实时数据" : "待接入",
+                iconTypeFor(service.name())
             ))
             .toList();
 
         Instant latestUpdatedAt = enabledServices.stream()
-            .map(McpServiceConfig::getUpdatedAt)
+            .map(McpToolCatalogQueryPort.ServiceSummary::updatedAt)
             .filter(java.util.Objects::nonNull)
             .max(Comparator.naturalOrder())
             .orElse(Instant.now());
@@ -304,7 +300,8 @@ public class SidebarCardService {
      * @param enabledServices the enabled services value
      * @return the built permission info
      */
-    private PermissionInfo buildPermissionInfo(SkillDefinition skill, List<McpServiceConfig> enabledServices) {
+    private PermissionInfo buildPermissionInfo(SkillDefinition skill,
+                                               List<McpToolCatalogQueryPort.ServiceSummary> enabledServices) {
         return new PermissionInfo(
             "当前仅展示已授权且已登记的服务能力。",
             "查看我的服务权限",

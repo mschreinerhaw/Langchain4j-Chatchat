@@ -2,8 +2,8 @@ package com.chatchat.chat.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.chatchat.integration.mcp.service.McpTradingCalendarClient;
-import com.chatchat.integration.mcp.service.McpNotificationClient;
+import com.chatchat.common.mcp.calendar.McpTradingCalendarPort;
+import com.chatchat.common.mcp.notification.McpNotificationPort;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import lombok.RequiredArgsConstructor;
@@ -46,8 +46,8 @@ public class AgentScheduledTaskService {
     private final AgentTaskService taskService;
     private final ObjectMapper objectMapper;
     private final AgentTaskProperties properties;
-    private final McpTradingCalendarClient tradingCalendarClient;
-    private final McpNotificationClient notificationClient;
+    private final McpTradingCalendarPort tradingCalendarClient;
+    private final McpNotificationPort notificationClient;
     private final TenantNotificationRecipientService recipientService;
     private final EnterpriseAdminService enterpriseAdminService;
     private final SkillCatalogService skillCatalogService;
@@ -674,7 +674,7 @@ public class AgentScheduledTaskService {
     private TradingDayGuardResult checkTradingDay(ScheduledTaskEntity entity, Instant now) {
         try {
             LocalDate date = now.atZone(scheduleWindowPolicy.zoneId(entity)).toLocalDate();
-            McpTradingCalendarClient.TradingDayResult result = tradingCalendarClient.check(date);
+            McpTradingCalendarPort.TradingDayResult result = tradingCalendarClient.check(date);
             return new TradingDayGuardResult(true, result.tradingDay(), result.message());
         } catch (Exception ex) {
             log.warn("Scheduled Agent trading-day check failed: {}", ex.getMessage());
@@ -985,7 +985,7 @@ public class AgentScheduledTaskService {
             entity.setNotificationCondition(null);
             return;
         }
-        McpNotificationClient.NotificationChannelOption option =
+        McpNotificationPort.NotificationChannel option =
             notificationClient.requireEnabled(request.getNotificationChannelId());
         if (!option.recipientAware()) {
             throw new IllegalArgumentException("所选MCP通知通道未在URL或请求模板中使用{{receiver}}，无法保证租户隔离");

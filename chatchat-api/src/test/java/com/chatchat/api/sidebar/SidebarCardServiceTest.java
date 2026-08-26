@@ -2,8 +2,7 @@ package com.chatchat.api.sidebar;
 
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
-import com.chatchat.integration.mcp.service.McpServiceConfigService;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,8 +17,7 @@ class SidebarCardServiceTest {
     @Test
     void sidebarUsesOnlyRegisteredServicesAndSkillMetadata() {
         SkillCatalogService catalog = mock(SkillCatalogService.class);
-        McpServiceConfigService services = mock(McpServiceConfigService.class);
-        McpToolRegistryBridge tools = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpCatalog = mock(McpToolCatalogQueryPort.class);
         SkillDefinition skill = skill(Map.of("sidebar", Map.of(
             "quickActions", List.of(Map.of(
                 "actionId", "inspect_result",
@@ -37,9 +35,9 @@ class SidebarCardServiceTest {
             ))
         )));
         when(catalog.resolve("generic")).thenReturn(skill);
-        when(services.listEnabled()).thenReturn(List.of());
-        when(tools.listRegisteredTools()).thenReturn(List.of());
-        SidebarCardService service = new SidebarCardService(catalog, services, tools);
+        when(mcpCatalog.enabledServices()).thenReturn(List.of());
+        when(mcpCatalog.registeredTools()).thenReturn(List.of());
+        SidebarCardService service = new SidebarCardService(catalog, mcpCatalog);
 
         SidebarCardService.SidebarPayload payload = service.buildSidebar("generic", "conversation-1");
 
@@ -56,7 +54,7 @@ class SidebarCardServiceTest {
         SkillCatalogService catalog = mock(SkillCatalogService.class);
         when(catalog.resolve("generic")).thenReturn(skill(Map.of()));
         SidebarCardService service = new SidebarCardService(
-            catalog, mock(McpServiceConfigService.class), mock(McpToolRegistryBridge.class));
+            catalog, mock(McpToolCatalogQueryPort.class));
 
         SidebarCardService.SidebarActionResult result = service.executeAction(
             new SidebarCardService.SidebarActionRequest(

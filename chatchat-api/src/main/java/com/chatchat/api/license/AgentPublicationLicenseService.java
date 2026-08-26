@@ -2,7 +2,7 @@ package com.chatchat.api.license;
 
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
-import com.chatchat.integration.mcp.service.McpLicenseEntitlementClient;
+import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AgentPublicationLicenseService {
 
     private final SkillCatalogService skillCatalogService;
-    private final McpLicenseEntitlementClient entitlementClient;
+    private final McpLicenseEntitlementPort entitlementPort;
     private final JdbcTemplate jdbcTemplate;
 
     /** Uses a database row lock so multiple API instances cannot concurrently exceed the publication quota. */
@@ -27,9 +27,9 @@ public class AgentPublicationLicenseService {
             return skillCatalogService.publishToMarket(agentId);
         }
 
-        McpLicenseEntitlementClient.AgentPublicationLimit entitlement;
+        McpLicenseEntitlementPort.AgentPublicationLimit entitlement;
         try {
-            entitlement = entitlementClient.agentPublicationLimit();
+            entitlement = entitlementPort.agentPublicationLimit();
         } catch (RuntimeException ex) {
             throw new IllegalStateException("AGENT_LICENSE_CHECK_UNAVAILABLE: 无法从 MCP 服务校验 Agent 发布授权，已拒绝发布", ex);
         }

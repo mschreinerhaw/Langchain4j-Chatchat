@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.InternalRequestSigner;
 import com.chatchat.integration.mcp.config.McpCenterProperties;
@@ -15,7 +16,7 @@ import java.util.UUID;
 /** Reads signed runtime entitlements from the MCP server without exposing the installed license to the API. */
 @Service
 @RequiredArgsConstructor
-public class McpLicenseEntitlementClient {
+public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
 
     static final String AGENT_LIMIT_PATH = "/internal/v1/license/agent-publication-limit";
 
@@ -23,6 +24,7 @@ public class McpLicenseEntitlementClient {
     private final InternalCredentialProperties credentials;
     private final WebClient webClient = WebClient.builder().build();
 
+    @Override
     public AgentPublicationLimit agentPublicationLimit() {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("MCP center integration is disabled");
@@ -87,7 +89,4 @@ public class McpLicenseEntitlementClient {
         return value == null ? "" : String.valueOf(value).trim();
     }
 
-    public record AgentPublicationLimit(boolean licenseValid, String licenseStatus, String message,
-                                        Integer maxPublishedAgents, boolean limited) {
-    }
 }

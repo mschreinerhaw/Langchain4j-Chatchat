@@ -13,7 +13,7 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.integration.mcp.service.McpNotificationClient;
+import com.chatchat.common.mcp.notification.McpNotificationPort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,7 +41,7 @@ public class AgentTaskScheduleController {
 
     private final AgentScheduledTaskService scheduledTaskService;
     private final EnterpriseAdminService enterpriseAdminService;
-    private final McpNotificationClient notificationClient;
+    private final McpNotificationPort notificationPort;
     private final TenantNotificationRecipientService recipientService;
     private final SkillCatalogService skillCatalogService;
 
@@ -52,7 +52,7 @@ public class AgentTaskScheduleController {
             String tenantId = scopedTenantId(servletRequest, null);
             Map<String, TenantNotificationRecipientService.RecipientView> recipients = recipientService.list(tenantId).stream()
                 .collect(Collectors.toMap(TenantNotificationRecipientService.RecipientView::channelType, Function.identity()));
-            return ApiResponse.success(notificationClient.listEnabled().stream().map(option -> {
+            return ApiResponse.success(notificationPort.listEnabled().stream().map(option -> {
                 TenantNotificationRecipientService.RecipientView recipient = recipients.get(option.channel());
                 return new NotificationChannelBindingView(option.id(), option.channel(), option.toolName(), option.title(),
                     option.description(), option.deliveryMode(), option.recipientAware(),

@@ -102,9 +102,14 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         if (!preflight.compliant()) {
             Map<String, Object> rejectionMetadata = new LinkedHashMap<>(kernelMetadata(preflight, null, null));
             rejectionMetadata.put("discoveryRefreshAttempted", discoveryRefreshAttempted);
+            List<String> findingCodes = preflight.findings().stream().map(finding -> finding.code()).distinct().toList();
+            rejectionMetadata.put("preflightFindingCodes", findingCodes);
+            String rejectionMessage = findingCodes.isEmpty()
+                ? "MCP invocation rejected by Runtime OS contract preflight"
+                : "MCP invocation rejected by Runtime OS contract preflight: " + String.join(",", findingCodes);
             return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
                 McpServiceResultStatus.REJECTED, null, null, "MCP_CONTRACT_PREFLIGHT_FAILED",
-                "MCP invocation rejected by Runtime OS contract preflight", false,
+                rejectionMessage, false,
                 "REPAIR_CONTRACT_OR_REDISCOVER", rejectionMetadata, 0);
         }
 

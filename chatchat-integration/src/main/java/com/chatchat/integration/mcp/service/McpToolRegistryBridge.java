@@ -250,9 +250,11 @@ public class McpToolRegistryBridge {
         }
         localName = candidate;
 
-        Map<String, Object> discoveredInput = definition.inputSchema() == null
+        Map<String, Object> discoveredInputSource = definition.inputSchema() == null
             ? Map.of() : definition.inputSchema();
-        Map<String, Object> discoveredOutput = outputSchema(definition.meta());
+        Map<String, Object> discoveredOutputSource = outputSchema(definition.meta());
+        Map<String, Object> discoveredInput = canonicalObjectSchema(discoveredInputSource);
+        Map<String, Object> discoveredOutput = canonicalObjectSchema(discoveredOutputSource);
         ToolWorkflowContractSnapshot activeContract = null;
         if (contractCatalog != null) {
             activeContract = contractCatalog.synchronizeDiscovery(
@@ -265,10 +267,12 @@ public class McpToolRegistryBridge {
                 return null;
             }
         }
-        Map<String, Object> runtimeInput = activeContract == null
+        Map<String, Object> selectedInput = activeContract == null
             ? discoveredInput : activeContract.inputSchema();
-        Map<String, Object> runtimeOutput = activeContract == null
+        Map<String, Object> selectedOutput = activeContract == null
             ? discoveredOutput : activeContract.outputSchema();
+        Map<String, Object> runtimeInput = canonicalObjectSchema(selectedInput);
+        Map<String, Object> runtimeOutput = canonicalObjectSchema(selectedOutput);
         Map<String, Object> effectiveMeta = activeContract == null
             ? definition.meta() : activeContract.extensions();
         McpToolDefinition runtimeDefinition = withRuntimeContract(
@@ -292,6 +296,10 @@ public class McpToolRegistryBridge {
         extraMetadata.put("outputSchema", runtimeDefinition.outputSchema());
         extraMetadata.put("contractVersion", runtimeDefinition.contractVersion());
         extraMetadata.put("governance", governance);
+        extraMetadata.put("inputSchemaSource", schemaSource(activeContract,
+            activeContract == null ? discoveredInputSource : selectedInput));
+        extraMetadata.put("outputSchemaSource", schemaSource(activeContract,
+            activeContract == null ? discoveredOutputSource : selectedOutput));
         if (activeContract != null) {
             extraMetadata.put(ToolWorkflowContract.METADATA_KEY, activeContract.asMetadata());
             extraMetadata.put("workflowContractVersion", activeContract.version());
@@ -395,8 +403,29 @@ public class McpToolRegistryBridge {
 
     private Map<String, Object> outputSchema(Map<String, Object> meta) {
         if (meta == null) return Map.of();
-        return mapValue(firstPresent(meta.get("outputSchema"), meta.get("resultSchema"),
-            meta.get("output_schema"), meta.get("result_schema")));
+        for (String key : List.of("outputSchema", "resultSchema", "output_schema", "result_schema")) {
+            Map<String, Object> candidate = mapValue(meta.get(key));
+            if (!candidate.isEmpty()) return candidate;
+        }
+        return Map.of();
+    }
+
+    /**
+     * Projects incomplete provider schemas into the Runtime OS object protocol without
+     * inventing business fields. The source marker keeps the normalization auditable.
+     */
+    private Map<String, Object> canonicalObjectSchema(Map<String, Object> schema) {
+        Map<String, Object> normalized = new LinkedHashMap<>(schema == null ? Map.of() : schema);
+        normalized.putIfAbsent("type", "object");
+        normalized.putIfAbsent("additionalProperties", true);
+        return Map.copyOf(normalized);
+    }
+
+    private String schemaSource(ToolWorkflowContractSnapshot activeContract, Map<String, Object> selectedSchema) {
+        if (selectedSchema == null || selectedSchema.isEmpty() || selectedSchema.get("type") == null) {
+            return "runtime_adapter_default";
+        }
+        return activeContract == null ? "remote_discovery" : "active_contract";
     }
 
     private McpToolDefinition withRuntimeContract(McpToolDefinition definition,

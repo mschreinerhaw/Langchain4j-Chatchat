@@ -3,6 +3,12 @@ package com.chatchat.integration.mcp.service;
 import com.chatchat.runtime.mcp.kernel.DefaultMcpRuntimeKernel;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.mcp.audit.GenericMcpServiceContract;
+import com.chatchat.common.mcp.audit.McpContractAuditRequest;
+import com.chatchat.common.mcp.audit.StandardMcpContractAuditor;
+import com.chatchat.common.mcp.service.McpServiceDescriptor;
+import com.chatchat.common.mcp.service.McpToolDescriptor;
+import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
@@ -40,6 +46,66 @@ import static org.mockito.Mockito.never;
 import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
+
+    @Test
+    void normalizesMissingProviderOutputSchemaAtBridgeBoundary() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("python-runtime", "ChatChat MCP Server");
+        McpToolDefinition definition = new McpToolDefinition(
+            "python_analysis_query", "discover Python templates", Map.of("type", "object"));
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry();
+
+        ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
+        verify(registry).registerTool(anyString(), metadata.capture(), any());
+        assertThat(metadata.getValue().getMetadata().get("outputSchema"))
+            .isEqualTo(Map.of("type", "object", "additionalProperties", true));
+        assertThat(metadata.getValue().getMetadata())
+            .containsEntry("inputSchemaSource", "remote_discovery")
+            .containsEntry("outputSchemaSource", "runtime_adapter_default");
+
+        ToolMetadata registeredMetadata = metadata.getValue();
+        when(registry.getToolMetadata(registeredMetadata.getId())).thenReturn(registeredMetadata);
+        ConfiguredRemoteMcpServiceProvider providerAdapter = new ConfiguredRemoteMcpServiceProvider(
+            configService, bridge, registry);
+        McpToolDescriptor descriptor = providerAdapter.tools(McpToolQuery.all()).iterator().next();
+        assertThat(new StandardMcpContractAuditor().audit(
+            new McpContractAuditRequest(service.getId(), descriptor.localToolName(), null, null, null),
+            List.of(new McpServiceDescriptor(service.getId(), service.getName(), "test", "stdio", true, Map.of())),
+            List.of(descriptor), List.of(new GenericMcpServiceContract())).compliant()).isTrue();
+    }
+
+    @Test
+    void prefersStructuredResultSchemaWhenOutputSchemaKeyContainsOnlyVersionName() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("sql-runtime", "SQL Runtime");
+        McpToolDefinition definition = new McpToolDefinition(
+            "metadata_query", "query metadata", Map.of("type", "object"),
+            null, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of(), null,
+            Map.of("outputSchema", "sql_result.v1", "resultSchema",
+                Map.of("type", "object", "properties", Map.of("rows", Map.of("type", "array")))));
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry();
+
+        ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
+        verify(registry).registerTool(anyString(), metadata.capture(), any());
+        assertThat(metadata.getValue().getMetadata().get("outputSchema"))
+            .asString().contains("rows");
+        assertThat(metadata.getValue().getMetadata())
+            .containsEntry("outputSchemaSource", "remote_discovery");
+    }
 
     @Test
     void unpublishedDiscoveryIsStagedButNeverRegistered() {

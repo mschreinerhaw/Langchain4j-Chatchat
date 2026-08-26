@@ -1,6 +1,9 @@
 package com.chatchat.runtime.mcp.kernel;
 
 import com.chatchat.common.mcp.audit.McpContractAuditReport;
+import com.chatchat.common.mcp.audit.McpContractFinding;
+import com.chatchat.common.mcp.audit.McpContractSeverity;
+import com.chatchat.common.mcp.audit.McpContractSource;
 import com.chatchat.common.mcp.audit.McpRuntimeContractService;
 import com.chatchat.common.mcp.service.McpResultRepairResult;
 import com.chatchat.common.mcp.service.McpServiceDirectory;
@@ -26,13 +29,19 @@ class DefaultMcpRuntimeKernelTest {
     void rejectsInvocationWhenContractPreflightFails() {
         McpServiceDirectory directory = mock(McpServiceDirectory.class);
         McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
-        when(contracts.audit(any())).thenReturn(report(false));
+        McpContractFinding finding = new McpContractFinding(McpContractSeverity.ERROR,
+            "MCP_OUTPUT_SCHEMA_MISSING", "docker", "docker_ps", "generic",
+            McpContractSource.OUTPUT_SCHEMA, "type", "missing", "absent", "PUBLISH_OUTPUT_SCHEMA");
+        when(contracts.audit(any())).thenReturn(
+            new McpContractAuditReport(null, false, List.of(), List.of(finding), Map.of("ERROR", 1L), 0));
         DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
 
         McpServiceResult result = kernel.execute(call());
 
         assertThat(result.status()).isEqualTo(McpServiceResultStatus.REJECTED);
         assertThat(result.errorCode()).isEqualTo("MCP_CONTRACT_PREFLIGHT_FAILED");
+        assertThat(result.errorMessage()).contains("MCP_OUTPUT_SCHEMA_MISSING");
+        assertThat(result.metadata()).containsEntry("preflightFindingCodes", List.of("MCP_OUTPUT_SCHEMA_MISSING"));
         verify(directory, never()).invoke(any());
     }
 

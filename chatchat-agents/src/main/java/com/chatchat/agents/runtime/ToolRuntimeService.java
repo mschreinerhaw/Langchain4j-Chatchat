@@ -970,8 +970,13 @@ public class ToolRuntimeService {
         if (execution.output().isSuccess() || !"failed".equalsIgnoreCase(execution.outcome())) {
             return false;
         }
-        return execution.output().getMetadata() == null
-            || !Boolean.FALSE.equals(execution.output().getMetadata().get("retryable"));
+        if (execution.output().getMetadata() == null) {
+            return true;
+        }
+        Object retryable = firstPresent(
+            execution.output().getMetadata().get("retryable"),
+            execution.output().getMetadata().get("mcpRetryable"));
+        return !Boolean.FALSE.equals(retryable);
     }
 
     private boolean isToolRetryContinuation(ToolRuntimeRequest request) {

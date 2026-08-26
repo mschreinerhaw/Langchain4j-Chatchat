@@ -615,6 +615,33 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void doesNotRetryNonRetryableMcpContractRejection() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("mcp_contract_tool")).thenReturn(ToolMetadata.builder()
+            .id("mcp_contract_tool")
+            .title("MCP Contract Tool")
+            .build());
+        ToolOutput rejection = ToolOutput.failure("contract preflight failed");
+        rejection.setMetadata(new java.util.LinkedHashMap<>(Map.of("mcpRetryable", false)));
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(rejection);
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), new ToolRuntimeProperties(), List.of(), List.of());
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("mcp_contract_tool")
+            .runtimeMode("interpretation_plan")
+            .requestId("req-contract-rejection")
+            .userId("user-1")
+            .allowedTools(List.of("mcp_contract_tool"))
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .build());
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.output().getMetadata()).containsEntry("toolCallAttempt", 1);
+        verify(toolRegistry, times(1)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void workflowPageConfigurationControlsToolRetries() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("recovering_tool")).thenReturn(ToolMetadata.builder()

@@ -18,6 +18,8 @@ import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.ProtocolVersions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -40,7 +42,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Consumer;
 
 /**
  * MCP gateway client.
@@ -96,6 +102,18 @@ public class McpGatewayClient {
     private final WebClient directWebClient = WebClient.builder().build();
     private final Map<String, ManagedSdkClient> sdkClientCache = new ConcurrentHashMap<>();
     private final Map<String, Object> sdkSessionLocks = new ConcurrentHashMap<>();
+    private final List<Consumer<String>> toolsChangeListeners = new CopyOnWriteArrayList<>();
+    private Executor toolsChangeExecutor = ForkJoinPool.commonPool();
+
+    @Autowired(required = false)
+    void setToolsChangeExecutor(@Qualifier("applicationTaskExecutor") Executor executor) {
+        if (executor != null) toolsChangeExecutor = executor;
+    }
+
+    /** Registers a Runtime OS listener for MCP {@code notifications/tools/list_changed}. */
+    public void addToolsChangeListener(Consumer<String> listener) {
+        if (listener != null) toolsChangeListeners.add(listener);
+    }
 
     /**
      * Performs the discover tools operation.
@@ -119,9 +137,6 @@ public class McpGatewayClient {
         TransportKind kind = resolveTransportKind(config);
         if (kind == TransportKind.LEGACY_HTTP) {
             return discoverToolsViaLegacyHttp(config, normalizedTimeoutMs);
-        }
-        if (useDirectStreamableHttp(config, kind)) {
-            return discoverToolsViaDirectStreamableHttp(config, normalizedTimeoutMs, null);
         }
         log.info("Using MCP SDK transport {} for service {} (protocol={})",
             kind, config.getName(), config.getProtocol());
@@ -965,10 +980,14 @@ public class McpGatewayClient {
                 closeQuietly(current.client(), key);
             }
 
-            McpClientTransport transport = createSdkTransport(config, kind);
+            boolean toolChangeNotifications = TOOL_DISCOVERY_SCOPE.equals(scope);
+            McpClientTransport transport = createSdkTransport(config, kind, toolChangeNotifications);
             var clientBuilder = McpClient.sync(transport)
                 .requestTimeout(sdkRequestTimeout(normalizedRequestTimeoutMs))
                 .clientInfo(new McpSchema.Implementation("chatchat-mcp-client", "1.0.0"));
+            if (toolChangeNotifications) {
+                clientBuilder.toolsChangeConsumer(ignored -> notifyToolsChanged(config));
+            }
             McpSyncClient client = clientBuilder.build();
             client.initialize();
 
@@ -1014,9 +1033,11 @@ public class McpGatewayClient {
      *
      * @param config the config value
      * @param kind the kind value
+     * @param serverNotificationsEnabled whether the discovery session keeps a server event stream
      * @return the created sdk transport
      */
-    private McpClientTransport createSdkTransport(McpServiceConfig config, TransportKind kind) {
+    private McpClientTransport createSdkTransport(McpServiceConfig config, TransportKind kind,
+                                                   boolean serverNotificationsEnabled) {
         EndpointParts endpoint = switch (kind) {
             case LEGACY_SSE -> endpointParts(resolveLegacySseEndpoint(config), DEFAULT_LEGACY_SSE_PATH);
             case STREAMABLE_HTTP -> endpointParts(resolveStreamableEndpoint(config), DEFAULT_STREAMABLE_HTTP_PATH);
@@ -1042,7 +1063,7 @@ public class McpGatewayClient {
             .requestBuilder(requestBuilder)
             .connectTimeout(connectTimeout)
             .resumableStreams(false)
-            .openConnectionOnStartup(false)
+            .openConnectionOnStartup(serverNotificationsEnabled)
             .build();
     }
 
@@ -1214,6 +1235,26 @@ public class McpGatewayClient {
         return (standaloneId != null && standaloneId.equalsIgnoreCase(normalizeText(config.getId())))
             || (standaloneName != null && standaloneName.equalsIgnoreCase(normalizeText(config.getName())))
             || isStandaloneCenterEndpoint(config);
+    }
+
+    void notifyToolsChanged(McpServiceConfig config) {
+        String serviceId = config == null ? null : config.getId();
+        log.info("MCP tools/list_changed received serviceId={} service={}; scheduling Runtime OS refresh",
+            serviceId, config == null ? null : config.getName());
+        for (Consumer<String> listener : toolsChangeListeners) {
+            try {
+                toolsChangeExecutor.execute(() -> {
+                    try {
+                        listener.accept(serviceId);
+                    } catch (RuntimeException ex) {
+                        log.warn("MCP tool-change listener failed serviceId={}: {}", serviceId, ex.getMessage());
+                    }
+                });
+            } catch (RuntimeException rejected) {
+                log.warn("MCP tool-change refresh scheduling rejected serviceId={}: {}",
+                    serviceId, rejected.getMessage());
+            }
+        }
     }
 
     private boolean isStandaloneCenterEndpoint(McpServiceConfig config) {

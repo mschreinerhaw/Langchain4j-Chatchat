@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import org.springframework.stereotype.Service;
 
@@ -20,39 +21,41 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class DynamicMcpToolRouteService {
 
+    /** Rolling-upgrade compatibility for pre-contract template-query publishers. */
+    @Deprecated(forRemoval = false)
     public static final String CHILD_TOOL_ARGUMENT = "_templateQueryChildToolName";
 
-    private static final String DYNAMIC_TEMPLATE_QUERY_KIND =
+    private static final String LEGACY_DYNAMIC_TEMPLATE_QUERY_KIND =
         "dynamic_authorized_template_discovery";
-    private static final String SUPPORTED_ROUTING_MODE =
+    private static final String LEGACY_ROUTING_MODE =
         "api_parent_mcp_policy_filter";
 
     private final Map<String, RouteDefinition> routes = new ConcurrentHashMap<>();
+    private final java.util.Set<String> protectedIdentityArguments = ConcurrentHashMap.newKeySet();
+
+    public DynamicMcpToolRouteService() {
+        protectedIdentityArguments.add(CHILD_TOOL_ARGUMENT);
+    }
 
     public Optional<RouteDefinition> register(String serviceId, McpToolDefinition definition) {
-        if (definition == null || definition.meta() == null
-            || !DYNAMIC_TEMPLATE_QUERY_KIND.equals(text(definition.meta().get("kind")))) {
-            return Optional.empty();
-        }
+        if (definition == null || definition.meta() == null) return Optional.empty();
+        Optional<McpDynamicCapabilityRoute> declared =
+            McpDynamicCapabilityRoute.fromToolMetadata(definition.meta());
+        McpDynamicCapabilityRoute contract = declared.orElseGet(() -> legacyContract(definition.meta()));
+        if (contract == null) return Optional.empty();
 
         String normalizedServiceId = required(serviceId, "MCP service id");
         String childToolName = required(definition.name(), "dynamic child tool name");
-        String parentToolName = publicBridgeParent(
-            required(definition.meta().get("parentToolName"), "parent tool name"));
+        String parentToolName = publicBridgeParent(contract.parentToolName());
         if (childToolName.equalsIgnoreCase(parentToolName)) {
             throw new IllegalArgumentException("Dynamic MCP child tool cannot route to itself");
         }
 
-        String routingMode = text(definition.meta().get("routingMode"));
-        if (routingMode == null) {
-            routingMode = SUPPORTED_ROUTING_MODE;
-        }
-        if (!SUPPORTED_ROUTING_MODE.equals(routingMode)) {
-            throw new IllegalArgumentException("Unsupported dynamic MCP routing mode: " + routingMode);
-        }
-
         RouteDefinition route = new RouteDefinition(
-            normalizedServiceId, childToolName, parentToolName, routingMode);
+            normalizedServiceId, childToolName, parentToolName,
+            contract.implementationIdentityArgument(), contract.routingMode(),
+            contract.contractVersion());
+        protectedIdentityArguments.add(route.implementationIdentityArgument());
         routes.put(routeKey(normalizedServiceId, childToolName), route);
         return Optional.of(route);
     }
@@ -71,7 +74,7 @@ public class DynamicMcpToolRouteService {
         }
         Map<String, Object> routedArguments = mutableArguments(arguments);
         // The child identity is server-discovered routing state, never caller input.
-        routedArguments.put(CHILD_TOOL_ARGUMENT, route.childToolName());
+        routedArguments.put(route.implementationIdentityArgument(), route.childToolName());
         return new InvocationPlan(
             route.serviceId(), route.childToolName(), route.parentToolName(), route.childToolName(),
             immutableArguments(routedArguments), route.routingMode(), true);
@@ -96,7 +99,7 @@ public class DynamicMcpToolRouteService {
                                       Map<String, Object> arguments) {
         Map<String, Object> directArguments = mutableArguments(arguments);
         // Only a route created from MCP discovery may attach delegated child identity.
-        directArguments.remove(CHILD_TOOL_ARGUMENT);
+        protectedIdentityArguments.forEach(directArguments::remove);
         return new InvocationPlan(
             serviceId, requestedToolName, requestedToolName, null,
             immutableArguments(directArguments), null, false);
@@ -123,6 +126,22 @@ public class DynamicMcpToolRouteService {
         return result;
     }
 
+    private McpDynamicCapabilityRoute legacyContract(Map<String, Object> metadata) {
+        if (!LEGACY_DYNAMIC_TEMPLATE_QUERY_KIND.equals(text(metadata.get("kind")))) return null;
+        String parent = required(metadata.get("parentToolName"), "parent tool name");
+        String legacyMode = text(metadata.get("routingMode"));
+        if (legacyMode != null && !LEGACY_ROUTING_MODE.equals(legacyMode)) {
+            throw new IllegalArgumentException("Unsupported dynamic MCP routing mode: " + legacyMode);
+        }
+        return new McpDynamicCapabilityRoute(
+            McpDynamicCapabilityRoute.CURRENT_VERSION,
+            parent,
+            CHILD_TOOL_ARGUMENT,
+            LEGACY_ROUTING_MODE,
+            Map.of("compatibility", "template-query-v0")
+        );
+    }
+
     private String publicBridgeParent(String parentToolName) {
         // The publisher declares the actual invocation target. Routing never derives
         // business semantics from a tool name.
@@ -140,7 +159,9 @@ public class DynamicMcpToolRouteService {
         String serviceId,
         String childToolName,
         String parentToolName,
-        String routingMode
+        String implementationIdentityArgument,
+        String routingMode,
+        String contractVersion
     ) {
     }
 

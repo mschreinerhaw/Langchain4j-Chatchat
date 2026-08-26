@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.templatepublication;
 
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.api.ApiTemplateDiscoveryMcpToolPublisher;
@@ -303,9 +304,14 @@ public class TemplateQueryMcpToolPublisher {
         Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta(
             "template_query_publication", "system-managed", governance));
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);
+        String parentToolName = TemplateQueryBridgeRoutingPolicy.publicBridge(
+            bindingService.parentToolName(toolName));
+        McpDynamicCapabilityRoute route = McpDynamicCapabilityRoute.parentDelegation(
+            parentToolName, CHILD_TOOL_ARGUMENT);
+        meta.put(McpDynamicCapabilityRoute.METADATA_KEY, route.toMetadata());
+        // Rolling-upgrade fields for API nodes that have not adopted the v1 route contract.
         meta.put("kind", "dynamic_authorized_template_discovery");
-        meta.put("parentToolName", TemplateQueryBridgeRoutingPolicy.publicBridge(
-            bindingService.parentToolName(toolName)));
+        meta.put("parentToolName", parentToolName);
         meta.put("routingMode", "api_parent_mcp_policy_filter");
         meta.put("readOnly", true);
         meta.put("runtimeAction", "read_only");

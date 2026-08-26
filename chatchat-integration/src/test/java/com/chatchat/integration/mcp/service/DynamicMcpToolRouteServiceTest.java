@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +34,28 @@ class DynamicMcpToolRouteServiceTest {
         assertThatThrownBy(() -> plan.arguments().put("limit", 20))
             .isInstanceOf(UnsupportedOperationException.class);
         assertThat(route.routingMode()).isEqualTo("api_parent_mcp_policy_filter");
+    }
+
+    @Test
+    void genericContractRoutesAnyDynamicBusinessImplementation() {
+        McpDynamicCapabilityRoute contract = McpDynamicCapabilityRoute.parentDelegation(
+            "stable_business_gateway", "_implementationId");
+        McpToolDefinition definition = new McpToolDefinition(
+            "regional_customer_query", "regional implementation", Map.of(),
+            null, null, null, null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null,
+            Map.of(McpDynamicCapabilityRoute.METADATA_KEY, contract.toMetadata()));
+
+        routeService.register("service-1", definition).orElseThrow();
+        DynamicMcpToolRouteService.InvocationPlan plan = routeService.plan(
+            "service-1", "regional_customer_query",
+            Map.of("_implementationId", "spoofed", "customerId", "42"));
+
+        assertThat(plan.remoteToolName()).isEqualTo("stable_business_gateway");
+        assertThat(plan.arguments())
+            .containsEntry("_implementationId", "regional_customer_query")
+            .containsEntry("customerId", "42");
+        assertThat(plan.routingMode()).isEqualTo("parent_delegation");
     }
 
     @Test

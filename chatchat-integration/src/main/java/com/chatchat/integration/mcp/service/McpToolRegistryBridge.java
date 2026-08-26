@@ -10,6 +10,7 @@ import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.mcp.capability.McpCapabilityNodeKind;
 import com.chatchat.common.mcp.capability.McpCapabilityFallbackPolicy;
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
@@ -38,6 +39,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Synchronizes enabled MCP services into ToolRegistry as dynamic tools.
@@ -58,6 +61,8 @@ public class McpToolRegistryBridge {
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private final Map<String, RegisteredMcpTool> registeredTools = new ConcurrentHashMap<>();
     private final Map<String, String> registeredContractChecksums = new ConcurrentHashMap<>();
+    private final AtomicLong toolsChangeGeneration = new AtomicLong();
+    private final AtomicBoolean toolsChangeRefreshRunning = new AtomicBoolean();
 
     public McpToolRegistryBridge(ToolRegistry toolRegistry,
                                  McpServiceConfigService configService,
@@ -91,6 +96,27 @@ public class McpToolRegistryBridge {
         this.objectMapper = objectMapper;
         this.routeService = routeService;
         this.contractCatalog = contractCatalog;
+        this.gatewayClient.addToolsChangeListener(this::onToolsChanged);
+    }
+
+    private void onToolsChanged(String serviceId) {
+        toolsChangeGeneration.incrementAndGet();
+        log.info("Runtime OS received MCP tool catalog change serviceId={}", serviceId);
+        drainToolsChangeRefreshes();
+    }
+
+    private void drainToolsChangeRefreshes() {
+        if (!toolsChangeRefreshRunning.compareAndSet(false, true)) return;
+        long handledGeneration = -1L;
+        try {
+            do {
+                handledGeneration = toolsChangeGeneration.get();
+                refreshRegistry();
+            } while (toolsChangeGeneration.get() != handledGeneration);
+        } finally {
+            toolsChangeRefreshRunning.set(false);
+            if (toolsChangeGeneration.get() != handledGeneration) drainToolsChangeRefreshes();
+        }
     }
 
     /**
@@ -351,6 +377,11 @@ public class McpToolRegistryBridge {
         if (route != null) {
             extraMetadata.put("parentRemoteToolName", route.parentToolName());
             extraMetadata.put("routingMode", route.routingMode());
+            extraMetadata.put(McpDynamicCapabilityRoute.METADATA_KEY,
+                new McpDynamicCapabilityRoute(
+                    route.contractVersion(), route.parentToolName(),
+                    route.implementationIdentityArgument(), route.routingMode(), Map.of())
+                    .toMetadata());
         }
         McpCapabilityNodeKind declaredKind = McpCapabilityNodeKind.parse(
             effectiveMeta == null ? null : effectiveMeta.get("nodeKind"),
@@ -369,7 +400,12 @@ public class McpToolRegistryBridge {
             route == null ? McpCapabilityNode.RELATION_ROOT
                 : McpCapabilityNode.RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY,
             route == null ? null : route.routingMode(),
-            Map.of("remoteToolName", definition.name())
+            route == null
+                ? Map.of("remoteToolName", definition.name())
+                : Map.of(
+                    "remoteToolName", definition.name(),
+                    "routeContractVersion", route.contractVersion(),
+                    "implementationIdentityArgument", route.implementationIdentityArgument())
         );
         extraMetadata.put(McpCapabilityHierarchy.METADATA_KEY, capabilityNode.toMetadata());
 

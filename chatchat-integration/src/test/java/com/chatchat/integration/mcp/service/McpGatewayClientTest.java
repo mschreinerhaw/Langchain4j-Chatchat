@@ -9,11 +9,29 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class McpGatewayClientTest {
+
+    @Test
+    void dispatchesStandardToolListChangeToRuntimeListeners() {
+        McpGatewayClient client = new McpGatewayClient(
+            new ObjectMapper(), new McpCenterProperties(), new InternalCredentialProperties(),
+            mock(McpStdioProxyService.class));
+        client.setToolsChangeExecutor(Runnable::run);
+        AtomicReference<String> changedService = new AtomicReference<>();
+        client.addToolsChangeListener(changedService::set);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("dynamic-service");
+        service.setName("Dynamic service");
+
+        client.notifyToolsChanged(service);
+
+        assertThat(changedService).hasValue("dynamic-service");
+    }
 
     @Test
     void preservesExpiredLicenseErrorReturnedByMcpServer() {

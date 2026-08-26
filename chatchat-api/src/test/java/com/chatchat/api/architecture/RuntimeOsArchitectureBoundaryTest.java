@@ -159,8 +159,22 @@ class RuntimeOsArchitectureBoundaryTest {
             .contains("interface McpCapabilityHierarchy", "sameNode", "lineage",
                 "isImplementationOf", "mostSpecific", "directlyInvocable");
         assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityRouteContract.java"))
+            .contains("interface McpCapabilityRouteContract", "parentToolName()",
+                "implementationIdentityArgument()", "toMetadata()");
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpDynamicCapabilityRoute.java"))
+            .contains("implements McpCapabilityRouteContract", "mcp.dynamic-capability-route.v1");
+        assertThat(source(
             "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpToolRegistryBridge.java"))
-            .contains("McpCapabilityHierarchy.METADATA_KEY", "McpCapabilityNode");
+            .contains("McpCapabilityHierarchy.METADATA_KEY", "McpCapabilityNode",
+                "addToolsChangeListener", "drainToolsChangeRefreshes");
+        assertThat(source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpGatewayClient.java"))
+            .contains("toolsChangeConsumer", "notifyToolsChanged");
+        assertThat(source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/ConfiguredRemoteMcpServiceProvider.java"))
+            .contains("McpDynamicCapabilityRoute.METADATA_KEY");
         assertThat(source(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentToolNameResolver.java"))
             .contains("capabilityHierarchy.sameNode");

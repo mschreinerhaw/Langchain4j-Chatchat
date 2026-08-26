@@ -32,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -44,10 +45,33 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.never;
 import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void toolListChangeNotificationRefreshesRuntimeRegistry() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("dynamic-service");
+        service.setName("Dynamic service");
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(
+            new McpToolDefinition("new_dynamic_tool", "dynamic", Map.of())));
+
+        new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        ArgumentCaptor<Consumer<String>> listener = ArgumentCaptor.forClass(Consumer.class);
+        verify(gateway).addToolsChangeListener(listener.capture());
+
+        listener.getValue().accept("dynamic-service");
+
+        verify(gateway).discoverTools(service, 0);
+        verify(registry).registerTool(anyString(), any(ToolMetadata.class), any());
+    }
 
     @Test
     void normalizesMissingProviderOutputSchemaAtBridgeBoundary() {

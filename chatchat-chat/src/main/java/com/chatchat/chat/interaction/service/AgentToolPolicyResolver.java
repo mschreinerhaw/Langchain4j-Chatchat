@@ -5,7 +5,7 @@ import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -36,7 +36,7 @@ public class AgentToolPolicyResolver {
 
     private final ToolRegistry toolRegistry;
     private final SkillCatalogService skillCatalogService;
-    private final McpToolRegistryBridge mcpToolRegistryBridge;
+    private final McpToolCatalogQueryPort mcpToolCatalog;
 
     /**
      * Resolves the resolve.
@@ -100,7 +100,7 @@ public class AgentToolPolicyResolver {
      */
     private List<String> discoverDefaultTools(String skillId) {
         Map<String, List<String>> mcpToolsByServiceId = new LinkedHashMap<>();
-        mcpToolRegistryBridge.listRegisteredTools().forEach(tool ->
+        mcpToolCatalog.registeredTools().forEach(tool ->
             mcpToolsByServiceId.computeIfAbsent(tool.serviceId(), ignored -> new ArrayList<>())
                 .add(tool.localToolName())
         );
@@ -180,7 +180,7 @@ public class AgentToolPolicyResolver {
         if (steps.isEmpty()) {
             return new WorkflowToolResolution(List.of(), List.of(), Map.of());
         }
-        List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools = mcpToolRegistryBridge.listRegisteredTools();
+        List<McpToolCatalogQueryPort.RegisteredTool> registeredTools = mcpToolCatalog.registeredTools();
         LinkedHashSet<String> requiredTools = new LinkedHashSet<>();
         LinkedHashSet<String> autoAddedTools = new LinkedHashSet<>();
         Map<String, String> skipped = new LinkedHashMap<>();
@@ -261,7 +261,7 @@ public class AgentToolPolicyResolver {
     }
 
     private String resolveWorkflowLocalTool(String configuredTool,
-                                            List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools) {
+                                            List<McpToolCatalogQueryPort.RegisteredTool> registeredTools) {
         String normalized = normalizeToolName(configuredTool);
         if (normalized.isBlank()) {
             return null;
@@ -272,7 +272,7 @@ public class AgentToolPolicyResolver {
         if (registeredTools == null || registeredTools.isEmpty()) {
             return null;
         }
-        for (McpToolRegistryBridge.RegisteredMcpTool registeredTool : registeredTools) {
+        for (McpToolCatalogQueryPort.RegisteredTool registeredTool : registeredTools) {
             if (registeredTool == null || !toolRegistry.hasTool(registeredTool.localToolName())) {
                 continue;
             }
@@ -339,9 +339,9 @@ public class AgentToolPolicyResolver {
      * @return the resolved mcp tool
      */
     private List<String> resolveMcpTool(ToolIntentSpec spec) {
-        return mcpToolRegistryBridge.listRegisteredTools().stream()
+        return mcpToolCatalog.registeredTools().stream()
             .filter(tool -> matchesMcpToolIntent(tool, spec))
-            .map(McpToolRegistryBridge.RegisteredMcpTool::localToolName)
+            .map(McpToolCatalogQueryPort.RegisteredTool::localToolName)
             .filter(toolRegistry::hasTool)
             .sorted()
             .toList();
@@ -354,7 +354,7 @@ public class AgentToolPolicyResolver {
      * @param spec the spec value
      * @return whether the condition is satisfied
      */
-    private boolean matchesMcpToolIntent(McpToolRegistryBridge.RegisteredMcpTool tool, ToolIntentSpec spec) {
+    private boolean matchesMcpToolIntent(McpToolCatalogQueryPort.RegisteredTool tool, ToolIntentSpec spec) {
         if (tool == null || spec == null) {
             return false;
         }
@@ -458,7 +458,7 @@ public class AgentToolPolicyResolver {
 
         LinkedHashSet<String> required = new LinkedHashSet<>(normalizeToolNames(requiredTools));
         Set<String> registeredMcpToolNames = new LinkedHashSet<>();
-        mcpToolRegistryBridge.listRegisteredTools().forEach(tool -> registeredMcpToolNames.add(tool.localToolName()));
+        mcpToolCatalog.registeredTools().forEach(tool -> registeredMcpToolNames.add(tool.localToolName()));
 
         List<ScoredTool> scoredMcpTools = normalizedTools.stream()
             .filter(toolName -> isMcpToolName(toolName, registeredMcpToolNames))

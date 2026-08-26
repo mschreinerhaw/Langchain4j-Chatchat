@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-/** Read-only MCP service and tool catalog boundary for API projections. */
+/** Read-only MCP service and tool catalog boundary for every Runtime OS consumer. */
 public interface McpToolCatalogQueryPort extends RuntimeProtocolPort {
     String PROTOCOL_VERSION = "runtime_os.mcp.catalog_query.v1";
 
@@ -29,5 +29,10 @@ public interface McpToolCatalogQueryPort extends RuntimeProtocolPort {
         List<String> tags,
         Map<String, Object> applicability
     ) {
+        public RegisteredTool(String localToolName, String serviceId, String serviceName,
+                              String remoteToolName, String description) {
+            this(localToolName, serviceId, serviceName, remoteToolName, description, null,
+                null, List.of(), List.of(), Map.of());
+        }
     }
 }

@@ -18,7 +18,7 @@ import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.chat.task.AgentLearningService;
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DynamicTest;
@@ -251,9 +251,9 @@ class MaintainedAgentEnvironmentCoverageTest {
                     .build()
             );
 
-            McpToolRegistryBridge bridge = mock(McpToolRegistryBridge.class);
-            when(bridge.listRegisteredTools()).thenReturn(allToolNames.stream()
-                .map(toolName -> new McpToolRegistryBridge.RegisteredMcpTool(
+            McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
+            when(bridge.registeredTools()).thenReturn(allToolNames.stream()
+                .map(toolName -> new McpToolCatalogQueryPort.RegisteredTool(
                     toolName,
                     "maintained-agent-contract",
                     "Maintained Agent contract",

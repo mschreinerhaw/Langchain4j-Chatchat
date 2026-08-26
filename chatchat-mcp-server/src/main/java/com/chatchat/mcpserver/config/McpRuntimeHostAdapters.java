@@ -2,7 +2,6 @@ package com.chatchat.mcpserver.config;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.integration.mcp.service.McpCapabilityService;
 import com.chatchat.runtime.mcp.registry.McpCapabilityStatePort;
 import com.chatchat.runtime.mcp.registry.McpToolExecutor;
 import com.chatchat.runtime.mcp.registry.McpToolPublicationPort;
@@ -44,11 +43,5 @@ public class McpRuntimeHostAdapters {
 
             @Override public void unpublish(String toolName) { registry.unregisterTool(toolName); }
         };
-    }
-
-    @Bean
-    McpCapabilityStatePort mcpCapabilityStatePort(McpCapabilityService capabilities) {
-        return capabilityCode -> capabilities.findByCode(capabilityCode)
-            .map(capability -> capability.isEnabled()).orElse(true);
     }
 }

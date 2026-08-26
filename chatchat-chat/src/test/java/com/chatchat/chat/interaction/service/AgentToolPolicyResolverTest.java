@@ -4,7 +4,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -20,7 +20,7 @@ class AgentToolPolicyResolverTest {
     void doesNotAutoAddRegisteredWorkflowToolThatUserDidNotBind() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver resolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -30,7 +30,7 @@ class AgentToolPolicyResolverTest {
         String templateTool = "mcp_chatchat_mcp_server_template_query";
         when(toolRegistry.hasTool(assetTool)).thenReturn(true);
         when(toolRegistry.hasTool(templateTool)).thenReturn(true);
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of(
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of(
             registered(assetTool, "asset_query"),
             registered(templateTool, "template_query")
         ));
@@ -58,7 +58,7 @@ class AgentToolPolicyResolverTest {
     void doesNotAutoAddUnregisteredRequiredWorkflowToolAndReportsReason() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver resolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -66,7 +66,7 @@ class AgentToolPolicyResolverTest {
         );
         String templateTool = "mcp_chatchat_mcp_server_template_query";
         when(toolRegistry.hasTool(templateTool)).thenReturn(true);
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of(
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of(
             registered(templateTool, "template_query")
         ));
 
@@ -88,8 +88,8 @@ class AgentToolPolicyResolverTest {
             .containsEntry("asset_query", "required workflow tool is not registered in MCP registry");
     }
 
-    private McpToolRegistryBridge.RegisteredMcpTool registered(String localName, String remoteName) {
-        return new McpToolRegistryBridge.RegisteredMcpTool(
+    private McpToolCatalogQueryPort.RegisteredTool registered(String localName, String remoteName) {
+        return new McpToolCatalogQueryPort.RegisteredTool(
             localName,
             "chatchat-mcp-server",
             "chatchat_mcp_server",

@@ -11,7 +11,7 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillRoutingSettings;
 import com.chatchat.common.interaction.InteractionToolTrace;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -39,14 +39,14 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge bridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
         AgentChatModeHandler handler = new AgentChatModeHandler(
             orchestrator,
             skillCatalogService,
             new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge)
         );
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithResultHandlingPolicy());
-        when(bridge.listRegisteredTools()).thenReturn(List.of());
+        when(bridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
@@ -92,7 +92,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -114,7 +114,7 @@ class AgentChatModeHandlerTest {
             base.marketStatus(), base.defaultAgent()
         );
         when(skillCatalogService.resolve("ops")).thenReturn(boundModelSkill);
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(), isNull(), anyList(), anyString(), eq("agent-bound-model"), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean()
@@ -149,7 +149,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -162,7 +162,7 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(),
             isNull(),
@@ -230,7 +230,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -243,7 +243,7 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(),
             isNull(),
@@ -313,7 +313,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -326,8 +326,8 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithWebSearch());
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of(
-            new McpToolRegistryBridge.RegisteredMcpTool(
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of(
+            new McpToolCatalogQueryPort.RegisteredTool(
                 "mcp_chatchat_mcp_server_web_search",
                 "svc-1",
                 "ChatChat MCP Server",
@@ -401,7 +401,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -414,8 +414,8 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of(
-            new McpToolRegistryBridge.RegisteredMcpTool(
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of(
+            new McpToolCatalogQueryPort.RegisteredTool(
                 "mcp_chatchat_mcp_server_web_search",
                 "svc-1",
                 "ChatChat MCP Server",
@@ -487,7 +487,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -501,8 +501,8 @@ class AgentChatModeHandlerTest {
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithDocumentsAndWebSearch());
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of(
-            new McpToolRegistryBridge.RegisteredMcpTool(
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of(
+            new McpToolCatalogQueryPort.RegisteredTool(
                 "mcp_chatchat_mcp_server_web_search",
                 "svc-1",
                 "ChatChat MCP Server",
@@ -576,7 +576,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -589,7 +589,7 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithMaxRelevantMcpTools(5));
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(),
             isNull(),
@@ -658,7 +658,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -671,7 +671,7 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(),
             isNull(),
@@ -752,7 +752,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -765,7 +765,7 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithRuntimeEnvironment("DEV"));
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
@@ -806,7 +806,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry,
             skillCatalogService,
@@ -819,15 +819,15 @@ class AgentChatModeHandlerTest {
         );
 
         when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of(
-            new McpToolRegistryBridge.RegisteredMcpTool(
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of(
+            new McpToolCatalogQueryPort.RegisteredTool(
                 "mcp_ops_ssh_dn_a_01",
                 "svc-ops",
                 "Ops MCP",
                 "ssh_dn_a_01",
                 "SSH host tool"
             ),
-            new McpToolRegistryBridge.RegisteredMcpTool(
+            new McpToolCatalogQueryPort.RegisteredTool(
                 "mcp_ops_linux_command_execute",
                 "svc-ops",
                 "Ops MCP",
@@ -907,7 +907,7 @@ class AgentChatModeHandlerTest {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
-        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        McpToolCatalogQueryPort mcpToolRegistryBridge = mock(McpToolCatalogQueryPort.class);
         AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
             toolRegistry, skillCatalogService, mcpToolRegistryBridge);
         AgentChatModeHandler handler = new AgentChatModeHandler(
@@ -923,7 +923,7 @@ class AgentChatModeHandlerTest {
                 "mcp_chatchat_mcp_server_web_search", Map.of("strict_mode", true))), base.defaultDataAsset(),
             base.assetSelectionPolicy(), base.quickQuestions(), base.marketStatus(), base.defaultAgent());
         when(skillCatalogService.resolve("ops")).thenReturn(configured);
-        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(mcpToolRegistryBridge.registeredTools()).thenReturn(List.of());
         when(orchestrator.executeAgent(
             anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()

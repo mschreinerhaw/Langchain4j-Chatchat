@@ -61,6 +61,11 @@ import java.util.UUID;
 @Slf4j
 public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<InterpretationPlanRuntime.ExecutionRequest, InterpretationPlanRuntime.ExecutionResult> {
 
+    @Override
+    public String workflowId() {
+        return "interpretation-plan-runtime";
+    }
+
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final String ORIGINAL_USER_QUERY_ATTRIBUTE = "originalUserQuery";
     private static final String AGENT_RUNTIME_ENVIRONMENT_ATTRIBUTE = "agentRuntimeEnvironment";

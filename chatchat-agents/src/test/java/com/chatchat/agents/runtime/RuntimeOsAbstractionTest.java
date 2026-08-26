@@ -22,6 +22,7 @@ class RuntimeOsAbstractionTest {
     void workflowTemplateOwnsLifecycleOrdering() {
         List<String> lifecycle = new ArrayList<>();
         RuntimeWorkflow<String, String> workflow = new AbstractRuntimeWorkflow<>() {
+            @Override public String workflowId() { return "lifecycle-test"; }
             @Override protected void validateInput(String input) { lifecycle.add("validate:" + input); }
             @Override protected void beforeExecution(String input) { lifecycle.add("before:" + input); }
             @Override protected String doExecute(String input) {
@@ -39,6 +40,7 @@ class RuntimeOsAbstractionTest {
     void workflowTemplateReportsFailureWithoutSwallowingIt() {
         List<String> lifecycle = new ArrayList<>();
         RuntimeWorkflow<String, String> workflow = new AbstractRuntimeWorkflow<>() {
+            @Override public String workflowId() { return "failure-test"; }
             @Override protected String doExecute(String input) { throw new IllegalStateException("failed"); }
             @Override protected void onExecutionFailure(String input, Throwable error) {
                 lifecycle.add(input + ":" + error.getMessage());
@@ -49,6 +51,26 @@ class RuntimeOsAbstractionTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessage("failed");
         assertThat(lifecycle).containsExactly("plan:failed");
+    }
+
+    @Test
+    void kernelScopeReachesWorkflowLifecycle() {
+        List<String> observed = new ArrayList<>();
+        RuntimeWorkflow<String, String> workflow = new AbstractRuntimeWorkflow<>() {
+            @Override public String workflowId() { return "scope-test"; }
+            @Override protected String doExecute(String input) { return input; }
+            @Override protected void beforeExecution(String input,
+                                                       com.chatchat.common.kernel.KernelDataScope scope) {
+                observed.add(scope.tenantId() + ":" + scope.requestId());
+            }
+        };
+
+        workflow.executeKernel("plan",
+            new com.chatchat.common.kernel.KernelDataScope(
+                "tenant-a", "user-a", "request-a", null, "run-a", "DEV", Map.of()));
+
+        assertThat(observed).containsExactly("tenant-a:request-a");
+        assertThat(workflow.kernelDescriptor().componentId()).isEqualTo("scope-test");
     }
 
     @Test

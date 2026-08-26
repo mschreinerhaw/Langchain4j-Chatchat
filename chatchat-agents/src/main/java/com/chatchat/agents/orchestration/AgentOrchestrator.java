@@ -46,6 +46,8 @@ import com.chatchat.agents.runtime.plan.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.common.runtime.workflow.RuntimeWorkflowGuard;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.kernel.KernelViolationException;
 import com.chatchat.agents.runtime.plan.EvidenceBasedAssetCandidateEvaluator;
 import com.chatchat.agents.runtime.plan.EvidenceBasedTemplateCandidateEvaluator;
 import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
@@ -345,6 +347,35 @@ public class AgentOrchestrator implements AgentRunExecutor {
      * @return the agent run result
      */
     @Override
+    public AgentRunResult execute(AgentRunRequest request, KernelDataScope scope) {
+        if (request == null) throw new IllegalArgumentException("Agent run request is required");
+        if (scope == null) throw new IllegalArgumentException("Kernel data scope is required");
+        requireScopeMatch("tenantId", request.getTenantId(), scope.tenantId());
+        requireScopeMatch("requestId", request.getRequestId(), scope.requestId());
+        requireScopeMatch("conversationId", request.getConversationId(), scope.conversationId());
+        requireScopeMatch("runId", request.getRunId(), scope.runId());
+        requireScopeMatch("userId", request.getUserId(), scope.userId());
+        if (request.getTenantId() == null) request.setTenantId(scope.tenantId());
+        if (request.getRequestId() == null) request.setRequestId(scope.requestId());
+        if (request.getConversationId() == null) request.setConversationId(scope.conversationId());
+        if (request.getRunId() == null) request.setRunId(scope.runId());
+        if (request.getUserId() == null) request.setUserId(scope.userId());
+        Map<String, Object> attributes = new LinkedHashMap<>(
+            request.getAttributes() == null ? Map.of() : request.getAttributes());
+        Map<String, Object> scopeProjection = new LinkedHashMap<>();
+        putScopeValue(scopeProjection, "tenantId", scope.tenantId());
+        putScopeValue(scopeProjection, "userId", scope.userId());
+        putScopeValue(scopeProjection, "requestId", scope.requestId());
+        putScopeValue(scopeProjection, "conversationId", scope.conversationId());
+        putScopeValue(scopeProjection, "runId", scope.runId());
+        putScopeValue(scopeProjection, "environment", scope.environment());
+        scopeProjection.put("attributes", scope.attributes());
+        attributes.put("kernelDataScope", Map.copyOf(scopeProjection));
+        request.setAttributes(attributes);
+        return execute(request);
+    }
+
+    @Override
     public AgentRunResult execute(AgentRunRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Agent run request is required");
@@ -427,6 +458,18 @@ public class AgentOrchestrator implements AgentRunExecutor {
             AgentRun failed = runStore.fail(run.runId(), ex);
             return failedAgentRunResult(failed);
         }
+    }
+
+    private void requireScopeMatch(String field, String requestValue, String scopeValue) {
+        if (requestValue != null && !requestValue.isBlank() && scopeValue != null
+            && !scopeValue.equals(requestValue)) {
+            throw new KernelViolationException("KERNEL_SCOPE_MISMATCH",
+                "Agent request " + field + " does not match Kernel scope");
+        }
+    }
+
+    private void putScopeValue(Map<String, Object> target, String key, String value) {
+        if (value != null && !value.isBlank()) target.put(key, value);
     }
 
     /** Installs the Runtime OS protocol suite without coupling orchestration to implementations. */
@@ -1286,7 +1329,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         InterpretationPlanRuntime.ExecutionResult firstResult;
         if (initialEvaluation.valid()) {
             recordInterpretationPlanExecutionStarted("initial", plan, runtimeAttributes, metadata);
-            firstResult = runtime.execute(planExecutionRequest(
+            InterpretationPlanRuntime.ExecutionRequest executionRequest = planExecutionRequest(
                 plan,
                 tenantId,
                 requestId,
@@ -1294,7 +1337,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 userId,
                 tools,
                 workflowAttemptAttributes(runtimeAttributes, 0)
-            ));
+            );
+            firstResult = runtime.execute(executionRequest,
+                planKernelScope(tenantId, userId, requestId, conversationId, runtimeAttributes));
         } else {
             firstResult = planEvaluationFailure("initial", initialEvaluation);
         }
@@ -1590,7 +1635,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 rewriteWorkflowDag
             );
             rewriteExecutionAttributes.put("reusablePlanSteps", List.copyOf(reusablePlanSteps.values()));
-            currentResult = runtime.execute(planExecutionRequest(
+            InterpretationPlanRuntime.ExecutionRequest rewriteRequest = planExecutionRequest(
                 currentPlan,
                 tenantId,
                 requestId,
@@ -1598,7 +1643,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 userId,
                 tools,
                 rewriteExecutionAttributes
-            ));
+            );
+            currentResult = runtime.execute(rewriteRequest,
+                planKernelScope(tenantId, userId, requestId, conversationId, rewriteExecutionAttributes));
             reusablePlanSteps = reusablePlanSteps(reusablePlanSteps, currentPlan, currentResult);
             recordPlanRuntimeResult(rewriteStage, currentResult, traces, observations, metadata);
             saveInterpretationPlanSnapshot(
@@ -2160,6 +2207,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
             });
         }
         return new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(userQuery, outputs);
+    }
+
+    private KernelDataScope planKernelScope(String tenantId, String userId, String requestId,
+                                            String conversationId, Map<String, Object> attributes) {
+        Map<String, Object> values = attributes == null ? Map.of() : attributes;
+        String runId = stringValue(values.get(AGENT_RUN_ID_ATTRIBUTE));
+        String environment = stringValue(values.get("agentRuntimeEnvironment"));
+        return new KernelDataScope(tenantId, userId, requestId, conversationId, runId, environment, values);
     }
 
     private InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,

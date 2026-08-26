@@ -49,6 +49,7 @@
         <dependency>
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-integration</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>

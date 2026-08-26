@@ -16,7 +16,7 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.task.AgentLearningService;
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -72,8 +72,8 @@ class MaintainedAgentRuntimeScenarioCoverageTest {
         when(toolRegistry.getToolMetadata(anyString())).thenAnswer(invocation ->
             ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
 
-        McpToolRegistryBridge bridge = mock(McpToolRegistryBridge.class);
-        when(bridge.listRegisteredTools()).thenReturn(List.of(
+        McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
+        when(bridge.registeredTools()).thenReturn(List.of(
             registeredTool("mcp_contract_alpha", "alpha"),
             registeredTool("mcp_contract_beta", "beta")
         ));
@@ -217,8 +217,8 @@ class MaintainedAgentRuntimeScenarioCoverageTest {
         );
     }
 
-    private McpToolRegistryBridge.RegisteredMcpTool registeredTool(String localName, String remoteName) {
-        return new McpToolRegistryBridge.RegisteredMcpTool(
+    private McpToolCatalogQueryPort.RegisteredTool registeredTool(String localName, String remoteName) {
+        return new McpToolCatalogQueryPort.RegisteredTool(
             localName,
             "contract-service",
             "Contract MCP",

@@ -94,6 +94,42 @@ class RuntimeOsArchitectureBoundaryTest {
             .doesNotContain("caller", "targetService", "Http", "URL");
     }
 
+    @Test
+    void allRuntimeCoreModulesAreIndependentFromIntegrationDrivers() {
+        for (String module : java.util.List.of(
+            "chatchat-common", "chatchat-runtime-mcp", "chatchat-agents", "chatchat-chat",
+            "chatchat-enterprise", "chatchat-api", "chatchat-mcp-server")) {
+            assertThat(allJava(module + "/src/main/java"))
+                .as(module + " must depend on ports, not integration implementations")
+                .doesNotContain("import com.chatchat.integration.");
+        }
+        assertThat(source("chatchat-chat/pom.xml"))
+            .doesNotContain("<artifactId>chatchat-integration</artifactId>");
+        assertThat(source("chatchat-enterprise/pom.xml"))
+            .doesNotContain("<artifactId>chatchat-integration</artifactId>");
+        assertThat(source("chatchat-mcp-server/pom.xml")).containsPattern(
+            "(?s)<artifactId>chatchat-integration</artifactId>\\s*.*?<scope>runtime</scope>");
+        assertThat(source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/capability/DefaultMcpCapabilityStateAdapter.java"))
+            .contains("implements McpCapabilityStatePort");
+        assertThat(source(
+            "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/AgentToolPolicyResolver.java"))
+            .contains("private final McpToolCatalogQueryPort mcpToolCatalog")
+            .doesNotContain("McpToolRegistryBridge");
+    }
+
+    @Test
+    void workflowKernelContractPropagatesScopeAndUsesStableIdentity() {
+        String workflow = source(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/workflow/RuntimeWorkflow.java");
+        assertThat(workflow)
+            .contains("String workflowId()", "execute(payload, scope)")
+            .doesNotContain("getClass().getName()");
+        assertThat(source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/DefaultAgentRuntime.java"))
+            .contains("runExecutor.execute(request, scope)");
+    }
+
     private String allJava(String relativeRoot) {
         try (var files = Files.walk(root().resolve(relativeRoot))) {
             return files.filter(path -> path.toString().endsWith(".java"))

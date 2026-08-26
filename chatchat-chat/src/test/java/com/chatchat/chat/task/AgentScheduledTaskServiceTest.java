@@ -2,8 +2,8 @@ package com.chatchat.chat.task;
 
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.common.mcp.calendar.McpTradingCalendarPort;
 import com.chatchat.common.mcp.notification.McpNotificationPort;
-import com.chatchat.integration.mcp.service.McpTradingCalendarClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -73,7 +73,7 @@ class AgentScheduledTaskServiceTest {
 
         AgentScheduledTaskService service = new AgentScheduledTaskService(
             repository, runRepository, latestRepository, taskService, new ObjectMapper(),
-            new AgentTaskProperties(), mock(McpTradingCalendarClient.class), mock(McpNotificationPort.class),
+            new AgentTaskProperties(), mock(McpTradingCalendarPort.class), mock(McpNotificationPort.class),
             mock(TenantNotificationRecipientService.class), mock(EnterpriseAdminService.class),
             mock(SkillCatalogService.class), mock(NotificationContentFormatter.class),
             new AgentScheduleWindowPolicy()
@@ -136,7 +136,7 @@ class AgentScheduledTaskServiceTest {
             mock(AgentTaskService.class),
             new ObjectMapper(),
             new AgentTaskProperties(),
-            mock(McpTradingCalendarClient.class),
+            mock(McpTradingCalendarPort.class),
             mock(McpNotificationPort.class),
             mock(TenantNotificationRecipientService.class),
             mock(EnterpriseAdminService.class),
@@ -187,7 +187,7 @@ class AgentScheduledTaskServiceTest {
             mock(AgentTaskService.class),
             new ObjectMapper(),
             new AgentTaskProperties(),
-            mock(McpTradingCalendarClient.class),
+            mock(McpTradingCalendarPort.class),
             mock(McpNotificationPort.class),
             mock(TenantNotificationRecipientService.class),
             mock(EnterpriseAdminService.class),
@@ -258,7 +258,7 @@ class AgentScheduledTaskServiceTest {
 
         AgentScheduledTaskService service = new AgentScheduledTaskService(
             repository, runRepository, latestRepository, taskService, new ObjectMapper(),
-            new AgentTaskProperties(), mock(McpTradingCalendarClient.class), notificationClient,
+            new AgentTaskProperties(), mock(McpTradingCalendarPort.class), notificationClient,
             recipientService, mock(EnterpriseAdminService.class), mock(SkillCatalogService.class),
             formatter, new AgentScheduleWindowPolicy()
         );
@@ -317,7 +317,7 @@ class AgentScheduledTaskServiceTest {
             mock(AgentTaskService.class),
             new ObjectMapper(),
             new AgentTaskProperties(),
-            mock(McpTradingCalendarClient.class),
+            mock(McpTradingCalendarPort.class),
             notificationClient,
             recipientService,
             mock(EnterpriseAdminService.class),
@@ -392,7 +392,7 @@ class AgentScheduledTaskServiceTest {
             mock(AgentTaskService.class),
             new ObjectMapper(),
             new AgentTaskProperties(),
-            mock(McpTradingCalendarClient.class),
+            mock(McpTradingCalendarPort.class),
             mock(McpNotificationPort.class),
             mock(TenantNotificationRecipientService.class),
             mock(EnterpriseAdminService.class),
@@ -422,7 +422,7 @@ class AgentScheduledTaskServiceTest {
             mock(AgentTaskService.class),
             new ObjectMapper(),
             new AgentTaskProperties(),
-            mock(McpTradingCalendarClient.class),
+            mock(McpTradingCalendarPort.class),
             mock(McpNotificationPort.class),
             mock(TenantNotificationRecipientService.class),
             mock(EnterpriseAdminService.class),

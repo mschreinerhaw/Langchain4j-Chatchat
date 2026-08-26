@@ -80,7 +80,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
             throw new KernelViolationException("KERNEL_TENANT_MISMATCH",
                 "Agent request tenant does not match Kernel scope");
         }
-        return runExecutor.execute(request);
+        return runExecutor.execute(request, scope);
     }
 
     @Override

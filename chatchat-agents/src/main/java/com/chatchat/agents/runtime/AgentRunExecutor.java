@@ -10,4 +10,8 @@ import com.chatchat.common.runtime.workflow.RuntimeWorkflow;
  */
 @FunctionalInterface
 public interface AgentRunExecutor extends RuntimeWorkflow<AgentRunRequest, AgentRunResult> {
+    @Override
+    default String workflowId() {
+        return "agent-run-executor";
+    }
 }

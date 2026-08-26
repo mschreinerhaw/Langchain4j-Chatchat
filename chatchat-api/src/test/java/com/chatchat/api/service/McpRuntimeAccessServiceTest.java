@@ -1,7 +1,7 @@
 package com.chatchat.api.service;
 
 import com.chatchat.common.mcp.service.McpServiceDescriptor;
-import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.common.mcp.runtime.McpRuntimeTransportPort;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,11 +14,11 @@ import static org.mockito.Mockito.when;
 class McpRuntimeAccessServiceTest {
     @Test
     void apiLayerDependsOnCommonDirectoryAndExposesInjectedServices() {
-        McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
-        when(kernel.services()).thenReturn(List.of(
+        McpRuntimeTransportPort transport = mock(McpRuntimeTransportPort.class);
+        when(transport.services()).thenReturn(List.of(
             new McpServiceDescriptor("docker", "Docker", "provider", "stdio", true, Map.of())));
 
-        McpRuntimeAccessService service = new McpRuntimeAccessService(kernel);
+        McpRuntimeAccessService service = new McpRuntimeAccessService(transport);
 
         assertThat(service.services()).extracting(McpServiceDescriptor::serviceId).containsExactly("docker");
     }

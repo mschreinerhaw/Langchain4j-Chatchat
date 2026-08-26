@@ -19,6 +19,16 @@ chatchat:
     encrypted-secret: "ENC(RJGDk0FA9Xht7fHK:VBpgvsk5UR2XGCoSxNL7eqlS0Lu4r2UG1U6vvQ6NM7KBEwQ6/5j09M/A+mdijO9H)"
     crypto-key-file: ./config/internal-credential.key
   mcp:
+    grpc:
+      client: { enabled: false }
+      server:
+        enabled: ${CHATCHAT_MCP_GRPC_SERVER_ENABLED:true}
+        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
+        chunk-bytes: ${CHATCHAT_MCP_GRPC_CHUNK_BYTES:1048576}
+        max-inbound-message-bytes: ${CHATCHAT_MCP_GRPC_MAX_REQUEST_BYTES:67108864}
+        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:false}
+        certificate-chain-path: ${CHATCHAT_MCP_GRPC_CERT_CHAIN:}
+        private-key-path: ${CHATCHAT_MCP_GRPC_PRIVATE_KEY:}
     news-runtime:
       base-url: http://localhost:8091
       timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:20000}

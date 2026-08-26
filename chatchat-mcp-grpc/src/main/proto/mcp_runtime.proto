@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package chatchat.mcp.runtime.v1;
+
+option java_multiple_files = true;
+option java_package = "com.chatchat.mcp.grpc.v1";
+option java_outer_classname = "McpRuntimeProto";
+
+service McpRuntimeService {
+  rpc Services(JsonRequest) returns (stream PayloadChunk);
+  rpc Tools(JsonRequest) returns (stream PayloadChunk);
+  rpc Invoke(JsonRequest) returns (stream PayloadChunk);
+  rpc Repair(JsonRequest) returns (stream PayloadChunk);
+  rpc Refresh(JsonRequest) returns (stream PayloadChunk);
+  rpc Contracts(JsonRequest) returns (stream PayloadChunk);
+  rpc Audit(JsonRequest) returns (stream PayloadChunk);
+  rpc Health(JsonRequest) returns (stream PayloadChunk);
+}
+
+message JsonRequest {
+  string protocol_version = 1;
+  string request_id = 2;
+  bytes payload_json = 3;
+}
+
+message PayloadChunk {
+  string protocol_version = 1;
+  string request_id = 2;
+  uint32 sequence = 3;
+  bytes payload = 4;
+  string chunk_sha256 = 5;
+  bool terminal = 6;
+  uint64 total_bytes = 7;
+  string content_type = 8;
+}

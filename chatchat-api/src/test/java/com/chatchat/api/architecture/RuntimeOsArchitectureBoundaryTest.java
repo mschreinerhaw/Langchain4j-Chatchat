@@ -41,7 +41,29 @@ class RuntimeOsArchitectureBoundaryTest {
         String controller = source("chatchat-api/src/main/java/com/chatchat/api/controller/McpRuntimeBridgeController.java");
         assertThat(controller).doesNotContain("com.chatchat.integration", "McpToolRegistryBridge", "McpGatewayClient");
         assertThat(source("chatchat-api/src/main/java/com/chatchat/api/service/McpRuntimeAccessService.java"))
-            .doesNotContain("com.chatchat.integration", "McpToolRegistryBridge", "McpGatewayClient");
+            .contains("McpRuntimeTransportPort", "@Qualifier(\"mcpRuntimeTransportPort\")")
+            .doesNotContain("McpRuntimeKernel", "com.chatchat.integration",
+                "McpToolRegistryBridge", "McpGatewayClient");
+    }
+
+    @Test
+    void apiToMcpSouthboundTransportUsesVersionedStreamingGrpc() {
+        assertThat(source("chatchat-mcp-grpc/src/main/proto/mcp_runtime.proto"))
+            .contains("service McpRuntimeService", "returns (stream PayloadChunk)",
+                "rpc Invoke", "rpc Repair", "rpc Refresh");
+        assertThat(source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/grpc/GrpcMcpRuntimeTransportClient.java"))
+            .contains("implements McpRuntimeTransportPort", "McpGrpcPayloads.assemble",
+                "withCompression(\"gzip\")", "withDeadlineAfter");
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/grpc/McpRuntimeGrpcService.java"))
+            .contains("McpGrpcPayloads.emit", "kernel.execute", "setCompression(\"gzip\")");
+        assertThat(source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/grpc/GrpcBackedMcpRuntimeKernel.java"))
+            .contains("implements McpRuntimeKernel", "transport.invoke(call)");
+        assertThat(source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpRuntimeKernelConfiguration.java"))
+            .contains("GrpcBackedMcpRuntimeKernel", "chatchat.mcp.grpc.client");
     }
 
     @Test

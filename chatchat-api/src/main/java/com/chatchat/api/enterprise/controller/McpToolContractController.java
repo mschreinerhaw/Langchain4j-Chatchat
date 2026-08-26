@@ -2,7 +2,7 @@ package com.chatchat.api.enterprise.controller;
 
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
+import com.chatchat.api.service.McpRuntimeAccessService;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.api.security.ApiAuthenticationFilter;
@@ -32,7 +32,7 @@ import java.util.Map;
 public class McpToolContractController {
 
     private final DatabaseToolWorkflowContractCatalog catalog;
-    private final McpRuntimeKernel runtimeKernel;
+    private final McpRuntimeAccessService runtime;
 
     @GetMapping
     @Operation(summary = "List all contract versions for an MCP tool")
@@ -69,7 +69,7 @@ public class McpToolContractController {
         // Publication transaction has completed because catalog is a separate proxied bean.
         // A failed discovery preserves only tools whose exact checksum is still ACTIVE.
         // If this publication changed the contract, the stale runtime entry is removed.
-        runtimeKernel.refresh();
+        runtime.refresh();
         return ApiResponse.success(published, "tool contract published");
     }
 

@@ -5,12 +5,14 @@ import com.chatchat.integration.mcp.service.McpServiceConfigService;
 import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.List;
 
 /** Integration projection adapter for read-only MCP catalog consumers. */
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "chatchat.mcp.grpc.client", name = "enabled", havingValue = "false")
 public class DefaultMcpToolCatalogQueryAdapter implements McpToolCatalogQueryPort {
     private final McpServiceConfigService configService;
     private final McpToolRegistryBridge registryBridge;

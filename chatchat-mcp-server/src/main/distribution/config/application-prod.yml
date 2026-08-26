@@ -26,6 +26,17 @@ chatchat:
   audit:
     default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
   mcp:
+    grpc:
+      client:
+        enabled: false
+      server:
+        enabled: ${CHATCHAT_MCP_GRPC_SERVER_ENABLED:true}
+        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
+        chunk-bytes: ${CHATCHAT_MCP_GRPC_CHUNK_BYTES:1048576}
+        max-inbound-message-bytes: ${CHATCHAT_MCP_GRPC_MAX_REQUEST_BYTES:67108864}
+        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:false}
+        certificate-chain-path: ${CHATCHAT_MCP_GRPC_CERT_CHAIN:}
+        private-key-path: ${CHATCHAT_MCP_GRPC_PRIVATE_KEY:}
     python:
       workspace-root: ${CHATCHAT_MCP_PYTHON_WORKSPACE_ROOT:./data/python-assets}
       data-root: ${CHATCHAT_MCP_PYTHON_DATA_ROOT:./data/python-user-data}

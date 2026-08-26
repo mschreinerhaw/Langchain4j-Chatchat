@@ -18,6 +18,8 @@
         <spring-boot.version>3.5.3</spring-boot.version>
         <langchain4j.version>1.18.0</langchain4j.version>
         <mcp-sdk.version>2.0.1</mcp-sdk.version>
+        <grpc.version>1.83.1</grpc.version>
+        <protobuf.version>4.36.0</protobuf.version>
         <opensearch.client.version>2.12.0</opensearch.client.version>
         <webmagic.version>1.0.3</webmagic.version>
         <rocksdb.version>10.10.1.1</rocksdb.version>
@@ -27,6 +29,7 @@
 
     <modules>
         <module>chatchat-common</module>
+        <module>chatchat-mcp-grpc</module>
         <module>chatchat-license</module>
         <module>chatchat-agents</module>
         <module>chatchat-tools</module>
@@ -75,6 +78,11 @@
             <dependency>
                 <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-mcp-grpc</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

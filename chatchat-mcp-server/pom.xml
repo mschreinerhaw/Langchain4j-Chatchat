@@ -48,6 +48,15 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-mcp-grpc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-integration</artifactId>
             <scope>runtime</scope>
         </dependency>

@@ -10,6 +10,7 @@ import com.chatchat.common.kernel.KernelDataBoundary;
 import com.chatchat.common.kernel.KernelDataDomain;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.kernel.KernelInvocation;
+import com.chatchat.common.kernel.KernelHealth;
 import com.chatchat.common.kernel.KernelProtocol;
 import com.chatchat.common.kernel.KernelProtocolCatalog;
 import com.chatchat.common.kernel.KernelResult;
@@ -26,7 +27,7 @@ import java.util.Set;
  * of invoking an MCP provider, registry or transport directly.</p>
  */
 public interface McpRuntimeKernel extends RuntimeOsKernel<McpServiceCall, McpServiceResult>,
-    McpServiceDirectory, McpRuntimeContractService {
+    McpRuntimeTransportPort {
     String KERNEL_PROTOCOL_VERSION = "runtime_os_mcp_kernel.v1";
 
     @Override
@@ -68,6 +69,11 @@ public interface McpRuntimeKernel extends RuntimeOsKernel<McpServiceCall, McpSer
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(), status,
             null, null, result.errorCode(), result.errorMessage(), false, "REVIEW_KERNEL_CONTRACT",
             Map.of("kernelAbiVersion", result.abiVersion(), "kernelInvocationId", result.invocationId()), 0);
+    }
+
+    @Override
+    default KernelHealth health() {
+        return kernelHealth();
     }
 
     private static String text(Object value, String fallback) {

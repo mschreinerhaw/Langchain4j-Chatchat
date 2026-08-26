@@ -2,6 +2,8 @@ package com.chatchat.integration.mcp.catalog;
 
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.common.mcp.runtime.McpRuntimeTransportPort;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.mcp.service.McpToolQuery;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,7 +42,10 @@ public class GrpcMcpToolCatalogQueryAdapter implements McpToolCatalogQueryPort {
                 text(metadata.get("serviceName"), tool.serviceId()), tool.remoteToolName(),
                 tool.description(), text(metadata.get("backendServiceType"), null),
                 tool.capabilityCode(), strings(metadata.get("categories")),
-                strings(metadata.get("tags")), map(metadata.get("applicability")));
+                strings(metadata.get("tags")), map(metadata.get("applicability")),
+                McpCapabilityNode.fromMetadata(
+                    map(metadata.get(McpCapabilityHierarchy.METADATA_KEY)),
+                    tool.serviceId(), tool.localToolName()).orElse(null));
         }).toList();
     }
 

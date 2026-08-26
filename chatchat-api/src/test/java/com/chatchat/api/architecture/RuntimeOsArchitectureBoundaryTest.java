@@ -152,6 +152,24 @@ class RuntimeOsArchitectureBoundaryTest {
             .contains("runExecutor.execute(request, scope)");
     }
 
+    @Test
+    void publishedMcpServicesUseCapabilityTreeIdentityAcrossRuntimeLayers() {
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityHierarchy.java"))
+            .contains("interface McpCapabilityHierarchy", "sameNode", "lineage",
+                "isImplementationOf", "mostSpecific");
+        assertThat(source(
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpToolRegistryBridge.java"))
+            .contains("McpCapabilityHierarchy.METADATA_KEY", "McpCapabilityNode");
+        assertThat(source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentToolNameResolver.java"))
+            .contains("capabilityHierarchy.sameNode");
+        assertThat(source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentWorkflowDecisionEngine.java"))
+            .contains("RegistryMcpCapabilityHierarchy", "capabilityHierarchy.sameNode",
+                "preferBusinessImplementations");
+    }
+
     private String allJava(String relativeRoot) {
         try (var files = Files.walk(root().resolve(relativeRoot))) {
             return files.filter(path -> path.toString().endsWith(".java"))

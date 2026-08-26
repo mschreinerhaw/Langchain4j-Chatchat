@@ -6,9 +6,13 @@ import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.common.mcp.contract.McpToolGovernance;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpCapabilityNode;
+import com.chatchat.common.mcp.capability.McpCapabilityNodeKind;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -30,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -169,8 +174,33 @@ public class McpToolRegistryBridge {
      */
     public List<RegisteredMcpTool> listRegisteredTools() {
         return registeredTools.values().stream()
+            .map(this::withInferredCapabilityKind)
             .sorted(Comparator.comparing(RegisteredMcpTool::localToolName))
             .toList();
+    }
+
+    private RegisteredMcpTool withInferredCapabilityKind(RegisteredMcpTool tool) {
+        McpCapabilityNode node = tool.capabilityNode();
+        if (node == null || node.child() || node.abstractCapability()) return tool;
+        String parentSemantic = McpToolNamePolicy.workflowSemanticKey(tool.remoteToolName());
+        boolean hasImplementation = registeredTools.values().stream()
+            .filter(candidate -> candidate != tool)
+            .filter(candidate -> tool.serviceId().equals(candidate.serviceId()))
+            .map(RegisteredMcpTool::capabilityNode)
+            .filter(Objects::nonNull)
+            .map(McpCapabilityNode::parentToolName)
+            .filter(Objects::nonNull)
+            .map(McpToolNamePolicy::workflowSemanticKey)
+            .anyMatch(parentSemantic::equals);
+        if (!hasImplementation) return tool;
+        McpCapabilityNode abstractNode = new McpCapabilityNode(
+            node.serviceId(), node.toolName(), null,
+            McpCapabilityNodeKind.ABSTRACT_CAPABILITY,
+            node.relationType(), node.routingMode(), node.attributes());
+        return new RegisteredMcpTool(
+            tool.localToolName(), tool.serviceId(), tool.serviceName(), tool.remoteToolName(),
+            tool.description(), tool.backendServiceType(), tool.category(), tool.categories(),
+            tool.tags(), tool.applicability(), abstractNode);
     }
 
     /**
@@ -320,6 +350,17 @@ public class McpToolRegistryBridge {
             extraMetadata.put("parentRemoteToolName", route.parentToolName());
             extraMetadata.put("routingMode", route.routingMode());
         }
+        McpCapabilityNode capabilityNode = new McpCapabilityNode(
+            service.getId(), localName,
+            route == null ? null : route.parentToolName(),
+            route == null ? McpCapabilityNodeKind.STANDALONE
+                : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION,
+            route == null ? McpCapabilityNode.RELATION_ROOT
+                : McpCapabilityNode.RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY,
+            route == null ? null : route.routingMode(),
+            Map.of("remoteToolName", definition.name())
+        );
+        extraMetadata.put(McpCapabilityHierarchy.METADATA_KEY, capabilityNode.toMetadata());
 
         String category = firstText(definition.category(), "mcp_external");
         List<String> categories = distinctStrings(List.of("mcp", "external", category));
@@ -370,7 +411,8 @@ public class McpToolRegistryBridge {
             category,
             categories,
             tags,
-            applicability
+            applicability,
+            capabilityNode
         ));
         if (activeContract != null) {
             registeredContractChecksums.put(localName, activeContract.checksum());
@@ -967,7 +1009,8 @@ public class McpToolRegistryBridge {
         String category,
         List<String> categories,
         List<String> tags,
-        Map<String, Object> applicability
+        Map<String, Object> applicability,
+        McpCapabilityNode capabilityNode
     ) {
         public RegisteredMcpTool(String localToolName,
                                  String serviceId,
@@ -975,7 +1018,7 @@ public class McpToolRegistryBridge {
                                  String remoteToolName,
                                  String description) {
             this(localToolName, serviceId, serviceName, remoteToolName, description, null,
-                null, List.of(), List.of(), Map.of());
+                null, List.of(), List.of(), Map.of(), null);
         }
 
         public RegisteredMcpTool(String localToolName,
@@ -985,7 +1028,7 @@ public class McpToolRegistryBridge {
                                  String description,
                                  String backendServiceType) {
             this(localToolName, serviceId, serviceName, remoteToolName, description, backendServiceType,
-                null, List.of(), List.of(), Map.of());
+                null, List.of(), List.of(), Map.of(), null);
         }
 
         public RegisteredMcpTool {

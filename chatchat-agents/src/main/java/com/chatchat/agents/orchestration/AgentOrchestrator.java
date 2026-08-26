@@ -270,7 +270,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
         this.toolObservationBuilder = new ToolObservationBuilder(this.evidenceTrustEvaluator);
         this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig);
-        this.toolNames = new AgentToolNameResolver();
+        this.toolNames = new AgentToolNameResolver(new RegistryMcpCapabilityHierarchy(toolRegistry));
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.modelAssistedRetrievalBridge = new ModelAssistedRetrievalBridge(this.toolRegistry, objectMapper);

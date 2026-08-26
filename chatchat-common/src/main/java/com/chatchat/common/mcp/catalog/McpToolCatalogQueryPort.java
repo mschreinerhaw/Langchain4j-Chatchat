@@ -1,6 +1,7 @@
 package com.chatchat.common.mcp.catalog;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
+import com.chatchat.common.mcp.capability.McpCapabilityNode;
 
 import java.time.Instant;
 import java.util.List;
@@ -27,12 +28,21 @@ public interface McpToolCatalogQueryPort extends RuntimeProtocolPort {
         String category,
         List<String> categories,
         List<String> tags,
-        Map<String, Object> applicability
+        Map<String, Object> applicability,
+        McpCapabilityNode capabilityNode
     ) {
+        public RegisteredTool(String localToolName, String serviceId, String serviceName,
+                              String remoteToolName, String description, String backendServiceType,
+                              String category, List<String> categories, List<String> tags,
+                              Map<String, Object> applicability) {
+            this(localToolName, serviceId, serviceName, remoteToolName, description,
+                backendServiceType, category, categories, tags, applicability, null);
+        }
+
         public RegisteredTool(String localToolName, String serviceId, String serviceName,
                               String remoteToolName, String description) {
             this(localToolName, serviceId, serviceName, remoteToolName, description, null,
-                null, List.of(), List.of(), Map.of());
+                null, List.of(), List.of(), Map.of(), null);
         }
     }
 }

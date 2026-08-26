@@ -11,6 +11,7 @@ import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
@@ -463,7 +464,14 @@ class McpToolRegistryBridgeLifecycleTest {
         bridge.refreshRegistry(0);
         ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
             ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
-        verify(registry).registerTool(anyString(), any(ToolMetadata.class), toolCaptor.capture());
+        ArgumentCaptor<ToolMetadata> metadataCaptor = ArgumentCaptor.forClass(ToolMetadata.class);
+        verify(registry).registerTool(anyString(), metadataCaptor.capture(), toolCaptor.capture());
+        assertThat((Map<String, Object>) metadataCaptor.getValue().getMetadata()
+            .get(McpCapabilityHierarchy.METADATA_KEY))
+            .containsEntry("parentToolName", "api_service_query")
+            .containsEntry("nodeKind", "BUSINESS_IMPLEMENTATION")
+            .containsEntry("relationType", "implements_abstract_capability")
+            .containsEntry("routingMode", "api_parent_mcp_policy_filter");
         toolCaptor.getValue().execute(com.chatchat.common.tool.ToolInput.builder()
             .parameters(Map.of("limit", 10, "_templateQueryChildToolName", "spoofed_template_query"))
             .requestId("request-1")
@@ -484,5 +492,40 @@ class McpToolRegistryBridgeLifecycleTest {
         assertThat(adminArguments.getValue())
             .containsEntry("_templateQueryChildToolName", "customer_service_template_query")
             .containsEntry("limit", 5);
+    }
+
+    @Test
+    void catalogProjectsParentAsAbstractAndPublishedChildAsBusinessImplementation() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("chatchat-mcp-server");
+        service.setName("ChatChat MCP Server");
+        McpToolDefinition parent = new McpToolDefinition(
+            "api_service_query", "abstract API template capability", Map.of(),
+            "template_discovery", "low", "read", null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null, Map.of());
+        McpToolDefinition child = new McpToolDefinition(
+            "customer_service_template_query", "customer business implementation", Map.of(),
+            "template_discovery", "low", "read", null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null,
+            Map.of("kind", "dynamic_authorized_template_discovery",
+                "parentToolName", "api_service_query"));
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(parent, child));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry(0);
+
+        Map<String, com.chatchat.common.mcp.capability.McpCapabilityNodeKind> kinds =
+            bridge.listRegisteredTools().stream().collect(java.util.stream.Collectors.toMap(
+                McpToolRegistryBridge.RegisteredMcpTool::remoteToolName,
+                tool -> tool.capabilityNode().nodeKind()));
+        assertThat(kinds).containsEntry("api_service_query",
+                com.chatchat.common.mcp.capability.McpCapabilityNodeKind.ABSTRACT_CAPABILITY)
+            .containsEntry("customer_service_template_query",
+                com.chatchat.common.mcp.capability.McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION);
     }
 }

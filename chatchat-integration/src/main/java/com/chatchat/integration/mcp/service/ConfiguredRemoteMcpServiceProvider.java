@@ -8,6 +8,7 @@ import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
@@ -98,6 +99,9 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         metadata.put("workflowContractVersion", extra.get("workflowContractVersion"));
         metadata.put("workflowContractChecksum", extra.get("workflowContractChecksum"));
         metadata.put("contractMeta", safeContractMeta(extra.get("mcpToolMeta")));
+        metadata.put(McpCapabilityHierarchy.METADATA_KEY, tool.capabilityNode() == null
+            ? map(extra.get(McpCapabilityHierarchy.METADATA_KEY))
+            : tool.capabilityNode().toMetadata());
         return new McpToolDescriptor(tool.serviceId(), tool.localToolName(), tool.remoteToolName(), tool.description(),
             tool.category(), map(extra.get("inputSchema")), map(extra.get("outputSchema")), governance, metadata);
     }

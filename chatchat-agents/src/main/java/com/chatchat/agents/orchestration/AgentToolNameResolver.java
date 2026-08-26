@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.routing.McpToolRouter;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import java.util.List;
 import java.util.Locale;
@@ -15,8 +16,15 @@ class AgentToolNameResolver {
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
     private final McpToolRouter mcpToolRouter = new McpToolRouter();
+    private final McpCapabilityHierarchy capabilityHierarchy;
 
     AgentToolNameResolver() {
+        this(McpCapabilityHierarchy.empty());
+    }
+
+    AgentToolNameResolver(McpCapabilityHierarchy capabilityHierarchy) {
+        this.capabilityHierarchy = capabilityHierarchy == null
+            ? McpCapabilityHierarchy.empty() : capabilityHierarchy;
     }
 
     String resolveDocumentSearchTool(List<String> tools) {
@@ -85,6 +93,9 @@ class AgentToolNameResolver {
     }
 
     boolean sameToolName(String first, String second) {
+        if (capabilityHierarchy.node(first).isPresent() || capabilityHierarchy.node(second).isPresent()) {
+            return capabilityHierarchy.sameNode(first, second);
+        }
         String left = toolSemanticKey(first);
         String right = toolSemanticKey(second);
         return left != null && left.equals(right);

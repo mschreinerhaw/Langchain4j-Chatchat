@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -24,6 +25,7 @@ import java.util.Set;
 class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
 
     private final ToolRegistry toolRegistry;
+    private final McpCapabilityHierarchy capabilityHierarchy;
 
     AgentWorkflowDecisionEngine() {
         this(null);
@@ -31,6 +33,9 @@ class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
 
     AgentWorkflowDecisionEngine(ToolRegistry toolRegistry) {
         this.toolRegistry = toolRegistry;
+        this.capabilityHierarchy = toolRegistry == null
+            ? McpCapabilityHierarchy.empty()
+            : new RegistryMcpCapabilityHierarchy(toolRegistry);
     }
 
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
@@ -98,7 +103,8 @@ class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
             index++;
         }
 
-        List<WorkflowToolStep> resolvedSteps = withTemplateProtocolDependencies(declaredSteps);
+        List<WorkflowToolStep> specializedSteps = preferBusinessImplementations(declaredSteps);
+        List<WorkflowToolStep> resolvedSteps = withTemplateProtocolDependencies(specializedSteps);
         List<WorkflowToolStep> dependencyOrdered = dependencyOrderedSteps(resolvedSteps);
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
         dependencyOrdered.stream()
@@ -152,6 +158,53 @@ class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
             }
         }
         return augmented;
+    }
+
+    /**
+     * Replaces an abstract capability step with its single configured business
+     * implementation. The parent remains the physical invocation bridge, but is
+     * not executed as separate business evidence.
+     */
+    private List<WorkflowToolStep> preferBusinessImplementations(List<WorkflowToolStep> steps) {
+        if (steps == null || steps.size() < 2) return steps == null ? List.of() : steps;
+        Map<WorkflowToolStep, WorkflowToolStep> replacements = new LinkedHashMap<>();
+        for (WorkflowToolStep candidateParent : steps) {
+            List<WorkflowToolStep> implementations = steps.stream()
+                .filter(candidate -> candidate != candidateParent)
+                .filter(WorkflowToolStep::executable)
+                .filter(candidate -> capabilityHierarchy.isImplementationOf(
+                    candidate.toolName(), candidateParent.toolName()))
+                .toList();
+            if (implementations.size() == 1) {
+                replacements.put(candidateParent, implementations.get(0));
+            }
+        }
+        if (replacements.isEmpty()) return steps;
+
+        List<WorkflowToolStep> result = new ArrayList<>();
+        for (WorkflowToolStep step : steps) {
+            if (replacements.containsKey(step)) continue;
+            List<WorkflowToolStep> abstractParents = replacements.entrySet().stream()
+                .filter(entry -> entry.getValue() == step)
+                .map(Map.Entry::getKey)
+                .toList();
+            if (abstractParents.isEmpty()) {
+                result.add(step);
+                continue;
+            }
+            LinkedHashSet<String> aliases = new LinkedHashSet<>(step.aliases());
+            LinkedHashSet<String> dependencies = new LinkedHashSet<>(step.dependencies());
+            for (WorkflowToolStep parent : abstractParents) {
+                aliases.addAll(parent.aliases());
+                dependencies.addAll(parent.dependencies());
+            }
+            dependencies.removeIf(reference -> aliases.stream()
+                .anyMatch(alias -> alias.equalsIgnoreCase(reference)));
+            result.add(new WorkflowToolStep(
+                step.order(), step.sourceIndex(), step.toolName(),
+                new ArrayList<>(aliases), new ArrayList<>(dependencies), step.executable()));
+        }
+        return result;
     }
 
     private List<WorkflowToolStep> matchingProtocolPredecessors(List<WorkflowToolStep> steps,
@@ -696,6 +749,9 @@ class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
     private boolean sameToolName(String first, String second) {
         if (first == null || second == null) {
             return false;
+        }
+        if (capabilityHierarchy.node(first).isPresent() || capabilityHierarchy.node(second).isPresent()) {
+            return capabilityHierarchy.sameNode(first, second);
         }
         String left = first.trim();
         String right = second.trim();

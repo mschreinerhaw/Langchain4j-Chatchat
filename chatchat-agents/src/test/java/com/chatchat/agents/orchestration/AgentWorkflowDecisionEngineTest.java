@@ -1,6 +1,9 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -8,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -17,6 +21,70 @@ import static org.mockito.Mockito.when;
 class AgentWorkflowDecisionEngineTest {
 
     private final AgentWorkflowDecisionEngine engine = new AgentWorkflowDecisionEngine();
+
+    @Test
+    void parentTraceDoesNotCompleteGovernedPublishedChild() {
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String child = "mcp_chatchat_mcp_server_customer_service_template_query";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(parent, child));
+        when(registry.getToolMetadata(parent)).thenReturn(capabilityMetadata(parent, "api_service_query", null));
+        when(registry.getToolMetadata(child)).thenReturn(capabilityMetadata(
+            child, "customer_service_template_query", "api_service_query"));
+        AgentWorkflowDecisionEngine treeAware = new AgentWorkflowDecisionEngine(registry);
+        InteractionToolTrace parentTrace = InteractionToolTrace.builder()
+            .toolName(parent).success(true).build();
+
+        FinalExecutionDecision decision = treeAware.resolveFinalExecution(
+            false, List.of(parent, child), List.of(parentTrace), Map.of());
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.missingMandatoryTools()).containsExactly(child);
+    }
+
+    @Test
+    void abstractParentIsReplacedByConcreteBusinessImplementationInWorkflowDag() {
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String child = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(parent, child, execute));
+        when(registry.getToolMetadata(parent)).thenReturn(capabilityMetadata(parent, "api_service_query", null));
+        when(registry.getToolMetadata(child)).thenReturn(capabilityMetadata(
+            child, "customer_service_template_query", "api_service_query"));
+        when(registry.getWorkflowRole(parent)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(child)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        AgentWorkflowDecisionEngine treeAware = new AgentWorkflowDecisionEngine(registry);
+        Map<String, Object> workflow = Map.of("steps", List.of(
+            Map.of("step", "abstract_query", "tool", parent, "required", true),
+            Map.of("step", "customer_query", "tool", child, "required", true),
+            Map.of("step", "execute", "tool", execute, "required", true,
+                "dependsOn", List.of("abstract_query"))
+        ));
+
+        WorkflowMandatoryResolution resolution = treeAware.resolveWorkflowMandatoryTools(
+            List.of(parent, child, execute), Map.of("mcpWorkflow", workflow), "customer analysis");
+
+        assertThat(resolution.tools()).containsExactly(child, execute);
+        assertThat(resolution.authoritativeDag()).extracting(WorkflowDagNode::toolName)
+            .containsExactly(child, execute);
+        assertThat(resolution.authoritativeDag().get(1).dependsOnTools()).containsExactly(child);
+    }
+
+    private ToolMetadata capabilityMetadata(String localName, String remoteName, String parentRemoteName) {
+        Map<String, Object> node = new java.util.LinkedHashMap<>();
+        node.put("serviceId", "chatchat-mcp-server");
+        node.put("toolName", localName);
+        node.put("relationType", parentRemoteName == null
+            ? McpCapabilityNode.RELATION_ROOT : McpCapabilityNode.RELATION_DELEGATES_TO_PARENT);
+        if (parentRemoteName != null) node.put("parentToolName", parentRemoteName);
+        return ToolMetadata.builder().metadata(Map.of(
+            "serviceId", "chatchat-mcp-server",
+            "remoteToolName", remoteName,
+            McpCapabilityHierarchy.METADATA_KEY, node
+        )).build();
+    }
 
     @Test
     void metadataFamilyMatchingCannotSelectTheCurrentStepAsItsOwnPredecessor() {

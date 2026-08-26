@@ -15,6 +15,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -56,6 +57,7 @@ class AgentPlanner {
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final McpCapabilityHierarchy capabilityHierarchy;
     private final InterpretationPlanValidator interpretationPlanValidator = new InterpretationPlanValidator();
     private final ToolProtocolContractResolver toolProtocolContracts = new ToolProtocolContractResolver();
 
@@ -67,6 +69,9 @@ class AgentPlanner {
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
         this.clock = clock == null ? Clock.systemDefaultZone() : clock;
+        this.capabilityHierarchy = toolRegistry == null
+            ? McpCapabilityHierarchy.empty()
+            : new RegistryMcpCapabilityHierarchy(toolRegistry);
     }
 
     PlannerExecutionResult decideNextAction(ChatModel activeChatModel,
@@ -3082,6 +3087,7 @@ class AgentPlanner {
         if (availableTools == null || semanticToolName == null) {
             return null;
         }
+        List<String> matches = new ArrayList<>();
         for (String availableTool : availableTools) {
             String semantic = toolSemanticKey(availableTool);
             ToolWorkflowRole role = workflowRole(availableTool);
@@ -3102,10 +3108,20 @@ class AgentPlanner {
                 || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_search"))
                 || (("template_discovery".equals(semanticToolName) || "template_query".equals(semanticToolName))
                     && workflowRole(availableTool) == ToolWorkflowRole.TEMPLATE_DISCOVERY)) {
-                return availableTool;
+                matches.add(availableTool);
             }
         }
-        return null;
+        if (matches.isEmpty()) return null;
+        List<String> mostSpecific = capabilityHierarchy.mostSpecific(matches);
+        if (mostSpecific.size() == 1) return mostSpecific.get(0);
+        // Multiple business implementations require intent/governance selection;
+        // never pick an arbitrary leaf merely because of registry order.
+        return matches.stream()
+            .filter(tool -> capabilityHierarchy.node(tool)
+                .map(node -> node.abstractCapability() || !node.businessImplementation())
+                .orElse(true))
+            .findFirst()
+            .orElse(null);
     }
 
     private String toolSemanticKey(String toolName) {

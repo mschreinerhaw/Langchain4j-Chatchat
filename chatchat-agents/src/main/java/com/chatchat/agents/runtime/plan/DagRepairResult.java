@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.runtime.plan.transformation.PlanPassFailure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -28,6 +29,7 @@ public record DagRepairResult(
     String executableFingerprint,
     Status status,
     List<String> appliedPasses,
+    List<PlanPassFailure> passFailures,
     List<Operation> operations,
     Map<Integer, Integer> stepIdMappings
 ) {
@@ -45,6 +47,7 @@ public record DagRepairResult(
         }
         status = status == null ? Status.UNCHANGED : status;
         appliedPasses = appliedPasses == null ? List.of() : List.copyOf(appliedPasses);
+        passFailures = passFailures == null ? List.of() : List.copyOf(passFailures);
         operations = operations == null ? List.of() : List.copyOf(operations);
         stepIdMappings = stepIdMappings == null
             ? Map.of()
@@ -54,13 +57,21 @@ public record DagRepairResult(
     public static DagRepairResult derive(InterpretationPlan source,
                                          InterpretationPlan executable,
                                          List<String> appliedPasses) {
-        return derive(source, executable, appliedPasses, null);
+        return derive(source, executable, appliedPasses, null, List.of());
     }
 
     public static DagRepairResult derive(InterpretationPlan source,
                                          InterpretationPlan executable,
                                          List<String> appliedPasses,
                                          Map<Integer, Integer> authoritativeStepIdMappings) {
+        return derive(source, executable, appliedPasses, authoritativeStepIdMappings, List.of());
+    }
+
+    public static DagRepairResult derive(InterpretationPlan source,
+                                         InterpretationPlan executable,
+                                         List<String> appliedPasses,
+                                         Map<Integer, Integer> authoritativeStepIdMappings,
+                                         List<PlanPassFailure> passFailures) {
         List<String> passes = appliedPasses == null ? List.of() : List.copyOf(appliedPasses);
         Map<Integer, Integer> mappings = authoritativeStepIdMappings == null
             ? mapStepIds(source, executable)
@@ -77,6 +88,7 @@ public record DagRepairResult(
             fingerprint(executable),
             status,
             passes,
+            passFailures,
             operations,
             mappings
         );
@@ -93,6 +105,7 @@ public record DagRepairResult(
         metadata.put("sourceFingerprint", sourceFingerprint);
         metadata.put("executableFingerprint", executableFingerprint);
         metadata.put("appliedPasses", appliedPasses);
+        metadata.put("passFailures", passFailures);
         metadata.put("stepIdMappings", stepIdMappings);
         metadata.put("operations", operations);
         return Collections.unmodifiableMap(metadata);

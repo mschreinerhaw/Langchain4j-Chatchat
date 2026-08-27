@@ -1049,7 +1049,8 @@ public class AgentPlanner {
             sourcePlan,
             interpretationPlan,
             optimization.appliedPasses(),
-            optimization.repairResult().stepIdMappings());
+            optimization.repairResult().stepIdMappings(),
+            optimization.repairResult().passFailures());
         InterpretationPlanValidator.ValidationResult validation =
             interpretationPlanValidator.validate(
                 interpretationPlan,

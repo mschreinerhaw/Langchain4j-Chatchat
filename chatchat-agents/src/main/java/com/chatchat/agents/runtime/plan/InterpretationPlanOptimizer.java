@@ -1,6 +1,11 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.runtime.plan.transformation.BuiltInInterpretationPlanPasses;
+import com.chatchat.agents.runtime.plan.transformation.BuiltInPlanPassOperations;
+import com.chatchat.agents.runtime.plan.transformation.InterpretationPlanTransformationPipeline;
+import com.chatchat.agents.runtime.plan.transformation.PlanTransformationContext;
+import com.chatchat.agents.runtime.plan.transformation.PlanTransformationWorkspace;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import java.util.ArrayList;
@@ -16,7 +21,7 @@ import java.util.Set;
 /**
  * Lightweight optimization passes for InterpretationPlan before DAG execution.
  */
-public class InterpretationPlanOptimizer {
+public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
 
     private final ToolRegistry toolRegistry;
     private final Map<String, ToolWorkflowRole> workflowRoles;
@@ -52,86 +57,11 @@ public class InterpretationPlanOptimizer {
         if (plan == null || plan.plan() == null || plan.steps().isEmpty()) {
             return OptimizationResult.derived(plan, plan, List.of());
         }
-        List<String> passes = new ArrayList<>();
-        List<InterpretationPlan.Step> steps = new ArrayList<>(plan.steps());
-        List<InterpretationPlan.EdgeContract> edgeContracts = plan.plan().edgeContracts() == null
-            ? List.of()
-            : new ArrayList<>(plan.plan().edgeContracts());
-        List<InterpretationPlan.Binding> bindings = plan.plan().bindings() == null
-            ? List.of()
-            : new ArrayList<>(plan.plan().bindings());
-        List<InterpretationPlan.DependencyContract> dependencyContracts = plan.plan().dependencyContracts() == null
-            ? List.of()
-            : new ArrayList<>(plan.plan().dependencyContracts());
-        InterpretationPlan.Stability stability = plan.plan().stability();
-        boolean lockedEdges = stability != null && Boolean.TRUE.equals(stability.lockedEdges());
-
-        StepInputSanitizeResult sanitized = sanitizeDocumentSearchInputs(steps);
-        steps = sanitized.steps();
-        if (sanitized.changed()) {
-            passes.add("DocumentSearchInputSanitizerPass");
-        }
-
-        if (!lockedEdges) {
-            RewriteState pruned = pruneNoopSteps(plan, steps, edgeContracts, bindings);
-            steps = pruned.steps();
-            edgeContracts = pruned.edgeContracts();
-            bindings = pruned.bindings();
-            if (pruned.changed()) {
-                passes.add("PruneNoopPass");
-            }
-
-            RewriteState deduped = dedupeToolCalls(plan, steps, edgeContracts, bindings);
-            steps = deduped.steps();
-            edgeContracts = deduped.edgeContracts();
-            bindings = deduped.bindings();
-            if (deduped.changed()) {
-                passes.add("DedupeToolCallPass");
-            }
-        }
-
-        boolean hasAuthoritativeWorkflowDag = !configuredWorkflowNodes(authoritativeWorkflowDag).isEmpty();
-        ConfiguredDagRepairResult configuredDag = repairConfiguredWorkflowDag(
-            steps, dependencyContracts, authoritativeWorkflowDag);
-        steps = configuredDag.steps();
-        dependencyContracts = configuredDag.dependencyContracts();
-        if (configuredDag.changed()) {
-            passes.add("AuthoritativeWorkflowDagPass");
-        }
-
-        TemplateDagRepairResult templateDag = repairTemplateExecutionDag(
-            steps, edgeContracts, dependencyContracts, bindings, !hasAuthoritativeWorkflowDag);
-        steps = templateDag.steps();
-        edgeContracts = templateDag.edgeContracts();
-        dependencyContracts = templateDag.dependencyContracts();
-        bindings = templateDag.bindings();
-        if (templateDag.changed()) {
-            passes.add("TemplateExecutionDagRepairPass");
-        }
-
-        EdgeContractRepairResult bindingEdges = repairLockedBindingEdgeContracts(
-            edgeContracts, bindings, lockedEdges);
-        edgeContracts = bindingEdges.edgeContracts();
-        if (bindingEdges.changed()) {
-            passes.add("LockedBindingEdgeContractRepairPass");
-        }
-
-        OrderingResult ordering = policyAwareOrdering(plan, steps);
-        steps = ordering.steps();
-        if (ordering.changed()) {
-            passes.add("PolicyAwareOrderingPass");
-        }
-
-        ParallelResult parallel = parallelHint(plan, steps);
-        if (parallel.changed()) {
-            passes.add("ParallelHintPass");
-        }
-
-        PolicyResult retrievalPolicy = retrievalPolicyGuard(plan, steps, parallel.executionPolicy());
-        if (retrievalPolicy.changed()) {
-            passes.add("RetrievalPolicyGuardPass");
-        }
-
+        PlanTransformationWorkspace workspace = new PlanTransformationWorkspace(plan);
+        PlanTransformationContext context = new PlanTransformationContext(toolRegistry, authoritativeWorkflowDag);
+        new InterpretationPlanTransformationPipeline(
+            BuiltInInterpretationPlanPasses.create(this)).optimize(workspace, context);
+        List<InterpretationPlan.Step> steps = workspace.steps();
         Map<Integer, Integer> stepIdMappings = renumberMap(steps);
         InterpretationPlan optimized = new InterpretationPlan(
             plan.version(),
@@ -139,18 +69,123 @@ public class InterpretationPlanOptimizer {
             plan.context(),
             new InterpretationPlan.Plan(
                 renumber(steps),
-                remapContractsForRenumber(steps, edgeContracts),
-                remapDependencyContractsForRenumber(steps, dependencyContracts),
-                remapBindingsForRenumber(steps, bindings),
+                remapContractsForRenumber(steps, workspace.edgeContracts()),
+                remapDependencyContractsForRenumber(steps, workspace.dependencyContracts()),
+                remapBindingsForRenumber(steps, workspace.bindings()),
                 remapStabilityForRenumber(steps, plan.plan().stability()),
                 remapDiagnosticProfileForRenumber(steps, plan.plan().diagnosticProfile()),
                 remapConditionalEdgesForRenumber(steps, plan.plan().conditionalEdges()),
                 remapBranchGroupsForRenumber(steps, plan.plan().branchGroups())
             ),
-            retrievalPolicy.executionPolicy(),
+            workspace.executionPolicy(),
             plan.review()
         );
-        return OptimizationResult.derived(plan, optimized, List.copyOf(passes), stepIdMappings);
+        return OptimizationResult.derived(
+            plan, optimized, workspace.appliedPasses(), stepIdMappings, workspace.passFailures());
+    }
+
+    @Override
+    public boolean unlocked(PlanTransformationWorkspace workspace, PlanTransformationContext context) {
+        return !lockedEdges(workspace.sourcePlan());
+    }
+
+    @Override
+    public void sanitizeDocumentSearchInput(PlanTransformationWorkspace workspace,
+                                            PlanTransformationContext context) {
+        StepInputSanitizeResult result = sanitizeDocumentSearchInputs(workspace.steps());
+        workspace.steps(result.steps());
+        markChanged(workspace, "DocumentSearchInputSanitizerPass", result.changed());
+    }
+
+    @Override
+    public void pruneNoop(PlanTransformationWorkspace workspace, PlanTransformationContext context) {
+        RewriteState result = pruneNoopSteps(workspace.sourcePlan(), workspace.steps(),
+            workspace.edgeContracts(), workspace.bindings());
+        applyRewrite(workspace, result, "PruneNoopPass");
+    }
+
+    @Override
+    public void dedupeToolCalls(PlanTransformationWorkspace workspace, PlanTransformationContext context) {
+        RewriteState result = dedupeToolCalls(workspace.sourcePlan(), workspace.steps(),
+            workspace.edgeContracts(), workspace.bindings());
+        applyRewrite(workspace, result, "DedupeToolCallPass");
+    }
+
+    @Override
+    public void repairAuthoritativeWorkflowDag(PlanTransformationWorkspace workspace,
+                                               PlanTransformationContext context) {
+        ConfiguredDagRepairResult result = repairConfiguredWorkflowDag(
+            workspace.steps(), workspace.dependencyContracts(), context.authoritativeWorkflowDag());
+        workspace.steps(result.steps());
+        workspace.dependencyContracts(result.dependencyContracts());
+        markChanged(workspace, "AuthoritativeWorkflowDagPass", result.changed());
+    }
+
+    @Override
+    public void repairTemplateExecutionDag(PlanTransformationWorkspace workspace,
+                                           PlanTransformationContext context) {
+        boolean mayRepairWorkflowEdges = configuredWorkflowNodes(context.authoritativeWorkflowDag()).isEmpty();
+        TemplateDagRepairResult result = repairTemplateExecutionDag(
+            workspace.steps(), workspace.edgeContracts(), workspace.dependencyContracts(),
+            workspace.bindings(), mayRepairWorkflowEdges);
+        workspace.steps(result.steps());
+        workspace.edgeContracts(result.edgeContracts());
+        workspace.dependencyContracts(result.dependencyContracts());
+        workspace.bindings(result.bindings());
+        markChanged(workspace, "TemplateExecutionDagRepairPass", result.changed());
+    }
+
+    @Override
+    public void repairLockedBindingEdges(PlanTransformationWorkspace workspace,
+                                         PlanTransformationContext context) {
+        EdgeContractRepairResult result = repairLockedBindingEdgeContracts(
+            workspace.edgeContracts(), workspace.bindings(), lockedEdges(workspace.sourcePlan()));
+        workspace.edgeContracts(result.edgeContracts());
+        markChanged(workspace, "LockedBindingEdgeContractRepairPass", result.changed());
+    }
+
+    @Override
+    public void applyPolicyAwareOrdering(PlanTransformationWorkspace workspace,
+                                         PlanTransformationContext context) {
+        OrderingResult result = policyAwareOrdering(workspace.sourcePlan(), workspace.steps());
+        workspace.steps(result.steps());
+        markChanged(workspace, "PolicyAwareOrderingPass", result.changed());
+    }
+
+    @Override
+    public void applyParallelHint(PlanTransformationWorkspace workspace,
+                                  PlanTransformationContext context) {
+        ParallelResult result = parallelHint(workspace.sourcePlan(), workspace.steps());
+        workspace.executionPolicy(result.executionPolicy());
+        markChanged(workspace, "ParallelHintPass", result.changed());
+    }
+
+    @Override
+    public void guardRetrievalPolicy(PlanTransformationWorkspace workspace,
+                                     PlanTransformationContext context) {
+        PolicyResult result = retrievalPolicyGuard(
+            workspace.sourcePlan(), workspace.steps(), workspace.executionPolicy());
+        workspace.executionPolicy(result.executionPolicy());
+        markChanged(workspace, "RetrievalPolicyGuardPass", result.changed());
+    }
+
+    private void applyRewrite(PlanTransformationWorkspace workspace, RewriteState result, String passId) {
+        workspace.steps(result.steps());
+        workspace.edgeContracts(result.edgeContracts());
+        workspace.bindings(result.bindings());
+        markChanged(workspace, passId, result.changed());
+    }
+
+    private void markChanged(PlanTransformationWorkspace workspace, String passId, boolean changed) {
+        if (changed) {
+            workspace.markApplied(passId);
+        }
+    }
+
+    private boolean lockedEdges(InterpretationPlan plan) {
+        InterpretationPlan.Stability stability = plan == null || plan.plan() == null
+            ? null : plan.plan().stability();
+        return stability != null && Boolean.TRUE.equals(stability.lockedEdges());
     }
 
     /** Applies only user-configured workflow-to-workflow edges; model edges are not authoritative. */
@@ -1208,8 +1243,16 @@ public class InterpretationPlanOptimizer {
                                                    InterpretationPlan executablePlan,
                                                    List<String> appliedPasses,
                                                    Map<Integer, Integer> stepIdMappings) {
+            return derived(sourcePlan, executablePlan, appliedPasses, stepIdMappings, List.of());
+        }
+
+        private static OptimizationResult derived(InterpretationPlan sourcePlan,
+                                                   InterpretationPlan executablePlan,
+                                                   List<String> appliedPasses,
+                                                   Map<Integer, Integer> stepIdMappings,
+                                                   List<com.chatchat.agents.runtime.plan.transformation.PlanPassFailure> passFailures) {
             DagRepairResult repair = DagRepairResult.derive(
-                sourcePlan, executablePlan, appliedPasses, stepIdMappings);
+                sourcePlan, executablePlan, appliedPasses, stepIdMappings, passFailures);
             return new OptimizationResult(executablePlan, repair.appliedPasses(), repair);
         }
     }

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -92,6 +93,26 @@ class HierarchicalAnalysisReducerTest {
             .contains("dataset_relationship_plan.v1", "hierarchical_analysis_reduce.v1")
             .contains("assets and positions combined analysis", "orders evidence");
         verify(model).chat(argThat((String prompt) -> prompt.contains("authorizedRelationships")));
+    }
+
+    @Test
+    void acceptsWorkerReducedDatasetWithoutReducingItsChunksAgain() {
+        HierarchicalAnalysisReducer reducer = new HierarchicalAnalysisReducer();
+        AnalysisSummaryResult workerResult = reducer.reduceDataset(prompt -> {
+            throw new AssertionError("single chunk does not require model reduction");
+        }, scope, "assets", List.of(chunk("assets", "worker dataset result")),
+            "analyze portfolio activity");
+        AtomicInteger driverModelCalls = new AtomicInteger();
+
+        HierarchicalAnalysisReducer.Result result = reducer.reduce(prompt -> {
+            driverModelCalls.incrementAndGet();
+            return "unexpected duplicate reduction";
+        }, scope, DatasetRelationshipPlan.create(List.of(dataset("assets", Map.of()))),
+            List.of(workerResult), "analyze portfolio activity");
+
+        assertThat(driverModelCalls).hasValue(0);
+        assertThat(result.datasetSummaries()).containsExactly(workerResult);
+        assertThat(result.finalInputs()).containsExactly(workerResult);
     }
 
     private DatasetRelationshipPlan.Dataset dataset(String reference, Object relationships) {

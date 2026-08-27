@@ -29,7 +29,7 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
     @Override
     public DispatchBatch dispatch(
         List<AnalysisTask> tasks,
-        ModelSummaryWorker<AnalysisTask, AnalysisSummaryResult> worker,
+        ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker,
         BooleanSupplier cancellationCheck
     ) {
         List<AnalysisTask> safeTasks = tasks == null ? List.of() : List.copyOf(tasks);
@@ -56,15 +56,15 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
 
     private AnalysisTaskResult execute(
         AnalysisTask task,
-        ModelSummaryWorker<AnalysisTask, AnalysisSummaryResult> worker
+        ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker
     ) {
         String workerId = Thread.currentThread().getName();
         long startedAt = System.nanoTime();
-        log.info("analysisTaskWorkerClaimed taskId={} idempotencyKey={} dataset={}/{} chunk={}/{} worker={}",
+        log.info("analysisTaskWorkerClaimed taskId={} idempotencyKey={} dataset={}/{} worker={}",
             task.taskId(), task.idempotencyKey(), task.datasetIndex(), task.datasetCount(),
-            task.chunkIndex(), task.chunkCount(), workerId);
+            workerId);
         try {
-            AnalysisSummaryResult summary = worker.execute(task);
+            AnalysisDatasetSummary summary = worker.execute(task);
             task.isolationScope().requireSamePartition(summary.isolationScope());
             return AnalysisTaskResult.completed(task, workerId, summary,
                 elapsedMillis(startedAt));

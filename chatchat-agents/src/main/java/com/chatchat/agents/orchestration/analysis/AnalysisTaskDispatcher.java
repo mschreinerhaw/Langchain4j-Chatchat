@@ -8,12 +8,12 @@ import java.util.function.BooleanSupplier;
 
 /** Agent specialization of the Runtime OS distributed model-summary dispatcher. */
 public interface AnalysisTaskDispatcher extends ModelSummaryDispatcher<
-    AnalysisTask, AnalysisSummaryResult, AnalysisTaskResult> {
+    AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult> {
 
     @Override
     public DispatchBatch dispatch(
         List<AnalysisTask> tasks,
-        ModelSummaryWorker<AnalysisTask, AnalysisSummaryResult> worker,
+        ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker,
         BooleanSupplier cancellationCheck
     );
 

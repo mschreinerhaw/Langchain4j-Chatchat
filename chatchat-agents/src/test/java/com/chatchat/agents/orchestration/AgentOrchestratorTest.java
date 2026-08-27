@@ -247,6 +247,75 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisSummaryWorkerCount", 2);
     }
 
+    @Test
+    void retriesOnlyTheFailedChunkInsideItsOwningWorkerThreeTimes() {
+        AtomicInteger modelCalls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                if (modelCalls.incrementAndGet() < 4) {
+                    throw new IllegalStateException("transient analysis failure");
+                }
+                return "recovered worker summary";
+            }
+        };
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null,
+                List.of(datasetStep(1, "retry_dataset", "A")), Map.of(), 10L);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(
+                model, "analyze retry dataset", result, Map.of(), metadata, () -> false);
+
+        assertThat(modelCalls.get()).isEqualTo(4);
+        assertThat(coverage.summaryResults()).singleElement().satisfies(summary -> {
+            assertThat(summary.outcome()).isEqualTo("MODEL_SUMMARY");
+            assertThat(summary.evidence())
+                .containsEntry("workerAttemptCount", 4)
+                .containsEntry("workerRetryCount", 3)
+                .containsEntry("workerMaximumRetries", 3)
+                .containsEntry("workerMaximumAttempts", 4);
+        });
+        assertThat(metadata)
+            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
+            .containsEntry("recordAnalysisSummaryWorkerMaxRetries", 3)
+            .containsEntry("recordAnalysisSummaryWorkerMaxAttempts", 4)
+            .containsEntry("recordAnalysisRetriedChunkCount", 1)
+            .containsEntry("recordAnalysisRetryCount", 3);
+    }
+
+    @Test
+    void deduplicatesMirroredStructuredRecordsBeforeAnalysis() {
+        AtomicInteger modelRequests = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                modelRequests.incrementAndGet();
+                return "canonical dataset summary";
+            }
+        };
+        List<Map<String, Object>> records = List.of(
+            Map.of("KHH", "070200046604", "ZZC", 1_250_000));
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "asset_template", true,
+            Map.of("canonical", records, "presentationMirror", records),
+            null, null, null, 5L, Map.of());
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null, List.of(step), Map.of(), 10L);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
+            .buildRecordCoverageBundle(
+                model, "analyze customer assets", result, Map.of(), metadata, () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.summaryResults()).hasSize(1);
+        assertThat(modelRequests.get()).isLessThanOrEqualTo(1);
+    }
+
     private InterpretationPlanRuntime.StepExecution datasetStep(
         int stepId, String reference, String value
     ) {
@@ -1320,16 +1389,20 @@ class AgentOrchestratorTest {
 
         assertThat(first.coverageComplete()).isTrue();
         assertThat(restored.coverageComplete()).isTrue();
-        assertThat(callsAfterFirst).isEqualTo(first.iterations()).isGreaterThan(1);
+        assertThat(callsAfterFirst).isEqualTo(first.iterations() + 1).isGreaterThan(1);
         assertThat(modelCalls.get()).isEqualTo(callsAfterFirst);
         assertThat(spillStore.spillCount.get()).isEqualTo(first.iterations() * 2);
         assertThat(spillStore.readCount.get()).isEqualTo(first.rawReplayChunkCount() * 2);
         assertThat(firstMetadata)
+            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
+            .containsEntry("recordAnalysisSummaryWorkerCount", 1)
             .containsEntry("recordAnalysisSpilledChunkCount", first.iterations())
-            .containsEntry("recordAnalysisRestoredCheckpointCount", 0);
+            .containsEntry("recordAnalysisRestoredCheckpointCount", 0)
+            .containsEntry("recordAnalysisRestoredDatasetReductionCount", 0);
         assertThat(secondMetadata)
             .containsEntry("recordAnalysisSpilledChunkCount", restored.iterations())
-            .containsEntry("recordAnalysisRestoredCheckpointCount", restored.iterations());
+            .containsEntry("recordAnalysisRestoredCheckpointCount", restored.iterations())
+            .containsEntry("recordAnalysisRestoredDatasetReductionCount", 1);
         assertThat(restored.summaryResults()).allSatisfy(summary ->
             assertThat(summary.evidence().get("rawReplayLocator").toString())
                 .contains("ROCKSDB_ANALYSIS_SPILL", "contentSha256", "byteLength"));
@@ -1340,9 +1413,11 @@ class AgentOrchestratorTest {
             "tenantId", "tenant-spill", "agentRunId", "spill-run"));
         AgentOrchestrator.RecordCoverageBundle recomputed = orchestrator.buildRecordCoverageBundle(
             model, "analyze generic dataset", result, runtime, recoveryMetadata, () -> false);
-        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst + recomputed.iterations());
+        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst + recomputed.iterations() + 1);
         assertThat(recomputed.coverageComplete()).isTrue();
-        assertThat(recoveryMetadata).containsEntry("recordAnalysisRestoredCheckpointCount", 0);
+        assertThat(recoveryMetadata)
+            .containsEntry("recordAnalysisRestoredCheckpointCount", 0)
+            .containsEntry("recordAnalysisRestoredDatasetReductionCount", 0);
     }
 
     @Test

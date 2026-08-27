@@ -8,6 +8,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentRuntimePropertiesTest {
 
     @Test
+    void configuresSparkStyleWorkerRetriesWithThreeRetriesByDefault() {
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+
+        assertThat(properties.analysisSummaryWorkerMaxRetries()).isEqualTo(3);
+
+        properties.setAnalysisSummaryWorkerMaxRetries(-1);
+        assertThat(properties.analysisSummaryWorkerMaxRetries()).isZero();
+
+        properties.setAnalysisSummaryWorkerMaxRetries(99);
+        assertThat(properties.analysisSummaryWorkerMaxRetries()).isEqualTo(9);
+    }
+
+    @Test
     void configuresLosslessAnalysisChunkBoundariesWithoutZeroSizedChunks() {
         AgentRuntimeProperties properties = new AgentRuntimeProperties();
         properties.setRecordAnalysisChunkMaxChars(24_000);

@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.Objects;
 
 /**
@@ -178,6 +179,8 @@ public final class AnalysisSummaryGovernanceBridge
                     isolationScope, position.toMap(), governedContext, capsule.content(),
                     "MODEL_SUMMARY", capsule.evidence());
             }
+        } catch (CancellationException cancelled) {
+            throw cancelled;
         } catch (RuntimeException ignored) {
             // The immutable returned-record fallback remains authoritative.
         }

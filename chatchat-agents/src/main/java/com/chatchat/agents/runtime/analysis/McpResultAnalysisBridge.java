@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.analysis;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 
@@ -22,6 +23,7 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
     public McpResultAnalysisBridge(List<RuntimeResultAnalysisAdapter> analysisAdapters) {
         List<RuntimeResultAnalysisAdapter> configured = new ArrayList<>();
         configured.add(new CommandStreamResultAnalysisAdapter());
+        configured.add(new McpAnalysisPayloadResultAnalysisAdapter());
         if (analysisAdapters != null) configured.addAll(analysisAdapters);
         configured.add(new GenericResultAnalysisAdapter());
         this.analysisAdapters = configured.stream()
@@ -78,6 +80,11 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
         putIfPresent(projection, "sourceSchemaVersion", result.sourceSchemaVersion());
         projection.put("evidenceRole", text(result.evidenceRole()));
         projection.put("authoritativePayloadMutated", false);
+        String sourcePayloadJson = ModelProtocolJson.compact(boundedPayload);
+        projection.put("sourcePayloadPreserved", true);
+        projection.put("sourcePayloadSha256", ModelProtocolJson.sha256Hex(sourcePayloadJson));
+        projection.put("sourcePayloadChars", sourcePayloadJson.length());
+        projection.put("projectionContainsBusinessDataOnly", true);
         projection.put("datasets", datasets);
         return Map.copyOf(projection);
     }

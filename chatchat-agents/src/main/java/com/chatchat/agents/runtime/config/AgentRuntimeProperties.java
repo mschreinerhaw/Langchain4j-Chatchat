@@ -50,9 +50,11 @@ public class AgentRuntimeProperties {
     private int recordAnalysisChunkMaxChars = 12_000;
     /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */
     private int recordAnalysisChunkMaxRows = 50;
-    /** Maximum model workers used to summarize independent evidence chunks in parallel. */
+    /** Maximum model workers used to analyze independent datasets in parallel. */
     private int analysisSummaryWorkerCount = 4;
-    /** Maximum wait for one chunk worker before deterministic evidence fallback is used. */
+    /** Spark-style retries after the initial attempt for one failed dataset chunk. */
+    private int analysisSummaryWorkerMaxRetries = 3;
+    /** Maximum wait for one complete dataset worker task. */
     private long analysisSummaryTaskTimeoutMs = 180_000;
     /** Spills oversized loop-analysis mirrors outside the JVM without truncating source evidence. */
     private boolean analysisSpillEnabled = true;
@@ -154,6 +156,10 @@ public class AgentRuntimeProperties {
 
     public int analysisSummaryWorkerCount() {
         return Math.max(1, Math.min(16, analysisSummaryWorkerCount));
+    }
+
+    public int analysisSummaryWorkerMaxRetries() {
+        return Math.max(0, Math.min(9, analysisSummaryWorkerMaxRetries));
     }
 
     public long analysisSummaryTaskTimeoutMs() {

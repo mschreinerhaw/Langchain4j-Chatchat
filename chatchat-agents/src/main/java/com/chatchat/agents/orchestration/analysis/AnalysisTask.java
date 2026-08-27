@@ -1,7 +1,6 @@
 package com.chatchat.agents.orchestration.analysis;
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
 import com.chatchat.common.runtime.summary.ModelSummaryTask;
 
 import java.util.Collections;
@@ -9,7 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Serializable Driver-to-Worker contract for one immutable evidence chunk. */
+/** Serializable Driver-to-Worker contract for one complete immutable dataset. */
 public record AnalysisTask(
     String schemaVersion,
     String taskId,
@@ -18,19 +17,18 @@ public record AnalysisTask(
     String datasetReference,
     int datasetIndex,
     int datasetCount,
-    int chunkIndex,
-    int chunkCount,
-    int recordFrom,
-    int recordTo,
-    int totalRecords,
     Map<String, Object> analysisContext,
     Map<String, Object> evidenceLocator,
     List<Map<String, Object>> records,
     String userObjective,
+    int maximumChunkRows,
+    int maximumChunkChars,
+    int spillThresholdBytes,
+    int maximumRetries,
     long timeoutMs,
     int attempt
 ) implements ModelSummaryTask {
-    public static final String SCHEMA_VERSION = "analysis_task.v1";
+    public static final String SCHEMA_VERSION = "analysis_dataset_task.v1";
 
     public AnalysisTask {
         schemaVersion = SCHEMA_VERSION;
@@ -42,11 +40,6 @@ public record AnalysisTask(
         datasetReference = required(datasetReference, "datasetReference");
         datasetIndex = Math.max(1, datasetIndex);
         datasetCount = Math.max(datasetIndex, datasetCount);
-        chunkIndex = Math.max(1, chunkIndex);
-        chunkCount = Math.max(chunkIndex, chunkCount);
-        recordFrom = Math.max(1, recordFrom);
-        recordTo = Math.max(recordFrom, recordTo);
-        totalRecords = Math.max(recordTo, totalRecords);
         analysisContext = immutable(analysisContext);
         evidenceLocator = immutable(evidenceLocator);
         records = records == null ? List.of() : List.copyOf(records);
@@ -54,17 +47,17 @@ public record AnalysisTask(
             throw new IllegalArgumentException("records or evidenceLocator is required");
         }
         userObjective = userObjective == null ? "" : userObjective;
+        maximumChunkRows = Math.max(1, maximumChunkRows);
+        maximumChunkChars = Math.max(1_000, maximumChunkChars);
+        spillThresholdBytes = Math.max(1_000, spillThresholdBytes);
+        maximumRetries = Math.max(0, maximumRetries);
         timeoutMs = Math.max(1, timeoutMs);
         attempt = Math.max(1, attempt);
     }
 
+    @Override
     public String idempotencyKey() {
         return taskId + ":" + inputSha256;
-    }
-
-    public RuntimeAnalysisPosition position() {
-        return new RuntimeAnalysisPosition(
-            datasetReference, chunkIndex, chunkCount, recordFrom, recordTo, totalRecords);
     }
 
     public Map<String, Object> toMap() {
@@ -77,30 +70,31 @@ public record AnalysisTask(
         value.put("datasetReference", datasetReference);
         value.put("datasetIndex", datasetIndex);
         value.put("datasetCount", datasetCount);
-        value.put("chunkIndex", chunkIndex);
-        value.put("chunkCount", chunkCount);
-        value.put("recordFrom", recordFrom);
-        value.put("recordTo", recordTo);
-        value.put("totalRecords", totalRecords);
         value.put("analysisContext", analysisContext);
         value.put("evidenceLocator", evidenceLocator);
         value.put("records", records);
         value.put("userObjective", userObjective);
+        value.put("maximumChunkRows", maximumChunkRows);
+        value.put("maximumChunkChars", maximumChunkChars);
+        value.put("spillThresholdBytes", spillThresholdBytes);
+        value.put("maximumRetries", maximumRetries);
+        value.put("maximumAttempts", maximumAttempts());
         value.put("timeoutMs", timeoutMs);
         value.put("attempt", attempt);
         return Collections.unmodifiableMap(value);
     }
 
     private static String required(String value, String field) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " is required");
-        }
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
         return value;
+    }
+
+    public int maximumAttempts() {
+        return maximumRetries + 1;
     }
 
     private static Map<String, Object> immutable(Map<String, Object> source) {
         return source == null || source.isEmpty()
-            ? Map.of()
-            : Collections.unmodifiableMap(new LinkedHashMap<>(source));
+            ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(source));
     }
 }

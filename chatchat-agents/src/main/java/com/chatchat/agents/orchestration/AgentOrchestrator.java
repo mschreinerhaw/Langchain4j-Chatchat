@@ -5,11 +5,13 @@ import com.chatchat.agents.evidence.normalization.EvidenceSource;
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
 
 import com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContract;
+import com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
+import com.chatchat.agents.orchestration.analysis.AnalysisWorkerRetryPolicy;
 import com.chatchat.agents.orchestration.analysis.ContextCompressionEnvelope;
 import com.chatchat.agents.orchestration.analysis.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.analysis.DatasetRelationshipPlan;
@@ -125,6 +127,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -195,6 +198,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final int recordAnalysisChunkMaxRows;
     private final int analysisSpillThresholdBytes;
     private final int analysisSummaryWorkerCount;
+    private final int analysisSummaryWorkerMaxRetries;
     private final long analysisSummaryTaskTimeoutMs;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
@@ -208,6 +212,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final DeterministicInsightEngine deterministicInsightEngine =
         new DeterministicInsightEngine();
     private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
+    private final AnalysisWorkerRetryPolicy analysisWorkerRetryPolicy =
+        new AnalysisWorkerRetryPolicy();
+    private final HierarchicalAnalysisReducer workerDatasetReducer =
+        new HierarchicalAnalysisReducer();
     private RuntimeAnalysisContextProtocol mcpAnalysisContextAdapter;
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
@@ -345,6 +353,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.recordAnalysisChunkMaxRows = resolvedRuntimeProperties.recordAnalysisChunkMaxRows();
         this.analysisSpillThresholdBytes = resolvedRuntimeProperties.analysisSpillThresholdBytes();
         this.analysisSummaryWorkerCount = resolvedRuntimeProperties.analysisSummaryWorkerCount();
+        this.analysisSummaryWorkerMaxRetries =
+            resolvedRuntimeProperties.analysisSummaryWorkerMaxRetries();
         this.analysisSummaryTaskTimeoutMs = resolvedRuntimeProperties.analysisSummaryTaskTimeoutMs();
         this.analysisTaskDispatcher = new LocalAnalysisTaskDispatcher(this.analysisSummaryWorkerCount);
         this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
@@ -3658,6 +3668,27 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("recordAnalysisSummaryWorkerCount", parallelSummaries.workerCount());
             metadata.put("recordAnalysisSummaryDispatchMode", parallelSummaries.mode());
             metadata.put("recordAnalysisSummaryTaskTimeoutMs", analysisSummaryTaskTimeoutMs);
+            metadata.put("recordAnalysisSummaryWorkerMaxRetries",
+                analysisSummaryWorkerMaxRetries);
+            metadata.put("recordAnalysisSummaryWorkerMaxAttempts",
+                analysisSummaryWorkerMaxRetries + 1);
+        }
+        if (parallelSummaries.taskCount() > 0) {
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes,
+                AGENT_RUN_ID_ATTRIBUTE,
+                "\u5df2\u5c06 " + parallelSummaries.taskCount() + " \u4e2a\u6570\u636e\u96c6\u5206\u6790\u4efb\u52a1\u5206\u53d1\u7ed9 "
+                    + parallelSummaries.workerCount() + " \u4e2a worker\u3002",
+                "analysis_summary_governance",
+                metadataOf(
+                    "type", "analysis_summary_dispatched",
+                    "taskCount", parallelSummaries.taskCount(),
+                    "workerCount", parallelSummaries.workerCount(),
+                    "dispatchMode", parallelSummaries.mode(),
+                    "tenantId", isolationScope.tenantId(),
+                    "runId", isolationScope.runId()
+                )
+            );
         }
         try {
         StringBuilder promptEvidence = new StringBuilder(
@@ -3674,9 +3705,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
         int rawReplayChunkCount = 0;
         int spilledChunkCount = 0;
         int restoredCheckpointCount = 0;
+        int restoredDatasetReductionCount = 0;
+        int retriedChunkCount = 0;
+        int analysisRetryCount = 0;
         long spilledByteCount = 0;
         Map<String, Integer> datasetOccurrences = new LinkedHashMap<>();
         List<AnalysisSummaryResult> governedSummaryResults = new ArrayList<>();
+        List<AnalysisSummaryResult> workerDatasetSummaryResults = new ArrayList<>();
         List<Map<String, Object>> deterministicInsightResults = new ArrayList<>();
         List<DeterministicInsightEngine.DatasetInput> deterministicInsightDatasets = new ArrayList<>();
         List<Map<String, Object>> deterministicInsightDecisions = new ArrayList<>();
@@ -3691,8 +3726,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
             returnedRecordCount += recordSet.records().size();
             sourceContentComplete &= recordSet.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
-            RecordChunkPlan chunkPlan = recordChunkPlan(recordSet.records());
-            boolean oversized = chunkPlan.oversized();
+            AnalysisDatasetSummary datasetSummary = parallelSummaries.await(evidenceReference);
+            if (datasetSummary == null) {
+                throw new IllegalStateException(
+                    "Analysis worker did not return dataset " + evidenceReference);
+            }
+            boolean oversized = datasetSummary.oversized();
+            isolationScope.requireSamePartition(datasetSummary.datasetSummary().isolationScope());
+            workerDatasetSummaryResults.add(datasetSummary.datasetSummary());
             if (!oversized) {
                 recordSet.records().forEach(record ->
                     recordValueGroups.add(recordValueGroup(record, query)));
@@ -3734,108 +3775,33 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         "runId", isolationScope.runId()));
             }
             appendix.append("### ").append(evidenceReference).append("\n\n");
-            int from = 1;
-            for (int chunkOffset = 0; chunkOffset < chunkPlan.ranges().size(); chunkOffset++) {
-                RecordRange chunkRange = chunkPlan.ranges().get(chunkOffset);
-                List<Map<String, Object>> chunk = recordSet.records()
-                    .subList(chunkRange.fromInclusive(), chunkRange.toExclusive());
+            spilledChunkCount += datasetSummary.spilledChunkCount();
+            spilledByteCount += datasetSummary.spilledByteCount();
+            restoredCheckpointCount += datasetSummary.restoredCheckpointCount();
+            if (datasetSummary.datasetReductionRestoredCheckpoint()) {
+                restoredDatasetReductionCount++;
+            }
+            retriedChunkCount += datasetSummary.retriedChunkCount();
+            analysisRetryCount += datasetSummary.totalRetryCount();
+            iterations += datasetSummary.chunks().size();
+            for (AnalysisDatasetSummary.ChunkResult chunkResult : datasetSummary.chunks()) {
                 runtimeGuard.checkCancelled(cancellationCheck);
-                int to = from + chunk.size() - 1;
-                iterations++;
-                RuntimeAnalysisPosition position =
-                    analysisSummaryGovernanceBridge.position(evidenceReference, chunkOffset + 1,
-                        chunkPlan.ranges().size(), from, to, recordSet.records().size());
-                boolean governedModelSummaryRequired =
-                    analysisSummaryGovernanceBridge.requiresModelSummary(governedContext, oversized);
+                AnalysisSummaryResult governedSummary = chunkResult.summary();
+                Map<String, Object> positionMap = governedSummary.position();
+                int from = intValue(positionMap.get("recordFrom"), 1);
+                int to = intValue(positionMap.get("recordTo"), from);
+                int chunkIndex = intValue(positionMap.get("chunkIndex"), 1);
+                int chunkCount = intValue(positionMap.get("chunkCount"),
+                    datasetSummary.chunks().size());
+                if (from < 1 || to < from || to > recordSet.records().size()) {
+                    throw new IllegalStateException(
+                        "Worker returned invalid record range for " + evidenceReference);
+                }
+                List<Map<String, Object>> chunk = recordSet.records().subList(from - 1, to);
                 String rawChunkJson = ModelProtocolJson.compact(chunk);
-                byte[] rawChunkBytes = rawChunkJson.getBytes(StandardCharsets.UTF_8);
-                String contentSha256 = ModelProtocolJson.sha256Hex(rawChunkJson);
-                String evidenceId = isolationScope.partitionKey() + ":" + evidenceReference
-                    + "#chunk-" + (chunkOffset + 1);
-                boolean spillRequested = analysisEvidenceSpillStore.isEnabled()
-                    && (oversized || rawChunkBytes.length >= analysisSpillThresholdBytes);
-                AnalysisEvidenceSpillStore.SpillReference spillReference = null;
-                if (spillRequested) {
-                    spillReference = analysisEvidenceSpillStore.spill(
-                        isolationScope, evidenceId, contentSha256, rawChunkBytes);
-                    spilledChunkCount++;
-                    spilledByteCount += spillReference.byteLength();
-                }
-                String checkpointInputSha256 = summaryCheckpointInputSha256(
-                    contentSha256, position, governedContext, query, governedModelSummaryRequired);
-                String checkpointKey = evidenceReference + "#chunk-" + (chunkOffset + 1);
-                AnalysisSummaryResult governedSummary = null;
-                if (spillReference != null) {
-                    governedSummary = restoreAnalysisSummaryCheckpoint(
-                        isolationScope, checkpointKey, checkpointInputSha256);
-                    if (governedSummary != null) restoredCheckpointCount++;
-                }
-                if (governedSummary == null) {
-                    if (governedModelSummaryRequired) {
-                        runResultAdapter.recordRuntimeObservation(
-                            runtimeAttributes,
-                            AGENT_RUN_ID_ATTRIBUTE,
-                            "正在分析数据集 " + datasetIndex + "/" + recordSets.size()
-                                + "，分块 " + (chunkOffset + 1) + "/"
-                                + chunkPlan.ranges().size() + "（" + evidenceReference + "）。",
-                            "analysis_summary_governance",
-                            metadataOf(
-                                "type", "analysis_summary_chunk_started",
-                                "datasetReference", evidenceReference,
-                                "datasetIndex", datasetIndex,
-                                "datasetCount", recordSets.size(),
-                                "chunkIndex", chunkOffset + 1,
-                                "chunkCount", chunkPlan.ranges().size(),
-                                "recordFrom", from,
-                                "recordTo", to,
-                                "tenantId", isolationScope.tenantId(),
-                                "runId", isolationScope.runId()
-                            )
-                        );
-                    }
-                    AnalysisSummaryResult parallelSummary = governedModelSummaryRequired
-                        ? parallelSummaries.await(summaryTaskKey(position))
-                        : null;
-                    governedSummary = governedModelSummaryRequired
-                        ? parallelSummary != null
-                            ? parallelSummary
-                            : analysisSummaryGovernanceBridge.summarize(
-                                activeChatModel::chat, isolationScope, position, governedContext, chunk, query)
-                        : analysisSummaryGovernanceBridge.preserve(
-                            isolationScope, position, governedContext, chunk);
-                    if (spillReference != null
-                        && !"STRUCTURED_RECORD_FALLBACK".equals(governedSummary.outcome())) {
-                        persistAnalysisSummaryCheckpoint(
-                            isolationScope, checkpointKey, checkpointInputSha256, governedSummary);
-                    }
-                }
-                if (spillReference != null) {
-                    governedSummary = governedSummary.withEvidence(Map.of(
-                        "rawReplayLocator", spillReference.toMap(),
-                        "spillCheckpointKey", checkpointKey,
-                        "spillCheckpointInputSha256", checkpointInputSha256
-                    ));
-                }
+                AnalysisEvidenceSpillStore.SpillReference spillReference =
+                    chunkResult.spillReference();
                 governedSummaryResults.add(governedSummary);
-                runResultAdapter.recordRuntimeObservation(
-                    runtimeAttributes,
-                    AGENT_RUN_ID_ATTRIBUTE,
-                    "数据集 " + datasetIndex + "/" + recordSets.size()
-                        + " 的分块 " + (chunkOffset + 1) + "/"
-                        + chunkPlan.ranges().size() + " 分析完成。",
-                    "analysis_summary_governance",
-                    metadataOf(
-                        "type", "analysis_summary_chunk",
-                        "analysisSummaryResult", governedSummary.toMap(),
-                        "datasetReference", evidenceReference,
-                        "datasetIndex", datasetIndex,
-                        "datasetCount", recordSets.size(),
-                        "chunkIndex", chunkOffset + 1,
-                        "chunkCount", chunkPlan.ranges().size(),
-                        "tenantId", isolationScope.tenantId(),
-                        "runId", isolationScope.runId()
-                    )
-                );
                 String analysis = governedSummary.content();
                 if (metadata != null
                     && "STRUCTURED_RECORD_FALLBACK".equals(governedSummary.outcome())) {
@@ -3854,15 +3820,41 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     rawReplayEvidence.append("- evidenceId=")
                         .append(stringValue(governedSummary.evidence().get("evidenceId")))
                         .append(" position=")
-                        .append(ModelProtocolJson.compact(position.toMap()))
+                        .append(ModelProtocolJson.compact(positionMap))
                         .append(" contentSha256=")
                         .append(stringValue(governedSummary.evidence().get("contentSha256")))
                         .append(" rawRecords=")
                         .append(replayJson)
                         .append("\n");
                 }
-                from = to + 1;
             }
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes,
+                AGENT_RUN_ID_ATTRIBUTE,
+                "数据集 " + datasetIndex + "/" + recordSets.size() + " 分析完成（"
+                    + datasetSummary.chunks().size() + " 个数据切片，由 worker 处理）。",
+                "analysis_summary_governance",
+                metadataOf(
+                    "type", "analysis_dataset_completed",
+                    "datasetReference", evidenceReference,
+                    "datasetIndex", datasetIndex,
+                    "datasetCount", recordSets.size(),
+                    "chunkCount", datasetSummary.chunks().size(),
+                    "workerOwnedChunking", true,
+                    "spilledChunkCount", datasetSummary.spilledChunkCount(),
+                    "restoredCheckpointCount", datasetSummary.restoredCheckpointCount(),
+                    "retriedChunkCount", datasetSummary.retriedChunkCount(),
+                    "retryCount", datasetSummary.totalRetryCount(),
+                    "datasetReductionAttemptCount",
+                        datasetSummary.datasetReductionAttemptCount(),
+                    "datasetReductionRestoredCheckpoint",
+                        datasetSummary.datasetReductionRestoredCheckpoint(),
+                    "datasetSummaryResultId", datasetSummary.datasetSummary().resultId(),
+                    "summaryResultIds", datasetSummary.inputSummaryResultIds(),
+                    "tenantId", isolationScope.tenantId(),
+                    "runId", isolationScope.runId()
+                )
+            );
             appendix.append("\n");
         }
         DeterministicInsightEngine.Result bundleInsightResult = deterministicInsightEngine.analyzeBundle(
@@ -3887,7 +3879,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         HierarchicalAnalysisReducer.Result hierarchicalResult = hierarchicalAnalysisReducer.reduce(
             new HierarchicalAnalysisReducer.Context(
                 activeChatModel::chat, isolationScope, relationshipPlan, query),
-            governedSummaryResults);
+            workerDatasetSummaryResults);
         promptEvidence.append(hierarchicalResult.promptEvidence());
         if (!rawReplayEvidence.isEmpty()) {
             promptEvidence.append("Raw evidence replay (lossless, selected by generic integrity rules). "
@@ -3929,6 +3921,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("recordAnalysisSpilledChunkCount", spilledChunkCount);
             metadata.put("recordAnalysisSpilledByteCount", spilledByteCount);
             metadata.put("recordAnalysisRestoredCheckpointCount", restoredCheckpointCount);
+            metadata.put("recordAnalysisRestoredDatasetReductionCount",
+                restoredDatasetReductionCount);
+            metadata.put("recordAnalysisRetriedChunkCount", retriedChunkCount);
+            metadata.put("recordAnalysisRetryCount", analysisRetryCount);
             metadata.put("analysisSummaryGovernanceBridge",
                 analysisSummaryGovernanceBridge.ledger(governedSummaryResults,
                     returnedRecordCount, processedRecordCount, coverageComplete));
@@ -3997,8 +3993,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         BooleanSupplier cancellationCheck
     ) {
         List<AnalysisTask> tasks = new ArrayList<>();
-        Map<String, String> taskIdsByChunkKey = new LinkedHashMap<>();
-        Map<String, AnalysisSummaryResult> fallbacksByTaskId = new LinkedHashMap<>();
+        Map<String, String> taskIdsByDatasetReference = new LinkedHashMap<>();
         Map<String, Integer> occurrences = new LinkedHashMap<>();
         int datasetIndex = 0;
         for (BatchRecordSet recordSet : recordSets) {
@@ -4007,52 +4002,34 @@ public class AgentOrchestrator implements AgentRunExecutor {
             String evidenceReference = occurrence == 1
                 ? recordSet.reference()
                 : recordSet.reference() + "#occurrence-" + occurrence;
-            RecordChunkPlan chunkPlan = recordChunkPlan(recordSet.records());
             Map<String, Object> governedContext = analysisSummaryGovernanceBridge.govern(
                 evidenceReference, recordSet.analysisContext(), recordSet.records());
-            boolean modelSummaryRequired = analysisSummaryGovernanceBridge.requiresModelSummary(
-                governedContext, chunkPlan.oversized());
-            if (!modelSummaryRequired) {
-                continue;
-            }
-            int from = 1;
-            for (int chunkOffset = 0; chunkOffset < chunkPlan.ranges().size(); chunkOffset++) {
-                RecordRange range = chunkPlan.ranges().get(chunkOffset);
-                List<Map<String, Object>> chunk = List.copyOf(recordSet.records()
-                    .subList(range.fromInclusive(), range.toExclusive()));
-                int to = from + chunk.size() - 1;
-                RuntimeAnalysisPosition position =
-                    analysisSummaryGovernanceBridge.position(evidenceReference, chunkOffset + 1,
-                        chunkPlan.ranges().size(), from, to, recordSet.records().size());
-                String rawJson = ModelProtocolJson.compact(chunk);
-                String contentSha256 = ModelProtocolJson.sha256Hex(rawJson);
-                String inputSha256 = summaryCheckpointInputSha256(
-                    contentSha256, position, governedContext, query, true);
-                int rawBytes = rawJson.getBytes(StandardCharsets.UTF_8).length;
-                boolean mayRestoreCheckpoint = analysisEvidenceSpillStore.isEnabled()
-                    && (chunkPlan.oversized() || rawBytes >= analysisSpillThresholdBytes);
-                if (mayRestoreCheckpoint) {
-                    String checkpointKey = evidenceReference + "#chunk-" + (chunkOffset + 1);
-                    if (restoreAnalysisSummaryCheckpoint(
-                        isolationScope, checkpointKey, inputSha256) != null) {
-                        from = to + 1;
-                        continue;
-                    }
-                }
-                String chunkKey = summaryTaskKey(position);
-                String taskId = isolationScope.partitionKey() + ":" + chunkKey;
-                AnalysisTask task = new AnalysisTask(
-                    AnalysisTask.SCHEMA_VERSION, taskId, inputSha256, isolationScope,
-                    position.datasetReference(), datasetIndex, recordSets.size(),
-                    position.chunkIndex(), position.chunkCount(), position.recordFrom(),
-                    position.recordTo(), position.totalRecords(), governedContext, Map.of(), chunk,
-                    query, analysisSummaryTaskTimeoutMs, 1);
-                tasks.add(task);
-                taskIdsByChunkKey.put(chunkKey, taskId);
-                fallbacksByTaskId.put(taskId, analysisSummaryGovernanceBridge.fallback(
-                    isolationScope, position, governedContext, chunk));
-                from = to + 1;
-            }
+            String inputSha256 = ModelProtocolJson.sha256Hex(Map.of(
+                "schemaVersion", AnalysisTask.SCHEMA_VERSION,
+                "datasetReference", evidenceReference,
+                "records", recordSet.records(),
+                "analysisContext", governedContext,
+                "userObjective", firstNonBlank(query, ""),
+                "maximumChunkRows", recordAnalysisChunkMaxRows,
+                "maximumChunkChars", recordAnalysisChunkMaxChars,
+                "maximumRetries", analysisSummaryWorkerMaxRetries
+            ));
+            String taskId = isolationScope.partitionKey() + ":" + evidenceReference;
+            Map<String, Object> evidenceLocator = metadataOf(
+                "datasetReference", evidenceReference,
+                "canonicalPath", governedContext.get("canonicalPath"),
+                "sourcePayloadPreservation",
+                    governedContext.getOrDefault("sourcePayloadPreservation", Map.of())
+            );
+            AnalysisTask task = new AnalysisTask(
+                AnalysisTask.SCHEMA_VERSION, taskId, inputSha256, isolationScope,
+                evidenceReference, datasetIndex, recordSets.size(), governedContext,
+                evidenceLocator,
+                recordSet.records(), query, recordAnalysisChunkMaxRows,
+                recordAnalysisChunkMaxChars, analysisSpillThresholdBytes,
+                analysisSummaryWorkerMaxRetries, analysisSummaryTaskTimeoutMs, 1);
+            tasks.add(task);
+            taskIdsByDatasetReference.put(evidenceReference, taskId);
         }
         if (tasks.isEmpty()) {
             return ParallelAnalysisSummaryBatch.disabled();
@@ -4061,19 +4038,179 @@ public class AgentOrchestrator implements AgentRunExecutor {
             tasks,
             task -> {
                 runtimeGuard.checkCancelled(cancellationCheck);
-                return analysisSummaryGovernanceBridge.summarize(
-                    activeChatModel::chat, task.isolationScope(), task.position(),
-                    task.analysisContext(), task.records(), task.userObjective());
+                return analyzeDatasetTask(activeChatModel, task, cancellationCheck);
             },
             cancellationCheck);
         log.info("analysisTaskDriverDispatched mode={} taskCount={} workerCount={}",
             dispatched.mode(), dispatched.taskCount(), dispatched.workerCount());
         return new ParallelAnalysisSummaryBatch(
-            dispatched, tasks, taskIdsByChunkKey, fallbacksByTaskId);
+            dispatched, tasks, taskIdsByDatasetReference);
     }
 
-    private String summaryTaskKey(RuntimeAnalysisPosition position) {
-        return position.datasetReference() + "#chunk-" + position.chunkIndex();
+    private AnalysisDatasetSummary analyzeDatasetTask(
+        ChatModel activeChatModel,
+        AnalysisTask task,
+        BooleanSupplier cancellationCheck
+    ) {
+        RecordChunkPlan chunkPlan = recordChunkPlan(
+            task.records(), task.maximumChunkRows(), task.maximumChunkChars());
+        boolean modelSummaryRequired = analysisSummaryGovernanceBridge.requiresModelSummary(
+            task.analysisContext(), chunkPlan.oversized());
+        List<AnalysisDatasetSummary.ChunkResult> chunks = new ArrayList<>();
+        int spilledChunkCount = 0;
+        long spilledByteCount = 0;
+        int restoredCheckpointCount = 0;
+        int from = 1;
+        for (int chunkOffset = 0; chunkOffset < chunkPlan.ranges().size(); chunkOffset++) {
+            runtimeGuard.checkCancelled(cancellationCheck);
+            RecordRange range = chunkPlan.ranges().get(chunkOffset);
+            List<Map<String, Object>> chunk = List.copyOf(task.records()
+                .subList(range.fromInclusive(), range.toExclusive()));
+            int to = from + chunk.size() - 1;
+            RuntimeAnalysisPosition position = analysisSummaryGovernanceBridge.position(
+                task.datasetReference(), chunkOffset + 1, chunkPlan.ranges().size(),
+                from, to, task.records().size());
+            String rawJson = ModelProtocolJson.compact(chunk);
+            byte[] rawBytes = rawJson.getBytes(StandardCharsets.UTF_8);
+            String contentSha256 = ModelProtocolJson.sha256Hex(rawJson);
+            String evidenceId = task.isolationScope().partitionKey() + ":"
+                + task.datasetReference() + "#chunk-" + (chunkOffset + 1);
+            boolean spillRequested = analysisEvidenceSpillStore.isEnabled()
+                && (chunkPlan.oversized() || rawBytes.length >= task.spillThresholdBytes());
+            AnalysisEvidenceSpillStore.SpillReference spillReference = null;
+            if (spillRequested) {
+                spillReference = analysisEvidenceSpillStore.spill(
+                    task.isolationScope(), evidenceId, contentSha256, rawBytes);
+                spilledChunkCount++;
+                spilledByteCount += spillReference.byteLength();
+            }
+            String checkpointInputSha256 = summaryCheckpointInputSha256(
+                contentSha256, position, task.analysisContext(), task.userObjective(),
+                modelSummaryRequired);
+            String checkpointKey = task.datasetReference() + "#chunk-" + (chunkOffset + 1);
+            AnalysisSummaryResult summary = null;
+            boolean restoredCheckpoint = false;
+            AtomicInteger attemptCount = new AtomicInteger();
+            if (spillReference != null) {
+                summary = restoreAnalysisSummaryCheckpoint(
+                    task.isolationScope(), checkpointKey, checkpointInputSha256);
+                restoredCheckpoint = summary != null;
+                if (restoredCheckpoint) restoredCheckpointCount++;
+            }
+            if (summary == null) {
+                summary = modelSummaryRequired
+                    ? analysisSummaryGovernanceBridge.summarize(
+                        prompt -> analysisWorkerRetryPolicy.execute(
+                            task.maximumRetries(), cancellationCheck,
+                            ignored -> {
+                                String output = activeChatModel.chat(prompt);
+                                if (output == null || output.isBlank()) {
+                                    throw new IllegalStateException(
+                                        "Analysis model returned an empty response");
+                                }
+                                return output;
+                            },
+                            attemptCount::set,
+                            (attempt, failure) -> log.warn(
+                                "analysisChunkAttemptFailed dataset={} chunk={}/{} attempt={}/{} error={}",
+                                task.datasetReference(), position.chunkIndex(),
+                                position.chunkCount(), attempt, task.maximumAttempts(),
+                                failure.getMessage())),
+                        task.isolationScope(), position,
+                        task.analysisContext(), chunk, task.userObjective())
+                    : analysisSummaryGovernanceBridge.preserve(
+                        task.isolationScope(), position, task.analysisContext(), chunk);
+                if (spillReference != null
+                    && !"STRUCTURED_RECORD_FALLBACK".equals(summary.outcome())) {
+                    persistAnalysisSummaryCheckpoint(
+                        task.isolationScope(), checkpointKey, checkpointInputSha256, summary);
+                }
+            }
+            if (spillReference != null) {
+                summary = summary.withEvidence(Map.of(
+                    "rawReplayLocator", spillReference.toMap(),
+                    "spillCheckpointKey", checkpointKey,
+                    "spillCheckpointInputSha256", checkpointInputSha256
+                ));
+            }
+            summary = summary.withEvidence(Map.of(
+                "workerAttemptCount", attemptCount.get(),
+                "workerRetryCount", Math.max(0, attemptCount.get() - 1),
+                "workerMaximumRetries", task.maximumRetries(),
+                "workerMaximumAttempts", task.maximumAttempts()
+            ));
+            chunks.add(new AnalysisDatasetSummary.ChunkResult(
+                summary, spillReference, checkpointInputSha256, restoredCheckpoint,
+                attemptCount.get()));
+            from = to + 1;
+        }
+        AtomicInteger datasetReductionAttemptCount = new AtomicInteger();
+        List<AnalysisSummaryResult> chunkSummaries = chunks.stream()
+            .map(AnalysisDatasetSummary.ChunkResult::summary).toList();
+        String datasetReductionCheckpointKey = task.datasetReference() + "#dataset-reduce";
+        String datasetReductionInputSha256 = ModelProtocolJson.sha256Hex(Map.of(
+            "schemaVersion", HierarchicalAnalysisReducer.SCHEMA_VERSION,
+            "datasetReference", task.datasetReference(),
+            "analysisContext", task.analysisContext(),
+            "userObjective", task.userObjective(),
+            "chunkSummaries", chunkSummaries.stream()
+                .map(this::datasetReductionCheckpointProjection).toList()
+        ));
+        boolean datasetReductionCheckpointEligible = analysisEvidenceSpillStore.isEnabled()
+            && chunkPlan.oversized();
+        AnalysisSummaryResult datasetSummary = datasetReductionCheckpointEligible
+            ? restoreAnalysisSummaryCheckpoint(task.isolationScope(),
+                datasetReductionCheckpointKey, datasetReductionInputSha256)
+            : null;
+        boolean datasetReductionRestoredCheckpoint = datasetSummary != null;
+        if (datasetSummary == null) {
+            datasetSummary = workerDatasetReducer.reduceDataset(
+                prompt -> analysisWorkerRetryPolicy.execute(
+                    task.maximumRetries(), cancellationCheck,
+                    ignored -> {
+                        String output = activeChatModel.chat(prompt);
+                        if (output == null || output.isBlank()) {
+                            throw new IllegalStateException(
+                                "Dataset reduction model returned an empty response");
+                        }
+                        return output;
+                    },
+                    datasetReductionAttemptCount::set,
+                    (attempt, failure) -> log.warn(
+                        "analysisDatasetReduceAttemptFailed dataset={} attempt={}/{} error={}",
+                        task.datasetReference(), attempt, task.maximumAttempts(),
+                        failure.getMessage())),
+                task.isolationScope(), task.datasetReference(), chunkSummaries,
+                task.userObjective());
+            if (datasetReductionCheckpointEligible
+                && !datasetSummary.outcome().contains("FALLBACK")) {
+                persistAnalysisSummaryCheckpoint(task.isolationScope(),
+                    datasetReductionCheckpointKey, datasetReductionInputSha256, datasetSummary);
+            }
+        }
+        return AnalysisDatasetSummary.completed(task, chunkPlan.oversized(),
+            chunkPlan.serializedChars(), chunks, datasetSummary, spilledChunkCount,
+            spilledByteCount, restoredCheckpointCount, datasetReductionAttemptCount.get(),
+            datasetReductionRestoredCheckpoint);
+    }
+
+    /**
+     * Builds a stable dataset-reduction identity. Worker attempt counters and spill locators are
+     * deliberately excluded: they describe how a chunk was computed, not what the chunk means.
+     * This lets a retried Driver reuse the completed Worker reduction after restoring chunk
+     * checkpoints without changing the semantic input hash.
+     */
+    private Map<String, Object> datasetReductionCheckpointProjection(
+        AnalysisSummaryResult summary
+    ) {
+        return Map.of(
+            "resultId", summary.resultId(),
+            "content", summary.content(),
+            "outcome", summary.outcome(),
+            "position", summary.position(),
+            "analysisContext", summary.analysisContext(),
+            "coverage", summary.coverage()
+        );
     }
 
     private SemanticInsightContractProvider.Resolution resolveSemanticInsightContracts(
@@ -4216,9 +4353,37 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 reference + dataset.path(), rootAnalysisContext, dataset.rows()))
             .toList();
         if (!projectedSets.isEmpty()) {
-            return projectedSets;
+            return deduplicateProjectedRecordSets(projectedSets);
         }
         return governedProjectionRecordSets(output, reference, rootAnalysisContext, true);
+    }
+
+    /** Keeps one worker task for mirrored representations of the same projected records. */
+    private List<BatchRecordSet> deduplicateProjectedRecordSets(List<BatchRecordSet> recordSets) {
+        Map<String, BatchRecordSet> unique = new LinkedHashMap<>();
+        Map<String, LinkedHashSet<String>> aliases = new LinkedHashMap<>();
+        for (BatchRecordSet recordSet : recordSets == null ? List.<BatchRecordSet>of() : recordSets) {
+            if (recordSet == null || recordSet.records().isEmpty()) continue;
+            String fingerprint = ModelProtocolJson.sha256Hex(
+                ModelProtocolJson.compact(recordSet.records()));
+            unique.putIfAbsent(fingerprint, recordSet);
+            aliases.computeIfAbsent(fingerprint, ignored -> new LinkedHashSet<>())
+                .add(recordSet.reference());
+        }
+        List<BatchRecordSet> result = new ArrayList<>();
+        unique.forEach((fingerprint, recordSet) -> {
+            List<String> sourceAliases = List.copyOf(aliases.get(fingerprint));
+            if (sourceAliases.size() == 1) {
+                result.add(recordSet);
+                return;
+            }
+            Map<String, Object> context = new LinkedHashMap<>(recordSet.analysisContext());
+            context.put("sourceAliases", sourceAliases);
+            context.put("projectionDeduplicated", true);
+            result.add(new BatchRecordSet(
+                recordSet.reference(), Map.copyOf(context), recordSet.records()));
+        });
+        return List.copyOf(result);
     }
 
     private List<BatchRecordSet> governedProjectionRecordSets(Object output,
@@ -4230,12 +4395,24 @@ public class AgentOrchestrator implements AgentRunExecutor {
             ? evidenceGovernanceBridge.analysisProjection(reference, output, maximumRecordChars)
             : evidenceGovernanceBridge.protocolAnalysisProjection(reference, output, maximumRecordChars);
         List<BatchRecordSet> sets = new ArrayList<>();
+        Map<String, Object> preservationManifest = metadataOf(
+            "sourceSchemaVersion", projection.get("sourceSchemaVersion"),
+            "sourcePayloadPreserved", projection.get("sourcePayloadPreserved"),
+            "sourcePayloadSha256", projection.get("sourcePayloadSha256"),
+            "sourcePayloadChars", projection.get("sourcePayloadChars"),
+            "authoritativePayloadMutated", projection.get("authoritativePayloadMutated"),
+            "projectionContainsBusinessDataOnly",
+                projection.get("projectionContainsBusinessDataOnly")
+        );
         for (Map<String, Object> dataset : objectMapList(projection.get("datasets"))) {
             List<Map<String, Object>> records = objectMapList(dataset.get("records"));
             if (records.isEmpty()) continue;
+            Map<String, Object> adapterContext = new LinkedHashMap<>(
+                objectMap(dataset.get("analysisContext")));
+            adapterContext.put("sourcePayloadPreservation", preservationManifest);
             sets.add(new BatchRecordSet(
                 firstNonBlank(stringValue(dataset.get("datasetReference")), reference),
-                mergeAnalysisContext(rootAnalysisContext, objectMap(dataset.get("analysisContext"))),
+                mergeAnalysisContext(rootAnalysisContext, Map.copyOf(adapterContext)),
                 records
             ));
         }
@@ -4432,7 +4609,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return List.of();
     }
 
-    private RecordChunkPlan recordChunkPlan(List<Map<String, Object>> records) {
+    private RecordChunkPlan recordChunkPlan(
+        List<Map<String, Object>> records,
+        int maximumChunkRows,
+        int maximumChunkChars
+    ) {
         List<RecordRange> ranges = new ArrayList<>();
         int currentFrom = 0;
         int currentRows = 0;
@@ -4442,8 +4623,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             Map<String, Object> record = records.get(index);
             int recordChars = Math.max(1, stringify(record).length());
             totalChars += recordChars;
-            if (currentRows > 0 && (currentRows >= recordAnalysisChunkMaxRows
-                || currentChars + recordChars > recordAnalysisChunkMaxChars)) {
+            if (currentRows > 0 && (currentRows >= maximumChunkRows
+                || currentChars + recordChars > maximumChunkChars)) {
                 ranges.add(new RecordRange(currentFrom, index));
                 currentFrom = index;
                 currentRows = 0;
@@ -4455,8 +4636,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (currentRows > 0) {
             ranges.add(new RecordRange(currentFrom, records.size()));
         }
-        boolean oversized = totalChars > recordAnalysisChunkMaxChars
-            || records.size() > recordAnalysisChunkMaxRows;
+        boolean oversized = totalChars > maximumChunkChars
+            || records.size() > maximumChunkRows;
         return new RecordChunkPlan(List.copyOf(ranges), oversized, totalChars);
     }
 
@@ -4665,29 +4846,26 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private static final class ParallelAnalysisSummaryBatch implements AutoCloseable {
         private final AnalysisTaskDispatcher.DispatchBatch dispatched;
         private final Map<String, AnalysisTask> tasksById;
-        private final Map<String, String> taskIdsByChunkKey;
-        private final Map<String, AnalysisSummaryResult> fallbacksByTaskId;
+        private final Map<String, String> taskIdsByDatasetReference;
 
         private ParallelAnalysisSummaryBatch(
             AnalysisTaskDispatcher.DispatchBatch dispatched,
             List<AnalysisTask> tasks,
-            Map<String, String> taskIdsByChunkKey,
-            Map<String, AnalysisSummaryResult> fallbacksByTaskId
+            Map<String, String> taskIdsByDatasetReference
         ) {
             this.dispatched = dispatched;
             Map<String, AnalysisTask> indexedTasks = new LinkedHashMap<>();
             tasks.forEach(task -> indexedTasks.put(task.taskId(), task));
             this.tasksById = Map.copyOf(indexedTasks);
-            this.taskIdsByChunkKey = Map.copyOf(taskIdsByChunkKey);
-            this.fallbacksByTaskId = Map.copyOf(fallbacksByTaskId);
+            this.taskIdsByDatasetReference = Map.copyOf(taskIdsByDatasetReference);
         }
 
         private static ParallelAnalysisSummaryBatch disabled() {
-            return new ParallelAnalysisSummaryBatch(null, List.of(), Map.of(), Map.of());
+            return new ParallelAnalysisSummaryBatch(null, List.of(), Map.of());
         }
 
-        private AnalysisSummaryResult await(String chunkKey) {
-            String taskId = taskIdsByChunkKey.get(chunkKey);
+        private AnalysisDatasetSummary await(String datasetReference) {
+            String taskId = taskIdsByDatasetReference.get(datasetReference);
             if (taskId == null || dispatched == null) {
                 return null;
             }
@@ -4701,14 +4879,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 log.warn("analysisTaskDriverFallback taskId={} status={} error={}", taskId,
                     result == null ? "MISSING" : result.status(),
                     result == null ? "missing worker result" : result.error());
-                return fallbacksByTaskId.get(taskId);
+                return null;
             }
             task.isolationScope().requireSamePartition(result.summary().isolationScope());
             return result.summary();
         }
 
         private boolean isParallel() {
-            return dispatched != null && dispatched.taskCount() > 1;
+            return dispatched != null
+                && dispatched.taskCount() > 1
+                && dispatched.workerCount() > 1;
         }
 
         private int taskCount() {

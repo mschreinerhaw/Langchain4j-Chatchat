@@ -15,10 +15,10 @@ public record AnalysisTaskResult(
     String status,
     long durationMs,
     int attempt,
-    AnalysisSummaryResult summary,
+    AnalysisDatasetSummary summary,
     String error
-) implements ModelSummaryTaskResult<AnalysisSummaryResult> {
-    public static final String SCHEMA_VERSION = "analysis_task_result.v1";
+) implements ModelSummaryTaskResult<AnalysisDatasetSummary> {
+    public static final String SCHEMA_VERSION = "analysis_dataset_task_result.v1";
 
     public AnalysisTaskResult {
         schemaVersion = SCHEMA_VERSION;
@@ -32,9 +32,9 @@ public record AnalysisTaskResult(
     }
 
     public static AnalysisTaskResult completed(
-        AnalysisTask task, String workerId, AnalysisSummaryResult summary, long durationMs
+        AnalysisTask task, String workerId, AnalysisDatasetSummary summary, long durationMs
     ) {
-        String status = summary != null && "STRUCTURED_RECORD_FALLBACK".equals(summary.outcome())
+        String status = summary != null && "FALLBACK".equals(summary.outcome())
             ? "FALLBACK"
             : "SUCCESS";
         return new AnalysisTaskResult(SCHEMA_VERSION, task.taskId(), task.inputSha256(),

@@ -25,16 +25,26 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                          String userObjective) {
         List<AnalysisSummaryResult> chunks = chunkSummaries == null
             ? List.of() : List.copyOf(chunkSummaries);
-        Map<String, List<AnalysisSummaryResult>> chunksByDataset = new LinkedHashMap<>();
-        for (AnalysisSummaryResult chunk : chunks) {
-            String dataset = String.valueOf(chunk.position().getOrDefault("datasetReference", "result"));
-            chunksByDataset.computeIfAbsent(dataset, ignored -> new ArrayList<>()).add(chunk);
-        }
-
         Map<String, AnalysisSummaryResult> datasetSummaries = new LinkedHashMap<>();
-        for (Map.Entry<String, List<AnalysisSummaryResult>> entry : chunksByDataset.entrySet()) {
-            datasetSummaries.put(entry.getKey(), reduceDataset(
-                model, isolationScope, entry.getKey(), entry.getValue(), userObjective));
+        boolean workerReduced = !chunks.isEmpty() && chunks.stream()
+            .allMatch(summary -> "DATASET_SYNTHESIS".equals(summary.scope()));
+        if (workerReduced) {
+            for (AnalysisSummaryResult summary : chunks) {
+                String dataset = String.valueOf(
+                    summary.position().getOrDefault("datasetReference", "result"));
+                datasetSummaries.put(dataset, summary);
+            }
+        } else {
+            Map<String, List<AnalysisSummaryResult>> chunksByDataset = new LinkedHashMap<>();
+            for (AnalysisSummaryResult chunk : chunks) {
+                String dataset = String.valueOf(
+                    chunk.position().getOrDefault("datasetReference", "result"));
+                chunksByDataset.computeIfAbsent(dataset, ignored -> new ArrayList<>()).add(chunk);
+            }
+            for (Map.Entry<String, List<AnalysisSummaryResult>> entry : chunksByDataset.entrySet()) {
+                datasetSummaries.put(entry.getKey(), reduceDataset(
+                    model, isolationScope, entry.getKey(), entry.getValue(), userObjective));
+            }
         }
 
         List<AnalysisSummaryResult> finalInputs = new ArrayList<>();
@@ -74,17 +84,20 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             summaries, context.userObjective());
     }
 
-    private AnalysisSummaryResult reduceDataset(ModelSummaryModel model,
-                                                GovernanceIsolationScope scope,
-                                                String dataset,
-                                                List<AnalysisSummaryResult> chunks,
-                                                String objective) {
+    public AnalysisSummaryResult reduceDataset(ModelSummaryModel model,
+                                               GovernanceIsolationScope scope,
+                                               String dataset,
+                                               List<AnalysisSummaryResult> chunks,
+                                               String objective) {
+        if (chunks == null || chunks.isEmpty()) {
+            throw new IllegalArgumentException("dataset chunks are required");
+        }
         AnalysisSummaryResult first = chunks.get(0);
-        boolean requiresModelReduce = chunks.stream().anyMatch(chunk ->
-            "STRUCTURED_RECORD_FALLBACK".equals(chunk.outcome()));
+        boolean requiresModelReduce = chunks.size() > 1;
         String content = requiresModelReduce
             ? synthesize(model, "DATASET_SYNTHESIS", objective, chunks, Map.of(
                 "datasetReference", dataset,
+                "analysisContext", first.analysisContext(),
                 "rule", "Merge only chunks of this dataset; preserve conflicts and limitations."))
             : chunks.size() == 1 ? first.content() : deterministicMerge(chunks);
         boolean fallback = content == null || content.isBlank();

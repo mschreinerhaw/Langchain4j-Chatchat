@@ -64,6 +64,63 @@ class McpEvidenceGovernanceBridgeTest {
     }
 
     @Test
+    void projectsOnlyCanonicalBusinessRecordsFromMirroredMcpAnalysisPayload() {
+        List<Map<String, Object>> businessRecords = List.of(
+            Map.of("KHH", "070200046604", "ZZC", 1_250_000, "DRYK", 8_600));
+        Map<String, Object> governedData = Map.of(
+            "analysisContext", Map.of("schema", Map.of("fields", List.of(
+                Map.of("name", "KHH"), Map.of("name", "ZZC")))),
+            "data", Map.of("body", Map.of("records", businessRecords)),
+            "execution", Map.of("steps", List.of(Map.of("status", "SUCCESS"))),
+            "executionGraph", Map.of("nodes", List.of(Map.of("id", "execute"))));
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", "mcp_analysis_payload.v1",
+            "data", governedData,
+            "rawData", Map.of(
+                "content", List.of(Map.of("type", "text", "text", governedData)),
+                "structuredContent", governedData),
+            "runtimeMetadata", Map.of("preflightAudit", List.of(Map.of("status", "PASSED"))));
+
+        Map<String, Object> projection = new McpResultAnalysisBridge()
+            .protocolAnalysisProjection("asset-template", payload, 10_000);
+
+        assertThat(projection)
+            .containsEntry("adapterId", "mcp_analysis_payload_records.v1")
+            .containsEntry("evidenceRole", "MCP_CANONICAL_BUSINESS_DATA")
+            .containsEntry("sourcePayloadPreserved", true)
+            .containsEntry("authoritativePayloadMutated", false)
+            .containsEntry("projectionContainsBusinessDataOnly", true);
+        assertThat(String.valueOf(projection.get("sourcePayloadSha256"))).isNotBlank();
+        assertThat(projection.get("sourcePayloadChars")).isEqualTo(
+            com.chatchat.agents.protocol.ModelProtocolJson.compact(payload).length());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> datasets = (List<Map<String, Object>>) projection.get("datasets");
+        assertThat(datasets).singleElement().satisfies(dataset -> {
+            assertThat(dataset).containsEntry("datasetReference", "asset-template");
+            assertThat(dataset.get("records")).isEqualTo(businessRecords);
+            assertThat(String.valueOf(dataset))
+                .doesNotContain("executionGraph", "preflightAudit", "structuredContent");
+        });
+        assertThat(payload.get("rawData")).isEqualTo(Map.of(
+            "content", List.of(Map.of("type", "text", "text", governedData)),
+            "structuredContent", governedData));
+    }
+
+    @Test
+    void keepsSuccessfulEmptyCanonicalBodyOutOfGenericMetadataAnalysis() {
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", "mcp_analysis_payload.v1",
+            "data", Map.of(
+                "data", Map.of("body", Map.of("records", List.of())),
+                "execution", Map.of("steps", List.of(Map.of("status", "SUCCESS")))),
+            "rawData", Map.of("structuredContent", Map.of(
+                "data", Map.of("body", Map.of("records", List.of())))));
+
+        assertThat(new McpResultAnalysisBridge()
+            .protocolAnalysisProjection("empty-template", payload, 10_000)).isEmpty();
+    }
+
+    @Test
     void fallsBackToLosslessProjectionWithoutInferringProtocolFromBusinessFieldNames() {
         Map<String, Object> payload = Map.of(
             "dataSchema", "business_records.v1",

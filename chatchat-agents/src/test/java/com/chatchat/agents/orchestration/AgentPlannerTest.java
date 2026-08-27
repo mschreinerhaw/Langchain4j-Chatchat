@@ -236,6 +236,53 @@ class AgentPlannerTest {
     }
 
     @Test
+    void repairsUnescapedNewlinesInsideInterpretationPlanMarkdownAnswer() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "data_query", "goal": "render observed data", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": []},
+              "plan": {
+                "steps": [{
+                  "id": 1,
+                  "action_type": "final_answer",
+                  "tool_name": "final_answer",
+                  "input": {"answer": "## Query result
+
+            No verified business data is available."},
+                  "depends_on": []
+                }],
+                "edge_contracts": [],
+                "dependency_contracts": [],
+                "bindings": []
+              },
+              "execution_policy": {
+                "max_steps": 1,
+                "allow_parallel": false,
+                "allow_tool": [],
+                "deny_tool": [],
+                "timeout_ms": 30000,
+                "fallback_mode": "partial_result"
+              },
+              "review": {
+                "self_check": {"tool_sufficiency": true, "missing_steps": []},
+                "fallback_plan": []
+              }
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod(
+            "parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, null);
+
+        assertThat(decision).isNotNull();
+        assertThat(decision.interpretationPlan()).isNotNull();
+        assertThat(decision.answer()).isEqualTo("## Query result\n\nNo verified business data is available.");
+    }
+
+    @Test
     void parsesInterpretationPlanWhoseFinalAnswerContainsMarkdownCodeFence() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String raw = """

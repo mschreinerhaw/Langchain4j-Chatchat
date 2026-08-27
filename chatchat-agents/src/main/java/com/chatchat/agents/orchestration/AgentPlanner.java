@@ -895,24 +895,24 @@ public class AgentPlanner {
         try {
             return objectMapper.readValue(json, Map.class);
         } catch (JsonProcessingException initialFailure) {
-            String repaired = repairUnescapedStringQuotes(json);
+            String repaired = repairInvalidJsonStringCharacters(json);
             if (repaired.equals(json)) {
                 throw initialFailure;
             }
             Map<String, Object> parsed = objectMapper.readValue(repaired, Map.class);
-            log.warn("Planner JSON contained unescaped quote characters inside string values; "
+            log.warn("Planner JSON contained unescaped quote or control characters inside string values; "
                 + "Runtime repaired the JSON syntax before InterpretationPlan validation.");
             return parsed;
         }
     }
 
     /**
-     * Repairs only quote characters that cannot legally terminate the current JSON string. A
-     * terminating quote must be followed (ignoring whitespace) by a JSON structural delimiter.
-     * The repaired document is still parsed and fully validated; missing commas, braces and other
-     * malformed structures remain rejected.
+     * Repairs invalid characters only while inside JSON string values. A terminating quote must be
+     * followed (ignoring whitespace) by a JSON structural delimiter, while raw control characters
+     * are converted to their JSON escape sequences. The repaired document is still parsed and fully
+     * validated; missing commas, braces and other malformed structures remain rejected.
      */
-    private String repairUnescapedStringQuotes(String json) {
+    private String repairInvalidJsonStringCharacters(String json) {
         if (json == null || json.isBlank()) {
             return json;
         }
@@ -939,6 +939,11 @@ public class AgentPlanner {
                 escaped = true;
                 continue;
             }
+            if (current < 0x20) {
+                appendJsonControlCharacter(repaired, current);
+                changed = true;
+                continue;
+            }
             if (current != '"') {
                 repaired.append(current);
                 continue;
@@ -961,6 +966,20 @@ public class AgentPlanner {
             }
         }
         return changed ? repaired.toString() : json;
+    }
+
+    private void appendJsonControlCharacter(StringBuilder target, char value) {
+        switch (value) {
+            case '\b' -> target.append("\\b");
+            case '\f' -> target.append("\\f");
+            case '\n' -> target.append("\\n");
+            case '\r' -> target.append("\\r");
+            case '\t' -> target.append("\\t");
+            default -> {
+                String hex = Integer.toHexString(value);
+                target.append("\\u").append("0".repeat(4 - hex.length())).append(hex);
+            }
+        }
     }
 
     private AgentDecision attachCandidateAnswer(AgentDecision decision,

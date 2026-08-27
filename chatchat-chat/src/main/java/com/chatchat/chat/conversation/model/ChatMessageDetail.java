@@ -1,0 +1,45 @@
+package com.chatchat.chat.conversation.model;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ChatMessageDetail {
+
+    private String messageId;
+    private String sessionId;
+    private String tenantId;
+    private String userId;
+    private String role;
+    private String content;
+    private String model;
+    private Integer tokens;
+    private Instant createdAt;
+    private List<String> toolsUsed;
+    private String sourceKnowledgeBase;
+    private List<Map<String, Object>> sources;
+    private List<Map<String, Object>> traces;
+    private List<Map<String, Object>> steps;
+    private Map<String, Object> visualizationSpec;
+    private Map<String, Object> uiResponse;
+    private List<Map<String, Object>> evidencePremises;
+    private Map<String, Object> memoryContext;
+    private String agentName;
+    private String modelName;
+    private String analysisNodeId;
+    private String analysisParentNodeId;
+    private String analysisSourceMessageId;
+    private Map<String, Object> analysisSelection;
+    private Boolean streaming;
+    private String status;
+    private String taskId;
+}

@@ -1,5 +1,13 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
+import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
+import com.chatchat.agents.orchestration.AgentPlanner;
+import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.tool.ToolObservationBuilder;
+
+import com.chatchat.agents.runtime.answer.AgentAnswerReview;
+
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolOutput;
@@ -270,8 +278,8 @@ class ProductionExtremeReasoningAndTemplateResultE2E {
     private AgentAnswerFinalizer finalizer() {
         return new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->
-                new com.chatchat.agents.runtime.AgentAnswerReview(
-                    com.chatchat.agents.runtime.AgentAnswerReview.ACCEPTED, answer, "ok"),
+                new com.chatchat.agents.runtime.answer.AgentAnswerReview(
+                    com.chatchat.agents.runtime.answer.AgentAnswerReview.ACCEPTED, answer, "ok"),
             new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
         );
     }

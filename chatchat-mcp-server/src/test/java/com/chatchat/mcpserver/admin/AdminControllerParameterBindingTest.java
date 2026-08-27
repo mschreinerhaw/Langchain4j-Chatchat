@@ -1,9 +1,9 @@
 package com.chatchat.mcpserver.admin;
 
-import com.chatchat.mcpserver.api.ApiServiceCategoryAdminController;
+import com.chatchat.mcpserver.api.category.ApiServiceCategoryAdminController;
 import com.chatchat.mcpserver.category.BusinessCategoryAdminController;
-import com.chatchat.mcpserver.database.DataQueryCategoryAdminController;
-import com.chatchat.mcpserver.metadata.EnterpriseMetadataTaxonomyAdminController;
+import com.chatchat.mcpserver.database.category.DataQueryCategoryAdminController;
+import com.chatchat.mcpserver.metadata.taxonomy.EnterpriseMetadataTaxonomyAdminController;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;

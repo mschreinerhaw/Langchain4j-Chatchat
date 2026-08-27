@@ -2,17 +2,17 @@ package com.chatchat.mcpserver.routing;
 
 import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.category.BusinessCategory;
-import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigRepository;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
-import com.chatchat.mcpserver.ops.SshHostConfig;
-import com.chatchat.mcpserver.ops.SshHostConfigRepository;
-import com.chatchat.mcpserver.ops.SshHostConfigService;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigRepository;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
-import com.chatchat.mcpserver.sql.SqlMetadataAssetRegistryService;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfigRepository;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigRepository;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfigRepository;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigRepository;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.metadata.SqlMetadataAssetRegistryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

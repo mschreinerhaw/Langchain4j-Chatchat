@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime.plan;
 
-import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;

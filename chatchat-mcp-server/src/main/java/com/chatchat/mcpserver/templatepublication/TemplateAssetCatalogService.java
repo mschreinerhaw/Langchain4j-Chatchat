@@ -1,16 +1,16 @@
 package com.chatchat.mcpserver.templatepublication;
 
-import com.chatchat.mcpserver.api.ApiServiceConfigService;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.chatchat.mcpserver.authorization.McpScopeExpression;
-import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
-import com.chatchat.mcpserver.ops.CommandTemplateService;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
-import com.chatchat.mcpserver.ops.SshHostConfigService;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
-import com.chatchat.mcpserver.sql.SqlTemplateService;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.ops.command.CommandTemplateService;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -116,7 +116,7 @@ public class TemplateAssetCatalogService {
     }
 
     private List<AuthorizationRef> refsForCommand(String templateId,
-                                                   List<com.chatchat.mcpserver.ops.SshHostConfig> hosts) {
+                                                   List<com.chatchat.mcpserver.ops.ssh.SshHostConfig> hosts) {
         List<AuthorizationRef> refs = new ArrayList<>();
         refs.add(new AuthorizationRef(templateId, null, null, null, null));
         hosts.stream().filter(host -> readIds(host.getAllowedCommandsJson()).contains(templateId)).forEach(host ->
@@ -126,7 +126,7 @@ public class TemplateAssetCatalogService {
     }
 
     private List<AuthorizationRef> refsForSqlTemplate(String templateId,
-                                                       List<com.chatchat.mcpserver.sql.SqlDatasourceConfig> datasources) {
+                                                       List<com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig> datasources) {
         List<AuthorizationRef> refs = new ArrayList<>();
         refs.add(new AuthorizationRef(templateId, null, null, null, null));
         datasources.stream().filter(item -> readIds(item.getAllowedTemplatesJson()).contains(templateId)).forEach(item ->

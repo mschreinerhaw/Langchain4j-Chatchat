@@ -1,14 +1,14 @@
 package com.chatchat.api.agent.task;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.chat.task.AgentScheduledTaskService;
-import com.chatchat.chat.task.ScheduledAgentTaskRequest;
-import com.chatchat.chat.task.ScheduledTaskRunResponse;
-import com.chatchat.chat.task.ScheduledTaskResponse;
-import com.chatchat.chat.task.ScheduledTaskPageResponse;
-import com.chatchat.chat.task.ScheduledTaskRunAuditPageResponse;
-import com.chatchat.chat.task.ScheduledNotificationHistoryPageResponse;
-import com.chatchat.chat.task.TenantNotificationRecipientService;
+import com.chatchat.chat.task.schedule.AgentScheduledTaskService;
+import com.chatchat.chat.task.schedule.ScheduledAgentTaskRequest;
+import com.chatchat.chat.task.schedule.ScheduledTaskRunResponse;
+import com.chatchat.chat.task.schedule.ScheduledTaskResponse;
+import com.chatchat.chat.task.schedule.ScheduledTaskPageResponse;
+import com.chatchat.chat.task.schedule.ScheduledTaskRunAuditPageResponse;
+import com.chatchat.chat.task.notification.ScheduledNotificationHistoryPageResponse;
+import com.chatchat.chat.task.notification.TenantNotificationRecipientService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;

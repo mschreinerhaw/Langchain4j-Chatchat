@@ -1,8 +1,8 @@
 package com.chatchat.chat.interaction.service.handler;
 
-import com.chatchat.agents.runtime.ToolRuntimeExecution;
-import com.chatchat.agents.runtime.ToolRuntimeRequest;
-import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;

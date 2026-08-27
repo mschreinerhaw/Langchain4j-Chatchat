@@ -1,14 +1,16 @@
 package com.chatchat.agents.orchestration.protocol;
 
-import com.chatchat.agents.runtime.McpEvidenceGovernanceBridge;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+
+import com.chatchat.agents.runtime.governance.McpEvidenceGovernanceBridge;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
-import com.chatchat.agents.runtime.AgentRuntimeProperties;
-import com.chatchat.agents.orchestration.AnalysisTaskDispatcher;
-import com.chatchat.agents.orchestration.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.HierarchicalAnalysisReducer;
-import com.chatchat.agents.orchestration.LocalAnalysisTaskDispatcher;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
 import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;

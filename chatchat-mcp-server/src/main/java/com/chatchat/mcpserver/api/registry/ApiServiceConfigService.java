@@ -1,0 +1,430 @@
+package com.chatchat.mcpserver.api.registry;
+
+import com.chatchat.mcpserver.api.category.ApiServiceCategoryService;
+
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
+import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+@Service
+@RequiredArgsConstructor
+public class ApiServiceConfigService {
+
+    private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,128}$");
+    private static final Set<String> ALLOWED_METHODS = Set.of("GET", "POST", "PUT", "PATCH", "DELETE");
+
+    private final ApiServiceConfigRepository repository;
+    private final ToolRegistry toolRegistry;
+    private final ObjectMapper objectMapper;
+    private final HttpEndpointConfigService gatewayConfigService;
+    private final ApiServiceCategoryService categoryService;
+
+    /**
+     * Lists the all.
+     *
+     * @return the all list
+     */
+    @Transactional(readOnly = true)
+    public List<ApiServiceConfig> listAll() {
+        return repository.findAll().stream()
+            .peek(this::inheritGatewayParameterContract)
+            .sorted((a, b) -> a.getToolName().compareToIgnoreCase(b.getToolName()))
+            .toList();
+    }
+
+    /**
+     * Lists the enabled.
+     *
+     * @return the enabled list
+     */
+    @Transactional(readOnly = true)
+    public List<ApiServiceConfig> listEnabled() {
+        return repository.findByEnabledTrueOrderByToolNameAsc().stream()
+            .peek(this::inheritGatewayParameterContract)
+            .toList();
+    }
+
+    /**
+     * Returns the by id.
+     *
+     * @param id the id value
+     * @return the by id
+     */
+    @Transactional(readOnly = true)
+    public ApiServiceConfig getById(String id) {
+        ApiServiceConfig config = repository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("API service config not found: " + id));
+        inheritGatewayParameterContract(config);
+        return config;
+    }
+
+    /**
+     * Finds the by tool name.
+     *
+     * @param toolName the tool name value
+     * @return the matching by tool name
+     */
+    @Transactional(readOnly = true)
+    public Optional<ApiServiceConfig> findByToolName(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return Optional.empty();
+        }
+        return repository.findByToolNameIgnoreCase(toolName.trim());
+    }
+
+    /**
+     * Creates the create.
+     *
+     * @param draft the draft value
+     * @return the created create
+     */
+    @Transactional
+    public ApiServiceConfig create(ApiServiceConfig draft) {
+        validate(draft, null);
+        ApiServiceConfig saved = repository.save(draft);
+        synchronizeGatewayCategory(saved);
+        return saved;
+    }
+
+    /**
+     * Performs the upsert by tool name operation.
+     *
+     * @param draft the draft value
+     * @return the operation result
+     */
+    @Transactional
+    public ApiServiceConfig upsertByToolName(ApiServiceConfig draft) {
+        return repository.findByToolNameIgnoreCase(draft.getToolName())
+            .map(existing -> update(existing.getId(), draft))
+            .orElseGet(() -> create(draft));
+    }
+
+    /**
+     * Returns whether exists by tool name.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByToolName(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        return repository.findByToolNameIgnoreCase(toolName.trim()).isPresent();
+    }
+
+    /**
+     * Updates the update.
+     *
+     * @param id the id value
+     * @param draft the draft value
+     * @return the updated update
+     */
+    @Transactional
+    public ApiServiceConfig update(String id, ApiServiceConfig draft) {
+        ApiServiceConfig current = getById(id);
+        current.setToolName(draft.getToolName());
+        current.setTitle(draft.getTitle());
+        current.setDescription(draft.getDescription());
+        current.setBusinessGroup(draft.getBusinessGroup());
+        current.setBusinessGroupName(draft.getBusinessGroupName());
+        current.setBusinessGroupDescription(draft.getBusinessGroupDescription());
+        current.setCategoryId(draft.getCategoryId());
+        current.setGatewayId(draft.getGatewayId());
+        current.setMethod(draft.getMethod());
+        current.setUrlTemplate(draft.getUrlTemplate());
+        current.setHeadersJson(draft.getHeadersJson());
+        current.setBodyTemplate(draft.getBodyTemplate());
+        current.setInputSchemaJson(draft.getInputSchemaJson());
+        current.setOutputSchemaJson(draft.getOutputSchemaJson());
+        current.setCapabilitySpecJson(draft.getCapabilitySpecJson());
+        current.setDependencySpecJson(draft.getDependencySpecJson());
+        current.setGovernanceJson(draft.getGovernanceJson());
+        current.setEnabled(draft.isEnabled());
+        current.setTimeoutMs(draft.getTimeoutMs());
+        current.setCacheEnabled(draft.isCacheEnabled());
+        current.setCacheTtlSeconds(draft.getCacheTtlSeconds());
+        validate(current, id);
+        ApiServiceConfig saved = repository.save(current);
+        synchronizeGatewayCategory(saved);
+        return saved;
+    }
+
+    /**
+     * Sets the enabled.
+     *
+     * @param id the id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
+    @Transactional
+    public ApiServiceConfig setEnabled(String id, boolean enabled) {
+        ApiServiceConfig current = getById(id);
+        current.setEnabled(enabled);
+        return repository.save(current);
+    }
+
+    /**
+     * Updates only the declared API parameter contract while preserving the
+     * service identity, category, transport and runtime policy.
+     */
+    @Transactional
+    public ApiServiceConfig updateParameterContract(String id, String inputSchemaJson) {
+        ApiServiceConfig current = getById(id);
+        current.setInputSchemaJson(normalizeJsonObject(inputSchemaJson, "inputSchema"));
+        return repository.save(current);
+    }
+
+    /**
+     * Synchronizes source-declared input and output contracts without overwriting
+     * manually governed service identity, capability, category or transport data.
+     */
+    @Transactional
+    public ApiServiceConfig updateDataContract(String id,
+                                               String inputSchemaJson,
+                                               String outputSchemaJson) {
+        ApiServiceConfig current = getById(id);
+        current.setInputSchemaJson(normalizeJsonObject(inputSchemaJson, "inputSchema"));
+        current.setOutputSchemaJson(normalizeJsonObject(outputSchemaJson, "outputSchema"));
+        return repository.save(current);
+    }
+
+    /**
+     * Deletes the delete.
+     *
+     * @param id the id value
+     */
+    @Transactional
+    public void delete(String id) {
+        repository.deleteById(id);
+    }
+
+    /**
+     * Deletes the all.
+     *
+     * @param ids the ids value
+     * @return the operation result
+     */
+    @Transactional
+    public int deleteAll(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        List<String> normalizedIds = ids.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (normalizedIds.isEmpty()) {
+            return 0;
+        }
+        List<ApiServiceConfig> existing = repository.findAllById(normalizedIds);
+        repository.deleteAll(existing);
+        return existing.size();
+    }
+
+    /**
+     * Validates the validate.
+     *
+     * @param config the config value
+     * @param currentId the current id value
+     */
+    private void validate(ApiServiceConfig config, String currentId) {
+        if (config.getToolName() == null || config.getToolName().isBlank()) {
+            throw new IllegalArgumentException("toolName is required");
+        }
+        String toolName = config.getToolName().trim();
+        if (!TOOL_NAME_PATTERN.matcher(toolName).matches()) {
+            throw new IllegalArgumentException("toolName can only contain letters, numbers, '_' and '-'");
+        }
+        if (toolRegistry.hasTool(toolName)) {
+            throw new IllegalArgumentException("toolName conflicts with built-in tool: " + toolName);
+        }
+        repository.findByToolNameIgnoreCase(toolName)
+            .filter(existing -> currentId == null || !existing.getId().equals(currentId))
+            .ifPresent(existing -> {
+                throw new IllegalArgumentException("toolName already exists: " + toolName);
+            });
+        config.setToolName(toolName);
+
+        if (config.getTitle() == null || config.getTitle().isBlank()) {
+            config.setTitle(toolName);
+        } else {
+            config.setTitle(config.getTitle().trim());
+        }
+
+        config.setGatewayId(blankToNull(config.getGatewayId()));
+        boolean usesGateway = config.getGatewayId() != null;
+        HttpEndpointConfig gateway = usesGateway ? gatewayConfigService.getById(config.getGatewayId()) : null;
+
+        if (usesGateway) {
+            config.setMethod(null);
+            config.setUrlTemplate(null);
+            config.setHeadersJson(null);
+            config.setBodyTemplate(null);
+        } else {
+            String method = config.getMethod() == null ? "GET" : config.getMethod().trim().toUpperCase(Locale.ROOT);
+            if (!ALLOWED_METHODS.contains(method)) {
+                throw new IllegalArgumentException("method must be one of " + ALLOWED_METHODS);
+            }
+            config.setMethod(method);
+            config.setUrlTemplate(blankToNull(config.getUrlTemplate()));
+            if (config.getUrlTemplate() == null) {
+                throw new IllegalArgumentException("gatewayId or urlTemplate is required");
+            }
+            validateUrlTemplate(config.getUrlTemplate());
+            config.setHeadersJson(normalizeJsonObject(config.getHeadersJson(), "headers"));
+            config.setBodyTemplate(blankToNull(config.getBodyTemplate()));
+        }
+
+        config.setDescription(blankToNull(config.getDescription()));
+        config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
+        config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
+        config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
+        if ((config.getCategoryId() == null || config.getCategoryId().isBlank())
+            && gateway != null && gateway.getCategoryId() != null && !gateway.getCategoryId().isBlank()) {
+            config.setCategoryId(gateway.getCategoryId());
+        }
+        categoryService.assign(config);
+        if (!hasDeclaredParameters(config.getInputSchemaJson()) && gateway != null
+            && hasDeclaredParameters(gateway.getInputSchemaJson())) {
+            config.setInputSchemaJson(gateway.getInputSchemaJson());
+        }
+        config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
+        config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
+        if (config.getTimeoutMs() <= 0) {
+            config.setTimeoutMs(20000);
+        }
+        if (config.getCacheTtlSeconds() <= 0) {
+            config.setCacheTtlSeconds(300);
+        }
+    }
+
+    /**
+     * Validates the url template.
+     *
+     * @param urlTemplate the url template value
+     */
+    private void validateUrlTemplate(String urlTemplate) {
+        String preview = urlTemplate.replaceAll("\\{\\{[^}]+}}", "x").replaceAll("\\{[^}]+}", "x");
+        try {
+            URI uri = URI.create(preview);
+            String scheme = uri.getScheme();
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                throw new IllegalArgumentException("urlTemplate must start with http:// or https://");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("urlTemplate is not a valid absolute URL template");
+        }
+    }
+
+    /**
+     * Normalizes the json object.
+     *
+     * @param json the json value
+     * @param fieldName the field name value
+     * @return the operation result
+     */
+    private String normalizeJsonObject(String json, String fieldName) {
+        String value = blankToNull(json);
+        if (value == null) {
+            return null;
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(value, new TypeReference<>() {});
+            return ModelProtocolJson.compact(map);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalArgumentException(fieldName + " must be a valid JSON object");
+        }
+    }
+
+    private void inheritGatewayParameterContract(ApiServiceConfig config) {
+        if (config == null || config.getGatewayId() == null || config.getGatewayId().isBlank()) {
+            return;
+        }
+        try {
+            HttpEndpointConfig gateway = gatewayConfigService.getById(config.getGatewayId());
+            if (!hasDeclaredParameters(config.getInputSchemaJson())
+                && hasDeclaredParameters(gateway.getInputSchemaJson())) {
+                config.setInputSchemaJson(gateway.getInputSchemaJson());
+            }
+            if ((config.getCategoryId() == null || config.getCategoryId().isBlank()
+                || "default".equalsIgnoreCase(config.getBusinessGroup()))
+                && gateway.getCategoryId() != null && !gateway.getCategoryId().isBlank()) {
+                categoryService.applyExplicit(config, gateway.getCategoryId());
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Preserve list/read behavior for a stale gateway reference; normal validation still rejects it on save.
+        }
+    }
+
+    private void synchronizeGatewayCategory(ApiServiceConfig config) {
+        if (config.getGatewayId() == null || config.getGatewayId().isBlank()) {
+            return;
+        }
+        gatewayConfigService.updateBusinessCategory(config.getGatewayId(), config.getCategoryId());
+    }
+
+    private boolean hasDeclaredParameters(String schemaJson) {
+        if (schemaJson == null || schemaJson.isBlank()) {
+            return false;
+        }
+        try {
+            Map<String, Object> schema = objectMapper.readValue(schemaJson, new TypeReference<>() {});
+            return schema.get("properties") instanceof Map<?, ?> properties && !properties.isEmpty();
+        } catch (JsonProcessingException ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Performs the blank to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String normalizeBusinessGroup(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return "default";
+        }
+        normalized = normalized.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+        normalized = normalized.replaceAll("_+", "_").replaceAll("^_+|_+$", "");
+        return normalized.isBlank() ? "default" : normalized;
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+}

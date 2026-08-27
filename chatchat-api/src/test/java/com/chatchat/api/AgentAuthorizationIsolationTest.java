@@ -1,9 +1,9 @@
 package com.chatchat.api;
 
-import com.chatchat.chat.task.ScheduledTaskRunEntity;
-import com.chatchat.chat.task.ScheduledTaskRunRepository;
-import com.chatchat.chat.task.AgentScheduledTaskService;
-import com.chatchat.chat.task.ScheduledAgentTaskRequest;
+import com.chatchat.chat.task.schedule.ScheduledTaskRunEntity;
+import com.chatchat.chat.task.schedule.ScheduledTaskRunRepository;
+import com.chatchat.chat.task.schedule.AgentScheduledTaskService;
+import com.chatchat.chat.task.schedule.ScheduledAgentTaskRequest;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillConfigEntity;
 import com.chatchat.chat.skills.SkillConfigRepository;

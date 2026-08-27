@@ -1,5 +1,8 @@
 package com.chatchat.mcpserver.contract;
 
+import com.chatchat.mcpserver.api.category.ApiServiceCategoryAdminController;
+import com.chatchat.mcpserver.api.registry.ApiServiceController;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,26 +18,26 @@ class McpControllerSurfaceContractTest {
         "com.chatchat.mcpserver.admin.AdminAuthController",
         "com.chatchat.mcpserver.admin.AdminLoginAuditController",
         "com.chatchat.mcpserver.admin.AdminPageController",
-        "com.chatchat.mcpserver.api.ApiServiceCategoryAdminController",
-        "com.chatchat.mcpserver.api.ApiServiceController",
+        "com.chatchat.mcpserver.api.category.ApiServiceCategoryAdminController",
+        "com.chatchat.mcpserver.api.registry.ApiServiceController",
         "com.chatchat.mcpserver.audit.InvocationAuditController",
         "com.chatchat.mcpserver.authorization.McpAuthorizationAdminController",
-        "com.chatchat.mcpserver.cache.DatabaseQueryCacheAdminController",
+        "com.chatchat.mcpserver.cache.query.DatabaseQueryCacheAdminController",
         "com.chatchat.mcpserver.category.BusinessCategoryAdminController",
         "com.chatchat.mcpserver.config.McpServerExceptionHandler",
-        "com.chatchat.mcpserver.database.DataQueryCategoryAdminController",
+        "com.chatchat.mcpserver.database.category.DataQueryCategoryAdminController",
         "com.chatchat.mcpserver.license.LicenseAdminController",
         "com.chatchat.mcpserver.livedata.LivedataApiController",
         "com.chatchat.mcpserver.market.MarketInternalController",
         "com.chatchat.mcpserver.market.SecurityMasterAdminController",
         "com.chatchat.mcpserver.mcp.McpServiceController",
-        "com.chatchat.mcpserver.metadata.EnterpriseMetadataAdminController",
-        "com.chatchat.mcpserver.metadata.EnterpriseMetadataTaxonomyAdminController",
-        "com.chatchat.mcpserver.metadata.MetadataGovernancePolicyAdminController",
+        "com.chatchat.mcpserver.metadata.catalog.EnterpriseMetadataAdminController",
+        "com.chatchat.mcpserver.metadata.taxonomy.EnterpriseMetadataTaxonomyAdminController",
+        "com.chatchat.mcpserver.metadata.governance.MetadataGovernancePolicyAdminController",
         "com.chatchat.mcpserver.notification.NotificationAdminController",
         "com.chatchat.mcpserver.routing.ExecutionTargetController",
-        "com.chatchat.mcpserver.sql.SqlAdminController",
-        "com.chatchat.mcpserver.sql.TradingCalendarConfigController",
+        "com.chatchat.mcpserver.sql.admin.SqlAdminController",
+        "com.chatchat.mcpserver.sql.calendar.TradingCalendarConfigController",
         "com.chatchat.mcpserver.template.AgentRuntimeTemplateDslAdminController"
     );
 

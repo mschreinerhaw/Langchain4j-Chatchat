@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Orchestrator-facing decision port; implementations own tool and policy resolution strategy. */
-interface AgentWorkflowDecisionPort {
+public interface AgentWorkflowDecisionPort {
 
     WorkflowMandatoryResolution resolveWorkflowMandatoryTools(List<String> tools,
                                                                Map<String, Object> runtimeAttributes,

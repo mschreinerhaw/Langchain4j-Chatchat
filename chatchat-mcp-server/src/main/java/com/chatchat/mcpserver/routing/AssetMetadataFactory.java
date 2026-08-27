@@ -1,9 +1,9 @@
 package com.chatchat.mcpserver.routing;
 
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
-import com.chatchat.mcpserver.ops.SshHostConfig;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointTechnicalType;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

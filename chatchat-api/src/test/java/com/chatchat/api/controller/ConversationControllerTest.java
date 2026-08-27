@@ -1,7 +1,7 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.chat.conversation.ConversationService;
-import com.chatchat.chat.conversation.Conversation;
+import com.chatchat.chat.conversation.service.ConversationService;
+import com.chatchat.chat.conversation.model.Conversation;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;

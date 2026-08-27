@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.templatepublication;
 
-import com.chatchat.mcpserver.api.ApiTemplateDiscoveryMcpToolPublisher;
-import com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher;
+import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
+import com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

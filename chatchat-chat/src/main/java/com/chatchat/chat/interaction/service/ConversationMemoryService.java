@@ -1,8 +1,10 @@
 package com.chatchat.chat.interaction.service;
 
-import com.chatchat.chat.conversation.Conversation;
-import com.chatchat.chat.conversation.ConversationSummary;
-import com.chatchat.chat.conversation.ConversationService;
+import com.chatchat.agents.evidence.answer.EvidenceAnswer;
+
+import com.chatchat.chat.conversation.model.Conversation;
+import com.chatchat.chat.conversation.model.ConversationSummary;
+import com.chatchat.chat.conversation.service.ConversationService;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

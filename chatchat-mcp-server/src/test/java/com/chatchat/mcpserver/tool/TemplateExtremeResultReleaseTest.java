@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.tool;
 
-import com.chatchat.mcpserver.sql.SqlQueryResult;
+import com.chatchat.mcpserver.sql.execution.SqlQueryResult;
 import com.chatchat.tools.builtin.DatabaseToolProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

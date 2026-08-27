@@ -1,5 +1,8 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.run.AgentRun;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+
 import java.util.Collection;
 
 public record AgentRuntimeSnapshot(

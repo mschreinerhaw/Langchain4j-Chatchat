@@ -1,15 +1,15 @@
 package com.chatchat.e2e;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
-import com.chatchat.agents.orchestration.EvidenceTrustEvaluator;
-import com.chatchat.agents.runtime.AgentObservation;
+import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
+import com.chatchat.agents.runtime.observation.AgentObservation;
 import com.chatchat.agents.runtime.AgentRunRequest;
-import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
-import com.chatchat.agents.runtime.InMemoryAgentRunStore;
-import com.chatchat.agents.runtime.McpPolicyProperties;
-import com.chatchat.agents.runtime.McpWorkflowProperties;
-import com.chatchat.agents.runtime.ToolRuntimeProperties;
-import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.observation.DefaultAgentObservationPipeline;
+import com.chatchat.agents.runtime.store.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.governance.McpPolicyProperties;
+import com.chatchat.agents.runtime.config.McpWorkflowProperties;
+import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.tool.ToolInput;

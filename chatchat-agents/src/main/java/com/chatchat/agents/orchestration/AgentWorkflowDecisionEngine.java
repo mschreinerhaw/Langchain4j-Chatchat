@@ -1,5 +1,8 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.orchestration.workflow.AgentWorkflowConfigurationException;
+
 import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
@@ -22,7 +25,7 @@ import java.util.Set;
 /**
  * Central decision engine for MCP workflow tool execution and final-answer gates.
  */
-class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
+public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
 
     private final ToolRegistry toolRegistry;
     private final McpCapabilityHierarchy capabilityHierarchy;

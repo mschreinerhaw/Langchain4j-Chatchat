@@ -65,12 +65,83 @@ class AgentModuleArchitectureTest {
     @Test
     void evidenceDomainDoesNotDependOnRuntimeImplementation() throws IOException {
         List<Path> violations = javaSources("evidence").stream()
-            .filter(path -> read(path).contains("import com.chatchat.agents.runtime."))
+            .filter(path -> {
+                String source = read(path);
+                return source.contains("import com.chatchat.agents.runtime.")
+                    || source.contains("import com.chatchat.agents.orchestration.");
+            })
             .toList();
 
         assertThat(violations)
-            .as("domain evidence types must remain reusable and cannot import Runtime implementation")
+            .as("domain evidence types must remain reusable and cannot import runtime or orchestration implementations")
             .isEmpty();
+    }
+
+    @Test
+    void evidenceRootContainsNoConcreteTypes() throws IOException {
+        Path evidenceRoot = mainJavaRoot().resolve("com/chatchat/agents/evidence");
+        Set<String> rootSources;
+        try (var paths = Files.list(evidenceRoot)) {
+            rootSources = paths
+                .filter(path -> path.toString().endsWith(".java"))
+                .map(path -> path.getFileName().toString())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        }
+
+        assertThat(rootSources)
+            .as("evidence domain types must be placed in a functional child package")
+            .containsExactly("package-info.java");
+    }
+
+    @Test
+    void runtimeRootContainsOnlyStableCallerFacingContracts() throws IOException {
+        Set<String> allowed = Set.of(
+            "AgentRunExecutor.java",
+            "AgentRunHandle.java",
+            "AgentRunRequest.java",
+            "AgentRunResult.java",
+            "AgentRuntime.java",
+            "AgentRuntimeSnapshot.java",
+            "package-info.java"
+        );
+
+        Path runtimeRoot = mainJavaRoot().resolve("com/chatchat/agents/runtime");
+        Set<String> rootSources;
+        try (var paths = Files.list(runtimeRoot)) {
+            rootSources = paths
+                .filter(path -> path.toString().endsWith(".java"))
+                .map(path -> path.getFileName().toString())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        }
+
+        assertThat(rootSources)
+            .as("runtime implementations must be placed in a functional child package")
+            .containsExactlyInAnyOrderElementsOf(allowed);
+    }
+
+    @Test
+    void orchestrationRootContainsOnlyEntryPointsAndCoreEngines() throws IOException {
+        Set<String> allowed = Set.of(
+            "AgentOrchestrator.java",
+            "AgentPlanner.java",
+            "AgentRunResultAdapter.java",
+            "AgentWorkflowDecisionEngine.java",
+            "AgentWorkflowDecisionPort.java",
+            "package-info.java"
+        );
+
+        Path orchestrationRoot = mainJavaRoot().resolve("com/chatchat/agents/orchestration");
+        Set<String> rootSources;
+        try (var paths = Files.list(orchestrationRoot)) {
+            rootSources = paths
+                .filter(path -> path.toString().endsWith(".java"))
+                .map(path -> path.getFileName().toString())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        }
+
+        assertThat(rootSources)
+            .as("orchestration feature implementations must be placed in a functional child package")
+            .containsExactlyInAnyOrderElementsOf(allowed);
     }
 
     @Test

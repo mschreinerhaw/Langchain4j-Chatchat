@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.evidence.graph.EvidenceGraph;
+
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolProtocolDriverContract;

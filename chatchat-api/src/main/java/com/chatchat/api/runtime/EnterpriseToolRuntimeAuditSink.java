@@ -1,7 +1,7 @@
 package com.chatchat.api.runtime;
 
-import com.chatchat.agents.runtime.ToolRuntimeAuditRecord;
-import com.chatchat.agents.runtime.ToolRuntimeAuditSink;
+import com.chatchat.agents.runtime.tool.ToolRuntimeAuditRecord;
+import com.chatchat.agents.runtime.tool.ToolRuntimeAuditSink;
 import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;

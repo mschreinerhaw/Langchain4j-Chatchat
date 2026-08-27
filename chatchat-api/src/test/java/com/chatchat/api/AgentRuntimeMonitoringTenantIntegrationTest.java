@@ -2,10 +2,10 @@ package com.chatchat.api;
 
 import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
-import com.chatchat.chat.task.AgentEvent;
-import com.chatchat.chat.task.AgentEventStore;
-import com.chatchat.chat.task.AgentTaskLatestEntity;
-import com.chatchat.chat.task.AgentTaskLatestRepository;
+import com.chatchat.chat.task.event.AgentEvent;
+import com.chatchat.chat.task.event.AgentEventStore;
+import com.chatchat.chat.task.core.AgentTaskLatestEntity;
+import com.chatchat.chat.task.core.AgentTaskLatestRepository;
 import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.entity.SysPermission;
 import com.chatchat.enterprise.entity.SysRole;

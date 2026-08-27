@@ -1,7 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
-import com.chatchat.agents.runtime.AgentRunEvent;
-import com.chatchat.agents.runtime.AgentRunEventType;
+import com.chatchat.agents.runtime.event.AgentRunEvent;
+import com.chatchat.agents.runtime.event.AgentRunEventType;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;

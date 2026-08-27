@@ -1,6 +1,6 @@
 package com.chatchat.api.listener;
 
-import com.chatchat.chat.task.AgentTaskService;
+import com.chatchat.chat.task.core.AgentTaskService;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

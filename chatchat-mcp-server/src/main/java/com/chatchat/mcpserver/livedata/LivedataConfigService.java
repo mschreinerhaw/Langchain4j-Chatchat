@@ -1,9 +1,9 @@
 package com.chatchat.mcpserver.livedata;
 
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;

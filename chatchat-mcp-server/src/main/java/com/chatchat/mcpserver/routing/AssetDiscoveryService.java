@@ -1,13 +1,13 @@
 package com.chatchat.mcpserver.routing;
 
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
-import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
-import com.chatchat.mcpserver.ops.SshHostConfigService;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.http.HttpEndpointTechnicalType;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 import com.chatchat.mcpserver.search.AssetRelevanceRanker;
 import com.chatchat.mcpserver.search.DiscoveryQueryVariants;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;

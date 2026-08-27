@@ -1,0 +1,390 @@
+package com.chatchat.mcpserver.sql.metadata;
+
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.resolution.TableLocation;
+
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.LuceneSearchProperties;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.sql.DriverManager;
+import java.sql.Statement;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class SqlMetadataSearchServiceTest {
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void returnsSqlExecutionBindingForMatchedMetadataTableDocument() throws Exception {
+        String jdbcUrl = "jdbc:h2:mem:sql_metadata_search;DB_CLOSE_DELAY=-1";
+        try (var connection = DriverManager.getConnection(jdbcUrl, "sa", "");
+             Statement statement = connection.createStatement()) {
+            statement.execute("create schema rdsm_ad");
+            statement.execute("create table rdsm_ad.lbappdeploydetail (id int primary key, app_name varchar(64))");
+        }
+
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-248");
+        datasource.setName("248-test");
+        datasource.setTitle("248 test database");
+        datasource.setToolName("db_query_mysql_248_test_db");
+        datasource.setEnvironment("DEV");
+        datasource.setDatabaseType("mysql");
+        datasource.setJdbcUrl(jdbcUrl);
+        datasource.setUsername("sa");
+        datasource.setPassword("");
+
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        when(datasourceConfigService.listEnabled()).thenReturn(List.of(datasource));
+
+        LuceneSearchProperties properties = new LuceneSearchProperties();
+        properties.setIndexDir(tempDir.toString());
+        LuceneMcpSearchService luceneSearchService = new LuceneMcpSearchService(properties);
+        luceneSearchService.indexAssets(List.of(
+            new LuceneMcpSearchService.AssetDoc(
+                "metadata_table:ds-248:rdsm_ad:lbappdeploydetail",
+                "sql_datasource",
+                "248-test.rdsm_ad.lbappdeploydetail",
+                "lbappdeploydetail",
+                "db_query_mysql_248_test_db",
+                "DEV",
+                "mysql",
+                List.of("metadata_table", "database:rdsm_ad", "schema:rdsm_ad", "table:lbappdeploydetail"),
+                "metadata_table",
+                "ds-248",
+                "rdsm_ad",
+                "lbappdeploydetail",
+                "248-test.rdsm_ad.lbappdeploydetail",
+                "应用部署明细",
+                "应用部署明细",
+                "测试数据库"
+            ),
+            new LuceneMcpSearchService.AssetDoc(
+                "metadata_table:ds-248:dbo:sqlserver_table",
+                "sql_datasource",
+                "248-test.dbo.sqlserver_table",
+                "sqlserver_table",
+                "db_query_mysql_248_test_db",
+                "DEV",
+                "mysql",
+                List.of("metadata_table", "database:dbo", "schema:dbo", "table:sqlserver_table"),
+                "metadata_table",
+                "ds-248",
+                "dbo",
+                "sqlserver_table",
+                "248-test.dbo.sqlserver_table"
+            )
+        ));
+
+        SqlMetadataSearchService service = new SqlMetadataSearchService(
+            luceneSearchService,
+            datasourceConfigService,
+            new MetadataIndexService()
+        );
+
+        Map<String, Object> result = service.search(Map.of(
+            "query", "lbappdeploydetail",
+            "executionContext", Map.of("env", "DEV", "databaseType", "mysql"),
+            "limit", 5
+        ));
+
+        assertThat(result).containsEntry("success", true);
+        List<Map<String, Object>> results = (List<Map<String, Object>>) result.get("results");
+        assertThat(results).hasSize(1);
+        Map<String, Object> first = results.get(0);
+        assertThat(first.get("source")).isEqualTo("lucene");
+        assertThat((Map<String, Object>) first.get("location"))
+            .containsEntry("database", "rdsm_ad")
+            .containsEntry("table", "lbappdeploydetail")
+            .containsEntry("tableComment", "应用部署明细")
+            .containsEntry("databaseComment", "测试数据库");
+        Map<String, Object> binding = (Map<String, Object>) first.get("sqlExecutionBinding");
+        assertThat((Map<String, Object>) binding.get("parameters"))
+            .containsEntry("databaseName", "rdsm_ad")
+            .containsEntry("schemaName", "rdsm_ad")
+            .containsEntry("tableName", "lbappdeploydetail");
+        assertThat((Map<String, Object>) binding.get("executionContext"))
+            .containsEntry("assetName", "248-test")
+            .containsEntry("env", "DEV");
+
+        Map<String, Object> qualifiedResult = service.search(Map.of(
+            "tableName", "rdsm_ad.lbappdeploydetail",
+            "executionContext", Map.of("env", "DEV", "databaseType", "mysql"),
+            "limit", 5
+        ));
+        List<Map<String, Object>> qualifiedResults = (List<Map<String, Object>>) qualifiedResult.get("results");
+        assertThat(qualifiedResults).hasSize(1);
+        Map<String, Object> qualifiedBinding = (Map<String, Object>) qualifiedResults.get(0).get("sqlExecutionBinding");
+        assertThat((Map<String, Object>) qualifiedBinding.get("parameters"))
+            .containsEntry("databaseName", "rdsm_ad")
+            .containsEntry("schemaName", "rdsm_ad")
+            .containsEntry("tableName", "lbappdeploydetail");
+
+        Map<String, Object> sqlServerStyleResult = service.search(Map.of(
+            "tableName", "user.dbo.sqlserver_table",
+            "executionContext", Map.of("env", "DEV", "databaseType", "mysql"),
+            "limit", 5
+        ));
+        List<Map<String, Object>> sqlServerStyleResults = (List<Map<String, Object>>) sqlServerStyleResult.get("results");
+        assertThat(sqlServerStyleResults).hasSize(1);
+        Map<String, Object> sqlServerStyleBinding = (Map<String, Object>) sqlServerStyleResults.get(0).get("sqlExecutionBinding");
+        assertThat((Map<String, Object>) sqlServerStyleBinding.get("parameters"))
+            .containsEntry("databaseName", "user")
+            .containsEntry("schemaName", "dbo")
+            .containsEntry("tableName", "sqlserver_table");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void explicitTableSearchIncludesCachedColumnMetadataByDefault() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-livebos");
+        datasource.setName("248测试数据库");
+        datasource.setToolName("db_query_mysql_248_test_db");
+        datasource.setEnvironment("DEV");
+        datasource.setDatabaseType("mysql");
+
+        TableLocation table = new TableLocation(
+            "ds-livebos",
+            "livebos",
+            "livebos",
+            "os_historystep",
+            "BASE TABLE",
+            12L,
+            "历史步骤表",
+            "流程数据库",
+            1.0
+        );
+        MetadataColumn stepId = new MetadataColumn(
+            "ds-livebos",
+            "livebos",
+            "livebos",
+            "os_historystep",
+            "step_id",
+            "varchar",
+            "varchar(64)",
+            "PRI",
+            "步骤ID",
+            false,
+            1
+        );
+
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        when(datasourceConfigService.listEnabled()).thenReturn(List.of(datasource));
+        MetadataIndexService metadataIndexService = mock(MetadataIndexService.class);
+        when(metadataIndexService.allTables(datasource)).thenReturn(List.of(table));
+        when(metadataIndexService.columns(datasource, table)).thenReturn(List.of(stepId));
+        LuceneMcpSearchService luceneSearchService = mock(LuceneMcpSearchService.class);
+        when(luceneSearchService.enabled()).thenReturn(false);
+
+        SqlMetadataSearchService service = new SqlMetadataSearchService(
+            luceneSearchService,
+            datasourceConfigService,
+            metadataIndexService
+        );
+
+        Map<String, Object> result = service.search(Map.of(
+            "tableName", "livebos.os_historystep",
+            "executionContext", Map.of("assetName", "248测试数据库", "env", "DEV", "databaseType", "mysql")
+        ));
+
+        List<Map<String, Object>> results = (List<Map<String, Object>>) result.get("results");
+        assertThat(results).hasSize(1);
+        Map<String, Object> first = results.get(0);
+        assertThat(first).containsEntry("columnCount", 1);
+        List<Map<String, Object>> columns = (List<Map<String, Object>>) first.get("columns");
+        assertThat(columns).hasSize(1);
+        assertThat(columns.get(0))
+            .containsEntry("name", "step_id")
+            .containsEntry("dataType", "varchar")
+            .containsEntry("columnType", "varchar(64)")
+            .containsEntry("columnKey", "PRI")
+            .containsEntry("comment", "步骤ID");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void tableNameFallsBackToSemanticCandidatesWhenExactTableFilterFindsNothing() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-tdh");
+        datasource.setName("TDH大数据集群");
+        datasource.setToolName("db_query_tdh_dev");
+        datasource.setEnvironment("DEV");
+        datasource.setDatabaseType("inceptor");
+
+        TableLocation accountQuota = new TableLocation(
+            "ds-tdh",
+            "gdp_ads",
+            "gdp_ads",
+            "ads_ids_secu_ast_liab_d_1",
+            "TABLE",
+            null,
+            "账户交易额度分析证券资产负债日增量表",
+            "ADS应用数据服务层",
+            0.9
+        );
+        TableLocation accountSummary = new TableLocation(
+            "ds-tdh",
+            "gdp_ads",
+            "gdp_ads",
+            "ads_acct_trade_quota_sum_d",
+            "TABLE",
+            null,
+            "账户交易额度分析汇总表",
+            "ADS应用数据服务层",
+            0.8
+        );
+
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        when(datasourceConfigService.listEnabled()).thenReturn(List.of(datasource));
+        MetadataIndexService metadataIndexService = mock(MetadataIndexService.class);
+        when(metadataIndexService.allTables(datasource)).thenReturn(List.of(accountQuota, accountSummary));
+        when(metadataIndexService.columns(datasource, accountQuota)).thenReturn(List.of());
+        when(metadataIndexService.columns(datasource, accountSummary)).thenReturn(List.of());
+        LuceneMcpSearchService luceneSearchService = mock(LuceneMcpSearchService.class);
+        when(luceneSearchService.enabled()).thenReturn(false);
+
+        SqlMetadataSearchService service = new SqlMetadataSearchService(
+            luceneSearchService,
+            datasourceConfigService,
+            metadataIndexService
+        );
+
+        Map<String, Object> semanticResult = service.search(Map.of(
+            "tableName", "账户交易额度分析",
+            "includeColumns", true,
+            "executionContext", Map.of("assetName", "TDH大数据集群", "env", "DEV", "databaseType", "inceptor")
+        ));
+
+        List<Map<String, Object>> semanticResults = (List<Map<String, Object>>) semanticResult.get("results");
+        assertThat(semanticResults).hasSize(2);
+        assertThat((Map<String, Object>) semanticResult.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", false)
+            .containsEntry("tableNameFilterMode", "no_exact_match_returning_semantic_candidates");
+
+        Map<String, Object> exactResult = service.search(Map.of(
+            "tableName", "ads_ids_secu_ast_liab_d_1",
+            "includeColumns", true,
+            "executionContext", Map.of("assetName", "TDH大数据集群", "env", "DEV", "databaseType", "inceptor")
+        ));
+
+        List<Map<String, Object>> exactResults = (List<Map<String, Object>>) exactResult.get("results");
+        assertThat(exactResults).hasSize(1);
+        assertThat((Map<String, Object>) exactResults.get(0).get("location"))
+            .containsEntry("table", "ads_ids_secu_ast_liab_d_1");
+        assertThat((Map<String, Object>) exactResult.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", true)
+            .containsEntry("tableNameFilterMode", "exact_table_match");
+
+        Map<String, Object> missingExactResult = service.search(Map.of(
+            "tableName", "ads_ids_table_that_does_not_exist",
+            "includeColumns", true,
+            "executionContext", Map.of("assetName", "TDH大数据集群", "env", "DEV", "databaseType", "inceptor")
+        ));
+
+        assertThat((List<Map<String, Object>>) missingExactResult.get("results")).isEmpty();
+        assertThat((List<Map<String, Object>>) missingExactResult.get("tableCatalog")).isEmpty();
+        assertThat(missingExactResult).containsEntry("totalMatched", 0);
+        assertThat((Map<String, Object>) missingExactResult.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", false)
+            .containsEntry("tableNameFilterMode", "exact_table_not_found");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void exactTableLookupLazilyInitializesMissingIndexAndReturnsEveryColumn() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-tdh");
+        datasource.setName("TDH Warehouse");
+        datasource.setEnvironment("DEV");
+        datasource.setDatabaseType("inceptor");
+
+        TableLocation target = new TableLocation(
+            "ds-tdh",
+            "gdp_ads",
+            "gdp_ads",
+            "ads_ids_clr_acc_liab_d_i",
+            "TABLE",
+            null,
+            "Clearing account liability",
+            "ADS",
+            1.0
+        );
+        List<MetadataColumn> columns = List.of(
+            new MetadataColumn("ds-tdh", "gdp_ads", "gdp_ads", target.table(),
+                "account_id", "varchar", "varchar(64)", "", "Account ID", false, 1),
+            new MetadataColumn("ds-tdh", "gdp_ads", "gdp_ads", target.table(),
+                "liability_amount", "decimal", "decimal(18,2)", "", "Liability amount", true, 2)
+        );
+        AtomicBoolean initialized = new AtomicBoolean();
+
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        when(datasourceConfigService.listEnabled()).thenReturn(List.of(datasource));
+        MetadataIndexService metadataIndexService = mock(MetadataIndexService.class);
+        when(metadataIndexService.indexFor(datasource)).thenAnswer(invocation -> initialized.get()
+            ? new MetadataIndex(
+                datasource.getId(),
+                "inceptor",
+                List.of(target),
+                Map.of(target.table(), List.of(target)),
+                Map.of(target.database(), List.of(target.table())),
+                Map.of(),
+                List.of(target.database()),
+                System.currentTimeMillis(),
+                true,
+                null
+            )
+            : MetadataIndex.failed(datasource.getId(), "inceptor", "metadata_index_not_refreshed"));
+        when(metadataIndexService.ensureIndex(datasource)).thenAnswer(invocation -> {
+            initialized.set(true);
+            return metadataIndexService.indexFor(datasource);
+        });
+        when(metadataIndexService.allTables(datasource)).thenAnswer(invocation ->
+            initialized.get() ? List.of(target) : List.of());
+        when(metadataIndexService.findTables(datasource, target.table())).thenAnswer(invocation ->
+            initialized.get() ? List.of(target) : List.of());
+        when(metadataIndexService.columns(datasource, target)).thenReturn(columns);
+        LuceneMcpSearchService luceneSearchService = mock(LuceneMcpSearchService.class);
+        when(luceneSearchService.enabled()).thenReturn(false);
+
+        SqlMetadataSearchService service = new SqlMetadataSearchService(
+            luceneSearchService,
+            datasourceConfigService,
+            metadataIndexService
+        );
+
+        Map<String, Object> result = service.search(Map.of(
+            "database", "gdp_ads",
+            "tableName", target.table(),
+            "includeColumns", true,
+            "detailLimit", 5
+        ));
+
+        List<Map<String, Object>> results = (List<Map<String, Object>>) result.get("results");
+        assertThat(results).hasSize(1);
+        assertThat((Map<String, Object>) results.get(0).get("location"))
+            .containsEntry("tableName", target.table());
+        assertThat((List<Map<String, Object>>) results.get(0).get("columns"))
+            .extracting(column -> column.get("name"))
+            .containsExactly("account_id", "liability_amount");
+        assertThat((Map<String, Object>) result.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", true)
+            .containsEntry("lazyIndexInitializationAttempted", true)
+            .containsEntry("lazyIndexInitializationDatasourceIds", List.of("ds-tdh"))
+            .containsEntry("lazyIndexInitializationSucceededDatasourceIds", List.of("ds-tdh"));
+        verify(metadataIndexService).ensureIndex(datasource);
+    }
+}

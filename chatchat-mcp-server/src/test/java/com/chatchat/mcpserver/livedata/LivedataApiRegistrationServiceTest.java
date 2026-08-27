@@ -1,12 +1,12 @@
 package com.chatchat.mcpserver.livedata;
 
-import com.chatchat.mcpserver.api.ApiInvokeResult;
-import com.chatchat.mcpserver.api.ApiInvokeService;
-import com.chatchat.mcpserver.api.ApiMcpToolPublisher;
-import com.chatchat.mcpserver.api.ApiServiceConfig;
-import com.chatchat.mcpserver.api.ApiServiceConfigService;
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.api.invocation.ApiInvokeResult;
+import com.chatchat.mcpserver.api.invocation.ApiInvokeService;
+import com.chatchat.mcpserver.api.publication.ApiMcpToolPublisher;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
 import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.chatchat.tools.livedata.LivedataApiDefinition;

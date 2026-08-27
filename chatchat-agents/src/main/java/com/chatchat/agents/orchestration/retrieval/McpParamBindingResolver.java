@@ -1,0 +1,1281 @@
+package com.chatchat.agents.orchestration.retrieval;
+
+import com.chatchat.agents.protocol.AgentProtocolCatalog;
+import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Normalizes loose planner arguments into the logical MCP gateway contracts.
+ */
+public class McpParamBindingResolver {
+
+    private final DiscoveryParameterNormalizer discoveryParameterNormalizer =
+        new DiscoveryParameterNormalizer();
+
+    private static final Pattern ENV_ASSIGNMENT_PATTERN = Pattern.compile(
+        "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
+            + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
+    );
+    private static final Pattern ENV_QUALIFIER_PATTERN = Pattern.compile(
+        "(?iu)(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)\\s*"
+            + "(?:\\u73af\\u5883|\\u96c6\\u7fa4|\\benv(?:ironment)?\\b)"
+    );
+    private static final Pattern ENV_ENGLISH_CONTEXT_PATTERN = Pattern.compile(
+        "(?iu)\\b(?:in|on|under)\\s+(?:the\\s+)?(DEV|TEST|UAT|PROD)"
+            + "(?:\\s+(?:env(?:ironment)?|cluster))?\\b"
+    );
+
+    public static final String STATUS_KEY = "__runtimeParamBindingStatus";
+    public static final String ERROR_KEY = "__runtimeParamBindingError";
+    public static final String CODE_KEY = "__runtimeParamBindingCode";
+
+    private static final Set<String> MCP_CATEGORIES = Set.of("mcp");
+    private static final List<String> LOGICAL_CONTEXT_KEYS = List.of(
+        "env",
+        "environment",
+        "cluster",
+        "namespace",
+        "target",
+        "targetType",
+        "target_type",
+        "assetName",
+        "asset_name",
+        "name",
+        "hostSelector",
+        "host_selector",
+        "database",
+        "databaseType",
+        "dbType",
+        "dialect",
+        "databaseRole",
+        "database_role",
+        "service",
+        "labels"
+    );
+    private static final List<String> CONCRETE_TARGET_FIELDS = List.of(
+        "hostId",
+        "host",
+        "hostname",
+        "ip",
+        "ipAddress",
+        "address",
+        "datasourceId",
+        "jdbcUrl",
+        "url",
+        "connectionString",
+        "endpointId",
+        "uri"
+    );
+    private static final List<String> RAW_EXECUTION_FIELDS = List.of(
+        "command",
+        "rawCommand",
+        "shell",
+        "sql",
+        "rawSql",
+        "body",
+        "bodyTemplate"
+    );
+    private static final List<String> TARGET_KIND_FIELDS = List.of(
+        "targetKind",
+        "target_kind",
+        "queryDomain",
+        "query_domain",
+        "domain",
+        "resourceType",
+        "resource_type",
+        "resourceKind",
+        "resource_kind"
+    );
+    private static final List<String> FILTER_PROTOCOL_FIELDS = List.of(
+        "trace",
+        "routingTrace",
+        "routing_trace",
+        "candidates",
+        "routingCandidates",
+        "routing_candidates",
+        "finalDecision",
+        "final_decision",
+        "selectedTargetKind",
+        "selected_target_kind",
+        "targetKind",
+        "target_kind",
+        "assetType",
+        "asset_type",
+        "confidence",
+        "filtersSchemaVersion",
+        "filters_schema_version",
+        "mcpContext",
+        "mcp_context",
+        "tenantId",
+        "tenant_id",
+        "userId",
+        "user_id",
+        "requestId",
+        "request_id",
+        "conversationId",
+        "conversation_id",
+        "toolName",
+        "tool_name",
+        "remoteTool",
+        "remote_tool"
+    );
+    private static final String FILTERS_SCHEMA_VERSION = AgentProtocolCatalog.TARGET_FILTERS;
+    private static final double TARGET_KIND_CONFIDENCE_THRESHOLD = 0.60;
+    private static final double INTENT_RETRIEVAL_THRESHOLD = 0.75;
+
+    public Map<String, Object> resolve(String toolName,
+                                ToolMetadata metadata,
+                                Map<String, Object> arguments,
+                                String userQuery) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        if (!isMcpTool(toolName, metadata)) {
+            return values;
+        }
+        String remoteToolName = remoteToolName(toolName, metadata);
+        String protocolFamily = ToolWorkflowContract.declaredProtocolFamily(metadata)
+            .map(value -> value.toLowerCase(Locale.ROOT)).orElse("");
+        if (protocolFamily.contains("ssh") || protocolFamily.contains("shell")
+            || sameTool(remoteToolName, "linux_command_execute")
+            || sameTool(remoteToolName, "ssh_linux_execute")) {
+            return bindLinuxCommand(values, userQuery);
+        }
+        if (protocolFamily.contains("http") || protocolFamily.contains("api")
+            || sameTool(remoteToolName, "http_request_execute")
+            || sameTool(remoteToolName, "api_query_execute")) {
+            return bindHttpRequest(values, userQuery);
+        }
+        if (protocolFamily.contains("sql") || protocolFamily.contains("database")
+            || sameTool(remoteToolName, "sql_query_execute")) {
+            return bindSqlQuery(values, userQuery);
+        }
+        if (workflowRole(remoteToolName, metadata) == ToolWorkflowRole.ASSET_DISCOVERY) {
+            return bindDiscoveryQuery(toolName, metadata, values, userQuery, false);
+        }
+        if (workflowRole(remoteToolName, metadata) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+            return bindDiscoveryQuery(toolName, metadata, values, userQuery, true);
+        }
+        return values;
+    }
+
+    private Map<String, Object> bindSqlQuery(Map<String, Object> values, String userQuery) {
+        String forbidden = firstPresentField(values, List.of(
+            "hostId", "host", "hostname", "ip", "ipAddress", "address", "datasourceId", "jdbcUrl", "connectionString"
+        ));
+        if (forbidden != null) {
+            return denied(values, "Concrete datasource target is not allowed for sql_query_execute: " + forbidden);
+        }
+        renameFirst(values, "template", "templateId", "template_id", "sqlTemplate", "sql_template");
+        Map<String, Object> context = logicalExecutionContext(values, userQuery);
+        if (!context.isEmpty()) {
+            values.put("executionContext", context);
+        }
+        if (!hasText(values.get("purpose")) && hasText(userQuery)) {
+            values.put("purpose", trim(userQuery));
+        }
+        values.remove("query");
+        return values;
+    }
+
+    private Map<String, Object> bindLinuxCommand(Map<String, Object> values, String userQuery) {
+        String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
+        if (forbidden != null) {
+            return denied(values, "Concrete execution target is not allowed for linux_command_execute: " + forbidden);
+        }
+        String rawExecution = firstPresentField(values, RAW_EXECUTION_FIELDS);
+        if (rawExecution != null) {
+            return denied(values, "Raw execution field is not allowed for linux_command_execute: " + rawExecution
+                + ". Use a registered template plus parameters.");
+        }
+
+        renameFirst(values, "template", "templateId", "template_id", "commandTemplate", "command_template");
+        Map<String, Object> context = logicalExecutionContext(values, userQuery);
+        if (!context.isEmpty()) {
+            values.put("executionContext", context);
+        }
+        normalizeParameters(values, userQuery);
+        if (!hasText(values.get("reason")) && hasText(userQuery)) {
+            values.put("reason", trim(userQuery));
+        }
+        values.remove("query");
+        return values;
+    }
+
+    private Map<String, Object> bindHttpRequest(Map<String, Object> values, String userQuery) {
+        String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
+        if (forbidden != null) {
+            return denied(values, "Concrete endpoint target is not allowed for http_request_execute: " + forbidden);
+        }
+        renameFirst(values, "template", "templateId", "template_id", "endpoint", "endpointName");
+        Map<String, Object> context = logicalExecutionContext(values, userQuery);
+        if (!context.isEmpty()) {
+            values.put("executionContext", context);
+        }
+        normalizeParameters(values, userQuery);
+        if (!hasText(values.get("reason")) && hasText(userQuery)) {
+            values.put("reason", trim(userQuery));
+        }
+        values.remove("query");
+        return values;
+    }
+
+    private Map<String, Object> bindDiscoveryQuery(String toolName,
+                                                   ToolMetadata metadata,
+                                                   Map<String, Object> values,
+                                                   String userQuery,
+                                                   boolean templateQuery) {
+        PublishedDiscoveryContract publishedContract = publishedDiscoveryContract(metadata);
+        String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
+        if (forbidden != null) {
+            return denied(values, "Concrete target field is not allowed for discovery: " + forbidden);
+        }
+        if (templateQuery) {
+            String rawExecution = firstPresentField(values, RAW_EXECUTION_FIELDS);
+            if (rawExecution != null) {
+                return denied(values, "Raw execution field is not allowed for template_query: " + rawExecution);
+            }
+        }
+
+        String targetKind = removeTargetKind(values);
+        Object rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
+        String finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
+        if (targetKind == null) {
+            targetKind = finalDecision;
+        }
+        String toolTargetKind = firstNonBlank(
+            publishedContract.forcedTargetKind(),
+            publishedContract.published() ? null : targetKindFromDiscoveryToolName(toolName, templateQuery));
+        if (toolTargetKind != null) {
+            targetKind = toolTargetKind;
+            forceDiscoveryTargetKind(values, toolTargetKind, rawCandidates);
+            rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
+            finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
+        }
+        Object explicitFilterEnvelope = firstPresent(values, "filters", "executionContext", "mcpExecutionContext");
+        boolean synthesizedLegacyFilterEnvelope = false;
+        if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
+            if (hasText(values.get("query"))
+                && (toolTargetKind != null || publishedContract.accepts("filters"))) {
+                targetKind = firstNonBlank(targetKind, toolTargetKind);
+                Map<String, Object> filters = new LinkedHashMap<>();
+                inferLogicalContext(userQuery).forEach(filters::putIfAbsent);
+                if (templateQuery && hasText(userQuery)) {
+                    filters.putIfAbsent("intent", trim(userQuery));
+                } else if (hasText(userQuery)) {
+                    filters.putIfAbsent("intent", trim(userQuery));
+                }
+                values.put("filters", filters);
+                if (publishedContract.requiresRoutingDecision() && hasText(targetKind)) {
+                    values.putIfAbsent("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 0.9)));
+                    values.putIfAbsent("finalDecision", targetKind);
+                    values.putIfAbsent("confidence", 0.9);
+                }
+                synthesizedLegacyFilterEnvelope = true;
+                explicitFilterEnvelope = filters;
+                rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
+                finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
+            }
+        }
+        if (!(explicitFilterEnvelope instanceof Map<?, ?>)
+            && publishedContract.accepts("filters")
+            && !publishedContract.requires("filters")) {
+            values.put("filters", Map.of());
+            explicitFilterEnvelope = values.get("filters");
+        }
+        if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
+            return denied(values, (templateQuery ? "template_query" : "asset_query")
+                + " requires explicit filters object, even when it is empty.");
+        }
+        DiscoveryParameterNormalizer.Normalization normalizedParameters =
+            discoveryParameterNormalizer.normalize(values, inferLogicalContext(userQuery), userQuery);
+        Map<String, Object> filters = new LinkedHashMap<>(normalizedParameters.filters());
+        removeForbidden(filters);
+        // A single canonical envelope prevents the MCP server from applying a second,
+        // different precedence order to stale aliases.
+        values.remove("executionContext");
+        values.remove("mcpExecutionContext");
+        if (!normalizedParameters.conflicts().isEmpty() || !normalizedParameters.repairs().isEmpty()) {
+            org.slf4j.LoggerFactory.getLogger(McpParamBindingResolver.class).info(
+                "Discovery parameters normalized tool={} conflicts={} repairs={} temporalConstraints={} provenance={}",
+                toolName,
+                normalizedParameters.conflicts(),
+                normalizedParameters.repairs(),
+                normalizedParameters.temporalConstraints(),
+                normalizedParameters.provenance()
+            );
+        }
+        if (targetKind == null) {
+            targetKind = removeTargetKind(filters);
+        }
+        if (templateQuery && !hasText(firstPresent(filters, "intent", "goal", "category"))) {
+            String intent = hasText(userQuery) ? trim(userQuery) : inferIntent(userQuery);
+            if (intent != null) {
+                filters.put("intent", intent);
+            }
+        }
+        if (templateQuery) {
+            enrichTemplateIntentSignals(filters, userQuery);
+        }
+        enrichRetrievalTerms(filters, values, userQuery);
+        repairFiltersFromPublishedContract(metadata, filters);
+        if (!filters.isEmpty()) {
+            values.put("filters", filters);
+        } else if (values.containsKey("query")) {
+            values.put("filters", Map.of());
+        }
+        if (publishedContract.accepts("filtersSchemaVersion")) {
+            values.putIfAbsent("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
+        }
+        if (!publishedContract.requiresRoutingDecision()) {
+            return finishPublishedScopedDiscovery(values, toolName, targetKind, publishedContract,
+                synthesizedLegacyFilterEnvelope);
+        }
+        if (targetKind == null && !hasText(values.get("assetType"))) {
+            return denied(values, (templateQuery ? "template_query" : "asset_query")
+                + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
+                + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
+                + "; use document_search for targetKind=document.");
+        }
+        if (hasText(publishedContract.forcedAssetType())) {
+            values.put("assetType", publishedContract.forcedAssetType());
+        }
+        Double confidence = confidence(values.get("confidence"));
+        if (confidence == null) {
+            confidence = candidateConfidence(rawCandidates, targetKind);
+            if (confidence != null) {
+                values.put("confidence", confidence);
+            }
+        }
+        if (confidence == null) {
+            return denied(values, (templateQuery ? "template_query" : "asset_query")
+                + " requires confidence between 0.0 and 1.0.");
+        }
+        if (confidence < 0.0 || confidence > 1.0) {
+            return denied(values, "confidence must be between 0.0 and 1.0: " + confidence);
+        }
+        ensureRuntimeRoutingTrace(values, toolName, targetKind, confidence,
+            synthesizedLegacyFilterEnvelope ? "agent_tool_argument_resolver" : "agent_runtime_param_binding",
+            toolTargetKind == null ? "planner_decision" : "published_tool_contract");
+        if (!(firstPresent(values, "trace", "routingTrace", "routing_trace") instanceof Map<?, ?> trace) || trace.isEmpty()) {
+            return denied(values, (templateQuery ? "template_query" : "asset_query")
+                + " requires trace object for replayable routing.");
+        }
+        if (!hasText(values.get("assetType"))) {
+            String assetType = assetTypeFromTargetKind(targetKind);
+            if (assetType != null) {
+                values.put("assetType", assetType);
+                values.put("targetKind", normalizeTargetKind(targetKind));
+                values.putIfAbsent("finalDecision", normalizeTargetKind(targetKind));
+            } else if (hasText(targetKind)) {
+                return denied(values, "Unsupported targetKind for " + (templateQuery ? "template_query" : "asset_query")
+                    + ": " + targetKind + ". Allowed targetKind values are "
+                    + (templateQuery ? "host, database, http, java, business_database_query" : "host, database, http")
+                    + "; use document_search for targetKind=document.");
+            } else {
+                return denied(values, (templateQuery ? "template_query" : "asset_query")
+                    + " requires explicit finalDecision/targetKind/assetType. Use finalDecision="
+                    + (templateQuery ? "host, database, http, java, or business_database_query" : "host, database, or http")
+                    + "; use document_search for targetKind=document.");
+            }
+        } else if (targetKind != null) {
+            String normalizedTargetKind = normalizeTargetKind(targetKind);
+            String expectedAssetType = assetTypeFromTargetKind(normalizedTargetKind);
+            if (expectedAssetType == null) {
+                return denied(values, "Unsupported targetKind for " + (templateQuery ? "template_query" : "asset_query")
+                    + ": " + targetKind + ". Allowed targetKind values are "
+                    + (templateQuery ? "host, database, http, java, business_database_query" : "host, database, http")
+                    + "; use document_search for targetKind=document.");
+            }
+            String providedAssetType = normalizeAssetType(values.get("assetType") == null ? null : String.valueOf(values.get("assetType")));
+            if (providedAssetType != null && !providedAssetType.equals(expectedAssetType)) {
+                return denied(values, "targetKind=" + normalizedTargetKind + " maps to assetType="
+                    + expectedAssetType + ", but request provided assetType=" + providedAssetType + ".");
+            }
+            values.put("assetType", providedAssetType);
+            values.put("targetKind", normalizedTargetKind);
+            values.putIfAbsent("finalDecision", normalizedTargetKind);
+        }
+        if (confidence < TARGET_KIND_CONFIDENCE_THRESHOLD) {
+            return reviewRequired(values, "confidence below routing threshold: " + confidence);
+        }
+        values.putIfAbsent("limit", 10);
+        values.remove("query");
+        return values;
+    }
+
+    private void ensureRuntimeRoutingTrace(Map<String, Object> values,
+                                           String toolName,
+                                           String targetKind,
+                                           Double confidence,
+                                           String source,
+                                           String decisionSource) {
+        Object existing = firstPresent(values, "trace", "routingTrace", "routing_trace");
+        if (existing instanceof Map<?, ?> trace && !trace.isEmpty()) {
+            return;
+        }
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("schemaVersion", AgentProtocolCatalog.ROUTING_TRACE);
+        trace.put("source", source);
+        trace.put("toolName", toolName == null ? "" : toolName);
+        trace.put("finalDecision", firstNonBlank(normalizeTargetKind(targetKind), ""));
+        if (confidence != null) {
+            trace.put("confidence", confidence);
+        }
+        trace.put("decisionSource", decisionSource);
+        trace.put("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
+        values.put("trace", Map.copyOf(trace));
+        values.remove("routingTrace");
+        values.remove("routing_trace");
+    }
+
+    private Map<String, Object> finishPublishedScopedDiscovery(Map<String, Object> values,
+                                                               String toolName,
+                                                               String targetKind,
+                                                               PublishedDiscoveryContract contract,
+                                                               boolean synthesizedLegacyFilterEnvelope) {
+        Double confidence = confidence(values.get("confidence"));
+        if (confidence != null && (confidence < 0.0 || confidence > 1.0)) {
+            return denied(values, "confidence must be between 0.0 and 1.0: " + confidence);
+        }
+        if (contract.accepts("trace")) {
+            Double traceConfidence = confidence;
+            if (traceConfidence == null && hasText(contract.forcedTargetKind())) {
+                traceConfidence = Double.valueOf(1.0);
+            }
+            ensureRuntimeRoutingTrace(values, toolName, targetKind,
+                traceConfidence,
+                synthesizedLegacyFilterEnvelope ? "agent_tool_argument_resolver" : "agent_runtime_param_binding",
+                hasText(contract.forcedTargetKind()) ? "published_tool_contract" : "published_service_scope");
+        }
+        removeUnsupportedRoutingFields(values, contract);
+        if (contract.accepts("limit")) {
+            values.putIfAbsent("limit", 10);
+        }
+        values.remove("query");
+        return values;
+    }
+
+    private void removeUnsupportedRoutingFields(Map<String, Object> values,
+                                                PublishedDiscoveryContract contract) {
+        for (String field : List.of(
+            "candidates", "routingCandidates", "routing_candidates",
+            "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind",
+            "targetKind", "target_kind", "assetType", "asset_type", "confidence",
+            "trace", "routingTrace", "routing_trace", "filtersSchemaVersion", "filters_schema_version")) {
+            if (!contract.accepts(field)) {
+                values.remove(field);
+            }
+        }
+    }
+
+    private PublishedDiscoveryContract publishedDiscoveryContract(ToolMetadata metadata) {
+        if (metadata == null || metadata.getMetadata() == null) {
+            return PublishedDiscoveryContract.legacy();
+        }
+        Map<String, Object> extra = metadata.getMetadata();
+        Map<String, Object> inputSchema = asMap(extra.get("inputSchema"));
+        Map<String, Object> properties = asMap(inputSchema.get("properties"));
+        Map<String, Object> mcpMeta = asMap(extra.get("mcpToolMeta"));
+        if (inputSchema.isEmpty() && mcpMeta.isEmpty()) {
+            return PublishedDiscoveryContract.legacy();
+        }
+        java.util.LinkedHashSet<String> accepted = new java.util.LinkedHashSet<>();
+        properties.keySet().stream().map(this::canonicalField).filter(key -> !key.isBlank()).forEach(accepted::add);
+        java.util.LinkedHashSet<String> required = new java.util.LinkedHashSet<>();
+        if (inputSchema.get("required") instanceof Iterable<?> fields) {
+            for (Object field : fields) {
+                String canonical = canonicalField(field == null ? null : String.valueOf(field));
+                if (!canonical.isBlank()) {
+                    required.add(canonical);
+                }
+            }
+        }
+        Map<String, Object> routingProtocol = asMap(mcpMeta.get("routingProtocol"));
+        Map<String, Object> toolBoundary = asMap(mcpMeta.get("toolBoundary"));
+        String forcedTargetKind = firstNonBlank(
+            firstText(firstPresent(routingProtocol, "forcedTargetKind", "targetKind")),
+            firstNonBlank(
+                firstText(firstPresent(toolBoundary, "forcedTargetKind", "targetKind")),
+                firstText(firstPresent(mcpMeta, "targetKind"))));
+        String forcedAssetType = firstNonBlank(
+            firstText(firstPresent(routingProtocol, "forcedAssetType", "assetType")),
+            firstNonBlank(
+                firstText(firstPresent(toolBoundary, "forcedAssetType", "assetType")),
+                firstText(firstPresent(mcpMeta, "assetType"))));
+        boolean requiresRoutingDecision = accepted.contains(canonicalField("finalDecision"))
+            || accepted.contains(canonicalField("candidates"));
+        return new PublishedDiscoveryContract(true, Set.copyOf(accepted), Set.copyOf(required),
+            forcedTargetKind, forcedAssetType, requiresRoutingDecision);
+    }
+
+    /**
+     * Keeps discovery arguments aligned with the filter contract published by the remote MCP tool.
+     * Unknown semantic selectors are folded into retrievalSignals when the contract supports that
+     * field; concrete targets are simply discarded by the earlier governance checks.
+     */
+    private void repairFiltersFromPublishedContract(ToolMetadata metadata, Map<String, Object> filters) {
+        Set<String> allowed = publishedFilterFields(metadata);
+        if (filters == null || filters.isEmpty() || allowed.isEmpty()) {
+            return;
+        }
+        List<String> semanticSignals = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : new ArrayList<>(filters.entrySet())) {
+            if (allowed.contains(canonicalField(entry.getKey()))) {
+                continue;
+            }
+            filters.remove(entry.getKey());
+            addSemanticSignals(semanticSignals, entry.getKey(), entry.getValue());
+        }
+        if (!semanticSignals.isEmpty() && allowed.contains(canonicalField("retrievalSignals"))) {
+            filters.put("retrievalSignals", mergeTerms(filters.get("retrievalSignals"), semanticSignals));
+        }
+    }
+
+    private Set<String> publishedFilterFields(ToolMetadata metadata) {
+        if (metadata == null || metadata.getMetadata() == null) {
+            return Set.of();
+        }
+        Map<String, Object> toolMetadata = asMap(metadata.getMetadata().get("mcpToolMeta"));
+        Map<String, Object> routingProtocol = asMap(toolMetadata.get("routingProtocol"));
+        Object rawAllowed = routingProtocol.get("allowedFilterFields");
+        if (!(rawAllowed instanceof Iterable<?> values)) {
+            return Set.of();
+        }
+        java.util.LinkedHashSet<String> allowed = new java.util.LinkedHashSet<>();
+        for (Object value : values) {
+            String canonical = canonicalField(value == null ? null : String.valueOf(value));
+            if (!canonical.isBlank()) {
+                allowed.add(canonical);
+            }
+        }
+        return Set.copyOf(allowed);
+    }
+
+    private void addSemanticSignals(List<String> signals, String field, Object value) {
+        if (signals == null || value == null || value instanceof Map<?, ?>) {
+            return;
+        }
+        List<String> values = new ArrayList<>();
+        addTerms(values, value);
+        for (String item : values) {
+            addTerms(signals, field + ":" + item);
+            addTerms(signals, item);
+        }
+    }
+
+    private String canonicalField(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> logicalExecutionContext(Map<String, Object> values, String userQuery) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        Object existing = firstPresent(values, "executionContext", "mcpExecutionContext");
+        if (existing instanceof Map<?, ?> map) {
+            context.putAll((Map<String, Object>) map);
+        }
+        for (String key : LOGICAL_CONTEXT_KEYS) {
+            Object value = values.remove(key);
+            if (value != null && hasText(value)) {
+                context.putIfAbsent(key, value);
+            }
+        }
+        inferLogicalContext(userQuery).forEach(context::putIfAbsent);
+        removeForbidden(context);
+        return context;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> filters(Map<String, Object> values) {
+        Map<String, Object> filters = new LinkedHashMap<>();
+        Object existing = firstPresent(values, "filters", "executionContext", "mcpExecutionContext");
+        if (existing instanceof Map<?, ?> map) {
+            filters.putAll((Map<String, Object>) map);
+        }
+        for (String key : LOGICAL_CONTEXT_KEYS) {
+            Object value = values.remove(key);
+            if (value != null && hasText(value)) {
+                filters.putIfAbsent(key, value);
+            }
+        }
+        removeForbidden(filters);
+        return filters;
+    }
+
+    private void enrichRetrievalTerms(Map<String, Object> filters, Map<String, Object> values, String userQuery) {
+        if (filters == null) {
+            return;
+        }
+        Object rawCandidates = firstPresent(filters, "intentCandidates", "intent_candidates");
+        if (rawCandidates == null) {
+            rawCandidates = firstPresent(values, "intentCandidates", "intent_candidates");
+        }
+        List<String> selectedIntentTerms = selectedIntentTerms(rawCandidates);
+        List<String> queryTerms = mergeTerms(filters.get("queryTerms"), selectedIntentTerms, userQuery);
+        if (!queryTerms.isEmpty()) {
+            filters.put("queryTerms", queryTerms);
+        }
+        List<String> retrievalSignals = mergeTerms(filters.get("retrievalSignals"), queryTerms);
+        if (!retrievalSignals.isEmpty()) {
+            filters.put("retrievalSignals", retrievalSignals);
+        }
+        if (rawCandidates instanceof List<?> candidates && !candidates.isEmpty()
+            && !filters.containsKey("intentScoring")) {
+            filters.put("intentScoring", Map.of(
+                "strategy", "threshold_intent_ensemble_plus_original_query",
+                "threshold", INTENT_RETRIEVAL_THRESHOLD,
+                "fallback", "original_query_only_when_no_candidate_reaches_threshold",
+                "selectedTerms", selectedIntentTerms,
+                "candidateCount", candidates.size()
+            ));
+        }
+    }
+
+    private List<String> selectedIntentTerms(Object rawCandidates) {
+        if (!(rawCandidates instanceof List<?> candidates) || candidates.isEmpty()) {
+            return List.of();
+        }
+        List<IntentCandidate> ranked = candidates.stream()
+            .map(this::intentCandidate)
+            .filter(candidate -> !candidate.terms().isEmpty())
+            .sorted(Comparator.comparingDouble(IntentCandidate::score).reversed())
+            .toList();
+        List<IntentCandidate> selected = ranked.stream()
+            .filter(candidate -> candidate.score() >= INTENT_RETRIEVAL_THRESHOLD)
+            .toList();
+        List<String> terms = new ArrayList<>();
+        selected.forEach(candidate -> addTerms(terms, candidate.terms()));
+        return terms;
+    }
+
+    private IntentCandidate intentCandidate(Object item) {
+        if (item instanceof Map<?, ?> map) {
+            Map<String, Object> candidate = asMap(item);
+            List<String> terms = new ArrayList<>();
+            for (String key : List.of("intent", "query", "term", "text", "label", "name",
+                "queryTerms", "searchTerms", "retrievalSignals", "queries", "expandedQueries",
+                "expanded_queries", "keywords", "intentAliases", "bilingualIntent")) {
+                addTerms(terms, map.get(key));
+            }
+            Double score = confidence(firstPresent(candidate, "score", "confidence", "matchScore", "match_score"));
+            return new IntentCandidate(List.copyOf(terms), score == null ? 0.0D : score);
+        }
+        List<String> terms = new ArrayList<>();
+        addTerms(terms, item);
+        return new IntentCandidate(List.copyOf(terms), 0.0D);
+    }
+
+    private List<String> mergeTerms(Object existing, Object... additions) {
+        List<String> terms = new ArrayList<>();
+        addTerms(terms, existing);
+        if (additions != null) {
+            for (Object addition : additions) {
+                addTerms(terms, addition);
+            }
+        }
+        return terms;
+    }
+
+    private void addTerms(List<String> terms, Object value) {
+        if (terms == null || value == null) {
+            return;
+        }
+        if (value instanceof List<?> list) {
+            list.forEach(item -> addTerms(terms, item));
+            return;
+        }
+        String text = firstText(value);
+        if (text != null && terms.stream().noneMatch(existing -> existing.equalsIgnoreCase(text))) {
+            terms.add(text);
+        }
+    }
+
+    private void enrichTemplateIntentSignals(Map<String, Object> filters, String userQuery) {
+        if (filters == null) {
+            return;
+        }
+        String text = normalize(String.join(" ",
+            firstText(filters.get("intent")) == null ? "" : firstText(filters.get("intent")),
+            userQuery == null ? "" : userQuery
+        ));
+        if (text == null) {
+            return;
+        }
+        String tableName = firstTableName(text);
+        if (text.contains("metadata") || text.contains("schema") || text.contains("table")
+            || text.contains("元数据") || text.contains("表结构") || text.contains("字段")) {
+            putListIfAbsent(filters, "bilingualIntent", List.of("表元数据", "table metadata", "table schema", tableName));
+            putListIfAbsent(filters, "intentAliases", List.of("表结构", "table metadata", "SHOW CREATE TABLE", "DESCRIBE TABLE"));
+            putListIfAbsent(filters, "keywords", List.of("INFORMATION_SCHEMA", "SHOW COLUMNS", "COLUMNS", tableName, "字段"));
+            filters.putIfAbsent("intentZh", "表元数据");
+            filters.putIfAbsent("intentEn", "table metadata");
+            return;
+        }
+        if (text.contains("innodb")) {
+            putListIfAbsent(filters, "bilingualIntent", List.of("查询InnoDB状态", "SHOW ENGINE INNODB STATUS",
+                "InnoDB engine status", "lock wait", "deadlock"));
+            putListIfAbsent(filters, "intentAliases", List.of("分析InnoDB状态", "SHOW ENGINE INNODB STATUS",
+                "InnoDB status", "deadlock"));
+            putListIfAbsent(filters, "keywords", List.of("InnoDB", "SHOW ENGINE INNODB STATUS", "transaction",
+                "lock wait", "deadlock", "buffer pool"));
+            filters.putIfAbsent("intentEn", "SHOW ENGINE INNODB STATUS");
+        }
+    }
+
+    private void putListIfAbsent(Map<String, Object> filters, String key, List<String> values) {
+        if (filters == null || filters.containsKey(key)) {
+            return;
+        }
+        List<String> compact = values == null ? List.of() : values.stream()
+            .filter(this::hasText)
+            .distinct()
+            .toList();
+        if (!compact.isEmpty()) {
+            filters.put(key, compact);
+        }
+    }
+
+    private String firstTableName(String text) {
+        if (text == null) {
+            return null;
+        }
+        for (String token : text.split("[^a-z0-9_]+")) {
+            if (token.contains("_") && token.length() > 2) {
+                return token;
+            }
+        }
+        return "table";
+    }
+
+    @SuppressWarnings("unchecked")
+    private void normalizeParameters(Map<String, Object> values, String userQuery) {
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        Object existing = values.get("parameters");
+        if (existing instanceof Map<?, ?> map) {
+            parameters.putAll((Map<String, Object>) map);
+        }
+        moveIfPresent(values, parameters, "serviceName", "service_name");
+        moveIfPresent(values, parameters, "path", "filePath", "file_path", "logPath", "log_path");
+        moveIfPresent(values, parameters, "lines", "tailLines", "tail_lines", "limit");
+        moveIfPresent(values, parameters, "keyword", "keywords", "pattern");
+        String serviceName = firstText(parameters.get("serviceName"));
+        if (serviceName == null) {
+            String service = firstText(firstPresent(asMap(values.get("executionContext")), "service", "target"));
+            serviceName = canonicalServiceName(service);
+            if (serviceName == null) {
+                serviceName = canonicalServiceName(inferService(userQuery));
+            }
+            if (serviceName != null && looksServiceTemplate(values.get("template"))) {
+                parameters.put("serviceName", serviceName);
+            }
+        }
+        if (!parameters.isEmpty()) {
+            values.put("parameters", parameters);
+        }
+    }
+
+    private Map<String, Object> inferLogicalContext(String query) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        String env = inferEnvironment(query);
+        if (env != null) {
+            context.put("env", env);
+        }
+        String service = inferService(query);
+        if (service != null) {
+            context.put("service", service);
+        }
+        return context;
+    }
+
+    private String inferEnvironment(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        for (Pattern pattern : List.of(
+            ENV_ASSIGNMENT_PATTERN,
+            ENV_QUALIFIER_PATTERN,
+            ENV_ENGLISH_CONTEXT_PATTERN
+        )) {
+            Matcher matcher = pattern.matcher(query);
+            if (matcher.find()) {
+                return canonicalEnvironment(matcher.group(1));
+            }
+        }
+        return null;
+    }
+
+    private String canonicalEnvironment(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "DEV", "\u5f00\u53d1" -> "DEV";
+            case "TEST", "\u6d4b\u8bd5" -> "TEST";
+            case "UAT", "\u9884\u53d1" -> "UAT";
+            case "PROD", "\u751f\u4ea7" -> "PROD";
+            default -> null;
+        };
+    }
+
+    private String inferService(String query) {
+        String text = normalize(query);
+        if (text == null) {
+            return null;
+        }
+        for (String service : List.of(
+            "hive",
+            "nginx",
+            "mysql",
+            "redis",
+            "kafka",
+            "spark",
+            "flink",
+            "hdfs",
+            "yarn",
+            "zookeeper",
+            "elasticsearch",
+            "postgresql",
+            "postgres",
+            "oracle"
+        )) {
+            if (text.matches(".*(^|[^a-z0-9_-])" + service + "([^a-z0-9_-]|$).*")) {
+                return service;
+            }
+        }
+        return null;
+    }
+
+    private String inferIntent(String query) {
+        String text = normalize(query);
+        if (text == null) {
+            return null;
+        }
+        if (containsAny(text, "状态", "status", "健康", "health")) {
+            return "service status";
+        }
+        if (containsAny(text, "日志", "log", "tail")) {
+            return "log";
+        }
+        if (containsAny(text, "磁盘", "disk")) {
+            return "disk";
+        }
+        if (containsAny(text, "内存", "memory", "mem")) {
+            return "memory";
+        }
+        if (containsAny(text, "cpu")) {
+            return "cpu";
+        }
+        return null;
+    }
+
+    private String inferAssetType(String query) {
+        String text = normalize(query);
+        if (text != null && containsAny(text, "数据库", "数据源", "库", "sql", "mysql", "postgres", "postgresql", "oracle")) {
+            return "sql_datasource";
+        }
+        if (text != null && containsAny(text, "hive")) {
+            return containsAny(text, "表", "元数据", "schema", "sql", "数据库", "数据源")
+                ? "sql_datasource"
+                : "ssh_host";
+        }
+        if (text != null && containsAny(text, "数据库", "sql", "mysql", "postgres", "postgresql", "oracle", "hive")) {
+            return containsAny(text, "状态", "日志", "系统", "主机", "服务", "status", "log") ? "ssh_host" : "sql_datasource";
+        }
+        return "ssh_host";
+    }
+
+    private String targetKindFromDiscoveryToolName(String toolName, boolean templateQuery) {
+        String normalized = normalizeToolName(toolName);
+        if (normalized.contains("database_query_template_query")) {
+            return "business_database_query";
+        }
+        if (normalized.contains("database_asset_search")
+            || normalized.contains("database_ops_template_search")
+            || normalized.contains("sql_datasource")) {
+            return "database";
+        }
+        if (normalized.contains("http_endpoint") || normalized.contains("api_")) {
+            return "http";
+        }
+        if (normalized.contains("ssh_") || normalized.contains("linux_")) {
+            return "host";
+        }
+        return null;
+    }
+
+    private void forceDiscoveryTargetKind(Map<String, Object> values, String targetKind, Object rawCandidates) {
+        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        if (values == null || normalizedTargetKind == null) {
+            return;
+        }
+        values.put("targetKind", normalizedTargetKind);
+        values.put("finalDecision", normalizedTargetKind);
+        if (candidateContains(rawCandidates, normalizedTargetKind)) {
+            return;
+        }
+        Double confidence = confidence(values.get("confidence"));
+        if (confidence == null) {
+            confidence = maxCandidateConfidence(rawCandidates);
+        }
+        if (confidence == null) {
+            confidence = 0.9;
+        }
+        values.put("confidence", confidence);
+        values.put("candidates", List.of(Map.of(
+            "targetKind", normalizedTargetKind,
+            "confidence", confidence
+        )));
+    }
+
+    private boolean candidateContains(Object rawCandidates, String targetKind) {
+        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        if (!(rawCandidates instanceof List<?> candidates) || normalizedTargetKind == null) {
+            return false;
+        }
+        for (Object item : candidates) {
+            if (item instanceof Map<?, ?> candidate
+                && normalizedTargetKind.equals(normalizeTargetKind(firstText(candidate.get("targetKind"))))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Double maxCandidateConfidence(Object rawCandidates) {
+        if (!(rawCandidates instanceof List<?> candidates)) {
+            return null;
+        }
+        Double max = null;
+        for (Object item : candidates) {
+            if (!(item instanceof Map<?, ?> candidate)) {
+                continue;
+            }
+            Double value = confidence(candidate.get("confidence"));
+            if (value != null && (max == null || value > max)) {
+                max = value;
+            }
+        }
+        return max;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return hasText(first) ? first : second;
+    }
+
+    private String canonicalServiceName(String service) {
+        String value = normalize(service);
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case "hive" -> "hive-server2";
+            case "postgres" -> "postgresql";
+            case "elasticsearch" -> "elasticsearch";
+            default -> value;
+        };
+    }
+
+    private boolean looksServiceTemplate(Object template) {
+        String value = normalize(template == null ? null : String.valueOf(template));
+        return value != null && (value.contains("service") || value.contains("status") || value.contains("log"));
+    }
+
+    private Map<String, Object> denied(Map<String, Object> values, String message) {
+        Map<String, Object> result = new LinkedHashMap<>(values == null ? Map.of() : values);
+        result.put(STATUS_KEY, "DENIED");
+        result.put(ERROR_KEY, message);
+        result.put(CODE_KEY, "MCP_PARAM_BINDING_DENIED");
+        return result;
+    }
+
+    private Map<String, Object> reviewRequired(Map<String, Object> values, String message) {
+        Map<String, Object> result = new LinkedHashMap<>(values == null ? Map.of() : values);
+        result.put(STATUS_KEY, "REVIEW_REQUIRED");
+        result.put(ERROR_KEY, message);
+        result.put(CODE_KEY, "MCP_ROUTING_REVIEW_REQUIRED");
+        result.put("routingDecision", Map.of(
+            "decision", "REVIEW_REQUIRED",
+            "threshold", TARGET_KIND_CONFIDENCE_THRESHOLD,
+            "reason", message
+        ));
+        return result;
+    }
+
+    private boolean isMcpTool(String toolName, ToolMetadata metadata) {
+        if (metadata != null) {
+            if (metadata.getCategories() != null && metadata.getCategories().stream()
+                .map(value -> value == null ? "" : String.valueOf(value).trim().toLowerCase(Locale.ROOT))
+                .anyMatch(MCP_CATEGORIES::contains)) {
+                return true;
+            }
+            if (metadata.getMetadata() != null && metadata.getMetadata().containsKey("remoteToolName")) {
+                return true;
+            }
+        }
+        return toolName != null && toolName.startsWith("mcp_");
+    }
+
+    private String remoteToolName(String toolName, ToolMetadata metadata) {
+        if (metadata != null && metadata.getMetadata() != null) {
+            Object remote = metadata.getMetadata().get("remoteToolName");
+            if (hasText(remote)) {
+                return String.valueOf(remote).trim();
+            }
+        }
+        if (toolName == null) {
+            return "";
+        }
+        for (String known : List.of("linux_command_execute", "ssh_linux_execute",
+            "http_request_execute", "api_query_execute", "sql_query_execute",
+            "database_query_execute", "asset_query", "template_query", "database_asset_search",
+            "database_ops_template_search", "sql_datasource_asset_query",
+            "sql_datasource_template_query", "database_query_template_query")) {
+            if (sameTool(toolName, known) || normalizeToolName(toolName).endsWith("_" + known)) {
+                return known;
+            }
+        }
+        return toolName;
+    }
+
+    private String removeTargetKind(Map<String, Object> values) {
+        if (values == null) {
+            return null;
+        }
+        for (String field : TARGET_KIND_FIELDS) {
+            Object value = values.remove(field);
+            if (hasText(value)) {
+                return String.valueOf(value).trim();
+            }
+        }
+        return null;
+    }
+
+    private String assetTypeFromTargetKind(String targetKind) {
+        String normalized = normalizeTargetKind(targetKind);
+        if (normalized == null) {
+            return null;
+        }
+        return switch (normalized) {
+            case "host" -> "ssh_host";
+            case "database" -> "sql_datasource";
+            case "http" -> "http_endpoint";
+            case "java" -> "jmx_endpoint";
+            case "business_database_query" -> "database_query";
+            default -> null;
+        };
+    }
+
+    private String normalizeAssetType(String assetType) {
+        String normalized = normalize(assetType);
+        if (normalized == null) {
+            return null;
+        }
+        return switch (normalized) {
+            case "host", "ssh", "sshhost" -> "ssh_host";
+            case "database", "db", "sql", "sqldatasource", "datasource" -> "sql_datasource";
+            case "http", "api", "endpoint", "httpendpoint" -> "http_endpoint";
+            case "jmx", "java", "jvm", "jmxendpoint" -> "jmx_endpoint";
+            case "businessdatabasequery", "business_database_query", "business_db_query", "sqltemplateregistry",
+                "sql_template_registry" -> "database_query";
+            default -> normalized;
+        };
+    }
+
+    private String normalizeTargetKind(String targetKind) {
+        String normalized = normalize(targetKind);
+        if (normalized == null) {
+            return null;
+        }
+        return switch (normalized) {
+            case "host", "ssh", "ssh_host", "server", "machine", "linux" -> "host";
+            case "database", "db", "sql", "sql_datasource", "datasource" -> "database";
+            case "http", "api", "endpoint", "http_endpoint" -> "http";
+            case "jmx", "java", "jvm", "jmx_endpoint" -> "java";
+            case "business_database_query", "database_query", "business_db_query" -> "business_database_query";
+            case "document", "doc", "knowledge", "file" -> "document";
+            default -> normalized;
+        };
+    }
+
+    private Double confidence(Object value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return -1.0;
+        }
+    }
+
+    private Double candidateConfidence(Object rawCandidates, String targetKind) {
+        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        if (normalizedTargetKind == null || !(rawCandidates instanceof List<?> candidates)) {
+            return null;
+        }
+        for (Object item : candidates) {
+            Map<String, Object> candidate = asMap(item);
+            if (normalizedTargetKind.equals(normalizeTargetKind(firstText(candidate.get("targetKind"))))) {
+                return confidence(candidate.get("confidence"));
+            }
+        }
+        return null;
+    }
+
+    private void renameFirst(Map<String, Object> values, String target, String... aliases) {
+        if (hasText(values.get(target))) {
+            return;
+        }
+        for (String alias : aliases) {
+            Object value = values.remove(alias);
+            if (hasText(value)) {
+                values.put(target, value);
+                return;
+            }
+        }
+    }
+
+    private void moveIfPresent(Map<String, Object> source, Map<String, Object> target, String targetKey, String... aliases) {
+        Object direct = source.remove(targetKey);
+        if (hasText(direct)) {
+            target.put(targetKey, direct);
+            return;
+        }
+        for (String alias : aliases) {
+            Object value = source.remove(alias);
+            if (hasText(value)) {
+                target.put(targetKey, value);
+                return;
+            }
+        }
+    }
+
+    private String firstPresentField(Map<String, Object> values, List<String> fields) {
+        if (values == null) {
+            return null;
+        }
+        for (String field : fields) {
+            if (hasText(values.get(field))) {
+                return field;
+            }
+        }
+        Object context = firstPresent(values, "executionContext", "mcpExecutionContext", "filters");
+        if (context instanceof Map<?, ?> map) {
+            for (String field : fields) {
+                if (hasText(map.get(field))) {
+                    return field;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void removeForbidden(Map<String, Object> values) {
+        if (values == null) {
+            return;
+        }
+        CONCRETE_TARGET_FIELDS.forEach(values::remove);
+        RAW_EXECUTION_FIELDS.forEach(values::remove);
+        FILTER_PROTOCOL_FIELDS.forEach(values::remove);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private Object firstPresent(Map<String, Object> values, String... keys) {
+        if (values == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null && hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String firstText(Object value) {
+        return hasText(value) ? String.valueOf(value).trim() : null;
+    }
+
+    private boolean containsAny(String text, String... probes) {
+        if (text == null || probes == null) {
+            return false;
+        }
+        for (String probe : probes) {
+            if (probe != null && text.contains(probe.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean sameTool(String first, String second) {
+        return normalizeToolName(first).equals(normalizeToolName(second));
+    }
+
+    private ToolWorkflowRole workflowRole(String toolName, ToolMetadata metadata) {
+        return ToolWorkflowContract.resolveRole(toolName, metadata);
+    }
+
+    private String normalizeToolName(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+    }
+
+    private String normalize(Object value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        return String.valueOf(value).trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String trim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private boolean hasText(Object value) {
+        return value != null && !String.valueOf(value).trim().isBlank();
+    }
+
+    private record IntentCandidate(List<String> terms, double score) {
+    }
+
+    private record PublishedDiscoveryContract(boolean published,
+                                               Set<String> acceptedFields,
+                                               Set<String> requiredFields,
+                                               String forcedTargetKind,
+                                               String forcedAssetType,
+                                               boolean requiresRoutingDecision) {
+        private static PublishedDiscoveryContract legacy() {
+            return new PublishedDiscoveryContract(false, Set.of(), Set.of(), null, null, true);
+        }
+
+        private boolean accepts(String field) {
+            return !published || acceptedFields.contains(canonical(field));
+        }
+
+        @SuppressWarnings("unused")
+        private boolean requires(String field) {
+            return requiredFields.contains(canonical(field));
+        }
+
+        private static String canonical(String field) {
+            return field == null ? "" : field.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        }
+    }
+}

@@ -1,7 +1,7 @@
 package com.chatchat.chat.insight;
 
-import com.chatchat.agents.orchestration.SemanticInsightContract;
-import com.chatchat.agents.orchestration.SemanticInsightRecipeCatalog;
+import com.chatchat.agents.orchestration.analysis.SemanticInsightContract;
+import com.chatchat.agents.orchestration.analysis.SemanticInsightRecipeCatalog;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

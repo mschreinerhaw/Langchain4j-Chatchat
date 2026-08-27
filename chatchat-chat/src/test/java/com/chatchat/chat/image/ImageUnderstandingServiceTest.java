@@ -1,6 +1,6 @@
 package com.chatchat.chat.image;
 
-import com.chatchat.agents.orchestration.AgentChatModelResolver;
+import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.chatchat.knowledgebase.search.DocumentTextExtractor;
 import com.chatchat.knowledgebase.search.SearchProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;

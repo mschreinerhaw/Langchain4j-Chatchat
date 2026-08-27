@@ -1,6 +1,6 @@
 package com.chatchat.e2e;
 
-import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationCase;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationReport;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationService;

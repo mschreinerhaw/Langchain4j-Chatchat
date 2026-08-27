@@ -1,15 +1,15 @@
 package com.chatchat.mcpserver.template;
 
-import com.chatchat.mcpserver.database.DatabaseQueryConfig;
-import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
-import com.chatchat.mcpserver.database.DatabaseQueryMcpToolPublisher;
-import com.chatchat.mcpserver.ops.CommandTemplateConfig;
-import com.chatchat.mcpserver.ops.CommandTemplateService;
-import com.chatchat.mcpserver.ops.OpsMcpToolPublisher;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.database.publication.DatabaseQueryMcpToolPublisher;
+import com.chatchat.mcpserver.ops.command.CommandTemplateConfig;
+import com.chatchat.mcpserver.ops.command.CommandTemplateService;
+import com.chatchat.mcpserver.ops.tool.OpsMcpToolPublisher;
 import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
-import com.chatchat.mcpserver.sql.SqlMcpToolPublisher;
-import com.chatchat.mcpserver.sql.SqlTemplateConfig;
-import com.chatchat.mcpserver.sql.SqlTemplateService;
+import com.chatchat.mcpserver.sql.tool.SqlMcpToolPublisher;
+import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;
+import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

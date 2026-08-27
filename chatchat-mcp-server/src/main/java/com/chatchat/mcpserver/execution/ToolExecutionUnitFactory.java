@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.execution;
 
-import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
+import com.chatchat.mcpserver.ops.ssh.LinuxCommandStepResult;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;

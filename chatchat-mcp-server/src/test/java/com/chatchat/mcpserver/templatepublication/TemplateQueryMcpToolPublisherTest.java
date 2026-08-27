@@ -1,8 +1,8 @@
 package com.chatchat.mcpserver.templatepublication;
 
-import com.chatchat.mcpserver.api.ApiTemplateDiscoveryMcpToolPublisher;
+import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
-import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;

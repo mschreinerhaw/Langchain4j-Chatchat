@@ -1,10 +1,21 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.event.AgentRunEventType;
+import com.chatchat.agents.runtime.execution.DefaultAgentRuntime;
+import com.chatchat.agents.runtime.run.AgentRun;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+import com.chatchat.agents.runtime.store.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
+
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.kernel.KernelDataScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -83,7 +95,7 @@ class RuntimeConcurrencyReleaseTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AgentRunRequest request = AgentRunRequest.builder().runId("cancel-race").query("race").requestId("race").timeoutMs(30L).build();
-        when(orchestrator.execute(request)).thenAnswer(invocation -> {
+        when(orchestrator.execute(eq(request), any(KernelDataScope.class))).thenAnswer(invocation -> {
             store.start(request);
             started.countDown();
             try {

@@ -1,12 +1,12 @@
 package com.chatchat.agents.orchestration;
 
-import com.chatchat.agents.runtime.AgentObservation;
-import com.chatchat.agents.runtime.AgentObservationPipeline;
-import com.chatchat.agents.runtime.AgentOutcomeProjection;
+import com.chatchat.agents.runtime.observation.AgentObservation;
+import com.chatchat.agents.runtime.observation.AgentObservationPipeline;
+import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
 import com.chatchat.agents.runtime.AgentRunResult;
-import com.chatchat.agents.runtime.AgentRunStatus;
-import com.chatchat.agents.runtime.AgentRunStep;
-import com.chatchat.agents.runtime.AgentRunStore;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRunStep;
+import com.chatchat.agents.runtime.store.AgentRunStore;
 
 import java.util.ArrayList;
 import java.util.Collection;

@@ -1,11 +1,13 @@
 package com.chatchat.e2e;
 
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
-import com.chatchat.agents.runtime.AgentRunStatus;
-import com.chatchat.agents.runtime.AgentRuntimeProperties;
-import com.chatchat.agents.runtime.NoopAgentRunEventPublisher;
-import com.chatchat.agents.runtime.RocksDbAgentRunStore;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.event.NoopAgentRunEventPublisher;
+import com.chatchat.agents.runtime.store.RocksDbAgentRunStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

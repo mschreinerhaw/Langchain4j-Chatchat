@@ -3,7 +3,7 @@ package com.chatchat.api.exception;
 import com.chatchat.api.config.JsonRequestSizeFilter;
 import com.chatchat.api.config.RequestCorrelationFilter;
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.chat.conversation.ConversationInProgressException;
+import com.chatchat.chat.conversation.service.ConversationInProgressException;
 import com.chatchat.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

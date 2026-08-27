@@ -1,10 +1,10 @@
 package com.chatchat.e2e;
 
-import com.chatchat.agents.runtime.AgentEvidenceStore;
-import com.chatchat.agents.runtime.ToolRuntimeExecution;
-import com.chatchat.agents.runtime.ToolRuntimeProperties;
-import com.chatchat.agents.runtime.ToolRuntimeRequest;
-import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.observation.AgentEvidenceStore;
+import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.api.config.JsonRequestSizeFilter;
 import com.chatchat.api.config.JsonRequestSizeProperties;

@@ -1,15 +1,15 @@
 package com.chatchat.mcpserver.templatepublication;
 
-import com.chatchat.mcpserver.api.ApiServiceConfig;
-import com.chatchat.mcpserver.api.ApiServiceConfigService;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.category.BusinessCategoryService;
-import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
-import com.chatchat.mcpserver.ops.CommandTemplateService;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
-import com.chatchat.mcpserver.ops.SshHostConfigService;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
-import com.chatchat.mcpserver.sql.SqlTemplateService;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.ops.command.CommandTemplateService;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

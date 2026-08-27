@@ -1,15 +1,15 @@
 package com.chatchat.mcpserver.category;
 
-import com.chatchat.mcpserver.api.ApiServiceConfig;
-import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
-import com.chatchat.mcpserver.database.DatabaseQueryConfig;
-import com.chatchat.mcpserver.database.DatabaseQueryConfigRepository;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigRepository;
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.SshHostConfigRepository;
-import com.chatchat.mcpserver.ops.SshHostConfig;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigRepository;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfigRepository;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigRepository;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigRepository;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfigRepository;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigRepository;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 

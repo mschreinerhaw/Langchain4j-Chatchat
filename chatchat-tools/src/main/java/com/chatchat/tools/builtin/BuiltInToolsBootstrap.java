@@ -1,5 +1,7 @@
 package com.chatchat.tools.builtin;
 
+import com.chatchat.agents.evidence.sql.SqlState;
+
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.InternalSecretCipher;

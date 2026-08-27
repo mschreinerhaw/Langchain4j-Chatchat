@@ -1,13 +1,13 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.agents.runtime.AgentObservation;
-import com.chatchat.agents.runtime.AgentRun;
-import com.chatchat.agents.runtime.AgentRunEvent;
-import com.chatchat.agents.runtime.AgentRunEventType;
-import com.chatchat.agents.runtime.AgentRunQuery;
+import com.chatchat.agents.runtime.observation.AgentObservation;
+import com.chatchat.agents.runtime.run.AgentRun;
+import com.chatchat.agents.runtime.event.AgentRunEvent;
+import com.chatchat.agents.runtime.event.AgentRunEventType;
+import com.chatchat.agents.runtime.run.AgentRunQuery;
 import com.chatchat.agents.runtime.AgentRunRequest;
-import com.chatchat.agents.runtime.AgentRunStatus;
-import com.chatchat.agents.runtime.AgentRunStep;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRunStep;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.AgentRuntimeSnapshot;
 import com.chatchat.agents.runtime.evaluation.AgentEvaluationService;

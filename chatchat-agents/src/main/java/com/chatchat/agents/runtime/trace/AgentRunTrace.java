@@ -1,7 +1,7 @@
 package com.chatchat.agents.runtime.trace;
 
-import com.chatchat.agents.runtime.AgentRunEvent;
-import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.event.AgentRunEvent;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
 
 import java.util.List;
 import java.util.LinkedHashMap;

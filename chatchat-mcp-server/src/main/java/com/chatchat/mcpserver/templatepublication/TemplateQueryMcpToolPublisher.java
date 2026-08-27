@@ -3,10 +3,10 @@ package com.chatchat.mcpserver.templatepublication;
 import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
-import com.chatchat.mcpserver.api.ApiTemplateDiscoveryMcpToolPublisher;
+import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
-import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -224,13 +224,13 @@ public class TemplateQueryMcpToolPublisher {
 
     private String parentAssetType(String parentToolName) {
         return switch (parentToolName) {
-            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME ->
+            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME ->
                 TemplateAssetCatalogService.SSH;
-            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME ->
+            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME ->
                 TemplateAssetCatalogService.SQL;
-            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME ->
+            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME ->
                 TemplateAssetCatalogService.HTTP;
-            case com.chatchat.mcpserver.ops.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME ->
+            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME ->
                 TemplateAssetCatalogService.DATABASE_QUERY;
             case ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME -> TemplateAssetCatalogService.API;
             default -> throw new IllegalArgumentException("Unsupported parent template query tool: " + parentToolName);

@@ -2,9 +2,9 @@ package com.chatchat.mcpserver.livedata;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
-import com.chatchat.mcpserver.api.ApiServiceConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointTechnicalType;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointTechnicalType;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import com.chatchat.tools.livedata.LivedataSettingsProvider;

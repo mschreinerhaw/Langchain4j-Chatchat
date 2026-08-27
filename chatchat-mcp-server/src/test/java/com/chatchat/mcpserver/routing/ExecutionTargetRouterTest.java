@@ -1,13 +1,13 @@
 package com.chatchat.mcpserver.routing;
 
-import com.chatchat.mcpserver.database.DatabaseQueryConfig;
-import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
-import com.chatchat.mcpserver.ops.SshHostConfig;
-import com.chatchat.mcpserver.ops.SshHostConfigService;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

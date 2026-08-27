@@ -1,5 +1,10 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.event.AgentRunEvent;
+import com.chatchat.agents.runtime.observation.AgentObservation;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRunStep;
+
 import com.chatchat.common.interaction.InteractionToolTrace;
 import lombok.Builder;
 

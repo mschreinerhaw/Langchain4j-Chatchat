@@ -1,7 +1,7 @@
 package com.chatchat.api;
 
-import com.chatchat.agents.runtime.ToolRuntimePolicy;
-import com.chatchat.agents.runtime.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.tool.ToolRuntimePolicy;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.api.runtime.EnterpriseToolRuntimePolicyProvider;
 import com.chatchat.chat.skills.SkillConfigEntity;
 import com.chatchat.chat.skills.SkillConfigRepository;

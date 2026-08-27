@@ -1,5 +1,25 @@
 package com.chatchat.e2e;
 
+import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
+
+import com.chatchat.agents.orchestration.AgentOrchestrator;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.StructuredReasoningEvidenceAdapterRegistry;
+import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
+import com.chatchat.agents.orchestration.answer.FinalSummaryWebSearchEnhancer;
+import com.chatchat.agents.orchestration.AgentPlanner;
+import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
+import com.chatchat.agents.orchestration.tool.ToolObservationBuilder;
+
+import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.agents.runtime.governance.McpEvidenceGovernanceBridge;
+import com.chatchat.agents.runtime.governance.McpEvidenceResult;
+import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
+import com.chatchat.agents.runtime.store.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -231,9 +251,9 @@ class ProductionReleaseCoverageE2E {
         String readiness = Files.readString(root.resolve(
             "chatchat-runtime-market/src/main/java/com/chatchat/runtime/market/analysis/FinancialDatasetReadinessService.java"));
         String queryService = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/DatabaseQueryConfigService.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/definition/DatabaseQueryConfigService.java"));
         String adminController = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/DatabaseQueryAdminController.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/admin/DatabaseQueryAdminController.java"));
         String devConfig = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/resources/application-dev.yml"));
         String prodConfig = Files.readString(root.resolve(
@@ -259,9 +279,9 @@ class ProductionReleaseCoverageE2E {
         String resultFactory = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/tool/StandardToolExecutionResultFactory.java"));
         String databaseToolSpecFactory = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/DatabaseQueryToolSpecFactory.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/database/publication/DatabaseQueryToolSpecFactory.java"));
         String financialEnrichment = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/news/FinancialEnrichmentService.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/news/financial/FinancialEnrichmentService.java"));
         String livedataRegistration = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/livedata/LivedataApiRegistrationService.java"));
         String apiServiceConfigService = Files.readString(root.resolve(

@@ -1,8 +1,8 @@
 package com.chatchat.api.runtime;
 
-import com.chatchat.agents.runtime.AgentRun;
-import com.chatchat.agents.runtime.AgentRunEvent;
-import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRun;
+import com.chatchat.agents.runtime.event.AgentRunEvent;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRuntime;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;

@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.routing;
 
+import com.chatchat.mcpserver.api.publication.ApiRequirementAnalysisMcpToolPublisher;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -92,7 +94,7 @@ class ProductionRequirementAnalysisProtocolE2E {
         String apiPublisher = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/api/ApiRequirementAnalysisMcpToolPublisher.java"));
         String httpPublisher = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/ops/HttpRequirementAnalysisMcpToolPublisher.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/ops/discovery/HttpRequirementAnalysisMcpToolPublisher.java"));
 
         assertThat(apiPublisher).contains(
             "RequirementAnalysisProtocol.inputProperties()",

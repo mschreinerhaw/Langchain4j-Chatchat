@@ -1,10 +1,12 @@
 package com.chatchat.agents.runtime.trace;
 
-import com.chatchat.agents.runtime.AgentObservation;
-import com.chatchat.agents.runtime.AgentRun;
+import com.chatchat.agents.evidence.answer.EvidenceAnswer;
+
+import com.chatchat.agents.runtime.observation.AgentObservation;
+import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
-import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import org.junit.jupiter.api.Test;
 

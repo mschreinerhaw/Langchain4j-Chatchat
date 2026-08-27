@@ -1,7 +1,7 @@
 package com.chatchat.chat.activity;
 
-import com.chatchat.chat.task.AgentTaskLatestEntity;
-import com.chatchat.chat.task.AgentTaskLatestRepository;
+import com.chatchat.chat.task.core.AgentTaskLatestEntity;
+import com.chatchat.chat.task.core.AgentTaskLatestRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

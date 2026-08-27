@@ -1,7 +1,7 @@
 package com.chatchat.chat.insight;
 
-import com.chatchat.agents.orchestration.SemanticInsightContract;
-import com.chatchat.agents.orchestration.SemanticInsightContractProvider;
+import com.chatchat.agents.orchestration.analysis.SemanticInsightContract;
+import com.chatchat.agents.orchestration.analysis.SemanticInsightContractProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;

@@ -1,0 +1,298 @@
+package com.chatchat.agents.runtime.answer;
+
+import com.chatchat.agents.evidence.execution.EvidencePath;
+
+import com.chatchat.agents.protocol.AnswerContract;
+
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.model.chat.ChatModel;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayDeque;
+import java.util.List;
+import java.util.Queue;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class DefaultAgentAnswerReviewerTest {
+
+    @Test
+    void reviewPromptEnforcesReadablePartialDataReportsAndExactDates() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+
+        String prompt = reviewer.buildPrompt(
+            "Analyze every available customer metric",
+            null,
+            List.of("api_template_execute success=true parameters={rq=20260731} records=[]"),
+            "Only one metric was returned."
+        );
+
+        assertThat(prompt)
+            .contains("leads with API/template inventory")
+            .contains("lead with execution chronology")
+            .contains("organized by the user's requested outcome or dimensions")
+            .contains("When commandContext is present")
+            .contains("does not duplicate the same canonical result")
+            .contains("EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED")
+            .contains("without an invented business cause")
+            .contains("displayed date or date range differs from executed parameters");
+        assertThat(prompt)
+            .contains("substitutes an inferred failure cause")
+            .contains("UNAVAILABLE/NameResolver")
+            .contains("tool was unregistered");
+    }
+
+    @Test
+    void reportsIssuesWithoutReplacingCandidateWhenReviewerReturnsLegacyRevision() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            "```json\n{\"accepted\":false,\"feedback\":\"Missing concrete steps\",\"revisedAnswer\":\"Create the database, import schema.sql, update config, then restart.\"}\n```"
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "How do I initialize the database?",
+            "Be direct.",
+            List.of("Document evidence snippets: schema.sql is required."),
+            "Please check the deployment document."
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.REJECTED);
+        assertThat(review.answer()).isEqualTo("Please check the deployment document.");
+        assertThat(review.feedback()).isEqualTo("Missing concrete steps");
+        assertThat(chatModel.messages().get(0))
+            .contains("final answer quality reviewer")
+            .contains("authority is diagnostic only")
+            .contains("Document evidence snippets");
+    }
+
+    @Test
+    void reanalyzesCompleteExecutedEvidenceWhenRepairProtocolIsPresent() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"The candidate used a naming convention as evidence.",
+                 "issues":["Unsupported inference"],
+                 "suggestions":[],
+                 "revisedAnswer":"## Analysis\nThe returned record supports field A. The requested overall judgment remains unresolved."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Evaluate the returned object",
+            null,
+            List.of("model_analysis_repair_v1 complete executed evidence: field A was returned"),
+            "The object fully complies because its name starts with a conventional prefix."
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.REVISED);
+        assertThat(review.answer())
+            .contains("The returned record supports field A")
+            .doesNotContain("fully complies");
+        assertThat(chatModel.messages().get(0))
+            .contains("second-pass model analysis")
+            .contains("produce a complete revisedAnswer")
+            .contains("field A was returned");
+    }
+
+    @Test
+    void acceptsAnswerWhenReviewerPayloadAcceptsIt() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"accepted\":true,\"feedback\":\"Direct answer\",\"revisedAnswer\":\"\"}"
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "What happened?",
+            null,
+            List.of(),
+            "The operation completed successfully."
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.answer()).isEqualTo("The operation completed successfully.");
+        assertThat(review.feedback()).isEqualTo("Direct answer");
+    }
+
+    @Test
+    void rejectsAnswerWhenReviewerRejectsWithoutRevision() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"accepted\":false,\"feedback\":\"No concrete evidence was produced\",\"revisedAnswer\":\"\"}"
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Find the latest company update.",
+            null,
+            List.of("web_search failed"),
+            "Unable to provide the latest update."
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.REJECTED);
+        assertThat(review.answer()).isEqualTo("Unable to provide the latest update.");
+        assertThat(review.feedback()).isEqualTo("No concrete evidence was produced");
+    }
+
+    @Test
+    void blocksReviewerDowngradeWhenCanonicalEvidenceHasContent() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL",
+            null,
+            List.of("""
+                Canonical evidence store (contractVersion=evidence_canonical_v1):
+                [CanonicalEvidence 1]
+                evidenceId: evidence:1
+                type: SQL
+                sourceRef: doc://file-1#chunk=0
+                trustLevel: high
+                rawContent:
+                select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                normalizedContent:
+                select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                """),
+            "SQL: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.answer()).contains("select * from gdp_ads");
+        assertThat(review.feedback()).contains("Reviewer downgrade blocked");
+    }
+
+    @Test
+    void blocksReviewerDowngradeWhenEvidenceGraphHasTrustedSqlPath() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL lineage",
+            null,
+            List.of("""
+                Evidence graph execution (contractVersion=evidence_graph_v1):
+                queryId: tool:document_search
+                nodeCount: 4
+                edgeCount: 3
+                sqlLineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                Nodes:
+                [Node evidence:1:sql_trusted]
+                type: TRUSTED_SQL
+                sourceRef: doc://file-1#chunk=0
+                confidence: 0.99
+                contentPreview: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                Valid evidence paths:
+                [Path 1]
+                nodes: evidence:1:chunk -> evidence:1:sql_fragment -> evidence:1:sql_normalized -> evidence:1:sql_trusted
+                score: 0.88
+                sqlLineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                """),
+            "SQL lineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.answer()).contains("gdp_ads.ads_ids_sys_data_qlty_rpt_d_i");
+    }
+
+    @Test
+    void blocksReviewerDowngradeWhenEvidenceOsAllowsAnswer() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL lineage",
+            null,
+            List.of("""
+                Evidence OS execution (contractVersion=evidence_os_execution_v2):
+                decision: ANSWER_ALLOWED
+                answerContract: evidence_answer_contract_v2
+                fromGraphOnly: true
+                executable: true
+                evidencePath: evidence:1:chunk -> evidence:1:sql_fragment -> evidence:1:sql_normalized -> evidence:1:sql_trusted
+                sqlLineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                runtimeRules: answer must be derived from evidencePath; no external generation; no SQL answer unless EXECUTION_VERIFIED.
+                """),
+            "SQL lineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.answer()).contains("gdp_ads.ads_ids_sys_data_qlty_rpt_d_i");
+    }
+
+    @Test
+    void blocksReviewerDowngradeWhenDeterministicAnswerLockExists() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL",
+            null,
+            List.of("""
+                Deterministic answer lock (contractVersion=evidence_execution_contract_v2_2):
+                decision: ANSWER_ALLOWED
+                contractHash: abc123
+                graphViewHash: def456
+                lockedAnswer:
+                ---BEGIN_LOCKED_ANSWER---
+                SQL: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i doc://file-1#chunk=0
+                ---END_LOCKED_ANSWER---
+                """),
+            "SQL: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i doc://file-1#chunk=0"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.feedback()).contains("Reviewer downgrade blocked");
+    }
+
+    private static final class QueueChatModel implements ChatModel {
+        private final Queue<String> responses = new ArrayDeque<>();
+        private final List<String> messages = new java.util.ArrayList<>();
+
+        private QueueChatModel(String... responses) {
+            this.responses.addAll(List.of(responses));
+        }
+
+        @Override
+        public String chat(String message) {
+            messages.add(message);
+            return responses.remove();
+        }
+
+        private List<String> messages() {
+            return messages;
+        }
+    }
+}

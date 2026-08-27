@@ -1,16 +1,16 @@
 package com.chatchat.api.agent.task;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.chat.task.AgentEvent;
-import com.chatchat.chat.task.AgentEventStore;
+import com.chatchat.chat.task.event.AgentEvent;
+import com.chatchat.chat.task.event.AgentEventStore;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
-import com.chatchat.chat.task.AgentScheduledTaskService;
-import com.chatchat.chat.task.AgentTaskLatestEntity;
-import com.chatchat.chat.task.AgentTaskLatestRepository;
-import com.chatchat.chat.task.AgentTaskPayload;
-import com.chatchat.chat.task.AgentTaskService;
-import com.chatchat.chat.task.AgentTaskSubmitRequest;
+import com.chatchat.chat.task.schedule.AgentScheduledTaskService;
+import com.chatchat.chat.task.core.AgentTaskLatestEntity;
+import com.chatchat.chat.task.core.AgentTaskLatestRepository;
+import com.chatchat.chat.task.core.AgentTaskPayload;
+import com.chatchat.chat.task.core.AgentTaskService;
+import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.enterprise.entity.SysAuditLog;

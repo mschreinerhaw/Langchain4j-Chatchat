@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.livedata;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.mcpserver.api.ApiInvokeResult;
+import com.chatchat.mcpserver.api.invocation.ApiInvokeResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

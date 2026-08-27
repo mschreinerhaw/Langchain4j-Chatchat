@@ -1,9 +1,11 @@
 package com.chatchat.agents.orchestration;
 
-import com.chatchat.agents.runtime.AgentRuntimeProperties;
-import com.chatchat.agents.runtime.RocksDbAnalysisEvidenceSpillStore;
-import com.chatchat.agents.runtime.ToolRuntimeProperties;
-import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.analysis.RocksDbAnalysisEvidenceSpillStore;
+import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;

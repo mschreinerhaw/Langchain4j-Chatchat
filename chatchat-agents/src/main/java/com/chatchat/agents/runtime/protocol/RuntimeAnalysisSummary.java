@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime.protocol;
 
-import com.chatchat.agents.runtime.GovernanceIsolationScope;
+import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.ModelSummary;
 
 import java.util.List;

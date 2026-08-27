@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime.batch;
 
-import com.chatchat.agents.runtime.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

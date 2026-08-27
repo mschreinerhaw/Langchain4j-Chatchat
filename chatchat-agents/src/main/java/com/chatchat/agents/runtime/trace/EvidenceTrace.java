@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime.trace;
 
+import com.chatchat.agents.evidence.normalization.EvidenceType;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 

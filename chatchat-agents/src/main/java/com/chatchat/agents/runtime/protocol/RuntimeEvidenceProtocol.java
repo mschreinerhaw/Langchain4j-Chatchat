@@ -1,8 +1,8 @@
 package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
-import com.chatchat.agents.runtime.GovernanceIsolationScope;
-import com.chatchat.agents.runtime.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
 
 /** Captures an untrusted tool return inside the Runtime-owned evidence boundary. */

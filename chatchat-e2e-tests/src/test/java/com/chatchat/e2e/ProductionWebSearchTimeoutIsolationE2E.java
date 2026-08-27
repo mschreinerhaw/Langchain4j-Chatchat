@@ -3,8 +3,8 @@ package com.chatchat.e2e;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
-import com.chatchat.mcpserver.news.NewsRuntimeClient;
-import com.chatchat.mcpserver.news.RemoteNewsMcpToolProvider;
+import com.chatchat.mcpserver.news.runtime.NewsRuntimeClient;
+import com.chatchat.mcpserver.news.tool.RemoteNewsMcpToolProvider;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
 import com.chatchat.runtime.market.storage.FinancialDataStore;
@@ -63,8 +63,8 @@ class ProductionWebSearchTimeoutIsolationE2E {
             }
         });
         RemoteNewsMcpToolProvider provider = new RemoteNewsMcpToolProvider(
-            new com.chatchat.mcpserver.news.NewsSearchService(news),
-            java.util.Optional.of(new com.chatchat.mcpserver.news.FinancialEnrichmentService(market, store)));
+            new com.chatchat.mcpserver.news.runtime.NewsSearchService(news),
+            java.util.Optional.of(new com.chatchat.mcpserver.news.financial.FinancialEnrichmentService(market, store)));
 
         ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
         properties.getConcurrency().setGlobal(

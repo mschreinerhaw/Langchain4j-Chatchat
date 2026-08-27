@@ -1,29 +1,75 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.evidence.normalization.EvidenceSource;
+
+import com.chatchat.agents.evidence.graph.EvidenceGraph;
+
+import com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContract;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
+import com.chatchat.agents.orchestration.analysis.ContextCompressionEnvelope;
+import com.chatchat.agents.orchestration.analysis.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.DatasetRelationshipPlan;
+import com.chatchat.agents.orchestration.analysis.DeterministicInsightEngine;
+import com.chatchat.agents.orchestration.analysis.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.SemanticInsightContract;
+import com.chatchat.agents.orchestration.analysis.SemanticInsightContractProvider;
+import com.chatchat.agents.orchestration.analysis.StructuredDataProjector;
+import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
+import com.chatchat.agents.orchestration.evidence.ContextEvidenceAggregator;
+import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
+import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
+import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
+import com.chatchat.agents.orchestration.model.DeadlineAwareChatModel;
+import com.chatchat.agents.orchestration.planning.AgentContextBudget;
+import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
+import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.InterpretationPlanWorkflowGuard;
+import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
+import com.chatchat.agents.orchestration.retrieval.ModelAssistedContextParameterBridge;
+import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
+import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
+import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
+import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
+import com.chatchat.agents.orchestration.tool.ToolCallFingerprint;
+import com.chatchat.agents.orchestration.tool.ToolObservationBuilder;
+import com.chatchat.agents.orchestration.workflow.AgentWorkflowStatePort;
+import com.chatchat.agents.orchestration.workflow.AgentWorkflowStateTracker;
+import com.chatchat.agents.orchestration.workflow.AgentWorkflowToolResolver;
+
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.governance.McpEvidenceResult;
+import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
+
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
-import com.chatchat.agents.runtime.AgentAnswerReviewer;
-import com.chatchat.agents.runtime.AnswerCandidateCollector;
-import com.chatchat.agents.runtime.AgentObservation;
-import com.chatchat.agents.runtime.AgentObservationPipeline;
-import com.chatchat.agents.runtime.AgentRun;
+import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
+import com.chatchat.agents.runtime.observation.AgentObservation;
+import com.chatchat.agents.runtime.observation.AgentObservationPipeline;
+import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunExecutor;
-import com.chatchat.agents.runtime.AgentRunStatus;
-import com.chatchat.agents.runtime.AgentRunStore;
-import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
-import com.chatchat.agents.runtime.AgentRuntimeProperties;
-import com.chatchat.agents.runtime.AnalysisEvidenceSpillStore;
-import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
-import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
-import com.chatchat.agents.runtime.InMemoryAgentRunStore;
-import com.chatchat.agents.runtime.GovernanceIsolationScope;
-import com.chatchat.agents.runtime.ToolRuntimeExecution;
-import com.chatchat.agents.runtime.ToolRuntimeRequest;
-import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
+import com.chatchat.agents.runtime.store.AgentRunStore;
+import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
+import com.chatchat.agents.runtime.answer.DefaultAgentAnswerReviewer;
+import com.chatchat.agents.runtime.observation.DefaultAgentObservationPipeline;
+import com.chatchat.agents.runtime.store.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
@@ -411,7 +457,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return runtimeResult.withStatusAndEvents(completed.status(), completed.events());
         } catch (AgentDeadlineExceededException ex) {
             AgentRun current = runStore.find(run.runId()).orElse(run);
-            List<com.chatchat.agents.runtime.AgentObservation> preservedObservations =
+            List<com.chatchat.agents.runtime.observation.AgentObservation> preservedObservations =
                 runStore.observations(run.runId());
             List<com.chatchat.agents.runtime.plan.PlanStepCheckpoint> preservedCheckpoints =
                 runStore.planStepCheckpoints(run.runId());
@@ -424,7 +470,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 ? "执行时间预算已耗尽；已完成步骤的证据和检查点均已保留，可从最近一致检查点继续执行。"
                 : "";
             List<String> observationTexts = preservedObservations.stream()
-                .map(com.chatchat.agents.runtime.AgentObservation::content)
+                .map(com.chatchat.agents.runtime.observation.AgentObservation::content)
                 .filter(Objects::nonNull)
                 .filter(content -> !content.isBlank())
                 .toList();
@@ -436,7 +482,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             deadlineMetadata.put("preservedObservationCount", evidenceObservationCount);
             deadlineMetadata.put("preservedCheckpointCount", preservedCheckpoints.size());
             deadlineMetadata.put("observations", observationTexts);
-            Map<String, Object> metadata = new com.chatchat.agents.runtime.AgentOutcomeProjection().enrich(
+            Map<String, Object> metadata = new com.chatchat.agents.runtime.run.AgentOutcomeProjection().enrich(
                 deadlineMetadata,
                 answer
             );
@@ -496,7 +542,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.answerFinalizer.setAnalysisSummaryProtocol(this.analysisSummaryGovernanceBridge);
     }
 
-    private boolean isEvidenceObservation(com.chatchat.agents.runtime.AgentObservation observation) {
+    private boolean isEvidenceObservation(com.chatchat.agents.runtime.observation.AgentObservation observation) {
         if (observation == null || observation.type() == null) {
             return false;
         }
@@ -9598,7 +9644,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         return author;
     }
 
-    record ToolCallExecution(
+    public record ToolCallExecution(
         InteractionToolTrace trace,
         String observation,
         ToolOutput output

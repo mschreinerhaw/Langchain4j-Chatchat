@@ -1,6 +1,6 @@
 package com.chatchat.chat.image;
 
-import com.chatchat.agents.orchestration.AgentChatModelResolver;
+import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,5 +1,12 @@
 package com.chatchat.api.architecture;
 
+import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
+import com.chatchat.agents.orchestration.AgentWorkflowDecisionEngine;
+
+import com.chatchat.agents.runtime.execution.DefaultAgentRuntime;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

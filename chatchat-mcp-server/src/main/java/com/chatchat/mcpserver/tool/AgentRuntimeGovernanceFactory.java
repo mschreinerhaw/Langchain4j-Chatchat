@@ -1,8 +1,8 @@
 package com.chatchat.mcpserver.tool;
 
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.mcpserver.api.ApiServiceConfig;
-import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

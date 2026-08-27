@@ -14,7 +14,7 @@ import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillToolConfig;
-import com.chatchat.chat.task.AgentLearningService;
+import com.chatchat.chat.task.learning.AgentLearningService;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import lombok.extern.slf4j.Slf4j;

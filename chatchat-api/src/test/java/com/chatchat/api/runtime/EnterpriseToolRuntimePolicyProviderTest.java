@@ -1,7 +1,7 @@
 package com.chatchat.api.runtime;
 
-import com.chatchat.agents.runtime.ToolRuntimePolicy;
-import com.chatchat.agents.runtime.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.tool.ToolRuntimePolicy;
+import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.enterprise.entity.McpToolPermission;

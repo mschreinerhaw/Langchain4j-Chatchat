@@ -1,13 +1,13 @@
 package com.chatchat.mcpserver.search;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.mcpserver.database.DatabaseQueryConfig;
-import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
-import com.chatchat.mcpserver.metadata.EnterpriseMetadataCatalog;
-import com.chatchat.mcpserver.metadata.EnterpriseMetadataSearchService;
-import com.chatchat.mcpserver.sql.SqlMetadataSearchService;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
-import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.metadata.catalog.EnterpriseMetadataCatalog;
+import com.chatchat.mcpserver.metadata.search.EnterpriseMetadataSearchService;
+import com.chatchat.mcpserver.sql.metadata.SqlMetadataSearchService;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

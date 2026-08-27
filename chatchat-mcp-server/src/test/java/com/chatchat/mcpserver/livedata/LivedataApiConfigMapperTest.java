@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.livedata;
 
-import com.chatchat.mcpserver.api.ApiServiceConfig;
-import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
+import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
 import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;

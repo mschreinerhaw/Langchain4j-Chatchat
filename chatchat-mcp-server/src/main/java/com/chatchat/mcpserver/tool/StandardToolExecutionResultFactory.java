@@ -1,17 +1,17 @@
 package com.chatchat.mcpserver.tool;
 
 import com.chatchat.common.tool.ToolOutput;
-import com.chatchat.mcpserver.api.ApiInvokeResult;
-import com.chatchat.mcpserver.api.ApiServiceConfig;
-import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.api.invocation.ApiInvokeResult;
+import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
+import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 import com.chatchat.mcpserver.notification.NotificationSendResult;
-import com.chatchat.mcpserver.ops.HttpRequestToolResult;
-import com.chatchat.mcpserver.ops.LinuxCommandResult;
-import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
-import com.chatchat.mcpserver.ops.JmxMonitorResult;
-import com.chatchat.mcpserver.sql.SqlQueryResult;
-import com.chatchat.mcpserver.sql.SqlScriptResult;
-import com.chatchat.mcpserver.sql.SqlScriptStatementResult;
+import com.chatchat.mcpserver.ops.http.HttpRequestToolResult;
+import com.chatchat.mcpserver.ops.ssh.LinuxCommandResult;
+import com.chatchat.mcpserver.ops.ssh.LinuxCommandStepResult;
+import com.chatchat.mcpserver.ops.jmx.JmxMonitorResult;
+import com.chatchat.mcpserver.sql.execution.SqlQueryResult;
+import com.chatchat.mcpserver.sql.execution.SqlScriptResult;
+import com.chatchat.mcpserver.sql.execution.SqlScriptStatementResult;
 import com.chatchat.tools.builtin.DatabaseToolProperties;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.fasterxml.jackson.core.type.TypeReference;

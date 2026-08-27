@@ -1,5 +1,11 @@
 package com.chatchat.chat.interaction.service;
 
+import com.chatchat.agents.evidence.answer.EvidenceAnswer;
+
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
+
+import com.chatchat.agents.runtime.governance.McpEvidenceResult;
+
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import org.junit.jupiter.api.Test;

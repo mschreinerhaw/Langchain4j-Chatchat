@@ -1,7 +1,7 @@
 package com.chatchat.agents.assessment;
 
-import com.chatchat.agents.evidence.AnswerAssemblyMode;
-import com.chatchat.agents.evidence.AnswerAssemblyPolicy;
+import com.chatchat.agents.evidence.answer.AnswerAssemblyMode;
+import com.chatchat.agents.evidence.answer.AnswerAssemblyPolicy;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import org.junit.jupiter.api.Test;
 

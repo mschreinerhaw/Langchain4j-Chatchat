@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.ops.discovery.HttpRequirementAnalysisMcpToolPublisher;
 import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.Test;
 

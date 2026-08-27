@@ -1,10 +1,13 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
+import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.protocol.ToolProtocolContractResolver;
-import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
+import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
@@ -39,7 +42,7 @@ import java.util.regex.Pattern;
  * Builds planner prompts and parses planner decisions.
  */
 @Slf4j
-class AgentPlanner {
+public class AgentPlanner {
 
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String FINAL = "final";

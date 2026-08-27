@@ -1,9 +1,9 @@
 package com.chatchat.agents.runtime.evaluation;
 
-import com.chatchat.agents.runtime.AgentRun;
+import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
-import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import org.junit.jupiter.api.Test;
 

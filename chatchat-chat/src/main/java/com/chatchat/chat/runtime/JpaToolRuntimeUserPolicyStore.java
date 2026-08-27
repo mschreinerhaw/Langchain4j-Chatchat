@@ -1,7 +1,7 @@
 package com.chatchat.chat.runtime;
 
-import com.chatchat.agents.runtime.ToolRuntimeAction;
-import com.chatchat.agents.runtime.ToolRuntimeUserPolicyStore;
+import com.chatchat.agents.runtime.tool.ToolRuntimeAction;
+import com.chatchat.agents.runtime.tool.ToolRuntimeUserPolicyStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

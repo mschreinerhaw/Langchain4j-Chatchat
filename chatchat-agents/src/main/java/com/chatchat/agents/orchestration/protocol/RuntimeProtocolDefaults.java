@@ -1,9 +1,9 @@
 package com.chatchat.agents.orchestration.protocol;
 
-import com.chatchat.agents.orchestration.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.McpAnalysisContextAdapter;
-import com.chatchat.agents.runtime.McpResultAnalysisBridge;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
+import com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;

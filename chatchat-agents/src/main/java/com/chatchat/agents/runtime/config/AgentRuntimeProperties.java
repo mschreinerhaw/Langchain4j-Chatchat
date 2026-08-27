@@ -54,8 +54,10 @@ public class AgentRuntimeProperties {
     private int analysisSummaryWorkerCount = 4;
     /** Spark-style retries after the initial attempt for one failed dataset chunk. */
     private int analysisSummaryWorkerMaxRetries = 3;
-    /** Maximum wait for one complete dataset worker task. */
-    private long analysisSummaryTaskTimeoutMs = 180_000;
+    /** Worker heartbeat cadence; independent of blocking model inference. */
+    private long analysisSummaryWorkerHeartbeatIntervalMs = 10_000;
+    /** Remote Worker lease window. Missing heartbeats mean unreachable, not model failure. */
+    private long analysisSummaryWorkerHeartbeatTimeoutMs = 30_000;
     /** Spills oversized loop-analysis mirrors outside the JVM without truncating source evidence. */
     private boolean analysisSpillEnabled = true;
     /** Must be different from rocksDbPath because RocksDB does not allow two independent handles on one path. */
@@ -162,8 +164,13 @@ public class AgentRuntimeProperties {
         return Math.max(0, Math.min(9, analysisSummaryWorkerMaxRetries));
     }
 
-    public long analysisSummaryTaskTimeoutMs() {
-        return Math.max(5_000L, analysisSummaryTaskTimeoutMs);
+    public long analysisSummaryWorkerHeartbeatIntervalMs() {
+        return Math.max(250L, analysisSummaryWorkerHeartbeatIntervalMs);
+    }
+
+    public long analysisSummaryWorkerHeartbeatTimeoutMs() {
+        return Math.max(analysisSummaryWorkerHeartbeatIntervalMs() * 2,
+            analysisSummaryWorkerHeartbeatTimeoutMs);
     }
 
     public String analysisSpillRocksDbPath() {

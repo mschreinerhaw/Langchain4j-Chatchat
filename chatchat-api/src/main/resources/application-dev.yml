@@ -180,7 +180,10 @@ chatchat:
     record-analysis-chunk-max-rows: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_ROWS:50}
     analysis-summary-worker-count: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_COUNT:4}
     analysis-summary-worker-max-retries: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_MAX_RETRIES:3}
-    analysis-summary-task-timeout-ms: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_TASK_TIMEOUT_MS:180000}
+    # Worker completion has no independent wall-clock timeout. Model calls use the configured
+    # system model/request timeout; these values govern Worker liveness only.
+    analysis-summary-worker-heartbeat-interval-ms: ${CHATCHAT_AGENT_ANALYSIS_WORKER_HEARTBEAT_INTERVAL_MS:10000}
+    analysis-summary-worker-heartbeat-timeout-ms: ${CHATCHAT_AGENT_ANALYSIS_WORKER_HEARTBEAT_TIMEOUT_MS:30000}
     analysis-spill-enabled: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ENABLED:true}
     analysis-spill-rocks-db-path: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ROCKSDB_PATH:./data/agent-analysis-spill-rocksdb}
     analysis-spill-rocks-db-create-if-missing: true

@@ -4,6 +4,10 @@ import com.chatchat.agents.orchestration.AgentOrchestrator;
 
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgressListener;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskWorker;
+import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.answer.AnswerDecisionEngine;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
 
@@ -222,7 +226,7 @@ class AgentOrchestratorTest {
             ), Map.of(), 10L);
         AgentRuntimeProperties properties = new AgentRuntimeProperties();
         properties.setAnalysisSummaryWorkerCount(2);
-        properties.setAnalysisSummaryTaskTimeoutMs(5_000);
+        properties.setAnalysisSummaryWorkerHeartbeatTimeoutMs(5_000);
         ToolRegistry registry = mock(ToolRegistry.class);
         ObjectMapper mapper = new ObjectMapper();
         AgentOrchestrator orchestrator = new AgentOrchestrator(
@@ -245,6 +249,150 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisSummaryDispatchMode", "LOCAL")
             .containsEntry("recordAnalysisSummaryScheduledTaskCount", 2)
             .containsEntry("recordAnalysisSummaryWorkerCount", 2);
+    }
+
+    @Test
+    void publishesWorkerDatasetAndChunkProgressToTheRuntimeObservationStream() {
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                return "worker summary";
+            }
+        };
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null,
+                List.of(datasetStep(1, "visible_dataset", "A")), Map.of(), 10L);
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        properties.setAnalysisSummaryWorkerCount(1);
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ObjectMapper mapper = new ObjectMapper();
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            model, registry,
+            new ToolRuntimeService(registry, mapper, toolRuntimeProperties(), List.of(), List.of()),
+            mapper, new ModelsConfig(), new EvidenceTrustEvaluator(), runStore,
+            new DefaultAgentObservationPipeline(), new DefaultAgentAnswerReviewer(mapper),
+            null, properties);
+
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "agentRunId", "worker-progress-run"));
+        orchestrator.buildRecordCoverageBundle(
+            model, "analyze the visible dataset", result,
+            Map.of("__agentRunId", "worker-progress-run"),
+            metadata,
+            () -> false);
+
+        List<AgentObservation> progress = runStore.observations("worker-progress-run").stream()
+            .filter(observation -> "analysis_worker_progress".equals(observation.source()))
+            .toList();
+        assertThat(progress).extracting(observation -> observation.metadata().get("stage"))
+            .containsSubsequence(
+                "WORKER_CLAIMED",
+                "CHUNK_STARTED",
+                "CHUNK_COMPLETED",
+                "DATASET_REDUCING",
+                "DATASET_COMPLETED",
+                "DRIVER_RESULT_COLLECTED");
+        assertThat(progress)
+            .allSatisfy(observation -> assertThat(observation.metadata())
+                .containsEntry("datasetReference", "visible_dataset")
+                .containsKeys("datasetIndex", "datasetCount"));
+        assertThat(progress).anySatisfy(observation -> assertThat(observation.metadata())
+            .containsEntry("stage", "CHUNK_STARTED")
+            .containsKeys("chunkIndex", "chunkCount", "recordFrom", "recordTo"));
+        assertThat(metadata)
+            .containsEntry("recordAnalysisWorkerModelTimeoutPolicy",
+                "SYSTEM_MODEL_REQUEST_TIMEOUT")
+            .containsKeys("recordAnalysisSummaryWorkerHeartbeatIntervalMs",
+                "recordAnalysisSummaryWorkerHeartbeatTimeoutMs");
+    }
+
+    @Test
+    void isolatesOneWorkerFailureAndSummarizesEverySuccessfulDataset() {
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                return "successful dataset summary";
+            }
+        };
+        InterpretationPlanRuntime.ExecutionResult result =
+            new InterpretationPlanRuntime.ExecutionResult(
+                "success", true, false, null, null,
+                List.of(
+                    datasetStep(1, "failed_dataset", "A"),
+                    datasetStep(2, "successful_dataset", "B")
+                ), Map.of(), 10L);
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        properties.setAnalysisSummaryWorkerCount(2);
+        properties.setAnalysisSummaryWorkerMaxRetries(0);
+        ToolRegistry registry = mock(ToolRegistry.class);
+        ObjectMapper mapper = new ObjectMapper();
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            model, registry,
+            new ToolRuntimeService(registry, mapper, toolRuntimeProperties(), List.of(), List.of()),
+            mapper, new ModelsConfig(), new EvidenceTrustEvaluator(), runStore,
+            new DefaultAgentObservationPipeline(), new DefaultAgentAnswerReviewer(mapper),
+            null, properties);
+        LocalAnalysisTaskDispatcher delegate = new LocalAnalysisTaskDispatcher(2);
+        orchestrator.setAnalysisTaskDispatcher(new AnalysisTaskDispatcher() {
+            @Override
+            public DispatchBatch dispatch(
+                List<com.chatchat.agents.orchestration.analysis.AnalysisTask> tasks,
+                com.chatchat.common.runtime.summary.ModelSummaryWorker<
+                    com.chatchat.agents.orchestration.analysis.AnalysisTask,
+                    com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary> worker,
+                BooleanSupplier cancellationCheck
+            ) {
+                return delegate.dispatch(tasks, task -> {
+                    if ("failed_dataset".equals(task.datasetReference())) {
+                        throw new IllegalStateException("isolated worker failure");
+                    }
+                    return worker.execute(task);
+                }, cancellationCheck);
+            }
+
+            @Override
+            public DispatchBatch dispatch(
+                List<com.chatchat.agents.orchestration.analysis.AnalysisTask> tasks,
+                AnalysisTaskWorker worker,
+                BooleanSupplier cancellationCheck,
+                AnalysisTaskProgressListener progressListener
+            ) {
+                return delegate.dispatch(tasks, (task, reporter) -> {
+                    if ("failed_dataset".equals(task.datasetReference())) {
+                        throw new IllegalStateException("isolated worker failure");
+                    }
+                    return worker.execute(task, reporter);
+                }, cancellationCheck, progressListener);
+            }
+        });
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "agentRunId", "partial-worker-run"));
+
+        AgentOrchestrator.RecordCoverageBundle coverage =
+            orchestrator.buildRecordCoverageBundle(
+                model, "analyze all available datasets", result,
+                Map.of("__agentRunId", "partial-worker-run"), metadata, () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(2);
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.coverageComplete()).isFalse();
+        assertThat(coverage.synthesisInputs()).extracting(summary ->
+            summary.position().get("datasetReference"))
+            .containsExactly("successful_dataset");
+        assertThat(coverage.promptEvidence())
+            .contains("failedDatasetCount=1", "successful dataset summary")
+            .contains("Final conclusions must be limited to successful datasets");
+        assertThat(metadata)
+            .containsEntry("recordAnalysisSuccessfulDatasetCount", 1)
+            .containsEntry("recordAnalysisFailedDatasetCount", 1)
+            .containsEntry("recordAnalysisPartialWorkerFailure", true)
+            .containsEntry("recordAnalysisAllWorkersFailed", false);
+        assertThat(runStore.observations("partial-worker-run"))
+            .anySatisfy(observation -> assertThat(observation.metadata())
+                .containsEntry("stage", "DRIVER_DATASET_FAILURE_ISOLATED"));
     }
 
     @Test

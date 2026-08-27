@@ -10,6 +10,8 @@ import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridg
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgress;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgressReporter;
 import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisWorkerRetryPolicy;
 import com.chatchat.agents.orchestration.analysis.ContextCompressionEnvelope;
@@ -199,7 +201,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final int analysisSpillThresholdBytes;
     private final int analysisSummaryWorkerCount;
     private final int analysisSummaryWorkerMaxRetries;
-    private final long analysisSummaryTaskTimeoutMs;
+    private final long analysisSummaryWorkerHeartbeatIntervalMs;
+    private final long analysisSummaryWorkerHeartbeatTimeoutMs;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> analysisSummaryGovernanceBridge =
@@ -355,8 +358,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.analysisSummaryWorkerCount = resolvedRuntimeProperties.analysisSummaryWorkerCount();
         this.analysisSummaryWorkerMaxRetries =
             resolvedRuntimeProperties.analysisSummaryWorkerMaxRetries();
-        this.analysisSummaryTaskTimeoutMs = resolvedRuntimeProperties.analysisSummaryTaskTimeoutMs();
-        this.analysisTaskDispatcher = new LocalAnalysisTaskDispatcher(this.analysisSummaryWorkerCount);
+        this.analysisSummaryWorkerHeartbeatIntervalMs =
+            resolvedRuntimeProperties.analysisSummaryWorkerHeartbeatIntervalMs();
+        this.analysisSummaryWorkerHeartbeatTimeoutMs =
+            resolvedRuntimeProperties.analysisSummaryWorkerHeartbeatTimeoutMs();
+        this.analysisTaskDispatcher = new LocalAnalysisTaskDispatcher(
+            this.analysisSummaryWorkerCount, this.analysisSummaryWorkerHeartbeatIntervalMs);
         this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -3661,13 +3668,19 @@ public class AgentOrchestrator implements AgentRunExecutor {
             )
         );
         ParallelAnalysisSummaryBatch parallelSummaries = prepareParallelAnalysisSummaries(
-            activeChatModel, query, recordSets, isolationScope, cancellationCheck);
+            activeChatModel, query, recordSets, isolationScope, runtimeAttributes,
+            cancellationCheck);
         if (metadata != null) {
             metadata.put("recordAnalysisSummaryParallel", parallelSummaries.isParallel());
             metadata.put("recordAnalysisSummaryScheduledTaskCount", parallelSummaries.taskCount());
             metadata.put("recordAnalysisSummaryWorkerCount", parallelSummaries.workerCount());
             metadata.put("recordAnalysisSummaryDispatchMode", parallelSummaries.mode());
-            metadata.put("recordAnalysisSummaryTaskTimeoutMs", analysisSummaryTaskTimeoutMs);
+            metadata.put("recordAnalysisSummaryWorkerHeartbeatIntervalMs",
+                analysisSummaryWorkerHeartbeatIntervalMs);
+            metadata.put("recordAnalysisSummaryWorkerHeartbeatTimeoutMs",
+                analysisSummaryWorkerHeartbeatTimeoutMs);
+            metadata.put("recordAnalysisWorkerModelTimeoutPolicy",
+                "SYSTEM_MODEL_REQUEST_TIMEOUT");
             metadata.put("recordAnalysisSummaryWorkerMaxRetries",
                 analysisSummaryWorkerMaxRetries);
             metadata.put("recordAnalysisSummaryWorkerMaxAttempts",
@@ -3692,8 +3705,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         try {
         StringBuilder promptEvidence = new StringBuilder(
-            "Complete returned-record evidence (record_grounded_analysis.v1). "
-                + "Every range below is processed evidence; final analysis must use it and must not substitute execution metadata.\n");
+            "Returned-record evidence (record_grounded_analysis.v1). "
+                + "Every successful range below is processed evidence; final analysis must use it, "
+                + "must not substitute execution metadata, and must respect listed Worker failures.\n");
         StringBuilder appendix = new StringBuilder();
         StringBuilder rawReplayEvidence = new StringBuilder();
         List<List<String>> recordValueGroups = new ArrayList<>();
@@ -3716,6 +3730,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         List<DeterministicInsightEngine.DatasetInput> deterministicInsightDatasets = new ArrayList<>();
         List<Map<String, Object>> deterministicInsightDecisions = new ArrayList<>();
         List<Map<String, Object>> semanticPresentationViews = new ArrayList<>();
+        List<Map<String, Object>> failedAnalysisDatasets = new ArrayList<>();
+        int analyzedDatasetCount = 0;
         int datasetIndex = 0;
         for (BatchRecordSet recordSet : recordSets) {
             datasetIndex++;
@@ -3726,11 +3742,62 @@ public class AgentOrchestrator implements AgentRunExecutor {
             returnedRecordCount += recordSet.records().size();
             sourceContentComplete &= recordSet.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
-            AnalysisDatasetSummary datasetSummary = parallelSummaries.await(evidenceReference);
-            if (datasetSummary == null) {
-                throw new IllegalStateException(
-                    "Analysis worker did not return dataset " + evidenceReference);
+            AnalysisDatasetTaskOutcome workerOutcome =
+                parallelSummaries.await(evidenceReference);
+            AnalysisDatasetSummary datasetSummary = workerOutcome.summary();
+            if (!workerOutcome.success()) {
+                Map<String, Object> failedDataset = metadataOf(
+                    "datasetReference", evidenceReference,
+                    "datasetIndex", datasetIndex,
+                    "datasetCount", recordSets.size(),
+                    "recordCount", recordSet.records().size(),
+                    "status", workerOutcome.status(),
+                    "workerId", workerOutcome.workerId(),
+                    "durationMs", workerOutcome.durationMs(),
+                    "error", workerOutcome.error()
+                );
+                failedAnalysisDatasets.add(failedDataset);
+                promptEvidence.append("- ").append(evidenceReference)
+                    .append(" was not analyzed because its Worker failed. Do not infer facts from this dataset. Failure: ")
+                    .append(ModelProtocolJson.compact(failedDataset)).append("\n");
+                appendix.append("### ").append(evidenceReference).append("\n\n")
+                    .append("- 分析未完成：Worker ")
+                    .append(workerOutcome.status()).append("，")
+                    .append(firstNonBlank(workerOutcome.error(), "未返回可用结果"))
+                    .append("。\n\n");
+                runResultAdapter.recordRuntimeObservation(
+                    runtimeAttributes,
+                    AGENT_RUN_ID_ATTRIBUTE,
+                    "数据集 " + datasetIndex + "/" + recordSets.size()
+                        + " 的 Worker 分析失败，Driver 将继续收集其他数据集结果。",
+                    "analysis_worker_progress",
+                    metadataOf(
+                        "type", "analysis_driver_dataset_failure_isolated",
+                        "stage", "DRIVER_DATASET_FAILURE_ISOLATED",
+                        "failure", failedDataset,
+                        "tenantId", isolationScope.tenantId(),
+                        "runId", isolationScope.runId()
+                    )
+                );
+                continue;
             }
+            analyzedDatasetCount++;
+            runResultAdapter.recordRuntimeObservation(
+                runtimeAttributes,
+                AGENT_RUN_ID_ATTRIBUTE,
+                "Driver 已收到数据集 " + evidenceReference + " 的 Worker 分析结果。",
+                "analysis_worker_progress",
+                metadataOf(
+                    "type", "analysis_driver_result_collected",
+                    "stage", "DRIVER_RESULT_COLLECTED",
+                    "datasetReference", evidenceReference,
+                    "datasetIndex", datasetIndex,
+                    "datasetCount", recordSets.size(),
+                    "chunkCount", datasetSummary.chunks().size(),
+                    "tenantId", isolationScope.tenantId(),
+                    "runId", isolationScope.runId()
+                )
+            );
             boolean oversized = datasetSummary.oversized();
             isolationScope.requireSamePartition(datasetSummary.datasetSummary().isolationScope());
             workerDatasetSummaryResults.add(datasetSummary.datasetSummary());
@@ -3866,7 +3933,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 .append(ModelProtocolJson.compact(bundleInsightResult.toMap())).append("\n");
         }
         boolean coverageComplete = processedRecordCount == returnedRecordCount;
-        boolean evidenceTraceComplete = governedSummaryResults.size() == iterations
+        boolean evidenceTraceComplete = processedRecordCount > 0
+            && governedSummaryResults.size() == iterations
             && governedSummaryResults.stream().allMatch(this::hasTraceableChunkEvidence)
             && governedSummaryResults.stream().map(AnalysisSummaryResult::resultId).distinct().count()
                 == governedSummaryResults.size();
@@ -3876,6 +3944,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
             .append(", sourceContentComplete=").append(sourceContentComplete)
             .append(", evidenceTraceComplete=").append(evidenceTraceComplete)
             .append(", rawReplayChunkCount=").append(rawReplayChunkCount).append(".\n");
+        if (!failedAnalysisDatasets.isEmpty()) {
+            promptEvidence.append("Worker failure isolation: analyzedDatasetCount=")
+                .append(analyzedDatasetCount)
+                .append(", failedDatasetCount=").append(failedAnalysisDatasets.size())
+                .append(". Final conclusions must be limited to successful datasets. Failed datasets: ")
+                .append(ModelProtocolJson.compact(failedAnalysisDatasets)).append("\n");
+        }
         HierarchicalAnalysisReducer.Result hierarchicalResult = hierarchicalAnalysisReducer.reduce(
             new HierarchicalAnalysisReducer.Context(
                 activeChatModel::chat, isolationScope, relationshipPlan, query),
@@ -3913,6 +3988,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("recordAnalysisReturnedRecordCount", returnedRecordCount);
             metadata.put("recordAnalysisProcessedRecordCount", processedRecordCount);
             metadata.put("recordAnalysisCoverageComplete", coverageComplete);
+            metadata.put("recordAnalysisDatasetCount", recordSets.size());
+            metadata.put("recordAnalysisSuccessfulDatasetCount", analyzedDatasetCount);
+            metadata.put("recordAnalysisFailedDatasetCount", failedAnalysisDatasets.size());
+            metadata.put("recordAnalysisFailedDatasets", List.copyOf(failedAnalysisDatasets));
+            metadata.put("recordAnalysisPartialWorkerFailure",
+                analyzedDatasetCount > 0 && !failedAnalysisDatasets.isEmpty());
+            metadata.put("recordAnalysisAllWorkersFailed",
+                analyzedDatasetCount == 0 && !failedAnalysisDatasets.isEmpty());
             metadata.put("recordAnalysisEvidenceTraceComplete", evidenceTraceComplete);
             metadata.put("recordAnalysisSourceContentComplete", sourceContentComplete);
             metadata.put("recordAnalysisIterationCount", iterations);
@@ -3990,6 +4073,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         String query,
         List<BatchRecordSet> recordSets,
         GovernanceIsolationScope isolationScope,
+        Map<String, Object> runtimeAttributes,
         BooleanSupplier cancellationCheck
     ) {
         List<AnalysisTask> tasks = new ArrayList<>();
@@ -4027,7 +4111,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 evidenceLocator,
                 recordSet.records(), query, recordAnalysisChunkMaxRows,
                 recordAnalysisChunkMaxChars, analysisSpillThresholdBytes,
-                analysisSummaryWorkerMaxRetries, analysisSummaryTaskTimeoutMs, 1);
+                analysisSummaryWorkerMaxRetries,
+                analysisSummaryWorkerHeartbeatTimeoutMs, 1);
             tasks.add(task);
             taskIdsByDatasetReference.put(evidenceReference, taskId);
         }
@@ -4036,11 +4121,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         }
         AnalysisTaskDispatcher.DispatchBatch dispatched = analysisTaskDispatcher.dispatch(
             tasks,
-            task -> {
+            (task, progressReporter) -> {
                 runtimeGuard.checkCancelled(cancellationCheck);
-                return analyzeDatasetTask(activeChatModel, task, cancellationCheck);
+                return analyzeDatasetTask(activeChatModel, task, progressReporter,
+                    cancellationCheck);
             },
-            cancellationCheck);
+            cancellationCheck,
+            progress -> recordAnalysisWorkerProgress(
+                runtimeAttributes, isolationScope, progress));
         log.info("analysisTaskDriverDispatched mode={} taskCount={} workerCount={}",
             dispatched.mode(), dispatched.taskCount(), dispatched.workerCount());
         return new ParallelAnalysisSummaryBatch(
@@ -4050,6 +4138,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private AnalysisDatasetSummary analyzeDatasetTask(
         ChatModel activeChatModel,
         AnalysisTask task,
+        AnalysisTaskProgressReporter progressReporter,
         BooleanSupplier cancellationCheck
     ) {
         RecordChunkPlan chunkPlan = recordChunkPlan(
@@ -4070,6 +4159,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
             RuntimeAnalysisPosition position = analysisSummaryGovernanceBridge.position(
                 task.datasetReference(), chunkOffset + 1, chunkPlan.ranges().size(),
                 from, to, task.records().size());
+            progressReporter.report("CHUNK_STARTED", metadataOf(
+                "chunkIndex", position.chunkIndex(),
+                "chunkCount", position.chunkCount(),
+                "recordFrom", from,
+                "recordTo", to,
+                "recordCount", chunk.size()
+            ));
             String rawJson = ModelProtocolJson.compact(chunk);
             byte[] rawBytes = rawJson.getBytes(StandardCharsets.UTF_8);
             String contentSha256 = ModelProtocolJson.sha256Hex(rawJson);
@@ -4111,11 +4207,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                 return output;
                             },
                             attemptCount::set,
-                            (attempt, failure) -> log.warn(
-                                "analysisChunkAttemptFailed dataset={} chunk={}/{} attempt={}/{} error={}",
-                                task.datasetReference(), position.chunkIndex(),
-                                position.chunkCount(), attempt, task.maximumAttempts(),
-                                failure.getMessage())),
+                            (attempt, failure) -> {
+                                log.warn(
+                                    "analysisChunkAttemptFailed dataset={} chunk={}/{} attempt={}/{} error={}",
+                                    task.datasetReference(), position.chunkIndex(),
+                                    position.chunkCount(), attempt, task.maximumAttempts(),
+                                    failure.getMessage());
+                                progressReporter.report("CHUNK_RETRY", metadataOf(
+                                    "chunkIndex", position.chunkIndex(),
+                                    "chunkCount", position.chunkCount(),
+                                    "failedAttempt", attempt,
+                                    "maximumAttempts", task.maximumAttempts(),
+                                    "error", String.valueOf(failure.getMessage())
+                                ));
+                            }),
                         task.isolationScope(), position,
                         task.analysisContext(), chunk, task.originalUserQuestion())
                     : analysisSummaryGovernanceBridge.preserve(
@@ -4142,6 +4247,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
             chunks.add(new AnalysisDatasetSummary.ChunkResult(
                 summary, spillReference, checkpointInputSha256, restoredCheckpoint,
                 attemptCount.get()));
+            progressReporter.report("CHUNK_COMPLETED", metadataOf(
+                "chunkIndex", position.chunkIndex(),
+                "chunkCount", position.chunkCount(),
+                "recordFrom", from,
+                "recordTo", to,
+                "recordCount", chunk.size(),
+                "attemptCount", attemptCount.get(),
+                "restoredCheckpoint", restoredCheckpoint,
+                "outcome", summary.outcome()
+            ));
             from = to + 1;
         }
         AtomicInteger datasetReductionAttemptCount = new AtomicInteger();
@@ -4164,6 +4279,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
             : null;
         boolean datasetReductionRestoredCheckpoint = datasetSummary != null;
         if (datasetSummary == null) {
+            progressReporter.report("DATASET_REDUCING", metadataOf(
+                "chunkCount", chunkSummaries.size(),
+                "originalQuestionPresent", !task.originalUserQuestion().isBlank()
+            ));
             datasetSummary = workerDatasetReducer.reduceDataset(
                 prompt -> analysisWorkerRetryPolicy.execute(
                     task.maximumRetries(), cancellationCheck,
@@ -4176,10 +4295,17 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         return output;
                     },
                     datasetReductionAttemptCount::set,
-                    (attempt, failure) -> log.warn(
-                        "analysisDatasetReduceAttemptFailed dataset={} attempt={}/{} error={}",
-                        task.datasetReference(), attempt, task.maximumAttempts(),
-                        failure.getMessage())),
+                    (attempt, failure) -> {
+                        log.warn(
+                            "analysisDatasetReduceAttemptFailed dataset={} attempt={}/{} error={}",
+                            task.datasetReference(), attempt, task.maximumAttempts(),
+                            failure.getMessage());
+                        progressReporter.report("DATASET_REDUCTION_RETRY", metadataOf(
+                            "failedAttempt", attempt,
+                            "maximumAttempts", task.maximumAttempts(),
+                            "error", String.valueOf(failure.getMessage())
+                        ));
+                    }),
                 task.isolationScope(), task.datasetReference(), chunkSummaries,
                 task.originalUserQuestion());
             if (datasetReductionCheckpointEligible
@@ -4192,6 +4318,55 @@ public class AgentOrchestrator implements AgentRunExecutor {
             chunkPlan.serializedChars(), chunks, datasetSummary, spilledChunkCount,
             spilledByteCount, restoredCheckpointCount, datasetReductionAttemptCount.get(),
             datasetReductionRestoredCheckpoint);
+    }
+
+    private void recordAnalysisWorkerProgress(
+        Map<String, Object> runtimeAttributes,
+        GovernanceIsolationScope isolationScope,
+        AnalysisTaskProgress progress
+    ) {
+        if (progress == null) {
+            return;
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>(progress.toMap());
+        metadata.put("type", "analysis_worker_" + progress.stage().toLowerCase(Locale.ROOT));
+        metadata.put("tenantId", isolationScope.tenantId());
+        metadata.put("runId", isolationScope.runId());
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            analysisWorkerProgressContent(progress),
+            "analysis_worker_progress",
+            metadata
+        );
+    }
+
+    private String analysisWorkerProgressContent(AnalysisTaskProgress progress) {
+        String position = progress.datasetIndex() + "/" + progress.datasetCount();
+        String dataset = progress.datasetReference();
+        Object chunkIndex = progress.details().get("chunkIndex");
+        Object chunkCount = progress.details().get("chunkCount");
+        return switch (progress.stage()) {
+            case "WORKER_CLAIMED" -> progress.workerId() + " 已领取数据集 "
+                + position + "：" + dataset + "。";
+            case "WORKER_HEARTBEAT" -> progress.workerId() + " 正在分析数据集 "
+                + position + "，Worker 心跳正常。";
+            case "CHUNK_STARTED" -> progress.workerId() + " 正在分析数据集 "
+                + position + " 的分片 " + chunkIndex + "/" + chunkCount + "。";
+            case "CHUNK_COMPLETED" -> progress.workerId() + " 已完成数据集 "
+                + position + " 的分片 " + chunkIndex + "/" + chunkCount + "。";
+            case "CHUNK_RETRY" -> progress.workerId() + " 正在重试数据集 "
+                + position + " 的分片 " + chunkIndex + "/" + chunkCount + "。";
+            case "DATASET_REDUCING" -> progress.workerId() + " 正在归并数据集 "
+                + position + " 的分片结果。";
+            case "DATASET_REDUCTION_RETRY" -> progress.workerId()
+                + " 正在重试数据集 " + position + " 的归并分析。";
+            case "DATASET_COMPLETED" -> progress.workerId() + " 已完成数据集 "
+                + position + "：" + dataset + "。";
+            case "DATASET_FAILED" -> progress.workerId() + " 分析数据集 "
+                + position + " 失败：" + progress.details().get("error") + "。";
+            default -> progress.workerId() + " 更新了数据集 " + position + " 的分析进度。";
+        };
     }
 
     /**
@@ -4843,6 +5018,47 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                    boolean oversized,
                                    long serializedChars) { }
 
+    private record AnalysisDatasetTaskOutcome(
+        AnalysisDatasetSummary summary,
+        String status,
+        String workerId,
+        long durationMs,
+        String error
+    ) {
+        private static AnalysisDatasetTaskOutcome completed(
+            AnalysisDatasetSummary summary,
+            String status,
+            String workerId,
+            long durationMs
+        ) {
+            return new AnalysisDatasetTaskOutcome(summary,
+                firstNonBlankStatic(status, "SUCCESS"),
+                firstNonBlankStatic(workerId, "unknown-worker"),
+                Math.max(0L, durationMs), "");
+        }
+
+        private static AnalysisDatasetTaskOutcome failed(
+            String status,
+            String workerId,
+            long durationMs,
+            String error
+        ) {
+            return new AnalysisDatasetTaskOutcome(null,
+                firstNonBlankStatic(status, "FAILED"),
+                firstNonBlankStatic(workerId, "unknown-worker"),
+                Math.max(0L, durationMs),
+                firstNonBlankStatic(error, "unknown worker failure"));
+        }
+
+        private boolean success() {
+            return summary != null && !"FAILED".equalsIgnoreCase(status);
+        }
+
+        private static String firstNonBlankStatic(String value, String fallback) {
+            return value == null || value.isBlank() ? fallback : value;
+        }
+    }
+
     private static final class ParallelAnalysisSummaryBatch implements AutoCloseable {
         private final AnalysisTaskDispatcher.DispatchBatch dispatched;
         private final Map<String, AnalysisTask> tasksById;
@@ -4864,10 +5080,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return new ParallelAnalysisSummaryBatch(null, List.of(), Map.of());
         }
 
-        private AnalysisDatasetSummary await(String datasetReference) {
+        private AnalysisDatasetTaskOutcome await(String datasetReference) {
             String taskId = taskIdsByDatasetReference.get(datasetReference);
             if (taskId == null || dispatched == null) {
-                return null;
+                return AnalysisDatasetTaskOutcome.failed(
+                    "MISSING", "driver", 0L, "missing dispatched analysis task");
             }
             AnalysisTask task = tasksById.get(taskId);
             AnalysisTaskResult result = dispatched.await(taskId);
@@ -4879,10 +5096,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 log.warn("analysisTaskDriverFallback taskId={} status={} error={}", taskId,
                     result == null ? "MISSING" : result.status(),
                     result == null ? "missing worker result" : result.error());
-                return null;
+                return AnalysisDatasetTaskOutcome.failed(
+                    result == null ? "MISSING" : result.status(),
+                    result == null ? "unknown-worker" : result.workerId(),
+                    result == null ? 0L : result.durationMs(),
+                    result == null ? "missing worker result" : result.error());
             }
             task.isolationScope().requireSamePartition(result.summary().isolationScope());
-            return result.summary();
+            return AnalysisDatasetTaskOutcome.completed(result.summary(), result.status(),
+                result.workerId(), result.durationMs());
         }
 
         private boolean isParallel() {

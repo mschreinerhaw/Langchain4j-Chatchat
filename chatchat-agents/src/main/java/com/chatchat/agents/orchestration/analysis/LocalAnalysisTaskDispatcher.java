@@ -11,6 +11,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,9 +23,15 @@ import java.util.function.BooleanSupplier;
 public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher {
 
     private final int maximumWorkers;
+    private final long heartbeatIntervalMs;
 
     public LocalAnalysisTaskDispatcher(int maximumWorkers) {
+        this(maximumWorkers, 10_000L);
+    }
+
+    public LocalAnalysisTaskDispatcher(int maximumWorkers, long heartbeatIntervalMs) {
         this.maximumWorkers = Math.max(1, maximumWorkers);
+        this.heartbeatIntervalMs = Math.max(250L, heartbeatIntervalMs);
     }
 
     @Override
@@ -31,6 +39,18 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
         List<AnalysisTask> tasks,
         ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker,
         BooleanSupplier cancellationCheck
+    ) {
+        return dispatch(tasks,
+            (task, progressReporter) -> worker.execute(task), cancellationCheck,
+            AnalysisTaskProgressListener.NOOP);
+    }
+
+    @Override
+    public DispatchBatch dispatch(
+        List<AnalysisTask> tasks,
+        AnalysisTaskWorker worker,
+        BooleanSupplier cancellationCheck,
+        AnalysisTaskProgressListener progressListener
     ) {
         List<AnalysisTask> safeTasks = tasks == null ? List.of() : List.copyOf(tasks);
         if (safeTasks.isEmpty()) {
@@ -46,7 +66,8 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
         });
         Map<String, SubmittedTask> submitted = new LinkedHashMap<>();
         for (AnalysisTask task : safeTasks) {
-            Future<AnalysisTaskResult> future = executor.submit(() -> execute(task, worker));
+            Future<AnalysisTaskResult> future = executor.submit(() ->
+                execute(task, worker, progressListener));
             submitted.put(task.taskId(), new SubmittedTask(task, future));
         }
         log.info("analysisTaskDispatcherStarted mode=LOCAL taskCount={} workerCount={}",
@@ -56,30 +77,84 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
 
     private AnalysisTaskResult execute(
         AnalysisTask task,
-        ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker
+        AnalysisTaskWorker worker,
+        AnalysisTaskProgressListener progressListener
     ) {
         String workerId = Thread.currentThread().getName();
         long startedAt = System.nanoTime();
+        AnalysisTaskProgressListener listener = progressListener == null
+            ? AnalysisTaskProgressListener.NOOP : progressListener;
+        AnalysisTaskProgressReporter reporter = (stage, details) -> {
+            try {
+                listener.onProgress(progress(task, workerId, stage, details));
+            } catch (RuntimeException telemetryFailure) {
+                // Progress transport is observational. A broken UI/event sink must never turn a
+                // healthy model computation into a Worker failure.
+                log.warn("analysisTaskProgressPublishFailed taskId={} worker={} stage={} error={}",
+                    task.taskId(), workerId, stage, telemetryFailure.getMessage());
+            }
+        };
         log.info("analysisTaskWorkerClaimed taskId={} idempotencyKey={} dataset={}/{} worker={}",
             task.taskId(), task.idempotencyKey(), task.datasetIndex(), task.datasetCount(),
             workerId);
+        reporter.report("WORKER_CLAIMED", Map.of());
+        ScheduledExecutorService heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(
+            runnable -> {
+                Thread thread = new Thread(runnable, workerId + "-heartbeat");
+                thread.setDaemon(true);
+                return thread;
+            });
+        ScheduledFuture<?> heartbeat = heartbeatExecutor.scheduleAtFixedRate(
+            () -> reporter.report("WORKER_HEARTBEAT", Map.of(
+                "elapsedMs", elapsedMillis(startedAt),
+                "heartbeatIntervalMs", heartbeatIntervalMs,
+                "heartbeatAt", System.currentTimeMillis())),
+            heartbeatIntervalMs, heartbeatIntervalMs, TimeUnit.MILLISECONDS);
         try {
-            AnalysisDatasetSummary summary = worker.execute(task);
+            AnalysisDatasetSummary summary = worker.execute(task, reporter);
             task.isolationScope().requireSamePartition(summary.isolationScope());
-            return AnalysisTaskResult.completed(task, workerId, summary,
-                elapsedMillis(startedAt));
+            long durationMs = elapsedMillis(startedAt);
+            reporter.report("DATASET_COMPLETED", Map.of(
+                "durationMs", durationMs,
+                "chunkCount", summary.chunks().size(),
+                "outcome", summary.outcome()));
+            return AnalysisTaskResult.completed(task, workerId, summary, durationMs);
         } catch (CancellationException cancelled) {
+            reporter.report("DATASET_CANCELLED", Map.of(
+                "durationMs", elapsedMillis(startedAt),
+                "reason", String.valueOf(cancelled.getMessage())));
             throw cancelled;
         } catch (RuntimeException failed) {
-            return AnalysisTaskResult.failed(task, workerId, elapsedMillis(startedAt), failed);
+            long durationMs = elapsedMillis(startedAt);
+            reporter.report("DATASET_FAILED", Map.of(
+                "durationMs", durationMs,
+                "error", String.valueOf(failed.getMessage())));
+            return AnalysisTaskResult.failed(task, workerId, durationMs, failed);
+        } finally {
+            heartbeat.cancel(false);
+            heartbeatExecutor.shutdownNow();
         }
+    }
+
+    private AnalysisTaskProgress progress(
+        AnalysisTask task,
+        String workerId,
+        String stage,
+        Map<String, Object> details
+    ) {
+        return new AnalysisTaskProgress(AnalysisTaskProgress.SCHEMA_VERSION, stage,
+            task.taskId(), task.datasetReference(), task.datasetIndex(), task.datasetCount(),
+            workerId, details);
     }
 
     private long elapsedMillis(long startedAt) {
         return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
-    private record SubmittedTask(AnalysisTask task, Future<AnalysisTaskResult> future) { }
+    private record SubmittedTask(
+        AnalysisTask task,
+        Future<AnalysisTaskResult> future
+    ) { }
 
     private static final class LocalDispatchBatch implements DispatchBatch {
         private final ExecutorService executor;
@@ -109,26 +184,19 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
             if (submitted == null) {
                 return null;
             }
-            long deadline = System.nanoTime()
-                + TimeUnit.MILLISECONDS.toNanos(submitted.task().timeoutMs());
             while (true) {
                 if (cancellationCheck.getAsBoolean()) {
                     submitted.future().cancel(true);
                     throw new CancellationException(
                         "Agent run was cancelled while awaiting analysis task " + taskId);
                 }
-                long remainingNanos = deadline - System.nanoTime();
-                if (remainingNanos <= 0) {
-                    submitted.future().cancel(true);
-                    return AnalysisTaskResult.failed(submitted.task(), "driver-timeout",
-                        submitted.task().timeoutMs(), new TimeoutException(
-                            "Analysis task timed out after " + submitted.task().timeoutMs() + " ms"));
-                }
                 try {
                     return submitted.future().get(
-                        Math.min(remainingNanos, TimeUnit.SECONDS.toNanos(1)), TimeUnit.NANOSECONDS);
+                        1L, TimeUnit.SECONDS);
                 } catch (TimeoutException ignored) {
-                    // Poll cancellation while retaining an absolute task timeout.
+                    // No absolute Worker-result timeout: a live Worker may legitimately spend
+                    // longer than one model request on chunking and reduction. Keep polling the
+                    // global cancellation/deadline while heartbeat events prove liveness.
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                     submitted.future().cancel(true);

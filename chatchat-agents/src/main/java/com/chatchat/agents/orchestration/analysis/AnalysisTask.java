@@ -80,7 +80,11 @@ public record AnalysisTask(
         value.put("spillThresholdBytes", spillThresholdBytes);
         value.put("maximumRetries", maximumRetries);
         value.put("maximumAttempts", maximumAttempts());
+        // Model inference uses the system model/request deadline. This value is only the
+        // Driver-to-Worker heartbeat lease for transports that need stale-owner detection.
         value.put("timeoutMs", timeoutMs);
+        value.put("heartbeatTimeoutMs", timeoutMs);
+        value.put("modelTimeoutPolicy", "SYSTEM_MODEL_REQUEST_TIMEOUT");
         value.put("attempt", attempt);
         return Collections.unmodifiableMap(value);
     }

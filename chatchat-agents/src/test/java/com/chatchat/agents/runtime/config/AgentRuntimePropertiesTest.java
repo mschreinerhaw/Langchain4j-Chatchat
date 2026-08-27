@@ -8,6 +8,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentRuntimePropertiesTest {
 
     @Test
+    void configuresWorkerHeartbeatWithoutCreatingAnAnalysisCompletionDeadline() {
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+
+        assertThat(properties.analysisSummaryWorkerHeartbeatIntervalMs()).isEqualTo(10_000L);
+        assertThat(properties.analysisSummaryWorkerHeartbeatTimeoutMs()).isEqualTo(30_000L);
+
+        properties.setAnalysisSummaryWorkerHeartbeatIntervalMs(20_000L);
+        properties.setAnalysisSummaryWorkerHeartbeatTimeoutMs(5_000L);
+
+        assertThat(properties.analysisSummaryWorkerHeartbeatTimeoutMs()).isEqualTo(40_000L);
+    }
+
+    @Test
     void configuresSparkStyleWorkerRetriesWithThreeRetriesByDefault() {
         AgentRuntimeProperties properties = new AgentRuntimeProperties();
 

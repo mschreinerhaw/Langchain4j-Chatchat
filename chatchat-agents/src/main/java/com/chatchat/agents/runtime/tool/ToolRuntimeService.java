@@ -673,7 +673,7 @@ public class ToolRuntimeService {
             .success(successful)
             .data(result)
             .message("Tool call batch completed with status " + result.status())
-            .errorMessage(successful ? null : "Tool call batch completed with status " + result.status())
+            .errorMessage(successful ? null : batchFailureMessage(result))
             .exceptionType(successful ? null : result.status())
             .executionTimeMs(Math.max(0L, finishedAt - startedAt))
             .metadata(new LinkedHashMap<>())
@@ -718,6 +718,37 @@ public class ToolRuntimeService {
             result.status().toLowerCase(Locale.ROOT),
             runtimeMetadata
         );
+    }
+
+    private String batchFailureMessage(ToolCallBatchResult result) {
+        String summary = "Tool call batch completed with status "
+            + (result == null ? "FAILED" : firstText(result.status(), "FAILED"));
+        if (result == null || result.results() == null || result.results().isEmpty()) {
+            return summary;
+        }
+        List<String> failures = result.results().stream()
+            .filter(Objects::nonNull)
+            .filter(child -> !child.evidenceUsable())
+            .limit(5)
+            .map(child -> {
+                Map<String, Object> error = child.error() == null ? Map.of() : child.error();
+                String code = firstText(stringValue(error.get("code")),
+                    firstText(child.status(), "TOOL_FAILED"));
+                String message = firstText(stringValue(error.get("message")), "Tool call failed");
+                return firstText(child.callId(), firstText(child.templateId(), "call"))
+                    + "[" + compactBatchFailureText(code, 80) + "]: "
+                    + compactBatchFailureText(message, 240);
+            })
+            .toList();
+        return failures.isEmpty() ? summary : summary + "; child failures: " + String.join("; ", failures);
+    }
+
+    private String compactBatchFailureText(String value, int limit) {
+        String normalized = value == null ? "" : value.replaceAll("\\s+", " ").trim();
+        if (normalized.length() <= limit) {
+            return normalized;
+        }
+        return normalized.substring(0, Math.max(0, limit - 3)) + "...";
     }
 
     private boolean failureIsolatedBatchCompleted(ToolCallBatchResult result) {

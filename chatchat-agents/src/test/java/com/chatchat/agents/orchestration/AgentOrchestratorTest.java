@@ -954,6 +954,38 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void terminalPartialEvidenceDecisionCannotBeOverriddenByRecoveryOrTemplateRetry() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        EvidenceAugmentationPolicy.Outcome analyzeWithLimitations = new EvidenceAugmentationPolicy.Outcome(
+            EvidenceAugmentationPolicy.CONTRACT_VERSION,
+            EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS,
+            true,
+            false,
+            "Usable partial evidence is terminal"
+        );
+
+        assertThat(orchestrator.initialRewriteLimit(
+            1, analyzeWithLimitations, false, true, true, true))
+            .isZero();
+    }
+
+    @Test
+    void retrievalDecisionStillAllowsBoundedExecutionRecovery() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        EvidenceAugmentationPolicy.Outcome retrieveMore = new EvidenceAugmentationPolicy.Outcome(
+            EvidenceAugmentationPolicy.CONTRACT_VERSION,
+            EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE,
+            true,
+            true,
+            "An actionable evidence gap remains"
+        );
+
+        assertThat(orchestrator.initialRewriteLimit(
+            1, retrieveMore, false, true, true, true))
+            .isEqualTo(1);
+    }
+
+    @Test
     void evidenceExplorationRequiresAnActionableAvailableToolAfterSuccessfulExecution() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         InterpretationPlanRuntime.ExecutionResult success = new InterpretationPlanRuntime.ExecutionResult(

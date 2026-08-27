@@ -1981,6 +1981,10 @@ class ToolRuntimeServiceTest {
             assertThat(result.summary().failed()).isEqualTo(2);
             assertThat(execution.output().isSuccess()).isFalse();
             assertThat(execution.output().getExceptionType()).isEqualTo("FAILED");
+            assertThat(execution.output().getErrorMessage())
+                .contains("Tool call batch completed with status FAILED")
+                .contains("orders[TOOL_FAILED]: local contract rejection")
+                .contains("assets[TOOL_FAILED]: local contract rejection");
         } finally {
             service.shutdown();
         }

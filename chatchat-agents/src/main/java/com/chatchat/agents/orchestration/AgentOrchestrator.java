@@ -1501,9 +1501,15 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<Integer, InterpretationPlanRuntime.ReusableStep> reusablePlanSteps =
             reusablePlanSteps(Map.of(), currentPlan, currentResult);
         boolean executionRecoveryRequired = !firstResult.success();
-        int maxRewriteTimes = latestAugmentationDecision.continueLoop()
-            ? (augmentationOverrideAvailable ? 1 : configuredMaxRewriteTimes)
-            : executionRecoveryRequired ? configuredMaxRewriteTimes : 0;
+        boolean templateExecutionRetryRequested = templateExecutionRetryRequested(firstResult);
+        int maxRewriteTimes = initialRewriteLimit(
+            configuredMaxRewriteTimes,
+            latestAugmentationDecision,
+            augmentationOverrideAvailable,
+            executionRecoveryRequired,
+            templateExecutionRetryRequested,
+            tools != null && !tools.isEmpty()
+        );
         int evidenceDrivenRewriteLimit = evidenceDrivenRewriteLimit(
             configuredMaxRewriteTimes,
             latestAugmentationDecision,
@@ -1516,9 +1522,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("evidenceDrivenRewriteBudgetReason",
                 "The evidence chain contains an available-tool next action, so refinement remains enabled within the runtime attempt ceiling.");
         }
-        boolean templateExecutionRetryRequested = templateExecutionRetryRequested(firstResult);
-        if (templateExecutionRetryRequested && tools != null && !tools.isEmpty()) {
-            maxRewriteTimes = Math.max(maxRewriteTimes, 1);
+        if (templateExecutionRetryRequested
+            && latestAugmentationDecision.continueLoop()
+            && tools != null && !tools.isEmpty()) {
             metadata.put("templateExecutionRetryBounded", true);
             metadata.put("templateExecutionRetryLimit", 1);
             metadata.put("templateExecutionRetryStrategy",
@@ -6334,6 +6340,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
             evaluation == null || evaluation.approvalRequests() == null ? List.of() : evaluation.approvalRequests()
         );
         addCandidateList(metadataList(metadata, "interpretationPlanEvaluations"), List.of(record));
+        if (evaluation == null || !evaluation.valid()) {
+            log.warn("InterpretationPlan evaluation rejected stage={} errors={} warnings={}",
+                stage,
+                evaluation == null || evaluation.errors() == null ? List.of() : evaluation.errors(),
+                evaluation == null || evaluation.warnings() == null ? List.of() : evaluation.warnings());
+        }
         recordLifecyclePhase(
             runtimeAttributes,
             metadata,
@@ -8320,6 +8332,27 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return configured;
         }
         return MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
+    }
+
+    int initialRewriteLimit(int configuredMaxRewriteTimes,
+                            EvidenceAugmentationPolicy.Outcome outcome,
+                            boolean augmentationOverrideAvailable,
+                            boolean executionRecoveryRequired,
+                            boolean templateExecutionRetryRequested,
+                            boolean toolsAvailable) {
+        if (outcome == null || !outcome.continueLoop()) {
+            return 0;
+        }
+        int configured = Math.max(0,
+            Math.min(MAX_INTERPRETATION_PLAN_ATTEMPTS - 1, configuredMaxRewriteTimes));
+        int limit = augmentationOverrideAvailable ? 1 : configured;
+        if (executionRecoveryRequired) {
+            limit = Math.max(limit, configured);
+        }
+        if (templateExecutionRetryRequested && toolsAvailable) {
+            limit = Math.max(limit, 1);
+        }
+        return Math.min(MAX_INTERPRETATION_PLAN_ATTEMPTS - 1, limit);
     }
 
     private String canonicalEvidenceObservation(InterpretationPlanRuntime.StepExecution step) {

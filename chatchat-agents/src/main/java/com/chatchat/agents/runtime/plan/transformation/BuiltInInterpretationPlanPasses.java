@@ -16,6 +16,8 @@ public final class BuiltInInterpretationPlanPasses {
                 operations::pruneNoop),
             pass("DedupeToolCallPass", PlanPassKind.OPTIONAL_OPTIMIZATION, operations::unlocked,
                 operations::dedupeToolCalls),
+            pass("BusinessCapabilityScopePass", PlanPassKind.POLICY_GUARD, null,
+                operations::constrainBusinessCapabilityScope),
             pass("AuthoritativeWorkflowDagPass", PlanPassKind.REQUIRED_REPAIR, null,
                 operations::repairAuthoritativeWorkflowDag),
             pass("TemplateExecutionDagRepairPass", PlanPassKind.REQUIRED_REPAIR, null,

@@ -7279,6 +7279,14 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (requestedTool == null || requestedTool.isBlank() || availableTools == null) {
             return null;
         }
+        String scopedImplementation = toolNames.resolveMostSpecificAvailableTool(
+            requestedTool, availableTools);
+        if (scopedImplementation != null) {
+            return scopedImplementation;
+        }
+        if (toolNames.isAbstractCapability(requestedTool)) {
+            return null;
+        }
         for (String availableTool : availableTools) {
             if (toolNames.sameToolName(requestedTool, availableTool)) {
                 return availableTool;

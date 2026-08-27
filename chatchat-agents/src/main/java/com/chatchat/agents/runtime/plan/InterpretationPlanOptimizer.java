@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.runtime.plan.transformation.BuiltInInterpretationPlanPasses;
 import com.chatchat.agents.runtime.plan.transformation.BuiltInPlanPassOperations;
 import com.chatchat.agents.runtime.plan.transformation.InterpretationPlanTransformationPipeline;
@@ -8,6 +9,7 @@ import com.chatchat.agents.runtime.plan.transformation.PlanTransformationContext
 import com.chatchat.agents.runtime.plan.transformation.PlanTransformationWorkspace;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -24,6 +26,7 @@ import java.util.Set;
 public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
 
     private final ToolRegistry toolRegistry;
+    private final McpCapabilityHierarchy capabilityHierarchy;
     private final Map<String, ToolWorkflowRole> workflowRoles;
 
     public InterpretationPlanOptimizer() {
@@ -32,6 +35,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
 
     public InterpretationPlanOptimizer(ToolRegistry toolRegistry) {
         this.toolRegistry = toolRegistry;
+        this.capabilityHierarchy = toolRegistry == null
+            ? McpCapabilityHierarchy.empty() : new RegistryMcpCapabilityHierarchy(toolRegistry);
         Map<String, ToolWorkflowRole> snapshot = new LinkedHashMap<>();
         if (toolRegistry != null) {
             try {
@@ -109,6 +114,18 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         RewriteState result = dedupeToolCalls(workspace.sourcePlan(), workspace.steps(),
             workspace.edgeContracts(), workspace.bindings());
         applyRewrite(workspace, result, "DedupeToolCallPass");
+    }
+
+    @Override
+    public void constrainBusinessCapabilityScope(PlanTransformationWorkspace workspace,
+                                                 PlanTransformationContext context) {
+        CapabilityScopeRewrite result = constrainBusinessCapabilityScope(
+            workspace.steps(), workspace.edgeContracts(), workspace.dependencyContracts(), workspace.bindings());
+        workspace.steps(result.steps());
+        workspace.edgeContracts(result.edgeContracts());
+        workspace.dependencyContracts(result.dependencyContracts());
+        workspace.bindings(result.bindings());
+        markChanged(workspace, "BusinessCapabilityScopePass", result.changed());
     }
 
     @Override
@@ -782,6 +799,76 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         return new RewriteState(rewritten, contracts, rewrittenBindings, true);
     }
 
+    /**
+     * A published business implementation owns a narrower authorization scope than
+     * its abstract parent. If both appear in a model plan, executing the parent as
+     * separate evidence would expose candidates outside that scope. Keep the single
+     * concrete implementation and redirect the parent's graph edges to it; the child
+     * remains free to delegate transport to the parent with its identity attached.
+     */
+    private CapabilityScopeRewrite constrainBusinessCapabilityScope(
+        List<InterpretationPlan.Step> steps,
+        List<InterpretationPlan.EdgeContract> edgeContracts,
+        List<InterpretationPlan.DependencyContract> dependencyContracts,
+        List<InterpretationPlan.Binding> bindings
+    ) {
+        Map<Integer, Integer> redirects = new LinkedHashMap<>();
+        for (InterpretationPlan.Step parent : steps) {
+            if (parent == null || parent.id() == null || !parent.mcpToolAction()) continue;
+            List<InterpretationPlan.Step> implementations = steps.stream()
+                .filter(Objects::nonNull)
+                .filter(InterpretationPlan.Step::mcpToolAction)
+                .filter(candidate -> candidate.id() != null && !candidate.id().equals(parent.id()))
+                .filter(candidate -> capabilityHierarchy.isImplementationOf(
+                    candidate.toolName(), parent.toolName()))
+                .toList();
+            if (implementations.size() == 1) {
+                redirects.put(parent.id(), implementations.get(0).id());
+            }
+        }
+        if (redirects.isEmpty()) {
+            return new CapabilityScopeRewrite(
+                steps, edgeContracts, dependencyContracts, bindings, false);
+        }
+
+        Map<Integer, List<Integer>> sourceDependencies = dependencyMap(steps);
+        List<InterpretationPlan.Step> rewritten = steps.stream()
+            .filter(step -> step != null && !redirects.containsKey(step.id()))
+            .map(step -> {
+                List<Integer> dependencies = new ArrayList<>(
+                    redirectDependencies(step.dependsOn(), redirects));
+                redirects.forEach((parentId, childId) -> {
+                    if (!Objects.equals(step.id(), childId)) return;
+                    for (Integer inherited : redirectDependencies(
+                        sourceDependencies.getOrDefault(parentId, List.of()), redirects)) {
+                        if (!Objects.equals(inherited, childId) && !dependencies.contains(inherited)) {
+                            dependencies.add(inherited);
+                        }
+                    }
+                });
+                dependencies.removeIf(step.id()::equals);
+                return withDependencies(step, List.copyOf(dependencies));
+            })
+            .toList();
+        List<InterpretationPlan.EdgeContract> rewrittenEdges = edgeContracts.stream()
+            .map(contract -> redirectContract(contract, redirects))
+            .filter(contract -> contract != null && !Objects.equals(contract.from(), contract.to()))
+            .distinct()
+            .toList();
+        List<InterpretationPlan.DependencyContract> rewrittenDependencies = dependencyContracts.stream()
+            .map(contract -> redirectDependencyContract(contract, redirects))
+            .filter(contract -> contract != null && !Objects.equals(contract.from(), contract.to()))
+            .distinct()
+            .toList();
+        List<InterpretationPlan.Binding> rewrittenBindings = bindings.stream()
+            .map(binding -> redirectBinding(binding, redirects))
+            .filter(binding -> binding != null && !Objects.equals(binding.from(), binding.to()))
+            .distinct()
+            .toList();
+        return new CapabilityScopeRewrite(
+            rewritten, rewrittenEdges, rewrittenDependencies, rewrittenBindings, true);
+    }
+
     private OrderingResult policyAwareOrdering(InterpretationPlan plan, List<InterpretationPlan.Step> steps) {
         Map<String, Double> priority = plan.executionPolicy() == null || plan.executionPolicy().toolPriority() == null
             ? Map.of()
@@ -1076,6 +1163,23 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         );
     }
 
+    private InterpretationPlan.DependencyContract redirectDependencyContract(
+        InterpretationPlan.DependencyContract contract,
+        Map<Integer, Integer> redirects
+    ) {
+        if (contract == null) {
+            return null;
+        }
+        return new InterpretationPlan.DependencyContract(
+            redirects.getOrDefault(contract.from(), contract.from()),
+            redirects.getOrDefault(contract.to(), contract.to()),
+            contract.required(),
+            contract.condition(),
+            contract.reason(),
+            contract.onFailure()
+        );
+    }
+
     private InterpretationPlan.Binding redirectBinding(InterpretationPlan.Binding binding,
                                                        Map<Integer, Integer> redirects) {
         if (binding == null) {
@@ -1169,6 +1273,15 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     private record RewriteState(
         List<InterpretationPlan.Step> steps,
         List<InterpretationPlan.EdgeContract> edgeContracts,
+        List<InterpretationPlan.Binding> bindings,
+        boolean changed
+    ) {
+    }
+
+    private record CapabilityScopeRewrite(
+        List<InterpretationPlan.Step> steps,
+        List<InterpretationPlan.EdgeContract> edgeContracts,
+        List<InterpretationPlan.DependencyContract> dependencyContracts,
         List<InterpretationPlan.Binding> bindings,
         boolean changed
     ) {

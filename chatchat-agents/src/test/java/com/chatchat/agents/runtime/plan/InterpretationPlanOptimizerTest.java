@@ -2,6 +2,8 @@ package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.tool.DefaultToolRegistry;
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -12,11 +14,87 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class InterpretationPlanOptimizerTest {
+
+    @Test
+    void removesAbstractTemplateQueryWhenScopedBusinessImplementationIsPresent() {
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String child = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(parent, child, execute));
+        when(registry.getToolMetadata(parent)).thenReturn(capabilityMetadata(
+            parent, "api_service_query", null));
+        when(registry.getToolMetadata(child)).thenReturn(capabilityMetadata(
+            child, "customer_service_template_query", "api_service_query"));
+        when(registry.getWorkflowRole(parent)).thenReturn(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(child)).thenReturn(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_execution", "customer analysis", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", parent,
+                        Map.of("query", "customer trading analysis"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", child,
+                        Map.of("filters", Map.of("customerNo", "070200046604")), List.of(), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", execute,
+                        Map.of(), List.of(1), null, null),
+                    new InterpretationPlan.Step(4, "final_answer", "", Map.of(), List.of(1, 3), null, null)
+                ),
+                List.of(new InterpretationPlan.EdgeContract(1, 3, "templateId", "string", true)),
+                List.of(new InterpretationPlan.DependencyContract(
+                    1, 3, true, null, "template selection", "stop")),
+                List.of(new InterpretationPlan.Binding(1, "selectedTemplateId", 3, "templateId", "string", true)),
+                null, null, List.of(), List.of()
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(parent, child, execute), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.9, 0.1, true, List.of()), List.of())
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result =
+            new InterpretationPlanOptimizer(registry).optimize(plan);
+
+        assertThat(result.appliedPasses()).contains("BusinessCapabilityScopePass");
+        assertThat(result.plan().steps()).extracting(InterpretationPlan.Step::toolName)
+            .doesNotContain(parent)
+            .contains(child, execute);
+        InterpretationPlan.Step scopedQuery = stepByTool(result.plan(), child);
+        InterpretationPlan.Step execution = stepByTool(result.plan(), execute);
+        assertThat(scopedQuery.input()).containsKey("filters").doesNotContainKey("query");
+        assertThat(execution.dependsOn()).containsExactly(scopedQuery.id());
+        assertThat(result.plan().plan().edgeContracts()).allMatch(contract ->
+            contract.from().equals(scopedQuery.id()));
+        assertThat(result.plan().plan().dependencyContracts()).allMatch(contract ->
+            contract.from().equals(scopedQuery.id()));
+        assertThat(result.plan().plan().bindings()).allMatch(binding ->
+            binding.from().equals(scopedQuery.id()));
+    }
+
+    private ToolMetadata capabilityMetadata(String localName, String remoteName, String parentRemoteName) {
+        Map<String, Object> node = new LinkedHashMap<>();
+        node.put("serviceId", "chatchat-mcp-server");
+        node.put("toolName", localName);
+        node.put("relationType", parentRemoteName == null
+            ? McpCapabilityNode.RELATION_ROOT : McpCapabilityNode.RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY);
+        if (parentRemoteName != null) node.put("parentToolName", parentRemoteName);
+        return ToolMetadata.builder().metadata(Map.of(
+            "serviceId", "chatchat-mcp-server",
+            "remoteToolName", remoteName,
+            McpCapabilityHierarchy.METADATA_KEY, node
+        )).build();
+    }
 
     @Test
     void preservesSourcePlanAndPublishesStructuredDagRepairAudit() {

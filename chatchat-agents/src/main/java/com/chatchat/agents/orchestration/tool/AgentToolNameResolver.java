@@ -125,6 +125,35 @@ public class AgentToolNameResolver {
         return McpToolRouter.TEMPLATE_DISCOVERY.equals(toolSemanticKey(toolName));
     }
 
+    /**
+     * Resolves an abstract capability request to its unique scoped business
+     * implementation. Multiple implementations are intentionally ambiguous.
+     */
+    public String resolveMostSpecificAvailableTool(String requestedToolName,
+                                                   List<String> availableTools) {
+        if (requestedToolName == null || requestedToolName.isBlank()
+            || availableTools == null || availableTools.isEmpty()) {
+            return null;
+        }
+        List<String> candidates = availableTools.stream()
+            .filter(available -> capabilityHierarchy.sameNode(available, requestedToolName)
+                || capabilityHierarchy.isImplementationOf(available, requestedToolName))
+            .distinct()
+            .toList();
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        List<String> mostSpecific = capabilityHierarchy.mostSpecific(candidates);
+        return mostSpecific.size() == 1 && capabilityHierarchy.directlyInvocable(mostSpecific.get(0))
+            ? mostSpecific.get(0) : null;
+    }
+
+    public boolean isAbstractCapability(String toolName) {
+        return capabilityHierarchy.node(toolName)
+            .map(node -> node.abstractCapability())
+            .orElse(false);
+    }
+
     private String normalizeKnownToolAlias(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return null;

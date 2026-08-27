@@ -11,6 +11,9 @@ public interface BuiltInPlanPassOperations {
 
     void dedupeToolCalls(PlanTransformationWorkspace workspace, PlanTransformationContext context);
 
+    void constrainBusinessCapabilityScope(PlanTransformationWorkspace workspace,
+                                          PlanTransformationContext context);
+
     void repairAuthoritativeWorkflowDag(PlanTransformationWorkspace workspace, PlanTransformationContext context);
 
     void repairTemplateExecutionDag(PlanTransformationWorkspace workspace, PlanTransformationContext context);

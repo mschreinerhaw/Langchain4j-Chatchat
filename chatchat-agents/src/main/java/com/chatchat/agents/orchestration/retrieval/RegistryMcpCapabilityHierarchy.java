@@ -36,17 +36,18 @@ public final class RegistryMcpCapabilityHierarchy implements McpCapabilityHierar
             String routingMode = text(first(declared.get("routingMode"), extra.get("routingMode")));
             String relationType = text(declared.get("relationType"));
             String resolvedParent = parent == null ? null : registeredName(serviceId, parent);
+            boolean inferredAbstractCapability = parent == null
+                && hasBusinessImplementations(serviceId, registeredName);
             McpCapabilityNodeKind nodeKind = McpCapabilityNodeKind.parse(
                 declared.get("nodeKind"), parent == null
-                    ? McpCapabilityNodeKind.STANDALONE
+                    ? (inferredAbstractCapability
+                        ? McpCapabilityNodeKind.ABSTRACT_CAPABILITY
+                        : McpCapabilityNodeKind.STANDALONE)
                     : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION);
             McpCapabilityFallbackPolicy fallbackPolicy = McpCapabilityFallbackPolicy.parse(
                 declared.get("fallbackPolicy"), nodeKind == McpCapabilityNodeKind.ABSTRACT_CAPABILITY
                     ? McpCapabilityFallbackPolicy.DENY_WHEN_NO_IMPLEMENTATION
                     : McpCapabilityFallbackPolicy.ALLOW_STANDALONE);
-            if (parent == null && hasBusinessImplementations(serviceId, registeredName)) {
-                nodeKind = McpCapabilityNodeKind.ABSTRACT_CAPABILITY;
-            }
             return Optional.of(new McpCapabilityNode(
                 serviceId,
                 registeredName,

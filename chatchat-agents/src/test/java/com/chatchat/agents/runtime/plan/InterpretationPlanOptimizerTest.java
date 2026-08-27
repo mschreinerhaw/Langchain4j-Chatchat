@@ -82,6 +82,69 @@ class InterpretationPlanOptimizerTest {
             binding.from().equals(scopedQuery.id()));
     }
 
+    @Test
+    void canonicalizesAuthoritativeParentChildWorkflowAndAddsRuntimeTemplateBinding() {
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String child = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(parent, child, execute));
+        when(registry.getToolMetadata(parent)).thenReturn(capabilityMetadata(
+            parent, "api_service_query", null));
+        when(registry.getToolMetadata(child)).thenReturn(capabilityMetadata(
+            child, "customer_service_template_query", "api_service_query"));
+        when(registry.getWorkflowRole(parent)).thenReturn(
+            com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(child)).thenReturn(
+            com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(
+            com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "customer analysis", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", parent,
+                    Map.of("filters", Map.of()), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", child,
+                    Map.of("filters", Map.of()), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", execute,
+                    Map.of("parameters", Map.of("customerId", "070200046604")),
+                    List.of(2), null, null),
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of(),
+                    List.of(3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(parent, child, execute), List.of(), 30_000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.9, 0.1, false, List.of()), List.of())
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", parent, "dependsOnTools", List.of()),
+            Map.of("tool", child, "dependsOnTools", List.of(parent)),
+            Map.of("tool", execute, "dependsOnTools", List.of(child))
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult optimized =
+            new InterpretationPlanOptimizer(registry).optimize(plan, authoritativeDag);
+        InterpretationPlan executable = optimized.plan();
+
+        assertThat(optimized.appliedPasses())
+            .contains("BusinessCapabilityScopePass", "AuthoritativeWorkflowDagPass",
+                "TemplateExecutionDagRepairPass");
+        assertThat(executable.steps()).extracting(InterpretationPlan.Step::toolName)
+            .doesNotContain(parent).contains(child, execute);
+        InterpretationPlan.Step childStep = stepByTool(executable, child);
+        InterpretationPlan.Step executeStep = stepByTool(executable, execute);
+        assertThat(executable.plan().bindings()).anySatisfy(binding -> {
+            assertThat(binding.from()).isEqualTo(childStep.id());
+            assertThat(binding.to()).isEqualTo(executeStep.id());
+            assertThat(binding.outputPath()).contains("templateId");
+        });
+        assertThat(new InterpretationPlanValidator().validate(
+            executable, registry, Set.of(parent, child, execute),
+            authoritativeDag, "customer-analysis").valid()).isTrue();
+    }
+
     private ToolMetadata capabilityMetadata(String localName, String remoteName, String parentRemoteName) {
         Map<String, Object> node = new LinkedHashMap<>();
         node.put("serviceId", "chatchat-mcp-server");

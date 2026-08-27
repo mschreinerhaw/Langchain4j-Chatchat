@@ -379,7 +379,11 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         List<InterpretationPlan.Step> executors = steps.stream()
             .filter(this::isTemplateExecutionStep)
             .toList();
-        if (assets.isEmpty() || templates.isEmpty() || executors.isEmpty()) {
+        // A published business template query may own routing and authorization itself.
+        // Asset discovery is mandatory only for the legacy inferred topology; an
+        // authoritative workflow still needs Runtime-owned template bindings.
+        if (templates.isEmpty() || executors.isEmpty()
+            || (mayRepairWorkflowEdges && assets.isEmpty())) {
             return new TemplateDagRepairResult(steps, edges, dependencies, bindings, false);
         }
 

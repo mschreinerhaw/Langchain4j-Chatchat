@@ -12,9 +12,10 @@ import java.util.Collection;
 /**
  * Runtime OS port for resolving MCP parent/child capability identity.
  *
- * <p>Workflow role equality is intentionally not node equality. A governed
- * child discovery service and its parent bridge may share a role while still
- * being two mandatory workflow nodes.</p>
+ * <p>Workflow role equality is intentionally not node equality. A governed child
+ * keeps its own business identity and authorization scope. When it implements an
+ * abstract parent, the parent is a transport/capability boundary rather than a
+ * second mandatory business-evidence node.</p>
  */
 public interface McpCapabilityHierarchy {
     String METADATA_KEY = "mcpCapabilityNode";

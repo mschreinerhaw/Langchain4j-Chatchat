@@ -127,7 +127,7 @@ public class InterpretationPlanValidator {
         validateTemplateExecutionEvidenceChains(
             plan, stepsById, authoritativeWorkflowDag, toolRegistry, state);
         validateAuthoritativeWorkflowDag(
-            stepsById, authoritativeWorkflowDag, taskId, state);
+            stepsById, authoritativeWorkflowDag, taskId, toolRegistry, state);
         List<InterpretationPlan.Step> orderedSteps = validateDag(stepsById, state);
         return state.result(orderedSteps);
     }
@@ -137,11 +137,16 @@ public class InterpretationPlanValidator {
         Map<Integer, InterpretationPlan.Step> stepsById,
         Object rawDag,
         String taskId,
+        ToolRegistry toolRegistry,
         ValidationState state
     ) {
         if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()) {
             return;
         }
+        com.chatchat.common.mcp.capability.McpCapabilityHierarchy capabilityHierarchy =
+            toolRegistry == null
+                ? com.chatchat.common.mcp.capability.McpCapabilityHierarchy.empty()
+                : new com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy(toolRegistry);
         Map<String, InterpretationPlan.Step> planByTool = new LinkedHashMap<>();
         for (Object rawNode : nodes) {
             if (!(rawNode instanceof Map<?, ?> node)) {
@@ -155,6 +160,15 @@ public class InterpretationPlanValidator {
             List<InterpretationPlan.Step> matches = stepsById.values().stream()
                 .filter(step -> semanticToolName(tool).equals(semanticToolName(step.toolName())))
                 .toList();
+            if (matches.isEmpty()) {
+                // An abstract configured node is a logical capability boundary, not a second
+                // business query. Its unique concrete implementation satisfies that node while
+                // retaining the child's narrower authorization scope.
+                matches = stepsById.values().stream()
+                    .filter(InterpretationPlan.Step::mcpToolAction)
+                    .filter(step -> capabilityHierarchy.isImplementationOf(step.toolName(), tool))
+                    .toList();
+            }
             if (matches.size() != 1) {
                 state.error("authoritativeWorkflowDag",
                     "Task " + workflowTaskLabel(taskId) + " requires exactly one plan step for configured MCP tool "
@@ -183,7 +197,8 @@ public class InterpretationPlanValidator {
                     state.error("authoritativeWorkflowDag",
                         "Task " + workflowTaskLabel(taskId) + " configured dependency " + dependencyTool
                             + " is missing from the executable plan.");
-                } else if (target.dependsOn() == null || !target.dependsOn().contains(source.id())) {
+                } else if (!Objects.equals(target.id(), source.id())
+                    && (target.dependsOn() == null || !target.dependsOn().contains(source.id()))) {
                     state.error("plan.steps[" + target.id() + "].depends_on",
                         "Task " + workflowTaskLabel(taskId) + " requires configured MCP edge "
                             + dependencyTool + " -> " + tool + ".");

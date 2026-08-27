@@ -2911,7 +2911,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     private boolean requiresModelTemplateParameterProtocol(InterpretationPlan.Step step,
                                                             Map<Integer, StepExecution> completed) {
-        if (step == null || !isTemplateExecutionTool(step.toolName()) || completed == null || completed.isEmpty()) {
+        if (step == null || !step.mcpToolAction() || !isTemplateExecutionTool(step.toolName())
+            || completed == null || completed.isEmpty()) {
             return false;
         }
         String templateId = canonicalTemplateId(firstValueAtAnyPath(step.input(),

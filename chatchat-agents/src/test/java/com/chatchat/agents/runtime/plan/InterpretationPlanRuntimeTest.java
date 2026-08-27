@@ -39,6 +39,33 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRuntimeTest {
 
     @Test
+    void schedulesFinalAnswerWithoutToolName() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("answer", "answer", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "final_answer", null, Map.of("answer", "done"),
+                    List.of(), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(), List.of(), 10_000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1))));
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(), "tenant", "request-null-final-tool",
+                "conversation", "user", Map.of()));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.finalAnswer()).isEqualTo("done");
+    }
+
+    @Test
     void persistsMonotonicNodeAttemptLifecycleAndExposesCommittedIdentity() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         InterpretationPlan plan = new InterpretationPlan(

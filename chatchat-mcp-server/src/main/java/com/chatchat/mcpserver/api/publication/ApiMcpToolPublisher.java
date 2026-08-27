@@ -8,6 +8,8 @@ import com.chatchat.common.knowledge.template.TemplateServiceResult;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -91,6 +93,20 @@ public class ApiMcpToolPublisher {
         properties.put("excludeTemplateIds", Map.of("type", "array", "items", Map.of("type", "string")));
         properties.put("filters", Map.of("type", "object", "additionalProperties", true,
             "description", "Optional logical discovery filters; raw URL and HTTP definitions are forbidden"));
+        // Dynamic template-query tools are invoked through this stable parent. The MCP SDK
+        // validates the delegated request against the parent's schema before the bridge can
+        // inspect the child identity, so the parent must declare the complete safe discovery
+        // envelope as well as the server-discovered routing field.
+        properties.put("assetType", Map.of("type", "string"));
+        properties.put("bilingualIntent", Map.of("type", "array", "items", Map.of("type", "string")));
+        properties.put("intentZh", Map.of("type", "string"));
+        properties.put("intentEn", Map.of("type", "string"));
+        properties.put("trace", Map.of("type", "object", "additionalProperties", true));
+        properties.put("limit", Map.of("type", "integer", "minimum", 1,
+            "maximum", CommandTemplateDiscoveryService.MAX_LIMIT));
+        properties.put(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
+            "type", "string",
+            "description", "Internal server-discovered dynamic child identity; callers cannot override it"));
         properties.put("purpose", Map.of("type", "string"));
         properties.put("sourceTaskId", Map.of("type", "string"));
         McpSchema.Tool tool = McpSchema.Tool.builder()

@@ -61,6 +61,31 @@ class StandardMcpContractAuditorTest {
     }
 
     @Test
+    void acceptsLinuxTemplateDeclaredInsideBatchAugmentedAnyOfSchema() {
+        McpToolDescriptor tool = tool("ops", "linux_command_execute", "ssh_asset",
+            Map.of(
+                "type", "object",
+                "anyOf", List.of(
+                    Map.of("type", "object", "properties",
+                        Map.of("template", Map.of("type", "string"))),
+                    Map.of("type", "object", "properties",
+                        Map.of("calls", Map.of("type", "array")))
+                )),
+            Map.of("type", "object"), Map.of("operationType", "read"),
+            Map.of("contractVersion", "mcp_tool_contract.v1"));
+
+        McpContractAuditReport report = auditor.audit(
+            new McpContractAuditRequest("ops", tool.localToolName(), null, Set.of(), null),
+            List.of(service("ops")), List.of(tool), contracts());
+
+        assertThat(report.compliant()).isTrue();
+        assertThat(report.findings()).extracting(McpContractFinding::code)
+            .doesNotContain("LINUX_TEMPLATE_ARGUMENT_MISSING");
+        assertThat(report.evidence()).singleElement().satisfies(item ->
+            assertThat(item.satisfiedPaths()).contains("INPUT_SCHEMA:properties.template"));
+    }
+
+    @Test
     void doesNotRequireExecutionTemplateFromLinuxTemplateDiscoveryTool() {
         McpToolDescriptor tool = tool("ops", "vendor_server_lookup", "ssh_host",
             Map.of("type", "object", "properties", Map.of("query", Map.of("type", "string"))),

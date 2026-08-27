@@ -115,6 +115,15 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
             String rejectionMessage = findingCodes.isEmpty()
                 ? "MCP invocation rejected by Runtime OS contract preflight"
                 : "MCP invocation rejected by Runtime OS contract preflight: " + String.join(",", findingCodes);
+            log.warn("MCP invocation stopped before provider transport: requestId={} serviceId={} tool={} "
+                    + "templateId={} findingCodes={} findings={}",
+                call.requestId(), call.serviceId(), call.toolName(), requestedTemplateId, findingCodes,
+                preflight.findings().stream().map(finding -> Map.of(
+                    "code", finding.code(),
+                    "source", String.valueOf(finding.source()),
+                    "path", finding.path(),
+                    "recoveryAction", finding.recoveryAction()
+                )).toList());
             return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
                 McpServiceResultStatus.REJECTED, null, null, "MCP_CONTRACT_PREFLIGHT_FAILED",
                 rejectionMessage, false,

@@ -135,13 +135,26 @@ public final class StandardMcpContractAuditor implements McpContractAuditor {
     }
 
     private Object valueAt(Object root, String path) {
-        Object current = root;
-        if ("$".equals(path)) return current;
-        for (String segment : path.split("\\.")) {
-            if (!(current instanceof Map<?, ?> map)) return null;
-            current = map.get(segment);
+        if ("$".equals(path)) return root;
+        return valueAt(root, path.split("\\."), 0);
+    }
+
+    private Object valueAt(Object current, String[] segments, int index) {
+        if (index >= segments.length) return current;
+        if (!(current instanceof Map<?, ?> map)) return null;
+        if (map.containsKey(segments[index])) {
+            Object direct = valueAt(map.get(segments[index]), segments, index + 1);
+            if (direct != null) return direct;
         }
-        return current;
+        for (String composition : List.of("anyOf", "oneOf", "allOf")) {
+            Object branches = map.get(composition);
+            if (!(branches instanceof Collection<?> schemas)) continue;
+            for (Object schema : schemas) {
+                Object composed = valueAt(schema, segments, index);
+                if (composed != null) return composed;
+            }
+        }
+        return null;
     }
 
     private boolean containsValue(Object value, String expected) {

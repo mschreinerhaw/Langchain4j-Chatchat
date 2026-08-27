@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.ops.discovery;
 
-import com.chatchat.mcpserver.routing.AssetDiscoveryService;
-import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
+import com.chatchat.mcpserver.routing.asset.AssetDiscoveryService;
+import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.Test;
 

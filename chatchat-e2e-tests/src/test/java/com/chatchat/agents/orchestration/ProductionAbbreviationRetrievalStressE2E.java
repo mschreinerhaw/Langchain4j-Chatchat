@@ -2,8 +2,8 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
-import com.chatchat.mcpserver.search.LuceneSearchProperties;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.engine.LuceneSearchProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

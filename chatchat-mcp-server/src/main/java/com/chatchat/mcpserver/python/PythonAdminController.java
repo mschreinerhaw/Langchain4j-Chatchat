@@ -2,7 +2,7 @@ package com.chatchat.mcpserver.python;
 
 import com.chatchat.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
-import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpTemplateLuceneIndexService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.*;
 

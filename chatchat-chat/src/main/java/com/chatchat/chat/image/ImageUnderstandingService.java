@@ -4,7 +4,7 @@ import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.chatchat.knowledgebase.search.DocumentTextExtractor;
+import com.chatchat.knowledgebase.search.document.DocumentTextExtractor;
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.data.message.TextContent;
 import dev.langchain4j.data.message.UserMessage;

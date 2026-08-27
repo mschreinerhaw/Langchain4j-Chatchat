@@ -1,0 +1,260 @@
+package com.chatchat.mcpserver.search.engine;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class LuceneMcpSearchServiceTest {
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    void searchesAssetsByLogicalNameWithDescriptorText() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(
+                new LuceneMcpSearchService.AssetDoc(
+                    "ds-248",
+                    "sql_datasource",
+                    "248测试数据库",
+                    "248测试数据库",
+                    "db_query_mysql_248_test_db",
+                    "DEV",
+                    "mysql",
+                    List.of("mysql", "248测试数据库"),
+                    "asset_query"
+                )
+            ),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "sql_datasource",
+                "248测试数据库 数据库状态分析",
+                "DEV",
+                "mysql",
+                List.of(),
+                10
+            )
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("ds-248");
+        assertThat(hits.get(0).reasons()).anySatisfy(reason -> assertThat(reason).contains("lucene_bm25"));
+    }
+
+    @Test
+    void searchesTemplatesByDbTypeAndIntentText() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchTemplates(
+            List.of(
+                new LuceneMcpSearchService.TemplateDoc(
+                    "MYSQL_SHOW_STATUS",
+                    "sql_datasource",
+                    "MySQL status variables",
+                    "Show MySQL server status counters for health and performance inspection.",
+                    "maintenance_instance",
+                    "mysql",
+                    "db_status status health instance",
+                    "LOW",
+                    List.of("status", "health", "instance"),
+                    "sql_template"
+                ),
+                new LuceneMcpSearchService.TemplateDoc(
+                    "MYSQL_DATABASE_SIZE",
+                    "sql_datasource",
+                    "MySQL database size",
+                    "Summarize database size by schema.",
+                    "maintenance_storage",
+                    "mysql",
+                    "storage size space",
+                    "LOW",
+                    List.of("storage", "size", "space"),
+                    "sql_template"
+                )
+            ),
+            new LuceneMcpSearchService.TemplateSearchRequest(
+                "sql_datasource",
+                "mysql",
+                "数据库状态分析 db_status status health",
+                10
+            )
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
+            .startsWith("MYSQL_SHOW_STATUS");
+        assertThat(hits.get(0).name()).isEqualTo("MySQL status variables");
+        assertThat(hits.get(0).description()).contains("health and performance");
+        assertThat(hits.get(0).assetType()).isEqualTo("sql_datasource");
+        assertThat(hits.get(0).dbType()).isEqualTo("mysql");
+    }
+
+    @Test
+    void searchesMetadataTableDocumentAndReturnsDatasourceId() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(
+                new LuceneMcpSearchService.AssetDoc(
+                    "metadata_table:ds-248:rdsm_ad:lbappdeploydetail",
+                    "sql_datasource",
+                    "248-test.rdsm_ad.lbappdeploydetail",
+                    "lbappdeploydetail",
+                    "db_query_mysql_248_test_db",
+                    "DEV",
+                    "mysql",
+                    List.of("metadata_table", "database:rdsm_ad", "schema:rdsm_ad", "table:lbappdeploydetail"),
+                    "metadata_table",
+                    "ds-248",
+                    "rdsm_ad",
+                    "lbappdeploydetail",
+                    "248-test.rdsm_ad.lbappdeploydetail"
+                )
+            ),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "sql_datasource",
+                "lbappdeploydetail",
+                "DEV",
+                "mysql",
+                List.of(),
+                10
+            )
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("ds-248");
+        assertThat(hits.get(0).reasons()).contains("source:metadata_table");
+    }
+
+    @Test
+    void searchesMetadataTableDocumentByTableComment() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(
+                new LuceneMcpSearchService.AssetDoc(
+                    "metadata_table:ds-248:rdsm_ad:t_ad_dict_entr_supn",
+                    "sql_datasource",
+                    "248-test.rdsm_ad.t_ad_dict_entr_supn",
+                    "t_ad_dict_entr_supn",
+                    "db_query_mysql_248_test_db",
+                    "DEV",
+                    "mysql",
+                    List.of("metadata_table", "database:rdsm_ad", "schema:rdsm_ad", "table:t_ad_dict_entr_supn"),
+                    "metadata_table",
+                    "ds-248",
+                    "rdsm_ad",
+                    "t_ad_dict_entr_supn",
+                    "248-test.rdsm_ad.t_ad_dict_entr_supn",
+                    "客户标签字典 入口补充说明",
+                    "客户标签字典",
+                    "248测试数据库"
+                )
+            ),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "sql_datasource",
+                "客户标签",
+                "DEV",
+                "mysql",
+                List.of(),
+                10
+            )
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("ds-248");
+        assertThat(hits.get(0).tableComment()).isEqualTo("客户标签字典");
+    }
+
+    @Test
+    void keepsTypedAssetIndexesIsolatedAndClearsOneAssetType() {
+        LuceneMcpSearchService service = service();
+        service.indexAssets("api_service", List.of(new LuceneMcpSearchService.AssetDoc(
+            "api-orders",
+            "api_service",
+            "order_status_api",
+            "Order status API",
+            "order_status_api",
+            null,
+            null,
+            List.of("order_services"),
+            "api_service_asset_registry"
+        )));
+        service.indexAssets("sql_datasource", List.of(new LuceneMcpSearchService.AssetDoc(
+            "db-orders",
+            "sql_datasource",
+            "orders_db",
+            "Orders database",
+            "sql_orders_db",
+            "DEV",
+            "mysql",
+            List.of("order_services"),
+            "asset_registry"
+        )));
+
+        assertThat(Files.exists(tempDir.resolve(service.assetIndexName("api_service")))).isTrue();
+        assertThat(Files.exists(tempDir.resolve(service.assetIndexName("sql_datasource")))).isTrue();
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "api_service", "order status", null, null, List.of(), 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("api-orders");
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "sql_datasource", "orders", "DEV", "mysql", List.of(), 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("db-orders");
+
+        service.indexAssets("api_service", List.of());
+
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "api_service", "order status", null, null, List.of(), 10
+        ))).isEmpty();
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "sql_datasource", "orders", "DEV", "mysql", List.of(), 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("db-orders");
+    }
+
+    @Test
+    void searchesAssetsByChinesePinyinInitialsWithoutMatchingUnrelatedNames() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(
+                new LuceneMcpSearchService.AssetDoc("customer-assets", "api_service", "客户资产中心",
+                    "客户资产中心", "customer_asset_center", "PROD", null, List.of(), "asset_registry"),
+                new LuceneMcpSearchService.AssetDoc("order-assets", "api_service", "订单服务中心",
+                    "订单服务中心", "order_service_center", "PROD", null, List.of(), "asset_registry")
+            ),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "api_service", "khzczx", "PROD", null, List.of(), 10)
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
+            .containsExactly("customer-assets");
+    }
+
+    @Test
+    void searchesTemplatesByEnglishWordInitials() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchTemplates(
+            List.of(
+                new LuceneMcpSearchService.TemplateDoc("CUSTOMER_ASSET_STATUS", "api_service",
+                    "Customer Asset Status", "Inspect customer assets", "inspection", "generic",
+                    "customer assets", "LOW", List.of(), "template_registry"),
+                new LuceneMcpSearchService.TemplateDoc("ORDER_PAYMENT_STATUS", "api_service",
+                    "Order Payment Status", "Inspect order payments", "inspection", "generic",
+                    "order payments", "LOW", List.of(), "template_registry")
+            ),
+            new LuceneMcpSearchService.TemplateSearchRequest("api_service", null, "cas", 10)
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
+            .containsExactly("CUSTOMER_ASSET_STATUS");
+    }
+
+    private LuceneMcpSearchService service() {
+        LuceneSearchProperties properties = new LuceneSearchProperties();
+        properties.setIndexDir(tempDir.toString());
+        return new LuceneMcpSearchService(properties);
+    }
+}

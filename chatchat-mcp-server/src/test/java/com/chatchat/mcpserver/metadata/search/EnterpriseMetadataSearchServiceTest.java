@@ -10,7 +10,7 @@ import com.chatchat.mcpserver.metadata.ingestion.EnterpriseMetadataWorkbookLoade
 
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
-import com.chatchat.mcpserver.search.OpenSearchMcpSearchService;
+import com.chatchat.mcpserver.search.engine.OpenSearchMcpSearchService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -17,7 +17,7 @@ import com.chatchat.common.knowledge.template.TemplateServiceResult;
 import com.chatchat.common.knowledge.template.TemplateServiceResultStatus;
 import com.chatchat.common.knowledge.template.TemplateKnowledgeProtocol;
 import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
-import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
+import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

@@ -6,7 +6,7 @@ import com.chatchat.mcpserver.sql.resolution.TableLocation;
 
 import com.chatchat.mcpserver.ChatChatMcpServerApplication;
 import com.chatchat.mcpserver.metadata.search.EnterpriseMetadataRequestAdapter;
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.WebApplicationType;

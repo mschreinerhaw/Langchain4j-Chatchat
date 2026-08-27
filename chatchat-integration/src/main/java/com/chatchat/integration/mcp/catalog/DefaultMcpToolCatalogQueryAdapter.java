@@ -1,8 +1,8 @@
 package com.chatchat.integration.mcp.catalog;
 
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
-import com.chatchat.integration.mcp.service.McpServiceConfigService;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.integration.mcp.service.config.McpServiceConfigService;
+import com.chatchat.integration.mcp.service.routing.McpToolRegistryBridge;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

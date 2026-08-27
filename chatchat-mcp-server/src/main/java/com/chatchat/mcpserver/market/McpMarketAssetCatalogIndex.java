@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.market;
 
-import com.chatchat.mcpserver.search.OpenSearchMcpSearchService;
+import com.chatchat.mcpserver.search.engine.OpenSearchMcpSearchService;
 import com.chatchat.runtime.market.storage.MarketAssetCatalogIndex;
 import org.springframework.stereotype.Component;
 

@@ -2,8 +2,8 @@ package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
-import com.chatchat.knowledgebase.search.LibraryDocumentItem;
-import com.chatchat.knowledgebase.search.SearchService;
+import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.service.SearchService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillRoutingSettings;

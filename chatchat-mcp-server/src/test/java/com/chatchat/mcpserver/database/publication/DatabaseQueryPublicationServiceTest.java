@@ -2,7 +2,7 @@ package com.chatchat.mcpserver.database.publication;
 
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 
-import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpTemplateLuceneIndexService;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.Mockito.mock;

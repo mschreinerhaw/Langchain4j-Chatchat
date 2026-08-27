@@ -2,8 +2,8 @@ package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
-import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
-import com.chatchat.mcpserver.templatepublication.TemplateQueryToolNamePolicy;
+import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePolicy;
+import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

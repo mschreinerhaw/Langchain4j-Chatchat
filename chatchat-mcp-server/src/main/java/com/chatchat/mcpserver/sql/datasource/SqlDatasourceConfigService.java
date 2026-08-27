@@ -5,8 +5,8 @@ import com.chatchat.mcpserver.sql.metadata.SqlMetadataAssetRegistryService;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.mcpserver.category.BusinessCategoryService;
 
-import com.chatchat.mcpserver.routing.AssetExecutionTargetBinding;
-import com.chatchat.mcpserver.routing.ExecutionTargetService;
+import com.chatchat.mcpserver.routing.target.AssetExecutionTargetBinding;
+import com.chatchat.mcpserver.routing.target.ExecutionTargetService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

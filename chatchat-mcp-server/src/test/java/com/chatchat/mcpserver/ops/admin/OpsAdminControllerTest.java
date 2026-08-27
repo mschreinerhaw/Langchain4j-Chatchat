@@ -11,7 +11,7 @@ import com.chatchat.mcpserver.ops.ssh.LinuxCommandService;
 import com.chatchat.mcpserver.ops.tool.OpsMcpToolPublisher;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 
-import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

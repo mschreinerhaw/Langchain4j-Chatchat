@@ -1,7 +1,7 @@
 package com.chatchat.api.security;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.enterprise.entity.SysPermission;
+import com.chatchat.enterprise.entity.identity.SysPermission;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;

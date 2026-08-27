@@ -1,6 +1,6 @@
 package com.chatchat.integration.mcp.capability;
 
-import com.chatchat.integration.mcp.service.McpCapabilityService;
+import com.chatchat.integration.mcp.service.directory.McpCapabilityService;
 import com.chatchat.runtime.mcp.registry.McpCapabilityStatePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

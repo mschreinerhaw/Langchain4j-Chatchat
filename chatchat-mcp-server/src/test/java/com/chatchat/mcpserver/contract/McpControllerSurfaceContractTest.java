@@ -35,7 +35,7 @@ class McpControllerSurfaceContractTest {
         "com.chatchat.mcpserver.metadata.taxonomy.EnterpriseMetadataTaxonomyAdminController",
         "com.chatchat.mcpserver.metadata.governance.MetadataGovernancePolicyAdminController",
         "com.chatchat.mcpserver.notification.NotificationAdminController",
-        "com.chatchat.mcpserver.routing.ExecutionTargetController",
+        "com.chatchat.mcpserver.routing.target.ExecutionTargetController",
         "com.chatchat.mcpserver.sql.admin.SqlAdminController",
         "com.chatchat.mcpserver.sql.calendar.TradingCalendarConfigController",
         "com.chatchat.mcpserver.template.AgentRuntimeTemplateDslAdminController"

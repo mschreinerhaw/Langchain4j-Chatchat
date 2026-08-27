@@ -1,0 +1,1203 @@
+package com.chatchat.knowledgebase.search.document;
+
+import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.knowledgebase.search.evidence.EvidenceAssembler;
+import com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter;
+import com.chatchat.knowledgebase.search.evidence.EvidenceReranker;
+import com.chatchat.knowledgebase.search.graph.KnowledgeEdge;
+import com.chatchat.knowledgebase.search.graph.KnowledgeNode;
+import com.chatchat.knowledgebase.search.graph.KnowledgeNodeScore;
+import com.chatchat.knowledgebase.search.graph.KnowledgeNodeType;
+import com.chatchat.knowledgebase.search.graph.KnowledgeReasoningStep;
+import com.chatchat.knowledgebase.search.graph.KnowledgeRelationType;
+import com.chatchat.knowledgebase.search.graph.SectionEdge;
+import com.chatchat.knowledgebase.search.graph.SectionEdgeType;
+import com.chatchat.knowledgebase.search.graph.SectionGraph;
+import com.chatchat.knowledgebase.search.index.DocumentChunkStore;
+import com.chatchat.knowledgebase.search.index.DocumentIndexRegistry;
+import com.chatchat.knowledgebase.search.index.GlobalChunkIndexService;
+import com.chatchat.knowledgebase.search.index.GlobalDocumentIndexService;
+import com.chatchat.knowledgebase.search.index.IndexVersionManager;
+import com.chatchat.knowledgebase.search.index.PerDocumentIndexService;
+import com.chatchat.knowledgebase.search.model.SearchDocument;
+import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
+import com.chatchat.knowledgebase.search.model.SearchPage;
+import com.chatchat.knowledgebase.search.model.SearchResult;
+import com.chatchat.knowledgebase.search.model.SearchScoreBreakdown;
+import com.chatchat.knowledgebase.search.query.ChunkType;
+import com.chatchat.knowledgebase.search.query.QueryIntentClassifier;
+import com.chatchat.knowledgebase.search.query.QueryPlanningService;
+import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.query.TextChunker;
+import com.chatchat.knowledgebase.search.retrieval.RetrievalControlAction;
+import com.chatchat.knowledgebase.search.retrieval.RetrievalControlStep;
+import com.chatchat.knowledgebase.search.retrieval.RetrievalEvent;
+import com.chatchat.knowledgebase.search.retrieval.RetrievalEvidenceQualityScorer;
+import com.chatchat.knowledgebase.search.retrieval.RetrievalQueryValidator;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.security.SearchPermissionGuard;
+import com.chatchat.knowledgebase.search.service.SearchService;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.knowledgebase.search.rule.RetrievalRuleService;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+class DocumentSearchControlPlaneTest {
+
+    @Test
+    void broadQueryStopsBeforeSearchAndDoesNotSpendBudget() {
+        SearchService searchService = mock(SearchService.class);
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "analysis",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.total()).isZero();
+        assertThat(result.retrievalState()).isNotNull();
+        assertThat(result.retrievalState().lastAction()).isEqualTo(RetrievalControlAction.STOP);
+        assertThat(result.retrievalState().budgetUsed().searchCalls()).isZero();
+        assertThat(result.evidenceQuality()).isNotNull();
+        assertThat(result.evidenceQuality().usable()).isFalse();
+        assertThat(result.evidenceQuality().reason()).isEqualTo("empty_result");
+        assertThat(result.retrievalEvents())
+            .extracting(RetrievalEvent::step)
+            .containsExactly(
+                RetrievalControlStep.VALIDATOR,
+                RetrievalControlStep.GATE,
+                RetrievalControlStep.SCORER
+            );
+        verifyNoInteractions(searchService);
+    }
+
+    @Test
+    void validQueryRecordsBudgetEventsAndEvidenceQuality() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2025 revenue policy"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2025 revenue policy",
+            List.of("acme", "2025", "revenue", "policy"),
+            List.of(searchResult()),
+            1,
+            8,
+            1,
+            8,
+            1,
+            false,
+            7L,
+            -1,
+            null
+        ));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.total()).isEqualTo(1);
+        assertThat(result.results()).hasSize(1);
+        assertThat(result.retrievalState().budgetUsed().searchCalls()).isEqualTo(1);
+        assertThat(result.retrievalState().lastAction()).isEqualTo(RetrievalControlAction.SCORE);
+        assertThat(result.evidenceQuality().usable()).isTrue();
+        assertThat(result.evidenceQuality().reason()).isEqualTo("usable");
+        assertThat(result.evidenceQuality().confidence()).isGreaterThan(0.0D);
+        assertThat(result.retrievalEvents())
+            .extracting(RetrievalEvent::step)
+            .containsExactly(
+                RetrievalControlStep.VALIDATOR,
+                RetrievalControlStep.GATE,
+                RetrievalControlStep.BUDGET,
+                RetrievalControlStep.SEARCH,
+                RetrievalControlStep.SCORER
+            );
+    }
+
+    @Test
+    void globalChunkRecallCanPromoteDocumentIntoFineSearch() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2026 margin source"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2026 margin source",
+            List.of("acme", "2026", "margin", "source"),
+            List.of(),
+            0,
+            8,
+            1,
+            8,
+            0,
+            false,
+            3L,
+            -1,
+            null
+        ));
+        when(searchService.search(
+            eq("ACME 2026 margin source"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(50),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2026 margin source",
+            List.of("acme", "2026", "margin", "source"),
+            List.of(chunkRecallSearchResult()),
+            1,
+            50,
+            1,
+            50,
+            1,
+            false,
+            5L,
+            -1,
+            null
+        ));
+        when(searchService.get(eq("doc-chunk-1"), any(SearchPermissionContext.class)))
+            .thenReturn(java.util.Optional.of(chunkRecallDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2026 margin source",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results()).hasSize(1);
+        assertThat(result.results().get(0).fileId()).isEqualTo("doc-chunk-1");
+        assertThat(result.results().get(0).content())
+            .contains("The ACME 2026 margin source is the risk ledger")
+            .contains("daily financing balance");
+        assertThat(result.results().get(0).chunkType()).isEqualTo("document");
+    }
+
+    @Test
+    void recallFiltersNonLatestDocumentsBeforeEvidenceAssembly() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2025 revenue policy"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2025 revenue policy",
+            List.of("acme", "2025", "revenue", "policy"),
+            List.of(staleSearchResult(), searchResult()),
+            2,
+            8,
+            1,
+            8,
+            1,
+            false,
+            7L,
+            -1,
+            null
+        ));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::fileId)
+            .containsExactly("doc-1");
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::content)
+            .doesNotContain("Stale ACME policy evidence must be filtered.");
+    }
+
+    @Test
+    void documentVisibilityConstraintReturnsOnlySelectedDocuments() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2025 revenue policy"),
+            any(),
+            any(),
+            any(),
+            eq("doc-1"),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2025 revenue policy",
+            List.of("acme", "2025", "revenue", "policy"),
+            List.of(searchResult(), blockedSearchResult()),
+            2,
+            8,
+            1,
+            8,
+            1,
+            false,
+            7L,
+            -1,
+            null
+        ));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            List.of("doc-1"),
+            true,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::fileId)
+            .containsExactly("doc-1");
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::content)
+            .doesNotContain("Blocked private evidence should never be returned.");
+        assertThat(result.retrievalEvents())
+            .extracting(RetrievalEvent::reason)
+            .anyMatch(reason -> reason.contains("document_visibility_enforced"));
+    }
+
+    @Test
+    void superAdminBypassesDocumentVisibilityConstraint() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2025 revenue policy"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2025 revenue policy",
+            List.of("acme", "2025", "revenue", "policy"),
+            List.of(searchResult(), blockedSearchResult()),
+            2,
+            8,
+            1,
+            8,
+            1,
+            false,
+            7L,
+            -1,
+            null
+        ));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            List.of("doc-1"),
+            true,
+            null,
+            null,
+            "admin-user",
+            List.of("ROLE_SUPER_ADMIN"),
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::fileId)
+            .containsExactlyInAnyOrder("doc-blocked", "doc-1");
+        assertThat(result.retrievalEvents())
+            .extracting(RetrievalEvent::reason)
+            .anyMatch(reason -> reason.contains("document_visibility_bypassed reason=super_admin"));
+    }
+
+    @Test
+    void titleOnlyHitReturnsDocumentOutlineWithoutEvidenceBody() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2026 asset reconciliation report"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2026 asset reconciliation report",
+            List.of("acme", "2026", "asset", "reconciliation", "report"),
+            List.of(titleOnlySearchResult()),
+            1,
+            8,
+            1,
+            8,
+            1,
+            false,
+            4L,
+            -1,
+            null
+        ));
+        when(searchService.get(eq("doc-title-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(outlinedDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2026 asset reconciliation report",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.matchType()).isEqualTo(DocumentSearchMatchType.TITLE_ONLY_HIT);
+        assertThat(result.retrievalSemantics().dataSafetyLevel()).isEqualTo(DocumentDataSafetyLevel.NO_EVIDENCE_BODY);
+        assertThat(result.retrievalSemantics().canAnswerDirectly()).isFalse();
+        assertThat(result.results()).isEmpty();
+        assertThat(result.context()).isBlank();
+        assertThat(result.documents()).hasSize(1);
+        assertThat(result.documents().get(0).tags()).containsExactly("finance");
+        assertThat(result.outline()).isNotEmpty();
+        assertThat(result.outlineSource()).isEqualTo(DocumentOutlineSource.DOC_STRUCTURE);
+        assertThat(result.expansionPolicy().needsExpansion()).isTrue();
+        assertThat(result.expansionPolicy().queryRequired()).isTrue();
+        assertThat(result.expansionPolicy().originalQuery()).isEqualTo("ACME 2026 asset reconciliation report");
+        assertThat(result.expansionPolicy().intent()).isNotBlank();
+        assertThat(result.outline().get(0).sectionKeywords()).isNotEmpty();
+        assertThat(result.outline().get(0).sectionEmbeddingRef()).startsWith("section://doc-title-1#");
+    }
+
+    @Test
+    void titleOnlyContractDoesNotExposeRecallDebugSignals() throws Exception {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME asset report"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME asset report",
+            List.of("acme", "asset", "report"),
+            List.of(titleOnlySearchResult()),
+            1,
+            8,
+            1,
+            8,
+            1,
+            false,
+            4L,
+            -1,
+            null
+        ));
+        when(searchService.get(eq("doc-title-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(outlinedDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME asset report",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        String json = new ObjectMapper().writeValueAsString(result);
+        assertThat(json)
+            .doesNotContain("matchedKeywords")
+            .doesNotContain("fieldScores")
+            .doesNotContain("scoreBreakdown")
+            .doesNotContain("queryTokens")
+            .doesNotContain("expandedTokens")
+            .doesNotContain("significantTerms")
+            .doesNotContain("memoryRecallRaw")
+            .doesNotContain("memoryRecall");
+        assertThat(result.documents()).hasSize(1);
+        assertThat(result.documents().get(0).tags()).containsExactly("finance");
+    }
+
+    @Test
+    void strongTitleAnchorExpandsInsideDocumentInsteadOfTrustingFlatMatchedChunk() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2026 asset reconciliation report"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2026 asset reconciliation report",
+            List.of("acme", "2026", "asset", "reconciliation", "report"),
+            List.of(titleAnchoredSearchResult()),
+            1,
+            8,
+            1,
+            8,
+            1,
+            false,
+            4L,
+            -1,
+            null
+        ));
+        when(searchService.get(eq("doc-title-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(outlinedDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2026 asset reconciliation report",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.matchType()).isEqualTo(DocumentSearchMatchType.MIXED_HIT);
+        assertThat(result.documents()).hasSize(1);
+        assertThat(result.outline()).isNotEmpty();
+        assertThat(result.results()).isNotEmpty();
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::chunkType)
+            .contains("expanded_evidence")
+            .doesNotContain("table");
+        assertThat(result.results().get(0).content()).contains("reconciliation");
+    }
+
+    @Test
+    void sqlExampleQueryExpandsCompleteStatementAroundMatchedConnectorChunk() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ftp SQL 样例"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ftp SQL 样例",
+            List.of("ftp", "sql", "样例"),
+            List.of(sqlExampleSearchResult()),
+            1,
+            8,
+            1,
+            8,
+            1,
+            false,
+            4L,
+            -1,
+            null
+        ));
+        when(searchService.get(eq("doc-sql-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(sqlExampleDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ftp SQL 样例",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::chunkType)
+            .contains("code_example_expanded");
+        DocumentEvidenceChunk expanded = result.results().stream()
+            .filter(chunk -> "code_example_expanded".equals(chunk.chunkType()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(expanded.content())
+            .contains("create table t_dm_ads_cust_marg_d_tgt")
+            .contains("'connector' = 'ftp'")
+            .contains("'host' = '192.168.195.226'")
+            .contains("'password' = 'apexsoft#123'")
+            .endsWith(";");
+    }
+
+    @Test
+    void expandReturnsEvidenceReadyChunksInsideOneDocument() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.get(eq("doc-title-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(outlinedDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchExpandResult result = service.expand(new DocumentSearchExpandRequest(
+            "reconciliation rules",
+            "doc-title-1",
+            List.of("2. Reconciliation Rules"),
+            4,
+            2,
+            4,
+            4000,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.evidenceChunks()).isNotEmpty();
+        assertThat(result.evidenceChunks().get(0).isEvidenceReady()).isTrue();
+        assertThat(result.evidenceChunks().get(0).evidenceGrade()).isIn(DocumentEvidenceGrade.A, DocumentEvidenceGrade.B);
+        assertThat(result.evidenceChunks().get(0).text()).contains("reconciliation");
+        assertThat(result.retrievalSemantics().dataSafetyLevel()).isEqualTo(DocumentDataSafetyLevel.EVIDENCE_BODY);
+        assertThat(result.expansionPolicy().originalQuery()).isEqualTo("reconciliation rules");
+        assertThat(result.expansionPolicy().intent()).isNotBlank();
+        assertThat(result.reasoning()).isNotNull();
+        assertThat(result.reasoning().graph().nodes()).isNotEmpty();
+        assertThat(result.reasoning().reasoningChain()).isNotEmpty();
+        assertThat(result.sectionGraph().nodes()).isNotEmpty();
+        assertThat(result.knowledgeGraph().nodes())
+            .extracting(KnowledgeNode::type)
+            .contains(KnowledgeNodeType.SECTION, KnowledgeNodeType.EVIDENCE);
+        assertThat(result.knowledgeGraph().edges())
+            .extracting(KnowledgeEdge::type)
+            .contains(KnowledgeRelationType.SECTION_EVIDENCE, KnowledgeRelationType.EVIDENCE_EVIDENCE);
+        assertThat(result.traversal().nodeScores())
+            .extracting(KnowledgeNodeScore::nodeType)
+            .contains(KnowledgeNodeType.SECTION, KnowledgeNodeType.EVIDENCE);
+        assertThat(result.traversal().paths()).isNotEmpty();
+        assertThat(result.knowledgeReasoning().clusters()).isNotEmpty();
+        assertThat(result.knowledgeReasoning().steps())
+            .extracting(KnowledgeReasoningStep::step)
+            .contains("scope", "support", "conclusion");
+        assertThat(result.knowledgeReasoning().conclusionMode()).isIn("FULL", "PARTIAL");
+    }
+
+    @Test
+    void expandSelectsSectionsBeforeChunks() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.get(eq("doc-structured"), any(SearchPermissionContext.class)))
+            .thenReturn(java.util.Optional.of(structuredDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService, properties -> {
+            properties.setChunkSize(220);
+            properties.setChunkOverlap(0);
+        });
+
+        DocumentSearchExpandResult result = service.expand(new DocumentSearchExpandRequest(
+            "threshold breach reconciliation rules",
+            "doc-structured",
+            List.of(),
+            4,
+            1,
+            3,
+            6000,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.evidenceChunks()).isNotEmpty();
+        assertThat(result.evidenceChunks())
+            .extracting(DocumentExpandedEvidenceChunk::section)
+            .allMatch(section -> section.contains("Reconciliation Rules"));
+        assertThat(result.sectionGraph().nodes()).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(result.sectionGraph().edges())
+            .extracting(SectionEdge::type)
+            .contains(SectionEdgeType.CONTINUES);
+        assertThat(result.knowledgeGraph().nodes())
+            .extracting(KnowledgeNode::type)
+            .contains(KnowledgeNodeType.SECTION, KnowledgeNodeType.EVIDENCE);
+        assertThat(result.knowledgeGraph().edges())
+            .extracting(KnowledgeEdge::type)
+            .contains(KnowledgeRelationType.SECTION_SECTION, KnowledgeRelationType.SECTION_EVIDENCE);
+        assertThat(result.traversal().selectedSections()).isGreaterThanOrEqualTo(1);
+        assertThat(result.traversal().selectedEvidence()).isGreaterThanOrEqualTo(1);
+        assertThat(result.traversal().paths())
+            .allSatisfy(path -> assertThat(path.nodeIds()).hasSizeGreaterThanOrEqualTo(2));
+        assertThat(result.knowledgeReasoning().clusters())
+            .allSatisfy(cluster -> assertThat(cluster.evidenceNodeIds()).isNotEmpty());
+        assertThat(result.knowledgeReasoning().confidence()).isGreaterThan(0.0D);
+    }
+
+    private DocumentSearchEvidenceService newEvidenceService(SearchService searchService) {
+        return newEvidenceService(searchService, properties -> {
+        });
+    }
+
+    @Test
+    void budgetExhaustionStopsBeforeSearch() {
+        SearchService searchService = mock(SearchService.class);
+        DocumentSearchEvidenceService service = newEvidenceService(
+            searchService,
+            properties -> properties.getRetrievalControl().setMaxSearchCalls(0)
+        );
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.total()).isZero();
+        assertThat(result.retrievalState().lastAction()).isEqualTo(RetrievalControlAction.STOP);
+        assertThat(result.retrievalState().budgetUsed().searchCalls()).isZero();
+        assertThat(result.retrievalEvents())
+            .extracting(RetrievalEvent::step)
+            .containsExactly(
+                RetrievalControlStep.VALIDATOR,
+                RetrievalControlStep.GATE,
+                RetrievalControlStep.BUDGET,
+                RetrievalControlStep.SCORER
+            );
+        assertThat(result.retrievalEvents().get(2).reason()).isEqualTo("budget_exhausted");
+        verifyNoInteractions(searchService);
+    }
+
+    private DocumentSearchEvidenceService newEvidenceService(SearchService searchService,
+                                                             Consumer<SearchProperties> propertiesCustomizer) {
+        SearchProperties properties = new SearchProperties();
+        propertiesCustomizer.accept(properties);
+        SearchTokenizer tokenizer = new SearchTokenizer();
+        RetrievalRuleService ruleService = mock(RetrievalRuleService.class);
+        when(ruleService.snapshot()).thenReturn(new RetrievalRuleService.RuleSnapshot(List.of(), List.of(), List.of(), List.of(), 0L));
+        QueryIntentClassifier intentClassifier = new QueryIntentClassifier(tokenizer, ruleService);
+        SearchPermissionGuard permissionGuard = new SearchPermissionGuard();
+        RetrievalQueryValidator queryValidator = new RetrievalQueryValidator(tokenizer, properties);
+        QueryPlanningService queryPlanningService = new QueryPlanningService(tokenizer, intentClassifier, queryValidator, permissionGuard);
+        IndexVersionManager indexVersionManager = new IndexVersionManager();
+        DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
+            new GlobalDocumentIndexService(searchService),
+            new GlobalChunkIndexService(searchService, properties),
+            properties,
+            indexVersionManager
+        );
+        DocumentIndexRegistry registry = new DocumentIndexRegistry(searchService, indexVersionManager);
+        DocumentChunkStore chunkStore = new DocumentChunkStore(registry);
+        return new DocumentSearchEvidenceService(
+            tokenizer,
+            intentClassifier,
+            properties,
+            new RetrievalEvidenceQualityScorer(properties),
+            new TextChunker(),
+            queryPlanningService,
+            permissionGuard,
+            orchestrator,
+            new PerDocumentIndexService(chunkStore),
+            new EvidenceAssembler(new EvidenceContextFormatter()),
+            new EvidenceReranker()
+        );
+    }
+
+    private SearchResult searchResult() {
+        return new SearchResult(
+            "doc-1",
+            "ACME 2025 Revenue Policy",
+            "ACME 2025 revenue policy summary",
+            "upload",
+            "2025-01-01",
+            "acme-policy.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            90,
+            null,
+            List.of("ACME", "2025", "revenue", "policy"),
+            List.of(new SearchMatchedChunk(
+                "doc-1",
+                "acme-policy.pdf",
+                "Revenue",
+                "policy",
+                "chunk-1",
+                1,
+                0.1F,
+                "ACME 2025 revenue policy requires quarterly review.",
+                "ACME 2025 revenue policy requires quarterly review.",
+                8.8F,
+                SearchPermissionContext.ANONYMOUS_USER,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-1",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult blockedSearchResult() {
+        return new SearchResult(
+            "doc-blocked",
+            "ACME Blocked Document",
+            "Blocked private evidence should not be visible",
+            "upload",
+            "2025-01-02",
+            "blocked.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            99,
+            null,
+            List.of("ACME", "blocked"),
+            List.of(new SearchMatchedChunk(
+                "doc-blocked",
+                "blocked.pdf",
+                "Private",
+                "policy",
+                "blocked-chunk",
+                1,
+                0.1F,
+                "Blocked private evidence should never be returned.",
+                "Blocked private evidence should never be returned.",
+                9.9F,
+                SearchPermissionContext.ANONYMOUS_USER,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-blocked",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult staleSearchResult() {
+        return new SearchResult(
+            "doc-stale",
+            "ACME 2024 Revenue Policy",
+            "Stale ACME policy evidence must be filtered.",
+            "upload",
+            "2024-01-01",
+            "acme-policy-v1.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            120,
+            null,
+            List.of("ACME", "2025", "revenue", "policy"),
+            List.of(new SearchMatchedChunk(
+                "doc-stale",
+                "acme-policy-v1.pdf",
+                "Revenue",
+                "policy",
+                "stale-chunk",
+                1,
+                0.1F,
+                "Stale ACME policy evidence must be filtered.",
+                "Stale ACME policy evidence must be filtered.",
+                9.9F,
+                SearchPermissionContext.ANONYMOUS_USER,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-1",
+            1,
+            false,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult chunkRecallSearchResult() {
+        return new SearchResult(
+            "doc-chunk-1",
+            "Operations Platform Manual",
+            "Chunk-level recall hit.",
+            "upload",
+            "2026-02-01",
+            "operations-platform.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            72,
+            null,
+            List.of("ACME", "2026", "margin", "source"),
+            List.of(new SearchMatchedChunk(
+                "doc-chunk-1",
+                "operations-platform.pdf",
+                "Margin Data",
+                "definition",
+                "doc-chunk-1_3",
+                3,
+                0.4F,
+                "margin source risk ledger",
+                "margin source risk ledger",
+                7.2F,
+                SearchPermissionContext.DEFAULT_TENANT,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-chunk-1",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult titleOnlySearchResult() {
+        return new SearchResult(
+            "doc-title-1",
+            "ACME 2026 Asset Reconciliation Report",
+            "Document outline for planning only.",
+            "upload",
+            "2026-01-01",
+            "ACME-2026-asset-reconciliation-report.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            92,
+            new SearchScoreBreakdown(
+                0,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                24,
+                0,
+                0.0D,
+                Map.of("title", 48, "fileName", 40, "content", 0)
+            ),
+            List.of("ACME", "2026", "asset", "reconciliation", "report"),
+            List.of(),
+            "vg-title-1",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult titleAnchoredSearchResult() {
+        return new SearchResult(
+            "doc-title-1",
+            "ACME 2026 Asset Reconciliation Report",
+            "Document with a strong title match and a noisy flat chunk.",
+            "upload",
+            "2026-01-01",
+            "ACME-2026-asset-reconciliation-report.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            95,
+            new SearchScoreBreakdown(
+                8,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                24,
+                0,
+                0.0D,
+                Map.of("title", 48, "fileName", 40, "content", 8)
+            ),
+            List.of("ACME", "2026", "asset", "reconciliation", "report"),
+            List.of(new SearchMatchedChunk(
+                "doc-title-1",
+                "ACME-2026-asset-reconciliation-report.pdf",
+                "Appendix",
+                "table",
+                "noisy-chunk",
+                9,
+                0.9F,
+                "Noisy appendix table that should not drive document-level answer assembly.",
+                "Noisy appendix table that should not drive document-level answer assembly.",
+                9.5F,
+                SearchPermissionContext.DEFAULT_TENANT,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-title-1",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult sqlExampleSearchResult() {
+        return new SearchResult(
+            "doc-sql-1",
+            "FTP SQL example",
+            "FTP connector SQL example.",
+            "upload",
+            "2026-06-23",
+            "ftp.sql",
+            "sql",
+            null,
+            List.of("ftp.sql"),
+            List.of(),
+            List.of(),
+            94,
+            null,
+            List.of("ftp", "sql"),
+            List.of(new SearchMatchedChunk(
+                "doc-sql-1",
+                "ftp.sql",
+                "",
+                "sql",
+                "doc-sql-1_2",
+                2,
+                0.6F,
+                "'connector' = 'ftp', 'host' = '192.168.195.226', 'port' = '15230'",
+                "'connector' = 'ftp', 'host' = '192.168.195.226', 'port' = '15230'",
+                9.6F,
+                SearchPermissionContext.DEFAULT_TENANT,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-sql-1",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchDocument outlinedDocument() {
+        return SearchDocument.builder()
+            .docId("doc-title-1")
+            .title("ACME 2026 Asset Reconciliation Report")
+            .fileName("ACME-2026-asset-reconciliation-report.pdf")
+            .documentType("pdf")
+            .content("""
+                1. Data Sources
+                The report uses custody positions and valuation feeds for daily asset checks.
+
+                2. Reconciliation Rules
+                The reconciliation rules compare model assets with accounting assets and flag threshold breaches.
+
+                3. Exception Handling
+                Exceptions are routed to operations with owner, reason, and expected close date.
+                """)
+            .tenantId(SearchPermissionContext.DEFAULT_TENANT)
+            .userId(SearchPermissionContext.ANONYMOUS_USER)
+            .visibility("public")
+            .permissionRoles(List.of())
+            .build();
+    }
+
+    private SearchDocument chunkRecallDocument() {
+        return SearchDocument.builder()
+            .docId("doc-chunk-1")
+            .title("Operations Platform Manual")
+            .fileName("operations-platform.pdf")
+            .documentType("pdf")
+            .content("""
+                1. Overview
+                Generic platform operations and daily controls.
+
+                2. Margin Data
+                The ACME 2026 margin source is the risk ledger. It reconciles customer credit quota,
+                collateral value, daily financing balance, and exception status before downstream reporting.
+                """)
+            .tenantId(SearchPermissionContext.DEFAULT_TENANT)
+            .userId(SearchPermissionContext.ANONYMOUS_USER)
+            .visibility("public")
+            .permissionRoles(List.of())
+            .build();
+    }
+
+    private SearchDocument sqlExampleDocument() {
+        return SearchDocument.builder()
+            .docId("doc-sql-1")
+            .title("FTP SQL example")
+            .fileName("ftp.sql")
+            .documentType("sql")
+            .content("""
+                set spark.sql.debug.maxToStringFields=200;
+
+                CREATE TABLE src_table (
+                  fake string
+                ) WITH (
+                  'connector' = 'jdbc',
+                  'type' = 'source',
+                  'url' = 'jdbc:mysql://192.168.191.11:3306/LiveDOP?useSSL=false',
+                  'username' = 'root',
+                  'password' = 'Apex@2022',
+                  'table-name' = 'test_stream.proc_src_tuser',
+                  'properties.query' = 'select user_id,user_name from test_stream.proc_src_tuser'
+                );
+                src_table.print;
+
+                create table t_dm_ads_cust_marg_d_tgt (
+                  user_id int,
+                  user_name string
+                ) WITH (
+                  'connector' = 'ftp',
+                  'type' = 'sink',
+                  'host' = '192.168.195.226',
+                  'protocol' = 'ftp',
+                  'port' = '15230',
+                  'username' = 'apex',
+                  'password' = 'apexsoft#123'
+                );
+                """)
+            .tenantId(SearchPermissionContext.DEFAULT_TENANT)
+            .userId(SearchPermissionContext.ANONYMOUS_USER)
+            .visibility("public")
+            .permissionRoles(List.of())
+            .build();
+    }
+
+    private SearchDocument structuredDocument() {
+        return SearchDocument.builder()
+            .docId("doc-structured")
+            .title("ACME Structured Operations Manual")
+            .fileName("ACME-structured-operations-manual.pdf")
+            .documentType("pdf")
+            .content("""
+                1. Data Sources
+                Custody feeds provide positions, valuation dates, account identifiers, upstream batch status,
+                source timestamps, and portfolio lineage. This section intentionally contains operational
+                background and does not define reconciliation threshold breach handling.
+
+                2. Reconciliation Rules
+                The reconciliation rules compare model assets with accounting assets. Threshold breach
+                evidence is generated when the variance exceeds configured tolerance. Each breach records
+                owner, reason, severity, affected portfolio, expected close date, and review status.
+                Reconciliation rules also define how repeated threshold breach cases are grouped.
+
+                3. Exception Handling
+                Exception handling routes rejected jobs to operations. Owners review failed files, retry
+                the job when source data arrives, and close the item after operational approval.
+                """)
+            .tenantId(SearchPermissionContext.DEFAULT_TENANT)
+            .userId(SearchPermissionContext.ANONYMOUS_USER)
+            .visibility("public")
+            .permissionRoles(List.of())
+            .build();
+    }
+}

@@ -1,0 +1,43 @@
+package com.chatchat.enterprise.entity.security;
+
+import com.chatchat.enterprise.entity.common.EnterpriseAuditable;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.Instant;
+
+@Getter
+@Setter
+@Entity
+@Table(
+    name = "role_agent_binding",
+    indexes = {
+        @Index(name = "idx_role_agent_role", columnList = "role_id"),
+        @Index(name = "idx_role_agent_agent", columnList = "tenant_id, agent_id")
+    }
+)
+public class RoleAgentBinding extends EnterpriseAuditable {
+
+    @Column(name = "tenant_id", length = 64, nullable = false)
+    private String tenantId;
+
+    @Column(name = "role_id", length = 64, nullable = false)
+    private String roleId;
+
+    @Column(name = "agent_id", length = 64, nullable = false)
+    private String agentId;
+
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = true;
+
+    @Column(name = "effective_time")
+    private Instant effectiveTime;
+
+    @Column(name = "expire_time")
+    private Instant expireTime;
+}

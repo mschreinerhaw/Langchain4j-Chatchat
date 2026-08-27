@@ -103,7 +103,7 @@ class InvocationAuditServiceTest {
     }
 
     @Test
-    void persistsBatchAuditWhenHeartbeatIsMixedWithBusinessProtocolTraffic() throws Exception {
+    void doesNotPersistAuditWhenBatchContainsNoToolCall() throws Exception {
         McpRocksDbStore store = usableStore();
         InvocationAuditService service = service(store);
 
@@ -111,9 +111,21 @@ class InvocationAuditServiceTest {
             null, "[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"},"
                 + "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}]");
 
-        InvocationAuditLog log = savedLog(store);
-        assertThat(log.getTargetType()).isEqualTo("MCP_TRANSPORT");
-        assertThat(log.isSuccess()).isTrue();
+        verify(store, never()).put(
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(byte[].class));
+    }
+
+    @Test
+    void doesNotPersistAuditWhenToolNameIsBlank() throws Exception {
+        McpRocksDbStore store = usableStore();
+        InvocationAuditService service = service(store);
+
+        service.recordMcpTransportRequest("POST", "/mcp", null, "mcp-client", "test", 200, 1L,
+            null, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"   \",\"arguments\":{}}}");
+
+        verify(store, never()).put(
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(byte[].class));
     }
 
     @Test

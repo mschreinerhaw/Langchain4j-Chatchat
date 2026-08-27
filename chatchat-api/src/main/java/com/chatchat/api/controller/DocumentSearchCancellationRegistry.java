@@ -1,6 +1,6 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.knowledgebase.search.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;

@@ -5,12 +5,12 @@ import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
-import com.chatchat.mcpserver.routing.AssetDiscoveryService;
-import com.chatchat.mcpserver.routing.AssetMetadataFactory;
-import com.chatchat.mcpserver.routing.TargetKindRegistry;
-import com.chatchat.mcpserver.search.AssetRelevanceRanker;
-import com.chatchat.mcpserver.search.DiscoveryQueryVariants;
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.routing.asset.AssetDiscoveryService;
+import com.chatchat.mcpserver.routing.asset.AssetMetadataFactory;
+import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.query.AssetRelevanceRanker;
+import com.chatchat.mcpserver.search.query.DiscoveryQueryVariants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;

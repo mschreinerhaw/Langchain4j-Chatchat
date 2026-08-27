@@ -8,7 +8,7 @@ import com.chatchat.common.knowledge.StandardSearchResult;
 import com.chatchat.common.knowledge.template.TemplateServiceCall;
 import com.chatchat.common.knowledge.template.TemplateServicePort;
 import com.chatchat.common.knowledge.template.TemplateServiceResultStatus;
-import com.chatchat.mcpserver.templatepublication.TemplateQueryMcpToolPublisher;
+import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

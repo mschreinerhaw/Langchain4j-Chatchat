@@ -17,7 +17,7 @@ import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

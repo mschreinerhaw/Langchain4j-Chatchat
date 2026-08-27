@@ -6,7 +6,7 @@ import com.chatchat.mcpserver.database.publication.DatabaseQueryMcpToolPublisher
 import com.chatchat.mcpserver.ops.command.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.tool.OpsMcpToolPublisher;
-import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpTemplateLuceneIndexService;
 import com.chatchat.mcpserver.sql.tool.SqlMcpToolPublisher;
 import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;

@@ -912,6 +912,9 @@ public class InvocationAuditService {
      * @param auditLog the audit log value
      */
     private void save(InvocationAuditLog auditLog) {
+        if (auditLog == null || trimToNull(auditLog.getToolName()) == null) {
+            return;
+        }
         try {
             rocksDbStore.put(DATA_KEY_PREFIX + auditLog.getId(), objectMapper.writeValueAsBytes(auditLog));
             rocksDbStore.put(indexKey(auditLog), auditLog.getId().getBytes(StandardCharsets.UTF_8));

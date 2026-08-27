@@ -2,8 +2,8 @@ package com.chatchat.api.runtime;
 
 import com.chatchat.agents.runtime.tool.ToolRuntimeAuditRecord;
 import com.chatchat.agents.runtime.tool.ToolRuntimeAuditSink;
-import com.chatchat.enterprise.entity.SysAuditLog;
-import com.chatchat.enterprise.repository.SysAuditLogRepository;
+import com.chatchat.enterprise.entity.audit.SysAuditLog;
+import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

@@ -2,8 +2,8 @@ package com.chatchat.mcpserver.database.definition;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigRepository;
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
-import com.chatchat.mcpserver.search.LuceneSearchProperties;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.engine.LuceneSearchProperties;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;

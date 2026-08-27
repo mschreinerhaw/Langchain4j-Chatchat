@@ -12,7 +12,7 @@ import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.DeleteMapping;

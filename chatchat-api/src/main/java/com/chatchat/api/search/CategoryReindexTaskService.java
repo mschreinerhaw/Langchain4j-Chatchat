@@ -1,7 +1,7 @@
 package com.chatchat.api.search;
 
-import com.chatchat.knowledgebase.search.SearchPermissionContext;
-import com.chatchat.knowledgebase.search.SearchService;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.service.SearchService;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.python;
 
-import com.chatchat.mcpserver.search.FeatureHashVectorizer;
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.query.FeatureHashVectorizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

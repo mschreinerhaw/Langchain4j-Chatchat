@@ -6,7 +6,7 @@ import com.chatchat.api.service.McpRuntimeAccessService;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.enterprise.entity.McpToolWorkflowContract;
+import com.chatchat.enterprise.entity.mcp.McpToolWorkflowContract;
 import com.chatchat.enterprise.service.DatabaseToolWorkflowContractCatalog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

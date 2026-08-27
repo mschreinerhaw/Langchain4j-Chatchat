@@ -8,7 +8,7 @@ import com.chatchat.mcpserver.metadata.governance.MetadataGovernancePolicyServic
 
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
-import com.chatchat.mcpserver.search.OpenSearchMcpSearchService;
+import com.chatchat.mcpserver.search.engine.OpenSearchMcpSearchService;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;

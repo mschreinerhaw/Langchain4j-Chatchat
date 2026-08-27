@@ -5,7 +5,7 @@ import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 
 import com.chatchat.mcpserver.category.BusinessCategory;
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;

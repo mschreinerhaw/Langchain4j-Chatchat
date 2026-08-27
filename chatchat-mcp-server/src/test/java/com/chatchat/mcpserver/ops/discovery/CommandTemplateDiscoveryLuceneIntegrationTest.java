@@ -4,8 +4,8 @@ import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
-import com.chatchat.mcpserver.search.LuceneSearchProperties;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.engine.LuceneSearchProperties;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;

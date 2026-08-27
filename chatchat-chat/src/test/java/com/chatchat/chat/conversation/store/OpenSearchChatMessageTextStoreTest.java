@@ -8,7 +8,7 @@ import com.chatchat.chat.conversation.model.ChatMessageDetail;
 
 import com.chatchat.chat.conversation.model.Conversation;
 
-import com.chatchat.knowledgebase.search.SearchProperties;
+import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;

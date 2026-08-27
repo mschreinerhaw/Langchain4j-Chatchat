@@ -7,8 +7,8 @@ import com.chatchat.mcpserver.api.publication.ApiMcpToolPublisher;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
-import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService;
+import com.chatchat.mcpserver.search.index.McpTemplateLuceneIndexService;
 import com.chatchat.mcpserver.livedata.LivedataApiRegistrationService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

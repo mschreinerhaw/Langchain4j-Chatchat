@@ -11,8 +11,8 @@ import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
-import com.chatchat.mcpserver.routing.TargetKindRegistry;
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;

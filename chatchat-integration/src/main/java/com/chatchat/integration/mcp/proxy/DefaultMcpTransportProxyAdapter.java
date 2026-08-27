@@ -2,8 +2,8 @@ package com.chatchat.integration.mcp.proxy;
 
 import com.chatchat.common.mcp.proxy.McpTransportProxyPort;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
-import com.chatchat.integration.mcp.service.McpServiceConfigService;
-import com.chatchat.integration.mcp.service.McpStdioProxyService;
+import com.chatchat.integration.mcp.service.config.McpServiceConfigService;
+import com.chatchat.integration.mcp.service.transport.McpStdioProxyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -7,7 +7,7 @@ import com.chatchat.mcpserver.metadata.taxonomy.EnterpriseMetadataTaxonomyServic
 import com.chatchat.mcpserver.metadata.search.EnterpriseMetadataVectorizer;
 import com.chatchat.mcpserver.metadata.ingestion.EnterpriseMetadataWorkbookLoader;
 
-import com.chatchat.mcpserver.search.OpenSearchMcpSearchService;
+import com.chatchat.mcpserver.search.engine.OpenSearchMcpSearchService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.beans.factory.annotation.Autowired;

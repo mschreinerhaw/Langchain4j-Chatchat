@@ -1,8 +1,8 @@
 package com.chatchat.api.enterprise;
 
 import com.chatchat.common.audit.AuditQueryProperties;
-import com.chatchat.enterprise.entity.SysAuditLog;
-import com.chatchat.enterprise.repository.SysAuditLogRepository;
+import com.chatchat.enterprise.entity.audit.SysAuditLog;
+import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

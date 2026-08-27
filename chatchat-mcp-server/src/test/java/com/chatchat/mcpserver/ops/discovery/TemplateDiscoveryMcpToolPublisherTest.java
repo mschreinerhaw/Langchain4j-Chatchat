@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.ops.discovery;
 
-import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;

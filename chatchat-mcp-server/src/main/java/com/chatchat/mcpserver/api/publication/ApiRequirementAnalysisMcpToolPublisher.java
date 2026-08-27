@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.api.publication;
 
-import com.chatchat.mcpserver.routing.RequirementAnalysisProtocol;
+import com.chatchat.mcpserver.routing.protocol.RequirementAnalysisProtocol;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;

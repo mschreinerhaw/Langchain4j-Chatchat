@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.sql.datasource;
 
-import com.chatchat.mcpserver.routing.AssetExecutionTargetBinding;
+import com.chatchat.mcpserver.routing.target.AssetExecutionTargetBinding;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

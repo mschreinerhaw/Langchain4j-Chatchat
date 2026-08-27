@@ -3,7 +3,7 @@ package com.chatchat.mcpserver.api.publication;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 
-import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;

@@ -630,7 +630,7 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     }
 
     private ToolWorkflowRole workflowRole(String toolName) {
-        ToolWorkflowRole snapshotted = workflowRoles.get(toolName);
+        ToolWorkflowRole snapshotted = toolName == null ? null : workflowRoles.get(toolName);
         if (snapshotted != null) return snapshotted;
         return ToolWorkflowContract.resolveRole(toolName, null);
     }

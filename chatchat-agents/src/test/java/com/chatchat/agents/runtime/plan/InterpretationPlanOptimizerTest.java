@@ -8,6 +8,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -22,6 +23,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanOptimizerTest {
+
+    @Test
+    void treatsNullToolNameAsDirectWorkflowRole() {
+        assertThat(new InterpretationPlanOptimizer().workflowRoleFor(null))
+            .isEqualTo(ToolWorkflowRole.DIRECT);
+    }
 
     @Test
     void removesAbstractTemplateQueryWhenScopedBusinessImplementationIsPresent() {

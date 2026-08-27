@@ -24,6 +24,7 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.uiartifact.UiArtifactService;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.interaction.UserFacingToolTraceProjector;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -3399,7 +3400,9 @@ public class AgentTaskService {
                 payload.put("visualizationSpec", visualizationSpec);
             }
             payload.put("sources", response == null || response.getSources() == null ? List.of() : response.getSources());
-            payload.put("toolTraces", response == null || response.getToolTraces() == null ? List.of() : response.getToolTraces());
+            payload.put("toolTraces", response == null
+                ? List.of()
+                : UserFacingToolTraceProjector.project(response.getToolTraces()));
             payload.put("metadata", metadata);
             Object agent = metadata.get("agent");
             if (agent instanceof Map<?, ?> agentMetadata) {

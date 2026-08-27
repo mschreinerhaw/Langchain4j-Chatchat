@@ -99,7 +99,10 @@ class InteractionControllerTest {
                 .content(requestBody))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
-            .andExpect(jsonPath("$.data.toolTraces[0].runtimeMetadata.outcome").value("success"));
+            .andExpect(jsonPath("$.data.toolTraces[0].success").value(true))
+            .andExpect(jsonPath("$.data.toolTraces[0].input").isEmpty())
+            .andExpect(jsonPath("$.data.toolTraces[0].output").isEmpty())
+            .andExpect(jsonPath("$.data.toolTraces[0].runtimeMetadata").isEmpty());
 
         List<SysAuditLog> logs = auditLogRepository.findTop100ByTenantIdOrderByCreatedAtDesc(tenantId);
         assertThat(logs).isNotEmpty();
@@ -151,7 +154,10 @@ class InteractionControllerTest {
                 .content(requestBody))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
-            .andExpect(jsonPath("$.data.toolTraces[0].runtimeMetadata.outcome").value("denied"))
+            .andExpect(jsonPath("$.data.toolTraces[0].success").value(false))
+            .andExpect(jsonPath("$.data.toolTraces[0].input").isEmpty())
+            .andExpect(jsonPath("$.data.toolTraces[0].output").isEmpty())
+            .andExpect(jsonPath("$.data.toolTraces[0].runtimeMetadata").isEmpty())
             .andExpect(jsonPath("$.data.answer").value(org.hamcrest.Matchers.containsString("failed")));
 
         verify(toolRegistry, never()).executeEnhancedTool(ArgumentMatchers.eq(toolName), any());

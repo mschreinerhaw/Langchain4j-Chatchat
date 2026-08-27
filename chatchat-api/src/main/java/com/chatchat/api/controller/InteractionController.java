@@ -8,6 +8,7 @@ import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.constants.AppConstants;
+import com.chatchat.common.interaction.UserFacingToolTraceProjector;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,6 +53,7 @@ public class InteractionController {
             bindRequestIdentity(request, servletRequest);
             authorizeAgentAccess(request, servletRequest);
             InteractionResponse response = orchestrationService.chat(request);
+            response.setToolTraces(UserFacingToolTraceProjector.project(response.getToolTraces()));
             return ApiResponse.success(response, "Interaction completed");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
@@ -161,7 +163,7 @@ public class InteractionController {
         if (response == null || response.getToolTraces() == null) {
             return List.of();
         }
-        return response.getToolTraces();
+        return UserFacingToolTraceProjector.project(response.getToolTraces());
     }
 
     /**

@@ -8,6 +8,7 @@ import com.google.gson.JsonParseException;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -185,9 +186,10 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
             if (candidate.aliases().size() > 1) {
                 context.put("sourceAliases", candidate.aliases());
             }
+            context.values().removeIf(value -> value == null);
             String datasetReference = candidates.size() == 1
                 ? reference : reference + "#dataset-" + (index + 1);
-            datasets.add(new AnalysisDataset(datasetReference, Map.copyOf(context), rows));
+            datasets.add(new AnalysisDataset(datasetReference, context, rows));
         }
         return List.copyOf(datasets);
     }
@@ -225,7 +227,9 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         for (Object item : collection) {
             Map<String, Object> row = map(normalizeJson(item));
             if (row.isEmpty()) return null;
-            rows.add(Map.copyOf(row));
+            // SQL NULL is valid business data. Map.copyOf rejects null values,
+            // so retain them in an immutable null-tolerant row representation.
+            rows.add(Collections.unmodifiableMap(new LinkedHashMap<>(row)));
         }
         return List.copyOf(rows);
     }

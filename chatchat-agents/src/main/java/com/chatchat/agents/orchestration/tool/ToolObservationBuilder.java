@@ -1163,11 +1163,25 @@ public class ToolObservationBuilder {
 
     private Map<String, Object> unwrapStructuredRoot(Object data) {
         Map<String, Object> root = asMap(data);
-        for (String key : List.of("structuredContent", "structured_content", "payload", "result")) {
-            Map<String, Object> nested = asMap(root.get(key));
-            if (!nested.isEmpty()) {
-                return nested;
+        for (int depth = 0; depth < 8 && !root.isEmpty(); depth++) {
+            if ("tool_execution_result.v1".equals(stringValue(root.get("schemaVersion")))) {
+                return root;
             }
+            Map<String, Object> nested = Map.of();
+            for (String key : List.of("structuredContent", "structured_content", "payload", "result")) {
+                nested = asMap(root.get(key));
+                if (!nested.isEmpty()) {
+                    break;
+                }
+            }
+            if (nested.isEmpty()
+                && "mcp_analysis_payload.v1".equals(stringValue(root.get("schemaVersion")))) {
+                nested = asMap(root.get("data"));
+            }
+            if (nested.isEmpty() || nested == root) {
+                return root;
+            }
+            root = nested;
         }
         return root;
     }

@@ -713,6 +713,51 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void sqlExecutionObservationUnwrapsMcpAnalysisPayloadBeforeReadingRows() {
+        Map<String, Object> sqlResult = new LinkedHashMap<>();
+        sqlResult.put("schemaVersion", "tool_execution_result.v1");
+        sqlResult.put("kind", "sql_query");
+        sqlResult.put("dataSchema", "sql_result.v1");
+        sqlResult.put("success", true);
+        sqlResult.put("status", "success");
+        sqlResult.put("target", Map.of("name", "latest ETF scale", "toolName", "sample_etf_latest_scale"));
+        sqlResult.put("data", Map.of(
+            "rowCount", 100,
+            "returnedRowCount", 100,
+            "complete", true,
+            "possiblyTruncated", false,
+            "columns", List.of("fund_code", "current_scale_10k_units"),
+            "rows", List.of(Map.of(
+                "fund_code", "513330",
+                "current_scale_10k_units", "6953148.0000",
+                "latest_fund_count", 500
+            ))
+        ));
+        Map<String, Object> mcpPayload = Map.of(
+            "schemaVersion", "mcp_analysis_payload.v1",
+            "requestId", "request-etf",
+            "serviceId", "chatchat-mcp-server",
+            "toolName", "mcp_chatchat_mcp_server_sql_query_execute",
+            "status", "SUCCESS",
+            "data", sqlResult,
+            "runtimeMetadata", Map.of()
+        );
+
+        String observation = builder.buildSuccessObservation(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            ToolOutput.success(mcpPayload, "MCP call success"),
+            "unused generic preview"
+        );
+
+        assertThat(observation)
+            .contains("rowCount=100, returnedRowCount=100, partial=false")
+            .contains("fund_code=513330")
+            .contains("latest_fund_count=500")
+            .doesNotContain("rowCount=0, returnedRowCount=0")
+            .doesNotContain("unused generic preview");
+    }
+
+    @Test
     void dynamicDatabaseQueryPreservesCompleteSingleCellSqlEvidence() {
         String status = "BACKGROUND THREAD\n"
             + "x".repeat(5_000)

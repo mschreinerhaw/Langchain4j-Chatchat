@@ -4,6 +4,8 @@ import com.chatchat.common.mcp.service.McpServiceDescriptor;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -56,6 +58,49 @@ class StandardMcpContractAuditorTest {
             assertThat(item.normalizedResultAvailable()).isTrue();
             assertThat(item.rawResultAvailable()).isFalse();
         });
+    }
+
+    @Test
+    void doesNotRequireExecutionTemplateFromLinuxTemplateDiscoveryTool() {
+        McpToolDescriptor tool = tool("ops", "vendor_server_lookup", "ssh_host",
+            Map.of("type", "object", "properties", Map.of("query", Map.of("type", "string"))),
+            Map.of("type", "object"), Map.of("operationType", "read"),
+            Map.of(
+                "contractVersion", "mcp_tool_contract.v1",
+                ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                    ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.ssh-template.v1", "intent+filters"),
+                "executionTool", "linux_command_execute"));
+
+        McpContractAuditReport report = auditor.audit(
+            new McpContractAuditRequest("ops", tool.localToolName(), null, Set.of(), null),
+            List.of(service("ops")), List.of(tool), contracts());
+
+        assertThat(report.compliant()).isTrue();
+        assertThat(report.findings()).extracting(McpContractFinding::code)
+            .doesNotContain("LINUX_TEMPLATE_ARGUMENT_MISSING");
+        assertThat(report.evidence()).singleElement().satisfies(item -> {
+            assertThat(item.domainCode()).isEqualTo("linux");
+            assertThat(item.satisfiedPaths()).contains("OUTPUT_SCHEMA:type", "GOVERNANCE:operationType");
+            assertThat(item.missingPaths()).doesNotContain("INPUT_SCHEMA:properties.template");
+        });
+    }
+
+    @Test
+    void stillRequiresTemplateFromLinuxExecutionTool() {
+        McpToolDescriptor tool = tool("ops", "vendor_linux_executor", "ssh_host",
+            Map.of("type", "object", "properties", Map.of()), Map.of("type", "object"),
+            Map.of("operationType", "read"), Map.of(
+                "contractVersion", "mcp_tool_contract.v1",
+                ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                    ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.ssh-template.v1", "executionContext")));
+
+        McpContractAuditReport report = auditor.audit(
+            new McpContractAuditRequest("ops", tool.localToolName(), null, Set.of(), null),
+            List.of(service("ops")), List.of(tool), contracts());
+
+        assertThat(report.compliant()).isFalse();
+        assertThat(report.findings()).extracting(McpContractFinding::code)
+            .containsExactly("LINUX_TEMPLATE_ARGUMENT_MISSING");
     }
 
     @Test

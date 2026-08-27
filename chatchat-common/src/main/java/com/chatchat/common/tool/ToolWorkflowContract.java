@@ -42,6 +42,15 @@ public final class ToolWorkflowContract {
         return declaredRole(metadata).orElseGet(() -> legacyRole(toolName));
     }
 
+    /** Resolves workflow role from the canonical MCP descriptor metadata envelope. */
+    public static ToolWorkflowRole resolveDescriptorRole(String toolName, Map<String, Object> metadata) {
+        return declaredDescriptorRole(metadata).orElseGet(() -> legacyRole(toolName));
+    }
+
+    public static Optional<ToolWorkflowRole> declaredDescriptorRole(Map<String, Object> metadata) {
+        return parseRole(first(contractMap(metadata), "workflowRole", "workflow_role", "role"));
+    }
+
     public static boolean isDeclared(ToolMetadata metadata) {
         return declaredRole(metadata).isPresent();
     }
@@ -76,9 +85,13 @@ public final class ToolWorkflowContract {
     }
 
     private static Map<String, Object> contractMap(ToolMetadata metadata) {
-        if (metadata == null || metadata.getMetadata() == null) return Map.of();
-        Object value = metadata.getMetadata().get(METADATA_KEY);
-        if (value == null && metadata.getMetadata().get("mcpToolMeta") instanceof Map<?, ?> nested) {
+        return metadata == null ? Map.of() : contractMap(metadata.getMetadata());
+    }
+
+    private static Map<String, Object> contractMap(Map<String, Object> metadata) {
+        if (metadata == null) return Map.of();
+        Object value = metadata.get(METADATA_KEY);
+        if (value == null && metadata.get("mcpToolMeta") instanceof Map<?, ?> nested) {
             value = nested.get(METADATA_KEY);
         }
         if (!(value instanceof Map<?, ?> map)) return Map.of();

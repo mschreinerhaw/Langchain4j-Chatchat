@@ -69,7 +69,7 @@ public final class StandardMcpContractAuditor implements McpContractAuditor {
                            List<McpContractEvidence> evidence) {
         List<String> satisfied = new ArrayList<>();
         List<String> missing = new ArrayList<>();
-        for (McpContractRequirement requirement : contract.requirements()) {
+        for (McpContractRequirement requirement : contract.requirements(tool)) {
             Object source = source(tool, request.executionResult(), requirement.source());
             Object observed = valueAt(source, requirement.path());
             String evidencePath = requirement.source() + ":" + requirement.path();

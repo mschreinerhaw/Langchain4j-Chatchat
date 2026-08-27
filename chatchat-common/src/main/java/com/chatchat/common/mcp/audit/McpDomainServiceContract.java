@@ -11,4 +11,13 @@ public interface McpDomainServiceContract {
     String contractVersion();
     boolean supports(McpToolDescriptor tool);
     List<McpContractRequirement> requirements();
+
+    /**
+     * Returns requirements applicable to a concrete workflow role. Domain catalogs still expose
+     * the complete requirement set through {@link #requirements()}, while invocation preflight
+     * may omit executor-only requirements for discovery tools.
+     */
+    default List<McpContractRequirement> requirements(McpToolDescriptor tool) {
+        return requirements();
+    }
 }

@@ -1,5 +1,9 @@
 package com.chatchat.common.mcp.audit;
 
+import com.chatchat.common.mcp.service.McpToolDescriptor;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
+
 import java.util.List;
 
 /** Standard contract for Linux, SSH and template-governed Docker diagnostics. */
@@ -20,5 +24,17 @@ public final class LinuxMcpServiceContract extends AbstractMcpDomainServiceContr
             required(McpContractSource.METADATA, "contractVersion", "LINUX_CONTRACT_VERSION_MISSING",
                 "Linux discovery evidence must carry a contract version", "REFRESH_CONTRACT_SNAPSHOT")
         );
+    }
+
+    @Override
+    public List<McpContractRequirement> requirements(McpToolDescriptor tool) {
+        ToolWorkflowRole role = ToolWorkflowContract.resolveDescriptorRole(
+            tool == null ? null : tool.localToolName(), tool == null ? null : tool.metadata());
+        if (role != ToolWorkflowRole.TEMPLATE_DISCOVERY && role != ToolWorkflowRole.ASSET_DISCOVERY) {
+            return requirements();
+        }
+        return requirements().stream()
+            .filter(requirement -> !"LINUX_TEMPLATE_ARGUMENT_MISSING".equals(requirement.code()))
+            .toList();
     }
 }

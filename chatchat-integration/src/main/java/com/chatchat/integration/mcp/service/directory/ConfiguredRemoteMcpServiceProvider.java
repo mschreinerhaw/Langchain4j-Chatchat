@@ -14,6 +14,7 @@ import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import org.springframework.stereotype.Component;
@@ -103,6 +104,13 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         metadata.put("workflowContractVersion", extra.get("workflowContractVersion"));
         metadata.put("workflowContractChecksum", extra.get("workflowContractChecksum"));
         metadata.put("contractMeta", safeContractMeta(extra.get("mcpToolMeta")));
+        Map<String, Object> workflowContract = map(extra.get(ToolWorkflowContract.METADATA_KEY));
+        if (workflowContract.isEmpty()) {
+            workflowContract = map(map(extra.get("mcpToolMeta")).get(ToolWorkflowContract.METADATA_KEY));
+        }
+        if (!workflowContract.isEmpty()) {
+            metadata.put(ToolWorkflowContract.METADATA_KEY, workflowContract);
+        }
         metadata.put(McpCapabilityHierarchy.METADATA_KEY, tool.capabilityNode() == null
             ? map(extra.get(McpCapabilityHierarchy.METADATA_KEY))
             : tool.capabilityNode().toMetadata());

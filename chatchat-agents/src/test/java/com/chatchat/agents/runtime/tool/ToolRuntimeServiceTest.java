@@ -61,12 +61,13 @@ class ToolRuntimeServiceTest {
             registry, new ObjectMapper(), properties(), List.of(), List.of());
         service.setMcpRuntimeKernel(kernel);
         try {
-            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            ToolRuntimeRequest request = ToolRuntimeRequest.builder()
                 .toolName(toolName).runtimeMode("agent_chat").requestId("kernel-1")
                 .conversationId("conversation-1").tenantId("tenant-1").userId("user-1")
                 .allowedTools(List.of(toolName))
                 .toolInput(ToolInput.builder().parameters(Map.of()).build())
-                .build());
+                .build();
+            ToolRuntimeExecution execution = service.execute(request);
 
             assertThat(execution.output().isSuccess()).isTrue();
             assertThat(execution.output().getData()).isInstanceOf(Map.class);
@@ -78,7 +79,15 @@ class ToolRuntimeServiceTest {
             assertThat(execution.output().getMetadata())
                 .containsEntry("mcpRawDataPreserved", true)
                 .containsEntry("mcpKernelProtocolVersion", "runtime_os_mcp_kernel.v1");
-            verify(kernel).execute(any());
+            assertThat(request.getCanonicalInvocation()).isNotNull();
+            assertThat(request.getCanonicalInvocation().schemaVersion())
+                .isEqualTo("canonical_tool_invocation.v1");
+            assertThat(request.getCanonicalInvocation().arguments().schemaFingerprint()).isNotBlank();
+            ArgumentCaptor<McpServiceCall> canonicalCall = ArgumentCaptor.forClass(McpServiceCall.class);
+            verify(kernel).execute(canonicalCall.capture());
+            assertThat(canonicalCall.getValue().requestId()).isEqualTo("kernel-1");
+            assertThat(canonicalCall.getValue().arguments())
+                .isEqualTo(request.getCanonicalInvocation().arguments().values());
             verify(registry, never()).executeEnhancedTool(any(), any());
         } finally {
             service.shutdown();

@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
+import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeDto;
 import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
 
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
@@ -9,6 +10,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.protocol.ToolProtocolContractResolver;
 import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.plan.DagRepairResult;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
@@ -25,6 +27,7 @@ import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -832,14 +835,11 @@ public class AgentPlanner {
         }
         String json = extractJson(raw);
         try {
-            Map<String, Object> envelope = parsePlannerEnvelope(json);
-            Map<String, Object> candidatePayload = asMap(
-                firstObject(envelope, "candidate_answer", "candidateAnswer"));
-            Map<String, Object> planningPayload = asMap(envelope.get("planning"));
-            Map<String, Object> payload = planningPayload.isEmpty() ? envelope : planningPayload;
+            PlannerEnvelopeDto envelope = parsePlannerEnvelope(json);
+            Map<String, Object> payload = objectMapper.convertValue(envelope.planningPayload(), Map.class);
             AgentDecision interpretationPlanDecision = parseInterpretationPlanDecision(payload, validationContext);
             if (interpretationPlanDecision != null) {
-                return attachCandidateAnswer(interpretationPlanDecision, candidatePayload);
+                return attachCandidateAnswer(interpretationPlanDecision, envelope.candidateAnswer());
             }
             if (requiresStrictInterpretationPlan(validationContext)) {
                 return invalidPlannerDecision(
@@ -891,15 +891,15 @@ public class AgentPlanner {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> parsePlannerEnvelope(String json) throws JsonProcessingException {
+    private PlannerEnvelopeDto parsePlannerEnvelope(String json) throws IOException {
         try {
-            return objectMapper.readValue(json, Map.class);
+            return PlannerEnvelopeDto.from(objectMapper.readTree(json), objectMapper);
         } catch (JsonProcessingException initialFailure) {
             String repaired = repairInvalidJsonStringCharacters(json);
             if (repaired.equals(json)) {
                 throw initialFailure;
             }
-            Map<String, Object> parsed = objectMapper.readValue(repaired, Map.class);
+            PlannerEnvelopeDto parsed = PlannerEnvelopeDto.from(objectMapper.readTree(repaired), objectMapper);
             log.warn("Planner JSON contained unescaped quote or control characters inside string values; "
                 + "Runtime repaired the JSON syntax before InterpretationPlan validation.");
             return parsed;
@@ -983,11 +983,11 @@ public class AgentPlanner {
     }
 
     private AgentDecision attachCandidateAnswer(AgentDecision decision,
-                                                Map<String, Object> candidatePayload) {
-        if (decision == null || candidatePayload == null || candidatePayload.isEmpty()) {
+                                                PlannerEnvelopeDto.CandidateAnswerDto candidatePayload) {
+        if (decision == null || candidatePayload == null) {
             return decision;
         }
-        String content = stringValue(firstObject(candidatePayload, "content", "answer"));
+        String content = candidatePayload.content();
         if (content == null || content.isBlank()) {
             return decision;
         }
@@ -998,7 +998,7 @@ public class AgentPlanner {
         executionPlan.put("candidateAnswerContent", content);
         executionPlan.put("answerOrigin", "planner_generated");
         executionPlan.put("generationType", firstNonBlank(
-            stringValue(firstObject(candidatePayload, "type", "answerType")),
+            candidatePayload.type(),
             "generated_artifact"
         ));
         return new AgentDecision(
@@ -1025,6 +1025,7 @@ public class AgentPlanner {
             validationContext == null ? null : validationContext.budgetCaps()
         );
         interpretationPlan = budgetResult.plan();
+        InterpretationPlan sourcePlan = interpretationPlan;
         InterpretationPlanOptimizer.OptimizationResult optimization =
             new InterpretationPlanOptimizer(toolRegistry).optimize(
                 interpretationPlan,
@@ -1044,6 +1045,11 @@ public class AgentPlanner {
                 optimized.review()
             );
         }
+        DagRepairResult dagRepair = DagRepairResult.derive(
+            sourcePlan,
+            interpretationPlan,
+            optimization.appliedPasses(),
+            optimization.repairResult().stepIdMappings());
         InterpretationPlanValidator.ValidationResult validation =
             interpretationPlanValidator.validate(
                 interpretationPlan,
@@ -1052,6 +1058,9 @@ public class AgentPlanner {
             );
         List<String> runtimeIssues = validateRuntimePlanRules(interpretationPlan, validationContext);
         Map<String, Object> validationMetadata = new LinkedHashMap<>(validationMetadata(validation, runtimeIssues));
+        validationMetadata.put("dagRepair", dagRepair.auditMetadata());
+        validationMetadata.put("dagRepairValidationState",
+            validation.valid() && runtimeIssues.isEmpty() ? "ACCEPTED" : "REJECTED");
         if (!optimization.appliedPasses().isEmpty()) {
             validationMetadata.put("interpretationPlanOptimizationPasses", optimization.appliedPasses());
         }

@@ -1336,15 +1336,20 @@ public class AgentOrchestrator implements AgentRunExecutor {
         boolean hasAuthoritativeWorkflowDag = authoritativeWorkflowDag instanceof Collection<?> collection
             && !collection.isEmpty();
         List<String> authoritativeWorkflowDagPasses = List.of();
+        Map<String, Object> authoritativeWorkflowDagRepair = Map.of();
         if (hasAuthoritativeWorkflowDag) {
             InterpretationPlanOptimizer.OptimizationResult workflowDagOptimization =
                 new InterpretationPlanOptimizer(toolRegistry).optimize(plan, authoritativeWorkflowDag);
             plan = workflowDagOptimization.plan() == null ? plan : workflowDagOptimization.plan();
             authoritativeWorkflowDagPasses = workflowDagOptimization.appliedPasses();
+            authoritativeWorkflowDagRepair = workflowDagOptimization.repairResult().auditMetadata();
         }
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
         metadata.put("authoritativeWorkflowDagPasses", authoritativeWorkflowDagPasses);
+        if (!authoritativeWorkflowDagRepair.isEmpty()) {
+            metadata.put("authoritativeWorkflowDagRepair", authoritativeWorkflowDagRepair);
+        }
         if (budgetCaps.configured()) {
             metadata.put("agentBudgetCaps", budgetCaps.metadata());
             metadata.put("agentBudgetAdjusted", budgetResult.adjusted());
@@ -1582,6 +1587,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             InterpretationPlan rewrittenPlan = rewrite.rewrittenPlan();
             InterpretationPlanValidator.ValidationResult rewrittenValidation = rewrite.validation();
             List<String> authoritativeRewritePasses = List.of();
+            Map<String, Object> authoritativeRewriteRepair = Map.of();
             Object rewriteWorkflowDag = authoritativeWorkflowDagForContinuation(
                 authoritativeWorkflowDag,
                 rewrittenPlan,
@@ -1592,6 +1598,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     new InterpretationPlanOptimizer(toolRegistry).optimize(rewrittenPlan, rewriteWorkflowDag);
                 rewrittenPlan = authoritativeRewrite.plan() == null ? rewrittenPlan : authoritativeRewrite.plan();
                 authoritativeRewritePasses = authoritativeRewrite.appliedPasses();
+                authoritativeRewriteRepair = authoritativeRewrite.repairResult().auditMetadata();
                 rewrittenValidation = validator.validate(
                     rewrittenPlan,
                     toolRegistry,
@@ -1608,6 +1615,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("interpretationPlanRewriteExecutable",
                 rewrittenValidation != null && rewrittenValidation.executable());
             metadata.put("authoritativeWorkflowRewritePasses", authoritativeRewritePasses);
+            if (!authoritativeRewriteRepair.isEmpty()) {
+                metadata.put("authoritativeWorkflowRewriteRepair", authoritativeRewriteRepair);
+            }
             if (!rewrittenValid && rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
                 metadata.put("interpretationPlanRewriteError", rewrite.errorMessage());
             }

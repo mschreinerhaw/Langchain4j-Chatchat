@@ -8,12 +8,87 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InterpretationPlanOptimizerTest {
+
+    @Test
+    void preservesSourcePlanAndPublishesStructuredDagRepairAudit() {
+        InterpretationPlan source = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("workflow", "repair locally", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(10, "mcp_tool", "load", Map.of(), List.of(30), null, null),
+                new InterpretationPlan.Step(20, "mcp_tool", "transform", Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(30, "mcp_tool", "publish", Map.of(), List.of(10), null, null),
+                new InterpretationPlan.Step(40, "final_answer", "", Map.of("answer", "done"), List.of(30), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of("load", "transform", "publish"), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", "load", "dependsOnTools", List.of()),
+            Map.of("tool", "transform", "dependsOnTools", List.of("load")),
+            Map.of("tool", "publish", "dependsOnTools", List.of("transform"))
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result =
+            new InterpretationPlanOptimizer().optimize(source, authoritativeDag);
+        DagRepairResult repair = result.repairResult();
+
+        assertThat(stepByTool(source, "load").dependsOn()).containsExactly(30);
+        assertThat(stepByTool(source, "transform").dependsOn()).isEmpty();
+        assertThat(stepByTool(result.plan(), "load").dependsOn()).isEmpty();
+        assertThat(stepByTool(result.plan(), "transform").dependsOn())
+            .containsExactly(stepByTool(result.plan(), "load").id());
+        assertThat(repair.schemaVersion()).isEqualTo(DagRepairResult.SCHEMA_VERSION);
+        assertThat(repair.status()).isEqualTo(DagRepairResult.Status.REPAIRED);
+        assertThat(repair.sourcePlan()).isSameAs(source);
+        assertThat(repair.executablePlan()).isSameAs(result.plan());
+        assertThat(repair.sourceFingerprint()).isNotEqualTo(repair.executableFingerprint());
+        assertThat(repair.stepIdMappings()).containsKeys(10, 20, 30, 40);
+        assertThat(repair.operations())
+            .extracting(DagRepairResult.Operation::type)
+            .contains(DagRepairResult.Type.DEPENDENCIES_REPLACED);
+    }
+
+    @Test
+    void interpretationPlanRecursivelyFreezesModelCollections() {
+        List<Integer> dependencies = new ArrayList<>(List.of(1));
+        List<String> nestedValues = new ArrayList<>(List.of("source"));
+        Map<String, Object> nested = new LinkedHashMap<>();
+        nested.put("values", nestedValues);
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("nested", nested);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2, "mcp_tool", "tool", input, dependencies, null, null);
+
+        dependencies.add(99);
+        nestedValues.add("mutated");
+        nested.put("other", true);
+        input.put("late", true);
+
+        assertThat(step.dependsOn()).containsExactly(1);
+        assertThat(step.input()).doesNotContainKey("late");
+        Map<?, ?> nestedSnapshot = (Map<?, ?>) step.input().get("nested");
+        assertThat(nestedSnapshot.containsKey("other")).isFalse();
+        assertThat(nestedSnapshot.get("values")).isEqualTo(List.of("source"));
+        assertThatThrownBy(() -> step.dependsOn().add(3))
+            .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> step.input().put("x", true))
+            .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> ((List<Object>) ((Map<?, ?>) step.input().get("nested")).get("values")).add("x"))
+            .isInstanceOf(UnsupportedOperationException.class);
+    }
 
     @Test
     void repairsArbitraryNamedWorkflowEntirelyFromPublishedRoles() {

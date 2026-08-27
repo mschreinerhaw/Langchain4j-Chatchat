@@ -50,7 +50,7 @@ public class InterpretationPlanOptimizer {
 
     public OptimizationResult optimize(InterpretationPlan plan, Object authoritativeWorkflowDag) {
         if (plan == null || plan.plan() == null || plan.steps().isEmpty()) {
-            return new OptimizationResult(plan, List.of());
+            return OptimizationResult.derived(plan, plan, List.of());
         }
         List<String> passes = new ArrayList<>();
         List<InterpretationPlan.Step> steps = new ArrayList<>(plan.steps());
@@ -132,6 +132,7 @@ public class InterpretationPlanOptimizer {
             passes.add("RetrievalPolicyGuardPass");
         }
 
+        Map<Integer, Integer> stepIdMappings = renumberMap(steps);
         InterpretationPlan optimized = new InterpretationPlan(
             plan.version(),
             plan.intent(),
@@ -149,7 +150,7 @@ public class InterpretationPlanOptimizer {
             retrievalPolicy.executionPolicy(),
             plan.review()
         );
-        return new OptimizationResult(optimized, List.copyOf(passes));
+        return OptimizationResult.derived(plan, optimized, List.copyOf(passes), stepIdMappings);
     }
 
     /** Applies only user-configured workflow-to-workflow edges; model edges are not authoritative. */
@@ -1189,7 +1190,27 @@ public class InterpretationPlanOptimizer {
 
     public record OptimizationResult(
         InterpretationPlan plan,
-        List<String> appliedPasses
+        List<String> appliedPasses,
+        DagRepairResult repairResult
     ) {
+        public OptimizationResult(InterpretationPlan plan, List<String> appliedPasses) {
+            this(plan, appliedPasses, DagRepairResult.derive(plan, plan, appliedPasses));
+        }
+
+        private static OptimizationResult derived(InterpretationPlan sourcePlan,
+                                                  InterpretationPlan executablePlan,
+                                                  List<String> appliedPasses) {
+            DagRepairResult repair = DagRepairResult.derive(sourcePlan, executablePlan, appliedPasses);
+            return new OptimizationResult(executablePlan, repair.appliedPasses(), repair);
+        }
+
+        private static OptimizationResult derived(InterpretationPlan sourcePlan,
+                                                   InterpretationPlan executablePlan,
+                                                   List<String> appliedPasses,
+                                                   Map<Integer, Integer> stepIdMappings) {
+            DagRepairResult repair = DagRepairResult.derive(
+                sourcePlan, executablePlan, appliedPasses, stepIdMappings);
+            return new OptimizationResult(executablePlan, repair.appliedPasses(), repair);
+        }
     }
 }

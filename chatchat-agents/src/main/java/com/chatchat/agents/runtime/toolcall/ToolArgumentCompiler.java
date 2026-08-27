@@ -1,8 +1,11 @@
 package com.chatchat.agents.runtime.toolcall;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -20,6 +23,19 @@ public final class ToolArgumentCompiler {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
+
+    public CompiledToolArguments compileCanonical(Map<String, Object> semanticArguments,
+                                                  Map<String, Object> schema) {
+        CompilationResult result = compile(semanticArguments, schema);
+        return new CompiledToolArguments(
+            null,
+            schemaFingerprint(schema),
+            result.status(),
+            result.parameters(),
+            result.validationErrors(),
+            result.repairs()
+        );
+    }
 
     public CompilationResult compile(Map<String, Object> semanticArguments, Map<String, Object> schema) {
         Map<String, Object> source = semanticArguments == null
@@ -373,6 +389,19 @@ public final class ToolArgumentCompiler {
     @SuppressWarnings("unchecked")
     private Map<String, Object> objectMap(Object value) {
         return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
+    }
+
+    private String schemaFingerprint(Map<String, Object> schema) {
+        try {
+            ObjectMapper canonicalMapper = OBJECT_MAPPER.copy()
+                .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+            byte[] canonicalSchema = canonicalMapper.writeValueAsString(
+                schema == null ? Map.of() : schema).getBytes(StandardCharsets.UTF_8);
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonicalSchema);
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to fingerprint tool input schema", ex);
+        }
     }
 
     public record CompilationResult(String status,

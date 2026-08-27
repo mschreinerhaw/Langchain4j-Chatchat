@@ -246,16 +246,19 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             request.plan(), authoritativeWorkflowDag);
         InterpretationPlan executablePlan = optimization.plan() == null ? request.plan() : optimization.plan();
         String executionTraceId = executionTraceId(request, startedAt);
-        ExecutionRequest executableRequest = request.withPlanAndAttributes(
-            executablePlan,
-            attributesWithProtocol(request.attributes(), executionTraceId)
-        );
         InterpretationPlanValidator.ValidationResult validation = validator.validate(
             executablePlan,
             request.toolRegistry(),
             new LinkedHashSet<>(safeList(request.allowedTools())),
             authoritativeWorkflowDag,
             authoritativeWorkflowTaskId
+        );
+        Map<String, Object> executableAttributes = attributesWithProtocol(request.attributes(), executionTraceId);
+        executableAttributes.put("dagRepair", optimization.repairResult().auditMetadata());
+        executableAttributes.put("dagRepairValidationState", validation.valid() ? "ACCEPTED" : "REJECTED");
+        ExecutionRequest executableRequest = request.withPlanAndAttributes(
+            executablePlan,
+            executableAttributes
         );
         if (!validation.valid()) {
             return withDiagnosticRun(ExecutionResult.failed(

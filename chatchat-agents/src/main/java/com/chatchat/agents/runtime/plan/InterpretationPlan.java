@@ -5,8 +5,13 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Structured planner output used by the MCP runtime before any tool is executed.
@@ -21,6 +26,11 @@ public record InterpretationPlan(
     ExecutionPolicy executionPolicy,
     Review review
 ) {
+
+    public InterpretationPlan {
+        // Every nested collection component is defensively copied by its owning record.
+        // The parsed plan is therefore a value snapshot rather than a mutable JSON view.
+    }
 
     @JsonIgnore
     public List<Step> steps() {
@@ -43,6 +53,12 @@ public record InterpretationPlan(
         List<String> missingInfo,
         List<String> constraints
     ) {
+        public Context {
+            keyFacts = immutableList(keyFacts);
+            assumptions = immutableList(assumptions);
+            missingInfo = immutableList(missingInfo);
+            constraints = immutableList(constraints);
+        }
     }
 
     public record Plan(
@@ -60,6 +76,15 @@ public record InterpretationPlan(
         @JsonProperty("branch_groups")
         List<BranchGroup> branchGroups
     ) {
+        public Plan {
+            steps = immutableList(steps);
+            edgeContracts = immutableList(edgeContracts);
+            dependencyContracts = immutableList(dependencyContracts);
+            bindings = immutableList(bindings);
+            conditionalEdges = immutableList(conditionalEdges);
+            branchGroups = immutableList(branchGroups);
+        }
+
         public Plan(List<Step> steps) {
             this(steps, List.of(), List.of(), List.of(), null, null, List.of(), List.of());
         }
@@ -104,6 +129,10 @@ public record InterpretationPlan(
         @JsonProperty("completion_policy")
         DiagnosticCompletionPolicy completionPolicy
     ) {
+        public DiagnosticProfile {
+            checks = immutableList(checks);
+        }
+
         public DiagnosticProfile(String profileId, String targetKind, List<DiagnosticCheck> checks) {
             this(profileId, targetKind, checks, null);
         }
@@ -120,6 +149,10 @@ public record InterpretationPlan(
         List<Integer> stepIds,
         Double weight
     ) {
+        public DiagnosticCheck {
+            stepIds = immutableList(stepIds);
+        }
+
         public DiagnosticCheck(String checkId,
                                String capability,
                                String dimension,
@@ -155,6 +188,11 @@ public record InterpretationPlan(
         OutputContract outputContract,
         Validation validation
     ) {
+        public Step {
+            input = immutableMap(input);
+            dependsOn = immutableList(dependsOn);
+        }
+
         @JsonIgnore
         public boolean mcpToolAction() {
             return "mcp_tool".equals(actionType);
@@ -204,6 +242,12 @@ public record InterpretationPlan(
         @JsonProperty("accuracy_vs_speed")
         Double accuracyVsSpeed
     ) {
+        public ExecutionPolicy {
+            allowTool = immutableList(allowTool);
+            denyTool = immutableList(denyTool);
+            toolPriority = immutableMap(toolPriority);
+        }
+
         public ExecutionPolicy(Integer maxSteps,
                                Boolean allowParallel,
                                List<String> allowTool,
@@ -267,6 +311,9 @@ public record InterpretationPlan(
         @JsonProperty("selection_strategy")
         String selectionStrategy
     ) {
+        public BranchGroup {
+            candidateStepIds = immutableList(candidateStepIds);
+        }
     }
 
     public record Binding(
@@ -292,6 +339,11 @@ public record InterpretationPlan(
         @JsonProperty("mutable_action_types")
         List<String> mutableActionTypes
     ) {
+        public Stability {
+            stableNodes = immutableList(stableNodes);
+            criticalTools = immutableList(criticalTools);
+            mutableActionTypes = immutableList(mutableActionTypes);
+        }
     }
 
     public record Review(
@@ -300,6 +352,9 @@ public record InterpretationPlan(
         @JsonProperty("fallback_plan")
         List<String> fallbackPlan
     ) {
+        public Review {
+            fallbackPlan = immutableList(fallbackPlan);
+        }
     }
 
     public record SelfCheck(
@@ -312,5 +367,39 @@ public record InterpretationPlan(
         @JsonProperty("missing_steps")
         List<String> missingSteps
     ) {
+        public SelfCheck {
+            missingSteps = immutableList(missingSteps);
+        }
+    }
+
+    private static <T> List<T> immutableList(List<T> source) {
+        return source == null ? null : Collections.unmodifiableList(new ArrayList<>(source));
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> Map<String, T> immutableMap(Map<String, T> source) {
+        if (source == null) {
+            return null;
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        source.forEach((key, value) -> copy.put(key, immutableValue(value)));
+        return (Map<String, T>) (Map<?, ?>) Collections.unmodifiableMap(copy);
+    }
+
+    private static Object immutableValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new LinkedHashMap<>();
+            map.forEach((key, nested) -> copy.put(key, immutableValue(nested)));
+            return Collections.unmodifiableMap(copy);
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(InterpretationPlan::immutableValue).toList();
+        }
+        if (value instanceof Set<?> set) {
+            Set<Object> copy = new LinkedHashSet<>();
+            set.forEach(nested -> copy.add(immutableValue(nested)));
+            return Collections.unmodifiableSet(copy);
+        }
+        return value;
     }
 }

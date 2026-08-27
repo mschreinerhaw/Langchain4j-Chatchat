@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.tool;
 
+import com.chatchat.agents.runtime.toolcall.CanonicalToolInvocation;
 import com.chatchat.common.tool.ToolInput;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,6 +28,9 @@ public class ToolRuntimeRequest {
     private List<String> allowedTools = new ArrayList<>();
 
     private ToolInput toolInput;
+
+    /** Runtime-owned canonical form; never populated directly from model JSON. */
+    private CanonicalToolInvocation canonicalInvocation;
 
     @Builder.Default
     private Map<String, Object> attributes = Map.of();

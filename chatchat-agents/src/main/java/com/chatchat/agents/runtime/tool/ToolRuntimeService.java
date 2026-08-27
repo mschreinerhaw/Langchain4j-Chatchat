@@ -19,6 +19,8 @@ import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.batch.ToolEvidencePolicy;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.toolcall.CanonicalToolInvocation;
+import com.chatchat.agents.runtime.toolcall.CompiledToolArguments;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -308,6 +310,9 @@ public class ToolRuntimeService {
             ToolRuntimeRequest attemptRequest = toolRetryRequest(
                 request, callAttempt, declaredMaxCalls, retryAttempts);
             lastExecution = executeOnce(attemptRequest);
+            if (request != null && attemptRequest != null) {
+                request.setCanonicalInvocation(attemptRequest.getCanonicalInvocation());
+            }
             enrichRetryMetadata(lastExecution, callAttempt, declaredMaxCalls, retryAttempts);
             if (!contractRepairAttempted
                 && inputContractFailure(lastExecution)
@@ -737,7 +742,7 @@ public class ToolRuntimeService {
         ToolInput toolInput = request.getToolInput() == null ? new ToolInput() : request.getToolInput();
         enrichToolInputContext(request, toolInput);
         applyRequiredToolParameters(toolName, metadata, request, toolInput);
-        ToolArgumentCompiler.CompilationResult argumentCompilation = toolArgumentCompiler.compile(
+        CompiledToolArguments argumentCompilation = toolArgumentCompiler.compileCanonical(
             toolInput.getParameters(),
             toolInputSchemaResolver.resolvePublished(metadata)
         );
@@ -752,11 +757,23 @@ public class ToolRuntimeService {
                 null
             );
         }
-        toolInput.setParameters(new LinkedHashMap<>(argumentCompilation.parameters()));
+        toolInput.setParameters(new LinkedHashMap<>(argumentCompilation.values()));
         if (!argumentCompilation.repairs().isEmpty()) {
             toolInput.getContext().put("runtimeToolArgumentRepairs", argumentCompilation.repairs());
             log.info("Runtime compiled tool arguments tool={} repairs={} compiledKeys={}",
                 toolName, argumentCompilation.repairs(), toolInput.getParameters().keySet());
+        }
+        CanonicalToolInvocation canonicalInvocation = new CanonicalToolInvocation(
+            null,
+            firstText(toolInput.getRequestId(), request == null ? null : request.getRequestId()),
+            stringValue(toolInput.getContext() == null ? null
+                : firstPresent(toolInput.getContext().get("stepId"), toolInput.getContext().get("planStepId"))),
+            toolName,
+            argumentCompilation,
+            toolInput.getContext()
+        );
+        if (request != null) {
+            request.setCanonicalInvocation(canonicalInvocation);
         }
         if (isParamBindingDenied(toolInput)) {
             return deniedExecution(toolName, request, metadata,
@@ -1698,6 +1715,12 @@ public class ToolRuntimeService {
         values.put("serviceId", resolveServiceId(metadata));
         values.put("serviceName", resolveServiceName(metadata));
         values.put("executionPlan", executionPlan == null ? null : executionPlan.toMap());
+        if (request != null && request.getCanonicalInvocation() != null) {
+            CanonicalToolInvocation canonical = request.getCanonicalInvocation();
+            values.put("canonicalInvocationSchemaVersion", canonical.schemaVersion());
+            values.put("compiledArgumentsSchemaVersion", canonical.arguments().schemaVersion());
+            values.put("toolInputSchemaFingerprint", canonical.arguments().schemaFingerprint());
+        }
         if (request != null && request.getToolInput() != null) {
             Map<String, Object> context = request.getToolInput().getContext();
             if (context != null && context.containsKey("runtimeRequiredToolParametersApplied")) {
@@ -2027,10 +2050,19 @@ public class ToolRuntimeService {
                 request.getAttributes().get("diagnosticDeadlineAt"), request.getAttributes().get("deadlineAt")));
             deadlineAt = configuredDeadline == null ? 0L : configuredDeadline;
         }
+        CanonicalToolInvocation canonicalInvocation = request == null ? null : request.getCanonicalInvocation();
+        if (canonicalInvocation == null) {
+            CompiledToolArguments fallbackArguments = toolArgumentCompiler.compileCanonical(
+                toolInput.getParameters(), toolInputSchemaResolver.resolvePublished(metadata));
+            canonicalInvocation = new CanonicalToolInvocation(null,
+                firstText(toolInput.getRequestId(), request == null ? null : request.getRequestId()),
+                null, toolName, fallbackArguments, context);
+        } else {
+            canonicalInvocation = canonicalInvocation.withContext(context);
+        }
         McpServiceResult result = kernel.execute(new McpServiceCall(null,
-            firstText(toolInput.getRequestId(), request == null ? null : request.getRequestId()),
-            serviceId, toolName,
-            toolInput.getParameters() == null ? Map.of() : toolInput.getParameters(), context, deadlineAt));
+            canonicalInvocation.requestId(), serviceId, canonicalInvocation.toolName(),
+            canonicalInvocation.arguments().values(), canonicalInvocation.context(), deadlineAt));
         Map<String, Object> outputMetadata = new LinkedHashMap<>(result.metadata());
         outputMetadata.put("mcpServiceResult", result);
         outputMetadata.put("mcpKernelProtocolVersion", McpRuntimeKernel.KERNEL_PROTOCOL_VERSION);

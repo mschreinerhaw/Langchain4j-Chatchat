@@ -2,10 +2,12 @@ package com.chatchat.agents.runtime.toolcall;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ToolArgumentCompilerTest {
 
@@ -221,5 +223,64 @@ class ToolArgumentCompilerTest {
             .contains("CONFLICTING_PARAMETER_ALIASES");
         assertThat(guessed.valid()).isFalse();
         assertThat(guessed.parameters()).doesNotContainKey("assetName");
+    }
+
+    @Test
+    void compilesCanonicalArgumentsWithStableSchemaIdentity() {
+        Map<String, Object> schema = Map.of(
+            "type", "object",
+            "required", List.of("limit"),
+            "properties", Map.of(
+                "limit", Map.of("type", "integer"),
+                "enabled", Map.of("type", "boolean")
+            )
+        );
+
+        CompiledToolArguments first = compiler.compileCanonical(
+            Map.of("limit", "100", "enabled", "true"), schema);
+        CompiledToolArguments second = compiler.compileCanonical(
+            Map.of("limit", 100, "enabled", true), new LinkedHashMap<>(schema));
+
+        assertThat(first.valid()).isTrue();
+        assertThat(first.schemaVersion()).isEqualTo(CompiledToolArguments.SCHEMA_VERSION);
+        assertThat(first.values()).containsEntry("limit", 100).containsEntry("enabled", true);
+        assertThat(first.schemaFingerprint()).isNotBlank().isEqualTo(second.schemaFingerprint());
+        assertThatThrownBy(() -> first.values().put("limit", 1))
+            .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void canonicalInvocationRejectsUncompiledArguments() {
+        CompiledToolArguments invalid = compiler.compileCanonical(
+            Map.of(),
+            Map.of("type", "object", "required", List.of("query"),
+                "properties", Map.of("query", Map.of("type", "string")))
+        );
+
+        assertThat(invalid.valid()).isFalse();
+        assertThatThrownBy(() -> new CanonicalToolInvocation(
+            null, "request-1", "1", "search", invalid, Map.of()))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("valid compiled arguments");
+    }
+
+    @Test
+    void canonicalInvocationRecursivelyFreezesArgumentsAndContext() {
+        Map<String, Object> nestedArguments = new LinkedHashMap<>();
+        nestedArguments.put("filters", new LinkedHashMap<>(Map.of("limit", 10)));
+        CompiledToolArguments compiled = compiler.compileCanonical(nestedArguments, Map.of());
+        CanonicalToolInvocation invocation = new CanonicalToolInvocation(
+            null, "request-1", "1", "search", compiled,
+            Map.of("tenant", new LinkedHashMap<>(Map.of("id", "tenant-1"))));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> frozenFilters = (Map<String, Object>) invocation.arguments().values().get("filters");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> frozenTenant = (Map<String, Object>) invocation.context().get("tenant");
+
+        assertThatThrownBy(() -> frozenFilters.put("limit", 20))
+            .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> frozenTenant.put("id", "tenant-2"))
+            .isInstanceOf(UnsupportedOperationException.class);
     }
 }

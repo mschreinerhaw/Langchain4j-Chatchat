@@ -430,6 +430,15 @@ public class ConversationService {
     static List<Conversation.Message> mergeMessageSnapshots(List<Conversation.Message> existing,
                                                              List<Conversation.Message> incoming) {
         List<Conversation.Message> merged = new ArrayList<>(existing == null ? List.of() : existing);
+        List<Conversation.Message> incomingSnapshot = incoming == null ? List.of() : incoming;
+        int overlap = semanticOverlap(merged, incomingSnapshot);
+        int overlapStart = merged.size() - overlap;
+        for (int index = 0; index < overlap; index++) {
+            int mergedIndex = overlapStart + index;
+            Conversation.Message current = merged.get(mergedIndex);
+            Conversation.Message candidate = incomingSnapshot.get(index);
+            merged.set(mergedIndex, preferredEquivalentMessage(current, candidate));
+        }
         Map<String, Integer> positions = new LinkedHashMap<>();
         for (int index = 0; index < merged.size(); index++) {
             Conversation.Message message = merged.get(index);
@@ -437,7 +446,7 @@ public class ConversationService {
                 positions.put(message.getId(), index);
             }
         }
-        for (Conversation.Message message : incoming == null ? List.<Conversation.Message>of() : incoming) {
+        for (Conversation.Message message : incomingSnapshot.subList(overlap, incomingSnapshot.size())) {
             if (message == null) {
                 continue;
             }
@@ -450,19 +459,78 @@ public class ConversationService {
                 continue;
             }
             Conversation.Message previous = merged.get(position);
-            if (isTruncatedText(message.getContent()) && !isTruncatedText(previous.getContent())) {
-                message.setContent(previous.getContent());
-            }
-            preserveCompleteMap(previous.getVisualizationSpec(), message.getVisualizationSpec(), message::setVisualizationSpec);
-            preserveCompleteMap(previous.getUiResponse(), message.getUiResponse(), message::setUiResponse);
-            preserveCompleteMap(previous.getAnalysisSelection(), message.getAnalysisSelection(), message::setAnalysisSelection);
-            preserveCompleteList(previous.getSources(), message.getSources(), message::setSources);
-            preserveCompleteList(previous.getTraces(), message.getTraces(), message::setTraces);
-            preserveCompleteList(previous.getSteps(), message.getSteps(), message::setSteps);
-            preserveCompleteList(previous.getEvidencePremises(), message.getEvidencePremises(), message::setEvidencePremises);
+            preserveCompleteMessageFields(previous, message);
             merged.set(position, message);
         }
         return collapseDuplicateAssistantResults(merged);
+    }
+
+    private static int semanticOverlap(List<Conversation.Message> existing,
+                                       List<Conversation.Message> incoming) {
+        int maximum = Math.min(existing.size(), incoming.size());
+        for (int size = maximum; size > 0; size--) {
+            int existingStart = existing.size() - size;
+            boolean matches = true;
+            boolean userAnchored = false;
+            boolean looselyMatchedAssistant = false;
+            for (int index = 0; index < size; index++) {
+                Conversation.Message existingMessage = existing.get(existingStart + index);
+                Conversation.Message incomingMessage = incoming.get(index);
+                if (!sameConversationMessage(existingMessage, incomingMessage)) {
+                    matches = false;
+                    break;
+                }
+                if ("user".equalsIgnoreCase(existingMessage.getRole())) {
+                    userAnchored = true;
+                } else if ("assistant".equalsIgnoreCase(existingMessage.getRole())
+                    && !sameAssistantIdentity(existingMessage, incomingMessage)) {
+                    looselyMatchedAssistant = true;
+                }
+            }
+            if (matches && (!looselyMatchedAssistant || userAnchored)) {
+                return size;
+            }
+        }
+        return 0;
+    }
+
+    private static boolean sameConversationMessage(Conversation.Message first,
+                                                   Conversation.Message second) {
+        if (first == null || second == null || first.getRole() == null || second.getRole() == null
+            || !first.getRole().equalsIgnoreCase(second.getRole())) {
+            return false;
+        }
+        if ("assistant".equalsIgnoreCase(first.getRole())) {
+            return isDuplicateAssistantResult(first, second);
+        }
+        return !normalizedText(first.getContent()).isBlank()
+            && normalizedText(first.getContent()).equals(normalizedText(second.getContent()));
+    }
+
+    private static Conversation.Message preferredEquivalentMessage(Conversation.Message current,
+                                                                    Conversation.Message candidate) {
+        if (current == null) return candidate;
+        if (candidate == null) return current;
+        if ("assistant".equalsIgnoreCase(current.getRole()) && preferAssistantResult(candidate, current)) {
+            preserveCompleteMessageFields(current, candidate);
+            return candidate;
+        }
+        preserveCompleteMessageFields(candidate, current);
+        return current;
+    }
+
+    private static void preserveCompleteMessageFields(Conversation.Message previous,
+                                                      Conversation.Message incoming) {
+        if (isTruncatedText(incoming.getContent()) && !isTruncatedText(previous.getContent())) {
+            incoming.setContent(previous.getContent());
+        }
+        preserveCompleteMap(previous.getVisualizationSpec(), incoming.getVisualizationSpec(), incoming::setVisualizationSpec);
+        preserveCompleteMap(previous.getUiResponse(), incoming.getUiResponse(), incoming::setUiResponse);
+        preserveCompleteMap(previous.getAnalysisSelection(), incoming.getAnalysisSelection(), incoming::setAnalysisSelection);
+        preserveCompleteList(previous.getSources(), incoming.getSources(), incoming::setSources);
+        preserveCompleteList(previous.getTraces(), incoming.getTraces(), incoming::setTraces);
+        preserveCompleteList(previous.getSteps(), incoming.getSteps(), incoming::setSteps);
+        preserveCompleteList(previous.getEvidencePremises(), incoming.getEvidencePremises(), incoming::setEvidencePremises);
     }
 
     private static boolean isTruncatedText(String value) {
@@ -500,13 +568,34 @@ public class ConversationService {
             Conversation.Message previous = collapsed.isEmpty() ? null : collapsed.get(collapsed.size() - 1);
             if (!isDuplicateAssistantResult(previous, message)) {
                 collapsed.add(message);
-                continue;
-            }
-            if (preferAssistantResult(message, previous)) {
+            } else if (preferAssistantResult(message, previous)) {
                 collapsed.set(collapsed.size() - 1, message);
             }
+            collapseRepeatedTrailingTurn(collapsed);
         }
         return List.copyOf(collapsed);
+    }
+
+    private static void collapseRepeatedTrailingTurn(List<Conversation.Message> messages) {
+        int size = messages.size();
+        if (size < 4) {
+            return;
+        }
+        Conversation.Message firstUser = messages.get(size - 4);
+        Conversation.Message firstAssistant = messages.get(size - 3);
+        Conversation.Message secondUser = messages.get(size - 2);
+        Conversation.Message secondAssistant = messages.get(size - 1);
+        if (!"user".equalsIgnoreCase(firstUser == null ? null : firstUser.getRole())
+            || !"assistant".equalsIgnoreCase(firstAssistant == null ? null : firstAssistant.getRole())
+            || !sameConversationMessage(firstUser, secondUser)
+            || !isDuplicateAssistantResult(firstAssistant, secondAssistant)) {
+            return;
+        }
+        Conversation.Message preferred = preferAssistantResult(secondAssistant, firstAssistant)
+            ? secondAssistant : firstAssistant;
+        messages.set(size - 3, preferred);
+        messages.remove(size - 1);
+        messages.remove(size - 2);
     }
 
     private static boolean isDuplicateAssistantResult(Conversation.Message first,
@@ -542,6 +631,13 @@ public class ConversationService {
         return hasTaskId(first)
             && hasTaskId(second)
             && first.getTaskId().trim().equals(second.getTaskId().trim());
+    }
+
+    private static boolean sameAssistantIdentity(Conversation.Message first,
+                                                 Conversation.Message second) {
+        return normalizedAnswer(first).equals(normalizedAnswer(second))
+            || sameTaskId(first, second)
+            || sameRawContent(first, second);
     }
 
     private static boolean sameRawContent(Conversation.Message first, Conversation.Message second) {

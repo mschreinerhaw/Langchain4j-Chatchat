@@ -325,7 +325,9 @@ public class DataQueryController {
         conversationService.mergeMessages(tenantId, conversationId, userId, toConversationMessages(messages));
         List<HistoryItem> history = loadPersistentHistory(tenantId, userId, null, null, 30);
         long now = System.currentTimeMillis();
-        replaceCurrentHistorySnapshot(history, new HistoryItem(
+        HistoryItem persisted = conversationService.getConversation(tenantId, conversationId)
+            .map(this::toHistoryItem)
+            .orElse(new HistoryItem(
             conversationId,
             request.getQuestion(),
             now,
@@ -339,6 +341,7 @@ public class DataQueryController {
             status,
             historyCreatedAt(history, conversationId, now)
         ));
+        replaceCurrentHistorySnapshot(history, persisted);
         return ApiResponse.success(history, "History updated");
     }
 
@@ -376,7 +379,9 @@ public class DataQueryController {
         }
         List<HistoryItem> history = loadPersistentHistory(resolvedTenantId, userId, null, null, 30);
         if (request != null && request.getMessages() != null) {
-            replaceCurrentHistorySnapshot(history, new HistoryItem(
+            HistoryItem persisted = conversationService.getConversation(resolvedTenantId, conversationId)
+                .map(this::toHistoryItem)
+                .orElse(new HistoryItem(
                 conversationId,
                 conversation.getTitle(),
                 System.currentTimeMillis(),
@@ -390,6 +395,7 @@ public class DataQueryController {
                 status,
                 toEpochMillis(conversation.getCreatedAt())
             ));
+            replaceCurrentHistorySnapshot(history, persisted);
         }
         return ApiResponse.success(history, "History status updated");
     }

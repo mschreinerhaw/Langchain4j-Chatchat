@@ -133,6 +133,42 @@ class ConversationServiceResultDeduplicationTest {
     }
 
     @Test
+    void collapsesRepeatedTurnCopiesSeparatedByDuplicateUserMessage() {
+        Conversation.Message memoryUser = message("user-memory", "user", "Analyze the log");
+        Conversation.Message memoryAnswer = message("assistant-memory", "assistant", "Connection timed out");
+        Conversation.Message clientUser = message("user-client", "user", "Analyze the log");
+        Conversation.Message runtimeAnswer = Conversation.Message.builder()
+            .id("assistant-runtime")
+            .role("assistant")
+            .content("Connection timed out")
+            .steps(List.of(Map.of("type", "TOOL_RESULT")))
+            .taskId("task-1")
+            .build();
+
+        assertThat(ConversationService.collapseDuplicateAssistantResults(
+            List.of(memoryUser, memoryAnswer, clientUser, runtimeAnswer)))
+            .containsExactly(memoryUser, runtimeAnswer);
+    }
+
+    @Test
+    void mergeReconcilesMemoryAndClientCopiesOfTheSameTurnWithDifferentIds() {
+        Conversation.Message memoryUser = message("user-memory", "user", "Analyze the log");
+        Conversation.Message memoryAnswer = message("assistant-memory", "assistant", "Connection timed out");
+        Conversation.Message clientUser = message("user-client", "user", "Analyze the log");
+        Conversation.Message runtimeAnswer = Conversation.Message.builder()
+            .id("assistant-runtime")
+            .role("assistant")
+            .content("Connection timed out")
+            .steps(List.of(Map.of("type", "TOOL_RESULT")))
+            .taskId("task-1")
+            .build();
+
+        assertThat(ConversationService.mergeMessageSnapshots(
+            List.of(memoryUser, memoryAnswer), List.of(clientUser, runtimeAnswer)))
+            .containsExactly(memoryUser, runtimeAnswer);
+    }
+
+    @Test
     void collapsesCopiesWhoseUiAnswersDifferButRawContentMatches() {
         Conversation.Message artifactCopy = Conversation.Message.builder()
             .id("assistant-artifact")

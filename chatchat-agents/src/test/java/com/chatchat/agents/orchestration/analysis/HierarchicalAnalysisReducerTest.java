@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -113,6 +114,24 @@ class HierarchicalAnalysisReducerTest {
         assertThat(driverModelCalls).hasValue(0);
         assertThat(result.datasetSummaries()).containsExactly(workerResult);
         assertThat(result.finalInputs()).containsExactly(workerResult);
+    }
+
+    @Test
+    void workerDatasetReductionCarriesTheCompleteOriginalUserQuestionAndMetadata() {
+        String originalQuestion = "请结合全部持仓记录分析客户风险偏好，并说明结论依据。";
+        AtomicReference<String> reductionPrompt = new AtomicReference<>();
+        AnalysisSummaryResult first = chunk("assets", "first partition");
+        AnalysisSummaryResult second = chunk("assets", "second partition");
+
+        AnalysisSummaryResult result = new HierarchicalAnalysisReducer().reduceDataset(prompt -> {
+            reductionPrompt.set(prompt);
+            return "dataset result grounded in both partitions";
+        }, scope, "assets", List.of(first, second), originalQuestion);
+
+        assertThat(result.scope()).isEqualTo("DATASET_SYNTHESIS");
+        assertThat(reductionPrompt.get())
+            .contains("Original user question (authoritative analysis intent): " + originalQuestion)
+            .contains("analysisContext", "assets", "first partition", "second partition");
     }
 
     private DatasetRelationshipPlan.Dataset dataset(String reference, Object relationships) {

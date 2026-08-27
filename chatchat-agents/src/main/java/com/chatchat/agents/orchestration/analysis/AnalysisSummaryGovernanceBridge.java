@@ -166,7 +166,8 @@ public final class AnalysisSummaryGovernanceBridge
             + "that cannot be resolved inside this chunk requires the final synthesizer to reread the raw chunk. "
             + "Lead with findings, not row counts or metadata. Prioritize objective-relevant findings and distinguish observed facts from inference. "
             + "If this chunk does not support the objective, return an empty facts array and explain why briefly.\n"
-            + "User analysis objective: " + safeObjective(userObjective) + "\n"
+            + "Original user question (authoritative analysis intent): "
+            + safeObjective(userObjective) + "\n"
             + "Analysis summary bridge position: " + ModelProtocolJson.compact(position.toMap()) + "\n"
             + "Governed analysis context: " + ModelProtocolJson.compact(governedContext) + "\n"
             + "Returned records: " + ModelProtocolJson.compact(records);
@@ -189,10 +190,10 @@ public final class AnalysisSummaryGovernanceBridge
 
     private String safeObjective(String value) {
         if (value == null || value.isBlank()) {
-            return "Summarize the material evidence supported by the returned records.";
+            throw new IllegalArgumentException(
+                "original user question is required for worker chunk analysis");
         }
-        String normalized = value.replaceAll("\\s+", " ").trim();
-        return normalized.length() <= 2_000 ? normalized : normalized.substring(0, 2_000);
+        return value;
     }
 
     public AnalysisSummaryResult preserve(GovernanceIsolationScope isolationScope,

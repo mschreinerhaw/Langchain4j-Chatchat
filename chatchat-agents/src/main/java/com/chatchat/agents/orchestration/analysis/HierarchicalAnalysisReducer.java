@@ -92,10 +92,11 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         if (chunks == null || chunks.isEmpty()) {
             throw new IllegalArgumentException("dataset chunks are required");
         }
+        String originalUserQuestion = requiredQuestion(objective);
         AnalysisSummaryResult first = chunks.get(0);
         boolean requiresModelReduce = chunks.size() > 1;
         String content = requiresModelReduce
-            ? synthesize(model, "DATASET_SYNTHESIS", objective, chunks, Map.of(
+            ? synthesize(model, "DATASET_SYNTHESIS", originalUserQuestion, chunks, Map.of(
                 "datasetReference", dataset,
                 "analysisContext", first.analysisContext(),
                 "rule", "Merge only chunks of this dataset; preserve conflicts and limitations."))
@@ -177,7 +178,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         String prompt = "You are performing a governed hierarchical analysis reduction ("
             + SCHEMA_VERSION + ").\n"
             + "Reduction scope: " + scope + "\n"
-            + "User objective: " + safe(objective) + "\n"
+            + "Original user question (authoritative analysis intent): "
+            + requiredQuestion(objective) + "\n"
             + "Reduction context: " + ModelProtocolJson.compact(reduceContext) + "\n"
             + "Upstream summaries: " + ModelProtocolJson.compact(projections) + "\n"
             + "Produce a concise business analysis. Preserve material values, conflicts, limitations, dataset identity, "
@@ -225,6 +227,13 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         if (value == null || value.isBlank()) return "Summarize the material returned evidence.";
         String normalized = value.replaceAll("\\s+", " ").trim();
         return normalized.length() <= 2_000 ? normalized : normalized.substring(0, 2_000);
+    }
+
+    private String requiredQuestion(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("original user question is required for analysis reduction");
+        }
+        return value;
     }
 
     public record Result(

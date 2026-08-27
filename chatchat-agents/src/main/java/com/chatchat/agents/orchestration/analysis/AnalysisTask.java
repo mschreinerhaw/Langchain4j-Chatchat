@@ -46,7 +46,7 @@ public record AnalysisTask(
         if (records.isEmpty() && evidenceLocator.isEmpty()) {
             throw new IllegalArgumentException("records or evidenceLocator is required");
         }
-        userObjective = userObjective == null ? "" : userObjective;
+        userObjective = required(userObjective, "originalUserQuestion");
         maximumChunkRows = Math.max(1, maximumChunkRows);
         maximumChunkChars = Math.max(1_000, maximumChunkChars);
         spillThresholdBytes = Math.max(1_000, spillThresholdBytes);
@@ -74,6 +74,7 @@ public record AnalysisTask(
         value.put("evidenceLocator", evidenceLocator);
         value.put("records", records);
         value.put("userObjective", userObjective);
+        value.put("originalUserQuestion", originalUserQuestion());
         value.put("maximumChunkRows", maximumChunkRows);
         value.put("maximumChunkChars", maximumChunkChars);
         value.put("spillThresholdBytes", spillThresholdBytes);
@@ -91,6 +92,11 @@ public record AnalysisTask(
 
     public int maximumAttempts() {
         return maximumRetries + 1;
+    }
+
+    /** Authoritative, unmodified user intent carried from Driver to every Worker stage. */
+    public String originalUserQuestion() {
+        return userObjective;
     }
 
     private static Map<String, Object> immutable(Map<String, Object> source) {

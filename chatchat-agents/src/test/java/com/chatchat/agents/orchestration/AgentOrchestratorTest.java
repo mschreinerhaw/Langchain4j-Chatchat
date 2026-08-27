@@ -1622,8 +1622,10 @@ class AgentOrchestratorTest {
         assertThat(metadata)
             .containsEntry("recordAnalysisEvidenceTraceComplete", true)
             .containsEntry("recordAnalysisRawReplayChunkCount", coverage.iterations());
-        verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
-            prompt.contains("User analysis objective: analyze linux output")
+        // Every chunk call plus the Worker-owned dataset reduction must carry the same
+        // authoritative user question and semantic context.
+        verify(model, times(coverage.iterations() + 1)).chat(argThat((String prompt) ->
+            prompt.contains("Original user question (authoritative analysis intent): analyze linux output")
                 && prompt.contains("Assess current runtime metrics")
                 && prompt.contains("Collect runtime metric values")
                 && prompt.contains("$.data.stdout")));

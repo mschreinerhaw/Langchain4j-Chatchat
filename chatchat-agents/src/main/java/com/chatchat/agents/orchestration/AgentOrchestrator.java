@@ -4085,7 +4085,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 spilledByteCount += spillReference.byteLength();
             }
             String checkpointInputSha256 = summaryCheckpointInputSha256(
-                contentSha256, position, task.analysisContext(), task.userObjective(),
+                contentSha256, position, task.analysisContext(), task.originalUserQuestion(),
                 modelSummaryRequired);
             String checkpointKey = task.datasetReference() + "#chunk-" + (chunkOffset + 1);
             AnalysisSummaryResult summary = null;
@@ -4117,7 +4117,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                                 position.chunkCount(), attempt, task.maximumAttempts(),
                                 failure.getMessage())),
                         task.isolationScope(), position,
-                        task.analysisContext(), chunk, task.userObjective())
+                        task.analysisContext(), chunk, task.originalUserQuestion())
                     : analysisSummaryGovernanceBridge.preserve(
                         task.isolationScope(), position, task.analysisContext(), chunk);
                 if (spillReference != null
@@ -4152,7 +4152,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             "schemaVersion", HierarchicalAnalysisReducer.SCHEMA_VERSION,
             "datasetReference", task.datasetReference(),
             "analysisContext", task.analysisContext(),
-            "userObjective", task.userObjective(),
+            "originalUserQuestion", task.originalUserQuestion(),
             "chunkSummaries", chunkSummaries.stream()
                 .map(this::datasetReductionCheckpointProjection).toList()
         ));
@@ -4181,7 +4181,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
                         task.datasetReference(), attempt, task.maximumAttempts(),
                         failure.getMessage())),
                 task.isolationScope(), task.datasetReference(), chunkSummaries,
-                task.userObjective());
+                task.originalUserQuestion());
             if (datasetReductionCheckpointEligible
                 && !datasetSummary.outcome().contains("FALLBACK")) {
                 persistAnalysisSummaryCheckpoint(task.isolationScope(),

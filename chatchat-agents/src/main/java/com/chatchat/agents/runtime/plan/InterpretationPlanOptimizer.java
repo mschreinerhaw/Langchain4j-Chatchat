@@ -1,7 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.runtime.plan.transformation.BuiltInInterpretationPlanPasses;
 import com.chatchat.agents.runtime.plan.transformation.BuiltInPlanPassOperations;
 import com.chatchat.agents.runtime.plan.transformation.InterpretationPlanTransformationPipeline;

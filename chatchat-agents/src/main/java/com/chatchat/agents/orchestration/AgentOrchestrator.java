@@ -32,7 +32,7 @@ import com.chatchat.agents.orchestration.planning.InterpretationPlanWorkflowGuar
 import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedContextParameterBridge;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
-import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;

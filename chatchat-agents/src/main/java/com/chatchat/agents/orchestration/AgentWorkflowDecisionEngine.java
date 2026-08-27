@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration;
 
-import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.orchestration.workflow.AgentWorkflowConfigurationException;
 
 import com.chatchat.agents.protocol.McpToolProtocolRole;

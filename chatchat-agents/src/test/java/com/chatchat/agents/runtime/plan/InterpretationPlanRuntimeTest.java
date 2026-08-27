@@ -11,6 +11,7 @@ import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolOutput;
@@ -8837,7 +8838,18 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("purpose", "tenant_snapshot_health");
         assertThat(calls).allSatisfy(call -> assertThat(call.get("arguments"))
             .isInstanceOfSatisfying(Map.class, arguments ->
-                assertThat(arguments).containsEntry("parameters", Map.of())));
+                assertThat(arguments)
+                    .containsEntry("parameters", Map.of())
+                    .containsKey(McpTemplateBindingEvidence.CONTEXT_KEY)));
+        assertThat(calls).allSatisfy(call -> {
+            Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+            Map<String, Object> binding = (Map<String, Object>) arguments.get(
+                McpTemplateBindingEvidence.CONTEXT_KEY);
+            assertThat(binding)
+                .containsEntry("templateId", arguments.get("templateId"))
+                .containsEntry("executorTool", executionTool)
+                .containsEntry("source", "reviewed_template_discovery_batch");
+        });
     }
 
     @Test

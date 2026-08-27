@@ -1,18 +1,16 @@
-package com.chatchat.agents.orchestration.retrieval;
+package com.chatchat.agents.tool;
 
-import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.mcp.capability.McpCapabilityFallbackPolicy;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.mcp.capability.McpCapabilityNodeKind;
-import com.chatchat.common.mcp.capability.McpCapabilityFallbackPolicy;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolMetadata;
-
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Collection;
-import java.util.List;
 
 /** Resolves the common MCP capability tree from the live tool registry. */
 public final class RegistryMcpCapabilityHierarchy implements McpCapabilityHierarchy {

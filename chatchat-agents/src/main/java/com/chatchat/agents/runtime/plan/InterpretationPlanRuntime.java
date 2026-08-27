@@ -1771,6 +1771,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     summarize(resolvedInput));
                 Map<String, Object> stepAttributes = new LinkedHashMap<>(
                     attributesForStep(request, step, completed, resolvedInput, routingDecision));
+                if (batchToolInput(resolvedInput)
+                    && runtimeOwnedTemplateBatch(step, request.plan(), completed)) {
+                    stepAttributes.put("runtimeOwnedTemplateBatch", true);
+                }
                 if (!templatePreflightTerminalRepairs.isEmpty()) {
                     stepAttributes.put("runtimeOwnedTemplatePreflight", true);
                 }
@@ -4351,6 +4355,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
             Map<String, Object> childInput = new LinkedHashMap<>(bridged.executorInput());
             childInput.remove(TemplateInvocationBridge.APPLIED_MARKER);
+            putRuntimeTemplateBinding(
+                childInput,
+                templateId,
+                firstText(childTool, step == null ? null : step.toolName()),
+                "reviewed_template_discovery_batch"
+            );
             call.put("arguments", childInput);
             call.remove("input");
             bridgedCalls.add(call);

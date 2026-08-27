@@ -2,7 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeDto;
-import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;

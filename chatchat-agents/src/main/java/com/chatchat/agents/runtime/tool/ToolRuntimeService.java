@@ -729,6 +729,7 @@ public class ToolRuntimeService {
             return false;
         }
         return result.cardinality().compiledCallCount() > 0
+            && result.summary().success() > 0
             && result.results().size() == result.summary().total();
     }
 
@@ -879,7 +880,9 @@ public class ToolRuntimeService {
                 toolCounters.successCalls.incrementAndGet();
                 rememberWorkflowSuccess(toolName, request, executionPlan, workflowDecision);
             } else {
-                updateCircuitOnFailure(toolName, policy);
+                if (shouldRecordCircuitFailure(output)) {
+                    updateCircuitOnFailure(toolName, policy);
+                }
                 if (isCircuitOpen(toolName, policy)) {
                     output.getMetadata().put("retryable", false);
                     output.getMetadata().put("circuitOpened", true);
@@ -1602,6 +1605,27 @@ public class ToolRuntimeService {
         }
     }
 
+    /** Local policy and contract rejections do not describe remote tool health. */
+    private boolean shouldRecordCircuitFailure(ToolOutput output) {
+        if (output == null) {
+            return true;
+        }
+        Map<String, Object> metadata = output.getMetadata() == null
+            ? Map.of() : output.getMetadata();
+        if (Boolean.FALSE.equals(firstPresent(metadata.get("mcpRetryable"), metadata.get("retryable")))) {
+            return false;
+        }
+        String errorCode = firstText(
+            output.getExceptionType(),
+            stringValue(firstPresent(metadata.get("runtimeErrorCode"), metadata.get("errorCode")))
+        );
+        return errorCode == null
+            || !(errorCode.startsWith("MCP_TEMPLATE_")
+                || errorCode.startsWith("MCP_PARAM_")
+                || errorCode.startsWith("MCP_POLICY_")
+                || errorCode.startsWith("INVALID_TOOL_ARGUMENTS"));
+    }
+
     /**
      * Performs the reset circuit operation.
      *
@@ -2190,6 +2214,28 @@ public class ToolRuntimeService {
             0
         );
         attributes.put("workflowExecutionAttempt", String.valueOf(attempt) + ".batch-" + index);
+        Map<String, Object> childArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        Object rawBinding = childArguments.remove(McpTemplateBindingEvidence.CONTEXT_KEY);
+        if (parent != null && parent.getAttributes() != null
+            && Boolean.TRUE.equals(parent.getAttributes().get("runtimeOwnedTemplateBatch"))) {
+            String childTemplateId = normalizeText(stringValue(firstPresent(
+                childArguments.get("templateId"),
+                childArguments.get("template_id"),
+                childArguments.get("templateCode"),
+                childArguments.get("template_code"),
+                childArguments.get("template")
+            )));
+            McpTemplateBindingEvidence.from(rawBinding)
+                .filter(binding -> binding.authorizes(childTemplateId, toolName))
+                .ifPresent(binding -> {
+                    Map<String, Object> executionPlan = new LinkedHashMap<>(
+                        asMap(attributes.get("executionPlan")));
+                    Map<String, Object> parameters = new LinkedHashMap<>(childArguments);
+                    parameters.put(McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap());
+                    executionPlan.put("parameters", parameters);
+                    attributes.put("executionPlan", executionPlan);
+                });
+        }
         ToolInput parentInput = parent == null ? null : parent.getToolInput();
         return ToolRuntimeRequest.builder()
             .toolName(toolName)
@@ -2203,7 +2249,7 @@ public class ToolRuntimeService {
                 .requestId(parentInput == null ? null : parentInput.getRequestId())
                 .conversationId(parentInput == null ? null : parentInput.getConversationId())
                 .userId(parentInput == null ? null : parentInput.getUserId())
-                .parameters(new LinkedHashMap<>(arguments))
+                .parameters(childArguments)
                 .context(parentInput == null || parentInput.getContext() == null
                     ? new LinkedHashMap<>()
                     : new LinkedHashMap<>(parentInput.getContext()))

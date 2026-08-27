@@ -1,6 +1,6 @@
 package com.chatchat.api.architecture;
 
-import com.chatchat.agents.orchestration.retrieval.RegistryMcpCapabilityHierarchy;
+import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.orchestration.AgentWorkflowDecisionEngine;
 
@@ -69,7 +69,7 @@ class RuntimeOsArchitectureBoundaryTest {
             "chatchat-integration/src/main/java/com/chatchat/integration/mcp/grpc/GrpcBackedMcpRuntimeKernel.java"))
             .contains("implements McpRuntimeKernel", "transport.invoke(call)");
         assertThat(source(
-            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpRuntimeKernelConfiguration.java"))
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/config/McpRuntimeKernelConfiguration.java"))
             .contains("GrpcBackedMcpRuntimeKernel", "chatchat.mcp.grpc.client");
     }
 
@@ -102,7 +102,7 @@ class RuntimeOsArchitectureBoundaryTest {
 
     @Test
     void agentMcpExecutionUsesKernelInsteadOfTransportAdapter() {
-        String runtime = source("chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java");
+        String runtime = source("chatchat-agents/src/main/java/com/chatchat/agents/runtime/tool/ToolRuntimeService.java");
         assertThat(runtime).contains("kernel.execute(new McpServiceCall");
         assertThat(runtime).doesNotContain("McpGatewayClient", "McpToolRegistryBridge");
     }
@@ -155,7 +155,7 @@ class RuntimeOsArchitectureBoundaryTest {
             .contains("String workflowId()", "execute(payload, scope)")
             .doesNotContain("getClass().getName()");
         assertThat(source(
-            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/DefaultAgentRuntime.java"))
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/execution/DefaultAgentRuntime.java"))
             .contains("runExecutor.execute(request, scope)");
     }
 
@@ -173,17 +173,17 @@ class RuntimeOsArchitectureBoundaryTest {
             "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpDynamicCapabilityRoute.java"))
             .contains("implements McpCapabilityRouteContract", "mcp.dynamic-capability-route.v1");
         assertThat(source(
-            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpToolRegistryBridge.java"))
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/routing/McpToolRegistryBridge.java"))
             .contains("McpCapabilityHierarchy.METADATA_KEY", "McpCapabilityNode",
                 "addToolsChangeListener", "drainToolsChangeRefreshes");
         assertThat(source(
-            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/McpGatewayClient.java"))
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/transport/McpGatewayClient.java"))
             .contains("toolsChangeConsumer", "notifyToolsChanged");
         assertThat(source(
-            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/ConfiguredRemoteMcpServiceProvider.java"))
+            "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/directory/ConfiguredRemoteMcpServiceProvider.java"))
             .contains("McpDynamicCapabilityRoute.METADATA_KEY");
         assertThat(source(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentToolNameResolver.java"))
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/AgentToolNameResolver.java"))
             .contains("capabilityHierarchy.sameNode");
         assertThat(source(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentWorkflowDecisionEngine.java"))

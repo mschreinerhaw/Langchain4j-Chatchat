@@ -131,6 +131,65 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void forwardsDistinctRuntimeOwnedTemplateBindingsForBatchChildren() {
+        String toolName = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("API template execute").categories(List.of("mcp"))
+            .metadata(Map.of(
+                "serviceId", "chatchat-mcp-server",
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of("templateId", Map.of("type", "string")),
+                    "additionalProperties", false),
+                "capabilities", List.of("template_execution", "batch_execution")))
+            .build());
+        McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
+        when(kernel.execute(any())).thenAnswer(invocation -> {
+            McpServiceCall call = invocation.getArgument(0);
+            return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
+                McpServiceResultStatus.SUCCESS, Map.of("status", "ok"), Map.of("status", "ok"),
+                null, null, false, null, Map.of(), 0);
+        });
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setDefaultRetryAttempts(0);
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        service.setMcpRuntimeKernel(kernel);
+        List<String> templateIds = List.of("customer_orders", "customer_assets");
+        List<Map<String, Object>> calls = templateIds.stream().map(templateId -> Map.<String, Object>of(
+            "callId", templateId,
+            "toolName", toolName,
+            "arguments", Map.of(
+                "templateId", templateId,
+                McpTemplateBindingEvidence.CONTEXT_KEY,
+                new McpTemplateBindingEvidence(
+                    McpTemplateBindingEvidence.SCHEMA_VERSION,
+                    "reviewed_template_discovery_batch", templateId, toolName).toMap()
+            )
+        )).toList();
+        try {
+            ToolRuntimeExecution execution = service.execute(batchRequest(
+                calls, false, Map.of("runtimeOwnedTemplateBatch", true)));
+
+            assertThat(execution.output().isSuccess()).isTrue();
+            ArgumentCaptor<McpServiceCall> captor = ArgumentCaptor.forClass(McpServiceCall.class);
+            verify(kernel, times(2)).execute(captor.capture());
+            assertThat(captor.getAllValues()).allSatisfy(call -> {
+                assertThat(call.arguments()).doesNotContainKey(McpTemplateBindingEvidence.CONTEXT_KEY);
+                String templateId = String.valueOf(call.arguments().get("templateId"));
+                assertThat(call.context().get(McpTemplateBindingEvidence.CONTEXT_KEY))
+                    .isInstanceOfSatisfying(Map.class, binding ->
+                        assertThat(binding)
+                            .containsEntry("templateId", templateId)
+                            .containsEntry("executorTool", toolName));
+            });
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void rejectsExecutionWhenPublishedRegistryRevisionChangedMidWorkflow() {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getRevision()).thenReturn(12L);
@@ -679,8 +738,10 @@ class ToolRuntimeServiceTest {
         ToolOutput rejection = ToolOutput.failure("contract preflight failed");
         rejection.setMetadata(new java.util.LinkedHashMap<>(Map.of("mcpRetryable", false)));
         when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(rejection);
+        ToolRuntimeProperties runtimeProperties = new ToolRuntimeProperties();
+        runtimeProperties.setCircuitBreakerFailureThreshold(1);
         ToolRuntimeService service = new ToolRuntimeService(
-            toolRegistry, new ObjectMapper(), new ToolRuntimeProperties(), List.of(), List.of());
+            toolRegistry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
 
         ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
             .toolName("mcp_contract_tool")
@@ -693,7 +754,17 @@ class ToolRuntimeServiceTest {
 
         assertThat(execution.output().isSuccess()).isFalse();
         assertThat(execution.output().getMetadata()).containsEntry("toolCallAttempt", 1);
-        verify(toolRegistry, times(1)).executeEnhancedTool(any(), any());
+        ToolRuntimeExecution second = service.execute(ToolRuntimeRequest.builder()
+            .toolName("mcp_contract_tool")
+            .runtimeMode("interpretation_plan")
+            .requestId("req-contract-rejection-2")
+            .userId("user-1")
+            .allowedTools(List.of("mcp_contract_tool"))
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .build());
+        assertThat(second.outcome()).isEqualTo("failed");
+        assertThat(service.snapshot().openCircuits()).isZero();
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
     }
 
     @Test
@@ -1886,6 +1957,36 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void allFailedBatchCannotReportSuccessfulOuterExecution() {
+        String toolName = "api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(registry.executeEnhancedTool(any(), any()))
+            .thenReturn(ToolOutput.failure("local contract rejection"));
+        ToolRuntimeProperties runtimeProperties = properties();
+        runtimeProperties.setDefaultRetryAttempts(0);
+        runtimeProperties.setCircuitBreakerFailureThreshold(10);
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(batchRequest(List.of(
+                batchCall("orders", toolName, "ORDERS"),
+                batchCall("assets", toolName, "ASSETS")
+            ), false, Map.of()));
+            ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+
+            assertThat(result.status()).isEqualTo("FAILED");
+            assertThat(result.summary().success()).isZero();
+            assertThat(result.summary().failed()).isEqualTo(2);
+            assertThat(execution.output().isSuccess()).isFalse();
+            assertThat(execution.output().getExceptionType()).isEqualTo("FAILED");
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void qpsLimitIsSharedWithinTenantButIsolatedAcrossTenants() {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata("shared_tool")).thenReturn(ToolMetadata.builder()
@@ -2303,7 +2404,8 @@ class ToolRuntimeServiceTest {
         ToolRuntimeExecution execution = service.execute(batchRequest(calls, true, Map.of()));
         ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
 
-        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.output().getExceptionType()).isEqualTo("FAILED");
         assertThat(result.status()).isEqualTo("FAILED");
         assertThat(result.summary().failed()).isEqualTo(3);
         assertThat(result.summary().skipped()).isZero();

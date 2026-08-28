@@ -80,6 +80,7 @@ class DatasourceConfigurationSeparationTest {
         assertThat(propertyDefaultValue(value(sources, "spring.datasource.url"))).startsWith(jdbcPrefix);
         assertThat(value(sources, "spring.datasource.driver-class-name")).isNotNull();
         assertThat(value(sources, "spring.jpa.database-platform")).isEqualTo(dialect);
+        assertThat(value(sources, "spring.jpa.open-in-view")).isEqualTo(false);
     }
 
     private String propertyDefaultValue(Object rawValue) {

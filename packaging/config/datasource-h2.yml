@@ -20,6 +20,7 @@ spring:
       settings:
         web-allow-others: false
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: false

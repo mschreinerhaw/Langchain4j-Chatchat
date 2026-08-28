@@ -4,9 +4,6 @@ import com.chatchat.agents.orchestration.AgentOrchestrator;
 
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgressListener;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskWorker;
 import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.answer.AnswerDecisionEngine;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
@@ -40,6 +37,9 @@ import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.tool.DefaultToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.ModelSummaryProgressListener;
+import com.chatchat.common.runtime.summary.ModelSummaryWorker;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolInput;
@@ -296,8 +296,8 @@ class AgentOrchestratorTest {
                 "DRIVER_RESULT_COLLECTED");
         assertThat(progress)
             .allSatisfy(observation -> assertThat(observation.metadata())
-                .containsEntry("datasetReference", "visible_dataset")
-                .containsKeys("datasetIndex", "datasetCount"));
+                .containsEntry("workReference", "visible_dataset")
+                .containsKeys("workIndex", "workCount"));
         assertThat(progress).anySatisfy(observation -> assertThat(observation.metadata())
             .containsEntry("stage", "CHUNK_STARTED")
             .containsKeys("chunkIndex", "chunkCount", "recordFrom", "recordTo"));
@@ -336,29 +336,18 @@ class AgentOrchestratorTest {
             new DefaultAgentObservationPipeline(), new DefaultAgentAnswerReviewer(mapper),
             null, properties);
         LocalAnalysisTaskDispatcher delegate = new LocalAnalysisTaskDispatcher(2);
-        orchestrator.setAnalysisTaskDispatcher(new AnalysisTaskDispatcher() {
+        orchestrator.setModelSummaryDispatcher(new ModelSummaryDispatcher<
+            com.chatchat.agents.orchestration.analysis.AnalysisTask,
+            com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary,
+            com.chatchat.agents.orchestration.analysis.AnalysisTaskResult>() {
             @Override
-            public DispatchBatch dispatch(
+            public DispatchBatch<com.chatchat.agents.orchestration.analysis.AnalysisTaskResult> dispatch(
                 List<com.chatchat.agents.orchestration.analysis.AnalysisTask> tasks,
-                com.chatchat.common.runtime.summary.ModelSummaryWorker<
+                ModelSummaryWorker<
                     com.chatchat.agents.orchestration.analysis.AnalysisTask,
                     com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary> worker,
-                BooleanSupplier cancellationCheck
-            ) {
-                return delegate.dispatch(tasks, task -> {
-                    if ("failed_dataset".equals(task.datasetReference())) {
-                        throw new IllegalStateException("isolated worker failure");
-                    }
-                    return worker.execute(task);
-                }, cancellationCheck);
-            }
-
-            @Override
-            public DispatchBatch dispatch(
-                List<com.chatchat.agents.orchestration.analysis.AnalysisTask> tasks,
-                AnalysisTaskWorker worker,
                 BooleanSupplier cancellationCheck,
-                AnalysisTaskProgressListener progressListener
+                ModelSummaryProgressListener progressListener
             ) {
                 return delegate.dispatch(tasks, (task, reporter) -> {
                     if ("failed_dataset".equals(task.datasetReference())) {

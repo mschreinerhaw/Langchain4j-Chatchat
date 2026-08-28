@@ -1,5 +1,9 @@
 package com.chatchat.agents.orchestration.analysis;
 
+import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.ModelSummaryProgressListener;
+import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
 import com.chatchat.common.runtime.summary.ModelSummaryWorker;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,7 +24,8 @@ import java.util.function.BooleanSupplier;
 
 /** In-process bounded worker implementation of the analysis task dispatcher port. */
 @Slf4j
-public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher {
+public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher<
+    AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult> {
 
     private final int maximumWorkers;
     private final long heartbeatIntervalMs;
@@ -35,22 +40,11 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
     }
 
     @Override
-    public DispatchBatch dispatch(
+    public ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatch(
         List<AnalysisTask> tasks,
         ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker,
-        BooleanSupplier cancellationCheck
-    ) {
-        return dispatch(tasks,
-            (task, progressReporter) -> worker.execute(task), cancellationCheck,
-            AnalysisTaskProgressListener.NOOP);
-    }
-
-    @Override
-    public DispatchBatch dispatch(
-        List<AnalysisTask> tasks,
-        AnalysisTaskWorker worker,
         BooleanSupplier cancellationCheck,
-        AnalysisTaskProgressListener progressListener
+        ModelSummaryProgressListener progressListener
     ) {
         List<AnalysisTask> safeTasks = tasks == null ? List.of() : List.copyOf(tasks);
         if (safeTasks.isEmpty()) {
@@ -77,14 +71,14 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
 
     private AnalysisTaskResult execute(
         AnalysisTask task,
-        AnalysisTaskWorker worker,
-        AnalysisTaskProgressListener progressListener
+        ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker,
+        ModelSummaryProgressListener progressListener
     ) {
         String workerId = Thread.currentThread().getName();
         long startedAt = System.nanoTime();
-        AnalysisTaskProgressListener listener = progressListener == null
-            ? AnalysisTaskProgressListener.NOOP : progressListener;
-        AnalysisTaskProgressReporter reporter = (stage, details) -> {
+        ModelSummaryProgressListener listener = progressListener == null
+            ? ModelSummaryProgressListener.NOOP : progressListener;
+        ModelSummaryProgressReporter reporter = (stage, details) -> {
             try {
                 listener.onProgress(progress(task, workerId, stage, details));
             } catch (RuntimeException telemetryFailure) {
@@ -136,15 +130,15 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
         }
     }
 
-    private AnalysisTaskProgress progress(
+    private ModelSummaryProgress progress(
         AnalysisTask task,
         String workerId,
         String stage,
         Map<String, Object> details
     ) {
-        return new AnalysisTaskProgress(AnalysisTaskProgress.SCHEMA_VERSION, stage,
+        return new ModelSummaryProgress(ModelSummaryProgress.SCHEMA_VERSION, stage,
             task.taskId(), task.datasetReference(), task.datasetIndex(), task.datasetCount(),
-            workerId, details);
+            workerId, System.currentTimeMillis(), details);
     }
 
     private long elapsedMillis(long startedAt) {
@@ -156,11 +150,13 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
         Future<AnalysisTaskResult> future
     ) { }
 
-    private static final class LocalDispatchBatch implements DispatchBatch {
+    private static final class LocalDispatchBatch
+        implements ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> {
         private final ExecutorService executor;
         private final Map<String, SubmittedTask> tasks;
         private final BooleanSupplier cancellationCheck;
         private final int workerCount;
+        private volatile boolean closed;
 
         private LocalDispatchBatch(
             ExecutorService executor,
@@ -228,7 +224,19 @@ public final class LocalAnalysisTaskDispatcher implements AnalysisTaskDispatcher
         }
 
         @Override
+        public boolean cancel(String taskId) {
+            SubmittedTask submitted = tasks.get(taskId);
+            return submitted != null && submitted.future().cancel(true);
+        }
+
+        @Override
+        public boolean closed() {
+            return closed;
+        }
+
+        @Override
         public void close() {
+            closed = true;
             if (executor == null) {
                 return;
             }

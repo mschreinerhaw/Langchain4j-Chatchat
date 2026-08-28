@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ModelSummaryContractTest {
 
@@ -17,6 +19,21 @@ class ModelSummaryContractTest {
         assertThat(RuntimeProtocolPort.class).isAssignableFrom(ModelSummaryDispatcher.class);
         assertThat(RuntimeProtocolPort.class).isAssignableFrom(ModelSummaryReducer.class);
         assertThat(ModelSummaryWorker.class.isAnnotationPresent(FunctionalInterface.class)).isTrue();
+    }
+
+    @Test
+    void progressEnvelopeProtectsControlFieldsAndIsImmutable() {
+        ModelSummaryProgress progress = new ModelSummaryProgress(null, "WORKER_CLAIMED",
+            "task-1", "dataset-1", 1, 2, "worker-1", 42L,
+            Map.of("stage", "FORGED", "taskId", "forged-task", "custom", "value"));
+
+        assertThat(progress.toMap())
+            .containsEntry("schemaVersion", ModelSummaryProgress.SCHEMA_VERSION)
+            .containsEntry("stage", "WORKER_CLAIMED")
+            .containsEntry("taskId", "task-1")
+            .containsEntry("custom", "value");
+        assertThatThrownBy(() -> progress.toMap().put("stage", "MUTATED"))
+            .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

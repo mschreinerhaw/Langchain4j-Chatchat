@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration.analysis;
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.ModelSummaryProgress;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,6 +16,18 @@ import static org.mockito.Mockito.when;
 class LocalAnalysisTaskDispatcherTest {
 
     @Test
+    void exposesBatchCancellationAndLifecycleThroughTheCommonPort() {
+        LocalAnalysisTaskDispatcher dispatcher = new LocalAnalysisTaskDispatcher(1);
+        ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> batch = dispatcher.dispatch(
+            List.of(), (task, reporter) -> null, () -> false, progress -> { });
+
+        assertThat(batch.closed()).isFalse();
+        assertThat(batch.cancel("missing-task")).isFalse();
+        batch.close();
+        assertThat(batch.closed()).isTrue();
+    }
+
+    @Test
     void keepsWaitingPastTheHeartbeatLeaseWhileTheWorkerContinuesHeartbeating() {
         GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
             "tenant-1", "run-1", "request-1", "conversation-1", "user-1");
@@ -24,9 +38,9 @@ class LocalAnalysisTaskDispatcherTest {
         when(fastSummary.outcome()).thenReturn("SUCCESS");
         when(fastSummary.chunks()).thenReturn(List.of());
         LocalAnalysisTaskDispatcher dispatcher = new LocalAnalysisTaskDispatcher(2, 250L);
-        List<AnalysisTaskProgress> progress = new CopyOnWriteArrayList<>();
+        List<ModelSummaryProgress> progress = new CopyOnWriteArrayList<>();
 
-        try (AnalysisTaskDispatcher.DispatchBatch batch = dispatcher.dispatch(
+        try (ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> batch = dispatcher.dispatch(
             List.of(slow, fast),
             (task, reporter) -> {
                 if ("slow".equals(task.datasetReference())) {
@@ -48,8 +62,8 @@ class LocalAnalysisTaskDispatcherTest {
             assertThat(fastResult.status()).isEqualTo("SUCCESS");
             assertThat(fastResult.summary()).isSameAs(fastSummary);
             assertThat(progress).anySatisfy(event -> assertThat(event)
-                .extracting(AnalysisTaskProgress::stage,
-                    AnalysisTaskProgress::datasetReference)
+                .extracting(ModelSummaryProgress::stage,
+                    ModelSummaryProgress::workReference)
                 .containsExactly("WORKER_HEARTBEAT", "slow"));
         }
     }

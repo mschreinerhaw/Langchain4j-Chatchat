@@ -9,9 +9,6 @@ import com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgress;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgressReporter;
 import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisWorkerRetryPolicy;
 import com.chatchat.agents.orchestration.analysis.ContextCompressionEnvelope;
@@ -80,6 +77,8 @@ import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
 import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
@@ -226,7 +225,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         SemanticInsightContractProvider.disabled();
     private NodeAttemptStore nodeAttemptStore;
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
-    private AnalysisTaskDispatcher analysisTaskDispatcher;
+    private ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
+        analysisTaskDispatcher;
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -400,7 +400,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
 
     /** Replaces local workers with a distributed task dispatcher without changing Driver orchestration. */
     @Autowired(required = false)
-    public void setAnalysisTaskDispatcher(AnalysisTaskDispatcher dispatcher) {
+    public void setModelSummaryDispatcher(
+        ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult> dispatcher
+    ) {
         if (dispatcher != null) {
             this.analysisTaskDispatcher = dispatcher;
         }
@@ -549,8 +551,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             (DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope>)
                 (DataAnalysisSummaryProtocol<?, ?>)
                     registry.require(DataAnalysisSummaryProtocol.class);
-        this.analysisTaskDispatcher = (AnalysisTaskDispatcher) (ModelSummaryDispatcher<?, ?, ?>)
-            registry.require(ModelSummaryDispatcher.class);
+        this.analysisTaskDispatcher =
+            (ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>)
+                (ModelSummaryDispatcher<?, ?, ?>) registry.require(ModelSummaryDispatcher.class);
         this.hierarchicalAnalysisReducer =
             (ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
                 HierarchicalAnalysisReducer.Result>) (ModelSummaryReducer<?, ?, ?>)
@@ -3754,9 +3757,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
             AnalysisDatasetSummary datasetSummary = workerOutcome.summary();
             if (!workerOutcome.success()) {
                 Map<String, Object> failedDataset = metadataOf(
-                    "datasetReference", evidenceReference,
-                    "datasetIndex", datasetIndex,
-                    "datasetCount", recordSets.size(),
+                    "workReference", evidenceReference,
+                    "workIndex", datasetIndex,
+                    "workCount", recordSets.size(),
                     "recordCount", recordSet.records().size(),
                     "status", workerOutcome.status(),
                     "workerId", workerOutcome.workerId(),
@@ -3797,9 +3800,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 metadataOf(
                     "type", "analysis_driver_result_collected",
                     "stage", "DRIVER_RESULT_COLLECTED",
-                    "datasetReference", evidenceReference,
-                    "datasetIndex", datasetIndex,
-                    "datasetCount", recordSets.size(),
+                    "workReference", evidenceReference,
+                    "workIndex", datasetIndex,
+                    "workCount", recordSets.size(),
                     "chunkCount", datasetSummary.chunks().size(),
                     "tenantId", isolationScope.tenantId(),
                     "runId", isolationScope.runId()
@@ -4161,7 +4164,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (tasks.isEmpty()) {
             return ParallelAnalysisSummaryBatch.disabled();
         }
-        AnalysisTaskDispatcher.DispatchBatch dispatched = analysisTaskDispatcher.dispatch(
+        ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatched =
+            analysisTaskDispatcher.dispatch(
             tasks,
             (task, progressReporter) -> {
                 runtimeGuard.checkCancelled(cancellationCheck);
@@ -4180,7 +4184,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private AnalysisDatasetSummary analyzeDatasetTask(
         ChatModel activeChatModel,
         AnalysisTask task,
-        AnalysisTaskProgressReporter progressReporter,
+        ModelSummaryProgressReporter progressReporter,
         BooleanSupplier cancellationCheck
     ) {
         RecordChunkPlan chunkPlan = recordChunkPlan(
@@ -4365,7 +4369,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private void recordAnalysisWorkerProgress(
         Map<String, Object> runtimeAttributes,
         GovernanceIsolationScope isolationScope,
-        AnalysisTaskProgress progress
+        ModelSummaryProgress progress
     ) {
         if (progress == null) {
             return;
@@ -4383,9 +4387,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         );
     }
 
-    private String analysisWorkerProgressContent(AnalysisTaskProgress progress) {
-        String position = progress.datasetIndex() + "/" + progress.datasetCount();
-        String dataset = progress.datasetReference();
+    private String analysisWorkerProgressContent(ModelSummaryProgress progress) {
+        String position = progress.workIndex() + "/" + progress.workCount();
+        String dataset = progress.workReference();
         Object chunkIndex = progress.details().get("chunkIndex");
         Object chunkCount = progress.details().get("chunkCount");
         return switch (progress.stage()) {
@@ -5127,12 +5131,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
     }
 
     private static final class ParallelAnalysisSummaryBatch implements AutoCloseable {
-        private final AnalysisTaskDispatcher.DispatchBatch dispatched;
+        private final ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatched;
         private final Map<String, AnalysisTask> tasksById;
         private final Map<String, String> taskIdsByDatasetReference;
 
         private ParallelAnalysisSummaryBatch(
-            AnalysisTaskDispatcher.DispatchBatch dispatched,
+            ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatched,
             List<AnalysisTask> tasks,
             Map<String, String> taskIdsByDatasetReference
         ) {

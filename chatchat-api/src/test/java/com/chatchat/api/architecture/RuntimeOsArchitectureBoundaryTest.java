@@ -57,6 +57,32 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void driverWorkerControlPlaneHasOneTransportNeutralCommonContract() {
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/ModelSummaryDispatcher.java"))
+            .contains("ModelSummaryProgressListener progressListener", "boolean cancel(String taskId)",
+                "boolean closed()")
+            .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/ModelSummaryWorker.java"))
+            .contains("ModelSummaryProgressReporter progressReporter")
+            .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
+        assertThat(source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"))
+            .contains("ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>")
+            .doesNotContain(
+                "import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;",
+                "import com.chatchat.agents.orchestration.analysis.AnalysisTaskProgress;");
+        for (String legacyType : java.util.List.of(
+            "AnalysisTaskDispatcher.java", "AnalysisTaskWorker.java", "AnalysisTaskProgress.java",
+            "AnalysisTaskProgressListener.java", "AnalysisTaskProgressReporter.java")) {
+            assertThat(root().resolve(
+                "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/" + legacyType))
+                .doesNotExist();
+        }
+    }
+
+    @Test
     void mcpRuntimeCoreDoesNotDependOnAgentOrIntegrationImplementations() {
         String pom = source("chatchat-runtime-mcp/pom.xml");
         assertThat(pom).doesNotContain("<artifactId>chatchat-agents</artifactId>",

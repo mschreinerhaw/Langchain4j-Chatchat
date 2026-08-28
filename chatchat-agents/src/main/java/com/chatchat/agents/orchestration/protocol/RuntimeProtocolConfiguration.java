@@ -1,12 +1,12 @@
 package com.chatchat.agents.orchestration.protocol;
 
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
-
 import com.chatchat.agents.runtime.governance.McpEvidenceGovernanceBridge;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.HierarchicalAnalysisReducer;
 import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
@@ -31,7 +31,8 @@ public class RuntimeProtocolConfiguration {
     public RuntimeProtocolRegistry runtimeProtocolRegistry(
         ObjectMapper objectMapper,
         List<RuntimeResultAnalysisAdapter> resultAdapters,
-        AnalysisTaskDispatcher summaryDispatcher,
+        ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
+            summaryDispatcher,
         ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
             HierarchicalAnalysisReducer.Result> summaryReducer
     ) {
@@ -60,8 +61,9 @@ public class RuntimeProtocolConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(AnalysisTaskDispatcher.class)
-    public AnalysisTaskDispatcher analysisTaskDispatcher(AgentRuntimeProperties properties) {
+    @ConditionalOnMissingBean(ModelSummaryDispatcher.class)
+    public ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
+        analysisModelSummaryDispatcher(AgentRuntimeProperties properties) {
         return new LocalAnalysisTaskDispatcher(properties.analysisSummaryWorkerCount());
     }
 

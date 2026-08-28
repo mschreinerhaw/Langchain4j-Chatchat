@@ -493,6 +493,7 @@
     ) engine=InnoDB;
 
     create table mcp_service_config (
+        contract_auto_publish bit not null,
         enabled bit not null,
         proxy_enabled bit not null,
         proxy_port integer,
@@ -519,6 +520,7 @@
     ) engine=InnoDB;
 
     create table mcp_service_config_version (
+        contract_auto_publish bit not null,
         enabled bit not null,
         proxy_enabled bit not null,
         proxy_port integer,

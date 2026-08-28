@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.routing;
 
 import com.chatchat.mcpserver.api.publication.ApiRequirementAnalysisMcpToolPublisher;
+import com.chatchat.mcpserver.routing.protocol.RequirementAnalysisProtocol;
 
 import org.junit.jupiter.api.Test;
 
@@ -90,9 +91,9 @@ class ProductionRequirementAnalysisProtocolE2E {
     void apiAndHttpPublishersAreForcedToUseOneDomainNeutralProtocol() throws IOException {
         Path root = repositoryRoot();
         String protocol = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/routing/RequirementAnalysisProtocol.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/routing/protocol/RequirementAnalysisProtocol.java"));
         String apiPublisher = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/api/ApiRequirementAnalysisMcpToolPublisher.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/api/publication/ApiRequirementAnalysisMcpToolPublisher.java"));
         String httpPublisher = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/ops/discovery/HttpRequirementAnalysisMcpToolPublisher.java"));
 

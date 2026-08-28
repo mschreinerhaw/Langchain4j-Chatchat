@@ -110,7 +110,7 @@ class ProductionReleaseCoverageE2E {
                 "malformedEmptyAndOversizedPlannerPayloadsFailClosed",
                 "apiAndHttpPublishersAreForcedToUseOneDomainNeutralProtocol");
         assertThat(Files.readString(root.resolve(
-            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/api/ProductionApiRequirementAnalysisProtocolE2E.java")))
+            "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/api/publication/ProductionApiRequirementAnalysisProtocolE2E.java")))
             .contains("plannerIntentAliasCrossesNormalizationAndApiDiscovery");
         assertThat(Files.readString(root.resolve(
             "chatchat-e2e-tests/src/test/java/com/chatchat/mcpserver/ops/ProductionHttpRequirementAnalysisProtocolE2E.java")))

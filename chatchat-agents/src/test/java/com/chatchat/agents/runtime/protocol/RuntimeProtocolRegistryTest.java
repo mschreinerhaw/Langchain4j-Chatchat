@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
+import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
 import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,8 +27,8 @@ class RuntimeProtocolRegistryTest {
             .isInstanceOf(RuntimeResultAnalysisProtocol.class);
         assertThat(registry.require(RuntimeAnalysisContextProtocol.class))
             .isInstanceOf(RuntimeAnalysisContextProtocol.class);
-        assertThat(registry.require(RuntimeAnalysisSummaryProtocol.class))
-            .isInstanceOf(RuntimeAnalysisSummaryProtocol.class);
+        assertThat(registry.require(DataAnalysisSummaryProtocol.class))
+            .isInstanceOf(DataAnalysisSummaryProtocol.class);
         assertThat(registry.require(ModelSummaryDispatcher.class))
             .isInstanceOf(ModelSummaryDispatcher.class);
         assertThat(registry.require(ModelSummaryReducer.class))

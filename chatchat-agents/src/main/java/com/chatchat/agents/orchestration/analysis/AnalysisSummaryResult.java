@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration.analysis;
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummary;
+import com.chatchat.common.runtime.summary.DataAnalysisSummary;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 
 import java.util.Collections;
@@ -26,7 +26,7 @@ public record AnalysisSummaryResult(
     List<String> inputSummaryResultIds,
     Map<String, Object> evidence,
     Map<String, Object> governance
-) implements RuntimeAnalysisSummary {
+) implements DataAnalysisSummary {
 
     public static final String SCHEMA_VERSION = "analysis_summary_result.v1";
 

@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime.governance;
 
+import com.chatchat.common.runtime.summary.DataAnalysisIsolationScope;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,7 +17,7 @@ public record GovernanceIsolationScope(
     String requestId,
     String conversationId,
     String authority
-) {
+) implements DataAnalysisIsolationScope {
 
     public static final String SCHEMA_VERSION = "governance_isolation_scope.v1";
     public static final String RUNTIME_AUTHORITY = "RUNTIME_REQUEST_CONTEXT";
@@ -47,6 +49,11 @@ public record GovernanceIsolationScope(
         return other != null
             && tenantId.equals(other.tenantId)
             && runId.equals(other.runId);
+    }
+
+    @Override
+    public boolean samePartition(DataAnalysisIsolationScope other) {
+        return other != null && partitionKey().equals(other.partitionKey());
     }
 
     public void requireSamePartition(GovernanceIsolationScope other) {

@@ -2,8 +2,8 @@ package com.chatchat.agents.orchestration.analysis;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.chatchat.common.runtime.summary.ModelSummaryModel;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -23,12 +23,12 @@ import java.util.Objects;
  * position. It may supplement structural metadata, but never invents business semantics.
  */
 public final class AnalysisSummaryGovernanceBridge
-    implements RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> {
+    implements DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> {
 
     public static final String BRIDGE_SCHEMA_VERSION =
-        RuntimeAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION;
+        DataAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION;
     public static final String EVIDENCE_SCHEMA_VERSION =
-        RuntimeAnalysisSummaryProtocol.EVIDENCE_SCHEMA_VERSION;
+        DataAnalysisSummaryProtocol.EVIDENCE_SCHEMA_VERSION;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -114,19 +114,19 @@ public final class AnalysisSummaryGovernanceBridge
         return immutable(governed);
     }
 
-    public RuntimeAnalysisPosition position(String reference,
+    public DataAnalysisPosition position(String reference,
                                   int chunkIndex,
                                   int chunkCount,
                                   int from,
                                   int to,
                                   int totalRecords) {
-        return new RuntimeAnalysisPosition(safeReference(reference), chunkIndex, chunkCount,
+        return new DataAnalysisPosition(safeReference(reference), chunkIndex, chunkCount,
             from, to, totalRecords);
     }
 
     public AnalysisSummaryResult summarize(ModelSummaryModel model,
                                            GovernanceIsolationScope isolationScope,
-                                           RuntimeAnalysisPosition position,
+                                           DataAnalysisPosition position,
                                            Map<String, Object> governedContext,
                                            List<Map<String, Object>> records) {
         return summarize(model, isolationScope, position, governedContext, records, null);
@@ -134,7 +134,7 @@ public final class AnalysisSummaryGovernanceBridge
 
     public AnalysisSummaryResult summarize(ModelSummaryModel model,
                                            GovernanceIsolationScope isolationScope,
-                                           RuntimeAnalysisPosition position,
+                                           DataAnalysisPosition position,
                                            Map<String, Object> governedContext,
                                            List<Map<String, Object>> records,
                                            String userObjective) {
@@ -197,7 +197,7 @@ public final class AnalysisSummaryGovernanceBridge
     }
 
     public AnalysisSummaryResult preserve(GovernanceIsolationScope isolationScope,
-                                          RuntimeAnalysisPosition position,
+                                          DataAnalysisPosition position,
                                           Map<String, Object> governedContext,
                                           List<Map<String, Object>> records) {
         return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
@@ -206,7 +206,7 @@ public final class AnalysisSummaryGovernanceBridge
     }
 
     public AnalysisSummaryResult fallback(GovernanceIsolationScope isolationScope,
-                                          RuntimeAnalysisPosition position,
+                                          DataAnalysisPosition position,
                                           Map<String, Object> governedContext,
                                           List<Map<String, Object>> records) {
         return AnalysisSummaryResult.chunk(isolationScope, position.toMap(), governedContext,
@@ -266,7 +266,7 @@ public final class AnalysisSummaryGovernanceBridge
     }
 
     private EvidenceCapsule evidenceCapsule(GovernanceIsolationScope isolationScope,
-                                            RuntimeAnalysisPosition position,
+                                            DataAnalysisPosition position,
                                             Map<String, Object> governedContext,
                                             List<Map<String, Object>> records,
                                             String modelOutput) {
@@ -318,7 +318,7 @@ public final class AnalysisSummaryGovernanceBridge
         return new EvidenceCapsule(content, Collections.unmodifiableMap(evidence));
     }
 
-    private LinkedHashSet<Integer> citedRecordIndexes(RuntimeAnalysisPosition position,
+    private LinkedHashSet<Integer> citedRecordIndexes(DataAnalysisPosition position,
                                                        List<Map<String, Object>> facts) {
         LinkedHashSet<Integer> indexes = new LinkedHashSet<>();
         if (facts == null) return indexes;
@@ -338,7 +338,7 @@ public final class AnalysisSummaryGovernanceBridge
     }
 
     private Map<String, Object> rawEvidence(GovernanceIsolationScope isolationScope,
-                                            RuntimeAnalysisPosition position,
+                                            DataAnalysisPosition position,
                                             Map<String, Object> governedContext,
                                             List<Map<String, Object>> records,
                                             boolean structured,
@@ -379,7 +379,7 @@ public final class AnalysisSummaryGovernanceBridge
             .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
     }
 
-    private boolean validRecordReference(RuntimeAnalysisPosition position, String reference) {
+    private boolean validRecordReference(DataAnalysisPosition position, String reference) {
         if (reference == null || reference.isBlank()) return false;
         String prefix = position.datasetReference() + ".records[";
         if (!reference.startsWith(prefix) || !reference.endsWith("]")) return false;
@@ -395,7 +395,7 @@ public final class AnalysisSummaryGovernanceBridge
         }
     }
 
-    private boolean exactValueSupported(RuntimeAnalysisPosition position,
+    private boolean exactValueSupported(DataAnalysisPosition position,
                                         List<Map<String, Object>> records,
                                         List<String> references,
                                         String exactValue) {
@@ -416,7 +416,7 @@ public final class AnalysisSummaryGovernanceBridge
         return false;
     }
 
-    private Integer recordIndex(RuntimeAnalysisPosition position, String reference) {
+    private Integer recordIndex(DataAnalysisPosition position, String reference) {
         String prefix = position.datasetReference() + ".records[";
         if (reference == null || !reference.startsWith(prefix) || !reference.endsWith("]")) return null;
         String value = reference.substring(prefix.length(), reference.length() - 1);

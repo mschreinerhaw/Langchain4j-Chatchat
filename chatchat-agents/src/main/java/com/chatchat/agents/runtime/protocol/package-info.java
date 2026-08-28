@@ -16,8 +16,8 @@
  *       canonical datasets.</li>
  *   <li>{@link com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol} supplies
  *       source-neutral semantic and governance context.</li>
- *   <li>{@link com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol} governs
- *       chunk analysis, preservation, lineage, and final synthesis products.</li>
+ *   <li>{@link com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol} governs chunk
+ *       analysis, preservation, lineage, and final synthesis products from the common layer.</li>
  * </ol>
  *
  * <p>Protocol implementations must not select on business tool names, mutate authoritative

@@ -11,7 +11,6 @@ import com.chatchat.agents.evidence.answer.AnswerAssemblyMode;
 import com.chatchat.agents.protocol.AnswerContract;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.evidence.EvidenceSufficiencyGate;
 import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
@@ -35,7 +34,7 @@ import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.answer.DraftArtifactRuntimePolicy;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -100,7 +99,7 @@ public class AgentAnswerFinalizer {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
-    private RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> analysisSummaryGovernanceBridge =
+    private DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> analysisSummaryGovernanceBridge =
         RuntimeProtocolDefaults.analysisSummary();
     private final AnswerEvidenceLedgerCompiler answerEvidenceLedgerCompiler =
         new AnswerEvidenceLedgerCompiler();
@@ -111,7 +110,7 @@ public class AgentAnswerFinalizer {
     private final AgentRuntimeProperties agentRuntimeProperties;
 
     public void setAnalysisSummaryProtocol(
-        RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> analysisSummaryProtocol
+        DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> analysisSummaryProtocol
     ) {
         if (analysisSummaryProtocol != null) {
             this.analysisSummaryGovernanceBridge = analysisSummaryProtocol;

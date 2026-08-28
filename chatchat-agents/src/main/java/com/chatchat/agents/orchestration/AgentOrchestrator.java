@@ -74,9 +74,9 @@ import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
@@ -205,7 +205,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final long analysisSummaryWorkerHeartbeatTimeoutMs;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
-    private RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult> analysisSummaryGovernanceBridge =
+    private DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> analysisSummaryGovernanceBridge =
         RuntimeProtocolDefaults.analysisSummary();
     private RuntimeResultAnalysisProtocol evidenceGovernanceBridge =
         RuntimeProtocolDefaults.resultAnalysis();
@@ -546,8 +546,9 @@ public class AgentOrchestrator implements AgentRunExecutor {
         this.evidenceGovernanceBridge = registry.require(RuntimeResultAnalysisProtocol.class);
         this.mcpAnalysisContextAdapter = registry.require(RuntimeAnalysisContextProtocol.class);
         this.analysisSummaryGovernanceBridge =
-            (RuntimeAnalysisSummaryProtocol<AnalysisSummaryResult>) (RuntimeAnalysisSummaryProtocol<?>)
-                registry.require(RuntimeAnalysisSummaryProtocol.class);
+            (DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope>)
+                (DataAnalysisSummaryProtocol<?, ?>)
+                    registry.require(DataAnalysisSummaryProtocol.class);
         this.analysisTaskDispatcher = (AnalysisTaskDispatcher) (ModelSummaryDispatcher<?, ?, ?>)
             registry.require(ModelSummaryDispatcher.class);
         this.hierarchicalAnalysisReducer =
@@ -4197,7 +4198,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             List<Map<String, Object>> chunk = List.copyOf(task.records()
                 .subList(range.fromInclusive(), range.toExclusive()));
             int to = from + chunk.size() - 1;
-            RuntimeAnalysisPosition position = analysisSummaryGovernanceBridge.position(
+            DataAnalysisPosition position = analysisSummaryGovernanceBridge.position(
                 task.datasetReference(), chunkOffset + 1, chunkPlan.ranges().size(),
                 from, to, task.records().size());
             progressReporter.report("CHUNK_STARTED", metadataOf(
@@ -4453,7 +4454,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private boolean hasTraceableChunkEvidence(AnalysisSummaryResult summary) {
         if (summary == null || summary.evidence() == null) return false;
         Map<String, Object> evidence = summary.evidence();
-        return RuntimeAnalysisSummaryProtocol.EVIDENCE_SCHEMA_VERSION.equals(evidence.get("schemaVersion"))
+        return DataAnalysisSummaryProtocol.EVIDENCE_SCHEMA_VERSION.equals(evidence.get("schemaVersion"))
             && !firstNonBlank(stringValue(evidence.get("evidenceId")), "").isBlank()
             && !firstNonBlank(stringValue(evidence.get("contentSha256")), "").isBlank()
             && Boolean.TRUE.equals(booleanValue(evidence.get("rawReplayAvailable")));
@@ -4858,12 +4859,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
     }
 
     private String summaryCheckpointInputSha256(String contentSha256,
-                                                RuntimeAnalysisPosition position,
+                                                DataAnalysisPosition position,
                                                 Map<String, Object> governedContext,
                                                 String query,
                                                 boolean modelSummaryRequired) {
         return ModelProtocolJson.sha256Hex(Map.of(
-            "bridgeSchemaVersion", RuntimeAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION,
+            "bridgeSchemaVersion", DataAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION,
             "contentSha256", firstNonBlank(contentSha256, ""),
             "position", position == null ? Map.of() : position.toMap(),
             "governedContext", governedContext == null ? Map.of() : governedContext,

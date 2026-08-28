@@ -33,6 +33,30 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void dataAnalysisSummaryModelAndModelPortLiveInCommon() {
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/DataAnalysisSummary.java"))
+            .contains("interface DataAnalysisSummary extends ModelSummary",
+                "DataAnalysisIsolationScope isolationScope()")
+            .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/DataAnalysisSummaryProtocol.java"))
+            .contains("interface DataAnalysisSummaryProtocol", "extends RuntimeProtocolPort",
+                "ModelSummaryModel model", "DataAnalysisPosition position")
+            .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
+        assertThat(source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"))
+            .contains("DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope>")
+            .doesNotContain("RuntimeAnalysisSummaryProtocol", "RuntimeAnalysisPosition");
+        assertThat(root().resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/protocol/RuntimeAnalysisSummaryProtocol.java"))
+            .doesNotExist();
+        assertThat(root().resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/protocol/RuntimeAnalysisSummary.java"))
+            .doesNotExist();
+    }
+
+    @Test
     void mcpRuntimeCoreDoesNotDependOnAgentOrIntegrationImplementations() {
         String pom = source("chatchat-runtime-mcp/pom.xml");
         assertThat(pom).doesNotContain("<artifactId>chatchat-agents</artifactId>",

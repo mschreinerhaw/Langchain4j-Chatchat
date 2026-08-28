@@ -3,7 +3,7 @@ package com.chatchat.agents.orchestration.analysis;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 
-import com.chatchat.agents.runtime.protocol.RuntimeAnalysisPosition;
+import com.chatchat.common.runtime.summary.DataAnalysisPosition;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -57,7 +57,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             .thenReturn("第 2 分块总结");
         Map<String, Object> context = bridge.govern("positions", Map.of(),
             List.of(Map.of("VALUE", 1)));
-        RuntimeAnalysisPosition position =
+        DataAnalysisPosition position =
             bridge.position("positions", 2, 3, 51, 75, 120);
 
         AnalysisSummaryResult summary = bridge.summarize(

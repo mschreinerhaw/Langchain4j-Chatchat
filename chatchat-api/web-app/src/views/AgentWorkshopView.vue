@@ -203,7 +203,7 @@
             :disabled="curlExampleLoading"
             @click="openCurlExample(agent)"
           >
-            API curl
+            API
           </button>
           <button
             v-if="agent.defaultAgent"

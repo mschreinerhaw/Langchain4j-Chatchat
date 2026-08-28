@@ -40,7 +40,8 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         if (event == null || event.runId() == null || event.runId().isBlank()) {
             return;
         }
-        Optional<AgentTaskLatestEntity> task = latestRepository.findById(event.runId());
+        Optional<AgentTaskLatestEntity> task = latestRepository.findById(event.runId())
+            .or(() -> latestRepository.findByExecutionAttemptId(event.runId()));
         if (task.isEmpty()) {
             log.debug("Agent runtime event has no matching async task. runId={} eventType={}",
                 event.runId(), event.type());
@@ -48,7 +49,12 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         }
         AgentTaskLatestEntity latest = task.get();
         AgentEvent taskEvent = AgentEvent.builder()
+            .eventId(event.eventId())
             .taskId(latest.getTaskId())
+            .runId(event.runId())
+            .executionId(latest.getExecutionId())
+            .attemptId(latest.getExecutionAttemptId())
+            .eventScope("RUNTIME")
             .tenantId(latest.getTenantId())
             .userId(latest.getUserId())
             .agentId(latest.getAgentId())

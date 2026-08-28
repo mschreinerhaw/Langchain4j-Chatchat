@@ -980,6 +980,10 @@ export function recallWorkshopAgent(agentId) {
   });
 }
 
+export function fetchPublishedAgentCurlExample(agentId) {
+  return apiRequest(`/published-agents/${encodeURIComponent(agentId)}/curl-example`);
+}
+
 export function fetchToolNames() {
   return apiRequest("/data/tools");
 }

@@ -2,28 +2,54 @@ package com.chatchat.api.license;
 
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.release.AgentReleaseService;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class AgentPublicationLicenseService {
 
     private final SkillCatalogService skillCatalogService;
     private final McpLicenseEntitlementPort entitlementPort;
     private final JdbcTemplate jdbcTemplate;
+    private final AgentReleaseService agentReleaseService;
+
+    public AgentPublicationLicenseService(SkillCatalogService skillCatalogService,
+                                          McpLicenseEntitlementPort entitlementPort,
+                                          JdbcTemplate jdbcTemplate) {
+        this(skillCatalogService, entitlementPort, jdbcTemplate, null);
+    }
+
+    @Autowired
+    public AgentPublicationLicenseService(SkillCatalogService skillCatalogService,
+                                          McpLicenseEntitlementPort entitlementPort,
+                                          JdbcTemplate jdbcTemplate,
+                                          AgentReleaseService agentReleaseService) {
+        this.skillCatalogService = skillCatalogService;
+        this.entitlementPort = entitlementPort;
+        this.jdbcTemplate = jdbcTemplate;
+        this.agentReleaseService = agentReleaseService;
+    }
 
     /** Uses a database row lock so multiple API instances cannot concurrently exceed the publication quota. */
     @Transactional
     public synchronized SkillDefinition publish(String agentId) {
         jdbcTemplate.queryForList("select id from skill_config order by id limit 1 for update", String.class);
-        boolean alreadyPublished = skillCatalogService.list().stream()
-            .anyMatch(agent -> agent.id().equalsIgnoreCase(agentId)
-                && SkillCatalogService.MARKET_STATUS_PUBLISHED.equalsIgnoreCase(agent.marketStatus()));
+        SkillDefinition source = skillCatalogService.list().stream()
+            .filter(agent -> agent.id().equalsIgnoreCase(agentId))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("skill not found: " + agentId));
+        boolean alreadyPublished = SkillCatalogService.MARKET_STATUS_PUBLISHED.equalsIgnoreCase(source.marketStatus());
         if (alreadyPublished) {
+            if (agentReleaseService != null && agentReleaseService.resolvePublished(agentId).isEmpty()) {
+                AgentReleaseService.AgentReleaseView release = agentReleaseService.prepare(source);
+                SkillDefinition published = skillCatalogService.publishToMarket(agentId);
+                agentReleaseService.markPublished(release.releaseId());
+                return published;
+            }
             return skillCatalogService.publishToMarket(agentId);
         }
 
@@ -50,6 +76,12 @@ public class AgentPublicationLicenseService {
                     + maximum + "；仍可新建和编辑 Agent，但不能继续发布");
             }
         }
-        return skillCatalogService.publishToMarket(agentId);
+        if (agentReleaseService == null) {
+            return skillCatalogService.publishToMarket(agentId);
+        }
+        AgentReleaseService.AgentReleaseView release = agentReleaseService.prepare(source);
+        SkillDefinition published = skillCatalogService.publishToMarket(agentId);
+        agentReleaseService.markPublished(release.releaseId());
+        return published;
     }
 }

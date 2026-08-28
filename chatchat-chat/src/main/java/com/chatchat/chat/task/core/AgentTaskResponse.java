@@ -4,6 +4,12 @@ import java.time.Instant;
 
 public record AgentTaskResponse(
     String taskId,
+    String executionId,
+    String rootExecutionId,
+    String attemptId,
+    String parentAttemptId,
+    int attemptNumber,
+    String canonicalState,
     String tenantId,
     String userId,
     String agentId,
@@ -31,6 +37,12 @@ public record AgentTaskResponse(
     static AgentTaskResponse from(AgentTaskLatestEntity entity) {
         return new AgentTaskResponse(
             entity.getTaskId(),
+            entity.getExecutionId(),
+            entity.getRootExecutionId(),
+            entity.getExecutionAttemptId(),
+            entity.getParentAttemptId(),
+            entity.getExecutionAttemptNumber() == null ? 1 : entity.getExecutionAttemptNumber(),
+            entity.getCanonicalState(),
             entity.getTenantId(),
             entity.getUserId(),
             entity.getAgentId(),

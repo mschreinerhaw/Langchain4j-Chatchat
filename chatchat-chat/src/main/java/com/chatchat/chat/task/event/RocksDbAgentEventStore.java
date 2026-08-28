@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "chatchat.agent.task.event-store", name = "type", havingValue = "rocksdb", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "chatchat.agent.task.event-store", name = "type", havingValue = "rocksdb")
 public class RocksDbAgentEventStore implements AgentEventStore {
 
     private final AgentTaskProperties properties;

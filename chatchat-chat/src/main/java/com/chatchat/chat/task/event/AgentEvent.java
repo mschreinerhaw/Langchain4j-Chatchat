@@ -17,6 +17,10 @@ public class AgentEvent {
     private String eventId = UUID.randomUUID().toString();
 
     private String taskId;
+    private String runId;
+    private String executionId;
+    private String attemptId;
+    private String eventScope;
     private String tenantId;
     private String userId;
     private String agentId;

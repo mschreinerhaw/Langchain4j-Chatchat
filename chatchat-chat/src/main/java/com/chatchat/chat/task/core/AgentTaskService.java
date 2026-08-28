@@ -125,6 +125,11 @@ public class AgentTaskService {
      * @return the operation result
      */
     public AgentTaskResponse submit(AgentTaskSubmitRequest request) {
+        return submit(request, null);
+    }
+
+    private AgentTaskResponse submit(AgentTaskSubmitRequest request,
+                                     AgentExecutionIdentity retryIdentity) {
         validate(request);
         AgentTaskSubmitRequest normalized = normalize(request);
         if (normalized.getResumeTaskId() != null && !normalized.getResumeTaskId().isBlank()) {
@@ -142,9 +147,12 @@ public class AgentTaskService {
         String taskId = idempotencyKey == null
             ? UUID.randomUUID().toString()
             : idempotentTaskId(normalized.getTenantId(), idempotencyKey);
+        AgentExecutionIdentity identity = retryIdentity == null
+            ? AgentExecutionIdentity.initial(taskId) : retryIdentity;
         snapshotUserDefinedWorkflow(normalized, taskId);
         AgentTaskLatestEntity latest = new AgentTaskLatestEntity();
         latest.setTaskId(taskId);
+        applyExecutionIdentity(latest, identity);
         latest.setTenantId(normalized.getTenantId());
         latest.setIdempotencyKey(idempotencyKey);
         latest.setUserId(normalized.getUserId());
@@ -595,6 +603,10 @@ public class AgentTaskService {
         request.setQuery(firstText(request.getQuery(), task.getQuestion()));
         AgentEvent confirmationEvent = AgentEvent.builder()
             .taskId(task.getTaskId())
+            .runId(task.getExecutionAttemptId())
+            .executionId(task.getExecutionId())
+            .attemptId(task.getExecutionAttemptId())
+            .eventScope("TASK")
             .tenantId(task.getTenantId())
             .userId(request.getUserId())
             .agentId(request.getAgentId())
@@ -680,8 +692,9 @@ public class AgentTaskService {
     public AgentTaskResponse retry(String tenantId, String taskId) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         String currentStatus = normalizeStatus(task.getStatus());
-        if (!List.of("FAILED", "CANCELLED").contains(currentStatus)) {
-            throw new IllegalArgumentException("Only FAILED or CANCELLED tasks can be retried");
+        if (!List.of("FAILED", "CANCELLED", "DLQ", "TIME_BUDGET_EXHAUSTED",
+            "MODEL_BUDGET_EXHAUSTED", "TIMEOUT_CANCELLED", "KILLED").contains(currentStatus)) {
+            throw new IllegalArgumentException("Only failed or cancelled tasks can be retried");
         }
         AgentTaskPayload payload = loadQuestionPayload(task);
         AgentTaskSubmitRequest retryRequest = payload.toSubmitRequest();
@@ -690,8 +703,16 @@ public class AgentTaskService {
         retryRequest.setAgentId(task.getAgentId());
         retryRequest.setSessionId(task.getSessionId());
         retryRequest.setQuery(task.getQuestion());
-        saveStatusEvent(task, "CANCELLED", Map.of("message", "Task retried and superseded"));
-        return submit(retryRequest);
+        // A retry is a new attempt and must not resolve to the original idempotent submission.
+        retryRequest.setIdempotencyKey(null);
+        AgentExecutionIdentity nextIdentity = AgentExecutionIdentity.from(task).retry();
+        saveStatusEvent(task, "CANCELLED", Map.of(
+            "message", "Task retried and superseded",
+            "executionId", nextIdentity.executionId(),
+            "supersededByAttemptId", nextIdentity.attemptId(),
+            "retryReason", firstText(task.getErrorMessage(), "manual_retry")
+        ));
+        return submit(retryRequest, nextIdentity);
     }
 
     /**
@@ -872,7 +893,8 @@ public class AgentTaskService {
      */
     public int recoverActiveTasks() {
         if (databaseQueueEnabled()) {
-            int recovered = queueCoordinator.recoverExpiredClaims();
+            int recovered = queueCoordinator.recoverExpiredClaims()
+                + queueCoordinator.recoverOrphanedActiveTasks();
             dispatchPersistentTasks();
             return recovered;
         }
@@ -1057,7 +1079,7 @@ public class AgentTaskService {
                     question.getSessionId(),
                     interactionRequest.getMode());
 
-                attachCancellationCheck(interactionRequest, question.getTaskId());
+                attachExecutionContext(interactionRequest, question.getTaskId());
                 InteractionResponse response = orchestrationService.chat(interactionRequest);
                 long modelFinishedAt = System.currentTimeMillis();
                 log.info("Agent task model inference finished. taskId={} tenantId={} durationMs={} answerPresent={} toolTraceCount={} responseMode={}",
@@ -1223,16 +1245,37 @@ public class AgentTaskService {
      * @param request the request value
      * @param taskId the task id value
      */
-    private void attachCancellationCheck(InteractionRequest request, String taskId) {
+    private void attachExecutionContext(InteractionRequest request, String taskId) {
         if (request == null) {
             return;
         }
+        AgentTaskLatestEntity task = latestRepository.findById(taskId).orElse(null);
+        AgentExecutionIdentity identity = task == null
+            ? AgentExecutionIdentity.initial(taskId) : AgentExecutionIdentity.from(task);
         Map<String, Object> toolInput = new LinkedHashMap<>(request.getToolInput() == null ? Map.of() : request.getToolInput());
         BooleanSupplier cancellationCheck = () -> isCancelled(taskId);
         toolInput.put("__agentTaskId", taskId);
-        toolInput.put("__agentRunId", taskId);
+        toolInput.put("__agentRunId", identity.attemptId());
+        toolInput.put("__executionId", identity.executionId());
+        toolInput.put("__rootExecutionId", identity.rootExecutionId());
+        toolInput.put("__executionAttemptId", identity.attemptId());
+        toolInput.put("__parentAttemptId", identity.parentAttemptId());
+        toolInput.put("__executionAttemptNumber", identity.attemptNumber());
         toolInput.put("__agentCancellation", cancellationCheck);
         request.setToolInput(toolInput);
+    }
+
+    /**
+     * Retained for binary/reflection compatibility with callers from before execution identity
+     * was added. Cancellation is now one part of the complete execution context.
+     */
+    @SuppressWarnings("unused")
+    private void attachCancellationCheck(InteractionRequest request, String taskId) {
+        attachExecutionContext(request, taskId);
+        if (request != null && request.getToolInput() != null) {
+            // Preserve the legacy contract for reflective/older in-process callers only.
+            request.getToolInput().put("__agentRunId", taskId);
+        }
     }
 
     private TaskConfirmEntity createPendingConfirmation(AgentEvent question,
@@ -1307,7 +1350,7 @@ public class AgentTaskService {
         }
         cancellationRegistry.cancelTask(task.getTaskId());
         try {
-            agentRuntime.cancel(task.getTaskId());
+            agentRuntime.cancel(AgentExecutionIdentity.from(task).attemptId());
         } catch (RuntimeException ex) {
             log.debug("Agent runtime cancel skipped for taskId={}: {}", task.getTaskId(), ex.getMessage());
         }
@@ -1426,6 +1469,10 @@ public class AgentTaskService {
     private AgentEvent saveStatusEvent(AgentTaskLatestEntity source, String status, Map<String, Object> payload) {
         AgentEvent statusEvent = AgentEvent.builder()
             .taskId(source.getTaskId())
+            .runId(source.getExecutionAttemptId())
+            .executionId(source.getExecutionId())
+            .attemptId(source.getExecutionAttemptId())
+            .eventScope("TASK")
             .tenantId(source.getTenantId())
             .userId(source.getUserId())
             .agentId(source.getAgentId())
@@ -1451,6 +1498,10 @@ public class AgentTaskService {
         payload.putAll(planAttributionPayload(source));
         AgentEvent feedbackEvent = AgentEvent.builder()
             .taskId(source.getTaskId())
+            .runId(source.getExecutionAttemptId())
+            .executionId(source.getExecutionId())
+            .attemptId(source.getExecutionAttemptId())
+            .eventScope("TASK")
             .tenantId(source.getTenantId())
             .userId(firstText(userId, source.getUserId()))
             .agentId(source.getAgentId())
@@ -1679,6 +1730,10 @@ public class AgentTaskService {
     private AgentEvent copyEvent(AgentEvent source, String type, String status, String payload) {
         return AgentEvent.builder()
             .taskId(source.getTaskId())
+            .runId(source.getRunId())
+            .executionId(source.getExecutionId())
+            .attemptId(source.getAttemptId())
+            .eventScope(firstText(source.getEventScope(), "TASK"))
             .tenantId(source.getTenantId())
             .userId(source.getUserId())
             .agentId(source.getAgentId())
@@ -1712,6 +1767,7 @@ public class AgentTaskService {
                 throw new StaleTaskClaimException(taskId);
             }
             entity.setStatus(status);
+            entity.setCanonicalState(AgentExecutionState.fromWire(status).name());
             if (answerSummary != null) {
                 entity.setAnswerSummary(answerSummary);
             }
@@ -1757,6 +1813,10 @@ public class AgentTaskService {
         latest.setRequestPayloadJson(requestPayload);
         AgentEvent question = AgentEvent.builder()
             .taskId(latest.getTaskId())
+            .runId(latest.getExecutionAttemptId())
+            .executionId(latest.getExecutionId())
+            .attemptId(latest.getExecutionAttemptId())
+            .eventScope("TASK")
             .tenantId(latest.getTenantId())
             .userId(latest.getUserId())
             .agentId(latest.getAgentId())
@@ -1770,6 +1830,7 @@ public class AgentTaskService {
             eventStore.save(question);
         }
         latest.setStatus("PENDING");
+        latest.setCanonicalState(AgentExecutionState.SUBMITTED.name());
         latest.setAvailableAt(Instant.now());
         latest.setClaimWorkerId(null);
         latest.setClaimToken(null);
@@ -1910,7 +1971,33 @@ public class AgentTaskService {
      */
     private AgentEvent loadQuestionEvent(AgentTaskLatestEntity task) {
         return eventStore.findFirstByTaskAndType(task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION")
+            .map(original -> currentQuestionEvent(task, original))
             .orElseGet(() -> restoreQuestionEvent(task));
+    }
+
+    private AgentEvent currentQuestionEvent(AgentTaskLatestEntity task, AgentEvent original) {
+        String payload = task.getRequestPayloadJson();
+        if (payload == null || payload.isBlank()) {
+            return original;
+        }
+        return AgentEvent.builder()
+            .eventId(original.getEventId())
+            .taskId(original.getTaskId())
+            .runId(task.getExecutionAttemptId())
+            .executionId(task.getExecutionId())
+            .attemptId(task.getExecutionAttemptId())
+            .eventScope(firstText(original.getEventScope(), "TASK"))
+            .tenantId(original.getTenantId())
+            .userId(original.getUserId())
+            .agentId(original.getAgentId())
+            .sessionId(original.getSessionId())
+            .parentEventId(original.getParentEventId())
+            .sequence(original.getSequence())
+            .type(original.getType())
+            .status(original.getStatus())
+            .payload(payload)
+            .createTime(original.getCreateTime())
+            .build();
     }
 
     private AgentEvent restoreQuestionEvent(AgentTaskLatestEntity task) {
@@ -1922,6 +2009,10 @@ public class AgentTaskService {
         }
         AgentEvent restored = AgentEvent.builder()
             .taskId(task.getTaskId())
+            .runId(task.getExecutionAttemptId())
+            .executionId(task.getExecutionId())
+            .attemptId(task.getExecutionAttemptId())
+            .eventScope("TASK")
             .tenantId(task.getTenantId())
             .userId(task.getUserId())
             .agentId(task.getAgentId())
@@ -2725,6 +2816,15 @@ public class AgentTaskService {
         // This internal protocol must not leak into user-facing Markdown or HTML.
         text = removeInternalEvidenceMarkers(text);
         return text;
+    }
+
+    private void applyExecutionIdentity(AgentTaskLatestEntity task, AgentExecutionIdentity identity) {
+        task.setExecutionId(identity.executionId());
+        task.setRootExecutionId(identity.rootExecutionId());
+        task.setExecutionAttemptId(identity.attemptId());
+        task.setParentAttemptId(identity.parentAttemptId());
+        task.setExecutionAttemptNumber(identity.attemptNumber());
+        task.setCanonicalState(AgentExecutionState.SUBMITTED.name());
     }
 
     private static String removeInternalEvidenceMarkers(String value) {

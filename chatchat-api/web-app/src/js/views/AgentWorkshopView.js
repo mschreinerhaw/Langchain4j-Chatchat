@@ -2,6 +2,8 @@
   createWorkshopAgent,
   deleteWorkshopAgent,
   fetchAgentWorkshop,
+  fetchPublishedAgentCurlExample,
+  getStoredAuthSession,
   publishWorkshopAgent,
   recallWorkshopAgent,
   setDefaultWorkshopAgent,
@@ -225,10 +227,18 @@ export default {
       toolGroupMode: "service",
       error: "",
       dialogError: "",
-      importError: ""
+      importError: "",
+      curlExampleOpen: false,
+      curlExampleLoading: false,
+      curlExampleError: "",
+      curlExample: null
     };
   },
   computed: {
+    isPlatformAdmin() {
+      const session = getStoredAuthSession();
+      return String(session?.user?.username || "").toLowerCase() === "admin";
+    },
     filteredAgents() {
       return this.agents;
     },
@@ -1470,6 +1480,41 @@ export default {
         this.error = error.message || "能力发布失败";
       } finally {
         this.saving = false;
+      }
+    },
+    async openCurlExample(agent) {
+      if (!this.isPlatformAdmin || !agent?.id || agent.marketStatus !== "published") {
+        return;
+      }
+      this.curlExampleOpen = true;
+      this.curlExampleLoading = true;
+      this.curlExampleError = "";
+      this.curlExample = null;
+      try {
+        this.curlExample = await fetchPublishedAgentCurlExample(agent.id);
+      } catch (error) {
+        this.curlExampleError = error.message || "curl 示例生成失败";
+      } finally {
+        this.curlExampleLoading = false;
+      }
+    },
+    closeCurlExample() {
+      if (this.curlExampleLoading) {
+        return;
+      }
+      this.curlExampleOpen = false;
+      this.curlExampleError = "";
+      this.curlExample = null;
+    },
+    async copyCurlExample() {
+      const content = this.curlExample?.completeExample || "";
+      if (!content) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(content);
+      } catch (error) {
+        this.curlExampleError = "复制失败，请手动选择示例文本。";
       }
     },
     recallAgent(agent) {

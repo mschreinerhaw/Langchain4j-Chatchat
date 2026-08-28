@@ -135,6 +135,28 @@ public class AgentTaskQueueCoordinator {
         return recovered;
     }
 
+    /** Requeues active snapshots that have no lease after a process stopped between state updates. */
+    @Transactional
+    public int recoverOrphanedActiveTasks() {
+        Instant now = Instant.now();
+        List<AgentTaskLatestEntity> orphans = taskRepository.findOrphanedActiveTasks(
+            PageRequest.of(0, Math.max(1, properties.getRecoveryBatchSize())));
+        int recovered = 0;
+        for (AgentTaskLatestEntity candidate : orphans) {
+            AgentTaskLatestEntity task = taskRepository.findByTaskIdForUpdate(candidate.getTaskId()).orElse(null);
+            if (task == null || task.getClaimToken() != null || !isActiveExecutionStatus(task.getStatus())) {
+                continue;
+            }
+            clearClaim(task);
+            task.setStatus("PENDING");
+            task.setAvailableAt(now);
+            task.setErrorMessage("Recovered orphaned Agent execution after worker restart");
+            taskRepository.saveAndFlush(task);
+            recovered++;
+        }
+        return recovered;
+    }
+
     /** Repairs denormalized quota counters from authoritative, non-expired database claims. */
     @Transactional
     public int reconcileQuotaCounters() {
@@ -199,7 +221,13 @@ public class AgentTaskQueueCoordinator {
 
     private boolean isRetryableClaimStatus(String status) {
         return status != null && Set.of(
-            "CLAIMED", "RUNNING", "WAIT_MODEL", "WAIT_TOOL", "FAILED"
+            "CLAIMED", "RUNNING", "WAIT_MODEL", "WAIT_TOOL"
+        ).contains(status.toUpperCase());
+    }
+
+    private boolean isActiveExecutionStatus(String status) {
+        return status != null && Set.of(
+            "CLAIMED", "RUNNING", "WAIT_MODEL", "WAIT_TOOL"
         ).contains(status.toUpperCase());
     }
 

@@ -8,6 +8,7 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillRoutingSettings;
 import com.chatchat.chat.skills.SkillToolConfig;
+import com.chatchat.chat.skills.release.AgentReleaseService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.config.ModelsConfig;
@@ -55,6 +56,14 @@ public class AgentWorkshopController {
     private final SearchService searchService;
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentPublicationLicenseService agentPublicationLicenseService;
+    private final AgentReleaseService agentReleaseService;
+
+    @GetMapping("/{agentId}/releases")
+    @Operation(summary = "List immutable Agent releases and quality-gate reports")
+    public ApiResponse<List<AgentReleaseService.AgentReleaseView>> releases(
+        @PathVariable("agentId") String agentId) {
+        return ApiResponse.success(agentReleaseService.list(agentId));
+    }
 
     /**
      * Returns the workshop.

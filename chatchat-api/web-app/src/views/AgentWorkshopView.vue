@@ -197,6 +197,15 @@
             回收能力
           </button>
           <button
+            v-if="isPlatformAdmin && agent.marketStatus === 'published'"
+            type="button"
+            class="secondary-button"
+            :disabled="curlExampleLoading"
+            @click="openCurlExample(agent)"
+          >
+            API curl
+          </button>
+          <button
             v-if="agent.defaultAgent"
             type="button"
             class="secondary-button"
@@ -238,6 +247,30 @@
         </button>
       </div>
     </nav>
+
+    <div v-if="curlExampleOpen" class="agent-dialog-backdrop" @click.self="closeCurlExample">
+      <section class="agent-dialog agent-curl-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-curl-title">
+        <header>
+          <div>
+            <p>已发布 Agent API</p>
+            <h2 id="agent-curl-title">{{ curlExample?.agentName || "curl 请求示例" }}</h2>
+          </div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="curlExampleLoading" @click="closeCurlExample">×</button>
+        </header>
+        <div class="dialog-body agent-curl-body">
+          <p class="agent-curl-notice">
+            示例包含发起问答、查询运行状态和获取最终答案。请先把 CHATCHAT_TOKEN 替换为登录接口返回的令牌。
+          </p>
+          <p v-if="curlExampleLoading" class="agent-empty">正在生成 curl 示例...</p>
+          <pre v-else-if="curlExample?.completeExample"><code>{{ curlExample.completeExample }}</code></pre>
+          <p v-if="curlExampleError" class="agent-error">{{ curlExampleError }}</p>
+        </div>
+        <footer>
+          <button type="button" class="secondary-button" :disabled="curlExampleLoading" @click="closeCurlExample">关闭</button>
+          <button type="button" class="primary-button" :disabled="curlExampleLoading || !curlExample?.completeExample" @click="copyCurlExample">复制完整示例</button>
+        </footer>
+      </section>
+    </div>
 
     <div
       v-if="deleteConfirmOpen"

@@ -24,6 +24,8 @@ import java.util.UUID;
         @Index(name = "idx_agent_task_tenant_created", columnList = "tenant_id, create_time"),
         @Index(name = "idx_agent_task_session_created", columnList = "tenant_id, session_id, create_time"),
         @Index(name = "idx_agent_task_status_updated", columnList = "status, update_time"),
+        @Index(name = "idx_agent_task_execution", columnList = "tenant_id, execution_id, execution_attempt_number"),
+        @Index(name = "idx_agent_task_attempt", columnList = "tenant_id, execution_attempt_id"),
         @Index(name = "idx_agent_task_dispatch", columnList = "status, available_at, priority, create_time"),
         @Index(name = "idx_agent_task_lease", columnList = "lease_expires_at, status")
     },
@@ -37,6 +39,26 @@ public class AgentTaskLatestEntity {
     @Id
     @Column(name = "task_id", length = 64, nullable = false)
     private String taskId;
+
+    /** Stable logical execution id. Retries keep this value. */
+    @Column(name = "execution_id", length = 64)
+    private String executionId;
+
+    @Column(name = "root_execution_id", length = 64)
+    private String rootExecutionId;
+
+    /** Unique Runtime run id for this execution attempt. */
+    @Column(name = "execution_attempt_id", length = 64)
+    private String executionAttemptId;
+
+    @Column(name = "parent_attempt_id", length = 64)
+    private String parentAttemptId;
+
+    @Column(name = "execution_attempt_number")
+    private Integer executionAttemptNumber = 1;
+
+    @Column(name = "canonical_state", length = 32)
+    private String canonicalState = AgentExecutionState.SUBMITTED.name();
 
     @Column(name = "tenant_id", length = 64, nullable = false)
     private String tenantId;
@@ -157,6 +179,15 @@ public class AgentTaskLatestEntity {
         if (status == null || status.isBlank()) {
             status = "PENDING";
         }
+        AgentExecutionIdentity identity = AgentExecutionIdentity.from(this);
+        executionId = identity.executionId();
+        rootExecutionId = identity.rootExecutionId();
+        executionAttemptId = identity.attemptId();
+        parentAttemptId = identity.parentAttemptId();
+        executionAttemptNumber = identity.attemptNumber();
+        if (canonicalState == null || canonicalState.isBlank()) {
+            canonicalState = AgentExecutionState.fromWire(status).name();
+        }
         Instant now = Instant.now();
         if (createTime == null) {
             createTime = now;
@@ -181,6 +212,7 @@ public class AgentTaskLatestEntity {
      */
     @PreUpdate
     public void onUpdate() {
+        canonicalState = AgentExecutionState.fromWire(status).name();
         updateTime = Instant.now();
     }
 }

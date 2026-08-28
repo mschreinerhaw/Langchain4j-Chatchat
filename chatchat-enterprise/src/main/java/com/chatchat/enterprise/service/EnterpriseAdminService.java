@@ -1551,6 +1551,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("mcp", "mcp:runtime:audit", "Runtime契约审计", "button", "/api/v1/mcp/runtime/contracts/audit*", "POST", "shield-check", 32),
             new PermissionSeed("mcp", "mcp:tool:authorize", "工具授权", "button", "/api/v1/enterprise/tool-permissions", "*", "key-round", 33),
             new PermissionSeed("platform", "platform:agents", "Agent管理", "menu", "/index.html#agents", null, "bot", 34),
+            new PermissionSeed("platform:agents", "platform:agents:curl-example", "Agent API示例", "button", "/api/v1/published-agents/*/curl-example", "GET", "terminal", 34),
             new PermissionSeed("platform", "platform:schedules", "Agent调度", "menu", "/index.html#schedules", null, "calendar-clock", 35),
             new PermissionSeed("platform:schedules", "platform:schedules:manage", "Agent调度管理", "button", "/api/v1/agent/tasks/runtime/schedules/**", "*", "calendar-check", 35),
             new PermissionSeed("platform", "platform:rules", "关键词规则", "menu", "/index.html#rules", null, "list-filter", 36),

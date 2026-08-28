@@ -32,6 +32,13 @@ public class ApplicationStartupListener {
             int synchronizedTools = enterpriseAdminService.syncRegisteredMcpTools().size();
             log.info("Synchronized {} MCP tools into enterprise asset authorization catalog", synchronizedTools);
             log.info("MCP Runtime OS kernel directory synchronized successfully");
+        } catch (Exception e) {
+            // MCP is an external runtime dependency. Keep the control plane available in a
+            // degraded state so operators can repair the connection and resynchronize later.
+            log.warn("MCP Runtime OS kernel directory synchronization deferred; application will start degraded", e);
+        }
+
+        try {
             int repairedTasks = agentTaskService.reconcileLatestStateFromEvents();
             log.info("Reconciled {} Agent task snapshots from event store", repairedTasks);
             int recoveredTasks = agentTaskService.recoverActiveTasks();
@@ -42,8 +49,8 @@ public class ApplicationStartupListener {
             log.info("API Documentation: http://localhost:8080/swagger-ui.html");
             log.info("============================================");
         } catch (Exception e) {
-            log.error("Error during application startup", e);
-            throw new RuntimeException("Application startup failed", e);
+            log.error("Critical Agent task recovery failed during application startup", e);
+            throw new RuntimeException("Critical Agent task recovery failed", e);
         }
     }
 }

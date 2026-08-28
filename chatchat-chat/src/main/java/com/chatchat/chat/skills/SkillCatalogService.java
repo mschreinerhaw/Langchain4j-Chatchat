@@ -3,11 +3,13 @@ package com.chatchat.chat.skills;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.chat.skills.release.AgentReleaseService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -63,6 +65,12 @@ public class SkillCatalogService {
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
     private final SummaryContractService summaryContractService;
+    private AgentReleaseService agentReleaseService;
+
+    @Autowired
+    public void setAgentReleaseService(AgentReleaseService agentReleaseService) {
+        this.agentReleaseService = agentReleaseService;
+    }
 
     /**
      * Performs the initialize defaults operation.
@@ -104,8 +112,15 @@ public class SkillCatalogService {
         }
         String id = skillId.trim().toLowerCase(Locale.ROOT);
         return repository.findById(id)
-            .map(this::toDefinition)
+            .map(entity -> releasedOrMutable(id, entity))
             .orElseGet(this::findDefaultAgentOrGeneralOrDefault);
+    }
+
+    private SkillDefinition releasedOrMutable(String id, SkillConfigEntity entity) {
+        if (agentReleaseService != null && MARKET_STATUS_PUBLISHED.equalsIgnoreCase(entity.getMarketStatus())) {
+            return agentReleaseService.resolvePublished(id).orElseGet(() -> toDefinition(entity));
+        }
+        return toDefinition(entity);
     }
 
     /** Returns whether the exact Agent exists and is currently published. */

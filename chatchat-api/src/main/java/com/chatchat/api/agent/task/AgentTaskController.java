@@ -32,6 +32,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RestController
+@Slf4j
 @RequiredArgsConstructor
 @RequestMapping(AppConstants.API_V1 + "/agent/tasks")
 @Tag(name = "Agent Tasks", description = "Tenant-isolated async Agent task APIs")
@@ -538,8 +540,7 @@ public class AgentTaskController {
                                                              HttpServletRequest servletRequest) {
         try {
             String normalizedTenant = scopedTenantId(servletRequest, tenantId);
-            Map<String, McpToolCatalogQueryPort.RegisteredTool> mcpToolsByName = mcpCatalog
-                .registeredTools()
+            Map<String, McpToolCatalogQueryPort.RegisteredTool> mcpToolsByName = safelyRegisteredMcpTools()
                 .stream()
                 .collect(Collectors.toMap(
                     McpToolCatalogQueryPort.RegisteredTool::localToolName,
@@ -570,6 +571,16 @@ public class AgentTaskController {
             return ApiResponse.success(new ToolGovernanceSummary(normalizedTenant, tools.size(), levelCounts, tools));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    private List<McpToolCatalogQueryPort.RegisteredTool> safelyRegisteredMcpTools() {
+        try {
+            return mcpCatalog.registeredTools();
+        } catch (RuntimeException ex) {
+            log.warn("MCP catalog unavailable while building tool governance view; returning local registry only: {}",
+                ex.getMessage());
+            return List.of();
         }
     }
 

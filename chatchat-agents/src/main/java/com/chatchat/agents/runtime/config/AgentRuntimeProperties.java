@@ -27,7 +27,7 @@ public class AgentRuntimeProperties {
     private long terminalRunTtlMs = DEFAULT_RETENTION_MS;
     private boolean cleanupEnabled = true;
     private long cleanupIntervalMs = 60L * 60 * 1000;
-    private String storeType = "rocksdb";
+    private String storeType = "database";
     private String rocksDbPath = "./data/agent-runtime-rocksdb";
     private boolean rocksDbCreateIfMissing = true;
     private boolean failInterruptedRunsOnStartup = true;
@@ -67,6 +67,13 @@ public class AgentRuntimeProperties {
     private int analysisSpillThresholdBytes = 65_536;
     /** Spill payloads and summary checkpoints remain recoverable for this duration. */
     private long analysisSpillTtlMs = DEFAULT_RETENTION_MS;
+    /** Hard estimated model-token ceiling per execution; zero disables the global ceiling. */
+    private long modelTokenBudget = 0;
+    /** Hard estimated model-cost ceiling per execution; zero disables the global ceiling. */
+    private double modelCostBudget = 0D;
+    private double modelInputCostPerThousandTokens = 0D;
+    private double modelOutputCostPerThousandTokens = 0D;
+    private double budgetAlertRatio = 0.8D;
 
     public int corePoolSize() {
         return Math.max(1, corePoolSize);
@@ -111,7 +118,7 @@ public class AgentRuntimeProperties {
     }
 
     public String storeType() {
-        return storeType == null || storeType.isBlank() ? "rocksdb" : storeType.trim();
+        return storeType == null || storeType.isBlank() ? "database" : storeType.trim();
     }
 
     public String rocksDbPath() {
@@ -185,5 +192,25 @@ public class AgentRuntimeProperties {
 
     public long analysisSpillTtlMs() {
         return Math.max(0, analysisSpillTtlMs);
+    }
+
+    public long modelTokenBudget() {
+        return Math.max(0, modelTokenBudget);
+    }
+
+    public double modelCostBudget() {
+        return Math.max(0D, modelCostBudget);
+    }
+
+    public double modelInputCostPerThousandTokens() {
+        return Math.max(0D, modelInputCostPerThousandTokens);
+    }
+
+    public double modelOutputCostPerThousandTokens() {
+        return Math.max(0D, modelOutputCostPerThousandTokens);
+    }
+
+    public double budgetAlertRatio() {
+        return Math.max(0.01D, Math.min(1D, budgetAlertRatio));
     }
 }

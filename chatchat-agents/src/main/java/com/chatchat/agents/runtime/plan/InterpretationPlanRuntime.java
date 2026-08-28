@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -66,6 +67,8 @@ import java.util.UUID;
  */
 @Slf4j
 public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<InterpretationPlanRuntime.ExecutionRequest, InterpretationPlanRuntime.ExecutionResult> {
+
+    private final PlanExecutionGovernor executionGovernor = new PlanExecutionGovernor();
 
     @Override
     public String workflowId() {
@@ -310,6 +313,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         int llmDecisionCount = 0;
 
         while (!remaining.isEmpty()) {
+            Optional<PlanExecutionGovernor.Violation> budgetViolation = executionGovernor.check(
+                executablePlan, startedAt, executions.size(), executableRequest.attributes());
+            if (budgetViolation.isPresent()) {
+                PlanExecutionGovernor.Violation violation = budgetViolation.get();
+                return withDiagnosticRun(ExecutionResult.failed(
+                    violation.code(), violation.message(), executions, violation.metadata(), finalAnswer,
+                    elapsed(startedAt)), executableRequest, remaining);
+            }
             InterpretationPlanEventState eventState = !"NONE".equals(checkpointRecovery.status())
                 ? new InterpretationPlanEventState(Set.of(), Set.of(), Set.of(), Set.of(), Set.of())
                 : eventState(runId, completed.keySet(), executableRequest);

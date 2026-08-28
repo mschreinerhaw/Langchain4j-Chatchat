@@ -26,6 +26,7 @@ import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.orchestration.model.DeadlineAwareChatModel;
+import com.chatchat.agents.orchestration.model.MeteredChatModel;
 import com.chatchat.agents.orchestration.planning.AgentContextBudget;
 import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
 import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
@@ -200,6 +201,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
     private final int recordAnalysisChunkMaxChars;
     private final int recordAnalysisChunkMaxRows;
     private final int analysisSpillThresholdBytes;
+    private final AgentRuntimeProperties agentRuntimeProperties;
     private final int analysisSummaryWorkerCount;
     private final int analysisSummaryWorkerMaxRetries;
     private final long analysisSummaryWorkerHeartbeatIntervalMs;
@@ -354,6 +356,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         AgentRuntimeProperties resolvedRuntimeProperties = agentRuntimeProperties == null
             ? new AgentRuntimeProperties()
             : agentRuntimeProperties;
+        this.agentRuntimeProperties = resolvedRuntimeProperties;
         this.recordAnalysisChunkMaxChars = resolvedRuntimeProperties.recordAnalysisChunkMaxChars();
         this.recordAnalysisChunkMaxRows = resolvedRuntimeProperties.recordAnalysisChunkMaxRows();
         this.analysisSpillThresholdBytes = resolvedRuntimeProperties.analysisSpillThresholdBytes();
@@ -777,17 +780,35 @@ public class AgentOrchestrator implements AgentRunExecutor {
             activeChatModel,
             () -> runtimeGuard.remainingTimeMs(requestRuntimeAttributes)
         );
+        Map<String, Object> modelUsage = Collections.synchronizedMap(new LinkedHashMap<>());
+        activeChatModel = new MeteredChatModel(
+            activeChatModel,
+            modelUsage,
+            runtimeGuard.runtimeLong(requestRuntimeAttributes.get("__agentTokenBudget"),
+                agentRuntimeProperties.modelTokenBudget()),
+            runtimeDouble(requestRuntimeAttributes.get("__agentCostBudget"),
+                agentRuntimeProperties.modelCostBudget()),
+            agentRuntimeProperties.modelInputCostPerThousandTokens(),
+            agentRuntimeProperties.modelOutputCostPerThousandTokens(),
+            agentRuntimeProperties.budgetAlertRatio()
+        );
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = runResultAdapter.runtimeObservationList(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
         Map<String, Object> metadata = new LinkedHashMap<>();
         List<Map<String, Object>> plannerSteps = new ArrayList<>();
         metadata.put("agentRunId", stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
+        metadata.put("executionId", stringValue(requestRuntimeAttributes.get("__executionId")));
+        metadata.put("rootExecutionId", stringValue(requestRuntimeAttributes.get("__rootExecutionId")));
+        metadata.put("executionAttemptId", stringValue(requestRuntimeAttributes.get("__executionAttemptId")));
+        metadata.put("parentAttemptId", stringValue(requestRuntimeAttributes.get("__parentAttemptId")));
+        metadata.put("executionAttemptNumber", requestRuntimeAttributes.get("__executionAttemptNumber"));
         metadata.put("requestId", requestId);
         metadata.put("conversationId", conversationId);
         metadata.put("tenantId", tenantId);
         metadata.put("userId", userId);
         metadata.put("skillId", skillId == null ? "general" : skillId);
         metadata.put("modelName", normalizeModelName(modelName));
+        metadata.put("modelUsage", modelUsage);
         metadata.put("requiredToolParameters",
             requestRuntimeAttributes.getOrDefault("requiredToolParameters", Map.of()));
         metadata.put("boundDocumentIds", documentIds);
@@ -8335,10 +8356,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (interpretationPlanStore == null || plan == null) {
             return;
         }
-        String taskId = firstNonBlank(
-            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
-            requestId
-        );
+        String taskId = planTaskId(runtimeAttributes, requestId);
         if (taskId == null || taskId.isBlank()) {
             return;
         }
@@ -8376,10 +8394,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (interpretationPlanStore == null || plan == null || result == null) {
             return;
         }
-        String taskId = firstNonBlank(
-            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
-            requestId
-        );
+        String taskId = planTaskId(runtimeAttributes, requestId);
         if (taskId == null || taskId.isBlank()) {
             return;
         }
@@ -9140,6 +9155,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
         } else {
             metadata.put("mandatoryWorkflowStillMissingAfterFallback", remainingMandatoryTools);
         }
+    }
+
+    private String planTaskId(Map<String, Object> runtimeAttributes, String requestId) {
+        return firstNonBlank(
+            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentTaskId")),
+            firstNonBlank(
+                stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
+                requestId
+            )
+        );
     }
 
     /**
@@ -9986,13 +10011,31 @@ public class AgentOrchestrator implements AgentRunExecutor {
             return;
         }
         Map<String, Object> values = new LinkedHashMap<>();
+        long now = System.currentTimeMillis();
         values.put("type", "lifecycle");
         values.put("workflow", WORKFLOW_PROBLEM_SOLVING);
         values.put("lifecyclePhase", phase);
-        values.put("createdAt", System.currentTimeMillis());
+        values.put("createdAt", now);
         values.putAll(phaseMetadata == null ? Map.of() : phaseMetadata);
         if (metadata != null) {
-            metadataList(metadata, "agentLifecyclePhases").add(values);
+            List<Map<String, Object>> phases = metadataList(metadata, "agentLifecyclePhases");
+            if (!phases.isEmpty()) {
+                Map<String, Object> previous = phases.get(phases.size() - 1);
+                long previousAt = runtimeGuard.runtimeLong(previous.get("createdAt"), now);
+                long duration = Math.max(0L, now - previousAt);
+                previous.put("durationMs", duration);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> durations = metadata.get("agentPhaseDurationsMs") instanceof Map<?, ?> map
+                    ? (Map<String, Object>) map : new LinkedHashMap<>();
+                durations.merge(String.valueOf(previous.get("lifecyclePhase")), duration,
+                    (left, right) -> ((Number) left).longValue() + ((Number) right).longValue());
+                metadata.put("agentPhaseDurationsMs", durations);
+            }
+            phases.add(values);
+            if (!phases.isEmpty()) {
+                long firstAt = runtimeGuard.runtimeLong(phases.get(0).get("createdAt"), now);
+                metadata.put("executionElapsedMs", Math.max(0L, now - firstAt));
+            }
         }
         log.info("agentLifecycle phase={} runId={} content={}",
             phase,
@@ -10023,6 +10066,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
             }
         }
         return values;
+    }
+
+    private double runtimeDouble(Object value, double fallback) {
+        if (value == null) return fallback;
+        if (value instanceof Number number) return Math.max(0D, number.doubleValue());
+        try {
+            return Math.max(0D, Double.parseDouble(String.valueOf(value).trim()));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     /**

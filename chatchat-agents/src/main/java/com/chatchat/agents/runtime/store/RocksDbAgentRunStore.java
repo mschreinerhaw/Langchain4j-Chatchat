@@ -47,7 +47,7 @@ import java.util.Optional;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "chatchat.agent-runtime", name = "store-type", havingValue = "rocksdb", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "chatchat.agent-runtime", name = "store-type", havingValue = "rocksdb")
 public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
 
     private static final String RUN_KEY_PREFIX = "run:";

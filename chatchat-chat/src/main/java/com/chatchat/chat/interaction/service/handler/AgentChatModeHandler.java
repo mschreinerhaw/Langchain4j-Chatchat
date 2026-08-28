@@ -430,6 +430,12 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             if (runId != null && !String.valueOf(runId).isBlank()) {
                 attributes.put("__agentRunId", String.valueOf(runId).trim());
             }
+            copyInternalExecutionAttribute(request, attributes, "__agentTaskId");
+            copyInternalExecutionAttribute(request, attributes, "__executionId");
+            copyInternalExecutionAttribute(request, attributes, "__rootExecutionId");
+            copyInternalExecutionAttribute(request, attributes, "__executionAttemptId");
+            copyInternalExecutionAttribute(request, attributes, "__parentAttemptId");
+            copyInternalExecutionAttribute(request, attributes, "__executionAttemptNumber");
             Object responseContract = request.getToolInput().get("responseContract");
             if (responseContract instanceof Map<?, ?>) {
                 attributes.put("responseContract", responseContract);
@@ -497,6 +503,15 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             attributes.put("mcpToolConfigs", toolConfigs);
         }
         return attributes.isEmpty() ? Map.of() : attributes;
+    }
+
+    private void copyInternalExecutionAttribute(InteractionRequest request,
+                                                Map<String, Object> attributes,
+                                                String key) {
+        Object value = request.getToolInput().get(key);
+        if (value != null && !String.valueOf(value).isBlank()) {
+            attributes.put(key, value);
+        }
     }
 
     private boolean containsExecutableWorkflow(Map<String, Object> workflowConfig) {

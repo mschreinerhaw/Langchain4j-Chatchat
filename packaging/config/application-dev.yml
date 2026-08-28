@@ -130,7 +130,12 @@ chatchat:
         port: 0
         type: http
   agent-runtime:
-    store-type: rocksdb
+    store-type: ${CHATCHAT_AGENT_RUNTIME_STORE_TYPE:database}
+    model-token-budget: ${CHATCHAT_AGENT_MODEL_TOKEN_BUDGET:0}
+    model-cost-budget: ${CHATCHAT_AGENT_MODEL_COST_BUDGET:0}
+    model-input-cost-per-thousand-tokens: ${CHATCHAT_AGENT_MODEL_INPUT_COST_PER_1K:0}
+    model-output-cost-per-thousand-tokens: ${CHATCHAT_AGENT_MODEL_OUTPUT_COST_PER_1K:0}
+    budget-alert-ratio: ${CHATCHAT_AGENT_BUDGET_ALERT_RATIO:0.8}
     rocks-db-path: ./data/agent-runtime-rocksdb
     rocks-db-create-if-missing: true
     fail-interrupted-runs-on-startup: true
@@ -171,7 +176,7 @@ chatchat:
       keep-alive-seconds: 60
       list-limit: 50
       event-store:
-        type: rocksdb
+        type: ${CHATCHAT_AGENT_EVENT_STORE_TYPE:database}
         path: ./data/agent-event-rocksdb
         create-if-missing: true
   search:

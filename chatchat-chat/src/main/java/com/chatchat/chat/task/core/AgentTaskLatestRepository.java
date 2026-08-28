@@ -18,6 +18,8 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
 
     Optional<AgentTaskLatestEntity> findByTenantIdAndIdempotencyKey(String tenantId, String idempotencyKey);
 
+    Optional<AgentTaskLatestEntity> findByExecutionAttemptId(String executionAttemptId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from AgentTaskLatestEntity t where t.taskId = :taskId")
     Optional<AgentTaskLatestEntity> findByTaskIdForUpdate(@Param("taskId") String taskId);
@@ -84,6 +86,14 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
         order by t.leaseExpiresAt asc
         """)
     List<AgentTaskLatestEntity> findExpiredClaims(@Param("now") Instant now, Pageable pageable);
+
+    @Query("""
+        select t from AgentTaskLatestEntity t
+        where t.status in ('CLAIMED', 'RUNNING', 'WAIT_MODEL', 'WAIT_TOOL')
+          and t.claimToken is null
+        order by t.updateTime asc
+        """)
+    List<AgentTaskLatestEntity> findOrphanedActiveTasks(Pageable pageable);
 
     /**
      * Finds the all by order by create time desc.

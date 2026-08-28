@@ -3466,6 +3466,35 @@
   white-space: nowrap;
 }
 
+.agent-workshop-view .agent-curl-dialog {
+  width: min(920px, calc(100vw - 32px));
+}
+
+.agent-workshop-view .agent-curl-body {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-workshop-view .agent-curl-notice {
+  margin: 0;
+  color: var(--text-secondary, #475569);
+  line-height: 1.6;
+}
+
+.agent-workshop-view .agent-curl-body pre {
+  max-height: 56vh;
+  margin: 0;
+  padding: 18px;
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .mcp-center-view .mcp-actions button:disabled {
   opacity: 0.62;
   cursor: default;

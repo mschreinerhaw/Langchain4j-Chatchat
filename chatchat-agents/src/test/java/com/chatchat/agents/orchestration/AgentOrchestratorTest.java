@@ -1638,6 +1638,7 @@ class AgentOrchestratorTest {
         InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
             "success", true, false, null, null, List.of(first, second), Map.of(), 10L);
         ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("consolidated metadata analysis");
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze metadata", result, Map.of(),
@@ -1648,9 +1649,20 @@ class AgentOrchestratorTest {
             .doesNotHaveDuplicates()
             .anyMatch(id -> id.contains("sql_metadata_search#chunk-1"))
             .anyMatch(id -> id.contains("sql_metadata_search#occurrence-2#chunk-1"));
+        assertThat(coverage.synthesisInputs())
+            .singleElement()
+            .satisfies(summary -> {
+                assertThat(summary.scope()).isEqualTo("RELATIONSHIP_GROUP_SYNTHESIS");
+                assertThat(summary.inputSummaryResultIds()).hasSize(2);
+                assertThat(summary.content()).isEqualTo("consolidated metadata analysis");
+            });
         assertThat(coverage.promptEvidence())
             .contains("sql_metadata_search#occurrence-2", "orders", "assets");
-        verify(model, never()).chat(any(String.class));
+        verify(model).chat(argThat((String prompt) ->
+            prompt.contains("RELATIONSHIP_GROUP_SYNTHESIS")
+                && prompt.contains("sql_metadata_search#occurrence-2")
+                && prompt.contains("orders")
+                && prompt.contains("assets")));
     }
 
     @Test
@@ -1686,7 +1698,8 @@ class AgentOrchestratorTest {
         assertThat(metadata)
             .containsEntry("governedNarrativeAnalysisAppended", true)
             .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true)
-            .containsEntry("governedNarrativeAnalysisSummaryCount", 1);
+            .containsEntry("governedNarrativeAnalysisSummaryCount", 1)
+            .containsEntry("governedNarrativeAnalysisSource", "DRIVER_SYNTHESIS_INPUTS");
         verify(model).chat(argThat((String prompt) ->
             prompt.contains("客户资产快照")
                 && prompt.contains("分析资产规模与当日盈亏")
@@ -1809,6 +1822,51 @@ class AgentOrchestratorTest {
                 && prompt.contains("Assess current runtime metrics")
                 && prompt.contains("Collect runtime metric values")
                 && prompt.contains("$.data.stdout")));
+    }
+
+    @Test
+    void narrativeFallbackUsesDriverSynthesisInsteadOfRepeatingChunkSummaries() {
+        GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
+            "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
+        AnalysisSummaryResult firstChunk = AnalysisSummaryResult.chunk(
+            scope,
+            Map.of("datasetReference", "sse_etf_scale", "chunkIndex", 1,
+                "recordFrom", 1, "recordTo", 20, "totalRecords", 40),
+            Map.of(),
+            "chunk-one ETF observation",
+            "MODEL_SUMMARY");
+        AnalysisSummaryResult secondChunk = AnalysisSummaryResult.chunk(
+            scope,
+            Map.of("datasetReference", "sse_etf_scale", "chunkIndex", 2,
+                "recordFrom", 21, "recordTo", 40, "totalRecords", 40),
+            Map.of(),
+            "chunk-two ETF observation",
+            "MODEL_SUMMARY");
+        AnalysisSummaryResult driverSynthesis = AnalysisSummaryResult.intermediateSummary(
+            scope,
+            "DATASET_SYNTHESIS",
+            "dataset-summary#sse_etf_scale",
+            "Driver consolidated ETF capital-flow analysis",
+            "MODEL_DATASET_REDUCE",
+            Map.of("datasetReference", "sse_etf_scale", "chunkCount", 2),
+            Map.of("source", Map.of("displayName", "Latest ETF scale and share observation")),
+            Map.of("complete", true),
+            List.of(firstChunk, secondChunk),
+            Map.of());
+        AgentOrchestrator.RecordCoverageBundle coverage = new AgentOrchestrator.RecordCoverageBundle(
+            "", "", List.of(), 40, 40, 2, true, true, true, true, 0,
+            List.of(firstChunk, secondChunk), List.of(driverSynthesis));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        String answer = newOrchestrator(mock(ChatModel.class)).ensureCompleteRecordCoveragePresented(
+            "Full content was transferred to the dynamic report.", coverage, metadata);
+
+        assertThat(answer)
+            .contains("Driver consolidated ETF capital-flow analysis")
+            .doesNotContain("chunk-one ETF observation", "chunk-two ETF observation");
+        assertThat(metadata)
+            .containsEntry("governedNarrativeAnalysisSummaryCount", 1)
+            .containsEntry("governedNarrativeAnalysisSource", "DRIVER_SYNTHESIS_INPUTS");
     }
 
     @Test

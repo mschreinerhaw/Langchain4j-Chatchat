@@ -4061,17 +4061,52 @@ public class AgentOrchestrator implements AgentRunExecutor {
     }
 
     private DatasetRelationshipPlan buildDatasetRelationshipPlan(List<BatchRecordSet> recordSets) {
+        Map<String, Long> referenceCounts = recordSets.stream().collect(
+            java.util.stream.Collectors.groupingBy(
+                BatchRecordSet::reference, LinkedHashMap::new,
+                java.util.stream.Collectors.counting()));
         Map<String, Integer> occurrences = new LinkedHashMap<>();
         List<DatasetRelationshipPlan.Dataset> datasets = new ArrayList<>();
         for (BatchRecordSet recordSet : recordSets) {
             int occurrence = occurrences.merge(recordSet.reference(), 1, Integer::sum);
             String reference = occurrence == 1
                 ? recordSet.reference() : recordSet.reference() + "#occurrence-" + occurrence;
+            Map<String, Object> governedContext = analysisSummaryGovernanceBridge.govern(
+                reference, recordSet.analysisContext(), recordSet.records());
+            if (referenceCounts.getOrDefault(recordSet.reference(), 0L) > 1L) {
+                governedContext = withRuntimeOccurrenceRelationship(
+                    governedContext, recordSet.reference());
+            }
             datasets.add(new DatasetRelationshipPlan.Dataset(reference,
-                analysisSummaryGovernanceBridge.govern(
-                    reference, recordSet.analysisContext(), recordSet.records())));
+                governedContext));
         }
         return DatasetRelationshipPlan.create(datasets);
+    }
+
+    /**
+     * Multiple successful batch children may be pages or partitions of one logical dataset. The
+     * shared pre-occurrence reference is Runtime-owned structural evidence, so relating those
+     * occurrences does not require a model guess or a business-domain rule.
+     */
+    private Map<String, Object> withRuntimeOccurrenceRelationship(
+        Map<String, Object> analysisContext,
+        String logicalDatasetReference
+    ) {
+        Map<String, Object> context = new LinkedHashMap<>(
+            analysisContext == null ? Map.of() : analysisContext);
+        Object declaredRelationships = context.get("relationships");
+        List<Object> relationships = new ArrayList<>();
+        if (declaredRelationships instanceof Iterable<?> existing) {
+            existing.forEach(relationships::add);
+        } else if (declaredRelationships != null) {
+            relationships.add(declaredRelationships);
+        }
+        relationships.add(Map.of(
+            "groupId", "runtime-occurrence:" + logicalDatasetReference,
+            "relationType", "SAME_LOGICAL_DATASET_OCCURRENCE",
+            "authority", "RUNTIME_DATASET_REFERENCE"));
+        context.put("relationships", List.copyOf(relationships));
+        return Map.copyOf(context);
     }
 
     private ParallelAnalysisSummaryBatch prepareParallelAnalysisSummaries(
@@ -4944,9 +4979,32 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (hasNarrativeAnalysis(answer) && containsReturnedValue) {
             return answer;
         }
-        List<AnalysisSummaryResult> modelSummaries = coverage.summaryResults().stream()
+        // The Driver has already reduced chunk summaries into dataset/relationship-level
+        // synthesis inputs. Falling back to summaryResults here would expose one narrative per
+        // pagination chunk, which is both an abstraction leak and highly repetitive for large
+        // result sets. Keep the raw chunk summaries only as a compatibility fallback for old or
+        // partially restored coverage bundles that predate hierarchical reduction.
+        List<AnalysisSummaryResult> preferredSummaries = coverage.synthesisInputs().isEmpty()
+            ? coverage.summaryResults()
+            : coverage.synthesisInputs();
+        Set<String> modelSummaryResultIds = coverage.summaryResults().stream()
             .filter(summary -> "MODEL_SUMMARY".equals(summary.outcome()))
+            .map(AnalysisSummaryResult::resultId)
+            .collect(java.util.stream.Collectors.toSet());
+        List<AnalysisSummaryResult> modelSummaries = preferredSummaries.stream()
+            // Do not replace a valid candidate answer with deterministic raw-record fallback
+            // text. A synthesis is presentation-ready only when a model produced it directly or
+            // when its lineage contains a governed model chunk.
+            .filter(summary -> summary.outcome().startsWith("MODEL_")
+                || "MODEL_SUMMARY".equals(summary.outcome())
+                || summary.inputSummaryResultIds().stream().anyMatch(modelSummaryResultIds::contains))
             .filter(summary -> summary.content() != null && !summary.content().isBlank())
+            .collect(java.util.stream.Collectors.toMap(
+                AnalysisSummaryResult::resultId,
+                java.util.function.Function.identity(),
+                (first, ignored) -> first,
+                LinkedHashMap::new))
+            .values().stream()
             .toList();
         if (modelSummaries.isEmpty()) {
             if (metadata != null) metadata.put("governedNarrativeAnalysisUnavailable", true);
@@ -4968,6 +5026,8 @@ public class AgentOrchestrator implements AgentRunExecutor {
             metadata.put("governedNarrativeAnalysisAppended", true);
             metadata.put("governedNarrativeAnalysisReplacedOperationalDraft", !containsReturnedValue);
             metadata.put("governedNarrativeAnalysisSummaryCount", modelSummaries.size());
+            metadata.put("governedNarrativeAnalysisSource",
+                coverage.synthesisInputs().isEmpty() ? "CHUNK_COMPATIBILITY_FALLBACK" : "DRIVER_SYNTHESIS_INPUTS");
         }
         return appendix.toString().trim();
     }

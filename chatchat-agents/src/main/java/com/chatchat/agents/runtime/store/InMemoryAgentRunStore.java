@@ -325,6 +325,35 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
     }
 
     @Override
+    public AgentRun recordEvent(String runId, AgentRunEvent event) {
+        if (runId == null || runId.isBlank()) {
+            throw new IllegalArgumentException("Agent run id is required");
+        }
+        if (event == null) {
+            throw new IllegalArgumentException("Agent run event is required");
+        }
+        AgentRun run = runs.compute(runId, (key, current) -> {
+            AgentRun base = current == null ? missingRun(key) : current;
+            if (isTerminal(base.status()) || base.events().stream()
+                .anyMatch(existing -> existing.eventId().equals(event.eventId()))) {
+                return base;
+            }
+            AgentRunEvent stored = key.equals(event.runId()) ? event : new AgentRunEvent(
+                event.eventId(), key, event.type(), event.createdAt(), event.message(), event.payload());
+            List<AgentRunEvent> events = new ArrayList<>(base.events());
+            events.add(stored);
+            publishEvent(stored);
+            return AgentRun.builder()
+                .runId(key).status(base.status()).request(base.request()).result(base.result())
+                .steps(base.steps()).observations(base.observations()).events(events)
+                .metadata(base.metadata()).startedAt(base.startedAt()).finishedAt(base.finishedAt())
+                .errorMessage(base.errorMessage()).build();
+        });
+        pruneRuns();
+        return run;
+    }
+
+    @Override
     public AgentRun cancel(String runId, String reason) {
         if (runId == null || runId.isBlank()) {
             throw new IllegalArgumentException("Agent run id is required");

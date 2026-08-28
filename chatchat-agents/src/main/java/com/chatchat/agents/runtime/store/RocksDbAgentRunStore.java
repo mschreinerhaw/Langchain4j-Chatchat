@@ -220,6 +220,16 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     }
 
     @Override
+    public AgentRun recordEvent(String runId, AgentRunEvent event) {
+        int previousEventCount = find(runId).map(run -> run.events().size()).orElse(0);
+        AgentRun run = super.recordEvent(runId, event);
+        if (run.events().size() > previousEventCount) {
+            persistIncrement(run, null, -1, null, -1, previousEventCount);
+        }
+        return run;
+    }
+
+    @Override
     public Optional<Object> evidence(String documentId) {
         if (documentId == null || documentId.isBlank() || !evidenceStore.isEnabled()) {
             return Optional.empty();

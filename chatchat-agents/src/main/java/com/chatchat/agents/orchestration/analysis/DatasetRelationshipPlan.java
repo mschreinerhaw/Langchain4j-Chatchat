@@ -89,6 +89,10 @@ public record DatasetRelationshipPlan(
             for (String key : List.of("id", "toolName", "remoteToolName", "runtimeReference")) {
                 addAlias(aliases, text(source.get(key)), dataset.reference());
             }
+            Map<String, Object> workerContext = map(
+                dataset.analysisContext().get("workerAnalysisContext"));
+            Map<String, Object> currentTemplate = map(workerContext.get("currentTemplate"));
+            addAlias(aliases, text(currentTemplate.get("templateId")), dataset.reference());
         }
         return aliases;
     }
@@ -166,7 +170,8 @@ public record DatasetRelationshipPlan(
     private static boolean isTargetKey(String key) {
         String normalized = key == null ? "" : key.replace("_", "").replace("-", "").toLowerCase();
         return Set.of("target", "to", "dataset", "datasetid", "datasetreference",
-            "targetdataset", "targetdatasetid", "relateddataset", "relateddatasets").contains(normalized);
+            "targetdataset", "targetdatasetid", "relateddataset", "relateddatasets",
+            "totemplate", "totemplateid").contains(normalized);
     }
 
     private static boolean isGroupKey(String key) {

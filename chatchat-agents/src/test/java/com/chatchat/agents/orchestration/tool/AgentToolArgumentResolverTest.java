@@ -863,13 +863,13 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
-    void skipsIncompatibleFirstCandidateAndExecutesNewlyRegisteredNoParameterTemplate() {
+    void executesOnlyReviewedNewlyRegisteredNoParameterTemplate() {
         String dynamicTemplateId = "tenant_market_snapshot_" + System.nanoTime();
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .toolName("mcp_vendor_business_template_query")
             .success(true)
             .output("""
-                {"templates":[
+                {"runtimeTemplateSelection":{"selectedTemplateIds":["%s"]},"templates":[
                   {"templateId":"requires_security_code",
                    "parameterContract":{"executionTool":"sql_query_execute"},
                    "parameterSchema":{"type":"object","properties":{"security_code":{"type":"string"}},
@@ -878,7 +878,7 @@ class AgentToolArgumentResolverTest {
                    "parameterContract":{"executionTool":"sql_query_execute"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]}}
                 ]}
-                """.formatted(dynamicTemplateId))
+                """.formatted(dynamicTemplateId, dynamicTemplateId))
             .build();
 
         Map<String, Object> result = resolver.applyObservedTemplateContract(
@@ -917,6 +917,8 @@ class AgentToolArgumentResolverTest {
         Map<String, Object> discoveryPayload = new LinkedHashMap<>();
         discoveryPayload.put("returnedCount", templates.size());
         discoveryPayload.put("templates", templates);
+        discoveryPayload.put("runtimeTemplateSelection",
+            Map.of("selectedTemplateIds", List.of(dynamicTemplateId)));
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .toolName("mcp_extreme_tenant_capability_query")
             .success(true)
@@ -936,20 +938,20 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
-    void compilesEveryBatchChildFromObservedTemplatesWithoutTemplateNameKnowledge() {
+    void compilesEveryReviewedBatchChildWithoutTemplateNameKnowledge() {
         String firstId = "tenant_created_snapshot_a_" + System.nanoTime();
         String secondId = "tenant_created_snapshot_b_" + System.nanoTime();
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .toolName("mcp_vendor_business_template_query")
             .success(true)
             .output("""
-                {"templates":[
+                {"runtimeTemplateSelection":{"selectedTemplateIds":["%s","%s"]},"templates":[
                   {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]}},
                   {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]}}
                 ]}
-                """.formatted(firstId, secondId))
+                """.formatted(firstId, secondId, firstId, secondId))
             .build();
         Map<String, Object> batch = Map.of(
             "purpose", "run newly registered tenant templates",
@@ -1317,6 +1319,7 @@ class AgentToolArgumentResolverTest {
             .success(true)
             .output("""
                 {"queryIr":{"asset":{"selected":{"id":"asset-unrelated","name":"unrelated-first-candidate","environment":"PROD","toolName":"http_unrelated"}}},
+                 "runtimeTemplateSelection":{"selectedTemplateIds":["dynamic-a","dynamic-b"]},
                  "candidates":[
                   {"templateId":"dynamic-a","parameterContract":{"executionTool":"dynamic_executor"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]},
@@ -1351,14 +1354,14 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
-    void mandatoryRecoveryCompilesEveryCompatibleAdmittedTemplateIntoBatch() {
+    void mandatoryRecoveryCompilesOnlyReviewedAdmittedTemplatesIntoBatch() {
         String firstId = "runtime_health_a_" + System.nanoTime();
         String secondId = "runtime_health_b_" + System.nanoTime();
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .toolName("mcp_runtime_database_template_query")
             .success(true)
             .output("""
-                {"templates":[
+                {"runtimeTemplateSelection":{"selectedTemplateIds":["%s","%s"]},"templates":[
                   {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]}},
                   {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
@@ -1366,7 +1369,7 @@ class AgentToolArgumentResolverTest {
                   {"templateId":"runtime_script","parameterContract":{"executionTool":"sql_script_execute"},
                    "parameterSchema":{"type":"object","properties":{},"required":[]}}
                 ]}
-                """.formatted(firstId, secondId))
+                """.formatted(firstId, secondId, firstId, secondId))
             .build();
 
         Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
@@ -1384,6 +1387,31 @@ class AgentToolArgumentResolverTest {
             assertThat(calls).hasSize(2);
             assertThat(calls.toString()).contains(firstId, secondId).doesNotContain("runtime_script");
         });
+    }
+
+    @Test
+    void mandatoryRecoveryDoesNotExecuteAnUnreviewedBusinessGroupWholesale() {
+        String firstId = "unreviewed_scale_" + System.nanoTime();
+        String secondId = "unreviewed_margin_" + System.nanoTime();
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_business_template_query")
+            .success(true)
+            .output("""
+                {"templates":[
+                  {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}},
+                  {"templateId":"%s","parameterContract":{"executionTool":"sql_query_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}}
+                ]}
+                """.formatted(firstId, secondId))
+            .build();
+
+        Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
+            "mcp_runtime_sql_query_execute", Map.of("purpose", "分析ETF资金流向"),
+            List.of(discovery), "分析ETF资金流向");
+
+        assertThat(result).doesNotContainKey("calls");
+        assertThat(result).containsEntry("__runtimeParamBindingStatus", "DENIED");
     }
 
     @Test
@@ -1425,6 +1453,7 @@ class AgentToolArgumentResolverTest {
             .output("""
                 {
                   "executionTool":"custom_template_execute",
+                  "runtimeTemplateSelection":{"selectedTemplateIds":["template-a","template-b"]},
                   "candidates":[
                     {"templateId":"template-a","parameterSchema":{"type":"object","properties":{},"required":[]}},
                     {"templateId":"template-b","parameterSchema":{"type":"object","properties":{},"required":[]}}
@@ -1472,6 +1501,7 @@ class AgentToolArgumentResolverTest {
             .output("""
                 {
                   "routingProjection": {
+                    "runtimeTemplateSelection":{"selectedTemplateIds":["CHECK_IMAGES","CHECK_CONTAINERS"]},
                     "queryIr": {"asset":{"selected":{
                       "id":"asset-docker-1",
                       "name":"Docker database host",

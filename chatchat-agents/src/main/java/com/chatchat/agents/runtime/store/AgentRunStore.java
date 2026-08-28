@@ -32,6 +32,9 @@ public interface AgentRunStore extends RuntimeEventJournal<AgentRunEvent> {
 
     AgentRun recordObservation(String runId, AgentObservation observation);
 
+    /** Persists and publishes a first-class Runtime event without disguising it as an observation. */
+    AgentRun recordEvent(String runId, AgentRunEvent event);
+
     Optional<AgentRun> find(String runId);
 
     List<AgentRun> list(AgentRunQuery query);

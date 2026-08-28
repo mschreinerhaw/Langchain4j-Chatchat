@@ -21,6 +21,8 @@ import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
+import com.chatchat.common.knowledge.template.BusinessTemplateRequirementMatchingEvent;
+import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
 import com.chatchat.agents.routing.McpToolRouter;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
@@ -35,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -2697,7 +2700,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 appendTemplateExecutionReviewContract(execution, lastReview, metadata);
                 if (lastReview.satisfied()) {
                     execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
-                    execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
+                    execution = applyRuntimeTemplateSelection(
+                        execution, lastReview, metadata, startedAt, request, completed);
                     String selectionError = semanticCandidateSelectionError(execution, metadata);
                     if (selectionError != null) {
                         metadata.put("semanticCandidateReviewSatisfied", false);
@@ -2734,7 +2738,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (isSemanticCandidateDiscovery(execution.toolName())) {
             if (lastReview != null) {
                 execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
-                execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
+                execution = applyRuntimeTemplateSelection(
+                    execution, lastReview, metadata, startedAt, request, completed);
             }
             String selectionError = semanticCandidateSelectionError(execution, metadata);
             if (selectionError != null) {
@@ -2773,7 +2778,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     + "traceId={} stepId={} tool={} evidenceSufficiency=INSUFFICIENT reason={}",
                 executionTraceId(request), execution.stepId(), execution.toolName(), reason);
             if (isTemplateDiscoveryTool(execution.toolName()) && lastReview != null) {
-                execution = applyRuntimeTemplateSelection(execution, lastReview, metadata, startedAt);
+                execution = applyRuntimeTemplateSelection(
+                    execution, lastReview, metadata, startedAt, request, completed);
             }
             if (isAssetDiscoveryTool(execution.toolName()) && lastReview != null) {
                 execution = applyRuntimeAssetSelection(execution, lastReview, metadata, startedAt);
@@ -2849,18 +2855,30 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     private StepExecution applyRuntimeTemplateSelection(StepExecution execution,
                                                         StepReview review,
                                                         Map<String, Object> metadata,
-                                                        long startedAt) {
+                                                        long startedAt,
+                                                        ExecutionRequest request,
+                                                        Map<Integer, StepExecution> completed) {
         if (execution == null || review == null || !isTemplateDiscoveryTool(execution.toolName())) {
             return execution;
         }
+        Map<String, Object> reviewMetadata = new LinkedHashMap<>(review.metadata());
+        String originalQuestion = originalUserQuery(request);
+        if (originalQuestion != null) reviewMetadata.put("originalUserQuestion", originalQuestion);
+        reviewMetadata.put("templateRequirementAnalysisContext",
+            templateRequirementAnalysisContext(request, execution, completed));
+        reviewMetadata.put("toolResultReviewReason", review.reason());
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
-            TEMPLATE_CANDIDATE_EVALUATOR.evaluate(execution.output(), review.metadata());
+            TEMPLATE_CANDIDATE_EVALUATOR.evaluate(execution.output(), Map.copyOf(reviewMetadata));
         metadata.put("runtimeTemplateSelectionApplied", evaluation.applied());
         metadata.put("runtimeTemplateCandidateCount", evaluation.candidateCount());
         metadata.put("runtimeTemplateSelectedCount", evaluation.selectedCount());
         metadata.put("runtimeSelectedTemplateIds", evaluation.selectedIds());
         metadata.put("runtimeTemplateCandidateEvaluations", evaluation.candidateEvaluations());
         metadata.put("runtimeTemplateSelectionReason", evaluation.reason());
+        if (!evaluation.templateMatchAnalysis().isEmpty()) {
+            metadata.put(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY, evaluation.templateMatchAnalysis());
+            recordTemplateRequirementMatchingEvent(request, evaluation.templateMatchAnalysis());
+        }
         if (!evaluation.applied()) {
             return execution;
         }
@@ -2876,6 +2894,74 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             elapsed(startedAt),
             metadata
         );
+    }
+
+    /** Emits the semantic planning event at the point where matching is completed, before data requests. */
+    private void recordTemplateRequirementMatchingEvent(
+        ExecutionRequest request, Map<String, Object> templateMatchAnalysis
+    ) {
+        String runId = runId(request);
+        if (runStore == null || runId == null || runId.isBlank()
+            || templateMatchAnalysis == null || templateMatchAnalysis.isEmpty()) {
+            return;
+        }
+        String fingerprint = sha256(templateMatchAnalysis);
+        String eventId = runId + ":template-requirement-match:"
+            + fingerprint.substring(0, Math.min(16, fingerprint.length()));
+        BusinessTemplateRequirementMatchingEvent event =
+            new BusinessTemplateRequirementMatchingEvent(eventId, runId, 0L, templateMatchAnalysis);
+        runStore.recordEvent(runId, new AgentRunEvent(
+            event.eventId(), runId,
+            AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING,
+            event.occurredAt(), "Business template requirement matching completed",
+            event.payload()));
+    }
+
+    /** Bounded, non-executable context used by semantic template admission and later Workers. */
+    private Map<String, Object> templateRequirementAnalysisContext(
+        ExecutionRequest request,
+        StepExecution current,
+        Map<Integer, StepExecution> completed
+    ) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        if (request != null && request.plan() != null) {
+            context.put("planIntent", request.plan().intent());
+        }
+        if (current != null) {
+            Map<String, Object> discovery = new LinkedHashMap<>();
+            if (current.stepId() != null) discovery.put("stepId", current.stepId());
+            discovery.put("toolName", firstText(current.toolName(), "unknown"));
+            discovery.put("returnedCandidateCount", templateCandidates(current.output()).size());
+            context.put("candidateDiscovery", Map.copyOf(discovery));
+        }
+        List<Map<String, Object>> priorEvidence = new ArrayList<>();
+        if (completed != null) {
+            completed.values().stream()
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(item -> item.stepId() == null ? 0 : item.stepId()))
+                .limit(12)
+                .forEach(item -> {
+                    Map<String, Object> projection = new LinkedHashMap<>();
+                    if (item.stepId() != null) projection.put("stepId", item.stepId());
+                    projection.put("toolName", firstText(item.toolName(), item.actionType()));
+                    projection.put("success", item.success());
+                    Object analysisContext = firstValueAtAnyPath(item.output(),
+                        "$.analysisContext", "$.analysis_context", "$.data.analysisContext",
+                        "$.result.analysisContext", "$.structuredContent.analysisContext");
+                    if (analysisContext != null) projection.put("analysisContext", analysisContext);
+                    if (item.output() instanceof Map<?, ?> outputMap) {
+                        projection.put("returnedFields", outputMap.keySet().stream()
+                            .filter(Objects::nonNull).map(String::valueOf).limit(50).toList());
+                    }
+                    Object returnedCount = firstValueAtAnyPath(item.output(),
+                        "$.returnedCount", "$.totalCount", "$.count", "$.data.returnedCount");
+                    if (returnedCount != null) projection.put("returnedCount", returnedCount);
+                    priorEvidence.add(Map.copyOf(projection));
+                });
+        }
+        context.put("completedEvidence", List.copyOf(priorEvidence));
+        context.put("contextRole", "TEMPLATE_REQUIREMENT_ADMISSION_INPUT");
+        return Map.copyOf(context);
     }
 
     private boolean isSemanticCandidateDiscovery(String toolName) {
@@ -5351,7 +5437,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     /**
-     * Compiles every template admitted by successful governed discovery into a Runtime-owned
+     * Compiles exactly the business-requirement admission set from successful governed discovery into a Runtime-owned
      * failure-isolated batch. The plan does not have to declare batch transport: a scalar
      * {@code templates[0]} binding is upgraded here so model drift cannot silently omit the rest
      * of the discovered set. Runtime still never executes an id that is absent from MCP output.

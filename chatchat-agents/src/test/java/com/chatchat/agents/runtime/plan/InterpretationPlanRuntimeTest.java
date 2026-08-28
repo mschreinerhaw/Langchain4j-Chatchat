@@ -1196,14 +1196,23 @@ class InterpretationPlanRuntimeTest {
             review()
         );
         AtomicInteger reviewerCalls = new AtomicInteger();
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
-            null,
+            runStore,
             request -> {
                 reviewerCalls.incrementAndGet();
                 return InterpretationPlanRuntime.StepReview.accepted("candidate set semantically matches the request", Map.of(
-                    "selectedTemplateIds", List.of("CHECK_PROCESS")
+                    "selectedTemplateIds", List.of("CHECK_PROCESS"),
+                    "businessAnalysisIntent", Map.of(
+                        "business_goal", "inspect MySQL process state",
+                        "analysis_subject", "MySQL server"),
+                    "templateEvaluations", List.of(Map.of(
+                        "template_id", "CHECK_PROCESS",
+                        "decision", "accept",
+                        "analysis_role", "TARGET",
+                        "relevance_level", "HIGH"))
                 ));
             },
             scriptedController(List.of(List.of(1), List.of(2)))
@@ -1217,7 +1226,7 @@ class InterpretationPlanRuntimeTest {
             "req-template-discovery-skip-review",
             "conv-template-discovery-skip-review",
             "user-1",
-            Map.of()
+            Map.of("originalUserQuery", "分析MySQL服务器管理进程信息")
         ));
 
         assertThat(result.success()).isTrue();
@@ -1237,6 +1246,12 @@ class InterpretationPlanRuntimeTest {
             .isEqualTo("CHECK_PROCESS");
         assertThat(projectedOutput.get("runtimeTemplateSelection").toString())
             .contains("selectionAuthority=runtime_evidence_model_review", "candidateCount=2");
+        assertThat(runStore.events("req-template-discovery-skip-review"))
+            .filteredOn(event -> event.type()
+                == AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING)
+            .singleElement().satisfies(event -> assertThat(event.payload().toString())
+                .contains("template_match_analysis.v2", "TEMPLATE_MATCH_ANALYSIS",
+                    "analysisRole=TARGET", "inspect MySQL process state"));
     }
 
     @Test

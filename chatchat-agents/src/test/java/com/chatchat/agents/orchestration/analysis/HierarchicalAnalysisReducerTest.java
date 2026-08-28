@@ -60,6 +60,30 @@ class HierarchicalAnalysisReducerTest {
     }
 
     @Test
+    void resolvesTemplateMatchRelationshipsThroughWorkerTemplateIdentity() {
+        DatasetRelationshipPlan plan = DatasetRelationshipPlan.create(List.of(
+            new DatasetRelationshipPlan.Dataset("asset-records", Map.of(
+                "workerAnalysisContext", Map.of(
+                    "currentTemplate", Map.of("templateId", "customer_asset")),
+                "relationships", List.of(Map.of(
+                    "fromTemplateId", "customer_asset",
+                    "toTemplateId", "fund_flow",
+                    "relationType", "CAUSE_VALIDATION")))),
+            new DatasetRelationshipPlan.Dataset("flow-records", Map.of(
+                "workerAnalysisContext", Map.of(
+                    "currentTemplate", Map.of("templateId", "fund_flow"))))
+        ));
+
+        assertThat(plan.groups()).singleElement().satisfies(group ->
+            assertThat(group.datasetReferences()).containsExactly("asset-records", "flow-records"));
+        assertThat(plan.edges()).singleElement().satisfies(edge -> {
+            assertThat(edge.fromDataset()).isEqualTo("asset-records");
+            assertThat(edge.toDataset()).isEqualTo("flow-records");
+        });
+        assertThat(plan.unresolvedReferences()).isEmpty();
+    }
+
+    @Test
     void reducesExplicitGroupAndKeepsStandaloneDatasetAsSeparateFinalInput() {
         DatasetRelationshipPlan plan = DatasetRelationshipPlan.create(List.of(
             dataset("assets", Map.of("targetDataset", "positions")),

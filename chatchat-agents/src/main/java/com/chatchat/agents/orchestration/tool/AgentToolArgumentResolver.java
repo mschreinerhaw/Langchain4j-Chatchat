@@ -17,10 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Applies default arguments and runtime-bound document filters before tool execution.
@@ -168,6 +170,27 @@ public class AgentToolArgumentResolver {
             if (candidates.isEmpty()) {
                 continue;
             }
+            if (candidates.size() > 1) {
+                Set<String> reviewedIds = reviewedTemplateIds(output);
+                if (reviewedIds.isEmpty()) {
+                    return templateRequirementReviewDenied(values, candidates.size());
+                }
+                candidates = candidates.stream()
+                    .filter(template -> {
+                        String id = templateId(template);
+                        return id != null && reviewedIds.contains(id.toLowerCase(Locale.ROOT));
+                    })
+                    .toList();
+                if (candidates.isEmpty()) {
+                    return templateRequirementReviewDenied(values, 0);
+                }
+                if (requestedTemplateId != null && candidates.stream()
+                    .map(this::templateId)
+                    .filter(Objects::nonNull)
+                    .noneMatch(id -> id.equalsIgnoreCase(requestedTemplateId))) {
+                    return templateRequirementReviewDenied(values, candidates.size());
+                }
+            }
             if (batchCalls(values) != null) {
                 return applyObservedBatchTemplateContracts(toolName, values, candidates, output, trace, userQuery);
             }
@@ -237,6 +260,19 @@ public class AgentToolArgumentResolver {
             return values;
         }
         return values;
+    }
+
+    private Map<String, Object> templateRequirementReviewDenied(
+        Map<String, Object> input,
+        int admittedCount
+    ) {
+        Map<String, Object> denied = new LinkedHashMap<>(input == null ? Map.of() : input);
+        denied.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+        denied.put(McpParamBindingResolver.CODE_KEY, "TEMPLATE_REQUIREMENT_REVIEW_REQUIRED");
+        denied.put(McpParamBindingResolver.ERROR_KEY,
+            "Multiple business-template candidates require semantic admission from the original user question "
+                + "and cumulative analysis context before execution; admittedCount=" + admittedCount);
+        return denied;
     }
 
     /**
@@ -844,10 +880,9 @@ public class AgentToolArgumentResolver {
     }
 
     /**
-     * Compiles every contract-compatible template admitted by one discovery result
-     * when deterministic workflow recovery has no model-selected scalar template.
-     * The executor declaration in each template is the branch discriminator; no
-     * template id, datasource type, or business capability is encoded here.
+     * Compiles only the explicitly reviewed template admission set when deterministic workflow
+     * recovery has no model-selected scalar template. An unreviewed business-group result is a
+     * high-recall catalog and must never be converted into physical calls wholesale.
      */
     private Map<String, Object> applyObservedTemplateSetContract(
         String toolName,
@@ -868,10 +903,16 @@ public class AgentToolArgumentResolver {
             if (output == null) {
                 continue;
             }
+            Set<String> reviewedTemplateIds = reviewedTemplateIds(output);
+            if (reviewedTemplateIds.isEmpty()) {
+                continue;
+            }
             Map<String, Map<String, Object>> uniqueCandidates = new LinkedHashMap<>();
             for (Map<String, Object> template : discoveredTemplates(output)) {
                 String templateId = templateId(template);
-                if (templateId != null && sameExecutor(toolName, discoveredExecutor(template))) {
+                if (templateId != null
+                    && reviewedTemplateIds.contains(templateId.toLowerCase(Locale.ROOT))
+                    && sameExecutor(toolName, discoveredExecutor(template))) {
                     uniqueCandidates.putIfAbsent(templateId.toLowerCase(Locale.ROOT), template);
                 }
             }
@@ -933,6 +974,36 @@ public class AgentToolArgumentResolver {
             return batch;
         }
         return null;
+    }
+
+    private Set<String> reviewedTemplateIds(Object value) {
+        LinkedHashSet<String> ids = new LinkedHashSet<>();
+        collectReviewedTemplateIds(value, ids, 0);
+        return Set.copyOf(ids);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectReviewedTemplateIds(Object value, Set<String> ids, int depth) {
+        if (value == null || depth > 8) return;
+        if (value instanceof Iterable<?> iterable) {
+            iterable.forEach(item -> collectReviewedTemplateIds(item, ids, depth + 1));
+            return;
+        }
+        if (!(value instanceof Map<?, ?> raw)) return;
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        Object selection = firstPresent(map, "runtimeTemplateSelection", "templateMatchAnalysis",
+            "businessTemplateRequirementMatch");
+        if (selection instanceof Map<?, ?> rawSelection) {
+            Object selected = firstPresent(mutableMap(rawSelection),
+                "selectedTemplateIds", "selected_template_ids", "selectedIds");
+            if (selected instanceof Iterable<?> iterable) {
+                for (Object id : iterable) {
+                    String text = scalarText(id);
+                    if (text != null) ids.add(text.toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        map.values().forEach(item -> collectReviewedTemplateIds(item, ids, depth + 1));
     }
 
     private Object parseJson(String text) {

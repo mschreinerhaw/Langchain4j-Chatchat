@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EvidenceBasedTemplateCandidateEvaluatorTest {
 
     @Test
-    void usesToolDeclaredTemplateSelectionWhenReviewerIsUnavailable() {
+    void rejectsToolDeclaredSelectionWhenContextAwareReviewerIsUnavailable() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
                 Map.of(
@@ -25,11 +25,10 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
                 Map.of("toolResultReviewUnavailable", true)
             );
 
-        assertThat(evaluation.applied()).isTrue();
-        assertThat(evaluation.selectedIds()).containsExactly("template-a", "template-b");
-        assertThat(evaluation.output().toString())
-            .contains("selectionAuthority=runtime_tool_declared_selection")
-            .doesNotContain("templateId=template-c");
+        assertThat(evaluation.applied()).isFalse();
+        assertThat(evaluation.selectedIds()).isEmpty();
+        assertThat(evaluation.reason())
+            .contains("original question", "cumulative analysis context");
     }
 
     @Test
@@ -78,6 +77,66 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
         assertThat(projected.get("runtimeTemplateSelection").toString())
             .contains("runtime_template_selection.v2", "mcpScoresAreWeakPriors=true",
                 "runtime_evidence_model_review");
+    }
+
+    @Test
+    void recordsQuestionAndActualContextInCommonTemplateMatchAnalysis() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "ETF_SCALE"),
+                    Map.of("templateId", "ETF_SHARE"),
+                    Map.of("templateId", "ETF_MARGIN")
+                )),
+                Map.of(
+                    "originalUserQuestion", "分析ETF规模与份额，观察市场资金流向",
+                    "templateRequirementAnalysisContext", Map.of(
+                        "completedEvidence", List.of(Map.of("dataset", "sse_etf_scale"))),
+                    "selectedTemplateIds", List.of("ETF_SCALE", "ETF_SHARE"),
+                    "rejectedTemplateIds", List.of("ETF_MARGIN"),
+                    "businessAnalysisIntent", Map.of(
+                        "business_goal", "观察ETF资金方向",
+                        "analysis_subject", "ETF市场",
+                        "analysis_focus", List.of("规模变化", "份额变化")),
+                    "templateRelationships", List.of(Map.of(
+                        "from_template_id", "ETF_SCALE",
+                        "to_template_id", "ETF_SHARE",
+                        "relation_type", "VALIDATES")),
+                    "toolResultReviewReason", "问题要求规模与份额，不要求两融",
+                    "templateEvaluations", List.of(
+                        Map.of(
+                            "template_id", "ETF_SCALE",
+                            "business_group", "ETF",
+                            "relevance", 0.98,
+                            "evidence_fit", 0.95,
+                            "parameter_readiness", 1.0,
+                            "total_score", 0.97,
+                            "decision", "accept",
+                            "reasons", List.of("覆盖规模与份额"),
+                            "matched_question_aspects", List.of("规模", "份额"),
+                            "relationship_hints", List.of("按基金代码关联相邻交易日")
+                        )
+                    )
+                )
+            );
+
+        assertThat(evaluation.selectedIds()).containsExactly("ETF_SCALE", "ETF_SHARE");
+        assertThat(evaluation.templateMatchAnalysis())
+            .containsEntry("schemaVersion", "template_match_analysis.v2")
+            .containsEntry("objectType", "TEMPLATE_MATCH_ANALYSIS")
+            .containsEntry("event", "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING")
+            .containsEntry("userQuestion", "分析ETF规模与份额，观察市场资金流向");
+        assertThat(evaluation.templateMatchAnalysis().toString())
+            .contains("sse_etf_scale", "businessGoal=观察ETF资金方向",
+                "analysisRole=CONTEXT", "fromTemplateId=ETF_SCALE",
+                "toTemplateId=ETF_SHARE", "matchedQuestionAspects=[规模, 份额]",
+                "relationshipHints=[按基金代码关联相邻交易日]")
+            .doesNotContain("ETF_MARGIN, ETF_SCALE");
+        assertThat(evaluation.output().toString())
+            .contains("templateMatchAnalysis", "analysisRole=IRRELEVANT");
+        Map<?, ?> projected = (Map<?, ?>) evaluation.output();
+        assertThat((List<?>) projected.get("templates")).extracting(String::valueOf)
+            .noneMatch(value -> value.contains("ETF_MARGIN"));
     }
 
     @Test

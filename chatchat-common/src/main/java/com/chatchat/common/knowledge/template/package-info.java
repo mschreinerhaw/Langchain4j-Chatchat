@@ -1,2 +1,2 @@
-/** Governed template knowledge, recall, execution-port and recovery-event protocols. */
+/** Governed template knowledge, requirement matching, recall, execution-port and recovery protocols. */
 package com.chatchat.common.knowledge.template;

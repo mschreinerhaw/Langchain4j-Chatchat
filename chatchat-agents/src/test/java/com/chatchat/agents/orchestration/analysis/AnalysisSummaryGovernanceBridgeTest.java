@@ -79,6 +79,41 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
+    void workerReceivesOriginalQuestionAndBusinessTemplateMatchContext() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(argThat((String prompt) ->
+            prompt.contains("Original user question (authoritative analysis intent): 观察ETF市场资金流向")
+                && prompt.contains("templateMatchAnalysis")
+                && prompt.contains("ETF_SCALE")
+                && prompt.contains("按基金代码关联相邻交易日")
+                && prompt.contains("semantic decision context"))))
+            .thenReturn("""
+                {"summary":"规模上升","facts":[{"claim":"规模上升391519.6",
+                "recordRefs":["etf.records[1]"],"exactValues":["391519.6"]}],
+                "entities":[],"crossChunkKeys":[],"conflicts":[],"limitations":[],
+                "rawReplayRecommended":false}
+                """);
+        Map<String, Object> context = bridge.govern("etf", Map.of(
+            "templateMatchAnalysis", Map.of(
+                "schemaVersion", "template_match_analysis.v2",
+                "userQuestion", "观察ETF市场资金流向",
+                "selectedTemplateIds", List.of("ETF_SCALE"),
+                "candidateEvaluations", List.of(Map.of(
+                    "templateId", "ETF_SCALE",
+                    "matchedQuestionAspects", List.of("规模", "份额"),
+                    "relationshipHints", List.of("按基金代码关联相邻交易日"))))) ,
+            List.of(Map.of("CHANGE", 391519.6)));
+
+        AnalysisSummaryResult result = bridge.summarize(
+            model::chat, isolationScope, bridge.position("etf", 1, 1, 1, 1, 1),
+            context, List.of(Map.of("CHANGE", 391519.6)), "观察ETF市场资金流向");
+
+        assertThat(result.outcome()).isEqualTo("MODEL_SUMMARY");
+        assertThat(result.analysisContext().toString())
+            .contains("template_match_analysis.v2", "ETF_SCALE");
+    }
+
+    @Test
     void buildsValidatedStructuredFactsAndLosslessReplayLocator() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""

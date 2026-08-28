@@ -104,6 +104,8 @@ import com.chatchat.agents.runtime.plan.EvidenceBasedTemplateCandidateEvaluator;
 import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
+import com.chatchat.common.knowledge.template.TemplateWorkerAnalysisContext;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
@@ -2577,6 +2579,13 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("Observation contract used for replay/debug:\n")
             .append(InterpretationExecutionProtocol.OBSERVATION_SCHEMA)
             .append("\n");
+        prompt.append("For template discovery, the same JSON object must additionally contain "
+            + "\"analysis_intent\":{\"business_goal\":\"...\",\"analysis_subject\":\"...\","
+            + "\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],"
+            + "\"time_scope\":\"...\",\"expected_relationships\":[]}, and "
+            + "\"template_relationships\":[{\"from_template_id\":\"...\",\"to_template_id\":\"...\","
+            + "\"relation_type\":\"...\",\"description\":\"...\"}]. Every template_evaluations item "
+            + "must also contain analysis_role and relevance_level.\n");
         prompt.append("Rules:\n");
         prompt.append("- Select only step ids from ready_step_ids. remaining_step_ids is context, not an executable candidate set.\n");
         prompt.append("- Never select, suggest, or substitute a node outside ready_step_ids. Runtime will reject it even when its dependencies appear satisfiable to you.\n");
@@ -4479,6 +4488,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (result == null || result.steps() == null) {
             return List.of();
         }
+        Map<String, Map<String, Object>> templateMatches = templateRequirementMatches(result.steps());
         List<BatchRecordSet> sets = new ArrayList<>();
         for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
             if (step == null || !step.success()) {
@@ -4492,8 +4502,10 @@ public class AgentOrchestrator implements AgentRunExecutor {
                     }
                     String reference = firstNonBlank(child.templateId(),
                         firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
-                    sets.addAll(outputRecordSets(child.output(), reference,
-                        toolMetadataOrNull(child.toolName())));
+                    List<BatchRecordSet> childSets = outputRecordSets(child.output(), reference,
+                        toolMetadataOrNull(child.toolName()));
+                    sets.addAll(withTemplateRequirementMatch(
+                        childSets, firstNonBlank(child.templateId(), child.templateCode()), templateMatches));
                 }
                 continue;
             }
@@ -4503,10 +4515,103 @@ public class AgentOrchestrator implements AgentRunExecutor {
             // Discovery outputs describe how to reach business data. Large template catalogs are
             // routing metadata, not datasets to summarize record by record.
             if (McpToolNamePolicy.isRoutingDiscovery(step.toolName())) continue;
-            sets.addAll(outputRecordSets(
-                resolvedStepOutput, step.toolName(), toolMetadataOrNull(step.toolName())));
+            List<BatchRecordSet> stepSets = outputRecordSets(
+                resolvedStepOutput, step.toolName(), toolMetadataOrNull(step.toolName()));
+            sets.addAll(withTemplateRequirementMatch(stepSets, null, templateMatches));
         }
         return List.copyOf(sets);
+    }
+
+    private Map<String, Map<String, Object>> templateRequirementMatches(
+        List<InterpretationPlanRuntime.StepExecution> steps
+    ) {
+        Map<String, Map<String, Object>> matches = new LinkedHashMap<>();
+        for (Map<String, Object> match : templateMatchAnalyses(steps)) {
+            for (String templateId : stringList(match.get("selectedTemplateIds"))) {
+                matches.put(templateId.toLowerCase(Locale.ROOT), match);
+            }
+        }
+        return Map.copyOf(matches);
+    }
+
+    private List<BatchRecordSet> withTemplateRequirementMatch(
+        List<BatchRecordSet> recordSets,
+        String templateId,
+        Map<String, Map<String, Object>> matches
+    ) {
+        if (recordSets == null || recordSets.isEmpty() || matches == null || matches.isEmpty()) {
+            return recordSets == null ? List.of() : recordSets;
+        }
+        Map<String, Object> match = templateId == null
+            ? (matches.size() == 1 ? matches.values().iterator().next() : Map.of())
+            : matches.getOrDefault(templateId.toLowerCase(Locale.ROOT), Map.of());
+        if (match.isEmpty()) return recordSets;
+        String effectiveTemplateId = templateId == null
+            ? stringList(match.get("selectedTemplateIds")).stream().findFirst().orElse(null)
+            : templateId;
+        return recordSets.stream().map(recordSet -> {
+            Map<String, Object> context = new LinkedHashMap<>(recordSet.analysisContext());
+            context.put(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY, match);
+            Map<String, Object> currentTemplate = currentTemplateMatch(match, effectiveTemplateId);
+            if (!currentTemplate.isEmpty()) {
+                List<Map<String, Object>> relatedTemplates =
+                    relatedTemplateContexts(match, effectiveTemplateId);
+                TemplateWorkerAnalysisContext workerContext = new TemplateWorkerAnalysisContext(
+                    firstNonBlank(stringValue(match.get("userQuestion")), "unknown user question"),
+                    objectMap(match.get("globalAnalysisContext")),
+                    objectMap(match.get("analysisIntent")),
+                    match,
+                    currentTemplate,
+                    relatedTemplates
+                );
+                context.put(TemplateWorkerAnalysisContext.ANALYSIS_CONTEXT_KEY, workerContext.toMap());
+                if (!relatedTemplates.isEmpty()) {
+                    List<Object> relationships = new ArrayList<>();
+                    Object declared = context.get("relationships");
+                    if (declared instanceof Iterable<?> iterable) {
+                        iterable.forEach(relationships::add);
+                    } else if (declared != null) {
+                        relationships.add(declared);
+                    }
+                    relationships.addAll(relatedTemplates);
+                    context.put("relationships", List.copyOf(relationships));
+                }
+            }
+            return new BatchRecordSet(recordSet.reference(), Map.copyOf(context), recordSet.records());
+        }).toList();
+    }
+
+    private List<Map<String, Object>> templateMatchAnalyses(
+        List<InterpretationPlanRuntime.StepExecution> steps
+    ) {
+        if (steps == null) return List.of();
+        Map<String, Map<String, Object>> unique = new LinkedHashMap<>();
+        for (InterpretationPlanRuntime.StepExecution step : steps) {
+            if (step == null || step.metadata() == null) continue;
+            Map<String, Object> analysis = objectMap(
+                step.metadata().get(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY));
+            if (!analysis.isEmpty()) {
+                unique.putIfAbsent(ModelProtocolJson.sha256Hex(analysis), analysis);
+            }
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private Map<String, Object> currentTemplateMatch(Map<String, Object> analysis, String templateId) {
+        if (analysis == null || templateId == null) return Map.of();
+        return objectMapList(analysis.get("templateMatches")).stream()
+            .filter(item -> templateId.equalsIgnoreCase(stringValue(item.get("templateId"))))
+            .findFirst().orElse(Map.of());
+    }
+
+    private List<Map<String, Object>> relatedTemplateContexts(
+        Map<String, Object> analysis, String templateId
+    ) {
+        if (analysis == null || templateId == null) return List.of();
+        return objectMapList(analysis.get("templateRelationships")).stream()
+            .filter(item -> templateId.equalsIgnoreCase(stringValue(item.get("fromTemplateId")))
+                || templateId.equalsIgnoreCase(stringValue(item.get("toTemplateId"))))
+            .toList();
     }
 
     private List<Map<String, Object>> excludedExecutionDatasets(
@@ -5672,6 +5777,16 @@ public class AgentOrchestrator implements AgentRunExecutor {
         if (templateEvaluations instanceof Iterable<?>) {
             metadata.put("templateEvaluations", templateEvaluations);
         }
+        Map<String, Object> businessAnalysisIntent = asMap(firstObject(payload,
+            "analysis_intent", "analysisIntent", "business_analysis_intent", "businessAnalysisIntent"));
+        if (!businessAnalysisIntent.isEmpty()) {
+            metadata.put("businessAnalysisIntent", businessAnalysisIntent);
+        }
+        Object templateRelationships = firstObject(payload,
+            "template_relationships", "templateRelationships", "expected_template_relationships");
+        if (templateRelationships instanceof Iterable<?>) {
+            metadata.put("templateRelationships", templateRelationships);
+        }
         List<String> missingParameters = stringList(firstObject(payload,
             "missing_parameters", "missingParameters", "required_parameters_missing", "requiredParametersMissing"));
         if (!missingParameters.isEmpty()) {
@@ -5754,7 +5869,7 @@ public class AgentOrchestrator implements AgentRunExecutor {
             + "constraints, and approved tool. Review only this execution and do not expand that scope.\n\n");
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"],\"scope_basis\":{\"source\":\"user_query|tool_result\",\"reference\":\"exact user quote or returned JSON path\"},\"capability_basis\":{\"source\":\"tool_result|tool_metadata\",\"reference\":\"returned capability JSON path or declared tool capability\"},\"expected_evidence_types\":[\"specific evidence type\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"template_evaluations\":[{\"template_id\":\"template-id\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"],\"scope_basis\":{\"source\":\"user_query|tool_result\",\"reference\":\"exact user quote or returned JSON path\"},\"capability_basis\":{\"source\":\"tool_result|tool_metadata\",\"reference\":\"returned capability JSON path or declared tool capability\"},\"expected_evidence_types\":[\"specific evidence type\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"analysis_intent\":{\"business_goal\":\"goal\",\"analysis_subject\":\"subject\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"scope\",\"expected_relationships\":[]},\"template_relationships\":[{\"from_template_id\":\"template-id\",\"to_template_id\":\"template-id\",\"relation_type\":\"business relation\",\"description\":\"evidence-based description\"}],\"template_evaluations\":[{\"template_id\":\"template-id\",\"business_group\":\"returned group\",\"relevance\":0.0,\"relevance_level\":\"HIGH|MEDIUM|LOW\",\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[],\"matched_question_aspects\":[\"question aspect\"],\"relationship_hints\":[\"declared relationship to another selected dataset\"]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
@@ -5784,9 +5899,11 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("- When the plan has diagnostic_profile checks, selected templates must cover those checks by their full declared capability and dimension meaning. A single generic shared token is insufficient. Prefer the candidate that matches the check-specific template metadata; reject unrelated substitutes and request refined retrieval when the intended capability is absent.\n");
         prompt.append("- For every asset discovery result, including a single candidate, compare only returned routing metadata with the current target. Return at least one id present in the result under selected_asset_ids when satisfied=true, plus rejected_asset_ids and one asset_evaluations entry per candidate. Asset discovery proves routing eligibility, never target health or business state.\n");
         prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate, including a single candidate. satisfied=true requires at least one returned id in selected_template_ids or an accept template_evaluations decision.\n");
-        prompt.append("- When governed template discovery returns multiple admitted templates, every template remaining in that discovery result is execution-required. A scalar templates[0] plan binding does not reduce this set: Runtime compiles all admitted templates into a failure-isolated batch and final synthesis must wait for a terminal result from every call. selected_template_ids may order or narrow candidates only during the discovery admission decision; it may never be used after admission to skip physical execution.\n");
+        prompt.append("- Candidate discovery is high recall, not an execution list. A business group may contain many templates; select only templates materially required by the original user question and the actual cumulative analysis context. Runtime executes the selected_template_ids admission set and must not execute rejected or merely co-grouped candidates.\n");
+        prompt.append("- For template discovery, also return analysis_intent with business_goal, analysis_subject, core_entities, metrics, dimensions, analysis_focus, time_scope, and expected_relationships. This is the business data requirement derived jointly from the original question and actual context.\n");
+        prompt.append("- Assign every candidate exactly one analysis_role: TARGET, CAUSE, CONTEXT, DIMENSION, VALIDATION, EXPLANATION, or IRRELEVANT. Return template_relationships with from_template_id, to_template_id, relation_type, and description only when supported by the question or declared template metadata.\n");
         prompt.append("- Put unrelated or materially weaker candidates in rejected_template_ids. Do not select a template merely because Lucene ranked it first or its score ties another candidate.\n");
-        prompt.append("- For each returned template candidate, emit template_evaluations with evidence-based relevance, evidence_fit, parameter_readiness, total_score, decision, reasons, and missing_parameters. Scores are 0..1 and must be justified by returned metadata and the current user request.\n");
+        prompt.append("- For each returned template candidate, emit template_evaluations with business_group, evidence-based relevance, evidence_fit, parameter_readiness, total_score, decision, reasons, missing_parameters, matched_question_aspects, and relationship_hints. Scores are 0..1. Justify selection jointly from the original question, actual cumulative analysis context, and returned capability/schema/dependency metadata. Never infer a relationship absent from those sources.\n");
         prompt.append("- For a template execution tool, set template_execution_satisfied explicitly. If false, list missing_parameters and provide retry_input_changes only for values proven by the user query or completed tool evidence; otherwise leave retry_input_changes empty and set reselect_template=true.\n");
         prompt.append("- A failed template execution gets at most one repaired plan execution. The repair must materially add/bind parameters or reselect a different authorized candidate; never request an unchanged retry.\n");
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
@@ -5811,6 +5928,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         prompt.append("Current step:\n")
             .append(request.step() == null ? "" : stringify(request.step()))
             .append("\n\n");
+        Map<String, Object> cumulativeContext = templateRequirementReviewContext(request);
+        if (!cumulativeContext.isEmpty()) {
+            prompt.append("Actual cumulative analysis context (authoritative prior tool evidence and declared semantics; use together with the original question for template admission):\n")
+                .append(stringify(cumulativeContext))
+                .append("\n\n");
+        }
         Map<String, Object> factMetadata = toolResultFactMetadata(request.execution());
         if (!factMetadata.isEmpty()) {
             prompt.append("Runtime deterministic fact check:\n")
@@ -5837,6 +5960,39 @@ public class AgentOrchestrator implements AgentRunExecutor {
                 .append("\nRuntime truncation applied: false");
         }
         return prompt.toString();
+    }
+
+    private Map<String, Object> templateRequirementReviewContext(
+        InterpretationPlanRuntime.StepReviewRequest request
+    ) {
+        if (request == null) return Map.of();
+        List<Map<String, Object>> completedEvidence = new ArrayList<>();
+        if (request.completed() != null) {
+            request.completed().values().stream()
+                .filter(Objects::nonNull)
+                .sorted(java.util.Comparator.comparing(
+                    item -> item.stepId() == null ? 0 : item.stepId()))
+                .limit(12)
+                .forEach(execution -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    if (execution.stepId() != null) item.put("stepId", execution.stepId());
+                    item.put("toolName", firstNonBlank(execution.toolName(), execution.actionType()));
+                    item.put("success", execution.success());
+                    Map<String, Object> facts = structuredOutputFacts(execution.output());
+                    if (!facts.isEmpty()) item.put("returnedFacts", facts);
+                    Map<String, Object> semanticContext = mcpAnalysisContextAdapter.adapt(
+                        firstNonBlank(execution.toolName(), "completed-step"),
+                        toolMetadataOrNull(execution.toolName()), execution.output());
+                    if (!semanticContext.isEmpty()) item.put("analysisContext", semanticContext);
+                    completedEvidence.add(Map.copyOf(item));
+                });
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("completedEvidence", List.copyOf(completedEvidence));
+        result.put("currentStepInput", request.step() == null || request.step().input() == null
+            ? Map.of() : request.step().input());
+        result.put("contextRole", "TEMPLATE_REQUIREMENT_ADMISSION_INPUT");
+        return Map.copyOf(result);
     }
 
     @SuppressWarnings("unchecked")

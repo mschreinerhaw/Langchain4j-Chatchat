@@ -231,7 +231,8 @@ export default {
       curlExampleOpen: false,
       curlExampleLoading: false,
       curlExampleError: "",
-      curlExample: null
+      curlExample: null,
+      curlExampleCopied: false
     };
   },
   computed: {
@@ -1490,6 +1491,7 @@ export default {
       this.curlExampleLoading = true;
       this.curlExampleError = "";
       this.curlExample = null;
+      this.curlExampleCopied = false;
       try {
         this.curlExample = await fetchPublishedAgentCurlExample(agent.id);
       } catch (error) {
@@ -1505,15 +1507,51 @@ export default {
       this.curlExampleOpen = false;
       this.curlExampleError = "";
       this.curlExample = null;
+      this.curlExampleCopied = false;
     },
     async copyCurlExample() {
       const content = this.curlExample?.completeExample || "";
       if (!content) {
         return;
       }
+      this.curlExampleError = "";
+      this.curlExampleCopied = false;
       try {
-        await navigator.clipboard.writeText(content);
-      } catch (error) {
+        let copied = false;
+        try {
+          if (globalThis.navigator?.clipboard?.writeText) {
+            await globalThis.navigator.clipboard.writeText(content);
+            copied = true;
+          }
+        } catch {
+          // HTTP 页面、iframe 或浏览器权限策略可能拒绝 Clipboard API，继续使用兼容方案。
+        }
+        if (!copied) {
+          const documentRef = globalThis.document;
+          if (!documentRef?.body) {
+            throw new Error("当前环境不支持剪贴板访问");
+          }
+          const textarea = documentRef.createElement("textarea");
+          textarea.value = content;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "fixed";
+          textarea.style.left = "-9999px";
+          textarea.style.opacity = "0";
+          documentRef.body.appendChild(textarea);
+          try {
+            textarea.focus();
+            textarea.select();
+            textarea.setSelectionRange(0, content.length);
+            copied = Boolean(documentRef.execCommand?.("copy"));
+          } finally {
+            textarea.remove();
+          }
+        }
+        if (!copied) {
+          throw new Error("浏览器未完成复制");
+        }
+        this.curlExampleCopied = true;
+      } catch {
         this.curlExampleError = "复制失败，请手动选择示例文本。";
       }
     },

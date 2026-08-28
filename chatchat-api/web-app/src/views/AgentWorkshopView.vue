@@ -259,7 +259,8 @@
         </header>
         <div class="dialog-body agent-curl-body">
           <p class="agent-curl-notice">
-            示例包含发起问答、查询运行状态和获取最终答案。请先把 CHATCHAT_TOKEN 替换为登录接口返回的令牌。
+            示例包含发起问答、查询运行状态和获取最终答案。执行前请将
+            <code>&lt;paste-login-token&gt;</code> 替换为登录接口返回的令牌。
           </p>
           <p v-if="curlExampleLoading" class="agent-empty">正在生成 curl 示例...</p>
           <pre v-else-if="curlExample?.completeExample"><code>{{ curlExample.completeExample }}</code></pre>
@@ -267,7 +268,9 @@
         </div>
         <footer>
           <button type="button" class="secondary-button" :disabled="curlExampleLoading" @click="closeCurlExample">关闭</button>
-          <button type="button" class="primary-button" :disabled="curlExampleLoading || !curlExample?.completeExample" @click="copyCurlExample">复制完整示例</button>
+          <button type="button" class="primary-button" :disabled="curlExampleLoading || !curlExample?.completeExample" @click="copyCurlExample">
+            {{ curlExampleCopied ? "已复制" : "复制完整示例" }}
+          </button>
         </footer>
       </section>
     </div>

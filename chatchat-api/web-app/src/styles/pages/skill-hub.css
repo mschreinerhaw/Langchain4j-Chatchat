@@ -3472,6 +3472,8 @@
 
 .agent-workshop-view .agent-curl-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   gap: 14px;
 }
 
@@ -3481,8 +3483,18 @@
   line-height: 1.6;
 }
 
+.agent-workshop-view .agent-curl-notice code {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #eef4ff;
+  color: var(--primary-strong);
+  font: 600 0.9em/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 .agent-workshop-view .agent-curl-body pre {
+  width: 100%;
   max-height: 56vh;
+  box-sizing: border-box;
   margin: 0;
   padding: 18px;
   overflow: auto;

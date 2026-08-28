@@ -7,7 +7,7 @@ import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.event.AgentRunEvent;
 import com.chatchat.agents.runtime.event.AgentRunEventType;
 import com.chatchat.agents.runtime.event.NoopAgentRunEventPublisher;
-import com.chatchat.agents.runtime.observation.AgentEvidenceStore;
+import com.chatchat.common.runtime.evidence.EvidencePayloadStorePort;
 import com.chatchat.agents.runtime.observation.AgentObservation;
 import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
@@ -595,7 +595,7 @@ class RocksDbAgentRunStoreTest {
         reopened.close();
     }
 
-    private static class TestEvidenceStore implements AgentEvidenceStore {
+    private static class TestEvidenceStore implements EvidencePayloadStorePort {
 
         private final Map<String, String> values = new LinkedHashMap<>();
 

@@ -17,6 +17,10 @@
     <dependencies>
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-platform-spring</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-agents</artifactId>
             <version>${project.version}</version>
         </dependency>

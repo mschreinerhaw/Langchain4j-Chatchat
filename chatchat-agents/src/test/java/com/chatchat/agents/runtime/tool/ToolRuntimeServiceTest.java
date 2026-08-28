@@ -5,7 +5,7 @@ import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.config.McpWorkflowProperties;
 import com.chatchat.agents.runtime.governance.McpEvidenceResult;
 import com.chatchat.agents.runtime.governance.McpPolicyProperties;
-import com.chatchat.agents.runtime.observation.AgentEvidenceStore;
+import com.chatchat.common.runtime.evidence.EvidencePayloadStorePort;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
@@ -479,7 +479,7 @@ class ToolRuntimeServiceTest {
         ToolRuntimeService service = new ToolRuntimeService(
             registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
         AtomicReference<String> stored = new AtomicReference<>();
-        service.setEvidenceStore(new AgentEvidenceStore() {
+        service.setEvidenceStore(new EvidencePayloadStorePort() {
             @Override public boolean isEnabled() { return true; }
             @Override public void put(String documentId, String tenantId, String runId,
                                       String evidenceId, String json) { stored.set(json); }

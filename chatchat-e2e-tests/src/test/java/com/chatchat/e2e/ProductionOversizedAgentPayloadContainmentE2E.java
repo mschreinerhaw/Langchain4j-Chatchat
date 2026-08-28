@@ -1,6 +1,6 @@
 package com.chatchat.e2e;
 
-import com.chatchat.agents.runtime.observation.AgentEvidenceStore;
+import com.chatchat.common.runtime.evidence.EvidencePayloadStorePort;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
@@ -43,7 +43,7 @@ class ProductionOversizedAgentPayloadContainmentE2E {
         ToolRuntimeService runtime = new ToolRuntimeService(
             registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
         AtomicInteger externalBytes = new AtomicInteger();
-        runtime.setEvidenceStore(new AgentEvidenceStore() {
+        runtime.setEvidenceStore(new EvidencePayloadStorePort() {
             @Override public boolean isEnabled() { return true; }
             @Override public void put(String documentId, String tenantId, String runId,
                                       String evidenceId, String json) { externalBytes.set(json.length()); }

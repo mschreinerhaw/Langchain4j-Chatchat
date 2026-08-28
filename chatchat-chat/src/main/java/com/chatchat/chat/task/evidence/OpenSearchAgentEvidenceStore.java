@@ -1,6 +1,6 @@
 package com.chatchat.chat.task.evidence;
 
-import com.chatchat.agents.runtime.observation.AgentEvidenceStore;
+import com.chatchat.common.runtime.evidence.EvidencePayloadStorePort;
 import com.chatchat.chat.conversation.store.ChatMessageTextStore;
 import org.springframework.stereotype.Component;
 
@@ -10,7 +10,7 @@ import java.util.Optional;
  * Stores agent evidence payloads in the configured OpenSearch text index.
  */
 @Component
-public class OpenSearchAgentEvidenceStore implements AgentEvidenceStore {
+public class OpenSearchAgentEvidenceStore implements EvidencePayloadStorePort {
 
     private final ChatMessageTextStore textStore;
 

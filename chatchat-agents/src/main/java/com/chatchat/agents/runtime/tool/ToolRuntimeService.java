@@ -4,7 +4,7 @@ import com.chatchat.agents.runtime.config.McpWorkflowProperties;
 import com.chatchat.agents.runtime.governance.McpEvidenceGovernanceBridge;
 import com.chatchat.agents.runtime.governance.McpEvidenceResult;
 import com.chatchat.agents.runtime.governance.McpPolicyProperties;
-import com.chatchat.agents.runtime.observation.AgentEvidenceStore;
+import com.chatchat.common.runtime.evidence.EvidencePayloadStorePort;
 
 import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
@@ -104,7 +104,7 @@ public class ToolRuntimeService {
     private final ToolRuntimeUserPolicyStore userPolicyStore;
     private final ExecutorService toolExecutionExecutor;
     private final ExecutorService auditExecutor;
-    private volatile AgentEvidenceStore evidenceStore;
+    private volatile EvidencePayloadStorePort evidenceStore;
     private volatile DistributedToolRateLimiter distributedRateLimiter;
     private volatile McpRuntimeKernel mcpRuntimeKernel;
 
@@ -119,7 +119,7 @@ public class ToolRuntimeService {
     private long reviewPayloadBytes;
 
     @Autowired(required = false)
-    public void setEvidenceStore(AgentEvidenceStore evidenceStore) {
+    public void setEvidenceStore(EvidencePayloadStorePort evidenceStore) {
         this.evidenceStore = evidenceStore;
     }
 
@@ -3580,7 +3580,7 @@ public class ToolRuntimeService {
         if (cached != null) {
             return decodeVerifiedReviewPayload(reference, documentId, evidenceId, cached, "runtime-cache");
         }
-        AgentEvidenceStore store = evidenceStore;
+        EvidencePayloadStorePort store = evidenceStore;
         if (store == null || !store.isEnabled()) {
             log.warn("Externalized tool output unavailable for evidence review documentId={} "
                     + "runtimeCacheHit=false externalStoreEnabled=false",

@@ -19,6 +19,58 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RuntimeOsArchitectureBoundaryTest {
 
     @Test
+    void commonCoreIsFrameworkNeutralAndSpringAdaptersHaveExplicitOwnership() {
+        assertThat(source("chatchat-common/pom.xml"))
+            .doesNotContain("spring-boot", "hibernate-validator", "jakarta.validation",
+                "jackson-databind");
+        assertThat(allJava("chatchat-common/src/main/java"))
+            .doesNotContain("import org.springframework.", "import java.sql.",
+                "import javax.sql.", "import java.nio.file.", "dev.langchain4j");
+        assertThat(source("chatchat-platform-spring/pom.xml"))
+            .contains("chatchat-common", "spring-boot-starter");
+        assertThat(source(
+            "chatchat-platform-spring/src/main/java/com/chatchat/common/config/ModelsConfig.java"))
+            .contains("@ConfigurationProperties", "@Component");
+        assertThat(root().resolve(
+            "chatchat-common/src/main/java/com/chatchat/common/config/ModelsConfig.java"))
+            .doesNotExist();
+        assertThat(root().resolve(
+            "chatchat-common/src/main/java/com/chatchat/common/migration/H2ToMySqlDataMigrationRunner.java"))
+            .doesNotExist();
+        for (String springConsumer : java.util.List.of(
+            "chatchat-agents", "chatchat-api", "chatchat-chat", "chatchat-enterprise",
+            "chatchat-integration", "chatchat-mcp-server", "chatchat-runtime-news",
+            "chatchat-tools", "chatchat-e2e-tests")) {
+            String sources = allJava(springConsumer + "/src");
+            if (sources.contains("com.chatchat.common.config.ModelsConfig")
+                || sources.contains("com.chatchat.common.audit.AuditQueryProperties")
+                || sources.contains("com.chatchat.common.security.InternalCredentialProperties")) {
+                assertThat(source(springConsumer + "/pom.xml"))
+                    .as(springConsumer + " must own its Spring platform dependency explicitly")
+                    .contains("<artifactId>chatchat-platform-spring</artifactId>");
+            }
+        }
+    }
+
+    @Test
+    void unifiedEvidenceStoreContractLivesBelowAgentAndPersistenceAdapters() {
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/evidence/EvidenceStorePort.java"))
+            .contains("extends RuntimeProtocolPort", "EvidenceRegistration register",
+                "Optional<EvidenceLineage> lineage", "EvidenceSnapshot createSnapshot")
+            .doesNotContain("org.springframework", "com.chatchat.agents", "com.chatchat.chat");
+        assertThat(source(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/evidence/EvidencePayloadStorePort.java"))
+            .contains("extends RuntimeProtocolPort");
+        assertThat(source(
+            "chatchat-chat/src/main/java/com/chatchat/chat/task/evidence/OpenSearchAgentEvidenceStore.java"))
+            .contains("implements EvidencePayloadStorePort");
+        assertThat(root().resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/observation/AgentEvidenceStore.java"))
+            .doesNotExist();
+    }
+
+    @Test
     void genericRuntimeContractsLiveInCommonAndNotAgent() {
         assertThat(source("chatchat-common/src/main/java/com/chatchat/common/runtime/event/RuntimeEvent.java"))
             .contains("package com.chatchat.common.runtime.event");

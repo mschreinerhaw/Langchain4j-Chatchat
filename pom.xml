@@ -29,6 +29,7 @@
 
     <modules>
         <module>chatchat-common</module>
+        <module>chatchat-platform-spring</module>
         <module>chatchat-mcp-grpc</module>
         <module>chatchat-license</module>
         <module>chatchat-agents</module>
@@ -78,6 +79,11 @@
             <dependency>
                 <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-platform-spring</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

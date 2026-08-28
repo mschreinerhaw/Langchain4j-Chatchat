@@ -23,6 +23,10 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-platform-spring</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-agents</artifactId>
         </dependency>
 

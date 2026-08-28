@@ -7,7 +7,7 @@ import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.event.AgentRunEvent;
 import com.chatchat.agents.runtime.event.AgentRunEventPublisher;
 import com.chatchat.agents.runtime.event.AgentRunEventType;
-import com.chatchat.agents.runtime.observation.AgentEvidenceStore;
+import com.chatchat.common.runtime.evidence.EvidencePayloadStorePort;
 import com.chatchat.agents.runtime.observation.AgentObservation;
 import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
@@ -64,7 +64,7 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
 
     private final AgentRuntimeProperties properties;
     private final ObjectMapper objectMapper;
-    private AgentEvidenceStore evidenceStore;
+    private EvidencePayloadStorePort evidenceStore;
     private Options options;
     private RocksDB db;
 
@@ -83,7 +83,7 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     }
 
     @Autowired(required = false)
-    public void setEvidenceStore(AgentEvidenceStore evidenceStore) {
+    public void setEvidenceStore(EvidencePayloadStorePort evidenceStore) {
         this.evidenceStore = evidenceStore == null ? disabledEvidenceStore() : evidenceStore;
     }
 
@@ -1008,8 +1008,8 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         }
     }
 
-    private AgentEvidenceStore disabledEvidenceStore() {
-        return new AgentEvidenceStore() {
+    private EvidencePayloadStorePort disabledEvidenceStore() {
+        return new EvidencePayloadStorePort() {
             @Override
             public boolean isEnabled() {
                 return false;

@@ -90,6 +90,46 @@ class AgentRuntimeTaskEventPublisherTest {
     }
 
     @Test
+    void bridgesBusinessTemplateRequirementMatchingToTaskEventStore() throws Exception {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository,
+            eventStore,
+            eventBus,
+            objectMapper
+        );
+        AgentTaskLatestEntity task = task("task-template-requirement-matching");
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+
+        publisher.publish(AgentRunEvent.of(
+            task.getTaskId(),
+            AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING,
+            "Business template requirements matched",
+            Map.of(
+                "templateMatchAnalysis", Map.of(
+                    "businessGoal", "observe ETF capital flows",
+                    "matchedTemplateIds", List.of("sse_etf_scale", "sse_margin_detail")
+                )
+            )
+        ));
+
+        AgentEvent matchingEvent = eventStore.listByTask(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), 10
+        ).get(0);
+        assertThat(matchingEvent.getType()).isEqualTo("BUSINESS_TEMPLATE_REQUIREMENT_MATCHING");
+        assertThat(matchingEvent.getStatus()).isEqualTo("RUNNING");
+        Map<String, Object> envelope = objectMapper.readValue(matchingEvent.getPayload(), Map.class);
+        assertThat(envelope)
+            .containsEntry("runtimeEventType", "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING");
+        assertThat(envelope.get("payload"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsKey("templateMatchAnalysis");
+        verify(eventBus).publishResult(matchingEvent);
+    }
+
+    @Test
     void ignoresRuntimeEventsWithoutMatchingTask() {
         AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
         AgentEventStore eventStore = mock(AgentEventStore.class);

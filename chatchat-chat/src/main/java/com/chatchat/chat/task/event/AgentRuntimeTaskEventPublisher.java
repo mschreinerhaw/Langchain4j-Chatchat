@@ -93,6 +93,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             case RUN_STARTED -> "RUNTIME_STARTED";
             case STEP_RECORDED -> "RUNTIME_STEP";
             case OBSERVATION_RECORDED -> "RUNTIME_OBSERVATION";
+            case BUSINESS_TEMPLATE_REQUIREMENT_MATCHING -> "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING";
             case CONFIRMATION_REQUIRED -> "RUNTIME_CONFIRMATION";
             case RUN_COMPLETED -> "RUNTIME_COMPLETED";
             case RUN_CANCELLED -> "RUNTIME_CANCELLED";

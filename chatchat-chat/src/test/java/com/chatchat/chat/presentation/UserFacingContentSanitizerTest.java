@@ -43,4 +43,50 @@ class UserFacingContentSanitizerTest {
             .containsEntry("reportHtml", "报告。")
             .containsEntry("debug", Map.of("evidenceId", "keep-for-audit"));
     }
+
+    @Test
+    void removesPhysicalPayloadAppendixFromPersistedConversationContent() {
+        String markdown = """
+            ## 运行结论
+
+            Docker 容器运行正常。
+
+            ## 已返回数据
+
+            ### CHECK_DOCKER_CONTAINERS#payload
+
+            - [{"content":"{\\"schemaVersion\\":\\"tool_execution_result.v1\\",\\"target\\":{\\"ipAddress\\":\\"192.168.195.226\\"}}"}]
+            """;
+
+        assertThat(UserFacingContentSanitizer.removeInternalEvidenceMarkers(markdown))
+            .isEqualTo("""
+                ## 运行结论
+
+                Docker 容器运行正常。
+                """.trim())
+            .doesNotContain("#payload", "tool_execution_result.v1", "192.168.195.226", "已返回数据");
+    }
+
+    @Test
+    void removesOnlyPayloadDatasetWhenReturnedDataContainsOtherDatasets() {
+        String markdown = """
+            ## 已返回数据
+
+            ### CHECK_DOCKER_CONTAINERS#payload
+
+            - internal raw payload
+
+            ### container_metrics
+
+            - cpu_usage=12%
+
+            ## 限制说明
+
+            未发现异常。
+            """;
+
+        assertThat(UserFacingContentSanitizer.removeInternalEvidenceMarkers(markdown))
+            .contains("## 已返回数据", "### container_metrics", "cpu_usage=12%", "## 限制说明")
+            .doesNotContain("CHECK_DOCKER_CONTAINERS#payload", "internal raw payload");
+    }
 }

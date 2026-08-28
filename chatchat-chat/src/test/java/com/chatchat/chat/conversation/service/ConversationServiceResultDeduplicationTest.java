@@ -210,7 +210,15 @@ class ConversationServiceResultDeduplicationTest {
         ChatMessageIndexEntity runtimeIndex = index("assistant-runtime", "assistant", "key-runtime", Instant.parse("2026-07-31T01:00:02Z"));
         Map<String, ChatMessageDetail> stored = new LinkedHashMap<>();
         stored.put("key-user", detail("user-1", "user", "分析客户 070200046604", null));
-        String answer = "完整的客户交易分析报告 [evidence: tool://api_template_execute#result=3/child=1]。";
+        String answer = """
+            完整的客户交易分析报告 [evidence: tool://api_template_execute#result=3/child=1]。
+
+            ## 已返回数据
+
+            ### CHECK_DOCKER_CONTAINERS#payload
+
+            - [{"content":"{\\"schemaVersion\\":\\"tool_execution_result.v1\\",\\"target\\":{\\"ipAddress\\":\\"192.168.195.226\\"}}"}]
+            """;
         stored.put("key-memory", detail("assistant-memory", "assistant", answer, null));
         stored.put("key-runtime", detail("assistant-runtime", "assistant", answer, "task-1"));
 
@@ -228,10 +236,10 @@ class ConversationServiceResultDeduplicationTest {
         Conversation.Message assistant = conversation.getMessages().get(1);
         assertThat(assistant.getContent())
             .isEqualTo("完整的客户交易分析报告。")
-            .doesNotContain("[evidence:", "tool://");
+            .doesNotContain("[evidence:", "tool://", "#payload", "192.168.195.226");
         assertThat(String.valueOf(assistant.getUiResponse().get("answer")))
             .isEqualTo("完整的客户交易分析报告。")
-            .doesNotContain("[evidence:", "tool://");
+            .doesNotContain("[evidence:", "tool://", "#payload", "192.168.195.226");
     }
 
     private ChatMessageIndexEntity index(String id, String role, String rocksKey, Instant createdAt) {

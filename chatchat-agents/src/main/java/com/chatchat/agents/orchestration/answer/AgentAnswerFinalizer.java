@@ -76,6 +76,7 @@ public class AgentAnswerFinalizer {
     private static final String EVIDENCE_ANSWER_CONTRACT = "evidence_answer_v1";
     private static final String EXECUTION_CONTRACT = "evidence_execution_contract_v2_2";
     private static final String ANSWER_EVIDENCE_AUDIT_CONTRACT = "answer_evidence_audit_v1";
+    private static final String ANSWER_EVIDENCE_AUDIT_ENVELOPE = "answer_evidence_audit.v2";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final int TOOL_DATA_MARKDOWN_ROW_LIMIT = 20;
@@ -273,6 +274,7 @@ public class AgentAnswerFinalizer {
             values.put("userFacingReconciliationDetailsSuppressed", true);
         }
         finalAnswer = userFacingAnswer;
+        attachAnswerEvidenceAuditEnvelope(values, query);
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         return new AgentOrchestrator.AgentExecutionResult(
             finalAnswer,
@@ -1058,9 +1060,17 @@ public class AgentAnswerFinalizer {
             prompt.append("Use returned evidence to ground every factual claim internally, but do not emit tool://, doc://, web://, evidenceId, [网页N], or [evidence: ...] markers in the user-facing answer. Runtime retains claim bindings and sources in metadata.\n");
         }
         prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
-        prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries as grounded evidence and keep the matching citation near every claim that relies on that evidence.\n");
+        if (userVisibleEvidence) {
+            prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries as grounded evidence and keep the matching citation near every claim that relies on that evidence.\n");
+        } else {
+            prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries for internal grounding. Do not describe selected/rejected chunks, retrieval coverage, document outlines, or evidence evaluation in the user-facing answer.\n");
+        }
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
-        prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, keep the matching document citation near every claim that relies on that evidence.\n");
+        if (userVisibleEvidence) {
+            prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, keep the matching document citation near every claim that relies on that evidence.\n");
+        } else {
+            prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, use them silently for grounding. Return business conclusions only; keep filenames, section/chunk selection, rejected documents, and citation mechanics out of the answer.\n");
+        }
         prompt.append("If observations include evidence_v1 or document_evidence_v1, use the evidence to write Markdown; do not emit an EvidenceAnswer object.\n");
         prompt.append("If observations include evidence_execution_contract_v2_2 Deterministic answer lock, treat lockedAnswer and reasoningPayload as grounded evidence constraints, not as text to copy verbatim.\n");
         if (!qualityContext.gate().strongClaimsAllowed()) {
@@ -1998,10 +2008,14 @@ public class AgentAnswerFinalizer {
                                                 String query,
                                                 Map<String, Object> metadata) {
         String result = answer == null ? "" : answer.trim();
-        boolean evidenceRequested = shouldExposeToolEvidence(query, metadata);
+        boolean evidenceRequested = shouldExposeEvidenceReferences(query, metadata);
         if (!evidenceRequested) {
             result = removeMarkdownSections(result,
-                "工具执行证据", "Tool Execution Evidence", "Evidence Chain");
+                "工具执行证据", "证据链", "证据覆盖", "证据覆盖与限制", "证据与来源",
+                "证据链与来源", "检索证据", "引用与来源", "来源与引用",
+                "Tool Execution Evidence", "Evidence Chain", "Evidence Coverage",
+                "Evidence Coverage and Limitations", "Sources and Citations");
+            result = removeEvidenceBookkeepingParagraphs(result);
         }
         if (metadata != null && !result.equals(answer == null ? "" : answer.trim())) {
             metadata.put("userFacingSectionPolicyApplied", true);
@@ -2035,10 +2049,30 @@ public class AgentAnswerFinalizer {
     private String removeMarkdownSections(String answer, String... headings) {
         String result = answer;
         for (String heading : headings) {
-            result = result.replaceAll("(?ms)^##\\s*" + java.util.regex.Pattern.quote(heading)
-                + "\\s*$.*?(?=^##\\s+|\\z)", "");
+            result = result.replaceAll("(?ms)^#{1,6}\\s*(?:\\d+(?:\\.\\d+)*[.、]?\\s*)?"
+                + java.util.regex.Pattern.quote(heading)
+                + "\\s*$.*?(?=^#{1,6}\\s+|\\z)", "");
         }
         return result.trim();
+    }
+
+    private String removeEvidenceBookkeepingParagraphs(String answer) {
+        if (answer == null || answer.isBlank()) return "";
+        List<String> retained = new ArrayList<>();
+        for (String paragraph : answer.replace("\r", "").split("\n\s*\n")) {
+            String normalized = paragraph.replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
+            if (!isEvidenceBookkeepingParagraph(normalized)) retained.add(paragraph.trim());
+        }
+        return String.join("\n\n", retained).trim();
+    }
+
+    private boolean isEvidenceBookkeepingParagraph(String value) {
+        return containsAny(value,
+            "检索返回且被选中的片段", "未选中另一文档", "被证据评估拒绝",
+            "本次选定证据仅包含", "文档大纲显示尚有", "未被检索选中",
+            "web_search 执行成功", "web_search执行成功", "selected evidence chunks",
+            "rejected evidence", "rejected document", "evidence coverage",
+            "chunks selected for evidence", "not selected by evidence evaluation");
     }
 
     private void appendEvidenceField(StringBuilder section, String label, Object value) {
@@ -2594,6 +2628,43 @@ public class AgentAnswerFinalizer {
         metadata.put("answerEvidenceSignals", List.copyOf(evidence));
         metadata.put("answerEvidenceLimitations", List.copyOf(limitations));
         metadata.put("answerEvidenceUserVisible", false);
+    }
+
+    /** Consolidates all provenance into one backend-only field instead of answer Markdown. */
+    private void attachAnswerEvidenceAuditEnvelope(Map<String, Object> metadata, String query) {
+        if (metadata == null) return;
+        boolean explicitlyRequested = shouldExposeEvidenceReferences(query, metadata);
+        Map<String, Object> audit = new LinkedHashMap<>();
+        audit.put("schemaVersion", ANSWER_EVIDENCE_AUDIT_ENVELOPE);
+        audit.put("visibility", explicitlyRequested ? "USER_REQUESTED" : "BACKEND_AUDIT_ONLY");
+        audit.put("status", firstNonBlank(stringValue(metadata.get("answerEvidenceStatus")), "INSUFFICIENT"));
+        audit.put("signals", listValue(metadata.get("answerEvidenceSignals")));
+        audit.put("limitations", listValue(metadata.get("answerEvidenceLimitations")));
+        audit.put("selectedEvidenceRefs", listValue(firstPresent(
+            metadata.get("usefulEvidenceRefs"), metadata.get("evidenceForcedCitations"))));
+        audit.put("rejectedEvidenceRefs", listValue(metadata.get("rejectedEvidenceRefs")));
+        audit.put("availableCitations", listValue(metadata.get("availableEvidenceCitations")));
+        audit.put("claimCoverage", firstPresent(metadata.get("claimCoverage"), 0.0));
+        audit.put("claimCoverageStatus", firstNonBlank(
+            stringValue(metadata.get("claimCoverageStatus")), "NOT_APPLICABLE"));
+        audit.put("claimLedger", objectMap(metadata.get("claimLedger")));
+        audit.put("evidenceManifest", objectMap(metadata.get("evidenceManifest")));
+        audit.put("toolEvidence", listValue(metadata.get("toolResultEvidence")));
+        audit.put("presentationPolicy", Map.of(
+            "default", "METADATA_ONLY",
+            "userVisible", explicitlyRequested,
+            "explicitRequestRequired", true
+        ));
+        metadata.put("answerEvidenceAudit", Map.copyOf(audit));
+        metadata.put("answerEvidenceAuditSchemaVersion", ANSWER_EVIDENCE_AUDIT_ENVELOPE);
+        metadata.put("answerEvidenceUserVisible", explicitlyRequested);
+    }
+
+    private List<Object> listValue(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) return List.of();
+        List<Object> values = new ArrayList<>();
+        iterable.forEach(values::add);
+        return List.copyOf(values);
     }
 
     private void attachAnswerAssemblyPolicy(Map<String, Object> metadata, List<String> observations) {

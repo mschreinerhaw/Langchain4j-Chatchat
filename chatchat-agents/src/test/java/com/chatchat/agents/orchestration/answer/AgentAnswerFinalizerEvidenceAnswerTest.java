@@ -97,6 +97,76 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void keepsRetrievalEvidenceChainInBackendAuditFieldOnly() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("usefulEvidenceRefs", List.of(
+            "doc://livedata-components#chunk=0", "doc://livedata-components#chunk=7"));
+        metadata.put("rejectedEvidenceRefs", List.of("doc://other-platform#chunk=4"));
+        String answer = """
+            # LiveData 部署服务组件依赖关系分析
+
+            基于知识库文档检索返回且被选中的片段（Section 1、Section 2、Section 8）进行分析。未选中另一文档，因其被证据评估拒绝。
+
+            ## 1. 核心依赖
+
+            DolphinScheduler 依赖配置数据库、ZooKeeper 和 JDK 8。
+
+            ## 3. 证据覆盖与限制
+
+            本次选定证据仅包含 chunk=0、chunk=1 和 chunk=7。文档大纲显示尚有其他章节未被检索选中。
+            """;
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null, "分析 LiveData 部署服务组件依赖关系", null, List.of(), metadata,
+            List.of(), answer, () -> false, "completed");
+
+        assertThat(result.answer())
+            .contains("核心依赖", "DolphinScheduler 依赖配置数据库、ZooKeeper 和 JDK 8")
+            .doesNotContain("检索返回且被选中的片段", "未选中另一文档", "证据评估拒绝",
+                "证据覆盖与限制", "chunk=", "未被检索选中");
+        Map<String, Object> audit = (Map<String, Object>) result.metadata().get("answerEvidenceAudit");
+        assertThat(audit)
+            .containsEntry("schemaVersion", "answer_evidence_audit.v2")
+            .containsEntry("visibility", "BACKEND_AUDIT_ONLY");
+        assertThat(((List<?>) audit.get("selectedEvidenceRefs")).stream().map(String::valueOf).toList())
+            .containsExactly("doc://livedata-components#chunk=0", "doc://livedata-components#chunk=7");
+        assertThat(((List<?>) audit.get("rejectedEvidenceRefs")).stream().map(String::valueOf).toList())
+            .containsExactly("doc://other-platform#chunk=4");
+        assertThat(result.metadata()).containsEntry("answerEvidenceUserVisible", false);
+    }
+
+    @Test
+    void preservesEvidenceSectionWhenUserExplicitlyRequestsSources() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String answer = """
+            ## 核心结论
+
+            DolphinScheduler 依赖 ZooKeeper。
+
+            ## 证据与来源
+
+            - LiveData 组件清单 Section 8。
+            """;
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null, "分析 LiveData 依赖并列出来源", null, List.of(), new LinkedHashMap<>(),
+            List.of(), answer, () -> false, "completed");
+
+        assertThat(result.answer()).contains("证据与来源", "LiveData 组件清单 Section 8");
+        assertThat(result.metadata()).containsEntry("answerEvidenceUserVisible", true);
+    }
+
+    @Test
     void alwaysRemovesInternalReconciliationIndexFromUserFacingAnswer() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->

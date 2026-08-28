@@ -32,6 +32,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <!-- This module persists versioned workflow contracts as canonical JSON and therefore
+             owns a direct compile-time dependency on Jackson instead of relying on a transitive
+             dependency from an unrelated Spring starter. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>

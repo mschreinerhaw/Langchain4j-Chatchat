@@ -4,5 +4,9 @@ package com.chatchat.common.runtime.summary;
 @FunctionalInterface
 public interface ModelSummaryWorker<T extends ModelSummaryTask, S extends ModelSummary> {
 
-    S execute(T task);
+    S execute(T task, ModelSummaryProgressReporter progressReporter);
+
+    default S execute(T task) {
+        return execute(task, ModelSummaryProgressReporter.NOOP);
+    }
 }

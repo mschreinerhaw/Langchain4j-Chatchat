@@ -15,10 +15,19 @@ public interface ModelSummaryDispatcher<
     R extends ModelSummaryTaskResult<S>
 > extends RuntimeProtocolPort {
 
-    DispatchBatch<R> dispatch(
+    default DispatchBatch<R> dispatch(
         List<T> tasks,
         ModelSummaryWorker<T, S> worker,
         BooleanSupplier cancellationCheck
+    ) {
+        return dispatch(tasks, worker, cancellationCheck, ModelSummaryProgressListener.NOOP);
+    }
+
+    DispatchBatch<R> dispatch(
+        List<T> tasks,
+        ModelSummaryWorker<T, S> worker,
+        BooleanSupplier cancellationCheck,
+        ModelSummaryProgressListener progressListener
     );
 
     interface DispatchBatch<R> extends AutoCloseable {
@@ -29,6 +38,12 @@ public interface ModelSummaryDispatcher<
         int workerCount();
 
         String mode();
+
+        /** Best-effort cancellation of one claimed or queued task. */
+        boolean cancel(String taskId);
+
+        /** True after the batch has released its local or remote resources. */
+        boolean closed();
 
         @Override
         void close();

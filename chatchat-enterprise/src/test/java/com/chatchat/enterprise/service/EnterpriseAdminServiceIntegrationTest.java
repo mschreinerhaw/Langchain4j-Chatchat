@@ -50,6 +50,14 @@ class EnterpriseAdminServiceIntegrationTest {
         assertThat(login.user().username()).isEqualTo("admin");
         assertThat(service.isTokenValid(login.token())).isTrue();
         assertThat(service.resolveSessionByToken(login.token())).isPresent();
+        assertThat(service.listPermissions())
+            .anySatisfy(permission -> {
+                assertThat(permission.getPermissionCode()).isEqualTo("capability:data-science");
+                assertThat(permission.getParentId()).isNotBlank();
+                assertThat(permission.getResourcePath()).isEqualTo("/api/v1/data-science/python/**");
+                assertThat(permission.getHttpMethod()).isEqualTo("*");
+            });
+        assertThat(login.user().permissionCodes()).contains("capability:data-science");
         assertThatThrownBy(() -> service.login("admin", "wrong-password"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("invalid username or password");

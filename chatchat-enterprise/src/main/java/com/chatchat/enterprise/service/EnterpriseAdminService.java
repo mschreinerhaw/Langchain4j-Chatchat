@@ -1519,6 +1519,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed(null, "capability", "能力管理", "menu", "/index.html#market", null, "grid-3x3", 20),
             new PermissionSeed("capability", "capability:market", "能力市场", "menu", "/index.html#market", null, "store", 21),
             new PermissionSeed("capability", "capability:library", "文档库", "menu", "/index.html#library", null, "book-open", 22),
+            new PermissionSeed("capability", "capability:data-science", "数据科学", "menu", "/api/v1/data-science/python/**", "*", "code-2", 23),
             new PermissionSeed(null, "platform", "平台管理", "menu", "/index.html#tasks", null, "boxes", 30),
             new PermissionSeed("platform", "mcp", "MCP服务", "menu", "/index.html#mcp", null, "plug", 31),
             new PermissionSeed("mcp", "mcp:service:manage", "服务管理", "button", "/api/v1/mcp/**", "*", "server", 32),

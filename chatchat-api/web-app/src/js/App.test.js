@@ -100,6 +100,9 @@ describe("document Ask AI conversation isolation", () => {
     const capability = state.navItems.find((group) => group.id === "capability");
     const dataScience = capability.items.find((item) => item.id === "dataScience");
 
+    expect(dataScience.permissionCode).toBe("capability:data-science");
+    expect(dataScience.children.every((item) => item.permissionCode === "capability:data-science")).toBe(true);
+
     expect(dataScience.children.map((item) => item.id)).toEqual([
       "dataScienceEnvironment",
       "dataScienceDevelop",

@@ -113,7 +113,8 @@ public class EnterpriseAdminController {
             )),
             new MenuGroup("capability", "能力管理", List.of(
                 new MenuItem("market", "能力市场", "/index.html#market"),
-                new MenuItem("library", "文档库", "/index.html#library")
+                new MenuItem("library", "文档库", "/index.html#library"),
+                new MenuItem("data-science", "数据科学", "/index.html#dataScience")
             )),
             new MenuGroup("platform", "平台管理", List.of(
                 new MenuItem("mcp", "MCP服务", "/index.html#mcp"),

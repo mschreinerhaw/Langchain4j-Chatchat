@@ -77,11 +77,11 @@ const VIEW_PERMISSIONS = {
   favorites: "capability:market",
   library: "capability:library",
   mcp: "mcp",
-  dataScience: "capability:library",
-  dataScienceEnvironment: "capability:library",
-  dataScienceDevelop: "capability:library",
-  dataScienceData: "capability:library",
-  dataScienceScripts: "capability:library",
+  dataScience: "capability:data-science",
+  dataScienceEnvironment: "capability:data-science",
+  dataScienceDevelop: "capability:data-science",
+  dataScienceData: "capability:data-science",
+  dataScienceScripts: "capability:data-science",
   agents: "platform:agents",
   schedules: "platform:schedules",
   runtime: "platform:tasks",
@@ -202,12 +202,12 @@ export default {
               id: "dataScience",
               label: "数据科学",
               icon: "code",
-              permissionCode: "capability:library",
+              permissionCode: "capability:data-science",
               children: [
-                { id: "dataScienceEnvironment", label: "Python 环境", icon: "runtime", permissionCode: "capability:library" },
-                { id: "dataScienceDevelop", label: "Python 开发", icon: "code", permissionCode: "capability:library" },
-                { id: "dataScienceData", label: "我的数据", icon: "file", permissionCode: "capability:library" },
-                { id: "dataScienceScripts", label: "我的脚本", icon: "book", permissionCode: "capability:library" }
+                { id: "dataScienceEnvironment", label: "Python 环境", icon: "runtime", permissionCode: "capability:data-science" },
+                { id: "dataScienceDevelop", label: "Python 开发", icon: "code", permissionCode: "capability:data-science" },
+                { id: "dataScienceData", label: "我的数据", icon: "file", permissionCode: "capability:data-science" },
+                { id: "dataScienceScripts", label: "我的脚本", icon: "book", permissionCode: "capability:data-science" }
               ]
             }
           ]

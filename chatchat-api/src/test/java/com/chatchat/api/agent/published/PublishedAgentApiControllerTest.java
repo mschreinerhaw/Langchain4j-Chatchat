@@ -137,7 +137,7 @@ class PublishedAgentApiControllerTest {
                 .status("WAIT_TOOL")
                 .eventScope("TASK")
                 .toolName("finance_lookup")
-                .payload("{\"symbol\":\"ACME\",\"authorization\":\"Bearer secret\"}")
+                .payload("{\"symbol\":\"ACME\",\"authorization\":\"Bearer secret\",\"tenantId\":\"private\",\"metadata\":{\"taskId\":\"tenant:run:tool\"},\"__runtime\":{\"secret\":\"private\"}}")
                 .createTime(1_787_932_800_000L)
                 .build(),
             AgentEvent.builder().eventId("event-9").sequence(9L).type("STATUS")
@@ -157,6 +157,9 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.events[0].sequence").value(8))
             .andExpect(jsonPath("$.data.events[0].payload.symbol").value("ACME"))
             .andExpect(jsonPath("$.data.events[0].payload.authorization").value("[REDACTED]"))
+            .andExpect(jsonPath("$.data.events[0].payload.tenantId").doesNotExist())
+            .andExpect(jsonPath("$.data.events[0].payload.metadata.taskId").doesNotExist())
+            .andExpect(jsonPath("$.data.events[0].payload.__runtime").doesNotExist())
             .andExpect(jsonPath("$.data.eventCursor").value(9))
             .andExpect(jsonPath("$.data.hasMoreEvents").value(true));
     }

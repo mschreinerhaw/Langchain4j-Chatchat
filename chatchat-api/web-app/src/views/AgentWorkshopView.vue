@@ -273,7 +273,7 @@
             <span class="agent-curl-notice-icon" aria-hidden="true">!</span>
             <p>
               <strong>调用前准备</strong>
-              将示例中的 <code>&lt;paste-agent-api-token&gt;</code> 替换为“系统管理 → 用户管理 → API”中生成的令牌。示例统一使用环境变量 <code>AGENT_TOKEN</code>，任务编号会在提交成功后自动从 <code>data.taskId</code> 提取。
+              将示例中的 <code>&lt;paste-agent-api-token&gt;</code> 替换为“系统管理 → 用户管理 → token”中生成的令牌。示例统一使用环境变量 <code>AGENT_TOKEN</code>，任务编号会在提交成功后自动从 <code>data.taskId</code> 提取。
             </p>
           </div>
           <div v-if="curlExampleLoading" class="agent-curl-loading">

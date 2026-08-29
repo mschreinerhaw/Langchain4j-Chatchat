@@ -105,7 +105,7 @@
                 :disabled="user.status !== 'enabled'"
                 @click="openApiTokenModal(user)"
               >
-                API
+                token
               </button>
               <button type="button" class="icon-button" title="编辑账户" @click="openUserModal(user)">
                 <Pencil :size="15" />
@@ -242,19 +242,25 @@
             <span>终端</span>
           </div>
           <div v-for="audit in loginAuditRows" :key="audit.id" class="login-audit-row">
-            <span>{{ audit.loginTime }}</span>
-            <span>
+            <span :title="audit.loginTime">{{ audit.loginTime }}</span>
+            <span
+              class="login-audit-detail-cell"
+              :title="[audit.loginUser, audit.detailData.displayName || audit.actorId].filter(Boolean).join('\n')"
+            >
               <strong>{{ audit.loginUser }}</strong>
               <small>{{ audit.detailData.displayName || audit.actorId || "未识别账户" }}</small>
             </span>
-            <span>{{ audit.tenantName }}</span>
-            <span>{{ audit.loginAction }}</span>
+            <span class="login-audit-detail-cell" :title="audit.tenantName">{{ audit.tenantName }}</span>
+            <span class="login-audit-detail-cell" :title="audit.loginAction">{{ audit.loginAction }}</span>
             <span>
               <em :class="['status-pill', audit.result]">{{ audit.loginResult }}</em>
             </span>
-            <span>{{ audit.ipAddress }}</span>
-            <span>{{ audit.macAddress }}</span>
-            <span :title="audit.failureReason || audit.userAgent">
+            <span class="login-audit-detail-cell" :title="audit.ipAddress">{{ audit.ipAddress }}</span>
+            <span class="login-audit-detail-cell" :title="audit.macAddress">{{ audit.macAddress }}</span>
+            <span
+              class="login-audit-detail-cell"
+              :title="[audit.failureReason, audit.userAgent].filter(Boolean).join('\n')"
+            >
               <small>{{ audit.userAgent }}</small>
             </span>
           </div>

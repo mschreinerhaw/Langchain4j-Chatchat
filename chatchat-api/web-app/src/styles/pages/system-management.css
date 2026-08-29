@@ -612,6 +612,10 @@
   font-size: 12px;
 }
 
+.login-audit-detail-cell {
+  cursor: help;
+}
+
 .login-audit-pagination {
   min-height: 36px;
   display: flex;

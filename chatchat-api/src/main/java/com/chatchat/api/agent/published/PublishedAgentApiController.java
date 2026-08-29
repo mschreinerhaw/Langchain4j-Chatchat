@@ -164,7 +164,9 @@ public class PublishedAgentApiController {
             Map<String, Object> target = new LinkedHashMap<>();
             source.forEach((key, child) -> {
                 String name = String.valueOf(key);
-                target.put(name, sensitiveEventField(name) ? "[REDACTED]" : redactSensitiveValues(child));
+                if (!privateEventField(name)) {
+                    target.put(name, sensitiveEventField(name) ? "[REDACTED]" : redactSensitiveValues(child));
+                }
             });
             return target;
         }
@@ -180,6 +182,19 @@ public class PublishedAgentApiController {
             || normalized.contains("secret") || normalized.contains("authorization")
             || normalized.contains("apikey") || normalized.contains("credential")
             || normalized.contains("cookie");
+    }
+
+    private boolean privateEventField(String name) {
+        if (name == null || name.startsWith("__")) {
+            return true;
+        }
+        String normalized = name.replace("_", "").replace("-", "").toLowerCase();
+        return normalized.equals("tenantid") || normalized.equals("userid")
+            || normalized.equals("idempotencykey") || normalized.equals("resumetaskid")
+            || normalized.equals("systemprompt") || normalized.equals("taskid")
+            || normalized.equals("runid") || normalized.equals("runtimeeventid")
+            || normalized.equals("executionid") || normalized.equals("attemptid")
+            || normalized.equals("sessionid") || normalized.equals("rawobservationlocation");
     }
 
     @GetMapping("/{agentId}/questions/{taskId}/answer")

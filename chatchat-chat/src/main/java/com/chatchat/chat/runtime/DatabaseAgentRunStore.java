@@ -67,56 +67,56 @@ public class DatabaseAgentRunStore extends InMemoryAgentRunStore {
     @Override
     @Transactional
     public AgentRun submit(AgentRunRequest request) {
-        hydrate(request == null ? null : firstText(request.getRunId(), request.getRequestId()));
+        hydrateForUpdate(request == null ? null : firstText(request.getRunId(), request.getRequestId()));
         return persist(super.submit(request));
     }
 
     @Override
     @Transactional
     public AgentRun start(AgentRunRequest request) {
-        hydrate(request == null ? null : firstText(request.getRunId(), request.getRequestId()));
+        hydrateForUpdate(request == null ? null : firstText(request.getRunId(), request.getRequestId()));
         return persist(super.start(request));
     }
 
     @Override
     @Transactional
     public AgentRun complete(String runId, AgentRunResult result) {
-        hydrate(runId);
+        hydrateForUpdate(runId);
         return persist(super.complete(runId, result));
     }
 
     @Override
     @Transactional
     public AgentRun cancel(String runId, String reason) {
-        hydrate(runId);
+        hydrateForUpdate(runId);
         return persist(super.cancel(runId, reason));
     }
 
     @Override
     @Transactional
     public AgentRun fail(String runId, Throwable error) {
-        hydrate(runId);
+        hydrateForUpdate(runId);
         return persist(super.fail(runId, error));
     }
 
     @Override
     @Transactional
     public AgentRun recordStep(String runId, AgentRunStep step) {
-        hydrate(runId);
+        hydrateForUpdate(runId);
         return persist(super.recordStep(runId, step));
     }
 
     @Override
     @Transactional
     public AgentRun recordObservation(String runId, AgentObservation observation) {
-        hydrate(runId);
+        hydrateForUpdate(runId);
         return persist(super.recordObservation(runId, observation));
     }
 
     @Override
     @Transactional
     public AgentRun recordEvent(String runId, AgentRunEvent event) {
-        hydrate(runId);
+        hydrateForUpdate(runId);
         return persist(super.recordEvent(runId, event));
     }
 
@@ -331,6 +331,18 @@ public class DatabaseAgentRunStore extends InMemoryAgentRunStore {
             return;
         }
         runRepository.findById(runId).map(this::deserializeRun).ifPresent(run -> runs.put(runId, run));
+    }
+
+    private void hydrateForUpdate(String runId) {
+        if (runId == null || runId.isBlank()) {
+            return;
+        }
+        // Serialize aggregate mutations across local analysis workers and application nodes.
+        // Without this lock, two workers can hydrate the same @Version revision and the loser
+        // fails at commit with ObjectOptimisticLockingFailureException.
+        runRepository.findByIdForUpdate(runId)
+            .map(this::deserializeRun)
+            .ifPresent(run -> runs.put(runId, run));
     }
 
     private AgentRun persist(AgentRun run) {

@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class DatabaseAgentRunStoreTest {
@@ -32,6 +34,7 @@ class DatabaseAgentRunStoreTest {
     void setUp() {
         objectMapper = new ObjectMapper().findAndRegisterModules();
         when(runRepository.findById(any())).thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
+        when(runRepository.findByIdForUpdate(any())).thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
         when(runRepository.save(any())).thenAnswer(invocation -> {
             AgentRuntimeRunEntity entity = invocation.getArgument(0);
             persisted.set(entity);
@@ -62,6 +65,7 @@ class DatabaseAgentRunStoreTest {
         DatabaseAgentRunStore second = store();
         assertThat(second.find("attempt-2")).isPresent();
         assertThat(second.find("attempt-2").orElseThrow().status()).isEqualTo(AgentRunStatus.RUNNING);
+        verify(runRepository, atLeastOnce()).findByIdForUpdate("attempt-2");
     }
 
     private DatabaseAgentRunStore store() {

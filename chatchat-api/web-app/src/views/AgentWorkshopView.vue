@@ -248,7 +248,7 @@
       </div>
     </nav>
 
-    <div v-if="curlExampleOpen" class="agent-dialog-backdrop" @click.self="closeCurlExample">
+    <div v-if="curlExampleOpen" class="agent-dialog-backdrop">
       <section class="agent-dialog agent-curl-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-curl-title">
         <header class="agent-curl-header">
           <div class="agent-curl-title-wrap">

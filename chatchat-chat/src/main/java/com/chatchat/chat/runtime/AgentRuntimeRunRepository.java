@@ -3,13 +3,20 @@ package com.chatchat.chat.runtime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.LockModeType;
 
 import java.util.Collection;
 import java.util.List;
 
 public interface AgentRuntimeRunRepository extends JpaRepository<AgentRuntimeRunEntity, String> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from AgentRuntimeRunEntity r where r.runId = :runId")
+    java.util.Optional<AgentRuntimeRunEntity> findByIdForUpdate(@Param("runId") String runId);
 
     List<AgentRuntimeRunEntity> findByStatusInAndFinishedAtLessThanEqualOrderByFinishedAtAsc(
         Collection<String> statuses, Long cutoff, Pageable pageable);

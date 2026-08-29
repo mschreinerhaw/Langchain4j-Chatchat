@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.plan;
+package com.chatchat.agents.runtime.plan.diagnostic;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 

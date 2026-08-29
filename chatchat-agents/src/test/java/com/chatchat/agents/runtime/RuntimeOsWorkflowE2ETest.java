@@ -2,7 +2,7 @@ package com.chatchat.agents.runtime;
 
 import com.chatchat.agents.runtime.batch.FailureIsolatedBatchExecutionLayer;
 import com.chatchat.agents.runtime.batch.ToolCallRequest;
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import org.junit.jupiter.api.Test;
 

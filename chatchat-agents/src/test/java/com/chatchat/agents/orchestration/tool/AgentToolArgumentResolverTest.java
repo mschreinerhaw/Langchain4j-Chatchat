@@ -1405,7 +1405,7 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
-    void mandatoryRecoveryNeverSilentlyDropsAReviewedTemplateFromTheExecutionBatch() {
+    void mandatoryRecoveryExecutesCompilableReviewedTemplatesAndRecordsBlockedSiblings() {
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .toolName("mcp_runtime_api_template_query")
             .success(true)
@@ -1429,12 +1429,59 @@ class AgentToolArgumentResolverTest {
         );
 
         assertThat(result)
-            .containsEntry("__runtimeParamBindingStatus", "DENIED")
-            .containsEntry("__runtimeParamBindingCode",
-                "REVIEWED_TEMPLATE_BATCH_CARDINALITY_MISMATCH")
-            .doesNotContainKey("calls");
-        assertThat(result.get("__runtimeParamBindingError")).asString()
-            .contains("selectedCount=2", "compiledCount=1", "trade-flow");
+            .containsEntry("executionMode", "SEQUENTIAL")
+            .containsEntry("stopOnFailure", false)
+            .containsEntry(AgentToolArgumentResolver.RUNTIME_OWNED_TEMPLATE_BATCH_MARKER, true)
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            assertThat(calls).anySatisfy(raw -> assertThat((Map<String, Object>) raw)
+                .doesNotContainKey("preflightErrorCode"));
+            assertThat(calls).anySatisfy(raw -> assertThat((Map<String, Object>) raw)
+                .containsEntry("preflightErrorCode", "TEMPLATE_PARAMETER_PROTOCOL_REQUIRED")
+                .containsEntry("toolName", "mcp_runtime_api_template_execute"));
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryRecoveryAppliesEachReviewedTemplatesDefaultsWithoutModelOverrides() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_customer_template_query")
+            .success(true)
+            .output("""
+                {"runtimeTemplateSelection":{"selectedTemplateIds":["asset-summary","trade-flow"]},
+                 "templates":[
+                  {"templateId":"asset-summary","parameterContract":{"executionTool":"api_template_execute"},
+                   "parameterSchema":{"type":"object","properties":{
+                     "khh":{"type":"string","default":"070200046604"},
+                     "date":{"type":"string","default":"20260731"}},"required":["khh","date"]}},
+                  {"templateId":"trade-flow","parameterContract":{"executionTool":"api_template_execute"},
+                   "parameterSchema":{"type":"object","properties":{
+                     "khh":{"type":"string","default":"070200046604"},
+                     "limit":{"type":"integer","default":100}},"required":["khh"]}}
+                 ]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
+            "mcp_runtime_api_template_execute",
+            Map.of("purpose", "execute every reviewed customer template"),
+            List.of(discovery),
+            "analyze the customer using available template data"
+        );
+
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            assertThat(calls).allSatisfy(raw -> {
+                Map<String, Object> call = (Map<String, Object>) raw;
+                assertThat(call).doesNotContainKey("preflightErrorCode");
+                Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+                assertThat((Map<String, Object>) arguments.get("parameters"))
+                    .containsEntry("khh", "070200046604");
+            });
+            assertThat(calls.toString()).contains("date=20260731", "limit=100");
+        });
     }
 
     @Test

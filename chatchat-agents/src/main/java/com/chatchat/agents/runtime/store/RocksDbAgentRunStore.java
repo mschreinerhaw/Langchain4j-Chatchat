@@ -13,9 +13,9 @@ import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.agents.runtime.run.AgentRunStep;
 
-import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
-import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration.answer;
 
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

@@ -18,7 +18,7 @@ import com.chatchat.agents.runtime.batch.ToolCallRequest;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.batch.ToolEvidencePolicy;
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.toolcall.CanonicalToolInvocation;
 import com.chatchat.agents.runtime.toolcall.CompiledToolArguments;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;

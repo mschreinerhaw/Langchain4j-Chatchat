@@ -1,5 +1,10 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
+import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
+
 import com.chatchat.agents.runtime.event.AgentRunEvent;
 import com.chatchat.agents.runtime.event.AgentRunEventType;
 import com.chatchat.agents.runtime.observation.AgentObservation;
@@ -1249,9 +1254,13 @@ class InterpretationPlanRuntimeTest {
         assertThat(runStore.events("req-template-discovery-skip-review"))
             .filteredOn(event -> event.type()
                 == AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING)
-            .singleElement().satisfies(event -> assertThat(event.payload().toString())
-                .contains("template_match_analysis.v2", "TEMPLATE_MATCH_ANALYSIS",
-                    "analysisRole=TARGET", "inspect MySQL process state"));
+            .singleElement().satisfies(event -> {
+                assertThat(event.eventId()).hasSizeLessThanOrEqualTo(64)
+                    .startsWith("template-match:");
+                assertThat(event.payload().toString())
+                    .contains("template_match_analysis.v2", "TEMPLATE_MATCH_ANALYSIS",
+                        "analysisRole=TARGET", "inspect MySQL process state");
+            });
     }
 
     @Test

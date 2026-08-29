@@ -1,4 +1,7 @@
-package com.chatchat.agents.runtime.plan;
+package com.chatchat.agents.runtime.plan.diagnostic;
+
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;

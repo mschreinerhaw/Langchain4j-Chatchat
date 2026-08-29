@@ -36,7 +36,7 @@ import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.interaction.UserFacingAnswerSanitizer;

@@ -11,7 +11,7 @@ import com.chatchat.agents.runtime.run.AgentRunQuery;
 import com.chatchat.agents.runtime.run.AgentRunStep;
 
 import com.chatchat.common.runtime.event.RuntimeEventJournal;
-import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
 
 import java.util.List;
 import java.util.Optional;

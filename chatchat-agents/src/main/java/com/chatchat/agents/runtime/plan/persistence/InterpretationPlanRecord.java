@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.plan;
+package com.chatchat.agents.runtime.plan.persistence;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

@@ -1,4 +1,6 @@
-package com.chatchat.agents.runtime.plan;
+package com.chatchat.agents.runtime.plan.persistence;
+
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
 
 import java.util.List;
 import java.util.Map;

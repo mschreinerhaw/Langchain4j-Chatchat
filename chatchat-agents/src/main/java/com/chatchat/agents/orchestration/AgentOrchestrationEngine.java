@@ -104,21 +104,21 @@ import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
-import com.chatchat.agents.runtime.plan.DiagnosticRun;
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
-import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
-import com.chatchat.agents.runtime.plan.NodeAttemptStore;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.common.runtime.workflow.RuntimeWorkflowGuard;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.kernel.KernelViolationException;
-import com.chatchat.agents.runtime.plan.EvidenceBasedAssetCandidateEvaluator;
-import com.chatchat.agents.runtime.plan.EvidenceBasedTemplateCandidateEvaluator;
-import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
+import com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator;
+import com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator;
+import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
@@ -722,6 +722,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         if (requireDocumentWebVerification) {
             mandatoryTools = workflowTools.withDocumentWebVerificationMandatoryTools(mandatoryTools, documentSearchTool, verificationWebSearchTool);
         }
+        // A published business child is the model-facing implementation. Its
+        // abstract parent remains registered for transport delegation and for the
+        // no-child fallback, but exposing both to the planner creates duplicate
+        // discovery/review nodes for one logical capability.
+        List<String> plannerVisibleTools = toolNames.plannerVisibleTools(tools);
         if (!mandatoryTools.isEmpty() && !runtimeGuard.hasConfiguredMaxSteps(requestRuntimeAttributes)) {
             maxSteps = Math.max(maxSteps, mandatoryTools.size() + 1);
         }
@@ -823,6 +828,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             "Tool discovery completed and capability space was constructed.",
             metadataOf(
                 "availableTools", tools,
+                "plannerVisibleTools", plannerVisibleTools,
                 "mandatoryTools", mandatoryTools,
                 "documentSearchTool", documentSearchTool,
                 "verificationWebSearchTool", verificationWebSearchTool
@@ -869,7 +875,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             List<String> plannerMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, plannerCompletedTools);
             boolean plannerRequiresToolBeforeFinal = !plannerMandatoryTools.isEmpty();
             PlannerExecutionResult plannerResult = planner.plan(new AgentPlanningRequest(
-                activeChatModel, query, systemPrompt, tools, observations, documentIds,
+                activeChatModel, query, systemPrompt, plannerVisibleTools, observations, documentIds,
                 documentTags, plannerMandatoryTools, plannerRequiresToolBeforeFinal,
                 requireDocumentWebVerification, documentSearchTool,
                 verificationWebSearchTool, requestRuntimeAttributes));

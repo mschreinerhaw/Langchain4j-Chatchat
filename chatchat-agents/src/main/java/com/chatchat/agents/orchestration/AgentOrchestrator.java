@@ -8,7 +8,7 @@ import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
 import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.observation.AgentObservationPipeline;
-import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.store.AgentRunStore;

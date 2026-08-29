@@ -2,8 +2,8 @@ package com.chatchat.agents.assessment;
 
 import com.chatchat.agents.evidence.answer.AnswerAssemblyMode;
 import com.chatchat.agents.evidence.answer.AnswerAssemblyPolicy;
-import com.chatchat.agents.runtime.plan.DiagnosticRun;
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.common.interaction.InteractionToolTrace;
 
 import java.lang.reflect.Method;

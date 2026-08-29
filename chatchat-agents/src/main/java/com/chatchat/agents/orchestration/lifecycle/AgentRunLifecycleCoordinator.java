@@ -7,7 +7,7 @@ import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.observation.AgentObservation;
-import com.chatchat.agents.runtime.plan.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
 import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
 import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.run.AgentRunStatus;

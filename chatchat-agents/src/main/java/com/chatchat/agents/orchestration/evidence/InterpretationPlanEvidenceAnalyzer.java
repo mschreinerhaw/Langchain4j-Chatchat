@@ -5,7 +5,7 @@ import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.evidence.AgentEvidenceGraphService;
 import com.chatchat.agents.orchestration.evidence.AgentToolResultFactExtractor;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
-import com.chatchat.agents.runtime.plan.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import dev.langchain4j.model.chat.ChatModel;

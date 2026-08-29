@@ -1,5 +1,13 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
+import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator;
+import com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator;
+import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
+
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
 import com.chatchat.agents.evidence.execution.EvidenceExecutionLock;
@@ -2920,8 +2928,16 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return;
         }
         String fingerprint = sha256(templateMatchAnalysis);
-        String eventId = runId + ":template-requirement-match:"
-            + fingerprint.substring(0, Math.min(16, fingerprint.length()));
+        // agent_execution_event.event_id is a 64-character persistence key.
+        // Hash the semantic identity instead of embedding an unbounded run id;
+        // repeated publication of the same matching result remains idempotent.
+        String eventIdentity = sha256(Map.of(
+            "runId", runId,
+            "eventType", AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING.name(),
+            "payloadFingerprint", fingerprint
+        ));
+        String eventId = "template-match:"
+            + eventIdentity.substring(0, Math.min(49, eventIdentity.length()));
         BusinessTemplateRequirementMatchingEvent event =
             new BusinessTemplateRequirementMatchingEvent(eventId, runId, 0L, templateMatchAnalysis);
         runStore.recordEvent(runId, new AgentRunEvent(

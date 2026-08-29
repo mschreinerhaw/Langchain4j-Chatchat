@@ -72,6 +72,9 @@ public final class AgentToolExecutor {
             runtimeAttributes == null ? Map.of() : runtimeAttributes);
         if (runtimeOwnedTemplateBatch) {
             attributes.put("runtimeOwnedTemplateBatch", true);
+            if (containsTemplatePreflightResult(safeArguments)) {
+                attributes.put("runtimeOwnedTemplatePreflight", true);
+            }
         }
         attributes.put("executionPlan", buildRuntimeExecutionPlan(
             toolName, safeArguments, plannerExecutionPlan));
@@ -99,6 +102,24 @@ public final class AgentToolExecutor {
             ? observationBuilder.buildSuccessObservation(toolName, output, outputText)
             : observationBuilder.buildFailureObservation(toolName, output);
         return new Execution(runtimeExecution.trace(), observation, output, runtimeExecution);
+    }
+
+    private boolean containsTemplatePreflightResult(Map<String, Object> arguments) {
+        if (arguments == null) {
+            return false;
+        }
+        Object calls = arguments.get("calls");
+        if (!(calls instanceof Iterable<?> iterable)) {
+            return false;
+        }
+        for (Object item : iterable) {
+            if (item instanceof Map<?, ?> call
+                && (call.get("preflightErrorCode") != null
+                    || call.get("preflight_error_code") != null)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Map<String, Object> buildRuntimeExecutionPlan(String toolName,

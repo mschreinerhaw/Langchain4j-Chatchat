@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime.batch;
 
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.plan;
+package com.chatchat.agents.runtime.plan.selection;
 
 import com.chatchat.common.knowledge.template.BusinessAnalysisIntent;
 import com.chatchat.common.knowledge.template.TemplateAnalysisRole;

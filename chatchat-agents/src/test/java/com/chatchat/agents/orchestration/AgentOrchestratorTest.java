@@ -29,7 +29,7 @@ import com.chatchat.agents.runtime.store.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.protocol.ModelProtocolJson;
-import com.chatchat.agents.runtime.plan.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;

@@ -154,6 +154,23 @@ public class AgentToolNameResolver {
             .orElse(false);
     }
 
+    /**
+     * Builds the capability surface exposed to the planner.
+     *
+     * <p>When an authorized business implementation and its abstract parent are
+     * both present, only the implementation is model-visible. The implementation
+     * keeps its business/authorization identity while the integration layer still
+     * delegates the physical call to the parent bridge. If no implementation is
+     * present in the caller's authorized tool set, the parent remains visible as
+     * the generic fallback.</p>
+     */
+    public List<String> plannerVisibleTools(List<String> availableTools) {
+        if (availableTools == null || availableTools.isEmpty()) {
+            return List.of();
+        }
+        return capabilityHierarchy.mostSpecific(availableTools);
+    }
+
     private String normalizeKnownToolAlias(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return null;

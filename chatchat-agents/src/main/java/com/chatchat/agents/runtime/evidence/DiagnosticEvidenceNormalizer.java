@@ -3,7 +3,7 @@ package com.chatchat.agents.runtime.evidence;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.batch.ToolEvidencePolicy;
-import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 
 import java.util.ArrayList;
 import java.util.Collection;

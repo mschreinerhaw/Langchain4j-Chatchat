@@ -6,7 +6,7 @@ import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
 import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
-import com.chatchat.agents.runtime.plan.RetrievalQualityGate;
+import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
 import com.chatchat.agents.runtime.store.AgentRunStore;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolOutput;

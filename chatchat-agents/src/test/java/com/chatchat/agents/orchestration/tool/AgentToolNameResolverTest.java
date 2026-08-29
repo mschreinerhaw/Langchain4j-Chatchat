@@ -92,6 +92,43 @@ class AgentToolNameResolverTest {
             parent, List.of(parent, customer, account))).isNull();
     }
 
+    @Test
+    void plannerSeesBusinessImplementationsInsteadOfTheirAbstractParent() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String customer = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String account = "mcp_chatchat_mcp_server_account_service_template_query";
+        String executor = "mcp_chatchat_mcp_server_api_template_execute";
+        when(registry.getAllToolNames()).thenReturn(Set.of(parent, customer, account, executor));
+        when(registry.getToolMetadata(parent)).thenReturn(metadata(parent, "api_service_query", null));
+        when(registry.getToolMetadata(customer)).thenReturn(metadata(
+            customer, "customer_service_template_query", "api_service_query"));
+        when(registry.getToolMetadata(account)).thenReturn(metadata(
+            account, "account_service_template_query", "api_service_query"));
+        when(registry.getToolMetadata(executor)).thenReturn(metadata(
+            executor, "api_template_execute", null));
+        AgentToolNameResolver treeAware = new AgentToolNameResolver(
+            new RegistryMcpCapabilityHierarchy(registry));
+
+        assertThat(treeAware.plannerVisibleTools(List.of(parent, customer, account, executor)))
+            .containsExactly(customer, account, executor);
+    }
+
+    @Test
+    void plannerKeepsAbstractParentAsFallbackWhenNoAuthorizedImplementationIsVisible() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String hiddenChild = "mcp_chatchat_mcp_server_customer_service_template_query";
+        when(registry.getAllToolNames()).thenReturn(Set.of(parent, hiddenChild));
+        when(registry.getToolMetadata(parent)).thenReturn(metadata(parent, "api_service_query", null));
+        when(registry.getToolMetadata(hiddenChild)).thenReturn(metadata(
+            hiddenChild, "customer_service_template_query", "api_service_query"));
+        AgentToolNameResolver treeAware = new AgentToolNameResolver(
+            new RegistryMcpCapabilityHierarchy(registry));
+
+        assertThat(treeAware.plannerVisibleTools(List.of(parent))).containsExactly(parent);
+    }
+
     private ToolMetadata metadata(String localName, String remoteName, String parentRemoteName) {
         Map<String, Object> node = new java.util.LinkedHashMap<>();
         node.put("serviceId", "chatchat-mcp-server");

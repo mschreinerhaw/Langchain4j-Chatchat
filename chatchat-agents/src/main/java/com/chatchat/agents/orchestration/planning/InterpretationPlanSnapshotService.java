@@ -3,9 +3,9 @@ package com.chatchat.agents.orchestration.planning;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
-import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
-import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;

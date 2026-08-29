@@ -623,7 +623,15 @@ public class AgentToolArgumentResolver {
                 call.remove("template_id");
                 compiledCalls.add(call);
             } catch (TemplateInvocationBridge.TemplateBridgeException ex) {
-                return deniedBatch(values, "Batch call " + index + " rejected: " + ex.getMessage());
+                // A reviewed batch is failure-isolated. Preserve this admitted
+                // template as a terminal preflight result and continue compiling
+                // siblings whose defaults/evidence make them executable.
+                call.put("toolName", childTool);
+                call.put("arguments", childInput);
+                call.put("preflightErrorCode", ex.code());
+                call.put("preflightMessage", ex.getMessage());
+                call.remove("input");
+                compiledCalls.add(call);
             }
         }
         values.put("calls", compiledCalls);
@@ -1053,7 +1061,6 @@ public class AgentToolArgumentResolver {
                 continue;
             }
             List<Map<String, Object>> calls = new ArrayList<>();
-            List<String> compilationFailures = new ArrayList<>();
             int callIndex = 1;
             for (Map<String, Object> template : uniqueCandidates.values()) {
                 String templateId = templateId(template);
@@ -1090,23 +1097,20 @@ public class AgentToolArgumentResolver {
                         "arguments", compiledInput
                     ));
                 } catch (TemplateInvocationBridge.TemplateBridgeException failure) {
-                    compilationFailures.add(templateId + "[" + failure.code() + "]: "
-                        + failure.getMessage());
+                    // Keep one terminal result per reviewed template. A missing
+                    // non-default parameter blocks only this child; every sibling
+                    // with template defaults or verified values still executes.
+                    Map<String, Object> blockedInput = new LinkedHashMap<>(candidateInput);
+                    putRuntimeTemplateBinding(blockedInput, templateId, toolName,
+                        "reviewed_template_discovery_agent_batch");
+                    Map<String, Object> blockedCall = new LinkedHashMap<>();
+                    blockedCall.put("callId", "template-" + callIndex++);
+                    blockedCall.put("toolName", toolName);
+                    blockedCall.put("arguments", blockedInput);
+                    blockedCall.put("preflightErrorCode", failure.code());
+                    blockedCall.put("preflightMessage", failure.getMessage());
+                    calls.add(Map.copyOf(blockedCall));
                 }
-            }
-            if (calls.size() != uniqueCandidates.size()) {
-                Map<String, Object> denied = new LinkedHashMap<>();
-                denied.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
-                denied.put(McpParamBindingResolver.CODE_KEY,
-                    "REVIEWED_TEMPLATE_BATCH_CARDINALITY_MISMATCH");
-                denied.put(McpParamBindingResolver.ERROR_KEY,
-                    "Reviewed template batch must preserve the complete admission set; selectedCount="
-                        + uniqueCandidates.size() + ", compiledCount=" + calls.size()
-                        + ", failures=" + compilationFailures);
-                log.warn("Agent deterministic workflow rejected incomplete admitted template batch: "
-                        + "tool={}, sourceTool={}, selectedCount={}, compiledCount={}, failures={}",
-                    toolName, trace.getToolName(), uniqueCandidates.size(), calls.size(), compilationFailures);
-                return denied;
             }
             // A batch executor consumes only its compiled calls and batch controls.
             // Do not retain planner-authored scalar template references, execution

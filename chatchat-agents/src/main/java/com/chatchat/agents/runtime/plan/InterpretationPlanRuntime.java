@@ -5331,6 +5331,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             if (templateId == null || childTool == null || !requiredTemplateParametersSatisfied(template, arguments)) {
                 continue;
             }
+            // Stamp the discovery-owned binding while the Runtime compiles the child call.
+            // bridgeBatchTemplateInvocations normally validates and re-stamps it later, but
+            // Runtime-owned batch paths may intentionally bypass that generic bridge. The
+            // kernel must still receive proof that this exact template/executor pair came
+            // from governed discovery, otherwise its fail-closed preflight rejects a valid
+            // call as MCP_TEMPLATE_ID_NOT_DISCOVERED.
+            putRuntimeTemplateBinding(arguments, templateId, childTool,
+                "diagnostic_template_discovery_batch");
             if (outerTool == null) {
                 outerTool = childTool;
             }
@@ -5492,6 +5500,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             String declaredExecutor = firstText(templateExecutorTool(template), step.toolName());
             String childTool = resolveExecutionToolName(declaredExecutor, allowedTools);
             Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
+            if (templateId != null && childTool != null) {
+                putRuntimeTemplateBinding(arguments, templateId, childTool,
+                    "reviewed_template_discovery_batch");
+            }
             Map<String, Object> call = new LinkedHashMap<>();
             call.put("callId", firstText(checkIdByTemplateIndex.get(templateIndex), templateId));
             call.put("toolName", firstText(childTool, step.toolName()));

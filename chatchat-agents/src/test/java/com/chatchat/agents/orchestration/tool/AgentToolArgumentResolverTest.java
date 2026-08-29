@@ -6,6 +6,7 @@ import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -1354,6 +1355,7 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void mandatoryRecoveryCompilesOnlyReviewedAdmittedTemplatesIntoBatch() {
         String firstId = "runtime_health_a_" + System.nanoTime();
         String secondId = "runtime_health_b_" + System.nanoTime();
@@ -1382,11 +1384,57 @@ class AgentToolArgumentResolverTest {
         assertThat(result)
             .containsEntry("executionMode", "SEQUENTIAL")
             .containsEntry("stopOnFailure", false)
+            .containsEntry(AgentToolArgumentResolver.RUNTIME_OWNED_TEMPLATE_BATCH_MARKER, true)
             .doesNotContainKeys("template", "templateId", "__runtimeParamBindingStatus");
         assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
             assertThat(calls).hasSize(2);
             assertThat(calls.toString()).contains(firstId, secondId).doesNotContain("runtime_script");
+            assertThat(calls).allSatisfy(rawCall -> {
+                Map<String, Object> call = (Map<String, Object>) rawCall;
+                Map<String, Object> child = (Map<String, Object>) call.get("arguments");
+                Map<String, Object> binding = (Map<String, Object>) child.get(
+                    McpTemplateBindingEvidence.CONTEXT_KEY);
+                Object childTemplateId = child.containsKey("templateId")
+                    ? child.get("templateId") : child.get("template");
+                assertThat(binding)
+                    .containsEntry("templateId", childTemplateId)
+                    .containsEntry("executorTool", "mcp_runtime_sql_query_execute")
+                    .containsEntry("source", "reviewed_template_discovery_agent_batch");
+            });
         });
+    }
+
+    @Test
+    void mandatoryRecoveryNeverSilentlyDropsAReviewedTemplateFromTheExecutionBatch() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_api_template_query")
+            .success(true)
+            .output("""
+                {"runtimeTemplateSelection":{"selectedTemplateIds":["asset-summary","trade-flow"]},
+                 "templates":[
+                  {"templateId":"asset-summary","parameterContract":{"executionTool":"api_template_execute"},
+                   "parameterSchema":{"type":"object","properties":{},"required":[]}},
+                  {"templateId":"trade-flow","parameterContract":{"executionTool":"api_template_execute"},
+                   "parameterSchema":{"type":"object","properties":{"khh":{"type":"string"}},
+                                      "required":["khh"]}}
+                ]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
+            "mcp_runtime_api_template_execute",
+            Map.of("purpose", "execute every reviewed customer template"),
+            List.of(discovery),
+            "query customer assets and trades"
+        );
+
+        assertThat(result)
+            .containsEntry("__runtimeParamBindingStatus", "DENIED")
+            .containsEntry("__runtimeParamBindingCode",
+                "REVIEWED_TEMPLATE_BATCH_CARDINALITY_MISMATCH")
+            .doesNotContainKey("calls");
+        assertThat(result.get("__runtimeParamBindingError")).asString()
+            .contains("selectedCount=2", "compiledCount=1", "trade-flow");
     }
 
     @Test

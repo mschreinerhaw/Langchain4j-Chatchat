@@ -8783,7 +8783,12 @@ public class AgentOrchestrator implements AgentRunExecutor {
         Map<String, Object> safeArguments = new LinkedHashMap<>(compiledArguments);
         safeArguments = new LinkedHashMap<>(
             toolArguments.enforceObservedAssetContinuity(toolName, safeArguments, priorTraces));
+        boolean runtimeOwnedTemplateBatch = Boolean.TRUE.equals(
+            safeArguments.remove(AgentToolArgumentResolver.RUNTIME_OWNED_TEMPLATE_BATCH_MARKER));
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        if (runtimeOwnedTemplateBatch) {
+            attributes.put("runtimeOwnedTemplateBatch", true);
+        }
         attributes.put("executionPlan", buildRuntimeExecutionPlan(toolName, safeArguments, plannerExecutionPlan));
         ToolInput toolInput = ToolInput.builder()
             .conversationId(conversationId)

@@ -8,6 +8,7 @@ import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -30,6 +31,7 @@ import java.util.Set;
 @Slf4j
 public class AgentToolArgumentResolver {
 
+    public static final String RUNTIME_OWNED_TEMPLATE_BATCH_MARKER = "__runtimeOwnedTemplateBatch";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TemplateInvocationBridge TEMPLATE_INVOCATION_BRIDGE =
         new TemplateInvocationBridge();
@@ -150,6 +152,9 @@ public class AgentToolArgumentResolver {
                                                       List<InteractionToolTrace> traces,
                                                       String userQuery) {
         Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        // This marker is Runtime-owned. Never accept a planner/model supplied value; a
+        // successfully recompiled observed batch below will add it again.
+        values.remove(RUNTIME_OWNED_TEMPLATE_BATCH_MARKER);
         if (traces == null || traces.isEmpty()) {
             return values;
         }
@@ -227,6 +232,8 @@ public class AgentToolArgumentResolver {
                     values = new LinkedHashMap<>(bridged.executorInput());
                     boolean templateBoundContext = mergeObservedExecutionContext(values, template);
                     finishObservedTemplateInput(toolName, values, output, templateBoundContext);
+                    putRuntimeTemplateBinding(values, templateId, toolName,
+                        "reviewed_template_discovery_agent");
                     logObservedTemplateContract(toolName, requestedTemplateId, templateId, trace,
                         values, bridged.protocolTrace(), bridged.repairs(), true);
                     return values;
@@ -585,6 +592,8 @@ public class AgentToolArgumentResolver {
                 Map<String, Object> compiledInput = new LinkedHashMap<>(bridged.executorInput());
                 boolean templateBoundContext = mergeObservedExecutionContext(compiledInput, template);
                 finishObservedTemplateInput(childTool, compiledInput, output, templateBoundContext);
+                putRuntimeTemplateBinding(compiledInput, childTemplateId, childTool,
+                    "reviewed_template_discovery_agent_batch");
                 call.put("arguments", compiledInput);
                 call.remove("input");
                 call.remove("template");
@@ -600,6 +609,7 @@ public class AgentToolArgumentResolver {
         values.remove("tool_calls");
         values.remove("executionContext");
         values.remove("mcpExecutionContext");
+        values.put(RUNTIME_OWNED_TEMPLATE_BATCH_MARKER, true);
         log.info("Agent batch arguments compiled from observed template contracts: tool={}, sourceTool={}, callCount={}",
             toolName, trace.getToolName(), compiledCalls.size());
         return values;
@@ -920,6 +930,7 @@ public class AgentToolArgumentResolver {
                 continue;
             }
             List<Map<String, Object>> calls = new ArrayList<>();
+            List<String> compilationFailures = new ArrayList<>();
             int callIndex = 1;
             for (Map<String, Object> template : uniqueCandidates.values()) {
                 String templateId = templateId(template);
@@ -948,18 +959,31 @@ public class AgentToolArgumentResolver {
                     Map<String, Object> compiledInput = new LinkedHashMap<>(bridged.executorInput());
                     boolean templateBoundContext = mergeObservedExecutionContext(compiledInput, template);
                     finishObservedTemplateInput(toolName, compiledInput, output, templateBoundContext);
+                    putRuntimeTemplateBinding(compiledInput, templateId, toolName,
+                        "reviewed_template_discovery_agent_batch");
                     calls.add(Map.of(
                         "callId", "template-" + callIndex++,
                         "toolName", toolName,
                         "arguments", compiledInput
                     ));
-                } catch (TemplateInvocationBridge.TemplateBridgeException ignored) {
-                    // Scalar compilation below preserves the existing fail-closed error
-                    // when fewer than two admitted templates are currently executable.
+                } catch (TemplateInvocationBridge.TemplateBridgeException failure) {
+                    compilationFailures.add(templateId + "[" + failure.code() + "]: "
+                        + failure.getMessage());
                 }
             }
-            if (calls.size() < 2) {
-                continue;
+            if (calls.size() != uniqueCandidates.size()) {
+                Map<String, Object> denied = new LinkedHashMap<>();
+                denied.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+                denied.put(McpParamBindingResolver.CODE_KEY,
+                    "REVIEWED_TEMPLATE_BATCH_CARDINALITY_MISMATCH");
+                denied.put(McpParamBindingResolver.ERROR_KEY,
+                    "Reviewed template batch must preserve the complete admission set; selectedCount="
+                        + uniqueCandidates.size() + ", compiledCount=" + calls.size()
+                        + ", failures=" + compilationFailures);
+                log.warn("Agent deterministic workflow rejected incomplete admitted template batch: "
+                        + "tool={}, sourceTool={}, selectedCount={}, compiledCount={}, failures={}",
+                    toolName, trace.getToolName(), uniqueCandidates.size(), calls.size(), compilationFailures);
+                return denied;
             }
             // A batch executor consumes only its compiled calls and batch controls.
             // Do not retain planner-authored scalar template references, execution
@@ -969,11 +993,24 @@ public class AgentToolArgumentResolver {
             batch.put("executionMode", "SEQUENTIAL");
             batch.put("stopOnFailure", false);
             batch.put("calls", List.copyOf(calls));
+            batch.put(RUNTIME_OWNED_TEMPLATE_BATCH_MARKER, true);
             log.info("Agent deterministic workflow compiled admitted template set: tool={}, sourceTool={}, callCount={}",
                 toolName, trace.getToolName(), calls.size());
             return batch;
         }
         return null;
+    }
+
+    private void putRuntimeTemplateBinding(Map<String, Object> input,
+                                           String templateId,
+                                           String executorTool,
+                                           String source) {
+        if (input == null || templateId == null || templateId.isBlank()
+            || executorTool == null || executorTool.isBlank()) {
+            return;
+        }
+        input.put(McpTemplateBindingEvidence.CONTEXT_KEY, new McpTemplateBindingEvidence(
+            McpTemplateBindingEvidence.SCHEMA_VERSION, source, templateId, executorTool).toMap());
     }
 
     private Set<String> reviewedTemplateIds(Object value) {

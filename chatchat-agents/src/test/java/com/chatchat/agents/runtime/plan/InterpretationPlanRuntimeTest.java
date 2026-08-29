@@ -8983,6 +8983,12 @@ class InterpretationPlanRuntimeTest {
                 Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
                 assertThat((Map<String, Object>) arguments.get("parameters"))
                     .containsEntry("khh", "100200299999");
+                assertThat(arguments.get(McpTemplateBindingEvidence.CONTEXT_KEY))
+                    .isInstanceOfSatisfying(Map.class, binding -> assertThat(binding)
+                        .containsEntry("templateId", arguments.get("templateId"))
+                        .containsEntry("executorTool", executorTool)
+                        .hasEntrySatisfying("source", source -> assertThat(source)
+                            .asString().endsWith("template_discovery_batch")));
             }
         });
     }

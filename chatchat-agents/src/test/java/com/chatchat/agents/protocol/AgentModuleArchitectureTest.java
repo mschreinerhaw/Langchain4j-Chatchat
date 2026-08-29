@@ -122,7 +122,10 @@ class AgentModuleArchitectureTest {
     @Test
     void orchestrationRootContainsOnlyEntryPointsAndCoreEngines() throws IOException {
         Set<String> allowed = Set.of(
+            "AgentOrchestrationEngine.java",
             "AgentOrchestrator.java",
+            "AgentPlanningPort.java",
+            "AgentPlanningRequest.java",
             "AgentPlanner.java",
             "AgentRunResultAdapter.java",
             "AgentWorkflowDecisionEngine.java",

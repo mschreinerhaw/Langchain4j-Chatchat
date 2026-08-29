@@ -19,6 +19,7 @@ import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
+import com.chatchat.agents.runtime.toolcall.TemplateExecutionContractSelector;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.knowledge.template.BusinessTemplateRequirementMatchingEvent;
@@ -119,6 +120,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         new ContextualToolArgumentResolver();
     private static final TemplateInvocationBridge TEMPLATE_INVOCATION_BRIDGE =
         new TemplateInvocationBridge();
+    private static final TemplateExecutionContractSelector TEMPLATE_CONTRACT_SELECTOR =
+        new TemplateExecutionContractSelector();
     private static final DiagnosticEvidenceNormalizer DIAGNOSTIC_EVIDENCE_NORMALIZER =
         new DiagnosticEvidenceNormalizer();
     private static final Set<String> DISCOVERY_FILTER_PROTOCOL_FIELDS = Set.of(
@@ -5073,25 +5076,41 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> selectResolvedTemplate(Object output, String templateHint, String executorTool) {
-        Map<String, Object> first = Map.of();
+        List<Map<String, Object>> candidates = new ArrayList<>();
         for (Object candidate : templateCandidates(output)) {
-            if (!(candidate instanceof Map<?, ?> map)) {
-                continue;
-            }
-            Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
-            String id = canonicalTemplateId(template);
-            if (id == null) {
-                continue;
-            }
-            if (templateHint != null && templateHint.equalsIgnoreCase(id)) {
-                return template;
-            }
-            if (first.isEmpty() && (templateExecutorMatches(template, executorTool)
-                || firstValueAtAnyPath(template, "$.executionTool", "$.sqlExecutionBinding.toolName") == null)) {
-                first = template;
+            if (candidate instanceof Map<?, ?> map) {
+                candidates.add(new LinkedHashMap<>((Map<String, Object>) map));
             }
         }
-        return templateHint == null ? first : Map.of();
+        TemplateExecutionContractSelector.Selection selection = TEMPLATE_CONTRACT_SELECTOR.select(
+            candidates, templateHint, executorTool, templateDiscoveryExecutor(output));
+        if (!selection.selected()) {
+            log.warn("InterpretationPlan rejected discovered template execution contract: executor={}, "
+                    + "templateHint={}, code={}, reason={}, executableCandidateCount={}, rejections={}",
+                executorTool, templateHint, selection.code(), selection.reason(),
+                selection.executableCandidateCount(), selection.rejections());
+            throw new IllegalStateException("TEMPLATE_CONTRACT_RESOLUTION_FAILED: "
+                + selection.code() + ": " + selection.reason());
+        }
+        return selection.template();
+    }
+
+    private String templateDiscoveryExecutor(Object output) {
+        if (!(output instanceof Map<?, ?> raw)) return null;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = new LinkedHashMap<>((Map<String, Object>) raw);
+        for (Object value : new Object[] {
+            firstValueAtAnyPath(result, "$.executionTool"),
+            firstValueAtAnyPath(result, "$.execution_tool"),
+            firstValueAtAnyPath(result, "$.execution.toolName"),
+            firstValueAtAnyPath(result, "$.execution.executorTool"),
+            firstValueAtAnyPath(result, "$.routingProjection.executionTool"),
+            firstValueAtAnyPath(result, "$.data.executionTool"),
+            firstValueAtAnyPath(result, "$.structuredContent.executionTool")
+        }) {
+            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value).trim();
+        }
+        return null;
     }
 
     private void copyNonBlank(Map<?, ?> source, Map<String, Object> target, String... keys) {
@@ -5497,6 +5516,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         for (int templateIndex = 0; templateIndex < selectedIds.size(); templateIndex++) {
             String templateId = selectedIds.get(templateIndex);
             Map<String, Object> template = selectedTemplates.get(templateIndex);
+            TemplateExecutionContractSelector.Selection contractAdmission =
+                TEMPLATE_CONTRACT_SELECTOR.select(
+                    List.of(template), templateId, step.toolName(), step.toolName());
             String declaredExecutor = firstText(templateExecutorTool(template), step.toolName());
             String childTool = resolveExecutionToolName(declaredExecutor, allowedTools);
             Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
@@ -5512,6 +5534,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             if (template.isEmpty()) {
                 call.put("preflightErrorCode", "ADMITTED_TEMPLATE_METADATA_UNAVAILABLE");
                 call.put("preflightMessage", "The admitted template metadata was unavailable at execution preflight");
+            } else if (!contractAdmission.selected()) {
+                call.put("preflightErrorCode", contractAdmission.code());
+                call.put("preflightMessage", contractAdmission.reason());
+                call.put("templateContractRejections", contractAdmission.rejections());
             } else if (childTool == null || !batchCapable(childTool, toolRegistry)) {
                 call.put("preflightErrorCode", "TEMPLATE_EXECUTOR_UNAVAILABLE");
                 call.put("preflightMessage", "No authorized batch-capable executor was available for the admitted template");

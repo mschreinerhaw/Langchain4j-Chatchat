@@ -2,6 +2,8 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.orchestration.workflow.AgentWorkflowConfigurationException;
+import com.chatchat.agents.orchestration.workflow.WorkflowConditionEvaluator;
+import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 
 import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -29,6 +31,8 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
 
     private final ToolRegistry toolRegistry;
     private final McpCapabilityHierarchy capabilityHierarchy;
+    private final AgentToolNameResolver toolNames;
+    private final WorkflowConditionEvaluator conditionEvaluator = new WorkflowConditionEvaluator();
 
     AgentWorkflowDecisionEngine() {
         this(null);
@@ -39,6 +43,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         this.capabilityHierarchy = toolRegistry == null
             ? McpCapabilityHierarchy.empty()
             : new RegistryMcpCapabilityHierarchy(toolRegistry);
+        this.toolNames = new AgentToolNameResolver(this.capabilityHierarchy);
     }
 
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
@@ -580,195 +585,18 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
     }
 
     private boolean conditionMatches(String condition, Map<String, Object> context) {
-        if (condition == null || condition.isBlank()) {
-            return true;
-        }
-        String expression = condition.trim();
-        String[] operators = {">=", "<=", "==", "!=", ">", "<"};
-        for (String operator : operators) {
-            int index = expression.indexOf(operator);
-            if (index <= 0) {
-                continue;
-            }
-            String left = expression.substring(0, index).trim();
-            String right = expression.substring(index + operator.length()).trim();
-            Object leftValue = context == null ? null : firstObject(context, left, normalizePolicyKey(left));
-            return compareCondition(leftValue, operator, right);
-        }
-        Object value = context == null ? null : firstObject(context, expression, normalizePolicyKey(expression));
-        return booleanValue(value);
-    }
-
-    private boolean compareCondition(Object leftValue, String operator, String rightText) {
-        if (leftValue == null) {
-            return false;
-        }
-        Double leftNumber = doubleValue(leftValue);
-        Double rightNumber = doubleValue(unquote(rightText));
-        if (leftNumber != null && rightNumber != null) {
-            return switch (operator) {
-                case ">=" -> leftNumber >= rightNumber;
-                case "<=" -> leftNumber <= rightNumber;
-                case ">" -> leftNumber > rightNumber;
-                case "<" -> leftNumber < rightNumber;
-                case "==" -> leftNumber.doubleValue() == rightNumber.doubleValue();
-                case "!=" -> leftNumber.doubleValue() != rightNumber.doubleValue();
-                default -> false;
-            };
-        }
-        int comparison = String.valueOf(leftValue).compareTo(unquote(rightText));
-        return switch (operator) {
-            case "==" -> String.valueOf(leftValue).equals(unquote(rightText));
-            case "!=" -> !String.valueOf(leftValue).equals(unquote(rightText));
-            case ">" -> comparison > 0;
-            case "<" -> comparison < 0;
-            case ">=" -> comparison >= 0;
-            case "<=" -> comparison <= 0;
-            default -> false;
-        };
-    }
-
-    private Double doubleValue(Object value) {
-        if (value instanceof Number number) {
-            return number.doubleValue();
-        }
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(String.valueOf(value).trim());
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    private String normalizePolicyKey(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        return value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return conditionEvaluator.matches(condition, context);
     }
 
     private String normalizeToolName(String toolName, List<String> availableTools) {
-        if (toolName == null || toolName.isBlank()) {
-            return null;
-        }
-        String trimmed = toolName.trim();
-        if (availableTools == null || availableTools.isEmpty()) {
-            return normalizeKnownToolAlias(trimmed);
-        }
-        if (availableTools.contains(trimmed)) {
-            return trimmed;
-        }
-        String aliased = normalizeKnownToolAlias(trimmed);
-        if (availableTools.contains(aliased)) {
-            return aliased;
-        }
-        if (DOCUMENT_SEARCH_TOOL.equals(aliased)) {
-            return resolveDocumentSearchTool(availableTools);
-        }
-        if (WEB_SEARCH_TOOL.equals(aliased)) {
-            return resolveVerificationWebSearchTool(availableTools);
-        }
-        return availableTools.stream()
-            .filter(available -> sameToolName(available, trimmed))
-            .findFirst()
-            .orElse(trimmed);
-    }
-
-    private String normalizeKnownToolAlias(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return toolName;
-        }
-        String semantic = toolSemanticKey(toolName);
-        if (semantic.contains("document") && semantic.contains("search")) {
-            return DOCUMENT_SEARCH_TOOL;
-        }
-        if (semantic.equals("web_search") || semantic.endsWith("_web_search") || semantic.contains("web_search")) {
-            return WEB_SEARCH_TOOL;
-        }
-        if (semantic.contains("search_and_extract")) {
-            return SEARCH_AND_EXTRACT_TOOL;
-        }
-        if ("asset_query".equals(semantic) || "asset_discovery".equals(semantic)) {
-            return "asset_discovery";
-        }
-        if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
-            return "template_discovery";
-        }
-        if (semantic.endsWith("_asset_query") || "database_asset_search".equals(semantic)) {
-            return "asset_discovery";
-        }
-        if (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")) {
-            return "template_discovery";
-        }
-        return toolName.trim();
-    }
-
-    private String resolveDocumentSearchTool(List<String> tools) {
-        if (tools == null || tools.isEmpty()) {
-            return null;
-        }
-        return tools.stream()
-            .filter(this::isDocumentSearchToolName)
-            .findFirst()
-            .orElse(null);
-    }
-
-    private String resolveVerificationWebSearchTool(List<String> tools) {
-        if (tools == null || tools.isEmpty()) {
-            return null;
-        }
-        return tools.stream()
-            .filter(this::isWebEvidenceToolName)
-            .findFirst()
-            .orElseGet(() -> tools.stream()
-                .filter(this::isSearchAndExtractToolName)
-                .findFirst()
-                .orElse(null));
-    }
-
-    private boolean isWebEvidenceToolName(String toolName) {
-        return isWebSearchToolName(toolName) || isSearchAndExtractToolName(toolName);
-    }
-
-    private boolean isWebSearchToolName(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return WEB_SEARCH_TOOL.equals(semantic) || semantic.endsWith("_web_search") || semantic.contains("web_search");
-    }
-
-    private boolean isSearchAndExtractToolName(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return SEARCH_AND_EXTRACT_TOOL.equals(semantic) || semantic.endsWith("_search_and_extract") || semantic.contains("search_and_extract");
-    }
-
-    private boolean isDocumentSearchToolName(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return DOCUMENT_SEARCH_TOOL.equals(semantic)
-            || semantic.endsWith("_document_search")
-            || (semantic.contains("document") && semantic.contains("search"));
+        return toolNames.normalizeToolName(toolName, availableTools);
     }
 
     private boolean sameToolName(String first, String second) {
-        if (first == null || second == null) {
-            return false;
-        }
         if (capabilityHierarchy.node(first).isPresent() || capabilityHierarchy.node(second).isPresent()) {
             return capabilityHierarchy.sameNode(first, second);
         }
-        String left = first.trim();
-        String right = second.trim();
-        String leftAlias = normalizeKnownToolAlias(left);
-        String rightAlias = normalizeKnownToolAlias(right);
-        return left.equals(right)
-            || left.equals(rightAlias)
-            || leftAlias.equals(right)
-            || leftAlias.equals(rightAlias)
-            || toolSemanticKey(left).equals(toolSemanticKey(right));
-    }
-
-    private String toolSemanticKey(String toolName) {
-        return McpToolNamePolicy.workflowSemanticKey(toolName);
+        return toolNames.sameToolName(first, second);
     }
 
     @SuppressWarnings("unchecked")

@@ -5,6 +5,7 @@ import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
+import com.chatchat.agents.runtime.toolcall.TemplateExecutionContractSelector;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -35,6 +36,8 @@ public class AgentToolArgumentResolver {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TemplateInvocationBridge TEMPLATE_INVOCATION_BRIDGE =
         new TemplateInvocationBridge();
+    private static final TemplateExecutionContractSelector TEMPLATE_CONTRACT_SELECTOR =
+        new TemplateExecutionContractSelector();
 
     private final AgentToolNameResolver toolNames;
     private final int webSearchReferenceLimit;
@@ -199,7 +202,12 @@ public class AgentToolArgumentResolver {
             if (batchCalls(values) != null) {
                 return applyObservedBatchTemplateContracts(toolName, values, candidates, output, trace, userQuery);
             }
-            List<Map<String, Object>> eligible = eligibleTemplates(candidates, requestedTemplateId);
+            TemplateExecutionContractSelector.Selection contractSelection = TEMPLATE_CONTRACT_SELECTOR.select(
+                candidates, requestedTemplateId, toolName, null);
+            if (!contractSelection.selected()) {
+                return templateContractDenied(values, contractSelection);
+            }
+            List<Map<String, Object>> eligible = List.of(contractSelection.template());
             TemplateInvocationBridge.TemplateBridgeException lastFailure = null;
             Map<String, Object> failedInput = null;
             Map<String, Object> failedTemplate = null;
@@ -279,6 +287,19 @@ public class AgentToolArgumentResolver {
         denied.put(McpParamBindingResolver.ERROR_KEY,
             "Multiple business-template candidates require semantic admission from the original user question "
                 + "and cumulative analysis context before execution; admittedCount=" + admittedCount);
+        return denied;
+    }
+
+    private Map<String, Object> templateContractDenied(
+        Map<String, Object> input,
+        TemplateExecutionContractSelector.Selection selection
+    ) {
+        Map<String, Object> denied = new LinkedHashMap<>(input == null ? Map.of() : input);
+        denied.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
+        denied.put(McpParamBindingResolver.CODE_KEY, selection.code());
+        denied.put(McpParamBindingResolver.ERROR_KEY, selection.reason());
+        denied.put("templateContractRejections", selection.rejections());
+        denied.put("executableTemplateCandidateCount", selection.executableCandidateCount());
         return denied;
     }
 
@@ -561,19 +582,15 @@ public class AgentToolArgumentResolver {
             List<Map<String, Object>> compatibleCandidates = candidates.stream()
                 .filter(candidate -> sameExecutor(childTool, discoveredExecutor(candidate)))
                 .toList();
-            if (childTemplateId == null && compatibleCandidates.size() == 1) {
-                childTemplateId = templateId(compatibleCandidates.get(0));
-            }
-            String resolvedTemplateId = childTemplateId;
-            Map<String, Object> template = compatibleCandidates.stream()
-                .filter(candidate -> resolvedTemplateId != null
-                    && resolvedTemplateId.equalsIgnoreCase(templateId(candidate)))
-                .findFirst()
-                .orElse(null);
-            if (template == null) {
+            TemplateExecutionContractSelector.Selection childSelection = TEMPLATE_CONTRACT_SELECTOR.select(
+                compatibleCandidates, childTemplateId, childTool, null);
+            if (!childSelection.selected()) {
                 return deniedBatch(values, "Batch call " + index + " template " + childTemplateId
-                    + " was not returned by the observed discovery contract");
+                    + " was not returned as one unambiguous executable discovery contract ["
+                    + childSelection.code() + "]: " + childSelection.reason());
             }
+            Map<String, Object> template = childSelection.template();
+            childTemplateId = childSelection.templateId();
             if (usesTemplateIdField(childTool)) {
                 childInput.put("templateId", childTemplateId);
                 childInput.remove("template");
@@ -1055,7 +1072,33 @@ public class AgentToolArgumentResolver {
     private List<Map<String, Object>> discoveredTemplates(Object value) {
         List<Map<String, Object>> templates = new ArrayList<>();
         collectDiscoveredTemplates(value, templates, 0);
-        return templates;
+        Map<String, Map<String, Object>> unique = new LinkedHashMap<>();
+        for (Map<String, Object> template : templates) {
+            String id = templateId(template);
+            String executor = discoveredExecutor(template);
+            if (id == null || executor == null) continue;
+            String key = id.toLowerCase(Locale.ROOT) + "::" + executor.toLowerCase(Locale.ROOT);
+            Map<String, Object> current = unique.get(key);
+            if (current == null || templateContractQuality(template) > templateContractQuality(current)) {
+                unique.put(key, template);
+            }
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private int templateContractQuality(Map<String, Object> template) {
+        if (template == null || template.isEmpty()) return 0;
+        int score = template.size();
+        if (firstPresent(template, "parameterSchema", "parameter_schema", "inputSchema", "schema")
+            instanceof Map<?, ?>) score += 100;
+        if (nested(template, "executionBinding", "toolName") != null
+            || nested(template, "sqlExecutionBinding", "toolName") != null
+            || nested(template, "execution", "executorTool") != null) score += 80;
+        if (nested(template, "executionBinding", "executionContext") != null
+            || nested(template, "sqlExecutionBinding", "executionContext") != null
+            || template.get("executionContext") instanceof Map<?, ?>) score += 60;
+        if (firstPresent(template, "executionArguments", "execution_arguments") instanceof Map<?, ?>) score += 40;
+        return score;
     }
 
     @SuppressWarnings("unchecked")

@@ -778,6 +778,43 @@ class AgentPlannerTest {
     }
 
     @Test
+    void plannerPromptUsesLeafCapabilityDagInsteadOfRawParentWorkflow() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "buildPlannerPrompt",
+            String.class, String.class, List.class, List.class, List.class, List.class,
+            List.class, boolean.class, boolean.class, String.class, String.class, Map.class
+        );
+        method.setAccessible(true);
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String customer = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String account = "mcp_chatchat_mcp_server_account_service_template_query";
+        List<Map<String, Object>> rawWorkflow = List.of(
+            Map.of("step", "parent", "tool", parent, "required", true),
+            Map.of("step", "customer", "tool", customer, "required", true),
+            Map.of("step", "account", "tool", account, "required", true)
+        );
+        List<Map<String, Object>> leafDag = List.of(
+            Map.of("id", "customer", "tool", customer, "dependsOnTools", List.of()),
+            Map.of("id", "account", "tool", account, "dependsOnTools", List.of())
+        );
+
+        String prompt = (String) method.invoke(
+            planner,
+            "analyze customer and account data", "",
+            List.of(customer, account), List.of(), List.of(), List.of(),
+            List.of(customer, account), true, false, null, null,
+            Map.of("mcpWorkflow", rawWorkflow, "authoritativeWorkflowDag", leafDag)
+        );
+
+        assertThat(prompt)
+            .contains("model-facing leaf-capability projection")
+            .contains("tool=" + customer)
+            .contains("tool=" + account)
+            .doesNotContain(parent);
+    }
+
+    @Test
     void plannerPromptTreatsConfiguredAgentEnvironmentAsAuthoritative() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         Method method = AgentPlanner.class.getDeclaredMethod(

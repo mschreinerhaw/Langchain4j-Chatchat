@@ -4,6 +4,7 @@ import com.chatchat.agents.routing.McpToolRouter;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -169,6 +170,28 @@ public class AgentToolNameResolver {
             return List.of();
         }
         return capabilityHierarchy.mostSpecific(availableTools);
+    }
+
+    /**
+     * Runtime-only audit of confirmed parent-to-leaf delegation relationships.
+     * Keys are deliberately excluded from the planner-visible tool surface.
+     */
+    public Map<String, List<String>> plannerInternalDelegations(List<String> availableTools) {
+        if (availableTools == null || availableTools.isEmpty()) {
+            return Map.of();
+        }
+        List<String> visibleTools = plannerVisibleTools(availableTools);
+        Map<String, List<String>> delegations = new LinkedHashMap<>();
+        for (String candidateParent : availableTools) {
+            List<String> implementations = visibleTools.stream()
+                .filter(candidate -> capabilityHierarchy.isImplementationOf(
+                    candidate, candidateParent))
+                .toList();
+            if (!implementations.isEmpty()) {
+                delegations.put(candidateParent, implementations);
+            }
+        }
+        return java.util.Collections.unmodifiableMap(delegations);
     }
 
     private String normalizeKnownToolAlias(String toolName) {

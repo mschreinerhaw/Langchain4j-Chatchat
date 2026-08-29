@@ -727,6 +727,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         // no-child fallback, but exposing both to the planner creates duplicate
         // discovery/review nodes for one logical capability.
         List<String> plannerVisibleTools = toolNames.plannerVisibleTools(tools);
+        Map<String, List<String>> plannerInternalDelegations =
+            toolNames.plannerInternalDelegations(tools);
         if (!mandatoryTools.isEmpty() && !runtimeGuard.hasConfiguredMaxSteps(requestRuntimeAttributes)) {
             maxSteps = Math.max(maxSteps, mandatoryTools.size() + 1);
         }
@@ -829,6 +831,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             metadataOf(
                 "availableTools", tools,
                 "plannerVisibleTools", plannerVisibleTools,
+                "internalToolDelegations", plannerInternalDelegations,
                 "mandatoryTools", mandatoryTools,
                 "documentSearchTool", documentSearchTool,
                 "verificationWebSearchTool", verificationWebSearchTool

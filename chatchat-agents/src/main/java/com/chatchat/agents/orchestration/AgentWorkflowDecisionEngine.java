@@ -169,13 +169,15 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
     }
 
     /**
-     * Replaces an abstract capability step with its single configured business
-     * implementation. The parent remains the physical invocation bridge, but is
-     * not executed as separate business evidence.
+     * Projects the configured workflow onto its model-facing business tools.
+     * Every configured descendant suppresses its abstract ancestor, regardless
+     * of how many descendants are selected. Parent dependencies are inherited by
+     * every surviving leaf and downstream references to a parent expand to all of
+     * those leaves. The parent remains a Runtime-only invocation bridge.
      */
     private List<WorkflowToolStep> preferBusinessImplementations(List<WorkflowToolStep> steps) {
         if (steps == null || steps.size() < 2) return steps == null ? List.of() : steps;
-        Map<WorkflowToolStep, WorkflowToolStep> replacements = new LinkedHashMap<>();
+        Map<WorkflowToolStep, List<WorkflowToolStep>> descendants = new LinkedHashMap<>();
         for (WorkflowToolStep candidateParent : steps) {
             List<WorkflowToolStep> implementations = steps.stream()
                 .filter(candidate -> candidate != candidateParent)
@@ -183,36 +185,61 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
                 .filter(candidate -> capabilityHierarchy.isImplementationOf(
                     candidate.toolName(), candidateParent.toolName()))
                 .toList();
-            if (implementations.size() == 1) {
-                replacements.put(candidateParent, implementations.get(0));
+            if (!implementations.isEmpty()) {
+                descendants.put(candidateParent, implementations);
             }
         }
-        if (replacements.isEmpty()) return steps;
+        if (descendants.isEmpty()) return steps;
+
+        Set<WorkflowToolStep> suppressedParents = descendants.keySet();
+        Map<WorkflowToolStep, List<WorkflowToolStep>> replacements = new LinkedHashMap<>();
+        descendants.forEach((parent, implementations) -> replacements.put(parent,
+            implementations.stream()
+                .filter(candidate -> !suppressedParents.contains(candidate))
+                .toList()));
 
         List<WorkflowToolStep> result = new ArrayList<>();
         for (WorkflowToolStep step : steps) {
-            if (replacements.containsKey(step)) continue;
+            if (suppressedParents.contains(step)) continue;
             List<WorkflowToolStep> abstractParents = replacements.entrySet().stream()
-                .filter(entry -> entry.getValue() == step)
+                .filter(entry -> entry.getValue().contains(step))
                 .map(Map.Entry::getKey)
                 .toList();
-            if (abstractParents.isEmpty()) {
-                result.add(step);
-                continue;
-            }
             LinkedHashSet<String> aliases = new LinkedHashSet<>(step.aliases());
             LinkedHashSet<String> dependencies = new LinkedHashSet<>(step.dependencies());
             for (WorkflowToolStep parent : abstractParents) {
-                aliases.addAll(parent.aliases());
                 dependencies.addAll(parent.dependencies());
             }
-            dependencies.removeIf(reference -> aliases.stream()
-                .anyMatch(alias -> alias.equalsIgnoreCase(reference)));
+            dependencies = expandSuppressedCapabilityDependencies(dependencies, replacements);
+            dependencies.removeIf(reference -> aliases.stream().anyMatch(alias ->
+                alias.equalsIgnoreCase(reference)));
             result.add(new WorkflowToolStep(
                 step.order(), step.sourceIndex(), step.toolName(),
                 new ArrayList<>(aliases), new ArrayList<>(dependencies), step.executable()));
         }
         return result;
+    }
+
+    private LinkedHashSet<String> expandSuppressedCapabilityDependencies(
+        Collection<String> dependencies,
+        Map<WorkflowToolStep, List<WorkflowToolStep>> replacements
+    ) {
+        LinkedHashSet<String> expanded = new LinkedHashSet<>();
+        for (String dependency : dependencies) {
+            List<WorkflowToolStep> matchedParents = replacements.keySet().stream()
+                .filter(parent -> parent.aliases().stream()
+                    .anyMatch(alias -> alias.equalsIgnoreCase(dependency)))
+                .toList();
+            if (matchedParents.isEmpty()) {
+                expanded.add(dependency);
+                continue;
+            }
+            matchedParents.stream()
+                .flatMap(parent -> replacements.getOrDefault(parent, List.of()).stream())
+                .map(WorkflowToolStep::toolName)
+                .forEach(expanded::add);
+        }
+        return expanded;
     }
 
     private List<WorkflowToolStep> matchingProtocolPredecessors(List<WorkflowToolStep> steps,

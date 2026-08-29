@@ -75,6 +75,44 @@ class AgentWorkflowDecisionEngineTest {
         assertThat(resolution.authoritativeDag().get(1).dependsOnTools()).containsExactly(child);
     }
 
+    @Test
+    void abstractParentIsSuppressedForEverySelectedBusinessImplementation() {
+        String parent = "mcp_chatchat_mcp_server_api_service_query";
+        String customer = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String account = "mcp_chatchat_mcp_server_account_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(parent, customer, account, execute));
+        when(registry.getToolMetadata(parent)).thenReturn(capabilityMetadata(parent, "api_service_query", null));
+        when(registry.getToolMetadata(customer)).thenReturn(capabilityMetadata(
+            customer, "customer_service_template_query", "api_service_query"));
+        when(registry.getToolMetadata(account)).thenReturn(capabilityMetadata(
+            account, "account_service_template_query", "api_service_query"));
+        when(registry.getWorkflowRole(parent)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(customer)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(account)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        AgentWorkflowDecisionEngine treeAware = new AgentWorkflowDecisionEngine(registry);
+        Map<String, Object> workflow = Map.of("steps", List.of(
+            Map.of("step", "abstract_query", "tool", parent, "required", true),
+            Map.of("step", "customer_query", "tool", customer, "required", true),
+            Map.of("step", "account_query", "tool", account, "required", true),
+            Map.of("step", "execute", "tool", execute, "required", true,
+                "dependsOn", List.of("abstract_query"))
+        ));
+
+        WorkflowMandatoryResolution resolution = treeAware.resolveWorkflowMandatoryTools(
+            List.of(parent, customer, account, execute), Map.of("mcpWorkflow", workflow),
+            "customer and account analysis");
+
+        assertThat(resolution.tools()).containsExactly(customer, account, execute);
+        assertThat(resolution.authoritativeDag()).extracting(WorkflowDagNode::toolName)
+            .containsExactly(customer, account, execute)
+            .doesNotContain(parent);
+        assertThat(resolution.authoritativeDag().get(2).dependsOnTools())
+            .containsExactly(customer, account);
+    }
+
     private ToolMetadata capabilityMetadata(String localName, String remoteName, String parentRemoteName) {
         Map<String, Object> node = new java.util.LinkedHashMap<>();
         node.put("serviceId", "chatchat-mcp-server");

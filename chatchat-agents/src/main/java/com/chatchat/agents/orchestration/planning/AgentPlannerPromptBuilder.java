@@ -292,6 +292,12 @@ public final class AgentPlannerPromptBuilder {
     }
 
     private void appendMcpWorkflowOrchestrationContract(StringBuilder prompt, Map<String, Object> runtimeAttributes) {
+        List<Map<String, Object>> authoritativeDag = objectMapList(runtimeAttributes == null
+            ? null : runtimeAttributes.get("authoritativeWorkflowDag"));
+        if (!authoritativeDag.isEmpty()) {
+            appendAuthoritativeWorkflowContract(prompt, authoritativeDag);
+            return;
+        }
         Map<String, Object> workflow = workflowConfigMap(runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow"));
         if (workflow.isEmpty()) {
             return;
@@ -358,6 +364,46 @@ public final class AgentPlannerPromptBuilder {
             prompt.append("- executionStrategy=").append(executionStrategy).append("\n");
         }
         prompt.append("\n");
+    }
+
+    private void appendAuthoritativeWorkflowContract(StringBuilder prompt,
+                                                       List<Map<String, Object>> authoritativeDag) {
+        prompt.append("MCP tool orchestration contract from current Agent Runtime OS:\n");
+        prompt.append("- This is the model-facing leaf-capability projection of the user-configured workflow.\n");
+        prompt.append("- Abstract parent tools are internal Runtime delegation boundaries and MUST NOT appear in the InterpretationPlan.\n");
+        prompt.append("- Preserve every listed tool and dependency exactly; independently selected sibling implementations remain independent workflow nodes.\n");
+        int index = 1;
+        for (Map<String, Object> node : authoritativeDag) {
+            String id = stringValue(firstObject(node, "id", "step"));
+            String tool = stringValue(firstObject(node, "tool", "toolName", "tool_name"));
+            if (tool == null || tool.isBlank()) {
+                continue;
+            }
+            List<String> dependencies = stringList(firstObject(node,
+                "dependsOnTools", "depends_on_tools", "dependsOn", "depends_on"));
+            prompt.append("  step ").append(firstNonBlank(id, String.valueOf(index)))
+                .append(": tool=").append(tool).append(", required=true");
+            if (!dependencies.isEmpty()) {
+                prompt.append(", dependsOn=").append(dependencies);
+            }
+            prompt.append("\n");
+            index++;
+        }
+        prompt.append("\n");
+    }
+
+    private List<Map<String, Object>> objectMapList(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : iterable) {
+            Map<String, Object> mapped = asMap(item);
+            if (!mapped.isEmpty()) {
+                result.add(mapped);
+            }
+        }
+        return List.copyOf(result);
     }
 
     public void appendMcpControlPlaneToolContracts(StringBuilder prompt, List<String> availableTools) {

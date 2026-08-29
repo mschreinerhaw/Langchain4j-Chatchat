@@ -112,6 +112,9 @@ class AgentToolNameResolverTest {
 
         assertThat(treeAware.plannerVisibleTools(List.of(parent, customer, account, executor)))
             .containsExactly(customer, account, executor);
+        assertThat(treeAware.plannerInternalDelegations(List.of(parent, customer, account, executor)))
+            .containsEntry(parent, List.of(customer, account))
+            .doesNotContainKeys(customer, account, executor);
     }
 
     @Test

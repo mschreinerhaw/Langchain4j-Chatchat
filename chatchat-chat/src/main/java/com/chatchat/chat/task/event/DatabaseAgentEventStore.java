@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,7 +22,7 @@ public class DatabaseAgentEventStore implements AgentEventStore {
     private final AgentTaskLatestRepository taskRepository;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String save(AgentEvent event) {
         if (event == null) {
             throw new IllegalArgumentException("Agent event is required");
@@ -32,8 +33,10 @@ public class DatabaseAgentEventStore implements AgentEventStore {
         if (repository.existsById(event.getEventId())) {
             return event.getEventId();
         }
-        // The task row is the event stream lock. It serializes sequence allocation across nodes
-        // without introducing a second cursor whose creation would itself race.
+        // The task row is the event stream lock. Always acquire and release it in this short,
+        // independent transaction. Runtime-run persistence can perform additional database work
+        // after publishing; inheriting that outer transaction would retain this lock and block
+        // worker lease heartbeats until MySQL's lock-wait timeout expires.
         taskRepository.findByTaskIdForUpdate(event.getTaskId());
         long current = repository.findTopByTenantIdAndSessionIdAndTaskIdOrderBySequenceDesc(
                 event.getTenantId(), event.getSessionId(), event.getTaskId())

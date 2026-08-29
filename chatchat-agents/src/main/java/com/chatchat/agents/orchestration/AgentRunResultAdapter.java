@@ -17,18 +17,18 @@ import java.util.Map;
 /**
  * Adapts orchestration metadata to the stable agent runtime result contract.
  */
-class AgentRunResultAdapter {
+public class AgentRunResultAdapter {
 
     private final AgentRunStore runStore;
     private final AgentObservationPipeline observationPipeline;
     private final AgentOutcomeProjection outcomeProjection = new AgentOutcomeProjection();
 
-    AgentRunResultAdapter(AgentRunStore runStore, AgentObservationPipeline observationPipeline) {
+    public AgentRunResultAdapter(AgentRunStore runStore, AgentObservationPipeline observationPipeline) {
         this.runStore = runStore;
         this.observationPipeline = observationPipeline;
     }
 
-    AgentRunResult toAgentRunResult(String runId, AgentOrchestrator.AgentExecutionResult result) {
+    public AgentRunResult toAgentRunResult(String runId, AgentOrchestrator.AgentExecutionResult result) {
         Map<String, Object> sourceMetadata = result == null || result.metadata() == null
             ? Map.of()
             : new LinkedHashMap<>(result.metadata());
@@ -61,7 +61,7 @@ class AgentRunResultAdapter {
         return AgentRunStatus.COMPLETED;
     }
 
-    void recordRuntimeStep(Map<String, Object> runtimeAttributes, String runIdAttribute, Map<String, Object> step) {
+    public void recordRuntimeStep(Map<String, Object> runtimeAttributes, String runIdAttribute, Map<String, Object> step) {
         String runId = runtimeAttributes == null ? null : stringValue(runtimeAttributes.get(runIdAttribute));
         if (runId == null || runId.isBlank() || step == null || step.isEmpty()) {
             return;
@@ -69,7 +69,7 @@ class AgentRunResultAdapter {
         runStore.recordStep(runId, toAgentRunStep(step, 1));
     }
 
-    void recordRuntimeObservation(Map<String, Object> runtimeAttributes,
+    public void recordRuntimeObservation(Map<String, Object> runtimeAttributes,
                                   String runIdAttribute,
                                   String content,
                                   String source,
@@ -88,7 +88,7 @@ class AgentRunResultAdapter {
             .build());
     }
 
-    List<String> runtimeObservationList(String runId) {
+    public List<String> runtimeObservationList(String runId) {
         return new ArrayList<>() {
             @Override
             public boolean add(String observation) {

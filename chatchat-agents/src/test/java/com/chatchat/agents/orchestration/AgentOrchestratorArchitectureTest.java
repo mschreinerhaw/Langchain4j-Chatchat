@@ -11,10 +11,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentOrchestratorArchitectureTest {
 
     private static final int MAX_FACADE_LINES = 1_000;
-    private static final int ENGINE_MIGRATION_RATCHET_LINES = 8_700;
+    private static final int ENGINE_MIGRATION_RATCHET_LINES = 7_550;
     private static final int MAX_DOMAIN_COMPONENT_LINES = 1_000;
-    private static final int PLANNER_MIGRATION_RATCHET_LINES = 3_000;
-    private static final int ANSWER_FINALIZER_MIGRATION_RATCHET_LINES = 2_800;
+    private static final int PLANNER_MIGRATION_RATCHET_LINES = 2_025;
+    private static final int ANSWER_FINALIZER_MIGRATION_RATCHET_LINES = 2_075;
 
     @Test
     void publicOrchestratorRemainsABoundedFacade() throws IOException {
@@ -33,7 +33,7 @@ class AgentOrchestratorArchitectureTest {
         assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java",
             ENGINE_MIGRATION_RATCHET_LINES,
-            "The migration ratchet must only move downward until the engine reaches 1,000 lines");
+            "The migration ratchet must only move downward as responsibilities leave the engine");
     }
 
     @Test
@@ -59,9 +59,53 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Planner prompt compilation must remain independent from model invocation and repair");
         assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/planning/InterpretationPlanPayloadNormalizer.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Planner wire compatibility must remain independent from validation and candidate selection");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/planning/AgentPlanCandidateScorer.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Plan candidate scoring must remain deterministic and independent from model invocation");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/evidence/InterpretationPlanEvidenceAnalyzer.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "InterpretationPlan evidence analysis must remain independent from scheduling");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/planning/AgentPlanEvolutionAuditor.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Plan evolution audit must remain independent from plan execution");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/lifecycle/AgentRunLifecycleCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Persistent AgentRun lifecycle must remain independent from workflow execution");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/lifecycle/AgentRunScopeBinder.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Kernel scope projection must remain independent from workflow execution");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/planning/InterpretationPlanSnapshotService.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "InterpretationPlan persistence must remain independent from workflow scheduling");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/protocol/PlannerEnvelopeParser.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Planner protocol repair must remain independent from semantic plan validation");
+        assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/answer/AgentResultPresentationService.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Tool result presentation must remain independent from answer finalization policy");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/answer/AnswerUserFacingPolicy.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "User-facing answer presentation must remain independent from candidate review");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/answer/DeterministicAnswerReportRenderer.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Deterministic report rendering must remain independent from answer selection");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/answer/AnswerReviewCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Reviewer execution and fallback must remain independent from final answer policy");
         assertSourceLineCount(
             "src/main/java/com/chatchat/agents/runtime/toolcall/TemplateExecutionContractSelector.java",
             MAX_DOMAIN_COMPONENT_LINES,

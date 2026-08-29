@@ -1,8 +1,15 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
+import com.chatchat.agents.orchestration.planning.AgentDecision;
+import com.chatchat.agents.orchestration.planning.AgentPlanCandidateScorer;
+import com.chatchat.agents.orchestration.planning.PlanCandidate;
+import com.chatchat.agents.orchestration.planning.PlanRewriteContext;
+import com.chatchat.agents.orchestration.planning.PlannerValidationContext;
 import com.chatchat.agents.orchestration.planning.AgentPlannerPromptBuilder;
+import com.chatchat.agents.orchestration.planning.InterpretationPlanPayloadNormalizer;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeDto;
+import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeParser;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
@@ -22,13 +29,11 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -66,6 +71,9 @@ public class AgentPlanner implements AgentPlanningPort {
     private final Clock clock;
     private final McpCapabilityHierarchy capabilityHierarchy;
     private final AgentPlannerPromptBuilder promptBuilder;
+    private final InterpretationPlanPayloadNormalizer payloadNormalizer;
+    private final AgentPlanCandidateScorer candidateScorer;
+    private final PlannerEnvelopeParser envelopeParser;
     private final InterpretationPlanValidator interpretationPlanValidator = new InterpretationPlanValidator();
     private final ToolProtocolContractResolver toolProtocolContracts = new ToolProtocolContractResolver();
 
@@ -81,6 +89,9 @@ public class AgentPlanner implements AgentPlanningPort {
             ? McpCapabilityHierarchy.empty()
             : new RegistryMcpCapabilityHierarchy(toolRegistry);
         this.promptBuilder = new AgentPlannerPromptBuilder(toolRegistry, objectMapper, this.clock);
+        this.payloadNormalizer = new InterpretationPlanPayloadNormalizer(toolRegistry);
+        this.candidateScorer = new AgentPlanCandidateScorer(toolRegistry);
+        this.envelopeParser = new PlannerEnvelopeParser(objectMapper);
     }
 
     @Override
@@ -150,7 +161,7 @@ public class AgentPlanner implements AgentPlanningPort {
             verificationWebSearchTool,
             normalizeList(availableTools),
             query,
-            experiencePrior(runtimeAttributes),
+            candidateScorer.experiencePrior(runtimeAttributes),
             AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
             authoritativeWorkflowDagForPlanning(runtimeAttributes)
         );
@@ -192,7 +203,7 @@ public class AgentPlanner implements AgentPlanningPort {
             if (decision != null) {
                 lastDecision = decision;
             }
-            candidates.add(planCandidate(attempt, raw, lastDecision, validationContext));
+            candidates.add(candidateScorer.score(attempt, raw, lastDecision, validationContext));
             if (shouldDeferInvalidPlanToAuthoritativeRuntime(lastDecision, validationContext)) {
                 log.info("agentPlannerAuthoritativeFallback phase=planner_parse runId={} attempt={}/{} "
                         + "reason=invalid_plan_with_authoritative_workflow mandatoryToolCount={}",
@@ -217,7 +228,7 @@ public class AgentPlanner implements AgentPlanningPort {
                         prompt, raw, currentCandidate, attempt + 1, maxAttempts);
                     continue;
                 }
-                PlanRewriteContext rewriteContext = planRewriteContext(candidates);
+                PlanRewriteContext rewriteContext = candidateScorer.rewriteContext(candidates);
                 if (experienceOptimizationRequested) {
                     PlanCandidate baseline = candidates.stream()
                         .filter(candidate -> candidate != null
@@ -255,7 +266,7 @@ public class AgentPlanner implements AgentPlanningPort {
             }
             break;
         }
-        PlanRewriteContext rewriteContext = planRewriteContext(candidates);
+        PlanRewriteContext rewriteContext = candidateScorer.rewriteContext(candidates);
         AgentDecision attributionDecision = attributeAndSelectBestPlan(rewriteContext, validationContext, logRunId);
         if (attributionDecision != null) {
             return attributionDecision;
@@ -389,7 +400,7 @@ public class AgentPlanner implements AgentPlanningPort {
         }
         String json = extractJson(raw);
         try {
-            PlannerEnvelopeDto envelope = parsePlannerEnvelope(json);
+            PlannerEnvelopeDto envelope = envelopeParser.parse(json);
             Map<String, Object> payload = objectMapper.convertValue(envelope.planningPayload(), Map.class);
             AgentDecision interpretationPlanDecision = parseInterpretationPlanDecision(payload, validationContext);
             if (interpretationPlanDecision != null) {
@@ -444,98 +455,6 @@ public class AgentPlanner implements AgentPlanningPort {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private PlannerEnvelopeDto parsePlannerEnvelope(String json) throws IOException {
-        try {
-            return PlannerEnvelopeDto.from(objectMapper.readTree(json), objectMapper);
-        } catch (JsonProcessingException initialFailure) {
-            String repaired = repairInvalidJsonStringCharacters(json);
-            if (repaired.equals(json)) {
-                throw initialFailure;
-            }
-            PlannerEnvelopeDto parsed = PlannerEnvelopeDto.from(objectMapper.readTree(repaired), objectMapper);
-            log.warn("Planner JSON contained unescaped quote or control characters inside string values; "
-                + "Runtime repaired the JSON syntax before InterpretationPlan validation.");
-            return parsed;
-        }
-    }
-
-    /**
-     * Repairs invalid characters only while inside JSON string values. A terminating quote must be
-     * followed (ignoring whitespace) by a JSON structural delimiter, while raw control characters
-     * are converted to their JSON escape sequences. The repaired document is still parsed and fully
-     * validated; missing commas, braces and other malformed structures remain rejected.
-     */
-    private String repairInvalidJsonStringCharacters(String json) {
-        if (json == null || json.isBlank()) {
-            return json;
-        }
-        StringBuilder repaired = new StringBuilder(json.length() + 16);
-        boolean inString = false;
-        boolean escaped = false;
-        boolean changed = false;
-        for (int index = 0; index < json.length(); index++) {
-            char current = json.charAt(index);
-            if (!inString) {
-                repaired.append(current);
-                if (current == '"') {
-                    inString = true;
-                }
-                continue;
-            }
-            if (escaped) {
-                repaired.append(current);
-                escaped = false;
-                continue;
-            }
-            if (current == '\\') {
-                repaired.append(current);
-                escaped = true;
-                continue;
-            }
-            if (current < 0x20) {
-                appendJsonControlCharacter(repaired, current);
-                changed = true;
-                continue;
-            }
-            if (current != '"') {
-                repaired.append(current);
-                continue;
-            }
-            int next = index + 1;
-            while (next < json.length() && Character.isWhitespace(json.charAt(next))) {
-                next++;
-            }
-            boolean legalTerminator = next >= json.length()
-                || json.charAt(next) == ':'
-                || json.charAt(next) == ','
-                || json.charAt(next) == '}'
-                || json.charAt(next) == ']';
-            if (legalTerminator) {
-                repaired.append(current);
-                inString = false;
-            } else {
-                repaired.append('\\').append(current);
-                changed = true;
-            }
-        }
-        return changed ? repaired.toString() : json;
-    }
-
-    private void appendJsonControlCharacter(StringBuilder target, char value) {
-        switch (value) {
-            case '\b' -> target.append("\\b");
-            case '\f' -> target.append("\\f");
-            case '\n' -> target.append("\\n");
-            case '\r' -> target.append("\\r");
-            case '\t' -> target.append("\\t");
-            default -> {
-                String hex = Integer.toHexString(value);
-                target.append("\\u").append("0".repeat(4 - hex.length())).append(hex);
-            }
-        }
-    }
-
     private AgentDecision attachCandidateAnswer(AgentDecision decision,
                                                 PlannerEnvelopeDto.CandidateAnswerDto candidatePayload) {
         if (decision == null || candidatePayload == null) {
@@ -572,7 +491,7 @@ public class AgentPlanner implements AgentPlanningPort {
         if (payload == null || !payload.containsKey("plan") || !payload.containsKey("intent")) {
             return null;
         }
-        payload = normalizeInterpretationPlanPayload(payload);
+        payload = payloadNormalizer.normalize(payload);
         InterpretationPlan interpretationPlan = objectMapper.convertValue(payload, InterpretationPlan.class);
         AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(
             interpretationPlan,
@@ -721,244 +640,6 @@ public class AgentPlanner implements AgentPlanningPort {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> normalizeInterpretationPlanPayload(Map<String, Object> payload) {
-        Map<String, Object> normalized = new LinkedHashMap<>(payload);
-        alias(normalized, "executionPolicy", "execution_policy");
-
-        Map<String, Object> plan = mutableMap(normalized.get("plan"));
-        if (!plan.isEmpty()) {
-            alias(plan, "edgeContracts", "edge_contracts");
-            alias(plan, "dependencyContracts", "dependency_contracts");
-            alias(plan, "conditionalEdges", "conditional_edges");
-            alias(plan, "branchGroups", "branch_groups");
-            Object rawConditionalEdges = plan.get("conditional_edges");
-            if (rawConditionalEdges instanceof List<?> edges) {
-                List<Object> normalizedEdges = new ArrayList<>();
-                for (Object rawEdge : edges) {
-                    Map<String, Object> edge = mutableMap(rawEdge);
-                    alias(edge, "branchGroupId", "branch_group_id");
-                    alias(edge, "defaultEdge", "default_edge");
-                    normalizedEdges.add(edge.isEmpty() ? rawEdge : edge);
-                }
-                plan.put("conditional_edges", normalizedEdges);
-            }
-            Object rawBranchGroups = plan.get("branch_groups");
-            if (rawBranchGroups instanceof List<?> groups) {
-                List<Object> normalizedGroups = new ArrayList<>();
-                for (Object rawGroup : groups) {
-                    Map<String, Object> group = mutableMap(rawGroup);
-                    alias(group, "candidateStepIds", "candidate_step_ids");
-                    alias(group, "targetStepId", "target_step_id");
-                    alias(group, "selectionStrategy", "selection_strategy");
-                    normalizedGroups.add(group.isEmpty() ? rawGroup : group);
-                }
-                plan.put("branch_groups", normalizedGroups);
-            }
-            Object rawDependencyContracts = plan.get("dependency_contracts");
-            if (rawDependencyContracts instanceof List<?> contracts) {
-                List<Object> normalizedContracts = new ArrayList<>();
-                for (Object rawContract : contracts) {
-                    Map<String, Object> contract = mutableMap(rawContract);
-                    if (contract.isEmpty()) {
-                        normalizedContracts.add(rawContract);
-                        continue;
-                    }
-                    alias(contract, "onFailure", "on_failure");
-                    normalizedContracts.add(contract);
-                }
-                plan.put("dependency_contracts", normalizedContracts);
-            }
-            Object rawSteps = plan.get("steps");
-            if (rawSteps instanceof List<?> steps) {
-                List<Object> normalizedSteps = new ArrayList<>();
-                for (Object rawStep : steps) {
-                    Map<String, Object> step = mutableMap(rawStep);
-                    if (step.isEmpty()) {
-                        normalizedSteps.add(rawStep);
-                        continue;
-                    }
-                    alias(step, "actionType", "action_type");
-                    alias(step, "toolName", "tool_name");
-                    alias(step, "dependsOn", "depends_on");
-                    alias(step, "outputContract", "output_contract");
-                    Map<String, Object> outputContract = mutableMap(step.get("output_contract"));
-                    if (!outputContract.isEmpty()) {
-                        alias(outputContract, "schemaHint", "schema_hint");
-                        step.put("output_contract", outputContract);
-                    }
-                    step.put("input", normalizeStepInput(stringValue(step.get("tool_name")), step.get("input")));
-                    normalizedSteps.add(step);
-                }
-                plan.put("steps", normalizedSteps);
-            }
-            Map<String, Object> stability = mutableMap(plan.get("stability"));
-            if (!stability.isEmpty()) {
-                alias(stability, "stableNodes", "stable_nodes");
-                alias(stability, "criticalTools", "critical_tools");
-                alias(stability, "lockedEdges", "locked_edges");
-                alias(stability, "mutableActionTypes", "mutable_action_types");
-                plan.put("stability", stability);
-            }
-            normalized.put("plan", plan);
-        }
-
-        Map<String, Object> policy = mutableMap(normalized.get("execution_policy"));
-        if (!policy.isEmpty()) {
-            alias(policy, "maxSteps", "max_steps");
-            alias(policy, "allowParallel", "allow_parallel");
-            alias(policy, "allowTool", "allow_tool");
-            alias(policy, "denyTool", "deny_tool");
-            alias(policy, "timeoutMs", "timeout_ms");
-            alias(policy, "maxRewriteTimes", "max_rewrite_times");
-            alias(policy, "fallbackMode", "fallback_mode");
-            alias(policy, "toolPriority", "tool_priority");
-            alias(policy, "costBudget", "cost_budget");
-            alias(policy, "latencyBudgetMs", "latency_budget_ms");
-            alias(policy, "accuracyVsSpeed", "accuracy_vs_speed");
-            policy.put("tool_priority", clampPriorityMap(policy.get("tool_priority")));
-            policy.put("accuracy_vs_speed", clampNullableDouble(policy.get("accuracy_vs_speed"), 0.0, 1.0));
-            normalized.put("execution_policy", policy);
-        }
-
-        Map<String, Object> intent = mutableMap(normalized.get("intent"));
-        if (!intent.isEmpty()) {
-            alias(intent, "riskLevel", "risk_level");
-            normalized.put("intent", intent);
-        }
-
-        Map<String, Object> context = mutableMap(normalized.get("context"));
-        if (!context.isEmpty()) {
-            alias(context, "keyFacts", "key_facts");
-            alias(context, "missingInfo", "missing_info");
-            normalized.put("context", context);
-        }
-
-        Map<String, Object> review = mutableMap(normalized.get("review"));
-        if (!review.isEmpty()) {
-            alias(review, "selfCheck", "self_check");
-            Map<String, Object> selfCheck = mutableMap(review.get("self_check"));
-            if (!selfCheck.isEmpty()) {
-                alias(selfCheck, "completenessScore", "completeness_score");
-                alias(selfCheck, "hallucinationRisk", "hallucination_risk");
-                alias(selfCheck, "toolSufficiency", "tool_sufficiency");
-                alias(selfCheck, "missingSteps", "missing_steps");
-                review.put("self_check", selfCheck);
-            }
-            alias(review, "fallbackPlan", "fallback_plan");
-            normalized.put("review", review);
-        }
-        return normalized;
-    }
-
-    private Map<String, Object> normalizeStepInput(String toolName, Object rawInput) {
-        Map<String, Object> input = mutableMap(rawInput);
-        if (input.isEmpty()) {
-            return input;
-        }
-        String semanticTool = toolSemanticKey(toolName);
-        if (workflowRole(toolName) == ToolWorkflowRole.ASSET_DISCOVERY) {
-            normalizeDiscoveryQueryInput(input);
-        }
-        if (workflowRole(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            normalizeDiscoveryQueryInput(input);
-        }
-        if ("linux_command_execute".equals(semanticTool)) {
-            alias(input, "command_template", "template");
-            alias(input, "commandTemplate", "template");
-            alias(input, "templateCode", "template");
-            alias(input, "context", "executionContext");
-        }
-        return input;
-    }
-
-    private void normalizeDiscoveryQueryInput(Map<String, Object> input) {
-        Object context = input.remove("context");
-        if (context instanceof Map<?, ?> map) {
-            input.putIfAbsent("filters", map);
-            return;
-        }
-        if (context != null && !String.valueOf(context).isBlank()) {
-            String text = String.valueOf(context).trim();
-            Map<String, Object> filters = mutableMap(input.get("filters"));
-            if (looksLikeAssetName(text)) {
-                filters.putIfAbsent("assetName", text);
-            } else {
-                filters.putIfAbsent("service", text);
-            }
-            input.put("filters", filters);
-        }
-    }
-
-    private boolean looksLikeAssetName(String value) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String text = value.trim();
-        String normalized = text.toLowerCase(Locale.ROOT);
-        return normalized.contains("_")
-            || normalized.contains(":")
-            || normalized.startsWith("ssh_")
-            || normalized.startsWith("sql_")
-            || normalized.startsWith("http_");
-    }
-
-    private Map<String, Double> clampPriorityMap(Object value) {
-        Map<String, Object> raw = mutableMap(value);
-        if (raw.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, Double> clamped = new LinkedHashMap<>();
-        raw.forEach((tool, priority) -> {
-            Double number = doubleValue(priority);
-            if (tool != null && !tool.isBlank() && number != null) {
-                clamped.put(tool, clamp(number, 0.0, 1.0));
-            }
-        });
-        return clamped;
-    }
-
-    private Double clampNullableDouble(Object value, double min, double max) {
-        Double number = doubleValue(value);
-        return number == null ? null : clamp(number, min, max);
-    }
-
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private Double doubleValue(Object value) {
-        if (value instanceof Number number) {
-            return number.doubleValue();
-        }
-        if (value == null || String.valueOf(value).isBlank()) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(String.valueOf(value));
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    private void alias(Map<String, Object> values, String alias, String canonical) {
-        if (values == null || !values.containsKey(alias) || values.containsKey(canonical)) {
-            return;
-        }
-        values.put(canonical, values.remove(alias));
-    }
-
-    private Map<String, Object> mutableMap(Object value) {
-        if (!(value instanceof Map<?, ?> map)) {
-            return new LinkedHashMap<>();
-        }
-        Map<String, Object> values = new LinkedHashMap<>();
-        map.forEach((key, item) -> {
-            if (key != null) {
-                values.put(String.valueOf(key), item);
-            }
-        });
-        return values;
-    }
 
     private InterpretationPlan.Step nextExecutableStep(InterpretationPlan interpretationPlan) {
         if (interpretationPlan == null || interpretationPlan.steps().isEmpty()) {
@@ -1639,624 +1320,6 @@ public class AgentPlanner implements AgentPlanningPort {
         return values == null ? List.of() : values.stream().filter(java.util.Objects::nonNull).toList();
     }
 
-    private PlanRewriteContext planRewriteContext(List<PlanCandidate> candidates) {
-        List<PlanCandidate> values = candidates == null ? List.of() : List.copyOf(candidates);
-        PlanCandidate last = values.isEmpty() ? null : values.get(values.size() - 1);
-        String lastFailureReason = last == null || last.decision() == null ? "unknown" : last.decision().reason();
-        String failurePattern = dominantFailurePattern(values);
-        return new PlanRewriteContext(values.size(), values, lastFailureReason, failurePattern);
-    }
-
-    private PlanCandidate planCandidate(int attempt,
-                                        String raw,
-                                        AgentDecision decision,
-                                        PlannerValidationContext validationContext) {
-        String label = String.valueOf((char) ('A' + Math.max(0, attempt - 1)));
-        String failurePattern = failurePattern(decision);
-        String fingerprint = planFingerprint(decision);
-        Map<String, Object> scoreDetails = deterministicPlanScoreDetails(decision, validationContext);
-        int score = ((Number) scoreDetails.getOrDefault("total", 0)).intValue();
-        return new PlanCandidate(attempt, label, raw, decision, failurePattern, fingerprint, score, scoreDetails);
-    }
-
-    private String dominantFailurePattern(List<PlanCandidate> candidates) {
-        if (candidates == null || candidates.isEmpty()) {
-            return "UNKNOWN";
-        }
-        Map<String, Integer> counts = new LinkedHashMap<>();
-        for (PlanCandidate candidate : candidates) {
-            counts.merge(candidate.failurePattern(), 1, Integer::sum);
-        }
-        String bestPattern = "UNKNOWN";
-        int bestCount = -1;
-        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
-            if (entry.getValue() > bestCount) {
-                bestPattern = entry.getKey();
-                bestCount = entry.getValue();
-            }
-        }
-        return bestPattern;
-    }
-
-    private String failurePattern(AgentDecision decision) {
-        if (decision == null) {
-            return "NON_JSON";
-        }
-        if ("legacy_action_not_allowed".equals(decision.reason())) {
-            return "LEGACY_ACTION";
-        }
-        List<String> issues = plannerIssues(decision).stream()
-            .map(issue -> issue.toLowerCase(Locale.ROOT))
-            .toList();
-        if (issues.stream().anyMatch(issue -> issue.contains("missing") || issue.contains("not found")
-            || issue.contains("available tool") || issue.contains("unavailable") || issue.contains("unknown tool"))) {
-            return "TOOL_MISSING";
-        }
-        if (issues.stream().anyMatch(issue -> issue.contains("depend") || issue.contains("step")
-            || issue.contains("cycle") || issue.contains("final_answer"))) {
-            return "DAG_INVALID";
-        }
-        Object schemaValid = decision.executionPlan() == null ? null : decision.executionPlan().get("interpretationPlanSchemaValid");
-        if (Boolean.FALSE.equals(schemaValid)) {
-            return "SCHEMA_INVALID";
-        }
-        if (!issues.isEmpty()) {
-            return "RUNTIME_POLICY";
-        }
-        return "UNKNOWN";
-    }
-
-    private String planFingerprint(AgentDecision decision) {
-        InterpretationPlan plan = decision == null ? null : decision.interpretationPlan();
-        if (plan == null || plan.steps().isEmpty()) {
-            return "no-plan";
-        }
-        StringBuilder canonical = new StringBuilder();
-        for (InterpretationPlan.Step step : plan.steps()) {
-            canonical.append(step.id()).append('|')
-                .append(step.actionType()).append('|')
-                .append(step.toolName()).append('|')
-                .append(step.dependsOn()).append(';');
-        }
-        return Integer.toHexString(canonical.toString().hashCode());
-    }
-
-    private int deterministicPlanScore(AgentDecision decision, PlannerValidationContext validationContext) {
-        Map<String, Object> details = deterministicPlanScoreDetails(decision, validationContext);
-        return ((Number) details.getOrDefault("total", 0)).intValue();
-    }
-
-    private Map<String, Object> deterministicPlanScoreDetails(AgentDecision decision,
-                                                              PlannerValidationContext validationContext) {
-        InterpretationPlan plan = decision == null ? null : decision.interpretationPlan();
-        if (plan == null) {
-            return Map.of(
-                "toolAvailability", 0,
-                "dagValidity", 0,
-                "executionCost", 0,
-                "runtimePolicyFit", 0,
-                "experienceFit", 0,
-                "total", 0
-            );
-        }
-        int toolAvailability = toolAvailabilityScore(plan, validationContext);
-        int dagValidity = dagValidityScore(decision);
-        int executionCost = executionCostScore(plan);
-        int runtimePolicyFit = runtimePolicyFitScore(plan, decision, validationContext);
-        Map<String, Object> coverage = coverageScoreDetails(plan, validationContext);
-        int coverageScore = ((Number) coverage.getOrDefault("coverageScore", 0)).intValue();
-        Map<String, Object> experience = experienceFitScoreDetails(plan, validationContext);
-        int experienceFit = ((Number) experience.getOrDefault("experienceFit", 0)).intValue();
-        int baseTotal = toolAvailability + dagValidity + executionCost + runtimePolicyFit + coverageScore;
-        boolean experienceApplied = Boolean.TRUE.equals(experience.get("applied"));
-        int total = experienceApplied
-            ? Math.max(0, Math.min(100, (int) Math.round(baseTotal * 0.9D) + experienceFit))
-            : Math.max(0, Math.min(100, baseTotal));
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("toolAvailability", toolAvailability);
-        details.put("dagValidity", dagValidity);
-        details.put("executionCost", executionCost);
-        details.put("runtimePolicyFit", runtimePolicyFit);
-        details.put("coverageScore", coverageScore);
-        details.put("coverage", coverage);
-        details.put("experienceFit", experienceFit);
-        details.put("experience", experience);
-        details.put("baseTotal", Math.max(0, Math.min(100, baseTotal)));
-        details.put("total", total);
-        return details;
-    }
-
-    private Map<String, Object> experienceFitScoreDetails(InterpretationPlan plan,
-                                                          PlannerValidationContext validationContext) {
-        Map<String, Object> prior = validationContext == null || validationContext.experiencePrior() == null
-            ? Map.of()
-            : validationContext.experiencePrior();
-        if (prior.isEmpty() || plan == null) {
-            return Map.of("experienceFit", 0, "applied", false, "reasons", List.of());
-        }
-        List<String> reasons = new ArrayList<>();
-        int score = 0;
-        Double confidenceValue = doubleValue(prior.get("confidence"));
-        double confidence = confidenceValue == null ? 0D : confidenceValue;
-        if (confidence > 0D) {
-            int confidenceScore = Math.max(1, (int) Math.round(Math.min(1D, confidence) * 2D));
-            score += confidenceScore;
-            reasons.add("confidence_supported:" + confidenceScore);
-        }
-        String candidateToolChain = plan.steps().stream()
-            .filter(InterpretationPlan.Step::mcpToolAction)
-            .map(InterpretationPlan.Step::toolName)
-            .filter(tool -> tool != null && !tool.isBlank())
-            .map(this::canonicalToolName)
-            .collect(java.util.stream.Collectors.joining(">"));
-        boolean preferredChainMatched = stringList(prior.get("preferredToolChains")).stream()
-            .map(this::canonicalToolChain)
-            .anyMatch(chain -> !chain.isBlank() && chain.equals(candidateToolChain));
-        if (preferredChainMatched) {
-            score += 2;
-            reasons.add("successful_bound_workflow_matched");
-        }
-        long failedCount = longValue(prior.get("failedCount"));
-        if (failedCount > 0) {
-            InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
-            if (policy != null && policy.maxRewriteTimes() != null && policy.maxRewriteTimes() > 0) {
-                score += 2;
-                reasons.add("failure_history_has_bounded_rewrite");
-            }
-            if (policy != null && policy.fallbackMode() != null && !policy.fallbackMode().isBlank()) {
-                score += 2;
-                reasons.add("failure_history_has_fallback");
-            }
-        }
-        if (Boolean.TRUE.equals(prior.get("bindingFailureObserved"))
-            && plan.plan() != null
-            && ((plan.plan().bindings() != null && !plan.plan().bindings().isEmpty())
-                || (plan.plan().edgeContracts() != null && !plan.plan().edgeContracts().isEmpty()))) {
-            score += 2;
-            reasons.add("binding_failure_history_has_explicit_contract");
-        }
-        score = Math.min(10, score);
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("experienceFit", score);
-        details.put("applied", true);
-        details.put("matchedExperienceIds", stringList(prior.get("matchedExperienceIds")));
-        details.put("workflowMutationAllowed", false);
-        details.put("candidateToolChain", candidateToolChain);
-        details.put("reasons", reasons);
-        return details;
-    }
-
-    private Map<String, Object> experiencePrior(Map<String, Object> runtimeAttributes) {
-        if (runtimeAttributes == null || !(runtimeAttributes.get("experiencePrior") instanceof Map<?, ?> values)) {
-            return Map.of();
-        }
-        Map<String, Object> prior = new LinkedHashMap<>();
-        values.forEach((key, value) -> {
-            if (key != null && value != null) {
-                prior.put(String.valueOf(key), value);
-            }
-        });
-        return Map.copyOf(prior);
-    }
-
-    private String canonicalToolChain(String toolChain) {
-        if (toolChain == null || toolChain.isBlank()) {
-            return "";
-        }
-        return List.of(toolChain.split(">"))
-            .stream()
-            .map(this::canonicalToolName)
-            .filter(value -> !value.isBlank())
-            .collect(java.util.stream.Collectors.joining(">"));
-    }
-
-    private String canonicalToolName(String toolName) {
-        if (toolName == null) {
-            return "";
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        int marker = normalized.lastIndexOf("_mcp_server_");
-        return marker >= 0 ? normalized.substring(marker + "_mcp_server_".length()) : normalized;
-    }
-
-    private long longValue(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value == null || String.valueOf(value).isBlank()) {
-            return 0L;
-        }
-        try {
-            return Long.parseLong(String.valueOf(value));
-        } catch (NumberFormatException ignored) {
-            return 0L;
-        }
-    }
-
-    private int toolAvailabilityScore(InterpretationPlan plan, PlannerValidationContext validationContext) {
-        List<String> tools = plan.steps().stream()
-            .filter(InterpretationPlan.Step::mcpToolAction)
-            .map(InterpretationPlan.Step::toolName)
-            .filter(tool -> tool != null && !tool.isBlank())
-            .toList();
-        if (tools.isEmpty()) {
-            return 0;
-        }
-        long available = tools.stream()
-            .filter(tool -> toolAvailable(tool, validationContext))
-            .count();
-        return (int) Math.round(30.0 * available / tools.size());
-    }
-
-    private boolean toolAvailable(String toolName, PlannerValidationContext validationContext) {
-        if (toolName == null || toolName.isBlank()) {
-            return false;
-        }
-        List<String> availableTools = validationContext == null ? List.of() : normalizeList(validationContext.availableTools());
-        if (!availableTools.isEmpty()) {
-            return availableTools.stream().anyMatch(tool -> sameToolName(tool, toolName));
-        }
-        return toolRegistry != null && toolRegistry.hasTool(toolName);
-    }
-
-    private int dagValidityScore(AgentDecision decision) {
-        Map<String, Object> metadata = decision == null || decision.executionPlan() == null ? Map.of() : decision.executionPlan();
-        int score = 0;
-        if (Boolean.TRUE.equals(metadata.get("interpretationPlanSchemaValid"))) {
-            score += 10;
-        }
-        if (Boolean.TRUE.equals(metadata.get("interpretationPlanRuntimeRulesValid"))) {
-            score += 10;
-        }
-        if (Boolean.TRUE.equals(metadata.get("interpretationPlanExecutable"))) {
-            score += 5;
-        }
-        return score;
-    }
-
-    private int executionCostScore(InterpretationPlan plan) {
-        long toolSteps = plan.steps().stream().filter(InterpretationPlan.Step::mcpToolAction).count();
-        if (toolSteps <= 0) {
-            return 0;
-        }
-        return (int) Math.max(3, 15 - Math.max(0, toolSteps - 1) * 3);
-    }
-
-    private int runtimePolicyFitScore(InterpretationPlan plan,
-                                      AgentDecision decision,
-                                      PlannerValidationContext validationContext) {
-        int score = 20;
-        List<String> issues = plannerIssues(decision);
-        score -= Math.min(12, issues.size() * 4);
-        List<String> mandatoryTools = validationContext == null ? List.of() : normalizeList(validationContext.mandatoryTools());
-        for (String mandatoryTool : mandatoryTools) {
-            boolean present = plan.steps().stream()
-                .anyMatch(step -> step.mcpToolAction() && sameToolName(step.toolName(), mandatoryTool));
-            if (!present) {
-                score -= 8;
-            }
-        }
-        return Math.max(0, score);
-    }
-
-    private Map<String, Object> coverageScoreDetails(InterpretationPlan plan,
-                                                     PlannerValidationContext validationContext) {
-        List<String> matched = new ArrayList<>();
-        List<String> missing = new ArrayList<>();
-        if (plan == null) {
-            return Map.of(
-                "coverageScore", 0,
-                "matchedCapabilities", matched,
-                "missingCapabilities", missing
-            );
-        }
-        List<InterpretationPlan.Step> steps = plan.steps();
-        Map<Integer, InterpretationPlan.Step> stepsById = stepsById(steps);
-        InterpretationPlan.Step finalStep = finalStep(steps);
-        List<InterpretationPlan.Step> toolSteps = steps.stream()
-            .filter(step -> step != null && step.mcpToolAction())
-            .toList();
-
-        int mandatoryCoverage = mandatoryCoverageScore(toolSteps, validationContext, matched, missing);
-        int evidenceDependency = evidenceDependencyScore(plan, finalStep, toolSteps, stepsById, validationContext, matched, missing);
-        int workflowCoverage = workflowCoverageScore(finalStep, stepsById, toolSteps, validationContext, matched, missing);
-        int stageCoverage = stageCoverageScore(steps, toolSteps, finalStep, matched, missing);
-        int goalCoverage = goalCoverageScore(plan, validationContext, matched, missing);
-        int total = Math.max(0, Math.min(25, mandatoryCoverage + evidenceDependency + workflowCoverage + stageCoverage + goalCoverage));
-
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("coverageScore", total);
-        details.put("mandatoryCoverage", mandatoryCoverage);
-        details.put("evidenceDependency", evidenceDependency);
-        details.put("workflowCoverage", workflowCoverage);
-        details.put("stageCoverage", stageCoverage);
-        details.put("goalCoverage", goalCoverage);
-        details.put("matchedCapabilities", matched.stream().distinct().toList());
-        details.put("missingCapabilities", missing.stream().distinct().toList());
-        return details;
-    }
-
-    private int mandatoryCoverageScore(List<InterpretationPlan.Step> toolSteps,
-                                       PlannerValidationContext validationContext,
-                                       List<String> matched,
-                                       List<String> missing) {
-        List<String> mandatoryTools = validationContext == null ? List.of() : normalizeList(validationContext.mandatoryTools());
-        if (mandatoryTools.isEmpty()) {
-            matched.add("no_mandatory_tool_gap");
-            return 5;
-        }
-        long present = mandatoryTools.stream()
-            .filter(tool -> toolSteps.stream().anyMatch(step -> sameToolName(step.toolName(), tool)))
-            .peek(tool -> matched.add("mandatory_tool:" + tool))
-            .count();
-        mandatoryTools.stream()
-            .filter(tool -> toolSteps.stream().noneMatch(step -> sameToolName(step.toolName(), tool)))
-            .forEach(tool -> missing.add("mandatory_tool:" + tool));
-        return (int) Math.round(7.0 * present / mandatoryTools.size());
-    }
-
-    private int evidenceDependencyScore(InterpretationPlan plan,
-                                        InterpretationPlan.Step finalStep,
-                                        List<InterpretationPlan.Step> toolSteps,
-                                        Map<Integer, InterpretationPlan.Step> stepsById,
-                                        PlannerValidationContext validationContext,
-                                        List<String> matched,
-                                        List<String> missing) {
-        boolean evidenceExpected = expectsToolEvidence(plan, validationContext);
-        if (!evidenceExpected) {
-            matched.add("direct_answer_allowed");
-            return 5;
-        }
-        if (!toolSteps.isEmpty() && finalDependsOnAnyTool(finalStep, toolSteps, stepsById)) {
-            matched.add("final_answer_depends_on_tool_evidence");
-            return 5;
-        }
-        if (toolSteps.isEmpty()) {
-            missing.add("tool_evidence_step");
-        } else {
-            missing.add("final_answer_tool_dependency");
-        }
-        return 0;
-    }
-
-    private int workflowCoverageScore(InterpretationPlan.Step finalStep,
-                                      Map<Integer, InterpretationPlan.Step> stepsById,
-                                      List<InterpretationPlan.Step> toolSteps,
-                                      PlannerValidationContext validationContext,
-                                      List<String> matched,
-                                      List<String> missing) {
-        if (validationContext != null && validationContext.requireDocumentWebVerification()) {
-            boolean documentCovered = finalDependsOnTool(finalStep, validationContext.documentSearchTool(), stepsById, toolSteps);
-            boolean webCovered = finalDependsOnTool(finalStep, validationContext.verificationWebSearchTool(), stepsById, toolSteps);
-            if (documentCovered && webCovered) {
-                matched.add("document_web_verification_chain");
-                return 5;
-            }
-            if (!documentCovered) {
-                missing.add("document_verification_chain");
-            }
-            if (!webCovered) {
-                missing.add("web_verification_chain");
-            }
-            return documentCovered || webCovered ? 2 : 0;
-        }
-
-        int score = 0;
-        if (expectsDocumentEvidence(validationContext)
-            && finalDependsOnTool(finalStep, validationContext.documentSearchTool(), stepsById, toolSteps)) {
-            matched.add("document_evidence_chain");
-            score += 3;
-        } else if (expectsDocumentEvidence(validationContext)) {
-            missing.add("document_evidence_chain");
-        }
-
-        if (expectsWebEvidence(validationContext)) {
-            boolean webCovered = toolSteps.stream().anyMatch(step -> isWebDiscoveryTool(step.toolName()))
-                && finalDependsOnAnyTool(finalStep, toolSteps.stream().filter(step -> isWebDiscoveryTool(step.toolName())).toList(), stepsById);
-            if (webCovered) {
-                matched.add("web_evidence_chain");
-                score += 2;
-            } else {
-                missing.add("web_evidence_chain");
-            }
-        }
-        return Math.min(5, score);
-    }
-
-    private int stageCoverageScore(List<InterpretationPlan.Step> steps,
-                                   List<InterpretationPlan.Step> toolSteps,
-                                   InterpretationPlan.Step finalStep,
-                                   List<String> matched,
-                                   List<String> missing) {
-        int score = 0;
-        if (finalStep != null) {
-            matched.add("final_answer_stage");
-            score += 2;
-        } else {
-            missing.add("final_answer_stage");
-        }
-        if (!toolSteps.isEmpty()) {
-            matched.add("tool_execution_stage");
-            score += 2;
-        }
-        boolean hasIntermediateStage = steps.stream()
-            .filter(step -> step != null && !step.mcpToolAction() && !step.finalAnswerAction())
-            .anyMatch(step -> !normalize(step.actionType()).isBlank());
-        if (hasIntermediateStage || toolSteps.size() > 1) {
-            matched.add("multi_stage_plan");
-            score += 1;
-        }
-        return Math.min(5, score);
-    }
-
-    private int goalCoverageScore(InterpretationPlan plan,
-                                  PlannerValidationContext validationContext,
-                                  List<String> matched,
-                                  List<String> missing) {
-        List<String> goalTerms = significantGoalTerms(validationContext == null ? null : validationContext.query());
-        if (goalTerms.isEmpty()) {
-            matched.add("no_goal_keyword_gap");
-            return 3;
-        }
-        String planText = normalize(planText(plan));
-        long covered = goalTerms.stream()
-            .filter(term -> planText.contains(normalize(term)))
-            .peek(term -> matched.add("goal_term:" + term))
-            .count();
-        goalTerms.stream()
-            .filter(term -> !planText.contains(normalize(term)))
-            .forEach(term -> missing.add("goal_term:" + term));
-        return (int) Math.round(3.0 * covered / goalTerms.size());
-    }
-
-    private Map<Integer, InterpretationPlan.Step> stepsById(List<InterpretationPlan.Step> steps) {
-        Map<Integer, InterpretationPlan.Step> values = new LinkedHashMap<>();
-        for (InterpretationPlan.Step step : steps == null ? List.<InterpretationPlan.Step>of() : steps) {
-            if (step != null && step.id() != null) {
-                values.put(step.id(), step);
-            }
-        }
-        return values;
-    }
-
-    private InterpretationPlan.Step finalStep(List<InterpretationPlan.Step> steps) {
-        if (steps == null) {
-            return null;
-        }
-        return steps.stream()
-            .filter(step -> step != null && step.finalAnswerAction())
-            .findFirst()
-            .orElse(null);
-    }
-
-    private boolean finalDependsOnAnyTool(InterpretationPlan.Step finalStep,
-                                          List<InterpretationPlan.Step> toolSteps,
-                                          Map<Integer, InterpretationPlan.Step> stepsById) {
-        if (finalStep == null || toolSteps == null || toolSteps.isEmpty()) {
-            return false;
-        }
-        return toolSteps.stream()
-            .anyMatch(step -> step != null && dependsOnStep(finalStep.id(), step.id(), stepsById, new LinkedHashSet<>()));
-    }
-
-    private boolean finalDependsOnTool(InterpretationPlan.Step finalStep,
-                                       String toolName,
-                                       Map<Integer, InterpretationPlan.Step> stepsById,
-                                       List<InterpretationPlan.Step> toolSteps) {
-        if (finalStep == null || toolName == null || toolName.isBlank()) {
-            return false;
-        }
-        return toolSteps.stream()
-            .filter(step -> step != null && sameToolName(step.toolName(), toolName))
-            .anyMatch(step -> dependsOnStep(finalStep.id(), step.id(), stepsById, new LinkedHashSet<>()));
-    }
-
-    private boolean expectsToolEvidence(InterpretationPlan plan, PlannerValidationContext validationContext) {
-        return validationContext != null
-            && (validationContext.requireToolBeforeFinal()
-            || validationContext.requireDocumentWebVerification()
-            || !normalizeList(validationContext.mandatoryTools()).isEmpty()
-            || expectsDocumentEvidence(validationContext)
-            || expectsWebEvidence(validationContext))
-            || plan != null && plan.steps().stream().anyMatch(InterpretationPlan.Step::mcpToolAction);
-    }
-
-    private boolean expectsDocumentEvidence(PlannerValidationContext validationContext) {
-        String text = requestText(validationContext);
-        return containsAny(text, "document", "doc", "file", "report", "paper", "knowledge", "internal",
-            "文档", "文件", "报告", "论文", "知识库", "内部", "资料");
-    }
-
-    private boolean expectsWebEvidence(PlannerValidationContext validationContext) {
-        String text = requestText(validationContext);
-        return containsAny(text, "web", "website", "site", "online", "internet", "current", "latest", "today", "recent",
-            "网页", "网站", "联网", "互联网", "当前", "最新", "今天", "近期");
-    }
-
-    private String requestText(PlannerValidationContext validationContext) {
-        return validationContext == null || validationContext.query() == null
-            ? ""
-            : validationContext.query().toLowerCase(Locale.ROOT);
-    }
-
-    private boolean containsAny(String text, String... tokens) {
-        if (text == null || text.isBlank() || tokens == null) {
-            return false;
-        }
-        for (String token : tokens) {
-            if (token != null && !token.isBlank() && text.contains(token.toLowerCase(Locale.ROOT))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String boundedUserQuery(String query) {
-        if (query == null || query.length() <= MAX_USER_QUERY_PROMPT_CHARS) {
-            return query == null ? "" : query;
-        }
-        int tailLength = MAX_USER_QUERY_PROMPT_CHARS / 4;
-        int headLength = MAX_USER_QUERY_PROMPT_CHARS - tailLength;
-        int omitted = query.length() - headLength - tailLength;
-        return query.substring(0, headLength)
-            + "\n...[user query truncated " + omitted + " chars; preserving tail]...\n"
-            + query.substring(query.length() - tailLength);
-    }
-
-    private List<String> significantGoalTerms(String query) {
-        if (query == null || query.isBlank()) {
-            return List.of();
-        }
-        Set<String> terms = new LinkedHashSet<>();
-        String normalized = query.toLowerCase(Locale.ROOT)
-            .replaceAll("[^\\p{IsHan}a-z0-9_]+", " ")
-            .trim();
-        for (String term : normalized.split("\\s+")) {
-            if (term.length() >= 4 && !isStopword(term)) {
-                terms.add(term);
-            }
-        }
-        for (String keyword : List.of("文档", "文件", "报告", "论文", "知识库", "内部", "搜索", "检索", "联网", "最新", "今天", "分析", "汇总", "验证")) {
-            if (query.contains(keyword)) {
-                terms.add(keyword);
-            }
-        }
-        return terms.stream().limit(6).toList();
-    }
-
-    private boolean isStopword(String term) {
-        return Set.of(
-            "what", "with", "from", "that", "this", "into", "about", "please", "using",
-            "the", "and", "for", "are", "how"
-        ).contains(term);
-    }
-
-    private String planText(InterpretationPlan plan) {
-        if (plan == null) {
-            return "";
-        }
-        StringBuilder builder = new StringBuilder();
-        if (plan.intent() != null) {
-            builder.append(plan.intent().type()).append(' ')
-                .append(plan.intent().goal()).append(' ')
-                .append(plan.intent().riskLevel()).append(' ');
-        }
-        if (plan.context() != null) {
-            builder.append(plan.context().keyFacts()).append(' ')
-                .append(plan.context().assumptions()).append(' ')
-                .append(plan.context().missingInfo()).append(' ')
-                .append(plan.context().constraints()).append(' ');
-        }
-        for (InterpretationPlan.Step step : plan.steps()) {
-            if (step == null) {
-                continue;
-            }
-            builder.append(step.actionType()).append(' ')
-                .append(step.toolName()).append(' ')
-                .append(step.input()).append(' ');
-        }
-        return builder.toString();
-    }
 
     private AgentDecision attributeAndSelectBestPlan(PlanRewriteContext rewriteContext,
                                                      PlannerValidationContext validationContext,
@@ -2749,6 +1812,74 @@ public class AgentPlanner implements AgentPlanningPort {
         return ToolWorkflowContract.resolveRole(toolName, null);
     }
 
+    /** Compatibility seam retained for focused reflective tests during the migration. */
+    private Map<String, Object> deterministicPlanScoreDetails(
+        AgentDecision decision,
+        PlannerValidationContext validationContext
+    ) {
+        return candidateScorer.deterministicPlanScoreDetails(decision, validationContext);
+    }
+
+    private boolean containsAny(String text, String... tokens) {
+        if (text == null || tokens == null) {
+            return false;
+        }
+        String normalized = text.toLowerCase(Locale.ROOT);
+        for (String token : tokens) {
+            if (token != null && !token.isBlank()
+                && normalized.contains(token.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return value == null ? 0L : Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
+    }
+
+    private String canonicalToolName(String toolName) {
+        if (toolName == null) {
+            return "";
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        int marker = normalized.lastIndexOf("_mcp_server_");
+        return marker >= 0 ? normalized.substring(marker + "_mcp_server_".length()) : normalized;
+    }
+
+    private boolean toolAvailable(String toolName, PlannerValidationContext validationContext) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        List<String> available = validationContext == null
+            ? List.of() : normalizeList(validationContext.availableTools());
+        if (!available.isEmpty()) {
+            return available.stream().anyMatch(tool -> sameToolName(tool, toolName));
+        }
+        return toolRegistry != null && toolRegistry.hasTool(toolName);
+    }
+
+    private Double doubleValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     private Map<String, Object> asMap(Object data) {
         if (data instanceof Map<?, ?> map) {
             Map<String, Object> values = new LinkedHashMap<>();
@@ -2857,79 +1988,6 @@ public class AgentPlanner implements AgentPlanningPort {
     }
 }
 
-record PlannerValidationContext(
-    List<String> mandatoryTools,
-    boolean requireToolBeforeFinal,
-    boolean requireDocumentWebVerification,
-    String documentSearchTool,
-    String verificationWebSearchTool,
-    List<String> availableTools,
-    String query,
-    Map<String, Object> experiencePrior,
-    AgentPlanBudgetPolicy.BudgetCaps budgetCaps,
-    Object authoritativeWorkflowDag
-) {
-    PlannerValidationContext(List<String> mandatoryTools,
-                             boolean requireToolBeforeFinal,
-                             boolean requireDocumentWebVerification,
-                             String documentSearchTool,
-                             String verificationWebSearchTool,
-                             List<String> availableTools,
-                             String query,
-                             Map<String, Object> experiencePrior,
-                             AgentPlanBudgetPolicy.BudgetCaps budgetCaps) {
-        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
-            documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
-            budgetCaps, null);
-    }
-
-    PlannerValidationContext(List<String> mandatoryTools,
-                             boolean requireToolBeforeFinal,
-                             boolean requireDocumentWebVerification,
-                             String documentSearchTool,
-                             String verificationWebSearchTool,
-                             List<String> availableTools,
-                             String query,
-                             Map<String, Object> experiencePrior) {
-        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
-            documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
-    }
-
-    PlannerValidationContext(List<String> mandatoryTools,
-                             boolean requireToolBeforeFinal,
-                             boolean requireDocumentWebVerification,
-                             String documentSearchTool,
-                             String verificationWebSearchTool,
-                             List<String> availableTools,
-                             String query) {
-        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
-            documentSearchTool, verificationWebSearchTool, availableTools, query, Map.of(),
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
-    }
-}
-
-record AgentDecision(
-    String action,
-    String toolName,
-    Map<String, Object> arguments,
-    String answer,
-    String reason,
-    Map<String, Object> executionPlan,
-    Boolean sufficient,
-    InterpretationPlan interpretationPlan
-) {
-    AgentDecision(String action,
-                  String toolName,
-                  Map<String, Object> arguments,
-                  String answer,
-                  String reason,
-                  Map<String, Object> executionPlan,
-                  Boolean sufficient) {
-        this(action, toolName, arguments, answer, reason, executionPlan, sufficient, null);
-    }
-}
-
 record PlannerExecutionResult(
     PlannerPlanProduct plan,
     RuntimeAnswerCandidate candidateAnswer,
@@ -2947,26 +2005,6 @@ record PlannerPlanProduct(
     PlannerPlanProduct {
         issues = issues == null ? List.of() : List.copyOf(issues);
     }
-}
-
-record PlanRewriteContext(
-    int rewriteCount,
-    List<PlanCandidate> candidates,
-    String lastFailureReason,
-    String failurePattern
-) {
-}
-
-record PlanCandidate(
-    int attempt,
-    String label,
-    String raw,
-    AgentDecision decision,
-    String failurePattern,
-    String fingerprint,
-    int deterministicScore,
-    Map<String, Object> deterministicScoreDetails
-) {
 }
 
 record GuardRepairResult(

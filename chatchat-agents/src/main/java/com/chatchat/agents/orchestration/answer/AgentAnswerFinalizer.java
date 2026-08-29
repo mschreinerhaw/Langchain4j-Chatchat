@@ -100,12 +100,17 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AgentResultPresentationService resultPresentationService =
         new AgentResultPresentationService(objectMapper);
+    private final DeterministicAnswerReportRenderer deterministicReportRenderer =
+        new DeterministicAnswerReportRenderer(objectMapper);
+    private final AnswerUserFacingPolicy userFacingPolicy = new AnswerUserFacingPolicy(objectMapper);
+    private final AgentToolBudgetPort toolBudgetPolicy = new DefaultAgentToolBudgetPolicy();
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     private DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> analysisSummaryGovernanceBridge =
         RuntimeProtocolDefaults.analysisSummary();
     private final AnswerEvidenceLedgerCompiler answerEvidenceLedgerCompiler =
         new AnswerEvidenceLedgerCompiler();
+    private final AnswerReviewCoordinator answerReviewCoordinator;
     private final AnswerContractCompiler answerContractCompiler = new AnswerContractCompiler();
     private final EvidenceSufficiencyGate evidenceSufficiencyGate = new EvidenceSufficiencyGate();
     private final AnswerCriticRepairer answerCriticRepairer;
@@ -140,6 +145,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         this.answerReviewer = answerReviewer;
         this.runtimeGuard = runtimeGuard;
         this.modelRequestTimeoutMs = modelRequestTimeoutMs(modelsConfig);
+        this.answerReviewCoordinator = new AnswerReviewCoordinator(
+            answerReviewer, this.answerEvidenceLedgerCompiler, this.modelRequestTimeoutMs);
         this.agentRuntimeProperties = agentRuntimeProperties == null
             ? new AgentRuntimeProperties() : agentRuntimeProperties;
         this.answerCriticRepairer = new AnswerCriticRepairer(objectMapper);
@@ -191,7 +198,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             activeChatModel, query, systemPrompt, selectedAnswer, values, observations);
         String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
         if (finalAnswer.isBlank()) {
-            String metadataReport = deterministicEnterpriseMetadataReport(traces);
+            String metadataReport = deterministicReportRenderer.deterministicEnterpriseMetadataReport(traces);
             if (!metadataReport.isBlank()) {
                 finalAnswer = metadataReport;
                 values.put("deterministicFinalizationFallback", true);
@@ -199,7 +206,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             }
         }
         if (finalAnswer.isBlank()) {
-            String deterministicReport = deterministicBatchReport(traces);
+            String deterministicReport = deterministicReportRenderer.deterministicBatchReport(traces);
             if (!deterministicReport.isBlank()) {
                 finalAnswer = deterministicReport;
                 values.put("deterministicFinalizationFallback", true);
@@ -212,17 +219,17 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             values.put("evidenceRefusalBlockedReason",
                 "non_empty_mcp_result_with_empty_answer");
         }
-        Map<String, Object> visualizationSpec = toolResultVisualizationSpec(traces);
+        Map<String, Object> visualizationSpec = userFacingPolicy.toolResultVisualizationSpec(traces);
         if (!visualizationSpec.isEmpty()) {
             values.putIfAbsent("visualizationSpec", visualizationSpec);
             values.putIfAbsent("dataVisualization", visualizationSpec);
             values.put("toolResultDataDisplayed", true);
             values.put("toolResultDataDisplaySource", visualizationSpec.get("sourceTool"));
-            if (supportsStructuredResultPresentation(values)) {
+            if (userFacingPolicy.supportsStructuredResultPresentation(values)) {
                 values.put("toolResultPresentationMode", "structured_visualization");
                 values.put("toolResultDataMarkdownSuppressed", true);
             } else {
-                String answerWithTable = appendToolResultTable(finalAnswer, visualizationSpec);
+                String answerWithTable = userFacingPolicy.appendToolResultTable(finalAnswer, visualizationSpec);
                 if (!answerWithTable.equals(finalAnswer)) {
                     finalAnswer = answerWithTable;
                     values.put("toolResultPresentationMode", "markdown_fallback");
@@ -231,12 +238,12 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                 }
             }
         }
-        List<Map<String, Object>> toolEvidence = toolResultEvidence(traces);
+        List<Map<String, Object>> toolEvidence = userFacingPolicy.toolResultEvidence(traces);
         if (!toolEvidence.isEmpty()) {
             values.put("toolResultEvidence", toolEvidence);
             values.put("toolResultEvidenceCount", toolEvidence.size());
-            if (shouldExposeToolEvidence(query, values)) {
-                String answerWithEvidence = appendToolEvidence(finalAnswer, toolEvidence);
+            if (userFacingPolicy.shouldExposeToolEvidence(query, values)) {
+                String answerWithEvidence = userFacingPolicy.appendToolEvidence(finalAnswer, toolEvidence);
                 if (!answerWithEvidence.equals(finalAnswer)) {
                     finalAnswer = answerWithEvidence;
                     values.put("toolResultEvidenceMarkdownAppended", true);
@@ -245,10 +252,10 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             } else {
                 values.put("toolResultEvidenceMarkdownAppended", false);
                 values.put("toolResultEvidenceMarkdownSuppressed", true);
-                finalAnswer = appendFailedToolLimitations(finalAnswer, toolEvidence);
+                finalAnswer = userFacingPolicy.appendFailedToolLimitations(finalAnswer, toolEvidence);
             }
         }
-        finalAnswer = applyUserFacingSectionPolicy(finalAnswer, query, values);
+        finalAnswer = userFacingPolicy.applyUserFacingSectionPolicy(finalAnswer, query, values);
         finalAnswer = bindReturnedEvidenceReferences(
             finalAnswer, values, observations, toolEvidence, "final_assembly");
         if (!finalAnswer.equals(selectedAnswer == null ? "" : selectedAnswer)) {
@@ -268,7 +275,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         attachTaskResultAssessment(values, traces, observations);
         attachEvidenceAnswerContract(finalAnswer, values, observations);
         finalAnswer = attachAnswerEvidenceLedger(finalAnswer, values, observations, toolEvidence);
-        finalAnswer = applyUserFacingEvidenceReferencePolicy(finalAnswer, query, values);
+        finalAnswer = userFacingPolicy.applyUserFacingEvidenceReferencePolicy(finalAnswer, query, values);
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         attachGovernedSummaryResult(finalAnswer, values, traces, observations);
         String userFacingAnswer = UserFacingAnswerSanitizer.sanitize(finalAnswer);
@@ -331,231 +338,23 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         values.put("analysisSummaryObservable", true);
     }
 
-    private String deterministicBatchReport(List<InteractionToolTrace> traces) {
-        if (traces == null || traces.isEmpty()) {
-            return "";
-        }
-        for (InteractionToolTrace trace : traces) {
-            if (trace == null || trace.getRuntimeMetadata() == null
-                || !Boolean.TRUE.equals(trace.getRuntimeMetadata().get("batchExecution"))) {
-                continue;
-            }
-            Map<String, Object> batch = parseObject(trace.getOutput());
-            Object rawResults = batch.get("results");
-            if (!(rawResults instanceof List<?> results) || results.isEmpty()) {
-                continue;
-            }
-            String status = firstNonBlank(stringValue(batch.get("status")), "NO_PRESENTABLE_RESULT");
-            StringBuilder report = new StringBuilder();
-            report.append("# MCP 批量诊断执行结果\n\n");
-            report.append("- 批次状态：`").append(status).append("`\n");
-            report.append("- 执行模式：`")
-                .append(firstNonBlank(stringValue(batch.get("executionMode")), "SEQUENTIAL"))
-                .append("`\n");
-            report.append("- 已记录调用：").append(results.size()).append(" 项\n\n");
-            report.append("## 执行清单\n\n");
-            for (Object item : results) {
-                if (!(item instanceof Map<?, ?> rawItem)) {
-                    continue;
-                }
-                Map<String, Object> result = copyMap(rawItem);
-                String callId = firstNonBlank(stringValue(result.get("callId")), "unknown_call");
-                String toolName = firstNonBlank(stringValue(result.get("toolName")), "unknown_tool");
-                String callStatus = firstNonBlank(stringValue(result.get("status")), "UNKNOWN");
-                report.append("- `").append(escapeInline(callId)).append("` / `")
-                    .append(escapeInline(toolName)).append("`：")
-                    .append(callStatus);
-                String templateCode = stringValue(result.get("templateCode"));
-                if (templateCode != null && !templateCode.isBlank()) {
-                    report.append("，模板 `").append(escapeInline(templateCode)).append("`");
-                }
-                Object error = result.get("error");
-                if (error instanceof Map<?, ?> errorMap && !errorMap.isEmpty()) {
-                    String message = stringValue(errorMap.get("message"));
-                    if (message != null && !message.isBlank()) {
-                        report.append("，原因：").append(escapeInline(shortText(message, 240)));
-                    }
-                }
-                report.append("\n");
-            }
-            report.append("\n");
-            if (DiagnosticRunStateMachine.FailureCode.MODEL_BUDGET_EXHAUSTED.wireValue().equals(status)) {
-                report.append("最终分析模型预算已耗尽；以上为运行时根据已持久化工具证据生成的确定性清单。");
-            } else if (DiagnosticRunStateMachine.FailureCode.TIME_BUDGET_EXHAUSTED.wireValue().equals(status)) {
-                report.append("诊断总时间预算已耗尽；已完成的工具结果和失败记录均已保留。");
-            } else {
-                report.append("最终模型未生成可用总结；以上为运行时根据已持久化工具证据生成的确定性清单。");
-            }
-            return report.toString().trim();
-        }
-        return "";
-    }
 
-    private String deterministicEnterpriseMetadataReport(List<InteractionToolTrace> traces) {
-        if (traces == null || traces.isEmpty()) {
-            return "";
-        }
-        for (InteractionToolTrace trace : traces) {
-            if (trace == null || !trace.isSuccess()) {
-                continue;
-            }
-            Map<String, Object> payload = findEnterpriseMetadataPayload(parseObject(trace.getOutput()), 0);
-            if (payload.isEmpty()) {
-                continue;
-            }
-            Map<String, Object> target = mapValue(payload.get("targetObject"));
-            Map<String, Object> sourceSchema = mapValue(payload.get("sourceSchema"));
-            List<Map<String, Object>> fieldMatches = mapValues(payload.get("fieldMatches"));
-            StringBuilder report = new StringBuilder();
-            report.append("## 元数据匹配结果\n\n")
-                .append("- 目标对象：`")
-                .append(escapeInline(firstNonBlank(stringValue(target.get("name")),
-                    stringValue(sourceSchema.get("table")))))
-                .append("`\n")
-                .append("- 协议：`")
-                .append(escapeInline(firstNonBlank(stringValue(payload.get("schemaVersion")),
-                    "enterprise_metadata_field_discovery.v1")))
-                .append("`\n")
-                .append("- 已处理字段：")
-                .append(fieldMatches.size())
-                .append("\n\n")
-                .append("| 字段 | 中文名称 | 数据类型 | 可空 | 推荐标准字段 | 建议 | 主要理由 |\n")
-                .append("|---|---|---|---|---|---|---|\n");
-            for (Map<String, Object> fieldMatch : fieldMatches) {
-                Map<String, Object> input = mapValue(fieldMatch.get("input"));
-                Map<String, Object> analysis = mapValue(fieldMatch.get("analysis"));
-                Map<String, Object> recommended = mapValue(analysis.get("recommendedField"));
-                report.append("| ")
-                    .append(escapeTableCell(firstNonBlank(stringValue(input.get("fieldName")), "-")))
-                    .append(" | ")
-                    .append(escapeTableCell(firstNonBlank(
-                        firstNonBlank(stringValue(input.get("fieldCnName")), stringValue(input.get("description"))),
-                        "-")))
-                    .append(" | ")
-                    .append(escapeTableCell(firstNonBlank(stringValue(input.get("dataType")), "-")))
-                    .append(" | ")
-                    .append(escapeTableCell(firstNonBlank(stringValue(input.get("nullable")), "-")))
-                    .append(" | ")
-                    .append(escapeTableCell(firstNonBlank(
-                        firstNonBlank(stringValue(recommended.get("technicalName")), stringValue(recommended.get("name"))),
-                        "-")))
-                    .append(" | ")
-                    .append(escapeTableCell(firstNonBlank(stringValue(analysis.get("recommendation")), "REVIEW")))
-                    .append(" | ")
-                    .append(escapeTableCell(joinValues(analysis.get("reason"))))
-                    .append(" |\n");
-            }
-            report.append("\n以上内容由已成功返回的结构化元数据证据确定性生成；完整候选、词根、字典及证据对象仍保留在工具轨迹中。");
-            return report.toString();
-        }
-        return "";
-    }
-
-    private Map<String, Object> findEnterpriseMetadataPayload(Map<String, Object> value, int depth) {
-        if (value == null || value.isEmpty() || depth > 5) {
-            return Map.of();
-        }
-        if ("enterprise_metadata_field_discovery.v1".equals(stringValue(value.get("schemaVersion")))) {
-            return value;
-        }
-        for (String key : List.of("data", "structuredContent", "structured_content", "payload", "result")) {
-            Map<String, Object> found = findEnterpriseMetadataPayload(mapValue(value.get(key)), depth + 1);
-            if (!found.isEmpty()) {
-                return found;
-            }
-        }
-        return Map.of();
-    }
-
-    private Map<String, Object> mapValue(Object value) {
-        return value instanceof Map<?, ?> map ? copyMap(map) : Map.of();
-    }
-
-    private List<Map<String, Object>> mapValues(Object value) {
-        if (!(value instanceof List<?> values)) {
-            return List.of();
-        }
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Object item : values) {
-            Map<String, Object> map = mapValue(item);
-            if (!map.isEmpty()) {
-                result.add(map);
-            }
-        }
-        return List.copyOf(result);
-    }
-
-    private String joinValues(Object value) {
-        if (value instanceof List<?> values) {
-            return values.stream()
-                .filter(item -> item != null && !String.valueOf(item).isBlank())
-                .map(String::valueOf)
-                .reduce((left, right) -> left + "；" + right)
-                .orElse("-");
-        }
-        return firstNonBlank(stringValue(value), "-");
-    }
-
+    @Override
     public boolean markToolBudgetExceeded(String requestedToolName,
-                                   int maxToolCalls,
-                                   List<InteractionToolTrace> traces,
-                                   Map<String, Object> metadata,
-                                   List<String> observations) {
-        long remoteToolCalls = remoteToolCallCount(traces);
-        if (maxToolCalls == Integer.MAX_VALUE || remoteToolCalls < maxToolCalls) {
-            return false;
-        }
-        metadata.put("stopReason", "tool_budget_exceeded");
-        metadata.put("toolBudgetExceeded", true);
-        metadata.put("maxToolCalls", maxToolCalls);
-        metadata.put("remoteToolCalls", remoteToolCalls);
-        metadata.put("requestedToolAfterBudget", requestedToolName);
-        observations.add("Agent run stopped before executing " + requestedToolName
-            + " because the max tool calls budget was reached.");
-        return true;
+                                          int maxToolCalls,
+                                          List<InteractionToolTrace> traces,
+                                          Map<String, Object> metadata,
+                                          List<String> observations) {
+        return toolBudgetPolicy.markToolBudgetExceeded(
+            requestedToolName, maxToolCalls, traces, metadata, observations);
     }
 
-    private long remoteToolCallCount(List<InteractionToolTrace> traces) {
-        if (traces == null || traces.isEmpty()) {
-            return 0L;
-        }
-        return traces.stream().mapToLong(this::remoteToolInvocationCount).sum();
+    public boolean shouldExposeToolEvidence(String query, Map<String, Object> metadata) {
+        return userFacingPolicy.shouldExposeToolEvidence(query, metadata);
     }
 
-    private long remoteToolInvocationCount(InteractionToolTrace trace) {
-        if (trace == null || trace.getRuntimeMetadata() == null) {
-            return remoteToolInvoked(trace) ? 1L : 0L;
-        }
-        Object count = trace.getRuntimeMetadata().get("remoteToolInvocationCount");
-        if (count instanceof Number number) {
-            return Math.max(0L, number.longValue());
-        }
-        if (count != null) {
-            try {
-                return Math.max(0L, Long.parseLong(String.valueOf(count)));
-            } catch (NumberFormatException ignored) {
-                // Fall through to legacy single-call accounting.
-            }
-        }
-        return remoteToolInvoked(trace) ? 1L : 0L;
-    }
-
-    private boolean remoteToolInvoked(InteractionToolTrace trace) {
-        if (trace == null || trace.getRuntimeMetadata() == null) {
-            return trace != null;
-        }
-        Object explicit = trace.getRuntimeMetadata().get("remoteToolInvoked");
-        if (explicit instanceof Boolean bool) {
-            return bool;
-        }
-        String outcome = String.valueOf(trace.getRuntimeMetadata().get("outcome"));
-        if ("denied".equalsIgnoreCase(outcome)
-            || "confirmation_required".equalsIgnoreCase(outcome)
-            || "rate_limited".equalsIgnoreCase(outcome)
-            || "circuit_open".equalsIgnoreCase(outcome)) {
-            return false;
-        }
-        return true;
+    public boolean shouldExposeEvidenceReferences(String query, Map<String, Object> metadata) {
+        return userFacingPolicy.shouldExposeEvidenceReferences(query, metadata);
     }
 
     public AgentOrchestrator.AgentExecutionResult finishBudgetedSummary(ChatModel activeChatModel,
@@ -573,9 +372,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
         finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
-            toolResultEvidence(effectiveTraces), "pre_review");
+            userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
-        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
+        AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
@@ -611,9 +410,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
         finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
-            toolResultEvidence(effectiveTraces), "pre_review");
+            userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
-        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
+        AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
@@ -650,9 +449,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
         finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
-            toolResultEvidence(effectiveTraces), "pre_review");
+            userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
-        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt,
+        AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
@@ -1047,7 +846,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         prompt.append("Do not wrap the response in code fences. Output JSON only when the Answer Contract explicitly requires JSON.\n");
         prompt.append("First understand the user's intent, then synthesize the evidence into a clear explanation instead of copying tool output or internal execution reports.\n");
         prompt.append("Preserve successful structured results even when incomplete or unexpected; present observed data before limitations and next checks.\n");
-        boolean userVisibleEvidence = shouldExposeEvidenceReferences(query, metadata)
+        boolean userVisibleEvidence = userFacingPolicy.shouldExposeEvidenceReferences(query, metadata)
             || AnswerContract.EVIDENCE_REQUIRED.equals(qualityContext.contract().evidencePolicy());
         prompt.append("Treat data analysis as the primary deliverable and evidence mechanics as hidden support. Unless the user explicitly requests provenance, auditing, citations, API debugging, or commands, do not include dedicated sections for evidence chains, sources, API endpoints, tool calls, execution facts, diagnostic workflow, verification commands, or troubleshooting steps.\n");
         prompt.append("For analysis requests, lead with concrete returned values, comparisons, distributions, anomalies, and their meaning. HTTP success, endpoint reachability, query completion, record counts, and coverage percentages are not substitutes for analytical findings. Never say values need to be expanded when the observations already contain them.\n");
@@ -1154,11 +953,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         if (containsInternalEvidenceProtocol(text)) {
             return "";
         }
-        text = stripOuterFenceIfPresent(text, "json");
+        text = userFacingPolicy.stripOuterFenceIfPresent(text, "json");
         String jsonAnswer = extractUserAnswerFromJson(text);
         if (jsonAnswer != null && !jsonAnswer.isBlank()) {
             text = jsonAnswer.trim();
-        } else if (looksLikeJson(text)) {
+        } else if (userFacingPolicy.looksLikeJson(text)) {
             text = "已完成分析，但模型返回的是内部调试 JSON，已隐藏原始结构化内容。";
         }
         text = text.replaceAll("(?is)reasoningPayload:\\s*```json\\s*.*?\\s*```", "").trim();
@@ -1168,16 +967,16 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             .replace(DeterministicAnswerCompiler.END_LOCKED_ANSWER, "")
             .trim();
         if (text.startsWith("```markdown")) {
-            text = stripOuterFence(text, "```markdown");
+            text = userFacingPolicy.stripOuterFence(text, "```markdown");
         } else if (text.startsWith("```md")) {
-            text = stripOuterFence(text, "```md");
+            text = userFacingPolicy.stripOuterFence(text, "```md");
         }
         return text.trim();
     }
 
     @SuppressWarnings("unchecked")
     private String extractUserAnswerFromJson(String text) {
-        if (!looksLikeJson(text)) {
+        if (!userFacingPolicy.looksLikeJson(text)) {
             return null;
         }
         try {
@@ -1186,13 +985,13 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             Object uiResponse = payload.get("uiResponse");
             if (uiResponse instanceof Map<?, ?> uiMap) {
                 String answer = stringValue(((Map<String, Object>) uiMap).get("answer"));
-                String citations = citationsText(((Map<String, Object>) uiMap).get("citations"));
+                String citations = userFacingPolicy.citationsText(((Map<String, Object>) uiMap).get("citations"));
                 if (answer != null && !answer.isBlank()) {
                     return appendCitations(answer, citations);
                 }
             }
             String answer = stringValue(payload.get("answer"));
-            String citations = citationsText(payload.get("citations"));
+            String citations = userFacingPolicy.citationsText(payload.get("citations"));
             if (answer != null && !answer.isBlank()) {
                 return appendCitations(answer, citations);
             }
@@ -1216,531 +1015,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         return answer.trim() + "\n\n引用：" + citations;
     }
 
-    private Map<String, Object> toolResultVisualizationSpec(List<InteractionToolTrace> traces) {
-        return resultPresentationService.toolResultVisualizationSpec(traces);
-    }
-
-    private boolean supportsStructuredResultPresentation(Map<String, Object> metadata) {
-        return resultPresentationService.supportsStructuredResultPresentation(metadata);
-    }
-
-    private Map<String, Object> parseObject(String text) {
-        return resultPresentationService.parseObject(text);
-    }
-
-    private Map<String, Object> copyMap(Map<?, ?> source) {
-        return resultPresentationService.copyMap(source);
-    }
-
-    private List<Map<String, Object>> toolResultEvidence(List<InteractionToolTrace> traces) {
-        return resultPresentationService.toolResultEvidence(traces);
-    }
-
-    private String appendToolResultTable(String answer, Map<String, Object> visualizationSpec) {
-        return resultPresentationService.appendToolResultTable(answer, visualizationSpec);
-    }
-    private String appendToolEvidence(String answer, List<Map<String, Object>> evidence) {
-        if (evidence == null || evidence.isEmpty()) {
-            return answer == null ? "" : answer;
-        }
-        String base = answer == null ? "" : answer.trim();
-        if (base.contains("## 工具执行证据")) {
-            return base;
-        }
-        StringBuilder section = new StringBuilder();
-        section.append("## 工具执行证据\n\n");
-        section.append("以下为本次工具调用证明，仅展示必要摘要；完整结构化结果保留在运行元数据中。\n\n");
-        int index = 1;
-        for (Map<String, Object> item : evidence) {
-            section.append(index++).append(". `")
-                .append(escapeInline(firstNonBlank(stringValue(item.get("toolName")), "unknown_tool")))
-                .append("`");
-            String displayName = stringValue(item.get("displayName"));
-            if (displayName != null && !displayName.isBlank() && !displayName.equals(item.get("toolName"))) {
-                section.append("（").append(escapeInline(displayName)).append("）");
-            }
-            section.append("：").append(Boolean.TRUE.equals(item.get("success")) ? "成功" : "失败")
-                .append("，证据类型 `").append(escapeInline(firstNonBlank(stringValue(item.get("evidenceType")), "unknown"))).append("`");
-            appendEvidenceField(section, "行数", item.get("rowCount"));
-            appendEvidenceField(section, "返回行数", item.get("returnedRowCount"));
-            appendEvidenceField(section, "结果集", item.get("resultSetCount"));
-            appendEvidenceField(section, "模板", compactListText(item.get("templateIds"), 8));
-            appendEvidenceField(section, "退出码", item.get("exitCode"));
-            appendEvidenceField(section, "HTTP 状态", item.get("statusCode"));
-            appendEvidenceField(section, "耗时 ms", item.get("durationMs"));
-            appendEvidenceField(section, "字段", compactListText(item.get("columns"), 8));
-            appendEvidenceField(section, "输出键", compactListText(item.get("keys"), 8));
-            appendEvidenceField(section, "摘要", evidenceSummary(item));
-            section.append("。\n");
-        }
-        return base.isBlank() ? section.toString().trim() : base + "\n\n" + section.toString().trim();
-    }
-
-    private String appendFailedToolLimitations(String answer, List<Map<String, Object>> evidence) {
-        List<Map<String, Object>> failures = evidence == null ? List.of() : evidence.stream()
-            .filter(item -> !Boolean.TRUE.equals(item.get("success")))
-            .toList();
-        String base = answer == null ? "" : answer.trim();
-        if (failures.isEmpty()) {
-            return base;
-        }
-        StringBuilder section = new StringBuilder("## 数据限制\n\n");
-        for (Map<String, Object> item : failures) {
-            String source = firstNonBlank(stringValue(item.get("displayName")),
-                firstNonBlank(stringValue(item.get("toolName")), "数据源"));
-            String reason = firstNonBlank(stringValue(item.get("errorMessage")), evidenceSummary(item));
-            section.append("- ").append(escapeInline(source)).append("：失败");
-            if (!reason.isBlank()) {
-                section.append("，").append(escapeInline(reason));
-            }
-            section.append("。\n");
-        }
-        String limitation = section.toString().trim();
-        if (base.contains(limitation)) {
-            return base;
-        }
-        return base.isBlank() ? limitation : base + "\n\n" + limitation;
-    }
-
-    public boolean shouldExposeToolEvidence(String query, Map<String, Object> metadata) {
-        if (metadata != null && (Boolean.TRUE.equals(metadata.get("includeToolEvidence"))
-            || Boolean.TRUE.equals(metadata.get("showToolEvidence")))) {
-            return true;
-        }
-        String normalized = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
-        return containsAny(normalized,
-            "工具执行证据", "证据链", "调用详情", "执行详情", "审计信息", "审计报告", "数据溯源",
-            "tool execution evidence", "evidence chain", "tool calls", "execution details",
-            "audit trail", "provenance");
-    }
-
-    public boolean shouldExposeEvidenceReferences(String query, Map<String, Object> metadata) {
-        if (shouldExposeToolEvidence(query, metadata)) {
-            return true;
-        }
-        if (metadata != null && (Boolean.TRUE.equals(metadata.get("showEvidenceReferences"))
-            || Boolean.TRUE.equals(metadata.get("includeCitations"))
-            || Boolean.TRUE.equals(metadata.get("answerEvidenceRequired"))
-            || AnswerContract.EVIDENCE_REQUIRED.equals(metadata.get("answerEvidencePolicy")))) {
-            return true;
-        }
-        String normalized = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
-        return containsAny(normalized,
-            "附上来源", "注明来源", "提供来源", "列出来源", "参考资料", "引用链接", "网页链接",
-            "给出出处", "标注出处", "可核验引用", "citation", "cite sources", "source links",
-            "provide sources", "references", "provenance", "cited", "citations", "web evidence");
-    }
-
-    private String applyUserFacingSectionPolicy(String answer,
-                                                String query,
-                                                Map<String, Object> metadata) {
-        String result = answer == null ? "" : answer.trim();
-        boolean evidenceRequested = shouldExposeEvidenceReferences(query, metadata);
-        if (!evidenceRequested) {
-            result = removeMarkdownSections(result,
-                "工具执行证据", "证据链", "证据覆盖", "证据覆盖与限制", "证据与来源",
-                "证据链与来源", "检索证据", "引用与来源", "来源与引用",
-                "Tool Execution Evidence", "Evidence Chain", "Evidence Coverage",
-                "Evidence Coverage and Limitations", "Sources and Citations");
-            result = removeEvidenceBookkeepingParagraphs(result);
-        }
-        if (metadata != null && !result.equals(answer == null ? "" : answer.trim())) {
-            metadata.put("userFacingSectionPolicyApplied", true);
-        }
-        return result;
-    }
-
-    private String applyUserFacingEvidenceReferencePolicy(String answer,
-                                                           String query,
-                                                           Map<String, Object> metadata) {
-        String original = answer == null ? "" : answer.trim();
-        if (original.isBlank() || query == null || shouldExposeEvidenceReferences(query, metadata)) {
-            return original;
-        }
-        String result = original
-            .replaceAll("(?im)^>\\s*\\*\\*证据完整性提示\\*\\*[:：].*$", "")
-            .replaceAll("(?i)\\s*\\[(?:evidence|证据)\\s*:[^]\\r\\n]*]", "")
-            .replaceAll("(?i)\\s*\\[(?:网页|web\\s*page)\\s*\\d+]", "")
-            .replaceAll("(?i)(?:tool|doc|web)://[^\\s，。；、！？,;]+", "")
-            .replaceAll("[ \\t]+([，。；、！？,;])", "$1")
-            .replaceAll("(?m)^[ \\t]+$", "")
-            .replaceAll("\\n{3,}", "\n\n")
-            .trim();
-        if (metadata != null && !result.equals(original)) {
-            metadata.put("userFacingEvidenceReferencesSuppressed", true);
-            metadata.put("userFacingEvidenceReferencePolicy", "METADATA_ONLY");
-        }
-        return result;
-    }
-
-    private String removeMarkdownSections(String answer, String... headings) {
-        String result = answer;
-        for (String heading : headings) {
-            result = result.replaceAll("(?ms)^#{1,6}\\s*(?:\\d+(?:\\.\\d+)*[.、]?\\s*)?"
-                + java.util.regex.Pattern.quote(heading)
-                + "\\s*$.*?(?=^#{1,6}\\s+|\\z)", "");
-        }
-        return result.trim();
-    }
-
-    private String removeEvidenceBookkeepingParagraphs(String answer) {
-        if (answer == null || answer.isBlank()) return "";
-        List<String> retained = new ArrayList<>();
-        for (String paragraph : answer.replace("\r", "").split("\n\s*\n")) {
-            String normalized = paragraph.replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
-            if (!isEvidenceBookkeepingParagraph(normalized)) retained.add(paragraph.trim());
-        }
-        return String.join("\n\n", retained).trim();
-    }
-
-    private boolean isEvidenceBookkeepingParagraph(String value) {
-        return containsAny(value,
-            "检索返回且被选中的片段", "未选中另一文档", "被证据评估拒绝",
-            "本次选定证据仅包含", "文档大纲显示尚有", "未被检索选中",
-            "web_search 执行成功", "web_search执行成功", "selected evidence chunks",
-            "rejected evidence", "rejected document", "evidence coverage",
-            "chunks selected for evidence", "not selected by evidence evaluation");
-    }
-
-    private void appendEvidenceField(StringBuilder section, String label, Object value) {
-        if (value != null && !String.valueOf(value).isBlank()) {
-            section.append("，").append(label).append("=").append(escapeInline(String.valueOf(value)));
-        }
-    }
-
-    private void appendEvidenceBlock(StringBuilder section, String label, String value) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        section.append("   - ").append(label).append("：").append(escapeInline(value)).append("\n");
-    }
-
-    private String listText(Object value) {
-        if (!(value instanceof List<?> list) || list.isEmpty()) {
-            return "";
-        }
-        return String.join(", ", list.stream().map(String::valueOf).toList());
-    }
-
-    private String compactListText(Object value, int limit) {
-        if (!(value instanceof List<?> list) || list.isEmpty()) {
-            return "";
-        }
-        List<String> values = list.stream()
-            .limit(Math.max(1, limit))
-            .map(String::valueOf)
-            .toList();
-        String suffix = list.size() > values.size() ? " 等" + list.size() + "项" : "";
-        return String.join(", ", values) + suffix;
-    }
-
-    private String evidenceSummary(Map<String, Object> item) {
-        if (item == null || item.isEmpty()) {
-            return "";
-        }
-        if (item.get("errorMessage") != null) {
-            return shortEvidenceText(stringValue(item.get("errorMessage")), 160);
-        }
-        String type = stringValue(item.get("evidenceType"));
-        if ("tabular".equals(type)) {
-            Object rowCount = firstPresent(item.get("rowCount"), item.get("returnedRowCount"));
-            return rowCount == null ? "已返回表格数据" : "已返回 " + rowCount + " 行表格数据";
-        }
-        if ("linux_command".equals(type)) {
-            Object stepCount = item.get("stepCount");
-            return stepCount == null ? "命令执行完成" : "命令执行完成，步骤数 " + stepCount;
-        }
-        if ("http_response".equals(type)) {
-            return "HTTP 调用完成";
-        }
-        if ("result_set_batch".equals(type)) {
-            if ("FAILED".equalsIgnoreCase(stringValue(item.get("batchStatus")))) {
-                return "批处理执行失败，未产生可用结果集";
-            }
-            return "已按模板返回 " + firstPresent(item.get("resultSetCount"), 0) + " 个独立结果集";
-        }
-        if ("json".equals(type)) {
-            return "已返回结构化 JSON";
-        }
-        if ("text".equals(type)) {
-            return shortEvidenceText(stringValue(item.get("outputPreview")), 160);
-        }
-        return "";
-    }
-
-    private String shortEvidenceText(String value, int limit) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        String text = value.replaceAll("\\s+", " ").trim();
-        int max = Math.max(20, limit);
-        return text.length() <= max ? text : text.substring(0, max) + "...";
-    }
-
-    private String escapeTableCell(Object value) {
-        if (value == null) {
-            return "";
-        }
-        return String.valueOf(value).replace("\r", " ").replace("\n", " ").replace("|", "\\|").trim();
-    }
-
-    private record LongTextCell(int rowNumber, String column, String value) {
-    }
-
-    private String escapeInline(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.replace("\r", " ").replace("\n", " ").replace("|", "\\|").trim();
-    }
-
-    private String previewText(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        return value.replaceAll("\\s+", " ").trim();
-    }
-
-    private String previewStructured(Object value) {
-        if (value == null) {
-            return "";
-        }
-        if (value instanceof String text) {
-            return previewText(text);
-        }
-        try {
-            return previewText(objectMapper.writeValueAsString(value));
-        } catch (Exception ignored) {
-            return previewText(String.valueOf(value));
-        }
-    }
-
-    private int listSize(Object value) {
-        return value instanceof List<?> list ? list.size() : 0;
-    }
-
-    private int firstInt(Object first, Object second) {
-        Integer firstValue = intValue(first);
-        if (firstValue != null) {
-            return firstValue;
-        }
-        Integer secondValue = intValue(second);
-        return secondValue == null ? 0 : secondValue;
-    }
-
-    private int firstInt(Object first, Object second, Object third, int fallback) {
-        for (Object value : new Object[]{first, second, third}) {
-            Integer parsed = intValue(value);
-            if (parsed != null) {
-                return parsed;
-            }
-        }
-        return fallback;
-    }
-
-    private Integer intValue(Object value) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(String.valueOf(value));
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    private String citationsText(Object value) {
-        if (!(value instanceof List<?> citations) || citations.isEmpty()) {
-            return "";
-        }
-        List<String> refs = new ArrayList<>();
-        for (Object item : citations) {
-            if (item instanceof Map<?, ?> map) {
-                String ref = firstNonBlank(
-                    stringValue(map.get("sourceRef")),
-                    firstNonBlank(stringValue(map.get("refId")), stringValue(map.get("citation")))
-                );
-                if (ref != null && !ref.isBlank()) {
-                    refs.add(ref);
-                }
-            } else if (item != null) {
-                refs.add(String.valueOf(item));
-            }
-        }
-        return refs.stream()
-            .filter(ref -> ref != null && !ref.isBlank())
-            .distinct()
-            .toList()
-            .stream()
-            .reduce((left, right) -> left + "；" + right)
-            .orElse("");
-    }
-
-    private boolean looksLikeJson(String text) {
-        if (text == null) {
-            return false;
-        }
-        String trimmed = text.trim();
-        return (trimmed.startsWith("{") && trimmed.endsWith("}"))
-            || (trimmed.startsWith("[") && trimmed.endsWith("]"));
-    }
-
-    private String stripOuterFenceIfPresent(String text, String language) {
-        if (text == null || language == null) {
-            return text;
-        }
-        String trimmed = text.trim();
-        String openingFence = "```" + language;
-        if (trimmed.regionMatches(true, 0, openingFence, 0, openingFence.length())) {
-            return stripOuterFence(trimmed, trimmed.substring(0, openingFence.length()));
-        }
-        return text;
-    }
-
-    private String stripOuterFence(String text, String openingFence) {
-        int start = openingFence.length();
-        int end = text.lastIndexOf("```");
-        if (end <= start) {
-            return text;
-        }
-        return text.substring(start, end).trim();
-    }
-
-    private String extractBetween(String text, String beginMarker, String endMarker) {
-        if (text == null || beginMarker == null || endMarker == null) {
-            return null;
-        }
-        int begin = text.indexOf(beginMarker);
-        int end = text.indexOf(endMarker);
-        if (begin < 0 || end <= begin) {
-            return null;
-        }
-        return text.substring(begin + beginMarker.length(), end);
-    }
-
-    private AgentAnswerReview reviewAnswer(ChatModel activeChatModel,
-                                           String query,
-                                           String systemPrompt,
-                                           List<String> observations,
-                                           String finalAnswer,
-                                           Map<String, Object> metadata) {
-        String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
-        List<String> reviewObservations = new ArrayList<>(
-            modelAnalysisReviewObservations(observations, metadata));
-        AnswerEvidenceLedgerCompiler.Result preflight = answerEvidenceLedgerCompiler.compile(
-            finalAnswer, metadata, reviewObservations, List.of());
-        if ("FAIL".equals(preflight.status()) || "PARTIAL".equals(preflight.status())) {
-            reviewObservations.add(preflight.reviewerContext());
-        }
-        if (metadata != null) {
-            metadata.put("answerEvidencePreflight", preflight.claimLedger());
-            metadata.put("answerEvidencePreflightStatus", preflight.status());
-            metadata.put("answerEvidencePreflightCoverage", preflight.coverage());
-        }
-        if (finalAnswer == null || finalAnswer.isBlank() || activeChatModel == null) {
-            log.info("agentModelSkipped phase=review runId={} reason={} answerChars={} observationCount={}",
-                firstNonBlank(runId, ""),
-                activeChatModel == null ? "chat_model_unavailable" : "empty_answer",
-                finalAnswer == null ? 0 : finalAnswer.length(),
-                reviewObservations.size());
-            return answerReviewer.review(activeChatModel, query, systemPrompt, reviewObservations, finalAnswer);
-        }
-        long startedAt = System.currentTimeMillis();
-        log.info("agentModelRequest phase=review runId={} modelClass={} answerChars={} observationCount={}",
-            firstNonBlank(runId, ""),
-            activeChatModel == null ? null : activeChatModel.getClass().getName(),
-            finalAnswer == null ? 0 : finalAnswer.length(),
-            reviewObservations.size());
-        long timeoutMs = configuredTimeoutMs("chatchat.agent.answer.review.timeout.ms", modelRequestTimeoutMs);
-        AgentAnswerReview review;
-        try {
-            review = runWithTimeout(
-                "review",
-                runId,
-                timeoutMs,
-                () -> answerReviewer.review(activeChatModel, query, systemPrompt,
-                    List.copyOf(reviewObservations), finalAnswer)
-            );
-        } catch (TimeoutException ex) {
-            if (metadata != null) {
-                metadata.put("answerReviewTimedOut", true);
-                metadata.put("answerReviewTimeoutMs", timeoutMs);
-                metadata.put("answerReviewFallback", "accepted_current_answer");
-            }
-            log.warn("agentModelTimeout phase=review runId={} timeoutMs={} answerChars={} observationCount={}",
-                firstNonBlank(runId, ""),
-                timeoutMs,
-                finalAnswer == null ? 0 : finalAnswer.length(),
-                observations == null ? 0 : observations.size());
-            return acceptWithoutReviewer(finalAnswer,
-                "Answer reviewer timed out after " + timeoutMs + "ms; accepted current evidence-grounded answer.");
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            if (metadata != null) {
-                metadata.put("answerReviewInterrupted", true);
-                metadata.put("answerReviewFallback", "accepted_current_answer");
-            }
-            log.warn("agentModelInterrupted phase=review runId={} answerChars={}",
-                firstNonBlank(runId, ""),
-                finalAnswer == null ? 0 : finalAnswer.length());
-            return acceptWithoutReviewer(finalAnswer,
-                "Answer reviewer was interrupted; accepted current evidence-grounded answer.");
-        } catch (Exception ex) {
-            if (metadata != null) {
-                metadata.put("answerReviewFailed", true);
-                metadata.put("answerReviewError", ex.getMessage());
-                metadata.put("answerReviewFallback", "accepted_current_answer");
-            }
-            log.warn("agentModelFailed phase=review runId={} error={}",
-                firstNonBlank(runId, ""),
-                ex.getMessage());
-            return acceptWithoutReviewer(finalAnswer,
-                "Answer reviewer failed; accepted current evidence-grounded answer.");
-        }
-        log.info("agentModelResponse phase=review runId={} durationMs={} status={} answerChars={}",
-            firstNonBlank(runId, ""),
-            System.currentTimeMillis() - startedAt,
-            review == null ? null : review.status(),
-            review == null || review.answer() == null ? 0 : review.answer().length());
-        log.info("agentModelOutput phase=review runId={} status={} answer=\n{}",
-            firstNonBlank(runId, ""),
-            review == null ? null : review.status(),
-            ModelProtocolJson.prettyJsonForLog(review == null ? null : review.answer()));
-        if (review != null && AgentAnswerReview.REJECTED.equals(review.status())) {
-            log.warn("agentModelReviewRejected runId={} feedback={}",
-                firstNonBlank(runId, ""),
-                review.feedback());
-        }
-        return review;
-    }
-
-    private List<String> modelAnalysisReviewObservations(List<String> observations,
-                                                         Map<String, Object> metadata) {
-        List<String> values = new ArrayList<>(observations == null ? List.of() : observations);
-        if (metadata == null) {
-            return List.copyOf(values);
-        }
-        Object context = metadata.remove("modelAnalysisReviewContext");
-        if (context == null || String.valueOf(context).isBlank()) {
-            return List.copyOf(values);
-        }
-        String evidence = String.valueOf(context);
-        values.add("model_analysis_repair_v1 complete executed evidence:\n" + evidence);
-        metadata.put("modelAnalysisReviewContextApplied", true);
-        metadata.put("modelAnalysisReviewEvidenceChars", evidence.length());
-        return List.copyOf(values);
-    }
-
-    private AgentAnswerReview acceptWithoutReviewer(String answer, String feedback) {
-        return new AgentAnswerReview(
-            AgentAnswerReview.ACCEPTED,
-            answer == null ? "" : answer,
-            feedback
-        );
-    }
 
     private <T> T runWithTimeout(String phase,
                                  String runId,
@@ -1960,7 +1234,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
     /** Consolidates all provenance into one backend-only field instead of answer Markdown. */
     private void attachAnswerEvidenceAuditEnvelope(Map<String, Object> metadata, String query) {
         if (metadata == null) return;
-        boolean explicitlyRequested = shouldExposeEvidenceReferences(query, metadata);
+        boolean explicitlyRequested = userFacingPolicy.shouldExposeEvidenceReferences(query, metadata);
         Map<String, Object> audit = new LinkedHashMap<>();
         audit.put("schemaVersion", ANSWER_EVIDENCE_AUDIT_ENVELOPE);
         audit.put("visibility", explicitlyRequested ? "USER_REQUESTED" : "BACKEND_AUDIT_ONLY");

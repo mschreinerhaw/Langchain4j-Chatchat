@@ -23,6 +23,7 @@ import com.chatchat.agents.orchestration.analysis.StructuredDataProjector;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizationPort;
 import com.chatchat.agents.orchestration.evidence.ContextEvidenceAggregator;
+import com.chatchat.agents.orchestration.evidence.InterpretationPlanEvidenceAnalyzer;
 import com.chatchat.agents.orchestration.evidence.AgentToolResultFactExtractor;
 import com.chatchat.agents.orchestration.evidence.AgentEvidenceGraphService;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
@@ -32,8 +33,13 @@ import com.chatchat.agents.orchestration.model.DeadlineAwareChatModel;
 import com.chatchat.agents.orchestration.model.MeteredChatModel;
 import com.chatchat.agents.orchestration.planning.AgentContextBudget;
 import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
+import com.chatchat.agents.orchestration.planning.AgentDecision;
 import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
 import com.chatchat.agents.orchestration.planning.InterpretationPlanWorkflowGuard;
+import com.chatchat.agents.orchestration.planning.AgentPlanEvolutionAuditor;
+import com.chatchat.agents.orchestration.planning.InterpretationPlanSnapshotService;
+import com.chatchat.agents.orchestration.lifecycle.AgentRunLifecycleCoordinator;
+import com.chatchat.agents.orchestration.lifecycle.AgentRunScopeBinder;
 import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedContextParameterBridge;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
@@ -92,14 +98,12 @@ import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
-import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
-import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.NodeAttemptStore;
@@ -189,6 +193,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     );
     private final AgentPlanningPort planner;
     private final AgentRunResultAdapter runResultAdapter;
+    private final AgentRunScopeBinder runScopeBinder;
+    private final AgentRunLifecycleCoordinator runLifecycle;
+    private final AgentPlanEvolutionAuditor planEvolutionAuditor;
+    private final InterpretationPlanEvidenceAnalyzer planEvidenceAnalyzer;
+    private final InterpretationPlanSnapshotService planSnapshotService;
     private ToolObservationBuilder toolObservationBuilder;
     private final AgentChatModelResolver chatModelResolver;
     private final AgentToolNameResolver toolNames;
@@ -204,8 +213,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     private final AgentWorkflowStatePort workflowStateTracker;
     private final AgentAnswerFinalizationPort answerFinalizer;
-    private final InterpretationPlanStore interpretationPlanStore;
-    private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
     private final RuntimeWorkflowGuard<InterpretationPlanWorkflowGuard.GuardContext,
         InterpretationPlanWorkflowGuard.GuardResult> interpretationPlanWorkflowGuard =
         new InterpretationPlanWorkflowGuard();
@@ -346,9 +353,20 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         AgentAnswerReviewer resolvedAnswerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
         this.planner = new AgentPlanner(toolRegistry, objectMapper);
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
+        this.runScopeBinder = new AgentRunScopeBinder();
+        this.runLifecycle = new AgentRunLifecycleCoordinator(this.runStore, this.runResultAdapter);
+        this.planEvolutionAuditor =
+            new AgentPlanEvolutionAuditor(this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.toolObservationBuilder = new ToolObservationBuilder(this.evidenceTrustEvaluator);
         this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig);
         this.toolNames = new AgentToolNameResolver(new RegistryMcpCapabilityHierarchy(toolRegistry));
+        this.planEvidenceAnalyzer = new InterpretationPlanEvidenceAnalyzer(
+            this.toolResultFactExtractor,
+            this.evidenceGraphService,
+            this.toolNames,
+            this.runResultAdapter,
+            AGENT_RUN_ID_ATTRIBUTE
+        );
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.toolExecutor = new AgentToolExecutor(
             this.toolRegistry, this.toolRuntimeService, this.toolArguments, this.toolObservationBuilder);
@@ -397,9 +415,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             resolvedRuntimeProperties.analysisSummaryWorkerHeartbeatTimeoutMs();
         this.analysisTaskDispatcher = new LocalAnalysisTaskDispatcher(
             this.analysisSummaryWorkerCount, this.analysisSummaryWorkerHeartbeatIntervalMs);
-        this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
+        InterpretationPlanStore resolvedPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
+        this.planSnapshotService = new InterpretationPlanSnapshotService(
+            resolvedPlanStore, AGENT_RUN_ID_ATTRIBUTE);
     }
 
     /** Production supplies the database-backed provider; direct unit construction retains a deterministic fallback. */
@@ -459,129 +479,36 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
      */
     @Override
     public AgentRunResult execute(AgentRunRequest request, KernelDataScope scope) {
-        if (request == null) throw new IllegalArgumentException("Agent run request is required");
-        if (scope == null) throw new IllegalArgumentException("Kernel data scope is required");
-        requireScopeMatch("tenantId", request.getTenantId(), scope.tenantId());
-        requireScopeMatch("requestId", request.getRequestId(), scope.requestId());
-        requireScopeMatch("conversationId", request.getConversationId(), scope.conversationId());
-        requireScopeMatch("runId", request.getRunId(), scope.runId());
-        requireScopeMatch("userId", request.getUserId(), scope.userId());
-        if (request.getTenantId() == null) request.setTenantId(scope.tenantId());
-        if (request.getRequestId() == null) request.setRequestId(scope.requestId());
-        if (request.getConversationId() == null) request.setConversationId(scope.conversationId());
-        if (request.getRunId() == null) request.setRunId(scope.runId());
-        if (request.getUserId() == null) request.setUserId(scope.userId());
-        Map<String, Object> attributes = new LinkedHashMap<>(
-            request.getAttributes() == null ? Map.of() : request.getAttributes());
-        Map<String, Object> scopeProjection = new LinkedHashMap<>();
-        putScopeValue(scopeProjection, "tenantId", scope.tenantId());
-        putScopeValue(scopeProjection, "userId", scope.userId());
-        putScopeValue(scopeProjection, "requestId", scope.requestId());
-        putScopeValue(scopeProjection, "conversationId", scope.conversationId());
-        putScopeValue(scopeProjection, "runId", scope.runId());
-        putScopeValue(scopeProjection, "environment", scope.environment());
-        scopeProjection.put("attributes", scope.attributes());
-        attributes.put("kernelDataScope", Map.copyOf(scopeProjection));
-        request.setAttributes(attributes);
-        return execute(request);
+        return execute(runScopeBinder.bind(request, scope));
     }
+
 
     @Override
     public AgentRunResult execute(AgentRunRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("Agent run request is required");
-        }
-        AgentRun run = runStore.start(request);
-        try {
-            AgentOrchestrator.AgentExecutionResult result = executeAgent(
-                request.getQuery(),
-                request.getTenantId(),
-                request.getAvailableTools(),
-                request.getSystemPrompt(),
-                request.getModelName(),
-                request.getBoundDocumentIds(),
-                request.getBoundDocumentTags(),
-                request.getSkillId(),
-                request.getRequestId(),
-                request.getConversationId(),
-                request.getUserId(),
-                request.getWebSearchResultLimit(),
-                request.getRequiredToolNames(),
-                request.isRequireBoundToolCall(),
-                runtimeAttributesFor(request)
-            );
-            AgentRunResult runtimeResult = runResultAdapter.toAgentRunResult(run.runId(), result);
-            if (runtimeResult.status() == AgentRunStatus.RUNNING) {
-                AgentRun current = runStore.find(run.runId()).orElse(run);
-                return runtimeResult.withStatusAndEvents(current.status(), current.events());
-            }
-            AgentRun completed = runStore.complete(run.runId(), runtimeResult);
-            return runtimeResult.withStatusAndEvents(completed.status(), completed.events());
-        } catch (AgentDeadlineExceededException ex) {
-            AgentRun current = runStore.find(run.runId()).orElse(run);
-            List<com.chatchat.agents.runtime.observation.AgentObservation> preservedObservations =
-                runStore.observations(run.runId());
-            List<com.chatchat.agents.runtime.plan.PlanStepCheckpoint> preservedCheckpoints =
-                runStore.planStepCheckpoints(run.runId());
-            long evidenceObservationCount = preservedObservations.stream()
-                .filter(this::isEvidenceObservation)
-                .count();
-            boolean hasPreservedEvidence = evidenceObservationCount > 0
-                || !preservedCheckpoints.isEmpty();
-            String answer = hasPreservedEvidence
-                ? "执行时间预算已耗尽；已完成步骤的证据和检查点均已保留，可从最近一致检查点继续执行。"
-                : "";
-            List<String> observationTexts = preservedObservations.stream()
-                .map(com.chatchat.agents.runtime.observation.AgentObservation::content)
-                .filter(Objects::nonNull)
-                .filter(content -> !content.isBlank())
-                .toList();
-            Map<String, Object> deadlineMetadata = new LinkedHashMap<>();
-            deadlineMetadata.put("stopReason", "time_budget_exhausted");
-            deadlineMetadata.put("errorCode", "TIME_BUDGET_EXHAUSTED");
-            deadlineMetadata.put("errorMessage", ex.getMessage());
-            deadlineMetadata.put("completedEvidencePreservedAfterTimeout", hasPreservedEvidence);
-            deadlineMetadata.put("preservedObservationCount", evidenceObservationCount);
-            deadlineMetadata.put("preservedCheckpointCount", preservedCheckpoints.size());
-            deadlineMetadata.put("observations", observationTexts);
-            Map<String, Object> metadata = new com.chatchat.agents.runtime.run.AgentOutcomeProjection().enrich(
-                deadlineMetadata,
-                answer
-            );
-            AgentRunResult runtimeResult = AgentRunResult.builder()
-                .runId(run.runId())
-                .status(AgentRunStatus.COMPLETED)
-                .answer(answer)
-                .stopReason("time_budget_exhausted")
-                .errorMessage(ex.getMessage())
-                .steps(current.steps())
-                .observations(preservedObservations)
-                .metadata(metadata)
-                .build();
-            AgentRun completed = runStore.complete(run.runId(), runtimeResult);
-            return runtimeResult.withStatusAndEvents(completed.status(), completed.events());
-        } catch (CancellationException ex) {
-            AgentRun cancelled = runStore.cancel(run.runId(), ex.getMessage());
-            return cancelledAgentRunResult(cancelled);
-        } catch (RuntimeException ex) {
-            log.error("Agent orchestration failed. runId={} requestId={} errorType={} error={}",
-                run.runId(), request.getRequestId(), ex.getClass().getName(), ex.getMessage(), ex);
-            AgentRun failed = runStore.fail(run.runId(), ex);
-            return failedAgentRunResult(failed);
-        }
+        return runLifecycle.execute(request, this::executeAgentRequest);
     }
 
-    private void requireScopeMatch(String field, String requestValue, String scopeValue) {
-        if (requestValue != null && !requestValue.isBlank() && scopeValue != null
-            && !scopeValue.equals(requestValue)) {
-            throw new KernelViolationException("KERNEL_SCOPE_MISMATCH",
-                "Agent request " + field + " does not match Kernel scope");
-        }
+    private AgentOrchestrator.AgentExecutionResult executeAgentRequest(AgentRunRequest request) {
+        return executeAgent(
+            request.getQuery(),
+            request.getTenantId(),
+            request.getAvailableTools(),
+            request.getSystemPrompt(),
+            request.getModelName(),
+            request.getBoundDocumentIds(),
+            request.getBoundDocumentTags(),
+            request.getSkillId(),
+            request.getRequestId(),
+            request.getConversationId(),
+            request.getUserId(),
+            request.getWebSearchResultLimit(),
+            request.getRequiredToolNames(),
+            request.isRequireBoundToolCall(),
+            runtimeAttributesFor(request)
+        );
     }
 
-    private void putScopeValue(Map<String, Object> target, String key, String value) {
-        if (value != null && !value.isBlank()) target.put(key, value);
-    }
+
 
     /** Installs the Runtime OS protocol suite without coupling orchestration to implementations. */
     @Autowired(required = false)
@@ -608,40 +535,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         this.answerFinalizer.setAnalysisSummaryProtocol(this.analysisSummaryGovernanceBridge);
     }
 
-    private boolean isEvidenceObservation(com.chatchat.agents.runtime.observation.AgentObservation observation) {
-        if (observation == null || observation.type() == null) {
-            return false;
-        }
-        String type = observation.type().trim().toLowerCase(Locale.ROOT);
-        return "tool".equals(type)
-            || "tool_failure".equals(type)
-            || "batch".equals(type)
-            || "batch_tool".equals(type);
-    }
-
-    private AgentRunResult cancelledAgentRunResult(AgentRun run) {
-        return AgentRunResult.builder()
-            .runId(run.runId())
-            .status(AgentRunStatus.CANCELLED)
-            .answer("")
-            .stopReason("cancelled")
-            .errorMessage(run.errorMessage())
-            .events(run.events())
-            .metadata(run.metadata())
-            .build();
-    }
-
-    private AgentRunResult failedAgentRunResult(AgentRun run) {
-        return AgentRunResult.builder()
-            .runId(run.runId())
-            .status(AgentRunStatus.FAILED)
-            .answer("")
-            .stopReason("failed")
-            .errorMessage(run.errorMessage())
-            .events(run.events())
-            .metadata(run.metadata())
-            .build();
-    }
 
     private Map<String, Object> runtimeAttributesFor(AgentRunRequest request) {
         Map<String, Object> attributes = new LinkedHashMap<>();
@@ -1034,7 +927,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             plannerStep.put("observationCount", observations.size());
             plannerSteps.add(plannerStep);
             runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
-            recordPlannerDagRepairEvent(
+            planEvolutionAuditor.recordPlannerRepair(
                 requestRuntimeAttributes, metadata,
                 decision.executionPlan() == null ? null : decision.executionPlan().get("repairEvent"));
             recordLifecyclePhase(
@@ -1428,8 +1321,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             metadata.put("agentBudgetCaps", budgetCaps.metadata());
             metadata.put("agentBudgetAdjusted", budgetResult.adjusted());
         }
-        saveInterpretationPlanSnapshot("initial", plan, tenantId, requestId, runtimeAttributes, metadata);
-        recordPlanEvolution(null, plan, 1, "INITIAL", List.of(), runtimeAttributes, metadata);
+        planSnapshotService.saveGenerated(
+            "initial", plan, tenantId, requestId, runtimeAttributes, metadata);
+        planEvolutionAuditor.recordEvolution(
+            null, plan, 1, "INITIAL", List.of(), runtimeAttributes, metadata);
 
         InterpretationPlanValidator validator = new InterpretationPlanValidator();
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
@@ -1478,7 +1373,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             firstResult = planEvaluationFailure("initial", initialEvaluation);
         }
         recordPlanRuntimeResult("initial", firstResult, traces, observations, metadata);
-        saveInterpretationPlanSnapshot("initial_result", plan, tenantId, requestId, runtimeAttributes, metadata, firstResult);
+        planSnapshotService.saveExecution(
+            "initial_result", plan, tenantId, requestId, runtimeAttributes, metadata, firstResult);
         checkCancelledUnlessBatchEvidence(cancellationCheck, firstResult, metadata);
 
         if (firstResult.approvalRequired()) {
@@ -1599,7 +1495,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 "A non-empty MCP result had an actionable evidence gap; one bounded refinement round was preserved.");
         }
         for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
-            String rewriteSummary = planAttemptRewriteSummary(
+            String rewriteSummary = planEvolutionAuditor.rewriteSummary(
                 rewriteCount,
                 currentPlan,
                 currentResult,
@@ -1608,11 +1504,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             observations.add(rewriteSummary);
             InterpretationPlan.Step failedStep = repairRootStep(currentPlan, currentResult);
             String repairReason = evidenceRewriteReason(currentResult, evidenceHistory);
-            Map<String, Object> repairEvidenceContext = repairEvidenceContext(evidenceHistory);
+            Map<String, Object> repairEvidenceContext = planEvolutionAuditor.repairContext(evidenceHistory);
             metadata.put("latestDagRepairEvidenceContext", repairEvidenceContext);
             boolean dagRepairAttempt = !currentResult.success() || failedStep != null;
             if (dagRepairAttempt) {
-                recordDagRepairEvent(
+                planEvolutionAuditor.recordDagRepair(
                     runtimeAttributes,
                     metadata,
                     "STARTED",
@@ -1701,7 +1597,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             if (!rewrittenValid && rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
                 metadata.put("interpretationPlanRewriteError", rewrite.errorMessage());
             }
-            recordPlanEvolution(
+            planEvolutionAuditor.recordEvolution(
                 currentPlan,
                 rewrittenPlan,
                 rewriteCount + 1,
@@ -1712,9 +1608,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             );
             List<Map<String, Object>> repairChanges = rewrittenPlan == null
                 ? List.of()
-                : planChanges(currentPlan, rewrittenPlan);
+                : planEvolutionAuditor.changes(currentPlan, rewrittenPlan);
             if (dagRepairAttempt) {
-                recordDagRepairEvent(
+                planEvolutionAuditor.recordDagRepair(
                     runtimeAttributes,
                     metadata,
                     rewrittenValid ? "APPLIED" : "REJECTED",
@@ -1764,7 +1660,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             }
 
             currentPlan = rewrittenPlan;
-            saveInterpretationPlanSnapshot(
+            planSnapshotService.saveGenerated(
                 rewriteStage,
                 currentPlan,
                 tenantId,
@@ -1793,7 +1689,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 planKernelScope(tenantId, userId, requestId, conversationId, rewriteExecutionAttributes));
             reusablePlanSteps = reusablePlanSteps(reusablePlanSteps, currentPlan, currentResult);
             recordPlanRuntimeResult(rewriteStage, currentResult, traces, observations, metadata);
-            saveInterpretationPlanSnapshot(
+            planSnapshotService.saveExecution(
                 rewriteStage + "_result",
                 currentPlan,
                 tenantId,
@@ -1929,7 +1825,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             && !duplicateToolPlanSuppressed
             && (maxRewriteTimes <= 0
                 || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes));
-        metadata.put("interpretationPlanFallbackMode", fallbackMode(plan));
+        metadata.put("interpretationPlanFallbackMode", planEvolutionAuditor.fallbackMode(plan));
         String evidenceCompletionReason = usablePartialAnalysis
             ? "evidence_partial_analysis"
             : duplicateToolPlanSuppressed
@@ -6421,558 +6317,30 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         BooleanSupplier cancellationCheck
     ) {
         checkCancelledUnlessBatchEvidence(cancellationCheck, result, metadata);
-        List<Map<String, Object>> toolEvidence = interpretationToolEvidence(plan, result, iteration);
-        DiagnosticRun diagnosticRun = diagnosticRun(result);
-        Set<String> previouslyCompletedDiagnosticChecks = completedDiagnosticChecks(previousEvidence);
-        boolean diagnosticCoverageComplete = diagnosticCoverageComplete(
-            diagnosticRun,
-            previouslyCompletedDiagnosticChecks
-        );
-        boolean diagnosticRetriesExhausted = diagnosticRun != null
-            && diagnosticRun.confidenceEngine() != null
-            && diagnosticRun.confidenceEngine().remainingRetries() == 0;
-        boolean fallbackSufficient = result != null && result.success()
-            && (diagnosticCoverageComplete || diagnosticRetriesExhausted);
-        Map<String, Object> analysis = new LinkedHashMap<>();
-        List<Object> evidenceUsed = new ArrayList<>();
-        List<Object> missingEvidence = new ArrayList<>();
-        List<Object> conflicts = new ArrayList<>();
-        List<Object> nextActions = new ArrayList<>();
-        List<Object> supersededMissingEvidence = new ArrayList<>();
-        List<String> conclusions = new ArrayList<>();
-        List<Map<String, Object>> currentHypotheses = new ArrayList<>();
-        boolean explicitIterationDecision = false;
-        boolean iterationSufficient = fallbackSufficient;
-        if (diagnosticRun != null) {
-            for (DiagnosticRun.CheckResult check : diagnosticRun.checks()) {
-                if (check == null || !check.required()
-                    || "completed".equals(check.status())
-                    || previouslyCompletedDiagnosticChecks.contains(normalizedDiagnosticCheckId(check.checkId()))) {
-                    continue;
-                }
-                Map<String, Object> gap = metadataOf(
-                    "type", "diagnostic_check",
-                    "checkId", check.checkId(),
-                    "capability", check.capability(),
-                    "dimension", check.dimension(),
-                    "status", check.status(),
-                    "reason", firstNonBlank(check.reason(), "missing_diagnostic_evidence")
-                );
-                missingEvidence.add(gap);
-                nextActions.add(metadataOf(
-                    "action", "complete_diagnostic_check",
-                    "checkId", check.checkId(),
-                    "capability", check.capability(),
-                    "dimension", check.dimension(),
-                    "reason", firstNonBlank(check.reason(), "missing_diagnostic_evidence")
-                ));
-            }
-        }
-        for (Map<String, Object> item : toolEvidence) {
-            if (Boolean.TRUE.equals(item.get("success"))) {
-                evidenceUsed.add(metadataOf(
-                    "evidence_id", item.get("evidenceId"),
-                    "basis", firstNonBlank(stringValue(item.get("reviewReason")), "successful MCP result")
-                ));
-            }
-            addEvidenceAnalysisItems(missingEvidence, item.get("missingEvidence"));
-            addEvidenceAnalysisItems(conflicts, item.get("conflicts"));
-            currentHypotheses.addAll(evidenceGraphService.normalizeHypotheses(
-                item.get("hypotheses"),
-                stringValue(item.get("evidenceId"))
-            ));
-            String reason = stringValue(item.get("reviewReason"));
-            if (reason != null && !reason.isBlank()
-                && (!diagnosticCoverageComplete || satisfiedTemplateExecutionEvidence(item))) {
-                conclusions.add(reason);
-            }
-            if (item.get("iterationSufficient") != null) {
-                explicitIterationDecision = true;
-                iterationSufficient &= booleanValue(item.get("iterationSufficient"));
-            }
-        }
-        nextActions.addAll(pendingEvidenceNextActions(toolEvidence));
-        if (diagnosticRun != null && diagnosticCoverageComplete && result != null && result.success()) {
-            // Per-step reviewers run before downstream dependencies. Their interim
-            // "not executed yet" gaps are therefore stale once the Runtime-owned
-            // diagnostic contract proves that every required check is covered by
-            // successful execution evidence. Preserve them for audit, but never let
-            // them override the authoritative completion state.
-            supersededMissingEvidence.addAll(missingEvidence);
-            missingEvidence.clear();
-            nextActions.clear();
-            iterationSufficient = true;
-        }
-        analysis.put("sufficient", explicitIterationDecision ? iterationSufficient : fallbackSufficient);
-        analysis.put("conclusion", conclusions.isEmpty()
-            ? (fallbackSufficient ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
-            : String.join(" ", conclusions));
-        analysis.put("evidence_used", evidenceUsed);
-        analysis.put("missing_evidence", missingEvidence);
-        analysis.put("conflicts", conflicts);
-        analysis.put("next_actions", nextActions);
-
-        List<Map<String, Object>> hypotheses = evidenceGraphService.mergeHypotheses(
-            previousEvidence, currentHypotheses);
-        Map<String, Object> evidenceGraph = evidenceGraphService.buildEvidenceGraph(
-            iteration,
-            previousEvidence,
-            toolEvidence,
-            hypotheses
-        );
-        boolean sufficient = booleanValue(firstObject(analysis, "sufficient", "satisfied", "complete"))
-            && missingEvidence.isEmpty()
-            && conflicts.isEmpty();
-        double confidence = evidenceGraphService.evidenceConfidence(toolEvidence, hypotheses);
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("contractVersion", "interpretation_evidence_iteration_v1");
-        snapshot.put("iteration", iteration);
-        snapshot.put("status", result == null ? "missing" : result.status());
-        snapshot.put("executionSuccess", result != null && result.success());
-        snapshot.put("sufficient", sufficient);
-        snapshot.put("conclusion", firstNonBlank(
-            stringValue(firstObject(analysis, "conclusion", "summary", "analysis")),
-            result == null ? "No execution result was produced." : firstNonBlank(result.errorMessage(),
-                result.success() ? "The round returned usable evidence." : "The round did not return sufficient evidence.")
-        ));
-        snapshot.put("evidenceUsed", evidenceAnalysisValue(analysis,
-            "evidence_used", "evidenceUsed", "basis", "based_on"));
-        snapshot.put("missingEvidence", evidenceAnalysisValue(analysis,
-            "missing_evidence", "missingEvidence", "missing", "gaps"));
-        snapshot.put("supersededMissingEvidence", supersededMissingEvidence);
-        snapshot.put("conflicts", evidenceAnalysisValue(analysis,
-            "conflicts", "contradictions", "uncertainty"));
-        snapshot.put("hypotheses", hypotheses);
-        snapshot.put("evidenceGraph", evidenceGraph);
-        snapshot.put("confidence", confidence);
-        snapshot.put("confidenceType", evidenceGraphService.evidenceConfidenceType(toolEvidence, hypotheses));
-        snapshot.put("remainingMissing", missingEvidence);
-        snapshot.put("nextActions", evidenceAnalysisValue(analysis,
-            "next_actions", "nextActions", "next_queries", "nextQueries", "query_revisions", "queryRevisions"));
-        snapshot.put("toolEvidence", toolEvidence);
-        if (diagnosticRun != null) {
-            snapshot.put("diagnosticRun", diagnosticRun);
-            snapshot.put("diagnosticCoverageComplete", diagnosticCoverageComplete);
-            snapshot.put("previouslyCompletedDiagnosticChecks", previouslyCompletedDiagnosticChecks);
-        }
-        snapshot.put("createdAt", System.currentTimeMillis());
-
-        addCandidateList(metadataList(metadata, "interpretationPlanEvidenceHistory"), List.of(snapshot));
-        metadata.put("interpretationPlanEvidenceIterationCount", iteration);
-        metadata.put("interpretationPlanEvidenceSufficient", sufficient);
-        metadata.put("interpretationPlanEvidenceConfidence", confidence);
-        metadata.put("interpretationPlanRemainingMissing", missingEvidence);
-        metadata.put("interpretationPlanEvidenceGraph", evidenceGraph);
-        for (Map<String, Object> evidenceObject : toolEvidence) {
-            runResultAdapter.recordRuntimeObservation(
-                runtimeAttributes,
-                AGENT_RUN_ID_ATTRIBUTE,
-                "Captured " + firstNonBlank(stringValue(evidenceObject.get("evidenceId")), "MCP evidence") + ".",
-                "interpretation_plan_evidence_object",
-                metadataOf(
-                    "type", "evidence",
-                    "workflow", "interpretation_plan",
-                    "lifecyclePhase", "evidence_capture",
-                    "contractVersion", "evidence_object_v1",
-                    "iteration", iteration,
-                    "evidenceId", evidenceObject.get("evidenceId"),
-                    "evidenceObject", evidenceObject
-                )
-            );
-        }
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            "Evidence iteration " + iteration + " analyzed: "
-                + firstNonBlank(stringValue(snapshot.get("conclusion")), "no conclusion"),
-            "interpretation_plan_evidence",
-            metadataOf(
-                "type", "evidence",
-                "workflow", "interpretation_plan",
-                "lifecyclePhase", "evidence_analysis",
-                "contractVersion", "interpretation_evidence_iteration_v1",
-                "iteration", iteration,
-                "sufficient", sufficient,
-                "confidence", confidence,
-                "evidenceSnapshot", snapshot
-            )
-        );
-        if (!hypotheses.isEmpty()) {
-            runResultAdapter.recordRuntimeObservation(
-                runtimeAttributes,
-                AGENT_RUN_ID_ATTRIBUTE,
-                "Hypothesis state updated for evidence iteration " + iteration + ".",
-                "interpretation_plan_hypothesis",
-                metadataOf(
-                    "type", "hypothesis",
-                    "workflow", "interpretation_plan",
-                    "lifecyclePhase", "hypothesis_evaluation",
-                    "contractVersion", "interpretation_hypothesis_state_v1",
-                    "iteration", iteration,
-                    "hypotheses", hypotheses
-                )
-            );
-        }
-        if (collectionSize(evidenceGraph.get("relations")) > 0
-            || collectionSize(evidenceGraph.get("rejectedRelations")) > 0) {
-            runResultAdapter.recordRuntimeObservation(
-                runtimeAttributes,
-                AGENT_RUN_ID_ATTRIBUTE,
-                "Evidence graph updated for evidence iteration " + iteration + ".",
-                "interpretation_plan_evidence_graph",
-                metadataOf(
-                    "type", "evidence_graph",
-                    "workflow", "interpretation_plan",
-                    "lifecyclePhase", "evidence_relationship",
-                    "contractVersion", "evidence_graph_v1",
-                    "iteration", iteration,
-                    "evidenceGraph", evidenceGraph
-                )
-            );
-        }
-        return snapshot;
+        return planEvidenceAnalyzer.analyze(
+            activeChatModel, query, systemPrompt, plan, result, iteration,
+            previousEvidence, runtimeAttributes, metadata, cancellationCheck);
     }
 
-    private boolean satisfiedTemplateExecutionEvidence(Map<String, Object> evidence) {
-        if (evidence == null || evidence.isEmpty()) {
-            return false;
-        }
-        Map<String, Object> contract = asMap(evidence.get("templateExecutionReview"));
-        return Boolean.TRUE.equals(booleanValue(contract.get("satisfied")))
-            && Boolean.TRUE.equals(booleanValue(evidence.get("success")));
-    }
-
-    private DiagnosticRun diagnosticRun(InterpretationPlanRuntime.ExecutionResult result) {
-        Object value = result == null || result.metadata() == null
-            ? null
-            : result.metadata().get("diagnosticRun");
-        return value instanceof DiagnosticRun run ? run : null;
-    }
-
-    private Set<String> completedDiagnosticChecks(List<Map<String, Object>> previousEvidence) {
-        Set<String> completed = new LinkedHashSet<>();
-        for (Map<String, Object> snapshot : previousEvidence == null ? List.<Map<String, Object>>of() : previousEvidence) {
-            Object value = snapshot == null ? null : snapshot.get("diagnosticRun");
-            if (!(value instanceof DiagnosticRun run) || run.checks() == null) {
-                continue;
-            }
-            run.checks().stream()
-                .filter(check -> check != null && "completed".equals(check.status()))
-                .map(DiagnosticRun.CheckResult::checkId)
-                .map(this::normalizedDiagnosticCheckId)
-                .filter(checkId -> !checkId.isBlank())
-                .forEach(completed::add);
-        }
-        return completed;
-    }
-
-    private boolean diagnosticCoverageComplete(DiagnosticRun run, Set<String> previouslyCompleted) {
-        if (run == null || run.checks() == null) {
-            return true;
-        }
-        Set<String> prior = previouslyCompleted == null ? Set.of() : previouslyCompleted;
-        return run.checks().stream()
-            .filter(check -> check != null && check.required())
-            .allMatch(check -> "completed".equals(check.status())
-                || prior.contains(normalizedDiagnosticCheckId(check.checkId())));
-    }
-
-    private String normalizedDiagnosticCheckId(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
-    }
-
-    private void addEvidenceAnalysisItems(List<Object> target, Object value) {
-        if (target == null || value == null) {
-            return;
-        }
-        if (value instanceof Iterable<?> values) {
-            for (Object item : values) {
-                if (item != null && !String.valueOf(item).isBlank()) {
-                    target.add(item);
-                }
-            }
-            return;
-        }
-        if (!String.valueOf(value).isBlank()) {
-            target.add(value);
-        }
-    }
 
     List<Map<String, Object>> interpretationToolEvidence(
         InterpretationPlan plan,
         InterpretationPlanRuntime.ExecutionResult result,
         int iteration
     ) {
-        if (result == null || result.steps() == null || result.steps().isEmpty()) {
-            return List.of();
-        }
-        Map<Integer, InterpretationPlan.Step> plannedSteps = new LinkedHashMap<>();
-        if (plan != null && plan.steps() != null) {
-            for (InterpretationPlan.Step step : plan.steps()) {
-                if (step != null && step.id() != null) {
-                    plannedSteps.put(step.id(), step);
-                }
-            }
-        }
-        List<Map<String, Object>> evidence = new ArrayList<>();
-        for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
-            if (step == null || step.stepId() == null || "final_answer".equals(step.actionType())) {
-                continue;
-            }
-            String evidenceId = "iteration:" + iteration + ":step:" + step.stepId()
-                + ":tool:" + firstNonBlank(step.toolName(), step.actionType());
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("contractVersion", "evidence_object_v1");
-            item.put("evidenceId", evidenceId);
-            item.put("iteration", iteration);
-            item.put("stepId", step.stepId());
-            item.put("tool", firstNonBlank(step.toolName(), step.actionType()));
-            InterpretationPlan.Step plannedStep = plannedSteps.get(step.stepId());
-            item.put("input", plannedStep == null || plannedStep.input() == null ? Map.of() : plannedStep.input());
-            item.put("success", step.success());
-            item.put("reviewSatisfied", step.metadata() == null ? null
-                : step.metadata().get("toolResultReviewSatisfied"));
-            item.put("reviewReason", step.metadata() == null ? null
-                : step.metadata().get("toolResultReviewReason"));
-            item.put("iterationSufficient", step.metadata() == null ? null
-                : step.metadata().get("evidenceIterationSufficient"));
-            item.put("evidenceBasis", step.metadata() == null ? List.of()
-                : step.metadata().getOrDefault("evidenceBasis", List.of()));
-            item.put("missingEvidence", step.metadata() == null ? List.of()
-                : step.metadata().getOrDefault("missingEvidence", List.of()));
-            item.put("conflicts", step.metadata() == null ? List.of()
-                : step.metadata().getOrDefault("evidenceConflicts", List.of()));
-            List<Object> stepNextActions = new ArrayList<>();
-            if (step.metadata() != null) {
-                addEvidenceAnalysisItems(stepNextActions,
-                    step.metadata().getOrDefault("nextActions", List.of()));
-            }
-            Object executionContractSource = step.toolExecution() != null
-                && step.toolExecution().output() != null
-                && step.toolExecution().output().getData() != null
-                ? step.toolExecution().output().getData()
-                : step.output();
-            stepNextActions.addAll(discoveredExecutorActions(
-                executionContractSource, step.toolName(), step.stepId()));
-            item.put("nextActions", List.copyOf(stepNextActions));
-            Map<String, Object> evidenceEvaluation = step.metadata() == null
-                ? Map.of()
-                : asMap(step.metadata().get("evidenceEvaluation"));
-            item.put("shouldExpandQuery", evidenceEvaluation.get("shouldExpandQuery"));
-            item.put("hypotheses", step.metadata() == null ? List.of()
-                : step.metadata().getOrDefault("hypotheses", List.of()));
-            item.put("templateExecutionReview", step.metadata() == null ? Map.of()
-                : step.metadata().getOrDefault("templateExecutionReview", Map.of()));
-            item.put("missingParameters", step.metadata() == null ? List.of()
-                : step.metadata().getOrDefault("templateExecutionMissingParameters", List.of()));
-            item.put("retryInputChanges", step.metadata() == null ? Map.of()
-                : step.metadata().getOrDefault("templateExecutionRetryInputChanges", Map.of()));
-            item.put("templateReselectionRequired", step.metadata() != null
-                && Boolean.TRUE.equals(step.metadata().get("templateReselectionRequired")));
-            if (step.errorMessage() != null && !step.errorMessage().isBlank()) {
-                item.put("error", step.errorMessage());
-            }
-            item.put("output", step.output());
-            item.put("outputFacts", toolResultFactExtractor.structuredOutputFacts(step.output()));
-            Map<String, Object> evidenceMetadata = new LinkedHashMap<>();
-            evidenceMetadata.put("timestamp", System.currentTimeMillis());
-            evidenceMetadata.put("source", evidenceSource(step));
-            evidenceMetadata.put("confidence", step.metadata() == null
-                ? null
-                : step.metadata().get("toolResultReviewConfidence"));
-            evidenceMetadata.put("success", step.success());
-            evidenceMetadata.put("durationMs", step.durationMs());
-            evidenceMetadata.put("reviewSatisfied", item.get("reviewSatisfied"));
-            evidenceMetadata.put("reviewReason", item.get("reviewReason"));
-            item.put("metadata", evidenceMetadata);
-            item.put("evidenceQuality", evidenceQuality(step, item, evidenceMetadata));
-            item.put("rawResultStored", true);
-            evidence.add(item);
-        }
-        return List.copyOf(evidence);
+        return planEvidenceAnalyzer.interpretationToolEvidence(plan, result, iteration);
     }
 
-    /**
-     * Converts a discovery result's published execution contract into a deterministic
-     * evidence-refinement action. The Runtime reads the executor role from returned metadata;
-     * it does not infer an executor from business intent, template names, or tool-name families.
-     */
-    List<Map<String, Object>> discoveredExecutorActions(Object output,
-                                                        String sourceTool,
-                                                        Integer sourceStepId) {
-        Set<String> executionTools = new LinkedHashSet<>();
-        collectExecutionTools(output, executionTools, 0);
-        List<Map<String, Object>> actions = new ArrayList<>();
-        for (String executionTool : executionTools) {
-            if (executionTool == null || executionTool.isBlank()
-                || toolNames.sameToolName(sourceTool, executionTool)) {
-                continue;
-            }
-            actions.add(metadataOf(
-                "action", "execute_discovered_template",
-                "tool", executionTool,
-                "requiredExecution", true,
-                "source", "tool_output_execution_contract",
-                "discoveryStepId", sourceStepId,
-                "dependsOnTools", sourceTool == null ? List.of() : List.of(sourceTool),
-                "reason", "Discovery metadata declares an executor; discovery alone is not business evidence."
-            ));
-        }
-        return List.copyOf(actions);
-    }
-
-    private void collectExecutionTools(Object value, Set<String> target, int depth) {
-        if (value == null || target == null || depth > 10 || target.size() >= 16) {
-            return;
-        }
-        if (value instanceof Map<?, ?> map) {
-            map.forEach((key, nested) -> {
-                String field = key == null ? "" : String.valueOf(key);
-                if (("executionTool".equals(field) || "execution_tool".equals(field))
-                    && nested != null && !String.valueOf(nested).isBlank()) {
-                    target.add(String.valueOf(nested).trim());
-                } else {
-                    collectExecutionTools(nested, target, depth + 1);
-                }
-            });
-            return;
-        }
-        if (value instanceof Iterable<?> items) {
-            for (Object item : items) {
-                collectExecutionTools(item, target, depth + 1);
-            }
-        }
-    }
-
-    private Map<String, Object> evidenceQuality(
-        InterpretationPlanRuntime.StepExecution step,
-        Map<String, Object> evidence,
-        Map<String, Object> evidenceMetadata
+    List<Map<String, Object>> discoveredExecutorActions(
+        Object output,
+        String sourceTool,
+        Integer sourceStepId
     ) {
-        Map<String, Object> output = asMap(step == null ? null : step.output());
-        Object explicitReliability = firstObject(output,
-            "sourceReliability", "source_reliability", "reliability");
-        Object explicitFreshness = firstObject(output,
-            "freshness", "freshnessScore", "freshness_score");
-        Double sourceReliabilityScore = explicitQualityScore(explicitReliability);
-        Double freshnessScore = explicitQualityScore(explicitFreshness);
-        int missingCount = collectionSize(evidence == null ? null : evidence.get("missingEvidence"));
-        int conflictCount = collectionSize(evidence == null ? null : evidence.get("conflicts"));
-        boolean hasOutput = step != null && step.output() != null
-            && !stringify(step.output()).isBlank()
-            && !"{}".equals(stringify(step.output()))
-            && !"[]".equals(stringify(step.output()));
-        double completeness = step != null && step.success() && hasOutput
-            ? clampScore(1.0 / (1.0 + (missingCount * 0.35)))
-            : 0.0;
-        double consistency = clampScore(1.0 / (1.0 + conflictCount));
-        Map<String, Object> quality = new LinkedHashMap<>();
-        quality.put("contractVersion", "evidence_quality_v1");
-        quality.put("sourceReliability", sourceReliabilityScore == null
-            ? unknownQualityMetric("Source reliability metadata is unavailable.")
-            : assessedQualityMetric(sourceReliabilityScore, "COMPUTED",
-                "Derived from explicit source reliability metadata returned by the tool."));
-        quality.put("freshness", freshnessScore == null
-            ? unknownQualityMetric("Freshness metadata is unavailable.")
-            : assessedQualityMetric(freshnessScore, "COMPUTED",
-                "Derived from explicit freshness metadata returned by the tool."));
-        quality.put("completeness", assessedQualityMetric(
-            completeness,
-            "COMPUTED",
-            hasOutput
-                ? "Computed from execution success, returned output, and declared evidence gaps."
-                : "No usable output was returned."
-        ));
-        quality.put("consistency", assessedQualityMetric(
-            consistency,
-            "COMPUTED",
-            conflictCount == 0
-                ? "No evidence conflict was declared for this result."
-                : "Reduced by declared evidence conflicts."
-        ));
-        Object rawModelConfidence = evidenceMetadata.get("confidence");
-        Double modelConfidenceScore = explicitQualityScore(rawModelConfidence);
-        quality.put("modelConfidence", modelConfidenceScore == null
-            ? unknownQualityMetric("The model did not provide a confidence estimate.", "MODEL_ESTIMATED")
-            : assessedQualityMetric(modelConfidenceScore, "MODEL_ESTIMATED",
-                "Model-estimated confidence; excluded from evidence quality dimensions."));
-        quality.put("aggregatePolicy", "NO_PERSISTED_TOTAL_SCORE");
-        quality.put("method", "runtime_structural_quality_v1");
-        quality.put("signals", metadataOf(
-            "explicitSourceReliability", sourceReliabilityScore != null,
-            "explicitFreshness", freshnessScore != null,
-            "missingEvidenceCount", missingCount,
-            "conflictCount", conflictCount,
-            "hasOutput", hasOutput
-        ));
-        return quality;
+        return planEvidenceAnalyzer.discoveredExecutorActions(output, sourceTool, sourceStepId);
     }
 
-    private Double explicitQualityScore(Object value) {
-        Object candidate = value;
-        if (value instanceof Map<?, ?> raw) {
-            Map<String, Object> metric = asStringObjectMap(raw);
-            if ("UNKNOWN".equalsIgnoreCase(stringValue(metric.get("status")))) {
-                return null;
-            }
-            candidate = metric.get("value");
-        }
-        if (candidate instanceof Number number) {
-            return clampScore(number.doubleValue());
-        }
-        if (candidate == null || String.valueOf(candidate).isBlank()) {
-            return null;
-        }
-        try {
-            return clampScore(Double.parseDouble(String.valueOf(candidate).trim()));
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
-
-    private Map<String, Object> assessedQualityMetric(double value, String type, String reason) {
-        Map<String, Object> metric = new LinkedHashMap<>();
-        metric.put("value", clampScore(value));
-        metric.put("status", "ASSESSED");
-        metric.put("type", firstNonBlank(type, "COMPUTED"));
-        metric.put("reason", firstNonBlank(reason, "Quality dimension was assessed."));
-        return metric;
-    }
-
-    private Map<String, Object> unknownQualityMetric(String reason) {
-        return unknownQualityMetric(reason, "NOT_ASSESSED");
-    }
-
-    private Map<String, Object> unknownQualityMetric(String reason, String type) {
-        Map<String, Object> metric = new LinkedHashMap<>();
-        metric.put("value", null);
-        metric.put("status", "UNKNOWN");
-        metric.put("type", firstNonBlank(type, "NOT_ASSESSED"));
-        metric.put("reason", firstNonBlank(reason, "Quality dimension cannot be assessed."));
-        return metric;
-    }
-
-    private int collectionSize(Object value) {
-        if (value instanceof Collection<?> collection) {
-            return collection.size();
-        }
-        if (value instanceof Map<?, ?> map) {
-            return map.size();
-        }
-        return value == null || String.valueOf(value).isBlank() ? 0 : 1;
-    }
-
-    private String evidenceSource(InterpretationPlanRuntime.StepExecution step) {
-        Map<String, Object> output = asMap(step == null ? null : step.output());
-        return firstNonBlank(
-            stringValue(firstObject(output, "source", "provider", "index", "indexName", "dataset")),
-            step == null ? null : firstNonBlank(step.toolName(), step.actionType())
-        );
-    }
-
-    private Object evidenceAnalysisValue(Map<String, Object> analysis, String... keys) {
-        Object value = firstObject(analysis, keys);
-        return value == null ? List.of() : value;
+    List<Object> pendingEvidenceNextActions(List<Map<String, Object>> toolEvidence) {
+        return planEvidenceAnalyzer.pendingEvidenceNextActions(toolEvidence);
     }
 
     private boolean evidenceSufficient(Map<String, Object> snapshot) {
@@ -7019,70 +6387,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         return !evidenceRefinementRequiredTools(List.of(snapshot), availableTools).isEmpty();
     }
 
-    List<Object> pendingEvidenceNextActions(List<Map<String, Object>> toolEvidence) {
-        if (toolEvidence == null || toolEvidence.isEmpty()) {
-            return List.of();
-        }
-        List<Object> pending = new ArrayList<>();
-        for (int index = 0; index < toolEvidence.size(); index++) {
-            Map<String, Object> source = toolEvidence.get(index);
-            if (source == null) {
-                continue;
-            }
-            Object rawActions = source.get("nextActions");
-            if (!(rawActions instanceof Iterable<?> actions)) {
-                continue;
-            }
-            for (Object rawAction : actions) {
-                if (!(rawAction instanceof Map<?, ?> rawActionMap)) {
-                    addEvidenceAnalysisItems(pending, rawAction);
-                    continue;
-                }
-                Map<String, Object> action = asStringObjectMap(rawActionMap);
-                String requestedTool = stringValue(firstObject(action,
-                    "tool", "toolName", "tool_name"));
-                boolean requiredExecution = booleanValue(firstObject(action,
-                    "requiredExecution", "required_execution"));
-                if (requestedTool != null
-                    && !requiredExecution
-                    && Boolean.FALSE.equals(source.get("shouldExpandQuery"))) {
-                    continue;
-                }
-                boolean alreadyExecutedSuccessfully = false;
-                if (requestedTool != null) {
-                    for (Map<String, Object> executed : toolEvidence) {
-                        if (executed != null
-                            && Boolean.TRUE.equals(executed.get("success"))
-                            && toolNames.sameToolName(requestedTool, stringValue(executed.get("tool")))) {
-                            alreadyExecutedSuccessfully = true;
-                            break;
-                        }
-                    }
-                }
-                boolean evidenceBackedRevision = Boolean.TRUE.equals(source.get("shouldExpandQuery"))
-                    && hasMaterialEvidenceActionRevision(action);
-                if (!alreadyExecutedSuccessfully || evidenceBackedRevision) {
-                    pending.add(action);
-                }
-            }
-        }
-        return List.copyOf(pending);
-    }
-
-    private boolean hasMaterialEvidenceActionRevision(Map<String, Object> action) {
-        if (action == null || action.isEmpty()) {
-            return false;
-        }
-        Object changes = firstObject(action,
-            "input_changes", "inputChanges", "retry_input_changes", "retryInputChanges");
-        if (changes instanceof Map<?, ?> map) {
-            return !map.isEmpty();
-        }
-        if (changes instanceof Collection<?> collection) {
-            return !collection.isEmpty();
-        }
-        return changes != null && !String.valueOf(changes).isBlank();
-    }
 
     private TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {
         Object contract = metadata == null ? null : metadata.get("taskContract");
@@ -7283,336 +6587,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         return null;
     }
 
-    private void recordDagRepairEvent(Map<String, Object> runtimeAttributes,
-                                      Map<String, Object> metadata,
-                                      String eventState,
-                                      int rewriteCount,
-                                      String reason,
-                                      InterpretationPlan.Step failedStep,
-                                      List<Map<String, Object>> changes,
-                                      InterpretationPlanValidator.ValidationResult validation) {
-        String normalizedState = firstNonBlank(eventState, "UNKNOWN").toUpperCase(Locale.ROOT);
-        List<Map<String, Object>> safeChanges = changes == null ? List.of() : List.copyOf(changes);
-        List<InterpretationPlanValidator.ValidationIssue> validationIssues = validation == null
-            ? List.of()
-            : validation.issues();
-        Map<String, Object> repairEvent = metadataOf(
-            "contractVersion", dagGovernanceContractVersion(runtimeAttributes),
-            "eventKind", "DAG_REPAIR",
-            "eventState", normalizedState,
-            "repairAttempt", rewriteCount,
-            "fromIteration", rewriteCount,
-            "toIteration", rewriteCount + 1,
-            "reason", firstNonBlank(reason, "Runtime detected an evidence or execution gap."),
-            "failedStepId", failedStep == null ? null : failedStep.id(),
-            "failedToolName", failedStep == null ? null : failedStep.toolName(),
-            "changeCount", safeChanges.size(),
-            "changes", safeChanges,
-            "evidenceContext", metadata == null
-                ? Map.of()
-                : metadata.getOrDefault("latestDagRepairEvidenceContext", Map.of()),
-            "validationIssues", validationIssues,
-            "createdAt", System.currentTimeMillis()
-        );
-        if (metadata != null) {
-            metadataList(metadata, "dagRepairEvents").add(repairEvent);
-        }
-        String content = switch (normalizedState) {
-            case "STARTED" -> "Runtime started DAG repair attempt " + rewriteCount
-                + " after detecting a recoverable plan or execution failure.";
-            case "APPLIED" -> "Runtime applied DAG repair attempt " + rewriteCount
-                + " with " + safeChanges.size() + " audited change(s); validation passed.";
-            case "REJECTED" -> "DAG repair attempt " + rewriteCount
-                + " did not pass runtime validation; the next bounded recovery action will be evaluated.";
-            default -> "Runtime recorded DAG repair attempt " + rewriteCount + ".";
-        };
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            content,
-            "interpretation_plan_repair",
-            metadataOf(
-                "type", "repair",
-                "workflow", "interpretation_plan",
-                "lifecyclePhase", "dag_repair",
-                "eventKind", "DAG_REPAIR",
-                "eventState", normalizedState,
-                "repairAttempt", rewriteCount,
-                "repairEvent", repairEvent
-            )
-        );
-    }
-
-    private void recordPlannerDagRepairEvent(Map<String, Object> runtimeAttributes,
-                                             Map<String, Object> metadata,
-                                             Object rawRepairEvent) {
-        Map<String, Object> repairEvent = asMap(rawRepairEvent);
-        if (!"DAG_REPAIR".equalsIgnoreCase(stringValue(repairEvent.get("eventKind")))
-            || repairEvent.isEmpty()) {
-            return;
-        }
-        if (metadata != null) {
-            metadataList(metadata, "dagRepairEvents").add(new LinkedHashMap<>(repairEvent));
-        }
-        String repairCode = firstNonBlank(
-            stringValue(repairEvent.get("repairCode")), "AUTHORITATIVE_DAG_REPAIR");
-        String eventState = firstNonBlank(
-            stringValue(repairEvent.get("eventState")), "APPLIED");
-        boolean applied = "APPLIED".equalsIgnoreCase(eventState);
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            applied
-                ? "Runtime restored and validated the planner DAG from the authoritative workflow contract ("
-                    + repairCode + ")."
-                : "Runtime restored the authoritative workflow topology, but the planner candidate remained invalid ("
-                    + repairCode + "); deterministic Java scheduling will evaluate the pending Ready tools.",
-            "interpretation_plan_repair",
-            metadataOf(
-                "type", "repair",
-                "workflow", "interpretation_plan",
-                "lifecyclePhase", "dag_repair",
-                "eventKind", "DAG_REPAIR",
-                "eventState", eventState,
-                "repairEvent", repairEvent
-            )
-        );
-    }
-
-    private void recordPlanEvolution(
-        InterpretationPlan previousPlan,
-        InterpretationPlan nextPlan,
-        int iteration,
-        String status,
-        List<Map<String, Object>> evidenceHistory,
-        Map<String, Object> runtimeAttributes,
-        Map<String, Object> metadata
-    ) {
-        if (nextPlan == null) {
-            return;
-        }
-        Map<String, Object> trigger = evidenceHistory == null || evidenceHistory.isEmpty()
-            ? Map.of()
-            : evidenceHistory.get(evidenceHistory.size() - 1);
-        List<Map<String, Object>> changes = planChanges(previousPlan, nextPlan);
-        Map<String, Object> evolution = new LinkedHashMap<>();
-        evolution.put("contractVersion", "plan_evolution_v1");
-        evolution.put("evolutionId", firstNonBlank(
-            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
-            "agent-run"
-        ) + ":plan-evolution:" + iteration);
-        evolution.put("fromIteration", Math.max(1, iteration - 1));
-        evolution.put("toIteration", iteration);
-        evolution.put("status", firstNonBlank(status, "UNKNOWN"));
-        evolution.put("trigger", metadataOf(
-            "conclusion", trigger.get("conclusion"),
-            "missingEvidence", trigger.getOrDefault("missingEvidence", List.of()),
-            "conflicts", trigger.getOrDefault("conflicts", List.of()),
-            "nextActions", trigger.getOrDefault("nextActions", List.of()),
-            "evidenceIds", evidenceIdsFromSnapshot(trigger),
-            "hypothesisIds", hypothesisIdsFromSnapshot(trigger),
-            "evidenceRelationIds", evidenceRelationIdsFromSnapshot(trigger)
-        ));
-        evolution.put("changes", changes);
-        evolution.put("changed", !changes.isEmpty());
-        evolution.put("previousPlan", previousPlan);
-        evolution.put("nextPlan", nextPlan);
-        evolution.put("createdAt", System.currentTimeMillis());
-        addCandidateList(metadataList(metadata, "interpretationPlanEvolutionHistory"), List.of(evolution));
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            "Plan evolution " + Math.max(1, iteration - 1) + " -> " + iteration
-                + " recorded with " + changes.size() + " change(s).",
-            "interpretation_plan_evolution",
-            metadataOf(
-                "type", "plan",
-                "workflow", "interpretation_plan",
-                "lifecyclePhase", "plan_revision",
-                "contractVersion", "plan_evolution_v1",
-                "iteration", iteration,
-                "planEvolution", evolution
-            )
-        );
-    }
-
-    private List<Map<String, Object>> planChanges(InterpretationPlan previousPlan, InterpretationPlan nextPlan) {
-        Map<Integer, InterpretationPlan.Step> previous = planStepsById(previousPlan);
-        Map<Integer, InterpretationPlan.Step> next = planStepsById(nextPlan);
-        LinkedHashSet<Integer> stepIds = new LinkedHashSet<>(previous.keySet());
-        stepIds.addAll(next.keySet());
-        List<Map<String, Object>> changes = new ArrayList<>();
-        for (Integer stepId : stepIds) {
-            InterpretationPlan.Step before = previous.get(stepId);
-            InterpretationPlan.Step after = next.get(stepId);
-            if (before == null) {
-                changes.add(metadataOf("changeType", "STEP_ADDED", "stepId", stepId, "after", after));
-            } else if (after == null) {
-                changes.add(metadataOf("changeType", "STEP_REMOVED", "stepId", stepId, "before", before));
-            } else if (!Objects.equals(before, after)) {
-                List<String> fields = new ArrayList<>();
-                if (!Objects.equals(before.actionType(), after.actionType())) fields.add("actionType");
-                if (!Objects.equals(before.toolName(), after.toolName())) fields.add("toolName");
-                if (!Objects.equals(before.input(), after.input())) fields.add("input");
-                if (!Objects.equals(before.dependsOn(), after.dependsOn())) fields.add("dependsOn");
-                if (!Objects.equals(before.outputContract(), after.outputContract())) fields.add("outputContract");
-                if (!Objects.equals(before.validation(), after.validation())) fields.add("validation");
-                changes.add(metadataOf(
-                    "changeType", "STEP_MODIFIED",
-                    "stepId", stepId,
-                    "fields", fields,
-                    "before", before,
-                    "after", after
-                ));
-            }
-        }
-        if (previousPlan != null && !Objects.equals(previousPlan.executionPolicy(), nextPlan.executionPolicy())) {
-            changes.add(metadataOf(
-                "changeType", "EXECUTION_POLICY_MODIFIED",
-                "before", previousPlan.executionPolicy(),
-                "after", nextPlan.executionPolicy()
-            ));
-        }
-        if (previousPlan != null && !Objects.equals(previousPlan.intent(), nextPlan.intent())) {
-            changes.add(metadataOf(
-                "changeType", "INTENT_MODIFIED",
-                "before", previousPlan.intent(),
-                "after", nextPlan.intent()
-            ));
-        }
-        return List.copyOf(changes);
-    }
-
-    private Map<Integer, InterpretationPlan.Step> planStepsById(InterpretationPlan plan) {
-        Map<Integer, InterpretationPlan.Step> steps = new LinkedHashMap<>();
-        if (plan != null && plan.steps() != null) {
-            for (InterpretationPlan.Step step : plan.steps()) {
-                if (step != null && step.id() != null) {
-                    steps.put(step.id(), step);
-                }
-            }
-        }
-        return steps;
-    }
-
-    private List<String> evidenceIdsFromSnapshot(Map<String, Object> snapshot) {
-        if (snapshot == null || !(snapshot.get("toolEvidence") instanceof Iterable<?> evidence)) {
-            return List.of();
-        }
-        List<String> ids = new ArrayList<>();
-        for (Object item : evidence) {
-            if (item instanceof Map<?, ?> map) {
-                String id = stringValue(asStringObjectMap(map).get("evidenceId"));
-                if (id != null && !id.isBlank()) {
-                    ids.add(id);
-                }
-            }
-        }
-        return ids.stream().distinct().toList();
-    }
-
-    private List<String> hypothesisIdsFromSnapshot(Map<String, Object> snapshot) {
-        if (snapshot == null || !(snapshot.get("hypotheses") instanceof Iterable<?> hypotheses)) {
-            return List.of();
-        }
-        List<String> ids = new ArrayList<>();
-        for (Object item : hypotheses) {
-            if (item instanceof Map<?, ?> map) {
-                String id = stringValue(asStringObjectMap(map).get("hypothesisId"));
-                if (id != null && !id.isBlank()) {
-                    ids.add(id);
-                }
-            }
-        }
-        return ids.stream().distinct().toList();
-    }
-
-    private List<String> evidenceRelationIdsFromSnapshot(Map<String, Object> snapshot) {
-        if (snapshot == null) {
-            return List.of();
-        }
-        Map<String, Object> graph = asMap(snapshot.get("evidenceGraph"));
-        if (!(graph.get("relations") instanceof Iterable<?> relations)) {
-            return List.of();
-        }
-        List<String> ids = new ArrayList<>();
-        for (Object item : relations) {
-            if (item instanceof Map<?, ?> map) {
-                String id = stringValue(asStringObjectMap(map).get("relationId"));
-                if (id != null && !id.isBlank()) {
-                    ids.add(id);
-                }
-            }
-        }
-        return ids.stream().distinct().toList();
-    }
-
-    private String planAttemptRewriteSummary(
-        int nextAttempt,
-        InterpretationPlan previousPlan,
-        InterpretationPlanRuntime.ExecutionResult previousResult
-    ) {
-        return planAttemptRewriteSummary(nextAttempt, previousPlan, previousResult, List.of());
-    }
-
-    private String planAttemptRewriteSummary(
-        int nextAttempt,
-        InterpretationPlan previousPlan,
-        InterpretationPlanRuntime.ExecutionResult previousResult,
-        List<Map<String, Object>> evidenceHistory
-    ) {
-        List<String> failedSteps = new ArrayList<>();
-        if (previousResult != null && previousResult.steps() != null) {
-            for (InterpretationPlanRuntime.StepExecution step : previousResult.steps()) {
-                if (step != null && !step.success()) {
-                    failedSteps.add("step " + step.stepId()
-                        + " (" + firstNonBlank(step.toolName(), firstNonBlank(step.actionType(), "unknown")) + "): "
-                        + firstNonBlank(step.errorMessage(), "result did not satisfy review"));
-                }
-            }
-        }
-        String goal = previousPlan == null || previousPlan.intent() == null
-            ? null
-            : previousPlan.intent().goal();
-        return "Plan attempt " + nextAttempt + " rewrite context summary: previous goal="
-            + firstNonBlank(goal, "unspecified")
-            + "; previous status=" + (previousResult == null ? "unknown" : previousResult.status())
-            + "; previous error=" + firstNonBlank(
-                previousResult == null ? null : previousResult.errorMessage(),
-                "none"
-            )
-            + "; failed steps=" + failedSteps
-            + ". Generate a new complete plan from this evidence, evaluate it, then execute it only if evaluation passes."
-            + " Repair evidence context=" + stringify(repairEvidenceContext(evidenceHistory));
-    }
-
-    private Map<String, Object> repairEvidenceContext(List<Map<String, Object>> evidenceHistory) {
-        Map<String, Object> context = new LinkedHashMap<>();
-        Map<String, Object> latest = evidenceHistory == null || evidenceHistory.isEmpty()
-            ? Map.of()
-            : evidenceHistory.get(evidenceHistory.size() - 1);
-        context.put("contractVersion", "dag_repair_evidence_context_v1");
-        context.put("evidenceIds", evidenceIdsFromSnapshot(latest));
-        context.put("evidenceRelationIds", evidenceRelationIdsFromSnapshot(latest));
-        context.put("hypothesisIds", hypothesisIdsFromSnapshot(latest));
-        context.put("conclusion", latest.getOrDefault("conclusion", ""));
-        context.put("missingEvidence", latest.getOrDefault("missingEvidence", List.of()));
-        context.put("conflicts", latest.getOrDefault("conflicts", List.of()));
-        context.put("nextActions", latest.getOrDefault("nextActions", List.of()));
-        context.put("evidenceQuality", latest.getOrDefault("evidenceQuality", latest.getOrDefault("confidence", null)));
-        context.put("sourceState", latest.getOrDefault("sourceState", latest.getOrDefault("overallStatus", "UNKNOWN")));
-        return context;
-    }
-
-    private String fallbackMode(InterpretationPlan plan) {
-        String configured = plan == null || plan.executionPolicy() == null
-            ? null
-            : plan.executionPolicy().fallbackMode();
-        if ("partial_result".equals(configured) || "safe_answer".equals(configured)) {
-            return configured;
-        }
-        return "safe_answer";
-    }
 
     private void recordPlanRuntimeResult(String stage,
                                          InterpretationPlanRuntime.ExecutionResult result,
@@ -7677,103 +6651,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             metadata.put("interpretationPlan" + capitalize(stage) + "Error", result.errorMessage());
         }
         addCandidateList(metadataList(metadata, "interpretationPlanStepExecutions"), records);
-    }
-
-    private void saveInterpretationPlanSnapshot(String stage,
-                                                InterpretationPlan plan,
-                                                String tenantId,
-                                                String requestId,
-                                                Map<String, Object> runtimeAttributes,
-                                                Map<String, Object> metadata) {
-        if (interpretationPlanStore == null || plan == null) {
-            return;
-        }
-        String taskId = planTaskId(runtimeAttributes, requestId);
-        if (taskId == null || taskId.isBlank()) {
-            return;
-        }
-        String normalizedStage = stage == null || stage.isBlank() ? "generated" : stage.trim();
-        String planId = taskId + "-" + normalizedStage;
-        try {
-            Map<String, Object> dag = interpretationPlanDagConverter.convert(plan);
-            attachDagGovernanceContract(dag, runtimeAttributes);
-            InterpretationPlanRecord record = interpretationPlanStore.savePlan(
-                firstNonBlank(tenantId, "default"),
-                taskId,
-                planId,
-                plan,
-                "GENERATED",
-                dag
-            );
-            if (metadata != null) {
-                metadata.put("interpretationPlanId", record.planId());
-                metadata.put("interpretationPlanSnapshotVersion", record.version());
-                metadata.put("interpretationPlanDagStored", true);
-            }
-        } catch (RuntimeException ex) {
-            log.warn("Failed to save InterpretationPlan snapshot. taskId={} stage={} error={}",
-                taskId, normalizedStage, ex.getMessage());
-        }
-    }
-
-    private void saveInterpretationPlanSnapshot(String stage,
-                                                InterpretationPlan plan,
-                                                String tenantId,
-                                                String requestId,
-                                                Map<String, Object> runtimeAttributes,
-                                                Map<String, Object> metadata,
-                                                InterpretationPlanRuntime.ExecutionResult result) {
-        if (interpretationPlanStore == null || plan == null || result == null) {
-            return;
-        }
-        String taskId = planTaskId(runtimeAttributes, requestId);
-        if (taskId == null || taskId.isBlank()) {
-            return;
-        }
-        String normalizedStage = stage == null || stage.isBlank() ? "execution_result" : stage.trim();
-        String planId = taskId + "-" + normalizedStage;
-        try {
-            Map<String, Object> dag = interpretationPlanDagConverter.convert(plan, normalizedStage, result);
-            attachDagGovernanceContract(dag, runtimeAttributes);
-            InterpretationPlanRecord record = interpretationPlanStore.savePlan(
-                firstNonBlank(tenantId, "default"),
-                taskId,
-                planId,
-                plan,
-                result.success() ? "COMPLETED" : "FAILED",
-                dag
-            );
-            if (metadata != null) {
-                metadata.put("interpretationPlanId", record.planId());
-                metadata.put("interpretationPlanSnapshotVersion", record.version());
-                metadata.put("interpretationPlanDagStored", true);
-                metadata.put("interpretationPlanExecutionDagStored", true);
-            }
-        } catch (RuntimeException ex) {
-            log.warn("Failed to save InterpretationPlan execution snapshot. taskId={} stage={} error={}",
-                taskId, normalizedStage, ex.getMessage());
-        }
-    }
-
-    private void attachDagGovernanceContract(Map<String, Object> dag,
-                                             Map<String, Object> runtimeAttributes) {
-        if (dag == null) {
-            return;
-        }
-        Object contract = runtimeAttributes == null ? null
-            : runtimeAttributes.get(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE);
-        if (contract != null) {
-            dag.put("governanceContract", contract);
-        }
-    }
-
-    private String dagGovernanceContractVersion(Map<String, Object> runtimeAttributes) {
-        Object raw = runtimeAttributes == null ? null
-            : runtimeAttributes.get(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE);
-        Object version = raw instanceof Map<?, ?> contract ? contract.get("contractVersion") : null;
-        return version == null || String.valueOf(version).isBlank()
-            ? DagGovernanceContractProvider.INITIAL_VERSION
-            : String.valueOf(version);
     }
 
     @SuppressWarnings("unchecked")
@@ -7900,6 +6777,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             return configured;
         }
         return MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
+    }
+
+    private int collectionSize(Object value) {
+        if (value instanceof Collection<?> collection) {
+            return collection.size();
+        }
+        if (value instanceof Map<?, ?> map) {
+            return map.size();
+        }
+        return value == null || String.valueOf(value).isBlank() ? 0 : 1;
     }
 
     int initialRewriteLimit(int configuredMaxRewriteTimes,
@@ -8232,16 +7119,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                     review.required(), review.satisfied(), review.reason(),
                     review.projectedOutput(), review.auditMetadata());
             });
-    }
-
-    private String planTaskId(Map<String, Object> runtimeAttributes, String requestId) {
-        return firstNonBlank(
-            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentTaskId")),
-            firstNonBlank(
-                stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
-                requestId
-            )
-        );
     }
 
     /**

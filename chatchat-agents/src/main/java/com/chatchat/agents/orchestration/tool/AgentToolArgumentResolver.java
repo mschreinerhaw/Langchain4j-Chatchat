@@ -200,6 +200,11 @@ public class AgentToolArgumentResolver {
                 }
             }
             if (batchCalls(values) != null) {
+                Map<String, Object> reviewedBatch = reviewedInvocationBatch(
+                    toolName, values, candidates, output);
+                if (reviewedBatch != null) {
+                    values = reviewedBatch;
+                }
                 return applyObservedBatchTemplateContracts(toolName, values, candidates, output, trace, userQuery);
             }
             TemplateExecutionContractSelector.Selection contractSelection = TEMPLATE_CONTRACT_SELECTOR.select(
@@ -638,6 +643,107 @@ public class AgentToolArgumentResolver {
         denied.put(McpParamBindingResolver.CODE_KEY, "INVALID_TOOL_ARGUMENTS");
         denied.put(McpParamBindingResolver.ERROR_KEY, error);
         return denied;
+    }
+
+    /**
+     * Replaces pre-discovery planner placeholders with the complete evidence-reviewed
+     * invocation set.  The returned calls are still compiled by
+     * {@link #applyObservedBatchTemplateContracts}; this method performs no trust
+     * elevation and refuses partial, duplicate or executor-incompatible mappings.
+     */
+    private Map<String, Object> reviewedInvocationBatch(String toolName,
+                                                        Map<String, Object> values,
+                                                        List<Map<String, Object>> candidates,
+                                                        Object output) {
+        List<Map<String, Object>> invocations = reviewedTemplateInvocations(output);
+        if (invocations.isEmpty() || candidates == null || candidates.size() < 2) {
+            return null;
+        }
+        Map<String, Map<String, Object>> admitted = new LinkedHashMap<>();
+        for (Map<String, Object> candidate : candidates) {
+            String id = templateId(candidate);
+            if (id != null) admitted.putIfAbsent(id.toLowerCase(Locale.ROOT), candidate);
+        }
+        Map<String, Map<String, Object>> callsByTemplate = new LinkedHashMap<>();
+        for (Map<String, Object> invocation : invocations) {
+            String id = scalarText(firstPresent(invocation,
+                "templateId", "template_id", "template", "commandTemplate", "command_template"));
+            String actionTool = scalarText(firstPresent(invocation, "toolName", "tool_name", "tool"));
+            if (id == null || !admitted.containsKey(id.toLowerCase(Locale.ROOT))
+                || (actionTool != null && !sameExecutor(toolName, actionTool))) {
+                return null;
+            }
+            Map<String, Object> arguments = mutableMap(firstPresent(
+                invocation, "arguments", "inputChanges", "input_changes", "input"));
+            if (arguments.isEmpty()) return null;
+            arguments.put("templateId", id);
+            Map<String, Object> call = new LinkedHashMap<>();
+            call.put("toolName", toolName);
+            call.put("arguments", arguments);
+            String intent = scalarText(firstPresent(invocation, "intent", "purpose"));
+            if (intent != null) call.put("purpose", intent);
+            if (callsByTemplate.putIfAbsent(id.toLowerCase(Locale.ROOT), call) != null) {
+                return null;
+            }
+        }
+        if (!callsByTemplate.keySet().equals(admitted.keySet())) {
+            return null;
+        }
+        List<Map<String, Object>> calls = new ArrayList<>();
+        int index = 1;
+        for (String id : admitted.keySet()) {
+            Map<String, Object> call = new LinkedHashMap<>(callsByTemplate.get(id));
+            call.put("callId", "reviewed-template-" + index++);
+            calls.add(call);
+        }
+        Map<String, Object> batch = new LinkedHashMap<>();
+        copyIfPresent(values, batch, "executionMode", "batchId", "stopOnFailure");
+        batch.put("calls", List.copyOf(calls));
+        log.info("Agent batch placeholders replaced by evidence-reviewed invocations: tool={}, callCount={}",
+            toolName, calls.size());
+        return batch;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> reviewedTemplateInvocations(Object value) {
+        List<Map<String, Object>> invocations = new ArrayList<>();
+        collectReviewedTemplateInvocations(value, invocations, 0);
+        return List.copyOf(invocations);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectReviewedTemplateInvocations(Object value,
+                                                    List<Map<String, Object>> invocations,
+                                                    int depth) {
+        if (value == null || depth > 8) return;
+        if (value instanceof Iterable<?> iterable) {
+            iterable.forEach(item -> collectReviewedTemplateInvocations(item, invocations, depth + 1));
+            return;
+        }
+        if (!(value instanceof Map<?, ?> raw)) return;
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        Object selection = map.get("runtimeTemplateSelection");
+        if (selection instanceof Map<?, ?> rawSelection) {
+            Object reviewed = mutableMap(rawSelection).get("reviewedInvocations");
+            if (reviewed instanceof Iterable<?> iterable) {
+                for (Object item : iterable) {
+                    if (item instanceof Map<?, ?> invocation) {
+                        invocations.add(new LinkedHashMap<>((Map<String, Object>) invocation));
+                    }
+                }
+            }
+        }
+        for (Object nested : map.values()) {
+            collectReviewedTemplateInvocations(nested, invocations, depth + 1);
+        }
+    }
+
+    private void copyIfPresent(Map<String, Object> source,
+                               Map<String, Object> target,
+                               String... keys) {
+        for (String key : keys) {
+            if (source.get(key) != null) target.put(key, source.get(key));
+        }
     }
 
     private List<?> batchCalls(Map<String, Object> values) {

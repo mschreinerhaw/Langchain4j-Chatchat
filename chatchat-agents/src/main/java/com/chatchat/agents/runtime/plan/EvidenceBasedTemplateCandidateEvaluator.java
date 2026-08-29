@@ -58,11 +58,17 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             return Evaluation.notApplied(output,
                 "model-selected template ids were not present in the authorized MCP candidate set");
         }
+        List<Map<String, Object>> reviewedInvocations = reviewedInvocations(
+            metadata.get("nextActions"), projection.selectedIds());
+        Object invocationProjectedOutput = reviewedInvocations.isEmpty()
+            ? projection.output()
+            : attachReviewedInvocations(projection.output(), reviewedInvocations, 0);
         Map<String, Object> requirementMatch = requirementMatch(
             metadata, projection.selectedIds(), rejectedIds, evaluations,
             "RUNTIME_EVIDENCE_MODEL_REVIEW");
         Object projectedOutput = requirementMatch.isEmpty()
-            ? projection.output() : attachRequirementMatch(projection.output(), requirementMatch, 0);
+            ? invocationProjectedOutput
+            : attachRequirementMatch(invocationProjectedOutput, requirementMatch, 0);
         return new Evaluation(
             projectedOutput,
             projection.originalCount(),
@@ -249,6 +255,73 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             }
         }
         return Map.copyOf(map);
+    }
+
+    /**
+     * Carries the reviewer's per-template invocation decisions with the Runtime-owned
+     * admission projection.  Planner batch calls are authored before discovery and
+     * therefore cannot reliably contain template ids; downstream compilation may use
+     * these decisions only after re-validating them against the published contracts.
+     */
+    @SuppressWarnings("unchecked")
+    private Object attachReviewedInvocations(Object value,
+                                             List<Map<String, Object>> invocations,
+                                             int depth) {
+        if (value == null || depth > 8) return value;
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(item -> attachReviewedInvocations(item, invocations, depth + 1))
+                .toList();
+        }
+        if (!(value instanceof Map<?, ?> raw)) return value;
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        if (map.get("runtimeTemplateSelection") instanceof Map<?, ?> rawSelection) {
+            Map<String, Object> selection = new LinkedHashMap<>((Map<String, Object>) rawSelection);
+            selection.put("reviewedInvocations", List.copyOf(invocations));
+            map.put("runtimeTemplateSelection", Map.copyOf(selection));
+            return Map.copyOf(map);
+        }
+        for (String key : List.of(
+            "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
+            "routingProjection", "coverage", "preview")) {
+            if (map.get(key) != null) {
+                map.put(key, attachReviewedInvocations(map.get(key), invocations, depth + 1));
+            }
+        }
+        return Map.copyOf(map);
+    }
+
+    private List<Map<String, Object>> reviewedInvocations(Object value,
+                                                           List<String> selectedIds) {
+        Set<String> admitted = selectedIds == null ? Set.of() : selectedIds.stream()
+            .map(this::normalize)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (admitted.isEmpty()) return List.of();
+        Map<String, Map<String, Object>> byTemplate = new LinkedHashMap<>();
+        Set<String> duplicateIds = new LinkedHashSet<>();
+        for (Map<String, Object> action : maps(value)) {
+            Map<String, Object> changes = action.get("input_changes") instanceof Map<?, ?> raw
+                ? cast(raw)
+                : action.get("inputChanges") instanceof Map<?, ?> raw ? cast(raw) : Map.of();
+            String templateId = text(first(changes,
+                "templateId", "template_id", "template", "commandTemplate", "command_template"));
+            String normalizedId = normalize(templateId);
+            if (!admitted.contains(normalizedId)) continue;
+            Map<String, Object> invocation = new LinkedHashMap<>();
+            invocation.put("templateId", templateId);
+            String tool = text(first(action, "tool", "toolName", "tool_name"));
+            if (tool != null) invocation.put("toolName", tool);
+            String intent = text(first(action, "intent", "purpose"));
+            if (intent != null) invocation.put("intent", intent);
+            invocation.put("arguments", java.util.Collections.unmodifiableMap(
+                new LinkedHashMap<>(changes)));
+            if (byTemplate.putIfAbsent(normalizedId, java.util.Collections.unmodifiableMap(
+                new LinkedHashMap<>(invocation))) != null) {
+                duplicateIds.add(normalizedId);
+            }
+        }
+        duplicateIds.forEach(byTemplate::remove);
+        return List.copyOf(byTemplate.values());
     }
 
     @SuppressWarnings("unchecked")

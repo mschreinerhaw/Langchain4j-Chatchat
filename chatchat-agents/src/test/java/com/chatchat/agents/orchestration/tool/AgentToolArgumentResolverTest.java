@@ -1529,6 +1529,68 @@ class AgentToolArgumentResolverTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void replacesPlannerBatchPlaceholdersWithCompleteReviewedInvocationSet() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_customer_template_query")
+            .success(true)
+            .output("""
+                {
+                  "runtimeTemplateSelection":{
+                    "selectedTemplateIds":["asset-summary","trade-flow"],
+                    "reviewedInvocations":[
+                      {"templateId":"asset-summary","toolName":"api_template_execute",
+                       "intent":"load assets","arguments":{"templateId":"asset-summary",
+                         "parameters":{"khh":"070200046604"}}},
+                      {"templateId":"trade-flow","toolName":"api_template_execute",
+                       "intent":"load trades","arguments":{"templateId":"trade-flow",
+                         "parameters":{"khh":"070200046604"}}}
+                    ]
+                  },
+                  "templates":[
+                    {"templateId":"asset-summary","parameterContract":{"executionTool":"api_template_execute"},
+                     "parameterSchema":{"type":"object","properties":{"khh":{"type":"string"}},"required":["khh"]}},
+                    {"templateId":"trade-flow","parameterContract":{"executionTool":"api_template_execute"},
+                     "parameterSchema":{"type":"object","properties":{"khh":{"type":"string"}},"required":["khh"]}}
+                  ]
+                }
+                """)
+            .build();
+        Map<String, Object> plannerBatch = Map.of(
+            "executionMode", "SEQUENTIAL",
+            "stopOnFailure", false,
+            "calls", List.of(
+                Map.of("callId", "trade", "toolName", "mcp_runtime_api_template_execute",
+                    "arguments", Map.of("parameters", Map.of("customerNo", "070200046604"))),
+                Map.of("callId", "asset", "toolName", "mcp_runtime_api_template_execute",
+                    "arguments", Map.of("parameters", Map.of("customerNo", "070200046604"))),
+                Map.of("callId", "pnl", "toolName", "mcp_runtime_api_template_execute",
+                    "arguments", Map.of("parameters", Map.of("customerNo", "070200046604")))
+            )
+        );
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_runtime_api_template_execute", plannerBatch, List.of(discovery),
+            "query customer 070200046604 assets, trades and profit or loss");
+
+        assertThat(result)
+            .containsEntry("executionMode", "SEQUENTIAL")
+            .containsEntry(AgentToolArgumentResolver.RUNTIME_OWNED_TEMPLATE_BATCH_MARKER, true)
+            .doesNotContainKeys("__runtimeParamBindingStatus", "__runtimeParamBindingError");
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            assertThat(calls.toString())
+                .contains("asset-summary", "trade-flow", "070200046604")
+                .doesNotContain("callId=trade", "callId=asset", "callId=pnl");
+            assertThat(calls).allSatisfy(raw -> {
+                Map<String, Object> call = (Map<String, Object>) raw;
+                Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+                assertThat(arguments.get(McpTemplateBindingEvidence.CONTEXT_KEY)).isNotNull();
+            });
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void mandatoryRecoveryResolvesJsonPathTemplateAndCarriesCanonicalAssetIdentity() {
         String discoveryTool = "mcp_runtime_server_capability_query";
         String executionTool = "mcp_runtime_linux_command_execute";

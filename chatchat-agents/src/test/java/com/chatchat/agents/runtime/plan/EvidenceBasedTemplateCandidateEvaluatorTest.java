@@ -80,6 +80,43 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
+    void carriesOnlyAdmittedReviewedInvocationsIntoRuntimeSelection() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset-summary"),
+                    Map.of("templateId", "trade-flow"),
+                    Map.of("templateId", "unrelated")
+                )),
+                Map.of(
+                    "selectedTemplateIds", List.of("asset-summary", "trade-flow"),
+                    "nextActions", List.of(
+                        Map.of(
+                            "tool", "api_template_execute",
+                            "intent", "load assets",
+                            "input_changes", Map.of(
+                                "templateId", "asset-summary",
+                                "parameters", Map.of("khh", "070200046604"))),
+                        Map.of(
+                            "tool", "api_template_execute",
+                            "intent", "load trades",
+                            "input_changes", Map.of(
+                                "templateId", "trade-flow",
+                                "parameters", Map.of("khh", "070200046604"))),
+                        Map.of(
+                            "tool", "api_template_execute",
+                            "input_changes", Map.of("templateId", "invented"))
+                    )
+                )
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.output().toString())
+            .contains("reviewedInvocations", "asset-summary", "trade-flow", "070200046604")
+            .doesNotContain("templateId=invented");
+    }
+
+    @Test
     void recordsQuestionAndActualContextInCommonTemplateMatchAnalysis() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(

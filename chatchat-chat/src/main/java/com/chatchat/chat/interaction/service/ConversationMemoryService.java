@@ -97,10 +97,21 @@ public class ConversationMemoryService {
     }
 
     public void append(String conversationId, String role, String content, Object sources, Object traces, Object memoryContext) {
+        append(conversationId, role, content, sources, traces, memoryContext, null);
+    }
+
+    public void append(String conversationId,
+                       String role,
+                       String content,
+                       Object sources,
+                       Object traces,
+                       Object memoryContext,
+                       String taskId) {
         if (content == null || content.isBlank()) {
             return;
         }
-        conversationService.appendMessage(conversationId, role, content, toMaps(sources), toMaps(traces), toMap(memoryContext));
+        conversationService.appendMessage(
+            conversationId, role, content, toMaps(sources), toMaps(traces), toMap(memoryContext), taskId);
     }
 
     private List<Map<String, Object>> toMaps(Object value) {

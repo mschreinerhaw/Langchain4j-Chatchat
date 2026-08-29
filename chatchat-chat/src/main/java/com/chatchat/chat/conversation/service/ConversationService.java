@@ -713,6 +713,17 @@ public class ConversationService {
                                               List<Map<String, Object>> sources,
                                               List<Map<String, Object>> traces,
                                               Map<String, Object> memoryContext) {
+        return appendMessage(conversationId, role, content, sources, traces, memoryContext, null);
+    }
+
+    @Transactional
+    public Conversation.Message appendMessage(String conversationId,
+                                              String role,
+                                              String content,
+                                              List<Map<String, Object>> sources,
+                                              List<Map<String, Object>> traces,
+                                              Map<String, Object> memoryContext,
+                                              String taskId) {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException("Message content cannot be empty");
         }
@@ -731,6 +742,7 @@ public class ConversationService {
             .sources(copyMaps(sources))
             .traces(copyMaps(traces))
             .memoryContext(copyMap(memoryContext))
+            .taskId(blankToNull(taskId))
             .build();
         String rocksKey = detailStore.put(detail);
 

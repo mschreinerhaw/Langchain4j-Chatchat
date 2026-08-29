@@ -85,6 +85,7 @@ public class InteractionOrchestrationService {
         }
 
         String requestId = UUID.randomUUID().toString();
+        String agentTaskId = agentTaskId(request);
         String tenantId = normalizeTenantId(request.getTenantId());
         String conversationId = memoryService.ensureConversationId(tenantId, request.getConversationId(), request.getUserId());
         int historyWindow = request.getHistoryWindow() == null
@@ -128,7 +129,8 @@ public class InteractionOrchestrationService {
                 response.getAnswer(),
                 response.getSources(),
                 response.getToolTraces(),
-                memoryService.responseMemoryContext(response, tenantId, conversationId, requestId)
+                memoryService.responseMemoryContext(response, tenantId, conversationId, requestId),
+                agentTaskId
             );
             memoryService.maybeRefreshSummary(tenantId, conversationId);
         }
@@ -142,6 +144,16 @@ public class InteractionOrchestrationService {
         log.info("[{}] Interaction completed. mode={}, conversationId={}",
             requestId, mode.code(), conversationId);
         return response;
+    }
+
+    private String agentTaskId(InteractionRequest request) {
+        Object value = request == null || request.getToolInput() == null
+            ? null
+            : request.getToolInput().get("__agentTaskId");
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return String.valueOf(value).trim();
     }
 
     static boolean latestMessageIsSameUserQuestion(List<ConversationMemoryService.MessageSnapshot> history,

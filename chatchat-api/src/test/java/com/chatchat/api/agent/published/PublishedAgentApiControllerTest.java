@@ -137,7 +137,7 @@ class PublishedAgentApiControllerTest {
                 .status("WAIT_TOOL")
                 .eventScope("TASK")
                 .toolName("finance_lookup")
-                .payload("{\"symbol\":\"ACME\",\"authorization\":\"Bearer secret\",\"tenantId\":\"private\",\"metadata\":{\"taskId\":\"tenant:run:tool\"},\"__runtime\":{\"secret\":\"private\"}}")
+                .payload("{\"message\":\"Calling finance lookup\",\"toolName\":\"finance_lookup\",\"authorization\":\"Bearer secret\",\"tenantId\":\"private\",\"answer\":\"must only be returned by the answer endpoint\",\"debug\":{\"trace\":\"private\"},\"metadata\":{\"taskId\":\"tenant:run:tool\",\"stage\":\"TOOL_STARTED\"},\"__runtime\":{\"secret\":\"private\"}}")
                 .createTime(1_787_932_800_000L)
                 .build(),
             AgentEvent.builder().eventId("event-9").sequence(9L).type("STATUS")
@@ -155,11 +155,15 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.events.length()").value(2))
             .andExpect(jsonPath("$.data.events[0].eventId").value("event-8"))
             .andExpect(jsonPath("$.data.events[0].sequence").value(8))
-            .andExpect(jsonPath("$.data.events[0].payload.symbol").value("ACME"))
-            .andExpect(jsonPath("$.data.events[0].payload.authorization").value("[REDACTED]"))
+            .andExpect(jsonPath("$.data.events[0].payload.message").value("Calling finance lookup"))
+            .andExpect(jsonPath("$.data.events[0].payload.toolName").value("finance_lookup"))
+            .andExpect(jsonPath("$.data.events[0].payload.metadata.stage").value("TOOL_STARTED"))
+            .andExpect(jsonPath("$.data.events[0].payload.authorization").doesNotExist())
             .andExpect(jsonPath("$.data.events[0].payload.tenantId").doesNotExist())
             .andExpect(jsonPath("$.data.events[0].payload.metadata.taskId").doesNotExist())
             .andExpect(jsonPath("$.data.events[0].payload.__runtime").doesNotExist())
+            .andExpect(jsonPath("$.data.events[0].payload.answer").doesNotExist())
+            .andExpect(jsonPath("$.data.events[0].payload.debug").doesNotExist())
             .andExpect(jsonPath("$.data.eventCursor").value(9))
             .andExpect(jsonPath("$.data.hasMoreEvents").value(true));
     }

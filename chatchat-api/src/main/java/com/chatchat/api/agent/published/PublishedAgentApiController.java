@@ -37,6 +37,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -56,6 +57,18 @@ public class PublishedAgentApiController {
     private static final int MAX_HISTORY_WINDOW = 100;
     private static final int DEFAULT_EVENT_LIMIT = 50;
     private static final int MAX_EVENT_LIMIT = 200;
+    private static final int MAX_PUBLIC_EVENT_TEXT_LENGTH = 2_000;
+    private static final Set<String> PUBLIC_EVENT_PAYLOAD_FIELDS = Set.of(
+        "message", "question", "query", "type", "source", "contentpreview", "stage",
+        "status", "state", "scope", "toolname", "outcome", "action", "progress",
+        "current", "total", "index", "count", "step", "stepid", "stepindex", "stepcount",
+        "chunkindex", "chunkcount", "recordfrom", "recordto", "recordcount",
+        "workindex", "workcount", "workerid", "heartbeatintervalms", "elapsedms",
+        "latencyms", "errorcode", "errormessage", "retrycount", "retryable",
+        "createdat", "occurredat", "timestamp", "mode", "handler", "tooltracecount",
+        "contractversion", "runtimeeventtype", "ready", "answeravailable",
+        "payload", "metadata", "request"
+    );
 
     private final AgentTaskService taskService;
     private final SkillCatalogService skillCatalogService;
@@ -153,27 +166,45 @@ public class PublishedAgentApiController {
         }
         try {
             Object value = objectMapper.readValue(payload, Object.class);
-            return redactSensitiveValues(value);
+            return projectPublicEventValue(value);
         } catch (JsonProcessingException ignored) {
-            return payload;
+            return Map.of("message", boundedEventText(payload));
         }
     }
 
-    private Object redactSensitiveValues(Object value) {
+    private Object projectPublicEventValue(Object value) {
         if (value instanceof Map<?, ?> source) {
             Map<String, Object> target = new LinkedHashMap<>();
             source.forEach((key, child) -> {
                 String name = String.valueOf(key);
-                if (!privateEventField(name)) {
-                    target.put(name, sensitiveEventField(name) ? "[REDACTED]" : redactSensitiveValues(child));
+                if (publicEventField(name) && !sensitiveEventField(name) && !privateEventField(name)) {
+                    target.put(name, projectPublicEventValue(child));
                 }
             });
             return target;
         }
         if (value instanceof List<?> source) {
-            return source.stream().map(this::redactSensitiveValues).toList();
+            return source.stream().limit(20).map(this::projectPublicEventValue).toList();
+        }
+        if (value instanceof String text) {
+            return boundedEventText(text);
         }
         return value;
+    }
+
+    private boolean publicEventField(String name) {
+        if (name == null) {
+            return false;
+        }
+        String normalized = name.replace("_", "").replace("-", "").toLowerCase();
+        return PUBLIC_EVENT_PAYLOAD_FIELDS.contains(normalized);
+    }
+
+    private String boundedEventText(String value) {
+        if (value == null || value.length() <= MAX_PUBLIC_EVENT_TEXT_LENGTH) {
+            return value;
+        }
+        return value.substring(0, MAX_PUBLIC_EVENT_TEXT_LENGTH) + "…";
     }
 
     private boolean sensitiveEventField(String name) {

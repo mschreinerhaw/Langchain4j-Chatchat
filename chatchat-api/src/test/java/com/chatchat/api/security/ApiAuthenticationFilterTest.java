@@ -67,6 +67,23 @@ class ApiAuthenticationFilterTest {
     }
 
     @Test
+    void authenticatesTokenOnPublishedAgentPathBeforeRoutingRejectsUnsupportedMethod() throws Exception {
+        String path = "/api/v1/published-agents/demo/questions";
+        MockHttpServletRequest request = request("PUT", path, "ccat_secret");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(tokenService.looksLikeApiToken("ccat_secret")).thenReturn(true);
+        when(tokenService.authenticate("ccat_secret", "127.0.0.1", path))
+            .thenReturn(new AgentApiTokenService.Authentication("token-id", "user-id", "alice", "tenant-id"));
+        when(adminService.getUserView("user-id")).thenReturn(new EnterpriseAdminService.UserView(
+            "user-id", "tenant-id", 100001L, "Tenant", null, "alice", "Alice", null, null,
+            "enabled", null, List.of("role-id"), List.of(), Instant.now(), Instant.now(), false));
+
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
     void legacyEmbedLoginIsNoLongerPublic() throws Exception {
         MockHttpServletRequest request = request("POST", "/api/v1/enterprise/auth/embed-login", "");
         MockHttpServletResponse response = new MockHttpServletResponse();

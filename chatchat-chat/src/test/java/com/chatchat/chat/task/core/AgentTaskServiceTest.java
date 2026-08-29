@@ -32,7 +32,7 @@ import com.chatchat.chat.task.core.AgentTaskCancellationRegistry;
 
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
-import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;

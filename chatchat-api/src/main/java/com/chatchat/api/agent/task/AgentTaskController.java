@@ -2,8 +2,8 @@ package com.chatchat.api.agent.task;
 
 import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.tool.ToolRuntimeSnapshot;
-import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
-import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanRecord;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.chat.task.learning.AgentEffectAnalytics;
 import com.chatchat.chat.task.event.AgentEvent;

@@ -1,7 +1,7 @@
 package com.chatchat.api;
 
-import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
-import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanRecord;
+import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.chat.task.event.AgentEvent;
 import com.chatchat.chat.task.event.AgentEventStore;
 import com.chatchat.chat.task.core.AgentTaskLatestEntity;

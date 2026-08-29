@@ -1,6 +1,6 @@
 package com.chatchat.chat.dag;
 
-import com.chatchat.agents.runtime.plan.NodeAttemptStore;
+import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

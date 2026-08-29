@@ -278,17 +278,17 @@ public class PublishedAgentApiController {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Unable to generate curl request body", ex);
         }
-        String submit = "curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 30 --request POST \"${AGENT_BASE_URL}/api/v1/published-agents/"
+        String submit = "curl --silent --show-error --fail --connect-timeout 10 --max-time 30 --request POST \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Accept: application/json\" \\\n"
             + "  --header \"Content-Type: application/json\" \\\n"
             + "  --data '" + body.replace("'", "'\\''") + "'";
-        String status = "curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 30 --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
+        String status = "curl --silent --show-error --fail --connect-timeout 10 --max-time 30 --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/status?afterSequence=${EVENT_CURSOR:-0}&eventLimit=100\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Accept: application/json\"";
-        String answer = "curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 30 --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
+        String answer = "curl --silent --show-error --fail --connect-timeout 10 --max-time 30 --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/answer\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Accept: application/json\"";
@@ -296,7 +296,10 @@ public class PublishedAgentApiController {
             + "export AGENT_TOKEN=\"<paste-agent-api-token>\"\n\n"
             + "# This example uses jq to read data.taskId from the submit response.\n"
             + "# 1. Submit a question. sessionId uses the same UUID format as ChatChat sessions.\n"
-            + "SUBMIT_RESPONSE=$(" + submit + ")\n"
+            + "if ! SUBMIT_RESPONSE=$(" + submit + "); then\n"
+            + "  echo \"Failed to submit the Agent question. Check the URL, token and HTTP error above.\" >&2\n"
+            + "  exit 1\n"
+            + "fi\n"
             + "printf '%s\\n' \"${SUBMIT_RESPONSE}\"\n"
             + "TASK_ID=$(printf '%s' \"${SUBMIT_RESPONSE}\" | jq -r '.data.taskId // empty')\n"
             + "if [ -z \"${TASK_ID}\" ]; then\n"
@@ -308,7 +311,10 @@ public class PublishedAgentApiController {
             + "POLL_STARTED_AT=$(date +%s)\n"
             + "# 2. Poll run status until data.terminal is true.\n"
             + "while true; do\n"
-            + "  STATUS_RESPONSE=$(" + status + ")\n"
+            + "  if ! STATUS_RESPONSE=$(" + status + "); then\n"
+            + "    echo \"Failed to query Agent task ${TASK_ID}.\" >&2\n"
+            + "    exit 1\n"
+            + "  fi\n"
             + "  printf '%s\\n' \"${STATUS_RESPONSE}\"\n"
             + "  EVENT_CURSOR=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.eventCursor // 0')\n"
             + "  TERMINAL=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.terminal // false')\n"

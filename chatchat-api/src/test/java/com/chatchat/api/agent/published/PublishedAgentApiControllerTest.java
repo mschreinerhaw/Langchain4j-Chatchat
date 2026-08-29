@@ -198,6 +198,11 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("POLL_TIMEOUT_SECONDS=900")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("exit 124")))
             .andExpect(jsonPath("$.data.submitCurl").value(org.hamcrest.Matchers.containsString("--connect-timeout 10 --max-time 30")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.not(
+                org.hamcrest.Matchers.containsString("--fail-with-body"))))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("--fail --connect-timeout")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("if ! SUBMIT_RESPONSE=$(")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("if ! STATUS_RESPONSE=$(")))
             .andExpect(jsonPath("$.data.statusCurl").value(org.hamcrest.Matchers.containsString("afterSequence=")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.answerAvailable")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.not(

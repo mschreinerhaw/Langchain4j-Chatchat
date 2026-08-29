@@ -25,6 +25,17 @@ public interface AgentEventStore {
     List<AgentEvent> listByTask(String tenantId, String sessionId, String taskId, int limit);
 
     /**
+     * Lists task events whose sequence is greater than the caller's cursor.
+     */
+    default List<AgentEvent> listByTaskAfter(String tenantId, String sessionId, String taskId,
+                                             long afterSequence, int limit) {
+        return listByTask(tenantId, sessionId, taskId, Integer.MAX_VALUE).stream()
+            .filter(event -> event.getSequence() != null && event.getSequence() > Math.max(0L, afterSequence))
+            .limit(Math.max(1, limit))
+            .toList();
+    }
+
+    /**
      * Finds the first by task and type.
      *
      * @param tenantId the tenant id value

@@ -68,6 +68,22 @@ public class DatabaseAgentEventStore implements AgentEventStore {
             .stream().map(this::toEvent).toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<AgentEvent> listByTaskAfter(String tenantId, String sessionId, String taskId,
+                                            long afterSequence, int limit) {
+        if (tenantId == null || tenantId.isBlank() || sessionId == null || sessionId.isBlank()
+            || taskId == null || taskId.isBlank()) {
+            return List.of();
+        }
+        int bounded = Math.max(1, Math.min(limit, 100_000));
+        return repository
+            .findByTenantIdAndSessionIdAndTaskIdAndSequenceGreaterThanOrderBySequenceAscCreatedAtAsc(
+                tenantId.trim(), sessionId.trim(), taskId.trim(), Math.max(0L, afterSequence),
+                PageRequest.of(0, bounded))
+            .stream().map(this::toEvent).toList();
+    }
+
     private DatabaseAgentEventEntity toEntity(AgentEvent event) {
         DatabaseAgentEventEntity entity = new DatabaseAgentEventEntity();
         entity.setEventId(event.getEventId());

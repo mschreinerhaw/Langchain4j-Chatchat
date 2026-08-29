@@ -381,6 +381,14 @@ public class AgentTaskService {
         return eventStore.listByTask(task.getTenantId(), task.getSessionId(), taskId, normalizedLimit);
     }
 
+    /** Lists an incremental page of events after the supplied sequence cursor. */
+    public List<AgentEvent> listEventsAfter(String tenantId, String taskId, long afterSequence, int limit) {
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
+        int normalizedLimit = limit <= 0 ? properties.getListLimit() : Math.min(limit, 500);
+        return eventStore.listByTaskAfter(
+            task.getTenantId(), task.getSessionId(), taskId, Math.max(0L, afterSequence), normalizedLimit);
+    }
+
     /**
      * Performs the summarize runtime operation.
      *

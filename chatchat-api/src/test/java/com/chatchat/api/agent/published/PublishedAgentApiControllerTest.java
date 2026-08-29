@@ -6,6 +6,7 @@ import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.task.core.AgentTaskResponse;
 import com.chatchat.chat.task.core.AgentTaskService;
 import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
+import com.chatchat.chat.task.event.AgentEvent;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,10 @@ class PublishedAgentApiControllerTest {
         when(skillCatalogService.isPublished("finance-agent")).thenReturn(true);
         when(skillCatalogService.resolve("finance-agent")).thenReturn(publishedAgent());
         when(enterpriseAdminService.canAccessAgent(anyString(), anyString())).thenReturn(true);
+        when(taskService.listEventsAfter(
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyInt()))
+            .thenReturn(List.of());
     }
 
     @Test
@@ -106,7 +111,10 @@ class PublishedAgentApiControllerTest {
                 .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.terminal").value(true))
-            .andExpect(jsonPath("$.data.answerAvailable").value(true));
+            .andExpect(jsonPath("$.data.answerAvailable").value(true))
+            .andExpect(jsonPath("$.data.events").isArray())
+            .andExpect(jsonPath("$.data.eventCursor").value(0))
+            .andExpect(jsonPath("$.data.hasMoreEvents").value(false));
 
         mockMvc.perform(get("/api/v1/published-agents/finance-agent/questions/task-1/answer")
                 .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
@@ -115,6 +123,42 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.ready").value(true))
             .andExpect(jsonPath("$.data.answer").value("Revenue grew 12%."))
             .andExpect(jsonPath("$.data.references[0].title").value("Q2 report"));
+    }
+
+    @Test
+    void returnsIncrementalSanitizedEventsWithCursor() throws Exception {
+        when(taskService.get("tenant-a", "task-1"))
+            .thenReturn(Optional.of(task("user-a", "RUNNING", "EXECUTING")));
+        when(taskService.listEventsAfter("tenant-a", "task-1", 7L, 3)).thenReturn(List.of(
+            AgentEvent.builder()
+                .eventId("event-8")
+                .sequence(8L)
+                .type("TOOL_CALL")
+                .status("WAIT_TOOL")
+                .eventScope("TASK")
+                .toolName("finance_lookup")
+                .payload("{\"symbol\":\"ACME\",\"authorization\":\"Bearer secret\"}")
+                .createTime(1_787_932_800_000L)
+                .build(),
+            AgentEvent.builder().eventId("event-9").sequence(9L).type("STATUS")
+                .status("RUNNING").payload("{\"message\":\"working\"}").createTime(1_787_932_801_000L).build(),
+            AgentEvent.builder().eventId("event-10").sequence(10L).type("THINK")
+                .status("RUNNING").payload("{}").createTime(1_787_932_802_000L).build()
+        ));
+
+        mockMvc.perform(get("/api/v1/published-agents/finance-agent/questions/task-1/status")
+                .param("afterSequence", "7")
+                .param("eventLimit", "2")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.events.length()").value(2))
+            .andExpect(jsonPath("$.data.events[0].eventId").value("event-8"))
+            .andExpect(jsonPath("$.data.events[0].sequence").value(8))
+            .andExpect(jsonPath("$.data.events[0].payload.symbol").value("ACME"))
+            .andExpect(jsonPath("$.data.events[0].payload.authorization").value("[REDACTED]"))
+            .andExpect(jsonPath("$.data.eventCursor").value(9))
+            .andExpect(jsonPath("$.data.hasMoreEvents").value(true));
     }
 
     @Test
@@ -140,6 +184,8 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("TASK_ID=$(")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("while true")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.terminal")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.eventCursor")))
+            .andExpect(jsonPath("$.data.statusCurl").value(org.hamcrest.Matchers.containsString("afterSequence=")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.answerAvailable")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.not(
                 org.hamcrest.Matchers.containsString("export TASK_ID"))));

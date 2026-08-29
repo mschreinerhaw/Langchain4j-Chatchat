@@ -11,6 +11,9 @@ public interface DatabaseAgentEventRepository extends JpaRepository<DatabaseAgen
     List<DatabaseAgentEventEntity> findByTenantIdAndSessionIdAndTaskIdOrderBySequenceAscCreatedAtAsc(
         String tenantId, String sessionId, String taskId, Pageable pageable);
 
+    List<DatabaseAgentEventEntity> findByTenantIdAndSessionIdAndTaskIdAndSequenceGreaterThanOrderBySequenceAscCreatedAtAsc(
+        String tenantId, String sessionId, String taskId, long sequence, Pageable pageable);
+
     Optional<DatabaseAgentEventEntity> findTopByTenantIdAndSessionIdAndTaskIdOrderBySequenceDesc(
         String tenantId, String sessionId, String taskId);
 }

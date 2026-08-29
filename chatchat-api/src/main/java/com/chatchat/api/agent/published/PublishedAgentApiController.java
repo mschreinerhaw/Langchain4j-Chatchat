@@ -7,6 +7,7 @@ import com.chatchat.chat.task.core.AgentExecutionState;
 import com.chatchat.chat.task.core.AgentTaskResponse;
 import com.chatchat.chat.task.core.AgentTaskService;
 import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
+import com.chatchat.chat.task.event.AgentEvent;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -52,6 +54,8 @@ import java.util.UUID;
 public class PublishedAgentApiController {
 
     private static final int MAX_HISTORY_WINDOW = 100;
+    private static final int DEFAULT_EVENT_LIMIT = 50;
+    private static final int MAX_EVENT_LIMIT = 200;
 
     private final AgentTaskService taskService;
     private final SkillCatalogService skillCatalogService;
@@ -105,17 +109,77 @@ public class PublishedAgentApiController {
     public ResponseEntity<ApiResponse<PublishedAgentRunStatus>> status(
         @PathVariable("agentId") String agentId,
         @PathVariable("taskId") String taskId,
+        @RequestParam(value = "afterSequence", defaultValue = "0") long afterSequence,
+        @RequestParam(value = "eventLimit", defaultValue = "50") int eventLimit,
         HttpServletRequest servletRequest
     ) {
         RequestIdentity identity = requireIdentity(servletRequest);
         AgentTaskResponse task = requireOwnedTask(identity, agentId, taskId);
         boolean terminal = terminal(task);
+        long normalizedCursor = Math.max(0L, afterSequence);
+        int normalizedLimit = Math.max(1, Math.min(MAX_EVENT_LIMIT,
+            eventLimit <= 0 ? DEFAULT_EVENT_LIMIT : eventLimit));
+        List<AgentEvent> eventPage = taskService.listEventsAfter(
+            identity.tenantId(), task.taskId(), normalizedCursor, normalizedLimit + 1);
+        boolean hasMoreEvents = eventPage.size() > normalizedLimit;
+        List<PublishedAgentEvent> events = eventPage.stream()
+            .limit(normalizedLimit)
+            .map(this::toPublishedEvent)
+            .toList();
+        long eventCursor = events.isEmpty()
+            ? normalizedCursor
+            : events.get(events.size() - 1).sequence();
         return ok(new PublishedAgentRunStatus(
             task.taskId(), task.executionId(), task.attemptId(), task.attemptNumber(), task.sessionId(),
             task.agentId(), task.status(), task.canonicalState(), terminal,
             terminal && hasText(task.answerSummary()), task.errorMessage(), task.createTime(), task.updateTime(),
-            answerPath(task.agentId(), task.taskId())
+            answerPath(task.agentId(), task.taskId()), events, eventCursor, hasMoreEvents
         ));
+    }
+
+    private PublishedAgentEvent toPublishedEvent(AgentEvent event) {
+        return new PublishedAgentEvent(
+            event.getEventId(), event.getSequence() == null ? 0L : event.getSequence(),
+            event.getType(), event.getStatus(), event.getEventScope(), event.getParentEventId(),
+            event.getExecutionId(), event.getAttemptId(), event.getToolName(),
+            publicEventPayload(event.getPayload()), event.getLatencyMs(), event.getErrorCode(),
+            event.getRetryCount(), Instant.ofEpochMilli(event.getCreateTime())
+        );
+    }
+
+    private Object publicEventPayload(String payload) {
+        if (!hasText(payload)) {
+            return null;
+        }
+        try {
+            Object value = objectMapper.readValue(payload, Object.class);
+            return redactSensitiveValues(value);
+        } catch (JsonProcessingException ignored) {
+            return payload;
+        }
+    }
+
+    private Object redactSensitiveValues(Object value) {
+        if (value instanceof Map<?, ?> source) {
+            Map<String, Object> target = new LinkedHashMap<>();
+            source.forEach((key, child) -> {
+                String name = String.valueOf(key);
+                target.put(name, sensitiveEventField(name) ? "[REDACTED]" : redactSensitiveValues(child));
+            });
+            return target;
+        }
+        if (value instanceof List<?> source) {
+            return source.stream().map(this::redactSensitiveValues).toList();
+        }
+        return value;
+    }
+
+    private boolean sensitiveEventField(String name) {
+        String normalized = name == null ? "" : name.replace("_", "").replace("-", "").toLowerCase();
+        return normalized.contains("token") || normalized.contains("password")
+            || normalized.contains("secret") || normalized.contains("authorization")
+            || normalized.contains("apikey") || normalized.contains("credential")
+            || normalized.contains("cookie");
     }
 
     @GetMapping("/{agentId}/questions/{taskId}/answer")
@@ -174,7 +238,7 @@ public class PublishedAgentApiController {
             + "  --header \"Content-Type: application/json\" \\\n"
             + "  --data '" + body.replace("'", "'\\''") + "'";
         String status = "curl --silent --show-error --fail-with-body --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
-            + escapedAgentId + "/questions/${TASK_ID}/status\" \\\n"
+            + escapedAgentId + "/questions/${TASK_ID}/status?afterSequence=${EVENT_CURSOR:-0}&eventLimit=100\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\"";
         String answer = "curl --silent --show-error --fail-with-body --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/answer\" \\\n"
@@ -190,10 +254,12 @@ public class PublishedAgentApiController {
             + "  echo \"Unable to read data.taskId from the submit response.\" >&2\n"
             + "  exit 1\n"
             + "fi\n\n"
+            + "EVENT_CURSOR=0\n"
             + "# 2. Poll run status until data.terminal is true.\n"
             + "while true; do\n"
             + "  STATUS_RESPONSE=$(" + status + ")\n"
             + "  printf '%s\\n' \"${STATUS_RESPONSE}\"\n"
+            + "  EVENT_CURSOR=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.eventCursor // 0')\n"
             + "  TERMINAL=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.terminal // false')\n"
             + "  if [ \"${TERMINAL}\" = \"true\" ]; then\n"
             + "    break\n"
@@ -400,7 +466,28 @@ public class PublishedAgentApiController {
         String error,
         Instant createdAt,
         Instant updatedAt,
-        String answerUrl
+        String answerUrl,
+        List<PublishedAgentEvent> events,
+        long eventCursor,
+        boolean hasMoreEvents
+    ) {
+    }
+
+    public record PublishedAgentEvent(
+        String eventId,
+        long sequence,
+        String type,
+        String status,
+        String scope,
+        String parentEventId,
+        String executionId,
+        String attemptId,
+        String toolName,
+        Object payload,
+        Long latencyMs,
+        String errorCode,
+        Integer retryCount,
+        Instant occurredAt
     ) {
     }
 

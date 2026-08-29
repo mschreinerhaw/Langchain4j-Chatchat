@@ -127,6 +127,18 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Dataset chunking, retry, checkpoint and reduction must remain worker-owned");
         assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisObjectiveContractCompiler.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Question-to-dataset obligations must remain independent from model prompting");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisSemanticContractCompiler.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Producer-declared semantics must remain independent from record-shape profiling");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisRecordScopeProfiler.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Returned-record structural profiling must remain deterministic and semantics-free");
+        assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisSummaryGovernanceCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Final analysis governance must remain independent from Driver scheduling");

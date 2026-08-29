@@ -163,6 +163,13 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             }
             if (!values.isEmpty()) evidence.put(key, List.copyOf(values));
         }
+        List<Object> objectiveAlignments = inputs.stream()
+            .map(input -> input.evidence().get("objectiveAlignment"))
+            .filter(value -> value instanceof Map<?, ?> map && !map.isEmpty())
+            .toList();
+        if (!objectiveAlignments.isEmpty()) {
+            evidence.put("objectiveAlignments", objectiveAlignments);
+        }
         evidence.put("rawReplayRecommended", inputs.stream().anyMatch(input ->
             Boolean.TRUE.equals(input.evidence().get("rawReplayRecommended"))));
         return Collections.unmodifiableMap(evidence);
@@ -182,9 +189,18 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + requiredQuestion(objective) + "\n"
             + "Reduction context: " + ModelProtocolJson.compact(reduceContext) + "\n"
             + "Upstream summaries: " + ModelProtocolJson.compact(projections) + "\n"
-            + "Produce a concise business analysis. Preserve material values, conflicts, limitations, dataset identity, "
-            + "and cite upstream resultId values inline. Do not infer relationships beyond the reduction context. "
-            + "Do not output raw rows or execution metadata.";
+            + "Produce a concise business analysis that directly answers the original question. Treat upstream "
+            + "objectiveAlignment as a coverage contract: merge addressed aspects, retain unsupported aspects, and "
+            + "do not replace an unsupported requested metric. Field meaning, aggregation, additivity, proxy "
+            + "relationships, population scope, and completeness are valid only when explicitly producer-declared "
+            + "in upstream analysisContext. Never infer them from field names, repeated values, chunk shape, or "
+            + "correlation. Without a declaration, preserve the observation, mark the semantic operation unknown, "
+            + "and do not aggregate, deduplicate, substitute, or generalize it. Distinguish returned-detail-row "
+            + "coverage from explicitly declared comparison/population coverage and source completeness. "
+            + "Do not promote chunk-local extrema, rankings, or trends to dataset/global conclusions unless completeness "
+            + "is explicitly evidenced. Preserve material exact values, conflicts, limitations, dataset identity, and "
+            + "cite upstream resultId values inline. Do not infer relationships beyond the reduction context. "
+            + "Do not concatenate chunk summaries, output raw rows, or discuss execution metadata.";
         try {
             String result = model.generate(prompt);
             return result == null || result.isBlank() ? null : result.trim();
@@ -203,6 +219,10 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("evidenceId", summary.evidence().get("evidenceId"));
         result.put("conflicts", summary.evidence().getOrDefault("conflicts", List.of()));
         result.put("limitations", summary.evidence().getOrDefault("limitations", List.of()));
+        result.put("objectiveAlignment",
+            summary.evidence().getOrDefault("objectiveAlignment", Map.of()));
+        result.put("facts", summary.evidence().getOrDefault("facts", List.of()));
+        result.put("recordCount", summary.evidence().getOrDefault("recordCount", 0));
         result.put("sourceComplete", summary.evidence().getOrDefault("sourceComplete", true));
         return Collections.unmodifiableMap(result);
     }

@@ -155,7 +155,10 @@ class HierarchicalAnalysisReducerTest {
         assertThat(result.scope()).isEqualTo("DATASET_SYNTHESIS");
         assertThat(reductionPrompt.get())
             .contains("Original user question (authoritative analysis intent): " + originalQuestion)
-            .contains("analysisContext", "assets", "first partition", "second partition");
+            .contains("analysisContext", "assets", "first partition", "second partition")
+            .contains("objectiveAlignment", "Never infer them from field names")
+            .contains("do not aggregate, deduplicate, substitute, or generalize")
+            .contains("Do not concatenate chunk summaries");
     }
 
     private DatasetRelationshipPlan.Dataset dataset(String reference, Object relationships) {

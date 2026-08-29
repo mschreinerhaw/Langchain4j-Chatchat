@@ -86,9 +86,17 @@ class AnalysisSummaryGovernanceBridgeTest {
                 && prompt.contains("templateMatchAnalysis")
                 && prompt.contains("ETF_SCALE")
                 && prompt.contains("按基金代码关联相邻交易日")
+                && prompt.contains("analysis_objective_contract.v1")
+                && prompt.contains("analysis_semantic_contract.v1")
+                && prompt.contains("analysis_record_scope_profile.v1")
+                && prompt.contains("DO_NOT_INFER_UNDECLARED_AGGREGATION_OR_RELATIONSHIPS")
+                && prompt.contains("STRUCTURAL_STATISTICS_ONLY_NO_SEMANTIC_INFERENCE")
+                && prompt.contains("never infer or change any of those semantics")
                 && prompt.contains("semantic decision context"))))
             .thenReturn("""
-                {"summary":"规模上升","facts":[{"claim":"规模上升391519.6",
+                {"summary":"规模上升","objectiveAlignment":{"addressedAspects":["规模"],
+                "unsupportedAspects":["精确净资金流"],"contribution":"规模变化仅作为代理指标"},
+                "facts":[{"claim":"规模上升391519.6",
                 "recordRefs":["etf.records[1]"],"exactValues":["391519.6"]}],
                 "entities":[],"crossChunkKeys":[],"conflicts":[],"limitations":[],
                 "rawReplayRecommended":false}
@@ -111,6 +119,9 @@ class AnalysisSummaryGovernanceBridgeTest {
         assertThat(result.outcome()).isEqualTo("MODEL_SUMMARY");
         assertThat(result.analysisContext().toString())
             .contains("template_match_analysis.v2", "ETF_SCALE");
+        assertThat(result.evidence().get("objectiveAlignment").toString())
+            .contains("addressedAspects=[规模]", "unsupportedAspects=[精确净资金流]")
+            .contains("规模变化仅作为代理指标");
     }
 
     @Test

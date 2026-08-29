@@ -112,7 +112,7 @@ public class AgentTaskService {
     private final ThreadLocal<AgentTaskQueueCoordinator.ClaimedTask> activeDatabaseClaim = new ThreadLocal<>();
     private volatile boolean stopping;
     private static final String DATABASE_WORKER_ID = "agent-worker-" + UUID.randomUUID();
-    private static final ScheduledExecutorService DATABASE_HEARTBEATS = Executors.newScheduledThreadPool(1, runnable -> {
+    private static final ScheduledExecutorService DATABASE_HEARTBEATS = Executors.newScheduledThreadPool(4, runnable -> {
         Thread thread = new Thread(runnable, "agent-database-queue-heartbeat");
         thread.setDaemon(true);
         return thread;
@@ -1888,7 +1888,7 @@ public class AgentTaskService {
 
     private void executeDatabaseClaim(AgentTaskQueueCoordinator.ClaimedTask claim) {
         Thread owner = Thread.currentThread();
-        long heartbeatMs = Math.max(250L, properties.getWorkerHeartbeatMs());
+        long heartbeatMs = databaseHeartbeatIntervalMs(properties);
         ScheduledFuture<?> heartbeat = DATABASE_HEARTBEATS.scheduleAtFixedRate(() -> {
             try {
                 if (!queueCoordinator.heartbeat(claim)) {
@@ -1913,6 +1913,14 @@ public class AgentTaskService {
                 activeDatabaseClaim.remove();
             }
         }
+    }
+
+    static long databaseHeartbeatIntervalMs(AgentTaskProperties properties) {
+        long leaseMs = Math.max(1_000L, properties.getWorkerLeaseMs());
+        long configuredHeartbeatMs = Math.max(250L, properties.getWorkerHeartbeatMs());
+        // Keep at least four renewal opportunities inside one lease. This absorbs scheduler,
+        // database and JVM pauses without falsely recovering a worker blocked on model I/O.
+        return Math.min(configuredHeartbeatMs, Math.max(250L, leaseMs / 4L));
     }
 
     private boolean databaseClaimStillOwned(String taskId) {

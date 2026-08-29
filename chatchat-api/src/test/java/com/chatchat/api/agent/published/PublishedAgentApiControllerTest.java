@@ -138,6 +138,9 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("AGENT_BASE_URL")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("AGENT_TOKEN")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("TASK_ID=$(")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("while true")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.terminal")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.answerAvailable")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.not(
                 org.hamcrest.Matchers.containsString("export TASK_ID"))));
     }

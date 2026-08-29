@@ -571,6 +571,58 @@
         </div>
       </div>
 
+      <div
+        v-if="apiTokenCopyDialogOpen"
+        class="api-token-copy-backdrop"
+        role="presentation"
+        @mousedown.self="closeApiTokenCopyDialog"
+      >
+        <section
+          class="api-token-copy-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="api-token-copy-title"
+          @keydown.esc="closeApiTokenCopyDialog"
+        >
+          <header>
+            <span class="api-token-copy-dialog-icon"><Copy :size="19" /></span>
+            <span>
+              <small>安全复制</small>
+              <h3 id="api-token-copy-title">复制 Agent API 令牌</h3>
+            </span>
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeApiTokenCopyDialog">
+              <X :size="17" />
+            </button>
+          </header>
+          <div class="api-token-copy-dialog-body">
+            <p>浏览器未授予自动复制权限。令牌已为你选中，可以点击下方按钮或按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 复制。</p>
+            <label>
+              <span>完整令牌</span>
+              <input
+                ref="apiTokenCopyInput"
+                :value="apiTokenCopySecret"
+                type="text"
+                readonly
+                spellcheck="false"
+                autocomplete="off"
+                @click="$event.target.select()"
+              />
+            </label>
+            <div class="api-token-copy-security-note">
+              <ShieldCheck :size="16" />
+              <span>请妥善保存，关闭令牌管理窗口后将无法再次查看完整内容。</span>
+            </div>
+          </div>
+          <footer>
+            <button type="button" class="secondary-button" @click="closeApiTokenCopyDialog">取消</button>
+            <button type="button" class="primary-button" @click="copyApiTokenFromDialog">
+              <Copy :size="15" />
+              复制令牌
+            </button>
+          </footer>
+        </section>
+      </div>
+
       <div v-if="roleModalOpen" class="permission-modal-backdrop">
         <form class="role-modal" @submit.prevent="saveRoleForm">
           <div class="modal-head">

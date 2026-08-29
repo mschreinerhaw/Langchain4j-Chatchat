@@ -173,10 +173,10 @@ public class PublishedAgentApiController {
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Content-Type: application/json\" \\\n"
             + "  --data '" + body.replace("'", "'\\''") + "'";
-        String status = "curl --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
+        String status = "curl --silent --show-error --fail-with-body --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/status\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\"";
-        String answer = "curl --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
+        String answer = "curl --silent --show-error --fail-with-body --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/answer\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\"";
         String complete = "export AGENT_BASE_URL=\"" + escapedBaseUrl + "\"\n"
@@ -190,8 +190,23 @@ public class PublishedAgentApiController {
             + "  echo \"Unable to read data.taskId from the submit response.\" >&2\n"
             + "  exit 1\n"
             + "fi\n\n"
-            + "# 2. Get run status\n" + status + "\n\n"
-            + "# 3. Get the final answer; poll status while data.ready is false\n" + answer;
+            + "# 2. Poll run status until data.terminal is true.\n"
+            + "while true; do\n"
+            + "  STATUS_RESPONSE=$(" + status + ")\n"
+            + "  printf '%s\\n' \"${STATUS_RESPONSE}\"\n"
+            + "  TERMINAL=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.terminal // false')\n"
+            + "  if [ \"${TERMINAL}\" = \"true\" ]; then\n"
+            + "    break\n"
+            + "  fi\n"
+            + "  sleep 2\n"
+            + "done\n\n"
+            + "ANSWER_AVAILABLE=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.answerAvailable // false')\n"
+            + "if [ \"${ANSWER_AVAILABLE}\" != \"true\" ]; then\n"
+            + "  TASK_ERROR=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.error // \"Task ended without an answer.\"')\n"
+            + "  echo \"Agent task failed: ${TASK_ERROR}\" >&2\n"
+            + "  exit 1\n"
+            + "fi\n\n"
+            + "# 3. Get the final answer after the task reaches a terminal state.\n" + answer;
         return new PublishedAgentCurlExample(
             agent.id(), agent.label(), baseUrl, "AGENT_TOKEN", submit, status, answer, complete,
             "Use a dedicated Agent API token issued by an administrator. Tenant, user and role-to-Agent authorization are enforced server-side."

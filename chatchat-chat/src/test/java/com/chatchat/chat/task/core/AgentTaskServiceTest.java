@@ -67,6 +67,18 @@ import static org.mockito.Mockito.when;
 class AgentTaskServiceTest {
 
     @Test
+    void databaseHeartbeatKeepsMultipleRenewalWindowsInsideTheLease() {
+        AgentTaskProperties properties = new AgentTaskProperties();
+        properties.setWorkerLeaseMs(30_000L);
+        properties.setWorkerHeartbeatMs(10_000L);
+
+        assertThat(AgentTaskService.databaseHeartbeatIntervalMs(properties)).isEqualTo(7_500L);
+
+        properties.setWorkerLeaseMs(120_000L);
+        assertThat(AgentTaskService.databaseHeartbeatIntervalMs(properties)).isEqualTo(10_000L);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void exposesClaimLedgerAndEvidenceManifestInPersistedResultPayload() throws Exception {
         AgentTaskService service = taskService(

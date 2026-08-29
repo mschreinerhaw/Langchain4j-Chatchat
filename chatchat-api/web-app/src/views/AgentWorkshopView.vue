@@ -282,7 +282,7 @@
           </div>
           <div v-else-if="curlExample?.completeExample" class="agent-curl-code-card">
             <div class="agent-curl-code-head">
-              <span class="agent-curl-window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="agent-curl-terminal-mark" aria-hidden="true">&gt;_</span>
               <strong>终端调用示例</strong>
               <span>Shell / curl</span>
             </div>

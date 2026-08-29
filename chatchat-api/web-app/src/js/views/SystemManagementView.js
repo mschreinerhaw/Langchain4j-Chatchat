@@ -110,6 +110,7 @@ export default {
       userModalOpen: false,
       adminPasswordModalOpen: false,
       apiTokenModalOpen: false,
+      apiTokenCopyDialogOpen: false,
       error: "",
       message: "",
       activeManagementTab: "users",
@@ -132,6 +133,7 @@ export default {
       apiTokenDuration: 2592000,
       apiTokenName: "",
       apiTokenLatestSecret: "",
+      apiTokenCopySecret: "",
       apiTokenTargetUser: null,
       selectedTenantId: "",
       selectedRoleId: "",
@@ -634,6 +636,7 @@ export default {
       await this.loadApiTokens();
     },
     closeApiTokenModal() {
+      this.closeApiTokenCopyDialog();
       this.apiTokenModalOpen = false;
       this.apiTokenLatestSecret = "";
       this.apiTokenTargetUser = null;
@@ -711,11 +714,46 @@ export default {
         return "";
       }
       try {
-        await navigator.clipboard.writeText(secret);
+        if (!globalThis.navigator?.clipboard?.writeText) {
+          throw new Error("Clipboard API is unavailable");
+        }
+        await globalThis.navigator.clipboard.writeText(secret);
         this.setNotice("Agent API 令牌已复制");
       } catch (error) {
-        window.prompt("复制 Agent API 令牌", secret);
+        this.openApiTokenCopyDialog(secret);
       }
+    },
+    openApiTokenCopyDialog(secret) {
+      this.apiTokenCopySecret = String(secret || "");
+      this.apiTokenCopyDialogOpen = Boolean(this.apiTokenCopySecret);
+      this.$nextTick(() => {
+        const input = this.$refs.apiTokenCopyInput;
+        input?.focus();
+        input?.select();
+      });
+    },
+    closeApiTokenCopyDialog() {
+      this.apiTokenCopyDialogOpen = false;
+      this.apiTokenCopySecret = "";
+    },
+    copyApiTokenFromDialog() {
+      const input = this.$refs.apiTokenCopyInput;
+      if (!input) {
+        return;
+      }
+      input.focus();
+      input.select();
+      input.setSelectionRange?.(0, input.value.length);
+      try {
+        if (document.execCommand("copy")) {
+          this.setNotice("Agent API 令牌已复制");
+          this.closeApiTokenCopyDialog();
+          return;
+        }
+      } catch (error) {
+        // Keep the token selected so the user can copy it manually.
+      }
+      this.setNotice("浏览器未授权自动复制，请按 Ctrl+C 手动复制", true);
     },
     editUser(user) {
       this.userForm = {

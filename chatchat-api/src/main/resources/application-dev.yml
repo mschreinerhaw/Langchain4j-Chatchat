@@ -147,7 +147,7 @@ chatchat:
       database-queue-poll-ms: ${CHATCHAT_AGENT_DATABASE_QUEUE_POLL_MS:250}
       database-quota-reconcile-ms: ${CHATCHAT_AGENT_DATABASE_QUOTA_RECONCILE_MS:30000}
       database-queue-claim-batch-size: ${CHATCHAT_AGENT_DATABASE_QUEUE_CLAIM_BATCH_SIZE:16}
-      worker-lease-ms: ${CHATCHAT_AGENT_WORKER_LEASE_MS:30000}
+      worker-lease-ms: ${CHATCHAT_AGENT_WORKER_LEASE_MS:120000}
       worker-heartbeat-ms: ${CHATCHAT_AGENT_WORKER_HEARTBEAT_MS:10000}
       task-max-attempts: ${CHATCHAT_AGENT_TASK_MAX_ATTEMPTS:3}
       retry-base-delay-ms: ${CHATCHAT_AGENT_RETRY_BASE_DELAY_MS:1000}

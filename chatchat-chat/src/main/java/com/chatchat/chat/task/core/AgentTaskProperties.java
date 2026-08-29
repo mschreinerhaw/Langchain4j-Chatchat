@@ -32,7 +32,7 @@ public class AgentTaskProperties {
     private long databaseQueuePollMs = 250;
     private long databaseQuotaReconcileMs = 30_000;
     private int databaseQueueClaimBatchSize = 16;
-    private long workerLeaseMs = 30_000;
+    private long workerLeaseMs = 120_000;
     private long workerHeartbeatMs = 10_000;
     private int taskMaxAttempts = 3;
     private long retryBaseDelayMs = 1_000;

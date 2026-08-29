@@ -3622,10 +3622,10 @@
 
 .agent-workshop-view .agent-curl-code-card {
   overflow: hidden;
-  border: 1px solid #1e293b;
+  border: 1px solid #26354a;
   border-radius: 14px;
-  background: #0f172a;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+  background: #142033;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
 }
 
 .agent-workshop-view .agent-curl-code-head {
@@ -3633,15 +3633,15 @@
   align-items: center;
   min-height: 42px;
   padding: 0 14px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-  background: #111c30;
-  color: #94a3b8;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.1);
+  background: #142033;
+  color: #9eacc0;
   font-size: 11px;
 }
 
 .agent-workshop-view .agent-curl-code-head strong {
-  margin-left: 13px;
-  color: #cbd5e1;
+  margin-left: 10px;
+  color: #d8e0eb;
   font-size: 12px;
   font-weight: 700;
 }
@@ -3650,20 +3650,17 @@
   margin-left: auto;
 }
 
-.agent-workshop-view .agent-curl-window-dots {
-  display: inline-flex;
-  gap: 5px;
+.agent-workshop-view .agent-curl-terminal-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #aebacd;
+  font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
-
-.agent-workshop-view .agent-curl-window-dots i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #fb7185;
-}
-
-.agent-workshop-view .agent-curl-window-dots i:nth-child(2) { background: #fbbf24; }
-.agent-workshop-view .agent-curl-window-dots i:nth-child(3) { background: #34d399; }
 
 .agent-workshop-view .agent-curl-code-card pre {
   width: 100%;
@@ -3672,8 +3669,8 @@
   margin: 0;
   padding: 18px 20px 22px;
   overflow: auto;
-  background: #0f172a;
-  color: #dbeafe;
+  background: #142033;
+  color: #d6deea;
   font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   white-space: pre-wrap;
   word-break: break-word;

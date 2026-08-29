@@ -119,6 +119,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     private static final ToolInputSchemaResolver TOOL_INPUT_SCHEMA_RESOLVER = new ToolInputSchemaResolver();
     private static final String RUNTIME_WORKER_ID = "worker-" + UUID.randomUUID();
     private static final long DEFAULT_NODE_LEASE_MS = 30_000L;
+    /**
+     * Template discovery is a candidate-recall stage. A planner-provided limit of one
+     * prevents semantic review from seeing complementary templates for multi-part requests.
+     */
+    private static final int MIN_TEMPLATE_DISCOVERY_CANDIDATE_LIMIT = 10;
     private static final ScheduledExecutorService LEASE_HEARTBEATS = Executors.newScheduledThreadPool(1, runnable -> {
         Thread thread = new Thread(runnable, "dag-node-lease-heartbeat");
         thread.setDaemon(true);
@@ -7574,6 +7579,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         sanitizeDiscoveryFilters(step, request, input);
         if (isDomainTemplateDiscoveryBridge(step.toolName())
             || isTemplateDiscoveryTool(step.toolName(), request)) {
+            normalizeTemplateDiscoveryCandidateLimit(input);
             String searchText = discoverySearchText(request);
             if (searchText != null && !searchText.isBlank()) {
                 input.putIfAbsent("query", searchText);
@@ -7588,6 +7594,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return;
         }
         input.put("trace", routingTraceForStep(step, request));
+    }
+
+    private void normalizeTemplateDiscoveryCandidateLimit(Map<String, Object> input) {
+        Integer requestedLimit = integerValue(input.get("limit"));
+        if (requestedLimit == null || requestedLimit < MIN_TEMPLATE_DISCOVERY_CANDIDATE_LIMIT) {
+            input.put("limit", MIN_TEMPLATE_DISCOVERY_CANDIDATE_LIMIT);
+        }
     }
 
     @SuppressWarnings("unchecked")

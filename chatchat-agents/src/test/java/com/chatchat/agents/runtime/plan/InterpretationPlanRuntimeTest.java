@@ -4497,7 +4497,7 @@ class InterpretationPlanRuntimeTest {
             "livedata_EvtRealSecuMargCptlJour");
         InterpretationPlan.Step step = new InterpretationPlan.Step(
             1, "mcp_tool", toolName,
-            Map.of("intent", "查询客户资金流水", "templateIds", candidateIds, "limit", 10),
+            Map.of("intent", "查询客户资金流水", "templateIds", candidateIds, "limit", 1),
             List.of(), null, null);
         InterpretationPlan plan = new InterpretationPlan(
             "1.0", new InterpretationPlan.Intent("data_query", "查询客户资金流水", "low"),
@@ -4514,6 +4514,7 @@ class InterpretationPlanRuntimeTest {
         Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
 
         assertThat(resolved.get("templateIds")).isEqualTo(candidateIds);
+        assertThat(resolved).containsEntry("limit", 10);
         assertThat((Map<String, Object>) resolved.get("filters"))
             .containsEntry("intent", "查询客户资金流水");
         assertThat(resolved).containsKeys("trace", "filtersSchemaVersion");

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
@@ -19,6 +20,20 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
 class GlobalExceptionHandlerTest {
+
+    @Test
+    void unsupportedHttpMethodReturnsMethodNotAllowedInsteadOfInternalServerError() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleHttpRequestMethodNotSupportedException(
+            new HttpRequestMethodNotSupportedException("PUT"),
+            new ServletWebRequest(new MockHttpServletRequest())
+        );
+
+        assertEquals(405, response.getStatusCode().value());
+        assertEquals(405, response.getBody().getCode());
+        assertEquals("Request method 'PUT' is not supported", response.getBody().getMessage());
+    }
 
     @Test
     void streamedOversizedJsonReturnsPayloadTooLargeInHttpStatusAndBody() {

@@ -19,6 +19,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -186,6 +187,22 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
             ApiResponse.notFound("No route or static resource found: " + ex.getResourcePath()),
             HttpStatus.NOT_FOUND
+        );
+    }
+
+    /**
+     * Handle requests that use an unsupported HTTP method as protocol errors.
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpRequestMethodNotSupportedException(
+            HttpRequestMethodNotSupportedException ex,
+            WebRequest request) {
+
+        log.warn("Request method is not supported: {}", ex.getMethod());
+
+        return new ResponseEntity<>(
+            ApiResponse.error(HttpStatus.METHOD_NOT_ALLOWED.value(), ex.getMessage()),
+            HttpStatus.METHOD_NOT_ALLOWED
         );
     }
 

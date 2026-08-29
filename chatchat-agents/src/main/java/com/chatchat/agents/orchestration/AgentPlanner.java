@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.orchestration.planning.AgentPlanBudgetPolicy;
 import com.chatchat.agents.orchestration.planning.AgentDecision;
 import com.chatchat.agents.orchestration.planning.AgentPlanCandidateScorer;
+import com.chatchat.agents.orchestration.planning.AgentPlanAttributionPolicy;
 import com.chatchat.agents.orchestration.planning.PlanCandidate;
 import com.chatchat.agents.orchestration.planning.PlanRewriteContext;
 import com.chatchat.agents.orchestration.planning.PlannerValidationContext;
@@ -73,6 +74,7 @@ public class AgentPlanner implements AgentPlanningPort {
     private final AgentPlannerPromptBuilder promptBuilder;
     private final InterpretationPlanPayloadNormalizer payloadNormalizer;
     private final AgentPlanCandidateScorer candidateScorer;
+    private final AgentPlanAttributionPolicy attributionPolicy;
     private final PlannerEnvelopeParser envelopeParser;
     private final InterpretationPlanValidator interpretationPlanValidator = new InterpretationPlanValidator();
     private final ToolProtocolContractResolver toolProtocolContracts = new ToolProtocolContractResolver();
@@ -91,6 +93,7 @@ public class AgentPlanner implements AgentPlanningPort {
         this.promptBuilder = new AgentPlannerPromptBuilder(toolRegistry, objectMapper, this.clock);
         this.payloadNormalizer = new InterpretationPlanPayloadNormalizer(toolRegistry);
         this.candidateScorer = new AgentPlanCandidateScorer(toolRegistry);
+        this.attributionPolicy = new AgentPlanAttributionPolicy(MAX_PLAN_REPAIR_ATTEMPTS);
         this.envelopeParser = new PlannerEnvelopeParser(objectMapper);
     }
 
@@ -237,7 +240,7 @@ public class AgentPlanner implements AgentPlanningPort {
                         .findFirst()
                         .orElse(currentCandidate);
                     if (!sameExperienceWorkflowContract(baseline.decision(), currentCandidate.decision())) {
-                        return withAttributionMetadata(
+                        return attributionPolicy.attribute(
                             baseline.decision(),
                             baseline,
                             rewriteContext,
@@ -251,7 +254,7 @@ public class AgentPlanner implements AgentPlanningPort {
                         return optimized;
                     }
                 }
-                return withAttributionMetadata(
+                return attributionPolicy.attribute(
                     decision,
                     currentCandidate,
                     rewriteContext,
@@ -1324,314 +1327,26 @@ public class AgentPlanner implements AgentPlanningPort {
     private AgentDecision attributeAndSelectBestPlan(PlanRewriteContext rewriteContext,
                                                      PlannerValidationContext validationContext,
                                                      String runId) {
-        if (rewriteContext == null || rewriteContext.candidates().isEmpty()) {
-            return null;
-        }
-        PlanCandidate selected = selectBestCandidate(rewriteContext.candidates());
-        if (selected == null || selected.decision() == null) {
-            return null;
-        }
-        GuardRepairResult repair = deterministicGuardRepair(selected.decision(), validationContext);
-        AgentDecision selectedDecision = repair.decision();
-        String reason = attributionReason(selected, repair);
-        AgentDecision attributed = withAttributionMetadata(
-            selectedDecision,
-            selected,
+        AgentDecision attributed = attributionPolicy.selectAndAttribute(
             rewriteContext,
-            reason,
-            repair.applied(),
-            repair.notes()
+            validationContext,
+            repairedPlan -> parseInterpretationPlanDecision(
+                objectMapper.convertValue(repairedPlan, Map.class), validationContext),
+            tool -> toolAvailable(tool, validationContext)
         );
+        if (attributed == null) {
+            return null;
+        }
+        Map<String, Object> attribution = attributed.executionPlan() == null
+            ? Map.of() : attributed.executionPlan();
         log.info("agentPlannerAttribution phase=planner_attribution runId={} source=deterministic selected={} score={} repairApplied={} candidateCount={}",
             runId == null ? "" : runId,
-            selected.label(),
-            selected.deterministicScore(),
-            repair.applied(),
-            rewriteContext.candidates().size());
+            attribution.get("plannerAttributionSelected"),
+            attribution.get("plannerAttributionScores"),
+            attribution.get("plannerAttributionRepairApplied"),
+            rewriteContext == null ? 0 : rewriteContext.candidates().size());
         logPlannerDecision(runId == null ? "" : runId, rewriteContext.rewriteCount(), rewriteContext.rewriteCount(), attributed);
         return attributed;
-    }
-
-    private PlanCandidate selectBestCandidate(List<PlanCandidate> candidates) {
-        PlanCandidate best = null;
-        for (PlanCandidate candidate : candidates == null ? List.<PlanCandidate>of() : candidates) {
-            if (candidate == null || candidate.decision() == null) {
-                continue;
-            }
-            if (best == null || betterCandidate(candidate, best)) {
-                best = candidate;
-            }
-        }
-        return best;
-    }
-
-    private boolean betterCandidate(PlanCandidate candidate, PlanCandidate currentBest) {
-        if (candidate.deterministicScore() != currentBest.deterministicScore()) {
-            return candidate.deterministicScore() > currentBest.deterministicScore();
-        }
-        boolean candidateValid = !plannerPlanInvalid(candidate.decision());
-        boolean bestValid = !plannerPlanInvalid(currentBest.decision());
-        if (candidateValid != bestValid) {
-            return candidateValid;
-        }
-        int candidateIssueCount = plannerIssues(candidate.decision()).size();
-        int bestIssueCount = plannerIssues(currentBest.decision()).size();
-        if (candidateIssueCount != bestIssueCount) {
-            return candidateIssueCount < bestIssueCount;
-        }
-        return candidate.attempt() > currentBest.attempt();
-    }
-
-    private List<String> plannerIssues(AgentDecision decision) {
-        if (decision == null || decision.executionPlan() == null || decision.executionPlan().isEmpty()) {
-            return List.of();
-        }
-        List<String> issues = new ArrayList<>();
-        Object runtimeIssues = decision.executionPlan().get("interpretationPlanRuntimeIssues");
-        if (runtimeIssues instanceof List<?> list) {
-            list.stream().map(String::valueOf).forEach(issues::add);
-        }
-        Object validationIssues = decision.executionPlan().get("interpretationPlanIssues");
-        if (validationIssues instanceof List<?> list) {
-            list.stream().map(String::valueOf).forEach(issues::add);
-        }
-        return issues.stream()
-            .filter(issue -> issue != null && !issue.isBlank())
-            .distinct()
-            .toList();
-    }
-
-    private GuardRepairResult deterministicGuardRepair(AgentDecision decision,
-                                                       PlannerValidationContext validationContext) {
-        InterpretationPlan plan = decision == null ? null : decision.interpretationPlan();
-        if (plan == null) {
-            return new GuardRepairResult(decision, false, List.of());
-        }
-        List<String> unavailableTools = plan.steps().stream()
-            .filter(InterpretationPlan.Step::mcpToolAction)
-            .map(InterpretationPlan.Step::toolName)
-            .filter(tool -> tool != null && !tool.isBlank())
-            .filter(tool -> !toolAvailable(tool, validationContext))
-            .distinct()
-            .toList();
-        if (unavailableTools.isEmpty()) {
-            return new GuardRepairResult(decision, false, List.of());
-        }
-        List<String> replacements = candidateReplacementTools(validationContext);
-        if (replacements.size() != 1) {
-            return new GuardRepairResult(decision, false, List.of("Skipped repair because replacement tool was ambiguous."));
-        }
-        String replacement = replacements.get(0);
-        if (!toolAvailable(replacement, validationContext)) {
-            return new GuardRepairResult(decision, false, List.of("Skipped repair because replacement tool is unavailable."));
-        }
-        Map<String, String> toolReplacements = new LinkedHashMap<>();
-        unavailableTools.forEach(tool -> toolReplacements.put(tool, replacement));
-        InterpretationPlan repairedPlan = replaceUnavailableTools(plan, toolReplacements);
-        AgentDecision repairedDecision = parseInterpretationPlanDecision(objectMapper.convertValue(repairedPlan, Map.class), validationContext);
-        if (repairedDecision == null || plannerPlanInvalid(repairedDecision)) {
-            return new GuardRepairResult(decision, false, List.of("Skipped repair because repaired plan did not pass validation."));
-        }
-        List<String> notes = unavailableTools.stream()
-            .map(tool -> "Replaced unavailable tool " + tool + " with " + replacement + ".")
-            .toList();
-        return new GuardRepairResult(repairedDecision, true, notes);
-    }
-
-    private List<String> candidateReplacementTools(PlannerValidationContext validationContext) {
-        List<String> mandatoryTools = validationContext == null ? List.of() : normalizeList(validationContext.mandatoryTools());
-        List<String> availableTools = validationContext == null ? List.of() : normalizeList(validationContext.availableTools());
-        List<String> mandatoryAvailable = mandatoryTools.stream()
-            .filter(tool -> toolAvailable(tool, validationContext))
-            .distinct()
-            .toList();
-        if (mandatoryAvailable.size() == 1) {
-            return mandatoryAvailable;
-        }
-        List<String> registeredAvailable = availableTools.stream()
-            .filter(tool -> toolAvailable(tool, validationContext))
-            .distinct()
-            .toList();
-        if (registeredAvailable.size() == 1) {
-            return registeredAvailable;
-        }
-        String documentTool = validationContext == null ? null : validationContext.documentSearchTool();
-        if (documentTool != null && !documentTool.isBlank() && toolAvailable(documentTool, validationContext)) {
-            return List.of(documentTool);
-        }
-        return registeredAvailable;
-    }
-
-    private InterpretationPlan replaceUnavailableTools(InterpretationPlan plan, Map<String, String> toolReplacements) {
-        List<InterpretationPlan.Step> steps = plan.steps().stream()
-            .map(step -> {
-                if (step == null || !step.mcpToolAction()) {
-                    return step;
-                }
-                String replacement = toolReplacements.get(step.toolName());
-                if (replacement == null) {
-                    return step;
-                }
-                return new InterpretationPlan.Step(
-                    step.id(),
-                    step.actionType(),
-                    replacement,
-                    step.input(),
-                    step.dependsOn(),
-                    step.outputContract(),
-                    step.validation()
-                );
-            })
-            .toList();
-        InterpretationPlan.Plan originalPlan = plan.plan();
-        InterpretationPlan.Plan repairedInnerPlan = new InterpretationPlan.Plan(
-            steps,
-            originalPlan == null ? List.of() : originalPlan.edgeContracts(),
-            originalPlan == null ? List.of() : originalPlan.dependencyContracts(),
-            originalPlan == null ? List.of() : originalPlan.bindings(),
-            originalPlan == null ? null : originalPlan.stability(),
-            originalPlan == null ? null : originalPlan.diagnosticProfile(),
-            originalPlan == null ? List.of() : originalPlan.conditionalEdges(),
-            originalPlan == null ? List.of() : originalPlan.branchGroups()
-        );
-        return new InterpretationPlan(
-            plan.version(),
-            plan.intent(),
-            plan.context(),
-            repairedInnerPlan,
-            replacePolicyTools(plan.executionPolicy(), toolReplacements),
-            plan.review()
-        );
-    }
-
-    private InterpretationPlan.ExecutionPolicy replacePolicyTools(InterpretationPlan.ExecutionPolicy policy,
-                                                                  Map<String, String> toolReplacements) {
-        if (policy == null) {
-            return null;
-        }
-        return new InterpretationPlan.ExecutionPolicy(
-            policy.maxSteps(),
-            policy.allowParallel(),
-            replaceToolList(policy.allowTool(), toolReplacements),
-            replaceToolList(policy.denyTool(), toolReplacements),
-            policy.timeoutMs(),
-            policy.maxRewriteTimes(),
-            policy.fallbackMode(),
-            replaceToolPriority(policy.toolPriority(), toolReplacements),
-            policy.costBudget(),
-            policy.latencyBudgetMs(),
-            policy.accuracyVsSpeed()
-        );
-    }
-
-    private List<String> replaceToolList(List<String> tools, Map<String, String> toolReplacements) {
-        if (tools == null) {
-            return List.of();
-        }
-        return tools.stream()
-            .map(tool -> toolReplacements.getOrDefault(tool, tool))
-            .filter(tool -> tool != null && !tool.isBlank())
-            .distinct()
-            .toList();
-    }
-
-    private Map<String, Double> replaceToolPriority(Map<String, Double> priorities,
-                                                    Map<String, String> toolReplacements) {
-        if (priorities == null || priorities.isEmpty()) {
-            return priorities;
-        }
-        Map<String, Double> values = new LinkedHashMap<>();
-        priorities.forEach((tool, priority) -> values.put(toolReplacements.getOrDefault(tool, tool), priority));
-        return values;
-    }
-
-    private String attributionReason(PlanCandidate selected, GuardRepairResult repair) {
-        StringBuilder reason = new StringBuilder();
-        reason.append("Selected candidate ")
-            .append(selected.label())
-            .append(" by deterministic attribution score ")
-            .append(selected.deterministicScore())
-            .append("/100.");
-        if (repair != null && repair.applied()) {
-            reason.append(" Applied guard repair for verifiable unavailable-tool mapping.");
-        }
-        return reason.toString();
-    }
-
-    private AgentDecision withAttributionMetadata(AgentDecision decision,
-                                                  PlanCandidate selected,
-                                                  PlanRewriteContext rewriteContext,
-                                                  String reason,
-                                                  boolean repairApplied,
-                                                  List<String> repairNotes) {
-        if (decision == null) {
-            return null;
-        }
-        Map<String, Object> executionPlan = new LinkedHashMap<>(decision.executionPlan() == null ? Map.of() : decision.executionPlan());
-        executionPlan.put("plannerAttributionSelection", true);
-        executionPlan.put("plannerAttributionSource", "deterministic_java");
-        executionPlan.put("plannerAttributionContractVersion", "plan_attribution_v1");
-        executionPlan.put("plannerGenerationLimit", MAX_PLAN_REPAIR_ATTEMPTS);
-        executionPlan.put("plannerGenerationCount", rewriteContext == null ? 0 : rewriteContext.candidates().size());
-        executionPlan.put("plannerAttributionCandidateCount", rewriteContext == null ? 0 : rewriteContext.candidates().size());
-        executionPlan.put("plannerAttributionSelected", selected == null ? null : selected.label());
-        executionPlan.put("plannerAttributionSelectedAttempt", selected == null ? null : selected.attempt());
-        executionPlan.put("plannerAttributionReason", reason);
-        executionPlan.put("plannerAttributionAnalysis", reason);
-        executionPlan.put("plannerAttributionScores", plannerAttributionScores(rewriteContext));
-        executionPlan.put("plannerAttributionCandidates", plannerAttributionCandidates(rewriteContext));
-        executionPlan.put("plannerAttributionFailurePattern", rewriteContext == null ? "UNKNOWN" : rewriteContext.failurePattern());
-        executionPlan.put("plannerAttributionCandidateFingerprints", rewriteContext == null ? List.of() : rewriteContext.candidates().stream()
-            .map(candidate -> Map.of(
-                "label", candidate.label(),
-                "fingerprint", candidate.fingerprint(),
-                "failurePattern", candidate.failurePattern(),
-                "deterministicScore", candidate.deterministicScore()
-            ))
-            .toList());
-        executionPlan.put("plannerAttributionRepairApplied", repairApplied);
-        executionPlan.put("plannerAttributionRepairNotes", repairNotes == null ? List.of() : repairNotes);
-        return new AgentDecision(
-            decision.action(),
-            decision.toolName(),
-            decision.arguments(),
-            decision.answer(),
-            decision.reason(),
-            executionPlan,
-            decision.sufficient(),
-            decision.interpretationPlan()
-        );
-    }
-
-    private Map<String, Object> plannerAttributionScores(PlanRewriteContext rewriteContext) {
-        Map<String, Object> scores = new LinkedHashMap<>();
-        if (rewriteContext == null || rewriteContext.candidates() == null) {
-            return scores;
-        }
-        for (PlanCandidate candidate : rewriteContext.candidates()) {
-            scores.put(candidate.label(), candidate.deterministicScore());
-        }
-        return scores;
-    }
-
-    private List<Map<String, Object>> plannerAttributionCandidates(PlanRewriteContext rewriteContext) {
-        if (rewriteContext == null || rewriteContext.candidates() == null) {
-            return List.of();
-        }
-        return rewriteContext.candidates().stream()
-            .map(candidate -> {
-                Map<String, Object> record = new LinkedHashMap<>();
-                record.put("label", candidate.label());
-                record.put("attempt", candidate.attempt());
-                record.put("failurePattern", candidate.failurePattern());
-                record.put("fingerprint", candidate.fingerprint());
-                record.put("deterministicScore", candidate.deterministicScore());
-                record.put("scoreDetails", candidate.deterministicScoreDetails());
-                record.put("issues", plannerIssues(candidate.decision()));
-                record.put("valid", candidate.decision() != null && !plannerPlanInvalid(candidate.decision()));
-                return record;
-            })
-            .toList();
     }
 
     private int plannerRepairAttempts(Map<String, Object> runtimeAttributes) {
@@ -2005,11 +1720,4 @@ record PlannerPlanProduct(
     PlannerPlanProduct {
         issues = issues == null ? List.of() : List.copyOf(issues);
     }
-}
-
-record GuardRepairResult(
-    AgentDecision decision,
-    boolean applied,
-    List<String> notes
-) {
 }

@@ -75,8 +75,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
     private static final String UNIFIED_EVIDENCE_CONTRACT = "evidence_v1";
     private static final String EVIDENCE_ANSWER_CONTRACT = "evidence_answer_v1";
     private static final String EXECUTION_CONTRACT = "evidence_execution_contract_v2_2";
-    private static final String ANSWER_EVIDENCE_AUDIT_CONTRACT = "answer_evidence_audit_v1";
-    private static final String ANSWER_EVIDENCE_AUDIT_ENVELOPE = "answer_evidence_audit.v2";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final int TOOL_DATA_INLINE_CELL_LIMIT = 240;
     private static final int TOOL_DATA_MARKDOWN_ROW_LIMIT = 20;
@@ -104,16 +102,14 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         new DeterministicAnswerReportRenderer(objectMapper);
     private final AnswerUserFacingPolicy userFacingPolicy = new AnswerUserFacingPolicy(objectMapper);
     private final AgentToolBudgetPort toolBudgetPolicy = new DefaultAgentToolBudgetPolicy();
-    private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
-    private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     private DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> analysisSummaryGovernanceBridge =
         RuntimeProtocolDefaults.analysisSummary();
     private final AnswerEvidenceLedgerCompiler answerEvidenceLedgerCompiler =
         new AnswerEvidenceLedgerCompiler();
+    private final AnswerEvidenceAuditService answerEvidenceAuditService =
+        new AnswerEvidenceAuditService(answerEvidenceLedgerCompiler, userFacingPolicy);
     private final AnswerReviewCoordinator answerReviewCoordinator;
-    private final AnswerContractCompiler answerContractCompiler = new AnswerContractCompiler();
-    private final EvidenceSufficiencyGate evidenceSufficiencyGate = new EvidenceSufficiencyGate();
-    private final AnswerCriticRepairer answerCriticRepairer;
+    private final AnswerQualityCoordinator answerQualityCoordinator;
     private final FinalSummaryWebSearchEnhancer finalSummaryWebSearchEnhancer;
     private final AgentRuntimeProperties agentRuntimeProperties;
 
@@ -149,7 +145,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             answerReviewer, this.answerEvidenceLedgerCompiler, this.modelRequestTimeoutMs);
         this.agentRuntimeProperties = agentRuntimeProperties == null
             ? new AgentRuntimeProperties() : agentRuntimeProperties;
-        this.answerCriticRepairer = new AnswerCriticRepairer(objectMapper);
+        this.answerQualityCoordinator = new AnswerQualityCoordinator(
+            objectMapper, this.agentRuntimeProperties, this.answerEvidenceLedgerCompiler,
+            this.modelRequestTimeoutMs);
         this.finalSummaryWebSearchEnhancer = new FinalSummaryWebSearchEnhancer(
             toolRegistry, toolRuntimeService, objectMapper, this.agentRuntimeProperties);
     }
@@ -194,8 +192,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         values.putAll(decision.metadata());
         recordSelectedAnswerCandidate(values, decision);
         String selectedAnswer = decision.finalAnswer();
-        selectedAnswer = applyTargetedQualityRepair(
-            activeChatModel, query, systemPrompt, selectedAnswer, values, observations);
+        selectedAnswer = answerQualityCoordinator.applyTargetedRepair(
+            activeChatModel, query, systemPrompt, selectedAnswer, values, observations,
+            this::sanitizeFinalMarkdown);
         String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
         if (finalAnswer.isBlank()) {
             String metadataReport = deterministicReportRenderer.deterministicEnterpriseMetadataReport(traces);
@@ -256,13 +255,14 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             }
         }
         finalAnswer = userFacingPolicy.applyUserFacingSectionPolicy(finalAnswer, query, values);
-        finalAnswer = bindReturnedEvidenceReferences(
+        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(
             finalAnswer, values, observations, toolEvidence, "final_assembly");
         if (!finalAnswer.equals(selectedAnswer == null ? "" : selectedAnswer)) {
             values.put("finalAnswerSanitized", true);
             values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         }
-        recordAnswerEvidenceAudit(values, observations, toolEvidence, traces);
+        answerEvidenceAuditService.recordPosture(
+            values, containsEvidence(observations == null ? List.of() : observations), toolEvidence, traces);
         DraftArtifactRuntimePolicy.Result draftArtifact = draftArtifactRuntimePolicy.enforce(
             finalAnswer, values);
         finalAnswer = draftArtifact.answer();
@@ -274,7 +274,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         attachAnswerAssemblyPolicy(values, observations);
         attachTaskResultAssessment(values, traces, observations);
         attachEvidenceAnswerContract(finalAnswer, values, observations);
-        finalAnswer = attachAnswerEvidenceLedger(finalAnswer, values, observations, toolEvidence);
+        finalAnswer = answerEvidenceAuditService.attachLedger(
+            finalAnswer, values, observations, toolEvidence);
         finalAnswer = userFacingPolicy.applyUserFacingEvidenceReferencePolicy(finalAnswer, query, values);
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         attachGovernedSummaryResult(finalAnswer, values, traces, observations);
@@ -283,7 +284,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             values.put("userFacingReconciliationDetailsSuppressed", true);
         }
         finalAnswer = userFacingAnswer;
-        attachAnswerEvidenceAuditEnvelope(values, query);
+        answerEvidenceAuditService.attachEnvelope(values, query);
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         return new AgentOrchestrator.AgentExecutionResult(
             finalAnswer,
@@ -371,7 +372,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
-        finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
+        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
             userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
@@ -380,7 +381,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "tool_budget_exceeded");
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
-        AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
+        AnswerQualityEvaluator.QualityReport quality = answerQualityCoordinator.evaluate(
             activeChatModel,
             query,
             systemPrompt,
@@ -409,7 +410,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
-        finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
+        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
             userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
@@ -418,7 +419,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
-        AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
+        AnswerQualityEvaluator.QualityReport quality = answerQualityCoordinator.evaluate(
             activeChatModel,
             query,
             systemPrompt,
@@ -442,13 +443,13 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                                                                 BooleanSupplier cancellationCheck,
                                                                 String stopReason) {
         recordMcpResultEvidencePolicy(metadata, traces);
-        prepareAnswerQualityContext(query, systemPrompt, observations, metadata);
+        answerQualityCoordinator.prepareContext(query, systemPrompt, observations, metadata);
         String finalAnswer = safeAnswer(activeChatModel, answer, query, observations, systemPrompt, metadata);
         FinalSummaryWebSearchEnhancer.Enhancement enhancement = enhanceFinalSummary(
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
-        finalAnswer = bindReturnedEvidenceReferences(finalAnswer, metadata, effectiveObservations,
+        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
             userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
         AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
@@ -457,7 +458,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
-        AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
+        AnswerQualityEvaluator.QualityReport quality = answerQualityCoordinator.evaluate(
             activeChatModel,
             query,
             systemPrompt,
@@ -510,7 +511,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             );
             if (enhancement.used() && enhancement.enhancedAnswer() != null
                 && !enhancement.enhancedAnswer().isBlank()) {
-                answerCandidateCollector.register(
+                answerQualityCoordinator.registerCandidate(
                     metadata,
                     FinalSummaryWebSearchEnhancer.CANDIDATE_STAGE,
                     enhancement.enhancedAnswer(),
@@ -571,238 +572,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         metadata.putIfAbsent("stopReason", "answer_completed_after_cancellation");
     }
 
-    private AnswerQualityEvaluator.QualityReport evaluateAnswerQuality(ChatModel activeChatModel,
-                                                                       String query,
-                                                                       String systemPrompt,
-                                                                       List<String> observations,
-                                                                       String candidateAnswer,
-                                                                       AgentAnswerReview review,
-                                                                       AnswerDecisionEngine.EvidenceSignal signal,
-                                                                       Map<String, Object> metadata) {
-        if (activeChatModel == null) {
-            return null;
-        }
-        if (metadata != null
-            && Boolean.TRUE.equals(metadata.get("modelEvidenceReviewRewriteAllowed"))
-            && review != null
-            && AgentAnswerReview.REVISED.equals(review.status())
-            && review.answer() != null
-            && !review.answer().isBlank()) {
-            // The reviewer has already performed the authorized second-pass
-            // analysis against complete executed evidence. A generic quality
-            // pass does not carry that privileged evidence context and must not
-            // override the evidence-grounded repair with the original candidate.
-            return null;
-        }
-        List<AnswerQualityEvaluator.AnswerCandidate> candidates =
-            answerCandidates(candidateAnswer, review, signal, metadata);
-        if (candidates.size() <= 1) {
-            return null;
-        }
-        long timeoutMs = configuredTimeoutMs("chatchat.agent.answer.quality.timeout.ms", modelRequestTimeoutMs);
-        try {
-            return runWithTimeout(
-                "answer_quality",
-                "",
-                timeoutMs,
-                () -> answerQualityEvaluator.evaluate(
-                    activeChatModel,
-                    new AnswerQualityEvaluator.QualityRequest(
-                        query,
-                        systemPrompt,
-                        observations == null ? List.of() : List.copyOf(observations),
-                        review == null ? null : review.feedback(),
-                        candidates
-                    )
-                )
-            );
-        } catch (TimeoutException ex) {
-            log.warn("agentModelTimeout phase=answer_quality timeoutMs={} candidateCount={}", timeoutMs, candidates.size());
-            return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_timeout", candidates);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            log.warn("agentModelInterrupted phase=answer_quality candidateCount={}", candidates.size());
-            return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_interrupted", candidates);
-        } catch (Exception ex) {
-            log.warn("agentModelFailed phase=answer_quality candidateCount={} error={}", candidates.size(), ex.getMessage());
-            return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_failed", candidates);
-        }
-    }
-
-    private List<AnswerQualityEvaluator.AnswerCandidate> answerCandidates(String candidateAnswer,
-                                                                          AgentAnswerReview review,
-                                                                          AnswerDecisionEngine.EvidenceSignal signal,
-                                                                          Map<String, Object> metadata) {
-        List<AnswerQualityEvaluator.AnswerCandidate> candidates = new ArrayList<>();
-        if (candidateAnswer != null && !candidateAnswer.isBlank()) {
-            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
-                AnswerQualityEvaluator.CANDIDATE,
-                AnswerQualityEvaluator.CANDIDATE,
-                candidateAnswer
-            ));
-        }
-        if (signal != null && signal.shouldReplaceWithGroundedEvidence()) {
-            if (signal.groundedDocumentAnswer() != null && !signal.groundedDocumentAnswer().isBlank()) {
-                candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
-                    AnswerQualityEvaluator.DOCUMENT_EVIDENCE,
-                    AnswerQualityEvaluator.DOCUMENT_EVIDENCE,
-                    signal.groundedDocumentAnswer()
-                ));
-            }
-        }
-        if (metadata != null
-            && Boolean.TRUE.equals(metadata.get("modelEvidenceReviewRewriteAllowed"))
-            && review != null
-            && AgentAnswerReview.REVISED.equals(review.status())
-            && review.answer() != null
-            && !review.answer().isBlank()) {
-            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
-                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
-                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
-                review.answer()
-            ));
-        }
-        addRuntimeAnswerCandidates(candidates, metadata);
-        return List.copyOf(candidates);
-    }
-
-    private void addRuntimeAnswerCandidates(List<AnswerQualityEvaluator.AnswerCandidate> candidates,
-                                            Map<String, Object> metadata) {
-        List<AnswerCandidateCollector.Candidate> collected = answerCandidateCollector.drain(metadata);
-        if (metadata != null && !collected.isEmpty()) {
-            metadata.put("answerCandidateCollectorContractVersion", AnswerCandidateCollector.CONTRACT_VERSION);
-            metadata.put("answerCandidateCollectedCount", collected.size());
-            metadata.put("answerCandidateCollectedStages", collected.stream()
-                .map(AnswerCandidateCollector.Candidate::stage)
-                .distinct()
-                .toList());
-        }
-        for (AnswerCandidateCollector.Candidate value : collected) {
-            String answer = value.answer();
-            if (answer == null || answer.isBlank()) {
-                continue;
-            }
-            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
-                firstNonBlank(value.id(), "runtime_stage_" + (candidates.size() + 1)),
-                AnswerQualityEvaluator.SUMMARY_STAGE,
-                answer
-            ));
-        }
-    }
-
-    private AnswerQualityContext prepareAnswerQualityContext(String query,
-                                                             String systemPrompt,
-                                                             List<String> observations,
-                                                             Map<String, Object> metadata) {
-        AnswerContract contract = answerContractCompiler.compile(query, systemPrompt, metadata);
-        EvidenceSufficiencyGate.Decision gate = evidenceSufficiencyGate.evaluate(contract, observations);
-        if (metadata != null && agentRuntimeProperties.isAnswerQualityPipelineEnabled()) {
-            metadata.put("answerContract", contract.toMap());
-            metadata.put("answerContractVersion", AnswerContract.VERSION);
-            metadata.put("evidenceSufficiencyGate", gate.toMap());
-            metadata.put("evidenceSufficiencyStatus", gate.status());
-            metadata.put("evidenceRetrievalRecommended", gate.retrieveMoreRecommended());
-            metadata.put("businessHardcodingPolicy", "runtime_contract_only");
-        }
-        return new AnswerQualityContext(contract, gate);
-    }
-
-    private String applyTargetedQualityRepair(ChatModel activeChatModel,
-                                              String query,
-                                              String systemPrompt,
-                                              String selectedAnswer,
-                                              Map<String, Object> metadata,
-                                              List<String> observations) {
-        if (!agentRuntimeProperties.isAnswerQualityPipelineEnabled()) {
-            return selectedAnswer;
-        }
-        AnswerQualityContext context = prepareAnswerQualityContext(
-            query, systemPrompt, observations, metadata);
-        if (!agentRuntimeProperties.isAnswerCriticEnabled()
-            || activeChatModel == null
-            || selectedAnswer == null
-            || selectedAnswer.isBlank()) {
-            if (metadata != null) {
-                metadata.put("answerCriticSkippedReason",
-                    !agentRuntimeProperties.isAnswerCriticEnabled()
-                        ? "critic_disabled"
-                        : activeChatModel == null ? "chat_model_unavailable" : "empty_answer");
-            }
-            return selectedAnswer;
-        }
-
-        AnswerCriticRepairer.Result result;
-        try {
-            result = runWithTimeout(
-                "answer_critic_repair",
-                stringValue(metadata == null ? null : metadata.get("agentRunId")),
-                agentRuntimeProperties.answerCriticTimeoutMs(),
-                () -> answerCriticRepairer.review(activeChatModel, context.contract(), context.gate(),
-                    selectedAnswer, observations == null ? List.of() : List.copyOf(observations))
-            );
-        } catch (TimeoutException ex) {
-            if (metadata != null) metadata.put("answerCriticTimedOut", true);
-            return selectedAnswer;
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            if (metadata != null) metadata.put("answerCriticInterrupted", true);
-            return selectedAnswer;
-        } catch (Exception ex) {
-            if (metadata != null) {
-                metadata.put("answerCriticFailed", true);
-                metadata.put("answerCriticFailure", firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
-            }
-            return selectedAnswer;
-        }
-
-        if (metadata != null) metadata.put("answerCritic", result.toMap());
-        if (!result.available() || result.passed() || !agentRuntimeProperties.isAnswerRepairEnabled()
-            || result.repairedAnswer() == null || result.repairedAnswer().isBlank()) {
-            return selectedAnswer;
-        }
-        String repaired = sanitizeFinalMarkdown(result.repairedAnswer());
-        if (repaired.isBlank()) {
-            if (metadata != null) metadata.put("answerTargetedRepairRejectedReason", "invalid_or_internal_protocol");
-            return selectedAnswer;
-        }
-
-        AnswerEvidenceLedgerCompiler.Result originalLedger = answerEvidenceLedgerCompiler.compile(
-            selectedAnswer, metadata, observations, List.of());
-        AnswerEvidenceLedgerCompiler.Result repairedLedger = answerEvidenceLedgerCompiler.compile(
-            repaired, metadata, observations, List.of());
-        boolean safe = evidenceRank(repairedLedger.status()) >= evidenceRank(originalLedger.status())
-            && repairedLedger.criticalUnboundClaims() <= originalLedger.criticalUnboundClaims()
-            && repairedLedger.unknownReferences() <= originalLedger.unknownReferences();
-        if (!safe) {
-            if (metadata != null) {
-                metadata.put("answerTargetedRepairRejectedReason", "evidence_quality_regression");
-                metadata.put("answerTargetedRepairOriginalStatus", originalLedger.status());
-                metadata.put("answerTargetedRepairCandidateStatus", repairedLedger.status());
-            }
-            return selectedAnswer;
-        }
-        if (metadata != null) {
-            metadata.put("answerTargetedRepairApplied", true);
-            metadata.put("answerTargetedRepairContractVersion", AnswerCriticRepairer.VERSION);
-            metadata.put("answerTargetedRepairIssueCodes", result.issues().stream()
-                .map(AnswerCriticRepairer.Issue::code).filter(value -> value != null && !value.isBlank()).toList());
-            metadata.put("answerTargetedRepairOriginalPreview", shortText(selectedAnswer, 1000));
-            metadata.put("answerTargetedRepairPreview", shortText(repaired, 1000));
-        }
-        return repaired;
-    }
-
-    private int evidenceRank(String status) {
-        if ("PASS".equals(status) || "NOT_APPLICABLE".equals(status)) return 3;
-        if ("PARTIAL".equals(status)) return 2;
-        if ("FAIL".equals(status)) return 1;
-        return 0;
-    }
-
-    private record AnswerQualityContext(AnswerContract contract,
-                                        EvidenceSufficiencyGate.Decision gate) {
-    }
-
     private String safeAnswer(ChatModel activeChatModel,
                               String answer,
                               String query,
@@ -833,7 +602,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             }
             return "";
         }
-        AnswerQualityContext qualityContext = prepareAnswerQualityContext(
+        AnswerQualityCoordinator.QualityContext qualityContext = answerQualityCoordinator.prepareContext(
             query, systemPrompt, observations, metadata);
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
@@ -1114,158 +883,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         metadata.put("evidenceAnswer", result.evidenceAnswer().toMap());
         metadata.put("availableEvidenceCitations", result.availableCitations());
         metadata.put("groundingStatus", result.groundingStatus());
-    }
-
-    private String attachAnswerEvidenceLedger(String answer,
-                                              Map<String, Object> metadata,
-                                              List<String> observations,
-                                              List<Map<String, Object>> toolEvidence) {
-        if (metadata == null) {
-            return answer;
-        }
-        AnswerEvidenceLedgerCompiler.Result result = answerEvidenceLedgerCompiler.compile(
-            answer, metadata, observations, toolEvidence);
-        metadata.put("claimLedger", result.claimLedger());
-        metadata.put("claimLedgerVersion", AnswerEvidenceLedgerCompiler.CLAIM_LEDGER_VERSION);
-        metadata.put("evidenceManifest", result.evidenceManifest());
-        metadata.put("evidenceManifestVersion", AnswerEvidenceLedgerCompiler.EVIDENCE_MANIFEST_VERSION);
-        metadata.put("claimCoverage", result.coverage());
-        metadata.put("claimCoverageStatus", result.status());
-        metadata.put("answerClaimAuditPassed",
-            "PASS".equals(result.status()) || "NOT_APPLICABLE".equals(result.status()));
-        if ("FAIL".equals(result.status())) {
-            metadata.putIfAbsent("groundingStatus", "needs_review");
-            metadata.putIfAbsent("answerEvidenceStatus", "PARTIAL");
-            metadata.putIfAbsent("answerEvidenceUserVisible", true);
-            List<String> limitations = new ArrayList<>();
-            Object existing = metadata.get("answerEvidenceLimitations");
-            if (existing instanceof List<?> values) {
-                values.stream().filter(value -> value != null).map(String::valueOf)
-                    .forEach(limitations::add);
-            }
-            if (result.criticalUnboundClaims() > 0) {
-                limitations.add("CRITICAL_CLAIM_WITHOUT_EVIDENCE_BINDING");
-            }
-            if (result.unknownReferences() > 0) {
-                limitations.add("UNKNOWN_EVIDENCE_REFERENCE");
-            }
-            metadata.put("answerEvidenceLimitations", limitations.stream().distinct().toList());
-            if (answer != null && !answer.contains("证据完整性提示")) {
-                return answer + "\n\n> **证据完整性提示**：部分关键结论尚未与本次返回证据逐条绑定，"
-                    + "或引用无法核验。相关内容应视为待核验分析，不宜直接作为决策依据。";
-            }
-        }
-        return answer;
-    }
-
-    private String bindReturnedEvidenceReferences(String answer,
-                                                  Map<String, Object> metadata,
-                                                  List<String> observations,
-                                                  List<Map<String, Object>> toolEvidence,
-                                                  String phase) {
-        AnswerEvidenceLedgerCompiler.BindingResult binding = answerEvidenceLedgerCompiler.bindReturnedEvidence(
-            answer, metadata, observations, toolEvidence);
-        if (metadata != null && binding.boundClaimCount() > 0) {
-            metadata.put("answerEvidenceBindingApplied", true);
-            metadata.put("answerEvidenceBindingContractVersion", AnswerEvidenceLedgerCompiler.CLAIM_LEDGER_VERSION);
-            metadata.merge("answerEvidenceBoundClaimCount", binding.boundClaimCount(),
-                (left, right) -> ((Number) left).intValue() + ((Number) right).intValue());
-            metadata.put("answerEvidenceBindingPhase", firstNonBlank(phase, "unknown"));
-        }
-        return binding.answer();
-    }
-
-    private boolean nonBlankString(Object value) {
-        return value != null && !stringValue(value).isBlank();
-    }
-
-    /**
-     * Records evidence posture for diagnostics without changing the model-selected answer.
-     */
-    private void recordAnswerEvidenceAudit(Map<String, Object> metadata,
-                                           List<String> observations,
-                                           List<Map<String, Object>> toolEvidence,
-                                           List<InteractionToolTrace> traces) {
-        if (metadata == null) {
-            return;
-        }
-        List<String> evidence = new ArrayList<>();
-        List<String> limitations = new ArrayList<>();
-
-        boolean successfulToolEvidence = toolEvidence != null && toolEvidence.stream()
-            .anyMatch(item -> Boolean.TRUE.equals(item.get("success"))
-                && nonBlankString(item.get("evidenceType")));
-        if (successfulToolEvidence) {
-            evidence.add("SUCCESSFUL_TOOL_EVIDENCE");
-        }
-        if (containsEvidence(observations == null ? List.of() : observations)) {
-            evidence.add("CITED_OBSERVATION");
-        }
-
-        boolean failedToolEvidence = toolEvidence != null && toolEvidence.stream()
-            .anyMatch(item -> !Boolean.TRUE.equals(item.get("success")));
-        boolean failedTrace = traces != null && traces.stream()
-            .anyMatch(trace -> trace != null && !trace.isSuccess());
-        if (failedToolEvidence || failedTrace) {
-            limitations.add("TOOL_EXECUTION_FAILURE");
-        }
-        if (Boolean.TRUE.equals(metadata.get("fatalExecutionBlocked"))
-            || Boolean.TRUE.equals(metadata.get("mandatoryWorkflowBlocked"))) {
-            limitations.add("RUNTIME_EXECUTION_BLOCKED");
-        }
-
-        String status;
-        if (!evidence.isEmpty() && limitations.isEmpty()) {
-            status = "GROUNDED";
-        } else if (!evidence.isEmpty()) {
-            status = "PARTIAL";
-        } else if (!limitations.isEmpty()) {
-            status = "BLOCKED";
-        } else {
-            status = "INSUFFICIENT";
-        }
-        metadata.put("answerEvidenceAuditVersion", ANSWER_EVIDENCE_AUDIT_CONTRACT);
-        metadata.put("answerEvidenceStatus", status);
-        metadata.put("answerEvidenceSignals", List.copyOf(evidence));
-        metadata.put("answerEvidenceLimitations", List.copyOf(limitations));
-        metadata.put("answerEvidenceUserVisible", false);
-    }
-
-    /** Consolidates all provenance into one backend-only field instead of answer Markdown. */
-    private void attachAnswerEvidenceAuditEnvelope(Map<String, Object> metadata, String query) {
-        if (metadata == null) return;
-        boolean explicitlyRequested = userFacingPolicy.shouldExposeEvidenceReferences(query, metadata);
-        Map<String, Object> audit = new LinkedHashMap<>();
-        audit.put("schemaVersion", ANSWER_EVIDENCE_AUDIT_ENVELOPE);
-        audit.put("visibility", explicitlyRequested ? "USER_REQUESTED" : "BACKEND_AUDIT_ONLY");
-        audit.put("status", firstNonBlank(stringValue(metadata.get("answerEvidenceStatus")), "INSUFFICIENT"));
-        audit.put("signals", listValue(metadata.get("answerEvidenceSignals")));
-        audit.put("limitations", listValue(metadata.get("answerEvidenceLimitations")));
-        audit.put("selectedEvidenceRefs", listValue(firstPresent(
-            metadata.get("usefulEvidenceRefs"), metadata.get("evidenceForcedCitations"))));
-        audit.put("rejectedEvidenceRefs", listValue(metadata.get("rejectedEvidenceRefs")));
-        audit.put("availableCitations", listValue(metadata.get("availableEvidenceCitations")));
-        audit.put("claimCoverage", firstPresent(metadata.get("claimCoverage"), 0.0));
-        audit.put("claimCoverageStatus", firstNonBlank(
-            stringValue(metadata.get("claimCoverageStatus")), "NOT_APPLICABLE"));
-        audit.put("claimLedger", objectMap(metadata.get("claimLedger")));
-        audit.put("evidenceManifest", objectMap(metadata.get("evidenceManifest")));
-        audit.put("toolEvidence", listValue(metadata.get("toolResultEvidence")));
-        audit.put("presentationPolicy", Map.of(
-            "default", "METADATA_ONLY",
-            "userVisible", explicitlyRequested,
-            "explicitRequestRequired", true
-        ));
-        metadata.put("answerEvidenceAudit", Map.copyOf(audit));
-        metadata.put("answerEvidenceAuditSchemaVersion", ANSWER_EVIDENCE_AUDIT_ENVELOPE);
-        metadata.put("answerEvidenceUserVisible", explicitlyRequested);
-    }
-
-    private List<Object> listValue(Object value) {
-        if (!(value instanceof Iterable<?> iterable)) return List.of();
-        List<Object> values = new ArrayList<>();
-        iterable.forEach(values::add);
-        return List.copyOf(values);
     }
 
     private void attachAnswerAssemblyPolicy(Map<String, Object> metadata, List<String> observations) {

@@ -6,11 +6,15 @@ import com.chatchat.agents.evidence.graph.EvidenceGraph;
 
 import com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContract;
 import com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.AnalysisDatasetWorker;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
 import com.chatchat.agents.orchestration.analysis.AnalysisWorkerRetryPolicy;
+import com.chatchat.agents.orchestration.analysis.AnalysisRecordChunkPlanner;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryCheckpointService;
+import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceCoordinator;
 import com.chatchat.agents.orchestration.analysis.ContextCompressionEnvelope;
 import com.chatchat.agents.orchestration.analysis.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.analysis.DatasetRelationshipPlan;
@@ -46,6 +50,7 @@ import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
 import com.chatchat.agents.orchestration.tool.AgentToolExecutor;
+import com.chatchat.agents.orchestration.tool.AgentToolCallCoordinator;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
 import com.chatchat.agents.orchestration.tool.ToolCallFingerprint;
@@ -87,7 +92,6 @@ import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
-import com.chatchat.common.runtime.summary.DataAnalysisPosition;
 import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
@@ -142,7 +146,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -203,6 +206,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     private final AgentToolNameResolver toolNames;
     private final AgentToolArgumentResolver toolArguments;
     private final AgentToolExecutor toolExecutor;
+    private final AgentToolCallCoordinator toolCallCoordinator;
     private final MandatoryWorkflowResultReviewer mandatoryWorkflowResultReviewer;
     private final AgentWorkflowToolResolver workflowTools;
     private final MandatoryWorkflowTopology mandatoryWorkflowTopology;
@@ -227,6 +231,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     private final long analysisSummaryWorkerHeartbeatIntervalMs;
     private final long analysisSummaryWorkerHeartbeatTimeoutMs;
     private final ContextTokenEstimator contextTokenEstimator = new ContextTokenEstimator();
+    private final AnalysisRecordChunkPlanner recordChunkPlanner;
+    private final AnalysisSummaryCheckpointService summaryCheckpointService;
+    private final AnalysisSummaryGovernanceCoordinator summaryGovernanceCoordinator;
+    private final AnalysisDatasetWorker analysisDatasetWorker;
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AgentToolResultFactExtractor toolResultFactExtractor;
     private final AgentEvidenceGraphService evidenceGraphService;
@@ -345,6 +353,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         this.toolRuntimeService = toolRuntimeService;
         this.objectMapper = objectMapper;
         this.toolResultFactExtractor = new AgentToolResultFactExtractor(objectMapper);
+        this.recordChunkPlanner = new AnalysisRecordChunkPlanner(objectMapper);
+        this.summaryCheckpointService = new AnalysisSummaryCheckpointService(
+            objectMapper, this.analysisEvidenceSpillStore);
         this.evidenceGraphService = new AgentEvidenceGraphService(objectMapper);
         this.mcpAnalysisContextAdapter = RuntimeProtocolDefaults.analysisContext(objectMapper);
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
@@ -353,6 +364,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         AgentAnswerReviewer resolvedAnswerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
         this.planner = new AgentPlanner(toolRegistry, objectMapper);
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
+        this.summaryGovernanceCoordinator = new AnalysisSummaryGovernanceCoordinator(
+            this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
+        this.analysisDatasetWorker = new AnalysisDatasetWorker(
+            this.recordChunkPlanner, this.summaryCheckpointService,
+            this.analysisWorkerRetryPolicy, this.workerDatasetReducer,
+            this.analysisSummaryGovernanceBridge, this.analysisEvidenceSpillStore);
         this.runScopeBinder = new AgentRunScopeBinder();
         this.runLifecycle = new AgentRunLifecycleCoordinator(this.runStore, this.runResultAdapter);
         this.planEvolutionAuditor =
@@ -370,6 +387,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.toolExecutor = new AgentToolExecutor(
             this.toolRegistry, this.toolRuntimeService, this.toolArguments, this.toolObservationBuilder);
+        this.toolCallCoordinator = new AgentToolCallCoordinator(
+            this.toolExecutor, this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.mandatoryWorkflowResultReviewer = new MandatoryWorkflowResultReviewer(
             this.toolNames, this.toolResultFactExtractor, this.toolObservationBuilder, objectMapper);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
@@ -449,6 +468,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         this.analysisEvidenceSpillStore = spillStore == null
             ? AnalysisEvidenceSpillStore.disabled()
             : spillStore;
+        this.summaryCheckpointService.setStore(this.analysisEvidenceSpillStore);
+        this.analysisDatasetWorker.setSpillStore(this.analysisEvidenceSpillStore);
     }
 
     /** Replaces local workers with a distributed task dispatcher without changing Driver orchestration. */
@@ -457,6 +478,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     ) {
         if (protocol != null) {
             this.analysisSummaryGovernanceBridge = protocol;
+            this.summaryGovernanceCoordinator.setProtocol(protocol);
+            this.analysisDatasetWorker.setSummaryProtocol(protocol);
             this.answerFinalizer.setAnalysisSummaryProtocol(protocol);
         }
     }
@@ -521,6 +544,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             (DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope>)
                 (DataAnalysisSummaryProtocol<?, ?>)
                     registry.require(DataAnalysisSummaryProtocol.class);
+        this.summaryGovernanceCoordinator.setProtocol(this.analysisSummaryGovernanceBridge);
+        this.analysisDatasetWorker.setSummaryProtocol(this.analysisSummaryGovernanceBridge);
         this.analysisTaskDispatcher =
             (ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>)
                 (ModelSummaryDispatcher<?, ?, ?>) registry.require(ModelSummaryDispatcher.class);
@@ -2944,44 +2969,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                                                               RecordCoverageBundle coverage,
                                                               Map<String, Object> runtimeAttributes,
                                                               Map<String, Object> metadata) {
-        Map<String, Object> coverageMap = Map.of(
-            "returnedRecordCount", coverage.returnedRecordCount(),
-            "processedRecordCount", coverage.processedRecordCount(),
-            "coverageComplete", coverage.coverageComplete(),
-            "evidenceTraceComplete", coverage.evidenceTraceComplete(),
-            "sourceContentComplete", coverage.sourceContentComplete(),
-            "iterationCount", coverage.iterations(),
-            "summaryResultCount", coverage.summaryResults().size(),
-            "rawReplayChunkCount", coverage.rawReplayChunkCount()
-        );
-        AnalysisSummaryResult summaryResult = analysisSummaryGovernanceBridge.finalResult(
-            summaryIsolationScope(coverage, metadata),
-            stage, content, outcome, coverageMap, coverage.synthesisInputs());
-        if (metadata != null) {
-            metadata.put("analysisSummaryResult", summaryResult.toMap());
-            metadata.put("analysisSummaryResultSchemaVersion", AnalysisSummaryResult.SCHEMA_VERSION);
-        }
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            "Governed final analysis summary recorded for " + summaryResult.resultId() + ".",
-            "analysis_summary_governance",
-            metadataOf(
-                "type", "analysis_summary_result",
-                "analysisSummaryResult", summaryResult.toMap(),
-                "tenantId", summaryResult.isolationScope().tenantId(),
-                "runId", summaryResult.isolationScope().runId()
-            )
-        );
-        return summaryResult;
-    }
-
-    private GovernanceIsolationScope summaryIsolationScope(RecordCoverageBundle coverage,
-                                                            Map<String, Object> metadata) {
-        if (coverage != null && coverage.summaryResults() != null && !coverage.summaryResults().isEmpty()) {
-            return coverage.summaryResults().get(0).isolationScope();
-        }
-        return governanceIsolationScope(metadata, Map.of());
+        return summaryGovernanceCoordinator.finalizeSummary(
+            new AnalysisSummaryGovernanceCoordinator.FinalSummaryRequest(
+                stage, content, outcome,
+                coverage.returnedRecordCount(), coverage.processedRecordCount(),
+                coverage.coverageComplete(), coverage.evidenceTraceComplete(),
+                coverage.sourceContentComplete(), coverage.iterations(),
+                coverage.rawReplayChunkCount(), coverage.summaryResults(),
+                coverage.synthesisInputs(), runtimeAttributes, metadata));
     }
 
     private GovernanceIsolationScope governanceIsolationScope(Map<String, Object> metadata,
@@ -4125,8 +4120,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             tasks,
             (task, progressReporter) -> {
                 runtimeGuard.checkCancelled(cancellationCheck);
-                return analyzeDatasetTask(activeChatModel, task, progressReporter,
-                    cancellationCheck);
+                return analysisDatasetWorker.execute(
+                    activeChatModel, task, progressReporter, cancellationCheck,
+                    () -> runtimeGuard.checkCancelled(cancellationCheck));
             },
             cancellationCheck,
             progress -> recordAnalysisWorkerProgress(
@@ -4135,191 +4131,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             dispatched.mode(), dispatched.taskCount(), dispatched.workerCount());
         return new ParallelAnalysisSummaryBatch(
             dispatched, tasks, taskIdsByDatasetReference);
-    }
-
-    private AnalysisDatasetSummary analyzeDatasetTask(
-        ChatModel activeChatModel,
-        AnalysisTask task,
-        ModelSummaryProgressReporter progressReporter,
-        BooleanSupplier cancellationCheck
-    ) {
-        RecordChunkPlan chunkPlan = recordChunkPlan(
-            task.records(), task.maximumChunkRows(), task.maximumChunkChars());
-        boolean modelSummaryRequired = analysisSummaryGovernanceBridge.requiresModelSummary(
-            task.analysisContext(), chunkPlan.oversized());
-        List<AnalysisDatasetSummary.ChunkResult> chunks = new ArrayList<>();
-        int spilledChunkCount = 0;
-        long spilledByteCount = 0;
-        int restoredCheckpointCount = 0;
-        int from = 1;
-        for (int chunkOffset = 0; chunkOffset < chunkPlan.ranges().size(); chunkOffset++) {
-            runtimeGuard.checkCancelled(cancellationCheck);
-            RecordRange range = chunkPlan.ranges().get(chunkOffset);
-            List<Map<String, Object>> chunk = List.copyOf(task.records()
-                .subList(range.fromInclusive(), range.toExclusive()));
-            int to = from + chunk.size() - 1;
-            DataAnalysisPosition position = analysisSummaryGovernanceBridge.position(
-                task.datasetReference(), chunkOffset + 1, chunkPlan.ranges().size(),
-                from, to, task.records().size());
-            progressReporter.report("CHUNK_STARTED", metadataOf(
-                "chunkIndex", position.chunkIndex(),
-                "chunkCount", position.chunkCount(),
-                "recordFrom", from,
-                "recordTo", to,
-                "recordCount", chunk.size()
-            ));
-            String rawJson = ModelProtocolJson.compact(chunk);
-            byte[] rawBytes = rawJson.getBytes(StandardCharsets.UTF_8);
-            String contentSha256 = ModelProtocolJson.sha256Hex(rawJson);
-            String evidenceId = task.isolationScope().partitionKey() + ":"
-                + task.datasetReference() + "#chunk-" + (chunkOffset + 1);
-            boolean spillRequested = analysisEvidenceSpillStore.isEnabled()
-                && (chunkPlan.oversized() || rawBytes.length >= task.spillThresholdBytes());
-            AnalysisEvidenceSpillStore.SpillReference spillReference = null;
-            if (spillRequested) {
-                spillReference = analysisEvidenceSpillStore.spill(
-                    task.isolationScope(), evidenceId, contentSha256, rawBytes);
-                spilledChunkCount++;
-                spilledByteCount += spillReference.byteLength();
-            }
-            String checkpointInputSha256 = summaryCheckpointInputSha256(
-                contentSha256, position, task.analysisContext(), task.originalUserQuestion(),
-                modelSummaryRequired);
-            String checkpointKey = task.datasetReference() + "#chunk-" + (chunkOffset + 1);
-            AnalysisSummaryResult summary = null;
-            boolean restoredCheckpoint = false;
-            AtomicInteger attemptCount = new AtomicInteger();
-            if (spillReference != null) {
-                summary = restoreAnalysisSummaryCheckpoint(
-                    task.isolationScope(), checkpointKey, checkpointInputSha256);
-                restoredCheckpoint = summary != null;
-                if (restoredCheckpoint) restoredCheckpointCount++;
-            }
-            if (summary == null) {
-                summary = modelSummaryRequired
-                    ? analysisSummaryGovernanceBridge.summarize(
-                        prompt -> analysisWorkerRetryPolicy.execute(
-                            task.maximumRetries(), cancellationCheck,
-                            ignored -> {
-                                String output = activeChatModel.chat(prompt);
-                                if (output == null || output.isBlank()) {
-                                    throw new IllegalStateException(
-                                        "Analysis model returned an empty response");
-                                }
-                                return output;
-                            },
-                            attemptCount::set,
-                            (attempt, failure) -> {
-                                log.warn(
-                                    "analysisChunkAttemptFailed dataset={} chunk={}/{} attempt={}/{} error={}",
-                                    task.datasetReference(), position.chunkIndex(),
-                                    position.chunkCount(), attempt, task.maximumAttempts(),
-                                    failure.getMessage());
-                                progressReporter.report("CHUNK_RETRY", metadataOf(
-                                    "chunkIndex", position.chunkIndex(),
-                                    "chunkCount", position.chunkCount(),
-                                    "failedAttempt", attempt,
-                                    "maximumAttempts", task.maximumAttempts(),
-                                    "error", String.valueOf(failure.getMessage())
-                                ));
-                            }),
-                        task.isolationScope(), position,
-                        task.analysisContext(), chunk, task.originalUserQuestion())
-                    : analysisSummaryGovernanceBridge.preserve(
-                        task.isolationScope(), position, task.analysisContext(), chunk);
-                if (spillReference != null
-                    && !"STRUCTURED_RECORD_FALLBACK".equals(summary.outcome())) {
-                    persistAnalysisSummaryCheckpoint(
-                        task.isolationScope(), checkpointKey, checkpointInputSha256, summary);
-                }
-            }
-            if (spillReference != null) {
-                summary = summary.withEvidence(Map.of(
-                    "rawReplayLocator", spillReference.toMap(),
-                    "spillCheckpointKey", checkpointKey,
-                    "spillCheckpointInputSha256", checkpointInputSha256
-                ));
-            }
-            summary = summary.withEvidence(Map.of(
-                "workerAttemptCount", attemptCount.get(),
-                "workerRetryCount", Math.max(0, attemptCount.get() - 1),
-                "workerMaximumRetries", task.maximumRetries(),
-                "workerMaximumAttempts", task.maximumAttempts()
-            ));
-            chunks.add(new AnalysisDatasetSummary.ChunkResult(
-                summary, spillReference, checkpointInputSha256, restoredCheckpoint,
-                attemptCount.get()));
-            progressReporter.report("CHUNK_COMPLETED", metadataOf(
-                "chunkIndex", position.chunkIndex(),
-                "chunkCount", position.chunkCount(),
-                "recordFrom", from,
-                "recordTo", to,
-                "recordCount", chunk.size(),
-                "attemptCount", attemptCount.get(),
-                "restoredCheckpoint", restoredCheckpoint,
-                "outcome", summary.outcome()
-            ));
-            from = to + 1;
-        }
-        AtomicInteger datasetReductionAttemptCount = new AtomicInteger();
-        List<AnalysisSummaryResult> chunkSummaries = chunks.stream()
-            .map(AnalysisDatasetSummary.ChunkResult::summary).toList();
-        String datasetReductionCheckpointKey = task.datasetReference() + "#dataset-reduce";
-        String datasetReductionInputSha256 = ModelProtocolJson.sha256Hex(Map.of(
-            "schemaVersion", HierarchicalAnalysisReducer.SCHEMA_VERSION,
-            "datasetReference", task.datasetReference(),
-            "analysisContext", task.analysisContext(),
-            "originalUserQuestion", task.originalUserQuestion(),
-            "chunkSummaries", chunkSummaries.stream()
-                .map(this::datasetReductionCheckpointProjection).toList()
-        ));
-        boolean datasetReductionCheckpointEligible = analysisEvidenceSpillStore.isEnabled()
-            && chunkPlan.oversized();
-        AnalysisSummaryResult datasetSummary = datasetReductionCheckpointEligible
-            ? restoreAnalysisSummaryCheckpoint(task.isolationScope(),
-                datasetReductionCheckpointKey, datasetReductionInputSha256)
-            : null;
-        boolean datasetReductionRestoredCheckpoint = datasetSummary != null;
-        if (datasetSummary == null) {
-            progressReporter.report("DATASET_REDUCING", metadataOf(
-                "chunkCount", chunkSummaries.size(),
-                "originalQuestionPresent", !task.originalUserQuestion().isBlank()
-            ));
-            datasetSummary = workerDatasetReducer.reduceDataset(
-                prompt -> analysisWorkerRetryPolicy.execute(
-                    task.maximumRetries(), cancellationCheck,
-                    ignored -> {
-                        String output = activeChatModel.chat(prompt);
-                        if (output == null || output.isBlank()) {
-                            throw new IllegalStateException(
-                                "Dataset reduction model returned an empty response");
-                        }
-                        return output;
-                    },
-                    datasetReductionAttemptCount::set,
-                    (attempt, failure) -> {
-                        log.warn(
-                            "analysisDatasetReduceAttemptFailed dataset={} attempt={}/{} error={}",
-                            task.datasetReference(), attempt, task.maximumAttempts(),
-                            failure.getMessage());
-                        progressReporter.report("DATASET_REDUCTION_RETRY", metadataOf(
-                            "failedAttempt", attempt,
-                            "maximumAttempts", task.maximumAttempts(),
-                            "error", String.valueOf(failure.getMessage())
-                        ));
-                    }),
-                task.isolationScope(), task.datasetReference(), chunkSummaries,
-                task.originalUserQuestion());
-            if (datasetReductionCheckpointEligible
-                && !datasetSummary.outcome().contains("FALLBACK")) {
-                persistAnalysisSummaryCheckpoint(task.isolationScope(),
-                    datasetReductionCheckpointKey, datasetReductionInputSha256, datasetSummary);
-            }
-        }
-        return AnalysisDatasetSummary.completed(task, chunkPlan.oversized(),
-            chunkPlan.serializedChars(), chunks, datasetSummary, spilledChunkCount,
-            spilledByteCount, restoredCheckpointCount, datasetReductionAttemptCount.get(),
-            datasetReductionRestoredCheckpoint);
     }
 
     private void recordAnalysisWorkerProgress(
@@ -4369,25 +4180,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 + position + " 失败：" + progress.details().get("error") + "。";
             default -> progress.workerId() + " 更新了数据集 " + position + " 的分析进度。";
         };
-    }
-
-    /**
-     * Builds a stable dataset-reduction identity. Worker attempt counters and spill locators are
-     * deliberately excluded: they describe how a chunk was computed, not what the chunk means.
-     * This lets a retried Driver reuse the completed Worker reduction after restoring chunk
-     * checkpoints without changing the semantic input hash.
-     */
-    private Map<String, Object> datasetReductionCheckpointProjection(
-        AnalysisSummaryResult summary
-    ) {
-        return Map.of(
-            "resultId", summary.resultId(),
-            "content", summary.content(),
-            "outcome", summary.outcome(),
-            "position", summary.position(),
-            "analysisContext", summary.analysisContext(),
-            "coverage", summary.coverage()
-        );
     }
 
     private SemanticInsightContractProvider.Resolution resolveSemanticInsightContracts(
@@ -4882,105 +4674,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         return List.of();
     }
 
-    private RecordChunkPlan recordChunkPlan(
-        List<Map<String, Object>> records,
-        int maximumChunkRows,
-        int maximumChunkChars
-    ) {
-        List<RecordRange> ranges = new ArrayList<>();
-        int currentFrom = 0;
-        int currentRows = 0;
-        int currentChars = 0;
-        long totalChars = 0;
-        for (int index = 0; index < records.size(); index++) {
-            Map<String, Object> record = records.get(index);
-            int recordChars = Math.max(1, stringify(record).length());
-            totalChars += recordChars;
-            if (currentRows > 0 && (currentRows >= maximumChunkRows
-                || currentChars + recordChars > maximumChunkChars)) {
-                ranges.add(new RecordRange(currentFrom, index));
-                currentFrom = index;
-                currentRows = 0;
-                currentChars = 0;
-            }
-            currentRows++;
-            currentChars += recordChars;
-        }
-        if (currentRows > 0) {
-            ranges.add(new RecordRange(currentFrom, records.size()));
-        }
-        boolean oversized = totalChars > maximumChunkChars
-            || records.size() > maximumChunkRows;
-        return new RecordChunkPlan(List.copyOf(ranges), oversized, totalChars);
-    }
-
-    private String summaryCheckpointInputSha256(String contentSha256,
-                                                DataAnalysisPosition position,
-                                                Map<String, Object> governedContext,
-                                                String query,
-                                                boolean modelSummaryRequired) {
-        return ModelProtocolJson.sha256Hex(Map.of(
-            "bridgeSchemaVersion", DataAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION,
-            "contentSha256", firstNonBlank(contentSha256, ""),
-            "position", position == null ? Map.of() : position.toMap(),
-            "governedContext", governedContext == null ? Map.of() : governedContext,
-            "userObjective", firstNonBlank(query, ""),
-            "modelSummaryRequired", modelSummaryRequired
-        ));
-    }
-
-    private AnalysisSummaryResult restoreAnalysisSummaryCheckpoint(GovernanceIsolationScope scope,
-                                                                    String checkpointKey,
-                                                                    String inputSha256) {
-        try {
-            return analysisEvidenceSpillStore.readCheckpoint(scope, checkpointKey, inputSha256)
-                .map(json -> {
-                    try {
-                        AnalysisSummaryResult result = objectMapper.readValue(json, AnalysisSummaryResult.class);
-                        scope.requireSamePartition(result.isolationScope());
-                        return result;
-                    } catch (Exception ex) {
-                        throw new IllegalStateException(ex);
-                    }
-                })
-                .orElse(null);
-        } catch (Exception ex) {
-            log.warn("Analysis summary checkpoint is unusable and will be recomputed. checkpointKey={} error={}",
-                checkpointKey, ex.getMessage());
-            return null;
-        }
-    }
-
-    private void persistAnalysisSummaryCheckpoint(GovernanceIsolationScope scope,
-                                                  String checkpointKey,
-                                                  String inputSha256,
-                                                  AnalysisSummaryResult summary) {
-        try {
-            analysisEvidenceSpillStore.checkpoint(
-                scope, checkpointKey, inputSha256, objectMapper.writeValueAsString(summary));
-        } catch (Exception ex) {
-            throw new IllegalStateException(
-                "Analysis summary checkpoint cannot be persisted losslessly: " + checkpointKey, ex);
-        }
-    }
-
     private List<String> recordValueGroup(Map<String, Object> record, String query) {
-        String normalizedQuery = firstNonBlank(query, "").replace(",", "");
-        LinkedHashSet<String> values = new LinkedHashSet<>();
-        for (Object rawValue : record.values()) {
-            if (rawValue instanceof Map<?, ?> || rawValue instanceof Iterable<?> || rawValue == null) {
-                continue;
-            }
-            String value = String.valueOf(rawValue).trim();
-            String comparable = value.replace(",", "");
-            if (value.length() >= 3 && !normalizedQuery.contains(comparable)) {
-                values.add(value);
-            }
-        }
-        if (values.isEmpty()) {
-            values.add(ModelProtocolJson.compact(record));
-        }
-        return List.copyOf(values);
+        return recordChunkPlanner.valueGroup(record, query);
     }
 
     String ensureCompleteRecordCoveragePresented(
@@ -5134,12 +4829,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 "", "", List.of(), 0, 0, 0, false, true, true, true, 0, List.of(), List.of());
         }
     }
-
-    private record RecordRange(int fromInclusive, int toExclusive) { }
-
-    private record RecordChunkPlan(List<RecordRange> ranges,
-                                   boolean oversized,
-                                   long serializedChars) { }
 
     private record AnalysisDatasetTaskOutcome(
         AnalysisDatasetSummary summary,
@@ -6992,11 +6681,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                                               Map<String, Object> plannerExecutionPlan,
                                               List<InteractionToolTrace> priorTraces,
                                               Map<String, Object> runtimeAttributes) {
-        AgentToolExecutor.Execution execution = toolExecutor.execute(
+        AgentToolExecutor.Execution execution = toolCallCoordinator.execute(
             toolName, arguments, conversationId, requestId, userId, tenantId,
             allowedTools, plannerExecutionPlan, priorTraces, runtimeAttributes);
-        recordStructuredToolObservation(runtimeAttributes, toolName, execution.output(),
-            execution.runtimeExecution(), execution.observation());
         return new AgentOrchestrator.ToolCallExecution(
             execution.trace(), execution.observation(), execution.output());
     }
@@ -7012,48 +6699,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             attributes.put("workflowToolName", toolName);
         }
         return attributes;
-    }
-
-    private void recordStructuredToolObservation(Map<String, Object> runtimeAttributes,
-                                                 String toolName,
-                                                 ToolOutput output,
-                                                 ToolRuntimeExecution execution,
-                                                 String observation) {
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("type", output != null && output.isSuccess() ? "tool" : "tool_failure");
-        metadata.put("toolName", toolName);
-        metadata.put("success", output != null && output.isSuccess());
-        metadata.put("outcome", execution == null ? null : execution.outcome());
-        if (output != null && output.getMetadata() != null
-            && output.getMetadata().get("mcpEvidenceResult") != null) {
-            metadata.put("mcpEvidenceResult", output.getMetadata().get("mcpEvidenceResult"));
-            metadata.put("mcpEvidenceResultSchemaVersion",
-                output.getMetadata().get("mcpEvidenceResultSchemaVersion"));
-        }
-        copyAttribute(runtimeAttributes, metadata, "workflowStepId");
-        copyAttribute(runtimeAttributes, metadata, "workflowToolName");
-        copyAttribute(runtimeAttributes, metadata, "interpretationPlanStepId");
-        copyAttribute(runtimeAttributes, metadata, "interpretationPlanActionType");
-        if (output != null && output.getErrorMessage() != null && !output.getErrorMessage().isBlank()) {
-            metadata.put("errorMessage", output.getErrorMessage());
-        }
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            observation,
-            toolName,
-            metadata
-        );
-    }
-
-    private void copyAttribute(Map<String, Object> source, Map<String, Object> target, String key) {
-        if (source == null || target == null || key == null) {
-            return;
-        }
-        Object value = source.get(key);
-        if (value != null) {
-            target.put(key, value);
-        }
     }
 
     private Set<String> completedWorkflowToolsFromEvents(Map<String, Object> runtimeAttributes,

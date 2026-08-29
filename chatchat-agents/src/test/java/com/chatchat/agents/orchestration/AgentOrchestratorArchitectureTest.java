@@ -11,10 +11,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentOrchestratorArchitectureTest {
 
     private static final int MAX_FACADE_LINES = 1_000;
-    private static final int ENGINE_MIGRATION_RATCHET_LINES = 7_550;
+    private static final int ENGINE_MIGRATION_RATCHET_LINES = 7_175;
     private static final int MAX_DOMAIN_COMPONENT_LINES = 1_000;
-    private static final int PLANNER_MIGRATION_RATCHET_LINES = 2_025;
-    private static final int ANSWER_FINALIZER_MIGRATION_RATCHET_LINES = 2_075;
+    private static final int PLANNER_MIGRATION_RATCHET_LINES = 1_750;
+    private static final int ANSWER_FINALIZER_MIGRATION_RATCHET_LINES = 1_700;
 
     @Test
     void publicOrchestratorRemainsABoundedFacade() throws IOException {
@@ -110,6 +110,30 @@ class AgentOrchestratorArchitectureTest {
             "src/main/java/com/chatchat/agents/runtime/toolcall/TemplateExecutionContractSelector.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Template discovery-to-execution admission must remain a focused Runtime OS boundary");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/planning/AgentPlanAttributionPolicy.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Guard repair and candidate attribution must remain independent from planner model invocation");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/answer/AnswerQualityCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Answer quality coordination must remain independent from final presentation policy");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/answer/AnswerEvidenceAuditService.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Evidence audit must remain independent from answer candidate selection");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisDatasetWorker.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Dataset chunking, retry, checkpoint and reduction must remain worker-owned");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisSummaryGovernanceCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Final analysis governance must remain independent from Driver scheduling");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/tool/AgentToolCallCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Tool execution observation coordination must remain independent from workflow recovery");
     }
 
     @Test

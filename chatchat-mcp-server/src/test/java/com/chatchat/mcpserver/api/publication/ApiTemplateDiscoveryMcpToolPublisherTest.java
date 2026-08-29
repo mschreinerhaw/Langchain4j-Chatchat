@@ -11,6 +11,7 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -21,10 +22,37 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiTemplateDiscoveryMcpToolPublisherTest {
+
+    @Test
+    void searchesEveryKeywordIndependentlyInsteadOfConcatenatingThem() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setToolName("customer_analysis_api");
+        config.setTitle("Customer analysis");
+        config.setDescription("Trade history and asset snapshot");
+        config.setEnabled(true);
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(config));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of());
+
+        Map<String, Object> result = publisher(configService, lucene).query(Map.of(
+            "filters", Map.of("keywords", List.of("trade history", "asset snapshot"))
+        ));
+
+        ArgumentCaptor<LuceneMcpSearchService.TemplateSearchRequest> requests =
+            ArgumentCaptor.forClass(LuceneMcpSearchService.TemplateSearchRequest.class);
+        verify(lucene, times(2)).searchApiServiceTemplates(requests.capture());
+        assertThat(requests.getAllValues()).extracting(LuceneMcpSearchService.TemplateSearchRequest::intentText)
+            .containsExactly("trade history", "asset snapshot");
+        assertThat(result.get("retrievalPlan").toString())
+            .contains("independent_query_units", "search_each_unit_independently");
+    }
 
     @Test
     void queryUsesIndependentIntentCandidatesAndConfiguredFieldMetadata() {

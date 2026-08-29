@@ -10,7 +10,7 @@ import com.chatchat.mcpserver.routing.asset.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
 import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.query.AssetRelevanceRanker;
-import com.chatchat.mcpserver.search.query.DiscoveryQueryVariants;
+import com.chatchat.mcpserver.search.query.DiscoveryQueryPlan;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -104,7 +104,8 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
         List<String> terms = terms(filters);
-        List<String> retrievalVariants = DiscoveryQueryVariants.from(filters);
+        DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(filters);
+        List<String> retrievalVariants = retrievalPlan.queries();
         List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
         List<ScoredApiAsset> matched = luceneMatched(enabledConfigs, retrievalVariants, limit);
         boolean luceneUsed = !matched.isEmpty()
@@ -129,6 +130,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             "limit", limit,
             "returnedCount", assets.size(),
             "possiblyTruncated", matched.size() > limit,
+            "retrievalPlan", retrievalPlan.metadata(),
             "discoveryPolicy", mapOf(
                 "readOnly", true,
                 "redaction", "URL templates, headers, and body templates are never returned",
@@ -156,7 +158,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             "filtersSchemaVersion", Map.of("type", "string", "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION),
             "filters", Map.of(
                 "type", "object",
-                "description", "Optional logical filters for API assets, such as businessGroup, groupName, assetName, toolName, name, service, target, labels, intent, bilingualIntent, intentZh, or intentEn. Raw URL, headers, and body templates are forbidden.",
+                "description", "Optional logical filters for API assets. queryTerms[], keywords[], retrievalSignals[], and nested intentCandidates queries are independent query units: each item is searched separately and results are unioned with per-unit evidence. Do not concatenate analyzed keywords. Raw URL, headers, and body templates are forbidden.",
                 "additionalProperties", true
             ),
             "executionContext", Map.of(

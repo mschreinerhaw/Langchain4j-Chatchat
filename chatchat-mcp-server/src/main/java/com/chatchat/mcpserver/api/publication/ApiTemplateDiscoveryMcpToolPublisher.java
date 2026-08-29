@@ -11,7 +11,7 @@ import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
 import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
-import com.chatchat.mcpserver.search.query.DiscoveryQueryVariants;
+import com.chatchat.mcpserver.search.query.DiscoveryQueryPlan;
 import com.chatchat.mcpserver.search.query.SearchQueryTokenizer;
 import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -126,7 +126,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             ? filters
             : filtersWithApiAssetSignals(filters, assetSignals);
         List<String> terms = terms(retrievalFilters);
-        List<String> retrievalVariants = DiscoveryQueryVariants.from(retrievalFilters);
+        DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(retrievalFilters);
+        List<String> retrievalVariants = retrievalPlan.queries();
         List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
         if (luceneSearchService != null && luceneSearchService.enabled()) {
             List<String> queries = retrievalVariants.isEmpty()
@@ -218,6 +219,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "terms", terms
                 , "retrievalVariants", retrievalVariants
             ),
+            "retrievalPlan", retrievalPlan.metadata(),
             "diagnostics", mapOf(
                 "source", "lucene_api_service_template_index",
                 "hitCount", hitEvidence.size(),
@@ -253,7 +255,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "filtersSchemaVersion", Map.of("type", "string", "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION),
             "filters", Map.of(
                 "type", "object",
-                "description", "Logical filters for API templates, such as businessGroup, groupName, intent, bilingualIntent, intentZh, intentEn, toolName, service, category, labels, language, or queryLanguage. Raw URL, headers, and body templates are not accepted.",
+                "description", "Logical filters for API templates. queryTerms[], keywords[], retrievalSignals[], and nested intentCandidates queries are independent query units: each item is searched separately and results are unioned with per-unit evidence. Do not concatenate analyzed keywords. Raw URL, headers, and body templates are not accepted.",
                 "additionalProperties", true
             ),
             "bilingualIntent", Map.of(

@@ -19,6 +19,7 @@ import com.chatchat.mcpserver.database.category.DataQueryCategoryService;
 import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
 import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.query.DiscoveryQueryVariants;
+import com.chatchat.mcpserver.search.query.DiscoveryQueryPlan;
 import com.chatchat.mcpserver.search.query.SearchQueryTokenizer;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
@@ -2840,6 +2841,7 @@ public class CommandTemplateDiscoveryService {
     }
 
     private Map<String, Object> bilingualRetrieval(Map<String, Object> filters, NormalizedIntent intent) {
+        DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(filters);
         List<String> modelGenerated = bilingualIntentValues(filters).stream()
             .map(value -> value == null ? null : String.valueOf(value).trim())
             .filter(value -> value != null && !value.isBlank())
@@ -2853,10 +2855,11 @@ public class CommandTemplateDiscoveryService {
         generated.addAll(bilingualIntentTokens(filters));
         return mapOf(
             "required", true,
+            "retrievalPlan", retrievalPlan.metadata(),
             "modelGenerated", modelGenerated,
             "generatedByEngine", generated.stream().toList(),
-            "retrievalVariants", DiscoveryQueryVariants.from(filters),
-            "variantPolicy", "independent_recall_then_best_hit_merge_with_user_intent_quality_gate",
+            "retrievalVariants", retrievalPlan.queries(),
+            "variantPolicy", "independent_recall_then_union_deduplicate_preserving_per_unit_evidence_with_user_intent_quality_gate",
             "fields", List.of("bilingualIntent", "bilingualQuery", "intentAliases", "keywords", "retrievalSignals",
                 "intentCandidates", "intentZh", "intentEn"),
             "languages", List.of("zh", "en")

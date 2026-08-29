@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.query.AssetRelevanceRanker;
 import com.chatchat.mcpserver.search.query.DiscoveryQueryVariants;
+import com.chatchat.mcpserver.search.query.DiscoveryQueryPlan;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -147,6 +148,7 @@ public class AssetDiscoveryService {
         AssetSelection selection = applyBoundAssetSelection(arguments, allAssets, matched, assetType);
         matched = selection.assets();
         Map<String, Object> compactFilters = compactFilters(filters);
+        DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(filters);
 
         Map<String, Object> result = mapOf(
             "schemaVersion", RESULT_SCHEMA_VERSION,
@@ -157,13 +159,14 @@ public class AssetDiscoveryService {
             "targetKind", target.definition().targetKind(),
             "technicalType", technicalType,
             "filtersSchemaVersion", target.filtersSchemaVersion(),
+            "retrievalPlan", retrievalPlan.metadata(),
             "discoveryPolicy", mapOf(
                 "readOnly", true,
                 "requiresContextFilter", false,
                 "broadDiscovery", "allowed_redacted_candidates_only",
                 "maxResults", limitValue(DEFAULT_LIMIT),
-                "retrievalVariants", DiscoveryQueryVariants.from(filters),
-                "variantPolicy", "independent_recall_then_best_score_merge",
+                "retrievalVariants", retrievalPlan.queries(),
+                "variantPolicy", "independent_recall_then_union_deduplicate_preserving_per_unit_evidence",
                 "redaction", "concrete target fields are never returned"
             ),
             "filters", compactFilters,

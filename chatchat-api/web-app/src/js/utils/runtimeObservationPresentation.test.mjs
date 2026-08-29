@@ -26,3 +26,15 @@ test("distinguishes a recoverable validation warning from a failed tool observat
     metadata: { type: "tool_failure", success: false }
   }).status, "error");
 });
+
+test("renders analysis progress with business language instead of driver and worker terms", () => {
+  assert.deepEqual(runtimeObservationPresentation({
+    metadata: { type: "business_analysis_progress", stage: "DATA_PREPARATION_STARTED" }
+  }), { title: "准备业务数据", toolName: "业务分析", status: "active" });
+  assert.deepEqual(runtimeObservationPresentation({
+    metadata: { type: "business_analysis_result_ready", stage: "BUSINESS_RESULT_READY" }
+  }), { title: "业务分析完成", toolName: "业务分析", status: "done" });
+  assert.deepEqual(runtimeObservationPresentation({
+    metadata: { type: "business_analysis_partial_failure", stage: "PARTIAL_DATA_UNAVAILABLE" }
+  }), { title: "部分业务数据未完成", toolName: "业务分析", status: "warning" });
+});

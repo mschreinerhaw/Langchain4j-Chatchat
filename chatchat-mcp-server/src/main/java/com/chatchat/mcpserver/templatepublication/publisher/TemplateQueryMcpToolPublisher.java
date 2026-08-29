@@ -275,7 +275,7 @@ public class TemplateQueryMcpToolPublisher {
             ),
             "filters", Map.of(
                 "type", "object",
-                "description", "Logical search intent and classification filters only. Raw execution fields are forbidden.",
+                "description", "Logical search intent and classification filters only. queryTerms[], keywords[], retrievalSignals[], and nested intentCandidates queries are independent query units and must not be concatenated. Raw execution fields are forbidden.",
                 "additionalProperties", true
             ),
             "bilingualIntent", Map.of("type", "array", "items", Map.of("type", "string")),

@@ -252,7 +252,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void publishesWorkerDatasetAndChunkProgressToTheRuntimeObservationStream() {
+    void publishesBusinessFriendlyAnalysisProgressWithoutInternalWorkerTerms() {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
@@ -284,22 +284,25 @@ class AgentOrchestratorTest {
             () -> false);
 
         List<AgentObservation> progress = runStore.observations("worker-progress-run").stream()
-            .filter(observation -> "analysis_worker_progress".equals(observation.source()))
+            .filter(observation -> "business_analysis_progress".equals(observation.source()))
             .toList();
         assertThat(progress).extracting(observation -> observation.metadata().get("stage"))
             .containsSubsequence(
-                "WORKER_CLAIMED",
-                "CHUNK_STARTED",
-                "CHUNK_COMPLETED",
-                "DATASET_REDUCING",
-                "DATASET_COMPLETED",
-                "DRIVER_RESULT_COLLECTED");
+                "DATA_PREPARATION_STARTED",
+                "DATA_BATCH_STARTED",
+                "DATA_BATCH_COMPLETED",
+                "RESULT_AGGREGATING",
+                "DATA_PROCESSING_COMPLETED",
+                "BUSINESS_RESULT_READY");
         assertThat(progress)
             .allSatisfy(observation -> assertThat(observation.metadata())
                 .containsEntry("workReference", "visible_dataset")
-                .containsKeys("workIndex", "workCount"));
+                .containsKeys("workIndex", "workCount")
+                .doesNotContainKeys("workerId", "taskId"));
+        assertThat(progress).allSatisfy(observation -> assertThat(observation.content())
+            .doesNotContain("Driver", "Worker", "driver", "worker"));
         assertThat(progress).anySatisfy(observation -> assertThat(observation.metadata())
-            .containsEntry("stage", "CHUNK_STARTED")
+            .containsEntry("stage", "DATA_BATCH_STARTED")
             .containsKeys("chunkIndex", "chunkCount", "recordFrom", "recordTo"));
         assertThat(metadata)
             .containsEntry("recordAnalysisWorkerModelTimeoutPolicy",
@@ -381,7 +384,8 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisAllWorkersFailed", false);
         assertThat(runStore.observations("partial-worker-run"))
             .anySatisfy(observation -> assertThat(observation.metadata())
-                .containsEntry("stage", "DRIVER_DATASET_FAILURE_ISOLATED"));
+                .containsEntry("stage", "PARTIAL_DATA_UNAVAILABLE")
+                .doesNotContainKeys("workerId", "taskId"));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.chatchat.api.security;
 
+import com.chatchat.api.config.RequestCorrelationFilter;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.enterprise.service.AgentApiTokenService;
@@ -73,13 +74,13 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
             if (agentApiTokenService.looksLikeApiToken(token)) {
                 String path = applicationPath(request);
                 if (!isAgentApiInvocationPath(path)) {
-                    writeUnauthorized(response, "Agent API Token 只能用于已发布 Agent 的问答接口");
+                    writeUnauthorized(request, response, "Agent API Token 只能用于已发布 Agent 的问答接口");
                     return;
                 }
                 AgentApiTokenService.Authentication authentication = agentApiTokenService.authenticate(
                     token, request.getRemoteAddr(), path);
                 if (authentication == null) {
-                    writeUnauthorized(response, "Agent API Token 无效、已过期或已撤销");
+                    writeUnauthorized(request, response, "Agent API Token 无效、已过期或已撤销");
                     return;
                 }
                 user = adminService.getUserView(authentication.userId());
@@ -92,11 +93,11 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute(AUTHENTICATION_TYPE, "session");
             }
         } catch (RuntimeException ex) {
-            writeUnauthorized(response, "身份凭证无效");
+            writeUnauthorized(request, response, "身份凭证无效");
             return;
         }
         if (user == null) {
-            writeUnauthorized(response, "请先登录");
+            writeUnauthorized(request, response, "请先登录");
             return;
         }
         request.setAttribute(CURRENT_USER_ID, user.id());
@@ -124,11 +125,18 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
      * @param response the response value
      * @throws IOException if the operation fails
      */
-    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+    private void writeUnauthorized(HttpServletRequest request,
+                                   HttpServletResponse response,
+                                   String message) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), ApiResponse.error(401, message));
+        ApiResponse<Void> body = ApiResponse.error(401, message);
+        Object requestId = request.getAttribute(RequestCorrelationFilter.REQUEST_ID_ATTRIBUTE);
+        if (requestId != null) {
+            body.setRequestId(String.valueOf(requestId));
+        }
+        objectMapper.writeValue(response.getWriter(), body);
     }
 
     private String applicationPath(HttpServletRequest request) {

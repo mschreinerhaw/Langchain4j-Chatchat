@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.CacheControl;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -23,6 +24,7 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
     public static final String TRACE_ID_ATTRIBUTE = "chatchat.traceId";
     public static final String STARTED_NANOS_ATTRIBUTE = "chatchat.requestStartedNanos";
     public static final String TRACE_ID_HEADER = "X-Trace-ID";
+    private static final String PUBLISHED_AGENT_API_PREFIX = "/api/v1/published-agents/";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -39,6 +41,11 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
         request.setAttribute(STARTED_NANOS_ATTRIBUTE, System.nanoTime());
         response.setHeader(AppConstants.HEADER_X_REQUEST_ID, requestId);
         response.setHeader(TRACE_ID_HEADER, traceId);
+        String applicationPath = request.getRequestURI().substring(request.getContextPath().length());
+        if (applicationPath.startsWith(PUBLISHED_AGENT_API_PREFIX)) {
+            response.setHeader("Cache-Control", CacheControl.noStore().getHeaderValue());
+            response.setHeader("Pragma", "no-cache");
+        }
 
         String previousRequestId = MDC.get("requestId");
         String previousTraceId = MDC.get("traceId");

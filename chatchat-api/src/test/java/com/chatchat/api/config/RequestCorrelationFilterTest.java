@@ -47,4 +47,17 @@ class RequestCorrelationFilterTest {
         assertNotNull(generated);
         assertEquals(36, generated.length());
     }
+
+    @Test
+    void disablesCachingBeforeAuthenticationForPublishedAgentApi() throws Exception {
+        RequestCorrelationFilter filter = new RequestCorrelationFilter();
+        MockHttpServletRequest request = new MockHttpServletRequest(
+            "GET", "/api/v1/published-agents/demo/questions/task-1/status");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, (req, res) -> { });
+
+        assertEquals("no-store", response.getHeader("Cache-Control"));
+        assertEquals("no-cache", response.getHeader("Pragma"));
+    }
 }

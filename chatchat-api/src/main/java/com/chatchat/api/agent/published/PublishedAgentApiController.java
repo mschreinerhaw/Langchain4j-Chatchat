@@ -104,14 +104,14 @@ public class PublishedAgentApiController {
 
         try {
             AgentTaskResponse task = taskService.submit(taskRequest);
-            return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(
+            return accepted(
                 new PublishedAgentSubmission(
                     task.taskId(), task.executionId(), task.attemptId(), task.sessionId(), agent.id(),
                     task.status(), task.canonicalState(), statusPath(agent.id(), task.taskId()),
                     answerPath(agent.id(), task.taskId()), task.createTime()
                 ),
                 "Published Agent question accepted"
-            ));
+            );
         } catch (IllegalArgumentException ex) {
             return badRequest(ex.getMessage());
         }
@@ -278,17 +278,20 @@ public class PublishedAgentApiController {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Unable to generate curl request body", ex);
         }
-        String submit = "curl --silent --show-error --fail-with-body --request POST \"${AGENT_BASE_URL}/api/v1/published-agents/"
+        String submit = "curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 30 --request POST \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
+            + "  --header \"Accept: application/json\" \\\n"
             + "  --header \"Content-Type: application/json\" \\\n"
             + "  --data '" + body.replace("'", "'\\''") + "'";
-        String status = "curl --silent --show-error --fail-with-body --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
+        String status = "curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 30 --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/status?afterSequence=${EVENT_CURSOR:-0}&eventLimit=100\" \\\n"
-            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\"";
-        String answer = "curl --silent --show-error --fail-with-body --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
+            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
+            + "  --header \"Accept: application/json\"";
+        String answer = "curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 30 --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/answer\" \\\n"
-            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\"";
+            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
+            + "  --header \"Accept: application/json\"";
         String complete = "export AGENT_BASE_URL=\"" + escapedBaseUrl + "\"\n"
             + "export AGENT_TOKEN=\"<paste-agent-api-token>\"\n\n"
             + "# This example uses jq to read data.taskId from the submit response.\n"
@@ -301,14 +304,21 @@ public class PublishedAgentApiController {
             + "  exit 1\n"
             + "fi\n\n"
             + "EVENT_CURSOR=0\n"
+            + "POLL_TIMEOUT_SECONDS=900\n"
+            + "POLL_STARTED_AT=$(date +%s)\n"
             + "# 2. Poll run status until data.terminal is true.\n"
             + "while true; do\n"
             + "  STATUS_RESPONSE=$(" + status + ")\n"
             + "  printf '%s\\n' \"${STATUS_RESPONSE}\"\n"
             + "  EVENT_CURSOR=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.eventCursor // 0')\n"
             + "  TERMINAL=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.terminal // false')\n"
-            + "  if [ \"${TERMINAL}\" = \"true\" ]; then\n"
+            + "  HAS_MORE_EVENTS=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.hasMoreEvents // false')\n"
+            + "  if [ \"${TERMINAL}\" = \"true\" ] && [ \"${HAS_MORE_EVENTS}\" != \"true\" ]; then\n"
             + "    break\n"
+            + "  fi\n"
+            + "  if [ $(( $(date +%s) - POLL_STARTED_AT )) -ge \"${POLL_TIMEOUT_SECONDS}\" ]; then\n"
+            + "    echo \"Timed out waiting for Agent task ${TASK_ID}; query the status URL again later.\" >&2\n"
+            + "    exit 124\n"
             + "  fi\n"
             + "  sleep 2\n"
             + "done\n\n"
@@ -459,6 +469,12 @@ public class PublishedAgentApiController {
 
     private <T> ResponseEntity<ApiResponse<T>> ok(T data) {
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    private <T> ResponseEntity<ApiResponse<T>> accepted(T data, String message) {
+        ApiResponse<T> response = ApiResponse.success(data, message);
+        response.setCode(HttpStatus.ACCEPTED.value());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     private <T> ResponseEntity<ApiResponse<T>> badRequest(String message) {

@@ -71,6 +71,7 @@ class PublishedAgentApiControllerTest {
                     }
                     """))
             .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.code").value(202))
             .andExpect(jsonPath("$.data.taskId").value("task-1"))
             .andExpect(jsonPath("$.data.statusUrl").value("/api/v1/published-agents/finance-agent/questions/task-1/status"))
             .andExpect(jsonPath("$.data.answerUrl").value("/api/v1/published-agents/finance-agent/questions/task-1/answer"));
@@ -192,6 +193,11 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("while true")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.terminal")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.eventCursor")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.hasMoreEvents")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("Accept: application/json")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("POLL_TIMEOUT_SECONDS=900")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("exit 124")))
+            .andExpect(jsonPath("$.data.submitCurl").value(org.hamcrest.Matchers.containsString("--connect-timeout 10 --max-time 30")))
             .andExpect(jsonPath("$.data.statusCurl").value(org.hamcrest.Matchers.containsString("afterSequence=")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.answerAvailable")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.not(

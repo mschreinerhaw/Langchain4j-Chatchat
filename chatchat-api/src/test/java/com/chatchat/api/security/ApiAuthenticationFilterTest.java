@@ -1,5 +1,7 @@
 package com.chatchat.api.security;
 
+import com.chatchat.api.config.RequestCorrelationFilter;
+import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.AgentApiTokenService;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +47,22 @@ class ApiAuthenticationFilterTest {
         assertThat(response.getStatus()).isEqualTo(401);
         verify(tokenService, never()).authenticate("ccat_secret", null, "/api/v1/enterprise/agent-api-tokens");
         verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void unauthorizedResponseCarriesTheRequestCorrelationId() throws Exception {
+        MockHttpServletRequest request = request(
+            "GET", "/api/v1/published-agents/demo/questions/task-1/status", "invalid");
+        request.setAttribute(RequestCorrelationFilter.REQUEST_ID_ATTRIBUTE, "request-401");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(tokenService.looksLikeApiToken("invalid")).thenReturn(false);
+        when(adminService.resolveSessionByToken("invalid")).thenReturn(java.util.Optional.empty());
+
+        filter.doFilterInternal(request, response, chain);
+
+        ApiResponse<?> body = new ObjectMapper().readValue(response.getContentAsByteArray(), ApiResponse.class);
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(body.getRequestId()).isEqualTo("request-401");
     }
 
     @Test

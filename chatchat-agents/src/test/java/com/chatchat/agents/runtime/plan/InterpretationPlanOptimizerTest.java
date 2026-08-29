@@ -491,6 +491,53 @@ class InterpretationPlanOptimizerTest {
             .noneMatch(issue -> issue.message().contains("matching edge_contract"));
     }
 
+    @Test
+    void classifiesCanonicalContractEnrichmentAsNormalizationAndIsIdempotent() {
+        String queryTool = "mcp_chatchat_mcp_server_http_capability_query";
+        String executeTool = "mcp_chatchat_mcp_server_http_request_execute";
+        InterpretationPlan source = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "inspect runtime state", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", queryTool,
+                        Map.of("query", "runtime state"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", executeTool,
+                        Map.of("template", "", "parameters", Map.of()), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "",
+                        Map.of("answer", "done"), List.of(2), null, null)),
+                List.of(),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.templates[0].templateId", 2, "template", "jsonpath", true)),
+                null),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(queryTool, executeTool), List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, false, List.of()), List.of())
+        );
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", queryTool, "dependsOnTools", List.of()),
+            Map.of("tool", executeTool, "dependsOnTools", List.of(queryTool)));
+        InterpretationPlanOptimizer optimizer = new InterpretationPlanOptimizer();
+
+        InterpretationPlanOptimizer.OptimizationResult first =
+            optimizer.optimize(source, authoritativeDag);
+        InterpretationPlanOptimizer.OptimizationResult second =
+            optimizer.optimize(first.plan(), authoritativeDag);
+
+        assertThat(first.repairResult().status()).isEqualTo(DagRepairResult.Status.NORMALIZED);
+        assertThat(first.repairResult().changeKind())
+            .isEqualTo(DagRepairResult.ChangeKind.CONTRACT_ENRICHMENT_AND_NORMALIZATION);
+        assertThat(first.repairResult().materialTopologyChanged()).isFalse();
+        assertThat(first.plan().plan().bindings()).hasSize(1);
+        assertThat(first.plan().plan().bindings().get(0).inputField()).isEqualTo("template");
+        assertThat(second.appliedPasses()).isEmpty();
+        assertThat(second.repairResult().status()).isEqualTo(DagRepairResult.Status.UNCHANGED);
+        assertThat(second.repairResult().operations()).isEmpty();
+    }
+
     private InterpretationPlan.Step stepByTool(InterpretationPlan plan, String toolName) {
         return plan.steps().stream()
             .filter(step -> toolName.equals(step.toolName()))

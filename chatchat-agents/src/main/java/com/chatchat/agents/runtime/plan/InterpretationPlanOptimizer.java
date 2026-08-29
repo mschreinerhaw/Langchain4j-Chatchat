@@ -528,7 +528,12 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             .anyMatch(binding -> Objects.equals(from, binding.from())
                 && Objects.equals(to, binding.to())
                 && normalizeField(binding.outputPath()).contains("templateid")
-                && normalizeField(binding.inputField()).contains("templateid"));
+                && templateIdTargetField(binding.inputField()));
+    }
+
+    private boolean templateIdTargetField(String value) {
+        String normalized = normalizeField(value);
+        return "template".equals(normalized) || normalized.endsWith("templateid");
     }
 
     private boolean hasEdgeContract(List<InterpretationPlan.EdgeContract> edges,

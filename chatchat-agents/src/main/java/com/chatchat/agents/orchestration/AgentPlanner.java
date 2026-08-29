@@ -541,7 +541,8 @@ public class AgentPlanner implements AgentPlanningPort {
         if (!optimization.appliedPasses().isEmpty()) {
             validationMetadata.put("interpretationPlanOptimizationPasses", optimization.appliedPasses());
         }
-        if (optimization.appliedPasses().contains("AuthoritativeWorkflowDagPass")) {
+        if (optimization.appliedPasses().contains("AuthoritativeWorkflowDagPass")
+            && dagRepair.materialTopologyChanged()) {
             boolean repairedCandidateValid = validation.valid() && runtimeIssues.isEmpty();
             String repairState = repairedCandidateValid ? "APPLIED" : "REJECTED";
             String repairCode = repairedCandidateValid
@@ -552,7 +553,7 @@ public class AgentPlanner implements AgentPlanningPort {
                 "eventKind", "DAG_REPAIR",
                 "eventState", repairState,
                 "repairCode", repairCode,
-                "topologyRestored", true,
+                "topologyRestored", dagRepair.materialTopologyChanged(),
                 "candidateValid", repairedCandidateValid,
                 "source", "user_defined_mcp_workflow"
             );

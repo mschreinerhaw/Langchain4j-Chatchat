@@ -1527,6 +1527,53 @@ class AgentPlannerTest {
         assertThat((Boolean) workflowMethod.invoke(planner, bareDecision, mutatedDecision)).isFalse();
     }
 
+    @Test
+    void doesNotPublishDagRepairForAuthoritativeContractEnrichmentWithoutTopologyChange() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String firstTool = "workflow_first_lookup";
+        String secondTool = "workflow_second_lookup";
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"run configured workflow","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"mcp_tool","tool_name":"workflow_first_lookup","input":{},"depends_on":[]},
+                {"id":2,"action_type":"mcp_tool","tool_name":"workflow_second_lookup","input":{},"depends_on":[1]},
+                {"id":3,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[2]}
+              ],"dependency_contracts":[],"edge_contracts":[],"bindings":[]},
+              "execution_policy":{"max_steps":3,"allow_parallel":false,
+                "allow_tool":["workflow_first_lookup","workflow_second_lookup"],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.8,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """;
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", firstTool, "dependsOnTools", List.of()),
+            Map.of("tool", secondTool, "dependsOnTools", List.of(firstTool)));
+
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "run workflow", "",
+            List.of(firstTool, secondTool), List.of(), List.of(), List.of(),
+            List.of(firstTool, secondTool), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1, "authoritativeWorkflowDag", authoritativeDag));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.decision().executionPlan())
+            .doesNotContainKeys("eventKind", "eventState", "repairEvent");
+        Map<?, ?> audit = (Map<?, ?>) result.decision().executionPlan().get("dagRepair");
+        assertThat(audit.get("status")).isEqualTo("NORMALIZED");
+        assertThat(audit.get("changeKind")).isEqualTo("CONTRACT_ENRICHMENT");
+        assertThat(audit.get("materialTopologyChanged")).isEqualTo(false);
+    }
+
     private static class TestToolRegistry implements ToolRegistry {
         private final boolean includeApplicability;
         private final Set<String> tools = Set.of(

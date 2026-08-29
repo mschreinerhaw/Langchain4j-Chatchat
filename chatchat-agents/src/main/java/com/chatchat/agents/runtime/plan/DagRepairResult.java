@@ -79,7 +79,7 @@ public record DagRepairResult(
         List<Operation> operations = operations(source, executable, mappings, passes);
         Status status = operations.isEmpty()
             ? Status.UNCHANGED
-            : passes.isEmpty() ? Status.NORMALIZED : Status.REPAIRED;
+            : containsTopologyMutation(operations) ? Status.REPAIRED : Status.NORMALIZED;
         return new DagRepairResult(
             SCHEMA_VERSION,
             source,
@@ -98,10 +98,31 @@ public record DagRepairResult(
         return status != Status.UNCHANGED;
     }
 
+    /** True only when executable step membership or dependency topology changed. */
+    public boolean materialTopologyChanged() {
+        return containsTopologyMutation(operations);
+    }
+
+    /** Classifies Runtime derivation independently from the names of passes that produced it. */
+    public ChangeKind changeKind() {
+        if (operations.isEmpty()) return ChangeKind.UNCHANGED;
+        if (materialTopologyChanged()) return ChangeKind.TOPOLOGY_REPAIR;
+        boolean contractChanged = operations.stream()
+            .anyMatch(operation -> graphContractChange(operation.type()));
+        boolean otherChanged = operations.stream()
+            .anyMatch(operation -> !graphContractChange(operation.type()));
+        if (contractChanged && otherChanged) {
+            return ChangeKind.CONTRACT_ENRICHMENT_AND_NORMALIZATION;
+        }
+        return contractChanged ? ChangeKind.CONTRACT_ENRICHMENT : ChangeKind.NORMALIZATION;
+    }
+
     public Map<String, Object> auditMetadata() {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("schemaVersion", schemaVersion);
         metadata.put("status", status.name());
+        metadata.put("changeKind", changeKind().name());
+        metadata.put("materialTopologyChanged", materialTopologyChanged());
         metadata.put("sourceFingerprint", sourceFingerprint);
         metadata.put("executableFingerprint", executableFingerprint);
         metadata.put("appliedPasses", appliedPasses);
@@ -109,6 +130,21 @@ public record DagRepairResult(
         metadata.put("stepIdMappings", stepIdMappings);
         metadata.put("operations", operations);
         return Collections.unmodifiableMap(metadata);
+    }
+
+    private static boolean containsTopologyMutation(List<Operation> operations) {
+        return operations != null && operations.stream().anyMatch(operation ->
+            operation != null && switch (operation.type()) {
+                case STEP_ADDED, STEP_REMOVED, DEPENDENCIES_REPLACED -> true;
+                case STEP_RENUMBERED, INPUT_NORMALIZED, INPUT_REPAIRED,
+                     GRAPH_CONTRACTS_ENRICHED, GRAPH_CONTRACTS_REPAIRED,
+                     EXECUTION_POLICY_REPAIRED -> false;
+            });
+    }
+
+    private static boolean graphContractChange(Type type) {
+        return type == Type.GRAPH_CONTRACTS_ENRICHED
+            || type == Type.GRAPH_CONTRACTS_REPAIRED;
     }
 
     private static Map<Integer, Integer> mapStepIds(InterpretationPlan source,
@@ -190,7 +226,7 @@ public record DagRepairResult(
                     "Dependencies repaired against the executable DAG."));
             }
             if (executableStep != null && !Objects.equals(sourceStep.input(), executableStep.input())) {
-                operations.add(operation(Type.INPUT_REPAIRED, provenance, sourceStep.id(), executableId,
+                operations.add(operation(Type.INPUT_NORMALIZED, provenance, sourceStep.id(), executableId,
                     "plan.steps[].input", sourceStep.input(), executableStep.input(),
                     "Model-owned or unsafe input fields were normalized."));
             }
@@ -202,11 +238,11 @@ public record DagRepairResult(
                     "plan.steps", null, executableStep, "Step added by DAG derivation."));
             }
         }
-        compare(operations, Type.GRAPH_CONTRACTS_REPAIRED, provenance, "plan.edge_contracts",
+        compare(operations, Type.GRAPH_CONTRACTS_ENRICHED, provenance, "plan.edge_contracts",
             planValue(source, PlanValue.EDGES), planValue(executable, PlanValue.EDGES));
-        compare(operations, Type.GRAPH_CONTRACTS_REPAIRED, provenance, "plan.dependency_contracts",
+        compare(operations, Type.GRAPH_CONTRACTS_ENRICHED, provenance, "plan.dependency_contracts",
             planValue(source, PlanValue.DEPENDENCIES), planValue(executable, PlanValue.DEPENDENCIES));
-        compare(operations, Type.GRAPH_CONTRACTS_REPAIRED, provenance, "plan.bindings",
+        compare(operations, Type.GRAPH_CONTRACTS_ENRICHED, provenance, "plan.bindings",
             planValue(source, PlanValue.BINDINGS), planValue(executable, PlanValue.BINDINGS));
         compare(operations, Type.EXECUTION_POLICY_REPAIRED, provenance, "execution_policy",
             source == null ? null : source.executionPolicy(), executable == null ? null : executable.executionPolicy());
@@ -221,7 +257,7 @@ public record DagRepairResult(
                                 Object after) {
         if (!Objects.equals(before, after)) {
             target.add(operation(type, provenance, null, null, path, before, after,
-                "Derived graph metadata differs from the source plan."));
+                "Runtime-derived graph contracts enriched the source plan."));
         }
     }
 
@@ -267,13 +303,14 @@ public record DagRepairResult(
 
     private static Object planValue(InterpretationPlan plan, PlanValue value) {
         if (plan == null || plan.plan() == null) {
-            return null;
+            return List.of();
         }
-        return switch (value) {
+        List<?> result = switch (value) {
             case EDGES -> plan.plan().edgeContracts();
             case DEPENDENCIES -> plan.plan().dependencyContracts();
             case BINDINGS -> plan.plan().bindings();
         };
+        return result == null ? List.of() : result;
     }
 
     private static String fingerprint(InterpretationPlan plan) {
@@ -315,12 +352,26 @@ public record DagRepairResult(
         REPAIRED
     }
 
+    public enum ChangeKind {
+        UNCHANGED,
+        NORMALIZATION,
+        CONTRACT_ENRICHMENT,
+        CONTRACT_ENRICHMENT_AND_NORMALIZATION,
+        TOPOLOGY_REPAIR
+    }
+
     public enum Type {
         STEP_ADDED,
         STEP_REMOVED,
         STEP_RENUMBERED,
         DEPENDENCIES_REPLACED,
+        INPUT_NORMALIZED,
+        GRAPH_CONTRACTS_ENRICHED,
+        /** @deprecated retained for deserializing older audit records. */
+        @Deprecated
         INPUT_REPAIRED,
+        /** @deprecated retained for deserializing older audit records. */
+        @Deprecated
         GRAPH_CONTRACTS_REPAIRED,
         EXECUTION_POLICY_REPAIRED
     }

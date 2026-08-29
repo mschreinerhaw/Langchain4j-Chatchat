@@ -337,8 +337,8 @@ public class McpToolRegistryBridge {
             ? discoveredOutput : activeContract.outputSchema();
         Map<String, Object> runtimeInput = canonicalObjectSchema(selectedInput);
         Map<String, Object> runtimeOutput = canonicalObjectSchema(selectedOutput);
-        Map<String, Object> effectiveMeta = activeContract == null
-            ? definition.meta() : activeContract.extensions();
+        Map<String, Object> effectiveMeta = effectiveRuntimeMetadata(
+            definition.meta(), activeContract);
         McpToolDefinition runtimeDefinition = withRuntimeContract(
             definition, runtimeInput, runtimeOutput, effectiveMeta);
         try {
@@ -535,6 +535,24 @@ public class McpToolRegistryBridge {
             definition.runtimeLevel(), definition.userVisible(), definition.confirmation(),
             definition.permissions(), definition.inputPolicy(), definition.outputPolicy(),
             definition.timeoutMillis(), Map.copyOf(contractMetadata));
+    }
+
+    /**
+     * The ACTIVE catalog owns schemas and its explicitly published metadata, but
+     * it must not erase live transport/capability declarations that are outside
+     * the workflow-contract snapshot (for example parent delegation routes).
+     * Catalog extensions win on key conflicts.
+     */
+    private Map<String, Object> effectiveRuntimeMetadata(
+        Map<String, Object> discoveredMetadata,
+        ToolWorkflowContractSnapshot activeContract
+    ) {
+        Map<String, Object> merged = new LinkedHashMap<>(
+            discoveredMetadata == null ? Map.of() : discoveredMetadata);
+        if (activeContract != null && activeContract.extensions() != null) {
+            merged.putAll(activeContract.extensions());
+        }
+        return Map.copyOf(merged);
     }
 
     /**

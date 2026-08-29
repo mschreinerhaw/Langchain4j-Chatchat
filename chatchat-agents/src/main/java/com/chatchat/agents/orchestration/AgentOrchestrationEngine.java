@@ -812,6 +812,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         metadata.put("plannerSteps", plannerSteps);
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
+        log.info("[{}] Agent planner capability projection. plannerVisibleTools={} internalToolDelegations={}",
+            requestId, plannerVisibleTools, plannerInternalDelegations);
         recordLifecyclePhase(
             requestRuntimeAttributes,
             metadata,

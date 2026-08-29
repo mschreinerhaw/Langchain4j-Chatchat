@@ -1,5 +1,6 @@
 package com.chatchat.enterprise.service;
 
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -125,6 +126,36 @@ class DatabaseToolWorkflowContractCatalogTest {
         McpToolWorkflowContract stored = catalog.listContracts(active.toolId()).get(0);
         assertThat(stored.getStatus()).isEqualTo("ACTIVE");
         assertThat(stored.getPublishedBy()).isEqualTo("system-trusted-service-discovery");
+    }
+
+    @Test
+    void persistsParentDelegationAsPartOfTheActiveRuntimeContract() {
+        Map<String, Object> route = McpDynamicCapabilityRoute.parentDelegation(
+            "api_service_query", "_templateQueryChildToolName").toMetadata();
+        Map<String, Object> metadata = Map.of(
+            ToolWorkflowContract.METADATA_KEY, Map.of(
+                "schemaVersion", ToolWorkflowContract.SCHEMA_VERSION,
+                "workflowRole", "template_discovery",
+                "protocolFamily", "api-template"
+            ),
+            McpDynamicCapabilityRoute.METADATA_KEY, route
+        );
+
+        ToolWorkflowContractSnapshot active = catalog.synchronizeDiscovery(
+            "api-service", "API Service", "customer_service_template_query", "remote-child",
+            "Business template implementation", Map.of("type", "object"), Map.of(), metadata, true
+        ).orElseThrow();
+
+        assertThat(active.extensions())
+            .containsEntry(McpDynamicCapabilityRoute.METADATA_KEY, route);
+        assertThat(active.extensions()).containsEntry("protocolFamily", "api-template");
+
+        ToolWorkflowContractSnapshot unchanged = catalog.synchronizeDiscovery(
+            "api-service", "API Service", "customer_service_template_query", "remote-child",
+            "Business template implementation", Map.of("type", "object"), Map.of(), metadata, true
+        ).orElseThrow();
+        assertThat(unchanged.version()).isEqualTo(active.version());
+        assertThat(catalog.listContracts(active.toolId())).hasSize(1);
     }
 
     @SpringBootConfiguration

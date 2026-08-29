@@ -203,6 +203,55 @@ class McpToolRegistryBridgeLifecycleTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void activeDatabaseSnapshotPreservesPublishedParentDelegationMetadata() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        ToolWorkflowContractCatalog catalog = mock(ToolWorkflowContractCatalog.class);
+        ObjectProvider<ToolWorkflowContractCatalog> provider = mock(ObjectProvider.class);
+        McpServiceConfig service = service("chatchat-mcp-server", "ChatChat MCP Server");
+        Map<String, Object> route = com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute
+            .parentDelegation("api_service_query", "_templateQueryChildToolName")
+            .toMetadata();
+        McpToolDefinition child = new McpToolDefinition(
+            "customer_service_template_query", "customer templates", Map.of("type", "object"),
+            "template_discovery", "low", "read", null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null,
+            Map.of(
+                com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute.METADATA_KEY, route,
+                ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                    ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                    "mcp.authorized-template-query.v1", "filters")));
+        ToolWorkflowContractSnapshot snapshot = new ToolWorkflowContractSnapshot(
+            "tool-id", 3, ToolWorkflowContract.SCHEMA_VERSION,
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.authorized-template-query.v1", "filters", "sha",
+            Map.of("type", "object"), Map.of("type", "object"),
+            Map.of(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                "mcp.authorized-template-query.v1", "filters")));
+        when(provider.getIfAvailable()).thenReturn(catalog);
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(child));
+        when(catalog.synchronizeDiscovery(anyString(), anyString(), anyString(), anyString(),
+            anyString(), anyMap(), anyMap(), anyMap(), anyBoolean())).thenReturn(Optional.of(snapshot));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(),
+            new DynamicMcpToolRouteService(), provider);
+
+        bridge.refreshRegistry(0);
+
+        ArgumentCaptor<ToolMetadata> metadata = ArgumentCaptor.forClass(ToolMetadata.class);
+        verify(registry).registerTool(anyString(), metadata.capture(), any());
+        assertThat((Map<String, Object>) metadata.getValue().getMetadata()
+            .get(McpCapabilityHierarchy.METADATA_KEY))
+            .containsEntry("parentToolName", "api_service_query")
+            .containsEntry("nodeKind", "BUSINESS_IMPLEMENTATION");
+        assertThat(bridge.listRegisteredTools()).singleElement().satisfies(tool ->
+            assertThat(tool.capabilityNode().parentToolName()).isEqualTo("api_service_query"));
+    }
+
+    @Test
     void failedRefreshPreservesPreviouslyRegisteredSnapshot() {
         ToolRegistry registry = mock(ToolRegistry.class);
         McpServiceConfigService configService = mock(McpServiceConfigService.class);

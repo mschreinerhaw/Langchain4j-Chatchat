@@ -1,5 +1,7 @@
 package com.chatchat.enterprise.service;
 
+import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
@@ -249,8 +251,42 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
 
     private Map<String, Object> publishedContract(Map<String, Object> meta) {
         if (meta == null) return Map.of();
+        Map<String, Object> published = new LinkedHashMap<>();
         Object value = meta.get(ToolWorkflowContract.METADATA_KEY);
-        return value instanceof Map<?, ?> raw ? stringMap(raw) : Map.of();
+        if (value instanceof Map<?, ?> raw) {
+            // Workflow fields remain flattened for backwards-compatible snapshots.
+            published.putAll(stringMap(raw));
+        }
+
+        // Parent/child capability identity is part of the executable Runtime OS
+        // contract. Persist only the structural routing metadata required to rebuild
+        // the hierarchy; transient discovery/transport state must not enter governance.
+        copyMapMetadata(published, meta, McpDynamicCapabilityRoute.METADATA_KEY);
+        copyMapMetadata(published, meta, McpCapabilityHierarchy.METADATA_KEY);
+
+        // Preserve legacy publishers during rolling upgrades. The bridge normalizes
+        // these fields into the canonical dynamic route before planner projection.
+        copyScalarMetadata(published, meta, "kind");
+        copyScalarMetadata(published, meta, "parentToolName");
+        copyScalarMetadata(published, meta, "routingMode");
+        copyScalarMetadata(published, meta, "nodeKind");
+        copyScalarMetadata(published, meta, "fallbackPolicy");
+        return published.isEmpty() ? Map.of()
+            : java.util.Collections.unmodifiableMap(published);
+    }
+
+    private void copyMapMetadata(Map<String, Object> target, Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (value instanceof Map<?, ?> raw) {
+            target.put(key, java.util.Collections.unmodifiableMap(stringMap(raw)));
+        }
+    }
+
+    private void copyScalarMetadata(Map<String, Object> target, Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+            target.put(key, value);
+        }
     }
 
     private String checksum(Object... values) {

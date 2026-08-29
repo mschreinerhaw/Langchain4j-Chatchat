@@ -19,7 +19,6 @@ import {
   fetchWorkbenchShortcuts,
   getStoredAuthSession,
   killRuntimeTask,
-  loginEnterpriseWithEmbedToken,
   removeUserFavorite,
   renameConversationHistory,
   storeAuthSession,
@@ -282,11 +281,6 @@ export default {
     window.addEventListener("focus", this.refreshAuthSession);
     window.addEventListener(AUTH_REQUIRED_EVENT, this.handleAuthRequired);
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
-    const embedToken = this.consumeEmbedLoginToken();
-    if (embedToken) {
-      this.loginWithEmbedToken(embedToken);
-      return;
-    }
     if (isAuthenticatedSession(this.authSession)) {
       this.loadTrendSemanticConfig();
       this.refreshAuthSession();
@@ -379,14 +373,6 @@ export default {
       this.loadRuntimeTodos({ silent: true, suppressError: true });
       this.startTodoRefresh();
     },
-    async loginWithEmbedToken(token) {
-      try {
-        const session = await loginEnterpriseWithEmbedToken(token);
-        this.handleLoginSuccess(session);
-      } catch (error) {
-        this.handleUnauthenticated();
-      }
-    },
     handleLogout() {
       this.handleUnauthenticated();
     },
@@ -449,18 +435,6 @@ export default {
       const value = sessionStorage.getItem(REDIRECT_VIEW_KEY);
       sessionStorage.removeItem(REDIRECT_VIEW_KEY);
       return views[value] ? value : "";
-    },
-    consumeEmbedLoginToken() {
-      const url = new URL(window.location.href);
-      const token = url.searchParams.get("embedToken") || "";
-      if (!token) {
-        return "";
-      }
-      url.searchParams.delete("embedToken");
-      const query = url.searchParams.toString();
-      const nextUrl = `${url.pathname}${query ? `?${query}` : ""}${url.hash}`;
-      window.history.replaceState({}, document.title, nextUrl);
-      return token.trim();
     },
     navigateToView(view) {
       const requested = views[view] ? view : DEFAULT_VIEW;

@@ -250,26 +250,51 @@
 
     <div v-if="curlExampleOpen" class="agent-dialog-backdrop" @click.self="closeCurlExample">
       <section class="agent-dialog agent-curl-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-curl-title">
-        <header>
-          <div>
-            <p>已发布 Agent API</p>
+        <header class="agent-curl-header">
+          <div class="agent-curl-title-wrap">
+            <span class="agent-curl-brand-mark" aria-hidden="true">API</span>
+            <div>
+              <p>已发布 Agent · API 调用</p>
             <h2 id="agent-curl-title">{{ curlExample?.agentName || "curl 请求示例" }}</h2>
+              <span>复制示例后，即可在终端发起完整问答流程</span>
+            </div>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="curlExampleLoading" @click="closeCurlExample">×</button>
         </header>
         <div class="dialog-body agent-curl-body">
-          <p class="agent-curl-notice">
-            示例包含发起问答、查询运行状态和获取最终答案。执行前请将
-            <code>&lt;paste-login-token&gt;</code> 替换为登录接口返回的令牌。
-          </p>
-          <p v-if="curlExampleLoading" class="agent-empty">正在生成 curl 示例...</p>
-          <pre v-else-if="curlExample?.completeExample"><code>{{ curlExample.completeExample }}</code></pre>
+          <div class="agent-curl-capabilities" aria-label="示例包含的调用步骤">
+            <span><b>1</b> 发起问答</span>
+            <i aria-hidden="true"></i>
+            <span><b>2</b> 查询状态</span>
+            <i aria-hidden="true"></i>
+            <span><b>3</b> 获取答案</span>
+          </div>
+          <div class="agent-curl-notice">
+            <span class="agent-curl-notice-icon" aria-hidden="true">!</span>
+            <p>
+              <strong>调用前准备</strong>
+              将示例中的 <code>&lt;paste-agent-api-token&gt;</code> 替换为“系统管理 → 用户管理 → API”中生成的令牌。示例统一使用环境变量 <code>AGENT_TOKEN</code>，任务编号会在提交成功后自动从 <code>data.taskId</code> 提取。
+            </p>
+          </div>
+          <div v-if="curlExampleLoading" class="agent-curl-loading">
+            <span></span><span></span><span></span>
+            正在为该 Agent 生成调用示例…
+          </div>
+          <div v-else-if="curlExample?.completeExample" class="agent-curl-code-card">
+            <div class="agent-curl-code-head">
+              <span class="agent-curl-window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <strong>终端调用示例</strong>
+              <span>Shell / curl</span>
+            </div>
+            <pre><code>{{ curlExample.completeExample }}</code></pre>
+          </div>
           <p v-if="curlExampleError" class="agent-error">{{ curlExampleError }}</p>
         </div>
-        <footer>
+        <footer class="agent-curl-footer">
+          <span>令牌仅在请求时使用，请勿提交到代码仓库</span>
           <button type="button" class="secondary-button" :disabled="curlExampleLoading" @click="closeCurlExample">关闭</button>
           <button type="button" class="primary-button" :disabled="curlExampleLoading || !curlExample?.completeExample" @click="copyCurlExample">
-            {{ curlExampleCopied ? "已复制" : "复制完整示例" }}
+            {{ curlExampleCopied ? "✓ 已复制到剪贴板" : "复制完整示例" }}
           </button>
         </footer>
       </section>

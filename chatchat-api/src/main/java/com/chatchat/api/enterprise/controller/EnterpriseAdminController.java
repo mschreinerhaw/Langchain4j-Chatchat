@@ -80,76 +80,10 @@ public class EnterpriseAdminController {
         }
     }
 
-    /**
-     * Performs the embed token login operation.
-     *
-     * @param request the request value
-     * @return the operation result
-     */
-    @PostMapping("/auth/embed-login")
-    @Operation(summary = "Admin embed-token login endpoint")
-    public ApiResponse<EnterpriseAdminService.AuthResult> embedLogin(
-        HttpServletRequest servletRequest,
-        @RequestBody EmbedLoginRequest request
-    ) {
-        try {
-            EnterpriseAdminService.AuthResult result = adminService.loginWithEmbedToken(request == null ? null : request.token());
-            loginAuditService.recordSuccess("embed-login", null, result, servletRequest);
-            return ApiResponse.success(result, "login success");
-        } catch (RuntimeException ex) {
-            loginAuditService.recordFailure("embed-login", null, ex.getMessage(), servletRequest);
-            throw ex;
-        }
-    }
-
     @GetMapping("/auth/me")
     @Operation(summary = "Current authenticated user and effective permissions")
     public ApiResponse<EnterpriseAdminService.UserView> currentUser(HttpServletRequest servletRequest) {
         return ApiResponse.success(adminService.getUserView(currentUserId(servletRequest)));
-    }
-
-    /**
-     * Lists the admin embed login tokens.
-     *
-     * @param servletRequest the servlet request
-     * @return the embed login tokens
-     */
-    @GetMapping("/auth/embed-tokens")
-    @Operation(summary = "List admin embed login tokens")
-    public ApiResponse<List<EnterpriseAdminService.EmbedLoginTokenView>> listEmbedTokens(HttpServletRequest servletRequest) {
-        return ApiResponse.success(adminService.listEmbedLoginTokens(currentUsername(servletRequest)));
-    }
-
-    /**
-     * Creates an admin embed login token.
-     *
-     * @param servletRequest the servlet request
-     * @param request the request value
-     * @return the created embed token
-     */
-    @PostMapping("/auth/embed-tokens")
-    @Operation(summary = "Create admin embed login token")
-    public ApiResponse<EnterpriseAdminService.EmbedLoginTokenView> createEmbedToken(
-        HttpServletRequest servletRequest,
-        @RequestBody EnterpriseAdminService.EmbedLoginTokenRequest request
-    ) {
-        return ApiResponse.success(adminService.createEmbedLoginToken(currentUsername(servletRequest), request), "embed token created");
-    }
-
-    /**
-     * Expires an admin embed login token.
-     *
-     * @param servletRequest the servlet request
-     * @param id the token id
-     * @return the expired embed token
-     */
-    @PostMapping("/auth/embed-tokens/{id}/expire")
-    @Operation(summary = "Expire admin embed login token")
-    public ApiResponse<EnterpriseAdminService.EmbedLoginTokenView> expireEmbedToken(
-        HttpServletRequest servletRequest,
-        @PathVariable("id") String id
-    ) {
-        return ApiResponse.success(adminService.expireEmbedLoginToken(currentUsername(servletRequest), id), "embed token expired");
     }
 
     /**
@@ -715,9 +649,6 @@ public class EnterpriseAdminController {
     }
 
     public record LoginRequest(String username, String password) {
-    }
-
-    public record EmbedLoginRequest(String token) {
     }
 
     public record UserUpsertRequest(SysUser user, List<String> roleIds) {

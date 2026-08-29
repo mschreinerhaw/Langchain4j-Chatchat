@@ -1,4 +1,29 @@
 
+    create table agent_api_token (
+        created_at datetime(6) not null,
+        expires_at datetime(6),
+        last_used_at datetime(6),
+        revoked_at datetime(6),
+        rotated_at datetime(6),
+        updated_at datetime(6) not null,
+        used_count bigint not null,
+        status varchar(32) not null,
+        token_preview varchar(32) not null,
+        created_by varchar(64) not null,
+        id varchar(64) not null,
+        revoked_by varchar(64),
+        tenant_id varchar(64) not null,
+        token_hash varchar(64) not null,
+        user_id varchar(64) not null,
+        username varchar(64) not null,
+        created_by_name varchar(128) not null,
+        display_name varchar(128) not null,
+        last_used_ip varchar(128),
+        token_name varchar(128) not null,
+        last_used_path varchar(512),
+        primary key (id)
+    ) engine=InnoDB;
+
     create table agent_execution_event (
         retry_count integer,
         created_at bigint not null,
@@ -1219,6 +1244,15 @@
         category_name varchar(80) not null,
         primary key (id)
     ) engine=InnoDB;
+
+    create index idx_agent_api_token_user
+       on agent_api_token (tenant_id, user_id);
+
+    create index idx_agent_api_token_status
+       on agent_api_token (status, expires_at);
+
+    alter table agent_api_token
+       add constraint UKokwwtfa59drvxvtugo5mwnhpk unique (token_hash);
 
     create index idx_execution_event_task_seq
        on agent_execution_event (tenant_id, task_id, sequence_number);

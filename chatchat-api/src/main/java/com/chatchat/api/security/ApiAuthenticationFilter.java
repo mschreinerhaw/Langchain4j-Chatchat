@@ -2,6 +2,7 @@ package com.chatchat.api.security;
 
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.enterprise.service.AgentApiTokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,13 +29,15 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
     public static final String CURRENT_USER_ID = "chatchat.currentUserId";
     public static final String CURRENT_USERNAME = "chatchat.currentUsername";
     public static final String CURRENT_TENANT_ID = "chatchat.currentTenantId";
+    public static final String AUTHENTICATION_TYPE = "chatchat.authenticationType";
+    public static final String AGENT_API_TOKEN_ID = "chatchat.agentApiTokenId";
 
     private static final String API_PREFIX = "/api/v1/";
     private static final String LOGIN_PATH = "/api/v1/enterprise/auth/login";
-    private static final String EMBED_LOGIN_PATH = "/api/v1/enterprise/auth/embed-login";
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final EnterpriseAdminService adminService;
+    private final AgentApiTokenService agentApiTokenService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -48,8 +51,7 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
             || !path.startsWith(API_PREFIX)
-            || LOGIN_PATH.equals(path)
-            || EMBED_LOGIN_PATH.equals(path);
+            || LOGIN_PATH.equals(path);
     }
 
     /**
@@ -68,15 +70,33 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveBearerToken(request.getHeader(HttpHeaders.AUTHORIZATION));
         EnterpriseAdminService.UserView user;
         try {
-            user = adminService.resolveSessionByToken(token)
-                .filter(candidate -> "enabled".equalsIgnoreCase(candidate.status()))
-                .orElse(null);
+            if (agentApiTokenService.looksLikeApiToken(token)) {
+                String path = applicationPath(request);
+                if (!isAgentApiInvocation(request.getMethod(), path)) {
+                    writeUnauthorized(response, "Agent API Token 只能用于已发布 Agent 的问答接口");
+                    return;
+                }
+                AgentApiTokenService.Authentication authentication = agentApiTokenService.authenticate(
+                    token, request.getRemoteAddr(), path);
+                if (authentication == null) {
+                    writeUnauthorized(response, "Agent API Token 无效、已过期或已撤销");
+                    return;
+                }
+                user = adminService.getUserView(authentication.userId());
+                request.setAttribute(AUTHENTICATION_TYPE, "agent_api_token");
+                request.setAttribute(AGENT_API_TOKEN_ID, authentication.tokenId());
+            } else {
+                user = adminService.resolveSessionByToken(token)
+                    .filter(candidate -> "enabled".equalsIgnoreCase(candidate.status()))
+                    .orElse(null);
+                request.setAttribute(AUTHENTICATION_TYPE, "session");
+            }
         } catch (RuntimeException ex) {
-            writeUnauthorized(response);
+            writeUnauthorized(response, "身份凭证无效");
             return;
         }
         if (user == null) {
-            writeUnauthorized(response);
+            writeUnauthorized(response, "请先登录");
             return;
         }
         request.setAttribute(CURRENT_USER_ID, user.id());
@@ -104,10 +124,23 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
      * @param response the response value
      * @throws IOException if the operation fails
      */
-    private void writeUnauthorized(HttpServletResponse response) throws IOException {
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), ApiResponse.error(401, "请先登录"));
+        objectMapper.writeValue(response.getWriter(), ApiResponse.error(401, message));
+    }
+
+    private String applicationPath(HttpServletRequest request) {
+        return request.getRequestURI().substring(request.getContextPath().length());
+    }
+
+    private boolean isAgentApiInvocation(String method, String path) {
+        if ("POST".equalsIgnoreCase(method)
+            && path.matches("/api/v1/published-agents/[^/]+/questions/?")) {
+            return true;
+        }
+        return "GET".equalsIgnoreCase(method)
+            && path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/(status|answer)/?");
     }
 }

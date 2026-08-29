@@ -30,7 +30,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class LoginAuditService {
 
-    private static final List<String> LOGIN_ACTIONS = List.of("login", "embed-login");
+    private static final List<String> LOGIN_ACTIONS = List.of("login", "embed-login", "agent-api-token-authenticate");
     private static final List<String> CLIENT_IP_HEADERS = List.of(
         "X-Forwarded-For",
         "X-Real-IP",

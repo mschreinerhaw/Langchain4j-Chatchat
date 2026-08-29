@@ -3467,20 +3467,149 @@
 }
 
 .agent-workshop-view .agent-curl-dialog {
-  width: min(920px, calc(100vw - 32px));
+  width: min(900px, calc(100vw - 32px));
+  max-height: min(820px, calc(100vh - 32px));
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  background: #f8fafc;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24);
+}
+
+.agent-workshop-view .agent-curl-header {
+  padding: 22px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #fff 0%, #f4f7ff 68%, #edf4ff 100%);
+}
+
+.agent-workshop-view .agent-curl-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.agent-workshop-view .agent-curl-brand-mark {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #2563eb, #4f46e5);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.24);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.agent-workshop-view .agent-curl-title-wrap > div {
+  min-width: 0;
+}
+
+.agent-workshop-view .agent-curl-title-wrap p {
+  margin: 0 0 3px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.agent-workshop-view .agent-curl-title-wrap h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.agent-workshop-view .agent-curl-title-wrap h2 + span {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
 }
 
 .agent-workshop-view .agent-curl-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  gap: 14px;
+  gap: 16px;
+  padding: 20px 24px;
+  overflow-y: auto;
+  background: #f8fafc;
+}
+
+.agent-workshop-view .agent-curl-capabilities {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.agent-workshop-view .agent-curl-capabilities span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.agent-workshop-view .agent-curl-capabilities b {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: #e8f0ff;
+  color: #2563eb;
+  font-size: 11px;
+}
+
+.agent-workshop-view .agent-curl-capabilities > i {
+  width: 42px;
+  height: 1px;
+  background: #cbd5e1;
 }
 
 .agent-workshop-view .agent-curl-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
   margin: 0;
-  color: var(--text-secondary, #475569);
-  line-height: 1.6;
+  padding: 13px 15px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #475569;
+}
+
+.agent-workshop-view .agent-curl-notice-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.agent-workshop-view .agent-curl-notice p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.agent-workshop-view .agent-curl-notice strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #1e3a8a;
 }
 
 .agent-workshop-view .agent-curl-notice code {
@@ -3491,20 +3620,118 @@
   font: 600 0.9em/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-.agent-workshop-view .agent-curl-body pre {
+.agent-workshop-view .agent-curl-code-card {
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: #0f172a;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
+.agent-workshop-view .agent-curl-code-head {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: #111c30;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.agent-workshop-view .agent-curl-code-head strong {
+  margin-left: 13px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.agent-workshop-view .agent-curl-code-head > span:last-child {
+  margin-left: auto;
+}
+
+.agent-workshop-view .agent-curl-window-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.agent-workshop-view .agent-curl-window-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fb7185;
+}
+
+.agent-workshop-view .agent-curl-window-dots i:nth-child(2) { background: #fbbf24; }
+.agent-workshop-view .agent-curl-window-dots i:nth-child(3) { background: #34d399; }
+
+.agent-workshop-view .agent-curl-code-card pre {
   width: 100%;
-  max-height: 56vh;
+  max-height: 42vh;
   box-sizing: border-box;
   margin: 0;
-  padding: 18px;
+  padding: 18px 20px 22px;
   overflow: auto;
-  border: 1px solid rgba(148, 163, 184, 0.32);
-  border-radius: 12px;
   background: #0f172a;
-  color: #e2e8f0;
+  color: #dbeafe;
   font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.agent-workshop-view .agent-curl-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 180px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #fff;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.agent-workshop-view .agent-curl-loading span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3b82f6;
+}
+
+.agent-workshop-view .agent-curl-footer {
+  gap: 10px;
+  padding: 15px 24px;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.agent-workshop-view .agent-curl-footer > span {
+  margin-right: auto;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .agent-workshop-view .agent-curl-header,
+  .agent-workshop-view .agent-curl-body,
+  .agent-workshop-view .agent-curl-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .agent-workshop-view .agent-curl-capabilities {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .agent-workshop-view .agent-curl-capabilities > i {
+    width: 20px;
+  }
+
+  .agent-workshop-view .agent-curl-footer > span {
+    display: none;
+  }
 }
 
 .mcp-center-view .mcp-actions button:disabled {

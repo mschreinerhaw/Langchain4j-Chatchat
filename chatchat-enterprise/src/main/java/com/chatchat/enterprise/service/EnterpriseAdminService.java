@@ -261,8 +261,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public boolean isTokenValid(String token) {
         return resolveUserByToken(token)
             .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
-            .isPresent()
-            || resolveUsableEmbedToken(token).isPresent();
+            .isPresent();
     }
 
     /**
@@ -296,32 +295,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
         String normalized = token.trim();
         UserView cached = activeTokenUsers.get(normalized);
-        if (cached != null) {
-            if (activeTokens.get(normalized) != null) {
-                return Optional.of(cached);
-            }
-            Optional<EmbedLoginToken> embedToken = resolveUsableEmbedToken(normalized);
-            if (embedToken.isEmpty()) {
-                activeTokenUsers.remove(normalized);
-                return Optional.empty();
-            }
-            return embedToken
-                .flatMap(record -> userRepository.findById(record.getUserId()))
-                .filter(user -> isAdminUser(user) && "enabled".equalsIgnoreCase(user.getStatus()))
-                .map(user -> {
-                    UserView userView = toUserView(user);
-                    activeTokenUsers.put(normalized, userView);
-                    return userView;
-                });
+        if (cached != null && activeTokens.get(normalized) != null) {
+            return Optional.of(cached);
         }
-        return resolveUsableEmbedToken(normalized)
-            .flatMap(record -> userRepository.findById(record.getUserId()))
-            .filter(user -> isAdminUser(user) && "enabled".equalsIgnoreCase(user.getStatus()))
-            .map(user -> {
-                UserView userView = toUserView(user);
-                activeTokenUsers.put(normalized, userView);
-                return userView;
-            });
+        activeTokenUsers.remove(normalized);
+        return Optional.empty();
     }
 
     /**
@@ -1561,6 +1539,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),
             new PermissionSeed("system", "system:org", "组织管理", "menu", "/api/v1/enterprise/orgs", "*", "building-2", 42),
             new PermissionSeed("system", "system:user", "用户管理", "menu", "/api/v1/enterprise/users", "*", "users", 43),
+            new PermissionSeed("system:user", "system:user:agent-api-token", "Agent API令牌", "button", "/api/v1/enterprise/agent-api-tokens/**", "*", "key-round", 43),
             new PermissionSeed("system", "system:role", "角色管理", "menu", "/api/v1/enterprise/roles", "*", "shield", 44),
             new PermissionSeed("system:role", "system:role:authorize", "角色授权", "button", "/api/v1/enterprise/roles/*/authorization", "*", "shield-check", 45),
             new PermissionSeed("system", "system:permission", "权限管理", "menu", "/api/v1/enterprise/permissions", "*", "list-tree", 46),

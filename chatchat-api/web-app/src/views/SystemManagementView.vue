@@ -99,13 +99,13 @@
             </span>
             <span class="entity-row-actions">
               <button
-                v-if="isAdminUser(user)"
                 type="button"
-                class="icon-button"
-                title="嵌入登录 URL"
-                @click="openEmbedTokenModal(user)"
+                class="ghost-button compact-button"
+                title="管理 Agent API 令牌"
+                :disabled="user.status !== 'enabled'"
+                @click="openApiTokenModal(user)"
               >
-                <KeyRound :size="15" />
+                API
               </button>
               <button type="button" class="icon-button" title="编辑账户" @click="openUserModal(user)">
                 <Pencil :size="15" />
@@ -219,7 +219,8 @@
           <select v-model="loginAuditAction" @change="searchLoginAuditLogs">
             <option value="">全部方式</option>
             <option value="login">密码登录</option>
-            <option value="embed-login">嵌入登录</option>
+            <option value="embed-login">历史嵌入登录</option>
+            <option value="agent-api-token-authenticate">Agent API 认证</option>
           </select>
           <select v-model="loginAuditResult" @change="searchLoginAuditLogs">
             <option value="">全部结果</option>
@@ -452,83 +453,120 @@
         </form>
       </div>
 
-      <div v-if="embedTokenModalOpen" class="permission-modal-backdrop">
-        <div class="embed-token-modal">
-          <div class="modal-head">
-            <div>
-              <p>admin 嵌入登录</p>
-              <h2>URL 授权</h2>
+      <div v-if="apiTokenModalOpen" class="permission-modal-backdrop">
+        <div class="api-token-modal">
+          <div class="modal-head api-token-modal-head">
+            <div class="api-token-heading">
+              <span class="api-token-heading-icon"><KeyRound :size="19" /></span>
+              <div>
+                <p>访问凭证</p>
+                <h2>Agent API 令牌</h2>
+                <span>为应用和自动化服务创建安全访问凭证</span>
+              </div>
             </div>
-            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeEmbedTokenModal">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeApiTokenModal">
               <X :size="18" />
             </button>
           </div>
 
-          <div class="embed-token-toolbar">
-            <label>
-              <span>授权时长</span>
-              <select v-model.number="embedTokenDuration">
-                <option v-for="option in embedTokenDurations" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
-            <button type="button" class="ghost-button compact-button embed-token-generate-button" :disabled="embedTokenSaving" @click="createEmbedToken">
-              <Link2 :size="16" />
-              <span>生成 URL</span>
-            </button>
+          <div class="api-token-owner">
+            <span class="api-token-owner-avatar">{{ (apiTokenTargetUser?.displayName || apiTokenTargetUser?.username || "U").slice(0, 1) }}</span>
+            <span>
+              <strong>{{ apiTokenTargetUser?.displayName }}</strong>
+              <small>{{ apiTokenTargetUser?.username }} · 继承当前角色与 Agent 权限</small>
+            </span>
+            <em>权限实时同步</em>
           </div>
 
-          <div v-if="embedTokenLatestUrl" class="embed-token-url">
-            <input :value="embedTokenLatestUrl" readonly />
-            <button type="button" class="ghost-button compact-button" @click="copyEmbedTokenUrl(embedTokenLatestUrl)">
+          <div class="api-token-create-card">
+            <div class="api-token-section-title">
+              <span><strong>创建新令牌</strong><small>令牌生成后可立即用于已授权的 Agent API</small></span>
+            </div>
+            <div class="api-token-create-form">
+              <label>
+                <span>令牌名称</span>
+                <input v-model.trim="apiTokenName" type="text" maxlength="128" placeholder="例如：生产环境数据助手" />
+              </label>
+              <label>
+                <span>有效期</span>
+                <select v-model.number="apiTokenDuration">
+                  <option v-for="option in apiTokenDurations" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <button type="button" class="primary-button api-token-create-button" :disabled="apiTokenSaving || !apiTokenName" @click="createApiToken">
+                <Plus :size="16" />
+                <span>{{ apiTokenSaving ? "处理中..." : "创建令牌" }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="apiTokenLatestSecret" class="api-token-secret-card">
+            <span class="api-token-secret-icon"><ShieldCheck :size="20" /></span>
+            <span class="api-token-secret-content">
+              <strong>令牌已创建，请立即保存</strong>
+              <small>出于安全考虑，关闭窗口后将无法再次查看完整令牌。</small>
+              <code>{{ apiTokenLatestSecret }}</code>
+            </span>
+            <button type="button" class="primary-button api-token-copy-button" @click="copyApiTokenSecret(apiTokenLatestSecret)">
               <Copy :size="14" />
               复制
             </button>
           </div>
 
-          <div class="embed-token-table">
-            <div class="embed-token-head">
-              <span>Token</span>
+          <div class="api-token-list-section">
+            <div class="api-token-section-title api-token-list-title">
+              <span><strong>已创建的令牌</strong><small>管理有效期、使用情况和访问状态</small></span>
+              <em>{{ apiTokens.length }} 个</em>
+            </div>
+            <div class="api-token-table">
+            <div class="api-token-head">
+              <span>名称 / Token</span>
               <span>状态</span>
-              <span>过期时间</span>
+              <span>有效期</span>
               <span>最后使用</span>
               <span>次数</span>
               <span>操作</span>
             </div>
-            <div v-for="token in embedTokens" :key="token.id" class="embed-token-row">
-              <strong>{{ token.tokenPreview }}</strong>
-              <em :class="['status-pill', isEmbedTokenExpired(token) ? 'disabled' : '']">
-                {{ embedTokenStatusLabel(token) }}
+            <div v-for="token in apiTokens" :key="token.id" class="api-token-row">
+              <span class="api-token-name"><strong>{{ token.tokenName }}</strong><small>{{ token.tokenPreview }}</small></span>
+              <em :class="['status-pill', isApiTokenInactive(token) ? 'disabled' : '']">
+                {{ apiTokenStatusLabel(token) }}
               </em>
-              <span>{{ formatDateTime(token.expiresAt) }}</span>
+              <span>{{ apiTokenExpiryLabel(token) }}</span>
               <span>{{ token.lastUsedAt ? formatDateTime(token.lastUsedAt) : "-" }}</span>
               <span>{{ token.usedCount || 0 }}</span>
               <span class="entity-row-actions">
                 <button
                   type="button"
-                  class="icon-button"
-                  title="复制 URL"
-                  :disabled="isEmbedTokenExpired(token)"
-                  @click="copyEmbedTokenUrl(token)"
+                  class="api-token-action"
+                  title="重置令牌"
+                  :disabled="apiTokenSaving"
+                  @click="resetApiToken(token)"
                 >
-                  <Copy :size="15" />
+                  <RotateCcw :size="15" />
+                  <span>重置</span>
                 </button>
                 <button
                   type="button"
-                  class="icon-button"
-                  title="立即过期"
-                  :disabled="isEmbedTokenExpired(token) || embedTokenSaving"
-                  @click="expireEmbedToken(token)"
+                  class="api-token-action danger"
+                  title="吊销令牌"
+                  :disabled="isApiTokenInactive(token) || apiTokenSaving"
+                  @click="revokeApiToken(token)"
                 >
-                  <RotateCcw :size="15" />
+                  <Trash2 :size="15" />
+                  <span>吊销</span>
                 </button>
               </span>
             </div>
-            <div v-if="!embedTokenLoading && embedTokens.length === 0" class="empty-state">
-              暂无嵌入登录授权
+            <div v-if="!apiTokenLoading && apiTokens.length === 0" class="empty-state">
+              <KeyRound :size="22" />
+              <strong>还没有 API 令牌</strong>
+              <span>创建后即可安全调用已授权的 Agent</span>
             </div>
-            <div v-if="embedTokenLoading" class="empty-state">加载中...</div>
+            <div v-if="apiTokenLoading" class="empty-state">加载中...</div>
+            </div>
           </div>
         </div>
       </div>

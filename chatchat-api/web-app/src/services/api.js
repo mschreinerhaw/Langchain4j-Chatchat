@@ -1288,35 +1288,32 @@ export async function loginEnterprise(payload) {
   return session;
 }
 
-export async function loginEnterpriseWithEmbedToken(token) {
-  const session = await apiRequest("/enterprise/auth/embed-login", {
-    method: "POST",
-    body: JSON.stringify({ token })
-  });
-  if (session?.token) {
-    storeAuthSession(session);
-  }
-  return session;
-}
-
 export function fetchCurrentEnterpriseUser() {
   return apiRequest("/enterprise/auth/me");
 }
 
-export function fetchEmbedLoginTokens() {
-  return apiRequest("/enterprise/auth/embed-tokens");
+export function fetchAgentApiTokens(userId = "") {
+  const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+  return apiRequest(`/enterprise/agent-api-tokens${query}`);
 }
 
-export function createEmbedLoginToken(expiresInSeconds) {
-  return apiRequest("/enterprise/auth/embed-tokens", {
+export function createAgentApiToken(payload) {
+  return apiRequest("/enterprise/agent-api-tokens", {
     method: "POST",
-    body: JSON.stringify({ expiresInSeconds })
+    body: JSON.stringify(payload)
   });
 }
 
-export function expireEmbedLoginToken(tokenId) {
-  return apiRequest(`/enterprise/auth/embed-tokens/${encodeURIComponent(tokenId)}/expire`, {
+export function revokeAgentApiToken(tokenId) {
+  return apiRequest(`/enterprise/agent-api-tokens/${encodeURIComponent(tokenId)}/revoke`, {
     method: "POST"
+  });
+}
+
+export function resetAgentApiToken(tokenId, payload) {
+  return apiRequest(`/enterprise/agent-api-tokens/${encodeURIComponent(tokenId)}/reset`, {
+    method: "POST",
+    body: JSON.stringify(payload)
   });
 }
 

@@ -2,7 +2,6 @@ import {
   Building2,
   Copy,
   KeyRound,
-  Link2,
   Pencil,
   Plus,
   RefreshCw,
@@ -19,14 +18,13 @@ import {
   changeAdminPassword,
   clearAuthSession,
   createOrg,
-  createEmbedLoginToken,
+  createAgentApiToken,
   createRole,
   createUser,
   deleteOrg,
   deleteRole,
   deleteUser,
-  expireEmbedLoginToken,
-  fetchEmbedLoginTokens,
+  fetchAgentApiTokens,
   fetchAgentOptions,
   fetchEnterpriseSummary,
   fetchLoginAuditLogs,
@@ -36,6 +34,8 @@ import {
   fetchRoles,
   fetchTenants,
   fetchUsers,
+  resetAgentApiToken,
+  revokeAgentApiToken,
   saveRoleAuthorization,
   syncEnterpriseOrgs,
   syncEnterpriseUsers,
@@ -86,7 +86,6 @@ export default {
     Building2,
     Copy,
     KeyRound,
-    Link2,
     Pencil,
     Plus,
     RefreshCw,
@@ -104,13 +103,13 @@ export default {
       savingRole: false,
       savingUser: false,
       savingAdminPassword: false,
-      embedTokenLoading: false,
-      embedTokenSaving: false,
+      apiTokenLoading: false,
+      apiTokenSaving: false,
       orgModalOpen: false,
       roleModalOpen: false,
       userModalOpen: false,
       adminPasswordModalOpen: false,
-      embedTokenModalOpen: false,
+      apiTokenModalOpen: false,
       error: "",
       message: "",
       activeManagementTab: "users",
@@ -129,9 +128,11 @@ export default {
       loginAuditTenantId: "",
       permissions: [],
       agentOptions: [],
-      embedTokens: [],
-      embedTokenDuration: 86400,
-      embedTokenLatestUrl: "",
+      apiTokens: [],
+      apiTokenDuration: 2592000,
+      apiTokenName: "",
+      apiTokenLatestSecret: "",
+      apiTokenTargetUser: null,
       selectedTenantId: "",
       selectedRoleId: "",
       selectedPermissionIds: [],
@@ -326,12 +327,13 @@ export default {
         return result;
       }, {});
     },
-    embedTokenDurations() {
+    apiTokenDurations() {
       return [
-        { label: "1 小时", value: 3600 },
         { label: "1 天", value: 86400 },
         { label: "7 天", value: 604800 },
         { label: "30 天", value: 2592000 },
+        { label: "90 天", value: 7776000 },
+        { label: "1 年", value: 31536000 },
         { label: "永久", value: 0 }
       ];
     },
@@ -617,77 +619,103 @@ export default {
         this.savingAdminPassword = false;
       }
     },
-    async openEmbedTokenModal(user = null) {
-      if (!this.isAdminUser(user)) {
-        this.setNotice("仅 admin 用户可以查看嵌入登录 URL", true);
+    async openApiTokenModal(user = null) {
+      if (!user?.id) {
         return;
       }
-      this.embedTokenModalOpen = true;
-      this.embedTokenLatestUrl = "";
-      await this.loadEmbedTokens();
-    },
-    closeEmbedTokenModal() {
-      this.embedTokenModalOpen = false;
-      this.embedTokenLatestUrl = "";
-    },
-    async loadEmbedTokens() {
-      this.embedTokenLoading = true;
-      try {
-        const tokens = await fetchEmbedLoginTokens();
-        this.embedTokens = Array.isArray(tokens) ? tokens : [];
-      } catch (error) {
-        this.setNotice(error.message || "嵌入登录授权加载失败", true);
-      } finally {
-        this.embedTokenLoading = false;
-      }
-    },
-    async createEmbedToken() {
-      this.embedTokenSaving = true;
-      try {
-        const token = await createEmbedLoginToken(Number(this.embedTokenDuration) || 0);
-        this.embedTokenLatestUrl = this.buildEmbedLoginUrl(token);
-        await this.loadEmbedTokens();
-        this.setNotice("嵌入登录 URL 已生成");
-      } catch (error) {
-        this.setNotice(error.message || "嵌入登录 URL 生成失败", true);
-      } finally {
-        this.embedTokenSaving = false;
-      }
-    },
-    async expireEmbedToken(token) {
-      if (!token?.id || !window.confirm("确认让该授权立即过期？")) {
+      if (user.status !== "enabled") {
+        this.setNotice("停用或锁定用户不能生成 Agent API 令牌", true);
         return;
       }
-      this.embedTokenSaving = true;
+      this.apiTokenTargetUser = user;
+      this.apiTokenName = `${user.username} Agent API`;
+      this.apiTokenModalOpen = true;
+      this.apiTokenLatestSecret = "";
+      await this.loadApiTokens();
+    },
+    closeApiTokenModal() {
+      this.apiTokenModalOpen = false;
+      this.apiTokenLatestSecret = "";
+      this.apiTokenTargetUser = null;
+    },
+    async loadApiTokens() {
+      this.apiTokenLoading = true;
       try {
-        await expireEmbedLoginToken(token.id);
-        await this.loadEmbedTokens();
-        this.setNotice("嵌入登录授权已过期");
+        const tokens = await fetchAgentApiTokens(this.apiTokenTargetUser?.id || "");
+        this.apiTokens = Array.isArray(tokens) ? tokens : [];
       } catch (error) {
-        this.setNotice(error.message || "嵌入登录授权过期失败", true);
+        this.setNotice(error.message || "Agent API 令牌加载失败", true);
       } finally {
-        this.embedTokenSaving = false;
+        this.apiTokenLoading = false;
       }
     },
-    async copyEmbedTokenUrl(token) {
-      const url = typeof token === "string" ? token : this.buildEmbedLoginUrl(token);
-      if (!url) {
+    async createApiToken() {
+      if (!this.apiTokenTargetUser?.id) {
         return;
       }
+      this.apiTokenSaving = true;
       try {
-        await navigator.clipboard.writeText(url);
-        this.setNotice("嵌入登录 URL 已复制");
+        const duration = Number(this.apiTokenDuration) || 0;
+        const issued = await createAgentApiToken({
+          userId: this.apiTokenTargetUser.id,
+          tokenName: this.apiTokenName,
+          permanent: duration === 0,
+          expiresInSeconds: duration === 0 ? null : duration
+        });
+        this.apiTokenLatestSecret = issued?.secret || "";
+        await this.loadApiTokens();
+        this.setNotice("Agent API 令牌已生成，请立即复制保存");
       } catch (error) {
-        window.prompt("复制嵌入登录 URL", url);
+        this.setNotice(error.message || "Agent API 令牌生成失败", true);
+      } finally {
+        this.apiTokenSaving = false;
       }
     },
-    buildEmbedLoginUrl(token) {
-      const rawToken = token?.token || "";
-      if (!rawToken) {
+    async revokeApiToken(token) {
+      if (!token?.id || !window.confirm("确认立即吊销该 Agent API 令牌？吊销后无法恢复。")) {
+        return;
+      }
+      this.apiTokenSaving = true;
+      try {
+        await revokeAgentApiToken(token.id);
+        await this.loadApiTokens();
+        this.setNotice("Agent API 令牌已吊销");
+      } catch (error) {
+        this.setNotice(error.message || "Agent API 令牌吊销失败", true);
+      } finally {
+        this.apiTokenSaving = false;
+      }
+    },
+    async resetApiToken(token) {
+      if (!token?.id || !window.confirm("确认重置该令牌？旧令牌会立即失效。")) {
+        return;
+      }
+      this.apiTokenSaving = true;
+      try {
+        const duration = Number(this.apiTokenDuration) || 0;
+        const issued = await resetAgentApiToken(token.id, {
+          permanent: duration === 0,
+          expiresInSeconds: duration === 0 ? null : duration
+        });
+        this.apiTokenLatestSecret = issued?.secret || "";
+        await this.loadApiTokens();
+        this.setNotice("令牌已重置，旧值已失效，请立即复制新令牌");
+      } catch (error) {
+        this.setNotice(error.message || "Agent API 令牌重置失败", true);
+      } finally {
+        this.apiTokenSaving = false;
+      }
+    },
+    async copyApiTokenSecret(secret) {
+      if (!secret) {
         return "";
       }
-      const baseUrl = `${window.location.origin}${window.location.pathname || "/"}`;
-      return `${baseUrl}?embedToken=${encodeURIComponent(rawToken)}#/chat`;
+      try {
+        await navigator.clipboard.writeText(secret);
+        this.setNotice("Agent API 令牌已复制");
+      } catch (error) {
+        window.prompt("复制 Agent API 令牌", secret);
+      }
     },
     editUser(user) {
       this.userForm = {
@@ -1059,7 +1087,8 @@ export default {
     loginActionLabel(actionName) {
       const labels = {
         login: "密码登录",
-        "embed-login": "嵌入登录"
+        "embed-login": "历史嵌入登录",
+        "agent-api-token-authenticate": "Agent API 认证"
       };
       return labels[actionName] || actionName || "登录";
     },
@@ -1087,13 +1116,13 @@ export default {
     isProtectedUser(user) {
       return user?.protectedAccount === true || this.isAdminUser(user);
     },
-    embedTokenStatusLabel(token) {
-      if (this.isEmbedTokenExpired(token)) {
-        return "已过期";
+    apiTokenStatusLabel(token) {
+      if (this.isApiTokenInactive(token)) {
+        return token?.status === "revoked" ? "已吊销" : "已过期";
       }
-      return token?.status === "active" ? "有效" : "已过期";
+      return "有效";
     },
-    isEmbedTokenExpired(token) {
+    isApiTokenInactive(token) {
       if (!token || token.status !== "active") {
         return true;
       }
@@ -1101,6 +1130,15 @@ export default {
         return false;
       }
       return new Date(token.expiresAt).getTime() <= Date.now();
+    },
+    apiTokenExpiryLabel(token) {
+      if (token?.permanent) {
+        return "永久";
+      }
+      if (!token?.expiresAt) {
+        return "已过期";
+      }
+      return this.formatDateTime(token.expiresAt);
     },
     formatDateTime(value) {
       if (!value) {

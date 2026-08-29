@@ -134,7 +134,12 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.submitCurl").value(org.hamcrest.Matchers.containsString("/questions")))
             .andExpect(jsonPath("$.data.statusCurl").value(org.hamcrest.Matchers.containsString("/status")))
             .andExpect(jsonPath("$.data.answerCurl").value(org.hamcrest.Matchers.containsString("/answer")))
-            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("CHATCHAT_TOKEN")));
+            .andExpect(jsonPath("$.data.tokenEnvironmentVariable").value("AGENT_TOKEN"))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("AGENT_BASE_URL")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("AGENT_TOKEN")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("TASK_ID=$(")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.not(
+                org.hamcrest.Matchers.containsString("export TASK_ID"))));
     }
 
     @Test

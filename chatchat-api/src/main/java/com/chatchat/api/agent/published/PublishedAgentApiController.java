@@ -162,32 +162,39 @@ public class PublishedAgentApiController {
         String body;
         try {
             body = objectMapper.writeValueAsString(Map.of(
-                "sessionId", "curl-session-001",
+                "sessionId", "6f2e7d6a-21b8-4ea4-a4d6-4cb81fa31c57",
                 "question", "Describe your capabilities and answer an example question"
             ));
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Unable to generate curl request body", ex);
         }
-        String submit = "curl --request POST \"${CHATCHAT_BASE_URL}/api/v1/published-agents/"
+        String submit = "curl --silent --show-error --fail-with-body --request POST \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions\" \\\n"
-            + "  --header \"Authorization: Bearer ${CHATCHAT_TOKEN}\" \\\n"
+            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Content-Type: application/json\" \\\n"
             + "  --data '" + body.replace("'", "'\\''") + "'";
-        String status = "curl --request GET \"${CHATCHAT_BASE_URL}/api/v1/published-agents/"
+        String status = "curl --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/status\" \\\n"
-            + "  --header \"Authorization: Bearer ${CHATCHAT_TOKEN}\"";
-        String answer = "curl --request GET \"${CHATCHAT_BASE_URL}/api/v1/published-agents/"
+            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\"";
+        String answer = "curl --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/answer\" \\\n"
-            + "  --header \"Authorization: Bearer ${CHATCHAT_TOKEN}\"";
-        String complete = "export CHATCHAT_BASE_URL=\"" + escapedBaseUrl + "\"\n"
-            + "export CHATCHAT_TOKEN=\"<paste-login-token>\"\n"
-            + "export TASK_ID=\"<taskId-from-submit-response>\"\n\n"
-            + "# 1. Submit a question and save data.taskId from the response\n" + submit + "\n\n"
+            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\"";
+        String complete = "export AGENT_BASE_URL=\"" + escapedBaseUrl + "\"\n"
+            + "export AGENT_TOKEN=\"<paste-agent-api-token>\"\n\n"
+            + "# This example uses jq to read data.taskId from the submit response.\n"
+            + "# 1. Submit a question. sessionId uses the same UUID format as ChatChat sessions.\n"
+            + "SUBMIT_RESPONSE=$(" + submit + ")\n"
+            + "printf '%s\\n' \"${SUBMIT_RESPONSE}\"\n"
+            + "TASK_ID=$(printf '%s' \"${SUBMIT_RESPONSE}\" | jq -r '.data.taskId // empty')\n"
+            + "if [ -z \"${TASK_ID}\" ]; then\n"
+            + "  echo \"Unable to read data.taskId from the submit response.\" >&2\n"
+            + "  exit 1\n"
+            + "fi\n\n"
             + "# 2. Get run status\n" + status + "\n\n"
             + "# 3. Get the final answer; poll status while data.ready is false\n" + answer;
         return new PublishedAgentCurlExample(
-            agent.id(), agent.label(), baseUrl, "CHATCHAT_TOKEN", submit, status, answer, complete,
-            "Use a Bearer token returned by login. Tenant, user and role-to-Agent authorization are enforced server-side."
+            agent.id(), agent.label(), baseUrl, "AGENT_TOKEN", submit, status, answer, complete,
+            "Use a dedicated Agent API token issued by an administrator. Tenant, user and role-to-Agent authorization are enforced server-side."
         );
     }
 

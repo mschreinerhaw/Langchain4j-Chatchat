@@ -27,6 +27,7 @@ import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -851,7 +852,7 @@ public class McpToolRegistryBridge {
                     result.errorMessage(),
                     result.executionState(),
                     ToolLogSummarizer.summarizeResult(plan.remoteToolName(), result.data()));
-                return failureOutput(result);
+                return failureOutput(result, metadata);
             }
             log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={} message={} result={}",
                 metadata.getId(),
@@ -871,7 +872,7 @@ public class McpToolRegistryBridge {
         }
     }
 
-    private ToolOutput failureOutput(McpToolInvokeResult result) {
+    private ToolOutput failureOutput(McpToolInvokeResult result, ToolMetadata metadata) {
         String errorMessage = result == null || result.errorMessage() == null
             ? "MCP tool call failed"
             : result.errorMessage();
@@ -882,7 +883,29 @@ public class McpToolRegistryBridge {
         output.getMetadata().put("errorCode", firstText(errorCode, "MCP_TOOL_CALL_FAILED"));
         output.getMetadata().put("retryable", result != null && result.retryable());
         output.getMetadata().put("action", result == null ? "STOP" : firstText(result.action(), "STOP"));
+        if (safeDiscoveryTimeout(metadata, result)) {
+            output.getMetadata().put("retryable", true);
+            output.getMetadata().put("mcpRetryable", true);
+            output.getMetadata().put("action", "RETRY");
+            output.getMetadata().put("mcpAction", "RETRY");
+            output.getMetadata().put("retryReason", "READ_ONLY_DISCOVERY_TIMEOUT");
+        }
         return output;
+    }
+
+    /**
+     * Timeouts are retryable only when the publisher-owned workflow contract
+     * proves that the operation is discovery-only.  Execution tools deliberately
+     * remain non-retryable because their remote side effect may be ambiguous.
+     */
+    private boolean safeDiscoveryTimeout(ToolMetadata metadata, McpToolInvokeResult result) {
+        if (result == null || !"MCP_TOOL_TIMEOUT".equalsIgnoreCase(result.errorCode())) {
+            return false;
+        }
+        return ToolWorkflowContract.declaredRole(metadata)
+            .map(role -> role == ToolWorkflowRole.ASSET_DISCOVERY
+                || role == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+            .orElse(false);
     }
 
     private void enrichOutputMetadata(ToolOutput output, McpToolInvokeResult result) {

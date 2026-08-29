@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublish
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -35,7 +36,8 @@ class TemplateQueryMcpToolPublisherTest {
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
             server, bindings, mock(CommandTemplateDiscoveryService.class),
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
-            new AgentRuntimeGovernanceFactory(new ObjectMapper()));
+            new AgentRuntimeGovernanceFactory(new ObjectMapper()),
+            mock(McpToolConcurrencyManager.class));
         when(bindings.publishedToolNames()).thenReturn(Set.of());
 
         publisher.refresh();
@@ -50,10 +52,14 @@ class TemplateQueryMcpToolPublisherTest {
         McpSyncServer server = mock(McpSyncServer.class);
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         when(server.listTools()).thenReturn(List.of());
+        McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
+        when(concurrencyManager.limitMeta("customer_template_query", "discovery"))
+            .thenReturn(Map.of("runtime_level", "discovery", "timeout_seconds", 90L));
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
             server, bindings, mock(CommandTemplateDiscoveryService.class),
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
-            new AgentRuntimeGovernanceFactory(new ObjectMapper()));
+            new AgentRuntimeGovernanceFactory(new ObjectMapper()),
+            concurrencyManager);
         when(bindings.publishedToolNames()).thenReturn(Set.of("customer_template_query"));
         when(bindings.parentToolName("customer_template_query")).thenReturn("api_template_query");
 
@@ -67,7 +73,8 @@ class TemplateQueryMcpToolPublisherTest {
             .contains("governanceEditable=false", "only_selected_templates=true", "allow_user_override=false",
                 "parentToolName=api_service_query", "routingMode=api_parent_mcp_policy_filter",
                 "mcpDynamicCapabilityRoute", "mcp.dynamic-capability-route.v1",
-                "implementationIdentityArgument=_templateQueryChildToolName");
+                "implementationIdentityArgument=_templateQueryChildToolName",
+                "runtime_level=discovery", "timeout_seconds=90");
         assertThat((Map<String, Object>) captor.getValue().tool().inputSchema().get("properties"))
             .doesNotContainKeys("templateIds", "serviceId", "roleId", "governance");
     }
@@ -159,7 +166,7 @@ class TemplateQueryMcpToolPublisherTest {
                                                      ApiTemplateDiscoveryMcpToolPublisher apiDiscovery) {
         return new TemplateQueryMcpToolPublisher(
             mock(McpSyncServer.class), bindings, discovery, apiDiscovery,
-            mock(AgentRuntimeGovernanceFactory.class));
+            mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class));
     }
 
     private TemplateQueryBindingService.PolicyResolution policy(Map<String, Set<String>> allowed) {

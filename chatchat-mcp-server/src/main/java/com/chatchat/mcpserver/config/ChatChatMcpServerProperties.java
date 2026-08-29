@@ -480,6 +480,12 @@ public class ChatChatMcpServerProperties {
             values.put("ssh", new LimitProperties(2, 32, 10, 30, "ssh"));
             values.put("sql", new LimitProperties(5, 64, 10, 30, "sql"));
             values.put("sql_script", new LimitProperties(2, 32, 10, 180, "sql_script"));
+            // Discovery tools may resolve role-bound publication policies and search
+            // multiple governed catalogs.  They are read-only, but their latency
+            // profile is not the same as a scalar tool call.  Keep this as a
+            // protocol-level runtime class so publishers do not need per-template
+            // timeout exceptions.
+            values.put("discovery", new LimitProperties(8, 128, 10, 90, "discovery"));
             values.put("http", new LimitProperties(30, 256, 5, 30, "http"));
             values.put("notification", new LimitProperties(10, 128, 5, 30, "notification"));
             return values;

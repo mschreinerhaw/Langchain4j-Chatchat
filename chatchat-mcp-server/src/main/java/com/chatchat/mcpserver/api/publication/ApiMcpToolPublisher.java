@@ -117,7 +117,7 @@ public class ApiMcpToolPublisher {
             .meta(meta()).build();
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
             Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-            return concurrencyManager.execute(BRIDGE_TOOL_NAME, "read_only", arguments, () -> {
+            return concurrencyManager.execute(BRIDGE_TOOL_NAME, "discovery", arguments, () -> {
                 KernelDataScope scope = scope(arguments);
                 TemplateServiceCall call = TemplateServiceCall.search(
                     firstText(text(arguments.get("query")), text(arguments.get("intent"))),
@@ -137,10 +137,12 @@ public class ApiMcpToolPublisher {
         meta.put("assetType", "api_service");
         meta.put("runtime_action", "read_only");
         meta.put("runtimeAction", "read_only");
+        meta.put("runtime_level", "discovery");
+        meta.put("runtimeLevel", "discovery");
         meta.put("templateGoverned", true);
         meta.put("bridgeManaged", true);
         meta.put("executionTool", EXECUTE_TOOL_NAME);
-        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(BRIDGE_TOOL_NAME, "read_only"));
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(BRIDGE_TOOL_NAME, "discovery"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
             ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-template.v1", "intent+filters"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(

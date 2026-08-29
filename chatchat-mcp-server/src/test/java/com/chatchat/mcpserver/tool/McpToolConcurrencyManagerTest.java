@@ -18,6 +18,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpToolConcurrencyManagerTest {
 
     @Test
+    void discoveryRuntimeHasIndependentCommercialLatencyBudget() {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        manager = new McpToolConcurrencyManager(properties, new ObjectMapper());
+
+        assertThat(manager.limitMeta("api_service_query", "discovery"))
+            .containsEntry("runtime_level", "discovery")
+            .containsEntry("timeout_seconds", 90L)
+            .containsEntry("max_concurrency", 8);
+        assertThat(manager.limitMeta("api_template_execute", "http"))
+            .containsEntry("runtime_level", "http")
+            .containsEntry("timeout_seconds", 30L);
+    }
+
+    @Test
     void firstTimeoutOpensCircuitAndPreventsRetryStormUntilRecoveryWindow() throws Exception {
         ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
         ChatChatMcpServerProperties.LimitProperties webSearchLimit =

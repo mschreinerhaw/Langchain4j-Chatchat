@@ -32,7 +32,7 @@ class ApiMcpToolPublisherTest {
         when(executorTool.name()).thenReturn(ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
         when(toolSpecFactory.toGatewayToolSpecification()).thenReturn(executor);
         McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
-        when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "read_only")).thenReturn(java.util.Map.of());
+        when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "discovery")).thenReturn(java.util.Map.of());
         when(mcpSyncServer.listTools()).thenReturn(java.util.List.of());
         ApiMcpToolPublisher publisher = new ApiMcpToolPublisher(
             mcpSyncServer, bridge, toolSpecFactory, concurrencyManager, new ObjectMapper());
@@ -58,7 +58,7 @@ class ApiMcpToolPublisherTest {
         when(executorTool.name()).thenReturn(ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
         when(toolSpecFactory.toGatewayToolSpecification()).thenReturn(executor);
         McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
-        when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "read_only"))
+        when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "discovery"))
             .thenReturn(Map.of());
         when(mcpSyncServer.listTools()).thenReturn(List.of());
         ApiMcpToolPublisher publisher = new ApiMcpToolPublisher(
@@ -82,5 +82,8 @@ class ApiMcpToolPublisherTest {
             "filters", "trace", "limit", "assetType", "bilingualIntent", "intentZh", "intentEn",
             TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT);
         assertThat(bridgeTool.inputSchema()).containsEntry("additionalProperties", false);
+        assertThat(bridgeTool.meta())
+            .containsEntry("runtimeLevel", "discovery")
+            .containsEntry("runtime_level", "discovery");
     }
 }

@@ -127,6 +127,8 @@ public class AgentRuntimeGovernanceFactory {
         putAlias(meta, "riskLevel", normalized.get("risk_level"));
         putAlias(meta, "operation_type", normalized.get("operation_type"));
         putAlias(meta, "operationType", normalized.get("operation_type"));
+        putAlias(meta, "runtime_level", normalized.get("runtime_level"));
+        putAlias(meta, "runtimeLevel", normalized.get("runtime_level"));
         putAlias(meta, "data_scope", normalized.get("data_scope"));
         putAlias(meta, "dataScope", normalized.get("data_scope"));
         putAlias(meta, "user_visible", normalized.get("user_visible"));
@@ -195,6 +197,7 @@ public class AgentRuntimeGovernanceFactory {
         Map<String, Object> normalized = new LinkedHashMap<>(governance == null ? Map.of() : governance);
         alias(normalized, "risk_level", "riskLevel");
         alias(normalized, "operation_type", "operationType");
+        alias(normalized, "runtime_level", "runtimeLevel");
         alias(normalized, "data_scope", "dataScope");
         alias(normalized, "user_visible", "userVisible");
         alias(normalized, "input_policy", "inputPolicy");

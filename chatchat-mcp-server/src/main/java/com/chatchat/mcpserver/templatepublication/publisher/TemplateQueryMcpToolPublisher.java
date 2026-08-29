@@ -14,6 +14,7 @@ import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -46,6 +47,7 @@ public class TemplateQueryMcpToolPublisher {
     private final CommandTemplateDiscoveryService discoveryService;
     private final ApiTemplateDiscoveryMcpToolPublisher apiDiscoveryPublisher;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final McpToolConcurrencyManager concurrencyManager;
     private final Set<String> publishedToolNames = new LinkedHashSet<>();
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -82,24 +84,27 @@ public class TemplateQueryMcpToolPublisher {
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
             .callHandler((exchange, request) -> {
-                try {
-                    Map<String, Object> result = query(toolName, request.arguments());
-                    return McpSchema.CallToolResult.builder()
-                        .addTextContent("Authorized template query completed")
-                        .structuredContent(result)
-                        .isError(false)
-                        .build();
-                } catch (Exception ex) {
-                    return McpSchema.CallToolResult.builder()
-                        .addTextContent(ex.getMessage() == null ? "Template query failed" : ex.getMessage())
-                        .structuredContent(Map.of(
-                            "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
-                            "success", false,
-                            "error", ex.getMessage() == null ? "Template query failed" : ex.getMessage()
-                        ))
-                        .isError(true)
-                        .build();
-                }
+                Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
+                return concurrencyManager.execute(toolName, "discovery", arguments, () -> {
+                    try {
+                        Map<String, Object> result = query(toolName, arguments);
+                        return McpSchema.CallToolResult.builder()
+                            .addTextContent("Authorized template query completed")
+                            .structuredContent(result)
+                            .isError(false)
+                            .build();
+                    } catch (Exception ex) {
+                        return McpSchema.CallToolResult.builder()
+                            .addTextContent(ex.getMessage() == null ? "Template query failed" : ex.getMessage())
+                            .structuredContent(Map.of(
+                                "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
+                                "success", false,
+                                "error", ex.getMessage() == null ? "Template query failed" : ex.getMessage()
+                            ))
+                            .isError(true)
+                            .build();
+                    }
+                });
             })
             .build();
     }
@@ -287,6 +292,7 @@ public class TemplateQueryMcpToolPublisher {
         Map<String, Object> governance = new LinkedHashMap<>();
         governance.put("category", "template_discovery");
         governance.put("operation_type", "read");
+        governance.put("runtime_level", "discovery");
         governance.put("risk_level", "low");
         governance.put("data_scope", "service_role_template_binding");
         governance.put("user_visible", true);
@@ -324,6 +330,7 @@ public class TemplateQueryMcpToolPublisher {
         meta.put("controlPlane", "server_managed");
         meta.put("governanceEditable", false);
         meta.put("rawExecutionSpecReturned", false);
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, "discovery"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
             ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.authorized-template-query.v1", "filters"));
         meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(

@@ -528,6 +528,44 @@ class McpToolRegistryBridgeLifecycleTest {
     }
 
     @Test
+    void declaredReadOnlyDiscoveryTimeoutIsRetryableAtRuntimeBoundary() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("discovery-runtime", "Discovery Runtime");
+        McpToolDefinition definition = new McpToolDefinition(
+            "authorized_template_lookup", "authorized template discovery", Map.of("type", "object"),
+            "template_discovery", "low", "read", "discovery", true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null,
+            Map.of(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.template.v1", "filters")));
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(configService.getById(service.getId())).thenReturn(service);
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        when(gateway.invokeTool(eq(service), eq("authorized_template_lookup"), anyMap(), eq(null)))
+            .thenReturn(com.chatchat.integration.mcp.model.McpToolInvokeResult.failure(
+                "MCP tool execution timed out", "MCP_TOOL_TIMEOUT", false, "STOP"));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry(0);
+        ArgumentCaptor<ToolRegistry.EnhancedTool> toolCaptor =
+            ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
+        verify(registry).registerTool(anyString(), any(ToolMetadata.class), toolCaptor.capture());
+
+        ToolOutput output = toolCaptor.getValue().execute(ToolInput.builder()
+            .parameters(Map.of()).requestId("request-timeout").build());
+
+        assertThat(output.isSuccess()).isFalse();
+        assertThat(output.getExceptionType()).isEqualTo("MCP_TOOL_TIMEOUT");
+        assertThat(output.getMetadata())
+            .containsEntry("retryable", true)
+            .containsEntry("mcpRetryable", true)
+            .containsEntry("action", "RETRY")
+            .containsEntry("retryReason", "READ_ONLY_DISCOVERY_TIMEOUT");
+    }
+
+    @Test
     void catalogProjectsParentAsAbstractAndPublishedChildAsBusinessImplementation() {
         ToolRegistry registry = mock(ToolRegistry.class);
         McpServiceConfigService configService = mock(McpServiceConfigService.class);

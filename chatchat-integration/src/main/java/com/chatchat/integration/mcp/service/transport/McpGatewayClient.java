@@ -76,6 +76,7 @@ public class McpGatewayClient {
     private static final String ERROR_SESSION_INVALID = "SESSION_INVALID";
     private static final String ERROR_MCP_HTTP = "MCP_HTTP_ERROR";
     private static final String ERROR_MCP_TOOL = "MCP_TOOL_ERROR";
+    private static final String ERROR_MCP_TOOL_TIMEOUT = "MCP_TOOL_TIMEOUT";
     private static final String ERROR_MCP_LICENSE_EXPIRED = "MCP_LICENSE_EXPIRED";
     private static final String ERROR_MCP_LICENSE_ACCESS_DENIED = "MCP_LICENSE_ACCESS_DENIED";
     private static final String ERROR_TOOL_BUSY = "TOOL_BUSY";
@@ -421,6 +422,18 @@ public class McpGatewayClient {
             return McpToolInvokeResult.failure(
                 firstText(message, "MCP tool is temporarily unavailable"),
                 ERROR_TOOL_BUSY,
+                false,
+                ACTION_STOP
+            );
+        }
+        if (normalized.contains("timeout") || normalized.contains("timed out")) {
+            // A transport timeout is not universally safe to retry: an execution
+            // tool may have committed a side effect before the response was lost.
+            // Preserve the typed failure here; the workflow-role adapter may opt
+            // read-only discovery contracts into bounded retry.
+            return McpToolInvokeResult.failure(
+                firstText(message, "MCP tool execution timed out"),
+                ERROR_MCP_TOOL_TIMEOUT,
                 false,
                 ACTION_STOP
             );

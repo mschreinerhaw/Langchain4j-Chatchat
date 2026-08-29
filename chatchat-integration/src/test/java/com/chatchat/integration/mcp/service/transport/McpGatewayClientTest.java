@@ -20,6 +20,20 @@ import static org.mockito.Mockito.mock;
 class McpGatewayClientTest {
 
     @Test
+    void classifiesServerToolTimeoutWithoutAssumingRetryIsSafe() {
+        McpGatewayClient client = new McpGatewayClient(
+            new ObjectMapper(), new McpCenterProperties(), new InternalCredentialProperties(),
+            mock(McpStdioProxyService.class));
+
+        McpToolInvokeResult result = client.failureResult(
+            "TIMEOUT: MCP tool execution timed out after 30 seconds");
+
+        assertThat(result.errorCode()).isEqualTo("MCP_TOOL_TIMEOUT");
+        assertThat(result.retryable()).isFalse();
+        assertThat(result.action()).isEqualTo("STOP");
+    }
+
+    @Test
     void dispatchesStandardToolListChangeToRuntimeListeners() {
         McpGatewayClient client = new McpGatewayClient(
             new ObjectMapper(), new McpCenterProperties(), new InternalCredentialProperties(),

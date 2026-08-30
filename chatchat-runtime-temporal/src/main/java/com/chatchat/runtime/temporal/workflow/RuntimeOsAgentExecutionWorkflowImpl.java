@@ -1,5 +1,8 @@
-package com.chatchat.runtime.temporal;
+package com.chatchat.runtime.temporal.workflow;
 
+import com.chatchat.runtime.temporal.activity.RuntimeOsWorkflowActivity;
+import com.chatchat.runtime.temporal.contract.TemporalWorkflowCommand;
+import com.chatchat.runtime.temporal.contract.TemporalWorkflowResult;
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
@@ -7,7 +10,11 @@ import io.temporal.workflow.Workflow;
 
 import java.time.Duration;
 
-public class RuntimeOsTemporalWorkflowImpl implements RuntimeOsTemporalWorkflow {
+/**
+ * First phase-three child workflow. It preserves the mature Agent executor as one Activity while
+ * providing the durable boundary where plan branches and tool Activities will be introduced.
+ */
+public class RuntimeOsAgentExecutionWorkflowImpl implements RuntimeOsAgentExecutionWorkflow {
 
     @Override
     public TemporalWorkflowResult execute(TemporalWorkflowCommand command) {

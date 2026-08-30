@@ -2,6 +2,12 @@ package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.execution.LocalPlanToolExecutionPort;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionCommand;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
+import com.chatchat.agents.runtime.plan.execution.DeterministicPlanDagStateMachine;
+import com.chatchat.agents.runtime.plan.execution.LocalPlanDagControlPort;
+import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator;
@@ -78,6 +84,8 @@ import java.util.UUID;
 public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<InterpretationPlanRuntime.ExecutionRequest, InterpretationPlanRuntime.ExecutionResult> {
 
     private final PlanExecutionGovernor executionGovernor = new PlanExecutionGovernor();
+    private final DeterministicPlanDagStateMachine dagStateMachine =
+        new DeterministicPlanDagStateMachine();
 
     @Override
     public String workflowId() {
@@ -170,7 +178,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         "remoteTool",
         "remote_tool"
     );
-    private final ToolRuntimeService toolRuntimeService;
+    private final PlanToolExecutionPort toolExecutionPort;
+    private final PlanDagControlPort dagControlPort;
     private final InterpretationPlanValidator validator;
     private final InterpretationPlanOptimizer optimizer;
     private final AgentRunStore runStore;
@@ -235,7 +244,35 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                      StepResultReviewer stepResultReviewer,
                                      DagExecutionController dagExecutionController,
                                      StepInputEnricher stepInputEnricher) {
-        this.toolRuntimeService = toolRuntimeService;
+        this(toolRuntimeService, validator, optimizer, runStore, stepResultReviewer,
+            dagExecutionController, stepInputEnricher, null);
+    }
+
+    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
+                                     InterpretationPlanValidator validator,
+                                     InterpretationPlanOptimizer optimizer,
+                                     AgentRunStore runStore,
+                                     StepResultReviewer stepResultReviewer,
+                                     DagExecutionController dagExecutionController,
+                                     StepInputEnricher stepInputEnricher,
+                                     PlanToolExecutionPort toolExecutionPort) {
+        this(toolRuntimeService, validator, optimizer, runStore, stepResultReviewer,
+            dagExecutionController, stepInputEnricher, toolExecutionPort, null);
+    }
+
+    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
+                                     InterpretationPlanValidator validator,
+                                     InterpretationPlanOptimizer optimizer,
+                                     AgentRunStore runStore,
+                                     StepResultReviewer stepResultReviewer,
+                                     DagExecutionController dagExecutionController,
+                                     StepInputEnricher stepInputEnricher,
+                                     PlanToolExecutionPort toolExecutionPort,
+                                     PlanDagControlPort dagControlPort) {
+        this.toolExecutionPort = toolExecutionPort == null
+            ? new LocalPlanToolExecutionPort(toolRuntimeService) : toolExecutionPort;
+        this.dagControlPort = dagControlPort == null
+            ? new LocalPlanDagControlPort() : dagControlPort;
         this.validator = validator == null ? new InterpretationPlanValidator() : validator;
         this.optimizer = optimizer == null ? new InterpretationPlanOptimizer() : optimizer;
         this.runStore = runStore;
@@ -328,6 +365,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         int decisionCount = 0;
         int llmDecisionCount = 0;
 
+        String dagControlSessionId = firstText(executableRequest.tenantId(), "default")
+            + "::" + planExecutionScope(executableRequest) + "::dag-control";
+        try (PlanDagControlPort.Session dagControl = dagControlPort.open(
+            new PlanDagControlPort.SessionCommand(
+                PlanDagControlPort.SessionCommand.SCHEMA_VERSION,
+                dagControlSessionId,
+                dagStateMachine.compile(executablePlan)))) {
         while (!remaining.isEmpty()) {
             Optional<PlanExecutionGovernor.Violation> budgetViolation = executionGovernor.check(
                 executablePlan, startedAt, executions.size(), executableRequest.attributes());
@@ -364,7 +408,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 currentDecisionCount,
                 executionTraceId
             );
-            List<Integer> readyStepIds = readyStepIds(remaining, stepsById, completedStepIds);
+            PlanDagControlPort.Snapshot dagSnapshot = dagControl.synchronize(
+                new PlanDagControlPort.StateCommand(
+                    new ArrayList<>(remaining),
+                    new ArrayList<>(completedStepIds),
+                    new ArrayList<>(semanticBranchSkippedStepIds),
+                    toleratedFailures.stream().map(StepExecution::stepId).toList()));
+            List<Integer> readyStepIds = dagSnapshot.readyStepIds();
             SemanticBranch semanticBranch = semanticBranch(executablePlan, readyStepIds);
             String decisionPurpose = "DETERMINISTIC_SCHEDULING";
             if (decision == null) {
@@ -552,13 +602,20 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 .filter(step -> !step.success())
                 .findFirst()
                 .orElse(null);
-            if (preBarrierFailure != null) {
-                boolean independentCommitAllowed = dagGovernanceBoolean(
-                    executableRequest, "execution", "continueIndependentBranches", false)
+            boolean independentCommitAllowed = preBarrierFailure != null && (
+                dagGovernanceBoolean(executableRequest, "execution", "continueIndependentBranches", false)
                     || waveResults.stream().filter(step -> !step.success())
-                        .anyMatch(step -> "continue_with_partial_evidence".equals(
-                            dependencyFailurePolicy(executablePlan, step.stepId())));
-                if (independentCommitAllowed) {
+                    .anyMatch(step -> "continue_with_partial_evidence".equals(
+                        dependencyFailurePolicy(executablePlan, step.stepId()))));
+            DeterministicPlanDagStateMachine.BarrierDecision barrierDecision =
+                dagControl.decideBarrier(
+                    waveResults.stream()
+                        .map(step -> new DeterministicPlanDagStateMachine.NodeOutcome(
+                            step.stepId(), step.success()))
+                        .toList(),
+                    independentCommitAllowed);
+            if (preBarrierFailure != null) {
+                if ("COMMIT_INDEPENDENT".equals(barrierDecision.action())) {
                     List<StepExecution> prepared = waveResults.stream().filter(StepExecution::success).toList();
                     List<StepExecution> committedPrepared = commitPreparedWave(
                         prepared, executableRequest, executionEpoch);
@@ -644,6 +701,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
         }
 
+        dagControl.synchronize(new PlanDagControlPort.StateCommand(
+            new ArrayList<>(remaining),
+            new ArrayList<>(completed.keySet()),
+            new ArrayList<>(semanticBranchSkippedStepIds),
+            toleratedFailures.stream().map(StepExecution::stepId).toList()));
+
         if (executions.isEmpty() && completed.isEmpty() && !stepsById.isEmpty()) {
             log.warn("InterpretationPlan made no execution progress: traceId={}, attempt={}, scope={}, plannedStepIds={}",
                 executionTraceId, workflowExecutionAttempt(executableRequest),
@@ -701,6 +764,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ),
             elapsed(startedAt)
         ), executableRequest, remaining);
+        }
     }
 
     private Set<Integer> seedReusableStepExecutions(ExecutionRequest request,
@@ -1209,26 +1273,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private Set<Integer> descendantStepIds(InterpretationPlan plan, Set<Integer> rootStepIds) {
-        Set<Integer> descendants = new LinkedHashSet<>();
-        if (plan == null || plan.steps() == null || rootStepIds == null || rootStepIds.isEmpty()) {
-            return descendants;
-        }
-        boolean changed;
-        do {
-            changed = false;
-            for (InterpretationPlan.Step step : plan.steps()) {
-                if (step == null || step.id() == null || descendants.contains(step.id())
-                    || rootStepIds.contains(step.id())) {
-                    continue;
-                }
-                boolean affected = safeIntegerList(step.dependsOn()).stream()
-                    .anyMatch(dependency -> rootStepIds.contains(dependency) || descendants.contains(dependency));
-                if (affected) {
-                    changed |= descendants.add(step.id());
-                }
-            }
-        } while (changed);
-        return descendants;
+        return new LinkedHashSet<>(dagStateMachine.descendants(
+            dagStateMachine.compile(plan), rootStepIds));
     }
 
     @SuppressWarnings("unchecked")
@@ -1279,18 +1325,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     private List<Integer> readyStepIds(Set<Integer> remaining,
                                        Map<Integer, InterpretationPlan.Step> stepsById,
                                        Set<Integer> completedStepIds) {
-        if (remaining == null || remaining.isEmpty() || stepsById == null || stepsById.isEmpty()) {
+        if (stepsById == null || stepsById.isEmpty()) {
             return List.of();
         }
-        Set<Integer> completedIds = completedStepIds == null ? Set.of() : completedStepIds;
-        return remaining.stream()
-            .filter(Objects::nonNull)
-            .sorted()
-            .map(stepsById::get)
-            .filter(Objects::nonNull)
-            .filter(step -> completedIds.containsAll(safeIntegerList(step.dependsOn())))
-            .map(InterpretationPlan.Step::id)
-            .toList();
+        return dagStateMachine.ready(
+            dagStateMachine.compileSteps(stepsById.values()), remaining, completedStepIds);
     }
 
     private SemanticBranch semanticBranch(InterpretationPlan plan, List<Integer> readyStepIds) {
@@ -1377,7 +1416,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         String action = onlyStep != null && onlyStep.finalAnswerAction()
             ? "final_answer"
             : selected.size() > 1 ? "execute_parallel_steps" : "execute_step";
-        log.info("InterpretationPlan Java Ready-node scheduling: traceId={}, decisionCount={}, action={}, readyStepIds={}, selectedStepIds={}",
+                log.info("InterpretationPlan Ready-node scheduling: traceId={}, decisionCount={}, action={}, readyStepIds={}, selectedStepIds={}",
             executionTraceId, decisionCount, action, readyStepIds, selected);
         return new DagDecision(
             InterpretationExecutionProtocol.VERSION,
@@ -1717,6 +1756,50 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
     }
 
+    private ToolRuntimeExecution executePlanTool(InterpretationPlan.Step step,
+                                                 ExecutionRequest request,
+                                                 String invocationRole,
+                                                 ToolRuntimeRequest toolRequest) {
+        String role = firstText(invocationRole, "PRIMARY");
+        String invocationFingerprint = sha256(mapOf(
+            "schemaVersion", PlanToolExecutionCommand.SCHEMA_VERSION,
+            "planExecutionScope", planExecutionScope(request),
+            "workflowExecutionAttempt", workflowExecutionAttempt(request),
+            "stepId", step == null ? null : step.id(),
+            "invocationRole", role,
+            "toolName", toolRequest == null ? null : toolRequest.getToolName(),
+            "parameters", toolRequest == null || toolRequest.getToolInput() == null
+                ? Map.of() : toolRequest.getToolInput().getParameters()
+        ));
+        String stableRunId = firstText(
+            runId(request), firstText(request == null ? null : request.requestId(), "unscoped"));
+        String idempotencyKey = stableRunId + ":" + planExecutionScope(request)
+            + ":step:" + (step == null ? "unknown" : step.id())
+            + ":" + role.toLowerCase(Locale.ROOT) + ":" + invocationFingerprint;
+        Map<String, Object> attributes = new LinkedHashMap<>(
+            toolRequest.getAttributes() == null ? Map.of() : toolRequest.getAttributes());
+        attributes.put("planToolExecutionSchemaVersion", PlanToolExecutionCommand.SCHEMA_VERSION);
+        attributes.put("planToolInvocationRole", role);
+        attributes.put("planToolInvocationFingerprint", invocationFingerprint);
+        attributes.put("planToolIdempotencyKey", idempotencyKey);
+        attributes.put("planExecutionScope", planExecutionScope(request));
+        attributes.put("workflowExecutionAttempt", workflowExecutionAttempt(request));
+        // Existing protocol attributes may deliberately carry null to represent an unresolved
+        // optional binding. Preserve that semantic while still preventing adapter mutation.
+        toolRequest.setAttributes(Collections.unmodifiableMap(new LinkedHashMap<>(attributes)));
+        return toolExecutionPort.execute(new PlanToolExecutionCommand(
+            PlanToolExecutionCommand.SCHEMA_VERSION,
+            stableRunId,
+            planExecutionScope(request),
+            normalizedWorkflowExecutionAttempt(workflowExecutionAttempt(request)),
+            step == null ? null : step.id(),
+            role,
+            invocationFingerprint,
+            idempotencyKey,
+            toolRequest
+        ));
+    }
+
     private StepExecution executeStepBody(InterpretationPlan.Step step,
                                           ExecutionRequest request,
                                           Map<Integer, StepExecution> completed) {
@@ -1808,7 +1891,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 if (!templatePreflightTerminalRepairs.isEmpty()) {
                     stepAttributes.put("runtimeOwnedTemplatePreflight", true);
                 }
-                ToolRuntimeExecution execution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+                ToolRuntimeExecution execution = executePlanTool(step, request, "PRIMARY",
+                    ToolRuntimeRequest.builder()
                     .toolName(executionToolName)
                     .runtimeMode("interpretation_plan")
                     .requestId(request.requestId())
@@ -1841,7 +1925,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                         log.info("Retrieval quality gate skipped duplicate fallback traceId={} stepId={} tool={}",
                             executionTraceId(request), step.id(), executionToolName);
                     } else {
-                        ToolRuntimeExecution originalExecution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+                        ToolRuntimeExecution originalExecution = executePlanTool(
+                            step, request, "RETRIEVAL_FALLBACK", ToolRuntimeRequest.builder()
                             .toolName(executionToolName)
                             .runtimeMode("interpretation_plan_retrieval_gate_fallback")
                             .requestId(request.requestId())
@@ -2834,7 +2919,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (execution.toolExecution() == null || execution.toolExecution().output() == null) {
             return execution;
         }
-        Object resolved = toolRuntimeService.resolveOutputForEvidenceReview(execution.toolExecution().output());
+        Object resolved = toolExecutionPort.resolveOutputForEvidenceReview(execution.toolExecution().output());
         if (resolved == null || resolved == execution.output()) {
             return execution;
         }
@@ -4997,7 +5082,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         ));
         log.info("InterpretationPlan resolving template argument contract through MCP: traceId={}, stepId={}, executor={}, discoveryTool={}, templateHint={}, filters={}",
             executionTraceId(request), step.id(), step.toolName(), discoveryTool, templateHint, summarize(filters));
-        ToolRuntimeExecution resolution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+        ToolRuntimeExecution resolution = executePlanTool(
+            step, request, "TEMPLATE_CONTRACT_RESOLUTION", ToolRuntimeRequest.builder()
             .toolName(discoveryTool)
             .runtimeMode("interpretation_plan_argument_resolution")
             .requestId(request.requestId())

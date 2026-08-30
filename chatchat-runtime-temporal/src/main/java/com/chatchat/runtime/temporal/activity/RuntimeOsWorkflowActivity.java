@@ -1,5 +1,7 @@
-package com.chatchat.runtime.temporal;
+package com.chatchat.runtime.temporal.activity;
 
+import com.chatchat.runtime.temporal.contract.TemporalWorkflowCommand;
+import com.chatchat.runtime.temporal.contract.TemporalWorkflowResult;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 

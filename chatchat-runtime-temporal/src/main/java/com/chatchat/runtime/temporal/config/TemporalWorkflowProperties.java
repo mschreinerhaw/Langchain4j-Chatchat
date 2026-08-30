@@ -1,4 +1,4 @@
-package com.chatchat.runtime.temporal;
+package com.chatchat.runtime.temporal.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

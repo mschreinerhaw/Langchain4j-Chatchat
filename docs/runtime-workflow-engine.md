@@ -68,6 +68,65 @@ Completed in phase two:
 Later fine-grained migration may map plan branches to Child Workflows and idempotent LLM/MCP/database
 operations to Activities. It must not create a second planning implementation.
 
+## Phase three migration status
+
+Phase three is incremental because changing Temporal command order without version markers would
+make existing Workflow histories non-replayable. The first two migration slices are active:
+
+1. The stable Agent Run Workflow now delegates new executions to an
+   `runtime-os-agent-execution-v1` Child Workflow. `Workflow.getVersion` preserves replay of
+   phase-two histories that scheduled the coarse Activity directly.
+2. A registered `runtime-os-tool-execution-v1` Workflow and `runtime-os-tool-execute-v1` Activity
+   provide the independent durable tool-call boundary. The Activity injects its stable idempotency
+   key and attempt into `ToolRuntimeRequest`.
+3. Tool Activity retry admission is fail-closed. Writes, tools without metadata and read-only tools
+   without an explicit `workflowRetrySafe` or `idempotent` declaration remain at one attempt.
+   Explicitly idempotent read-only tools may request up to five attempts. The inner
+   `ToolRuntimeService` retry loop is disabled for these calls so retry layers cannot multiply.
+   The Activity revalidates serialized retry admission against the live runtime-owned tool metadata
+   before invocation; stale or caller-forged retry claims fail non-retryably without calling the tool.
+
+The mature Agent executor still runs inside the execution Child Workflow's coarse Activity.
+`InterpretationPlanRuntime` no longer calls
+`ToolRuntimeService` directly: primary step calls, retrieval-quality fallbacks and template-contract
+resolution all cross the serializable `plan_tool_execution.v1` port. With the local engine this port
+delegates in process. With Temporal selected it starts or reattaches to a stable
+`runtime-os-tool-execution-v1` Workflow, which executes the governed tool Activity and reuses its
+persisted result for the same idempotency identity. The waiting Agent Activity heartbeats while the
+tool Workflow is running and cancels it when parent cancellation is observed.
+
+The second slice moves DAG control authority out of the coarse Activity. A shared pure
+`DeterministicPlanDagStateMachine` defines graph compilation, Ready-node waves, descendant regions
+and commit-barrier admission. Local execution uses the same kernel in process; Temporal execution
+opens a stable `runtime-os-plan-dag-control-v1` Workflow through the serializable
+`plan_dag_control.v1` port. Workflow Updates durably record each node-state revision, calculate the
+next Ready set and decide `COMMIT_ALL`, `COMMIT_INDEPENDENT` or `REJECT_WAVE`. The final synchronized
+state is closed and returned as the Workflow result, so recovery has an authoritative terminal DAG
+snapshot. The Activity remains the execution plane for model arbitration and mature step logic, but
+it no longer owns Ready-node or commit-barrier decisions.
+
+The next slice moves model arbitration and remaining step preparation/persistence behind dedicated
+Activities, then promotes the deterministic scheduling loop into the execution Child Workflow. At
+that point tool executions can become direct Child Workflows instead of externally started durable
+Workflows.
+
+The Temporal adapter package is classified by responsibility: `config`, `core`, `contract`,
+`workflow`, `activity` and `adapter`. The root package contains documentation only; an architecture
+test prevents implementations from accumulating there again. Explicit Temporal Workflow and
+Activity type names remain unchanged across this Java package migration.
+
+The fine-grained plan execution Workflow type is registered as `runtime-os-plan-execution-v1`.
+It executes business stages when a `PlanExecutionPhaseHandler` is supplied; without one it fails
+immediately with the non-retryable `PLAN_PHASE_HANDLER_UNAVAILABLE` application failure. It owns
+the deterministic `while (remaining)` loop, validates Ready-wave admission, evaluates the barrier
+and invokes tool executions as direct Child Workflows. Model arbitration, step preparation and node
+journal/checkpoint persistence use versioned `plan_*.v1` contracts and three separately
+named Activities. A business-owned `PlanExecutionPhaseHandler` supplies those non-deterministic
+operations, keeping planning rules out of the Temporal adapter. The existing coarse Agent entry is
+retained as the compatibility route until `AgentOrchestrationEngine` exposes a resumable plan
+bootstrap/continuation boundary; switching before that boundary exists would create a second
+planner implementation.
+
 ## Configuration
 
 ```text

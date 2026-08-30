@@ -1,6 +1,12 @@
-package com.chatchat.runtime.temporal;
+package com.chatchat.runtime.temporal.config;
 
 import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
+import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
+import com.chatchat.agents.runtime.tool.ToolRuntimeService;
+import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
+import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;
+import com.chatchat.runtime.temporal.core.TemporalWorkflowRuntime;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -8,6 +14,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class TemporalWorkflowConfigurationTest {
 
@@ -25,6 +32,12 @@ class TemporalWorkflowConfigurationTest {
                 assertThat(context).hasSingleBean(WorkflowRuntime.class);
                 assertThat(context.getBean(WorkflowRuntime.class))
                     .isInstanceOf(TemporalWorkflowRuntime.class);
+                assertThat(context).hasSingleBean(PlanToolExecutionPort.class);
+                assertThat(context.getBean(PlanToolExecutionPort.class))
+                    .isInstanceOf(TemporalPlanToolExecutionPort.class);
+                assertThat(context).hasSingleBean(PlanDagControlPort.class);
+                assertThat(context.getBean(PlanDagControlPort.class))
+                    .isInstanceOf(TemporalPlanDagControlPort.class);
             });
     }
 
@@ -34,6 +47,8 @@ class TemporalWorkflowConfigurationTest {
             .withPropertyValues("chatchat.agent-runtime.workflow-engine=local")
             .run(context -> {
                 assertThat(context).doesNotHaveBean(WorkflowRuntime.class);
+                assertThat(context).doesNotHaveBean(PlanToolExecutionPort.class);
+                assertThat(context).doesNotHaveBean(PlanDagControlPort.class);
                 assertThat(context).doesNotHaveBean(TemporalWorkflowProperties.class);
             });
     }
@@ -43,6 +58,11 @@ class TemporalWorkflowConfigurationTest {
         @Bean
         ObjectMapper objectMapper() {
             return new ObjectMapper();
+        }
+
+        @Bean
+        ToolRuntimeService toolRuntimeService() {
+            return mock(ToolRuntimeService.class);
         }
     }
 }

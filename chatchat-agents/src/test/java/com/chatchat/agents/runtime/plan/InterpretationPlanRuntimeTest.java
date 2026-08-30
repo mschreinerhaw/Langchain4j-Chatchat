@@ -3,6 +3,8 @@ package com.chatchat.agents.runtime.plan;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionCommand;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
 
 import com.chatchat.agents.runtime.event.AgentRunEvent;
@@ -42,6 +44,59 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
+
+    @Test
+    void routesRealPlanToolStepThroughSerializableExecutionPort() {
+        String toolName = "customer_trade_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName))
+            .thenReturn(ToolMetadata.builder().id(toolName).riskLevel("low").build());
+        ToolRuntimeService localTools = mock(ToolRuntimeService.class);
+        AtomicReference<PlanToolExecutionCommand> captured = new AtomicReference<>();
+        PlanToolExecutionPort durablePort = command -> {
+            captured.set(command);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("records", List.of(Map.of("side", "BUY")))),
+                ToolMetadata.builder().id(command.request().getToolName()).build(),
+                null, "success", Map.of());
+        };
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("analysis", "trade preference", "low"), context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName,
+                    Map.of("customerId", "070200046604"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2, false, List.of(toolName), List.of(), 10_000), review());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            localTools, new InterpretationPlanValidator(), new InterpretationPlanOptimizer(),
+            null, null, scriptedController(List.of(List.of(1), List.of(2))),
+            null, durablePort);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName), "tenant-a", "request-plan-port",
+                "conversation", "user", Map.of("workflowExecutionAttempt", 2)));
+
+        assertThat(result.success()).isTrue();
+        assertThat(captured.get()).satisfies(command -> {
+            assertThat(command.schemaVersion()).isEqualTo(PlanToolExecutionCommand.SCHEMA_VERSION);
+            assertThat(command.runId()).isEqualTo("request-plan-port");
+            assertThat(command.planExecutionScope()).isEqualTo("request-plan-port::attempt:2");
+            assertThat(command.workflowExecutionAttempt()).isEqualTo("2");
+            assertThat(command.stepId()).isEqualTo(1);
+            assertThat(command.invocationRole()).isEqualTo("PRIMARY");
+            assertThat(command.idempotencyKey()).contains(
+                "request-plan-port::attempt:2:step:1:primary:");
+            assertThat(command.request().getAttributes())
+                .containsEntry("planToolIdempotencyKey", command.idempotencyKey())
+                .containsEntry("planToolInvocationFingerprint", command.invocationFingerprint());
+        });
+        verify(localTools, never()).execute(any());
+    }
 
     @Test
     void schedulesFinalAnswerWithoutToolName() {

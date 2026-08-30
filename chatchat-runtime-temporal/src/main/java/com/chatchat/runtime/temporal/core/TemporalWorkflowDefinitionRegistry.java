@@ -1,4 +1,4 @@
-package com.chatchat.runtime.temporal;
+package com.chatchat.runtime.temporal.core;
 
 import com.chatchat.agents.runtime.workflow.WorkflowDefinition;
 import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
@@ -6,12 +6,12 @@ import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-final class TemporalWorkflowDefinitionRegistry {
+public final class TemporalWorkflowDefinitionRegistry {
 
     private final ConcurrentMap<String, WorkflowRegistration<?, ?>> registrations =
         new ConcurrentHashMap<>();
 
-    <I, O> void register(String workflowType, Class<I> inputType, Class<O> outputType,
+    public <I, O> void register(String workflowType, Class<I> inputType, Class<O> outputType,
                          WorkflowDefinition<I, O> definition) {
         WorkflowRegistration<I, O> registration =
             new WorkflowRegistration<>(workflowType, inputType, outputType, definition);
@@ -24,7 +24,7 @@ final class TemporalWorkflowDefinitionRegistry {
         }
     }
 
-    WorkflowRegistration<?, ?> required(String workflowType) {
+    public WorkflowRegistration<?, ?> required(String workflowType) {
         WorkflowRegistration<?, ?> registration = registrations.get(workflowType);
         if (registration == null) {
             throw new IllegalStateException("Workflow type is not registered: " + workflowType);

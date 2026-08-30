@@ -110,6 +110,10 @@ import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.plan.execution.LocalPlanToolExecutionPort;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
+import com.chatchat.agents.runtime.plan.execution.LocalPlanDagControlPort;
+import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
 import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
@@ -182,6 +186,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     private static final String WORKFLOW_PROBLEM_SOLVING = "agent_problem_solving";
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeService toolRuntimeService;
+    private PlanToolExecutionPort planToolExecutionPort;
+    private PlanDagControlPort planDagControlPort;
     private final ObjectMapper objectMapper;
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
     private final AgentRunStore runStore;
@@ -352,6 +358,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         this.workflowDecisionEngine = new AgentWorkflowDecisionEngine(toolRegistry);
         this.workflowStateTracker = new AgentWorkflowStateTracker(toolRegistry);
         this.toolRuntimeService = toolRuntimeService;
+        this.planToolExecutionPort = new LocalPlanToolExecutionPort(toolRuntimeService);
+        this.planDagControlPort = new LocalPlanDagControlPort();
         this.objectMapper = objectMapper;
         this.toolResultFactExtractor = new AgentToolResultFactExtractor(objectMapper);
         this.recordChunkPlanner = new AnalysisRecordChunkPlanner(objectMapper);
@@ -461,6 +469,22 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     @Autowired(required = false)
     public void setNodeAttemptStore(NodeAttemptStore nodeAttemptStore) {
         this.nodeAttemptStore = nodeAttemptStore;
+    }
+
+    /** Production Temporal configuration replaces the in-process plan tool execution boundary. */
+    @Autowired(required = false)
+    public void setPlanToolExecutionPort(PlanToolExecutionPort planToolExecutionPort) {
+        if (planToolExecutionPort != null) {
+            this.planToolExecutionPort = planToolExecutionPort;
+        }
+    }
+
+    /** Production Temporal configuration persists Ready-node and commit-barrier state. */
+    @Autowired(required = false)
+    public void setPlanDagControlPort(PlanDagControlPort planDagControlPort) {
+        if (planDagControlPort != null) {
+            this.planDagControlPort = planDagControlPort;
+        }
     }
 
     /** Production supplies the lossless RocksDB overflow/checkpoint store. */
@@ -1379,7 +1403,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                     activeChatModel, stepTool, request.input(), evidenceContext);
                 return modelAssistedRetrievalBridge.enrichWithGate(
                     activeChatModel, stepTool, contextual, evidenceContext).argumentsWithGateMarker();
-            }
+            },
+            planToolExecutionPort,
+            planDagControlPort
         );
         runtime.setNodeAttemptStore(nodeAttemptStore);
         List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();

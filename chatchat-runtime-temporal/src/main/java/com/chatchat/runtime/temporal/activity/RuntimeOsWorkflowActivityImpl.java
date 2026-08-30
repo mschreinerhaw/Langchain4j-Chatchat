@@ -1,8 +1,11 @@
-package com.chatchat.runtime.temporal;
+package com.chatchat.runtime.temporal.activity;
 
 import com.chatchat.agents.runtime.workflow.WorkflowDefinition;
 import com.chatchat.agents.runtime.workflow.WorkflowExecutionContext;
 import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
+import com.chatchat.runtime.temporal.contract.TemporalWorkflowCommand;
+import com.chatchat.runtime.temporal.contract.TemporalWorkflowResult;
+import com.chatchat.runtime.temporal.core.TemporalWorkflowDefinitionRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.temporal.activity.Activity;
@@ -19,7 +22,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowActivity, AutoCloseable {
+public final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowActivity, AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeOsWorkflowActivityImpl.class);
 
@@ -27,7 +30,8 @@ final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowActivity, 
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService heartbeatExecutor;
 
-    RuntimeOsWorkflowActivityImpl(TemporalWorkflowDefinitionRegistry registry, ObjectMapper objectMapper) {
+    public RuntimeOsWorkflowActivityImpl(TemporalWorkflowDefinitionRegistry registry,
+                                         ObjectMapper objectMapper) {
         this.registry = registry;
         this.objectMapper = objectMapper;
         int heartbeatThreads = Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors()));

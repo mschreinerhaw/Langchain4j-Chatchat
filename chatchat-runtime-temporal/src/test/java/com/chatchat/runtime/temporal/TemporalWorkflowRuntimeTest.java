@@ -117,6 +117,27 @@ class TemporalWorkflowRuntimeTest {
                 "Workflow id already belongs to a different type, tenant or idempotency key: run-collision");
     }
 
+    @Test
+    void failedCoarseGrainedActivityIsNotRetriedByDefault() {
+        AtomicInteger executions = new AtomicInteger();
+        runtime.register("unsafe-side-effect-v1", EchoInput.class, EchoOutput.class,
+            (input, context) -> {
+                executions.incrementAndGet();
+                throw new IllegalStateException("external operation failed");
+            });
+
+        WorkflowHandle<EchoOutput> handle = runtime.start(
+            request("run-no-automatic-retry", "unsafe-side-effect-v1", "once"));
+
+        assertThatThrownBy(() -> handle.completion().get(10, TimeUnit.SECONDS))
+            .rootCause()
+            .hasMessageContaining("external operation failed");
+        assertThat(executions).hasValue(1);
+        assertThat(runtime.find("run-no-automatic-retry")).get()
+            .extracting(snapshot -> snapshot.status())
+            .isEqualTo(WorkflowExecutionStatus.FAILED);
+    }
+
     private WorkflowStartRequest<EchoInput> request(String id, String type, String value) {
         return new WorkflowStartRequest<>(id, type, "tenant-a", "request-a", new EchoInput(value));
     }

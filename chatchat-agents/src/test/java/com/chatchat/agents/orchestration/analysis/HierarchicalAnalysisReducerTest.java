@@ -1,9 +1,11 @@
 package com.chatchat.agents.orchestration.analysis;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.DatasetRelationshipPlan;
-import com.chatchat.agents.orchestration.analysis.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
+
+
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import dev.langchain4j.model.chat.ChatModel;

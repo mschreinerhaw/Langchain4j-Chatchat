@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
 import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
+import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;
@@ -53,9 +54,15 @@ public class TemporalWorkflowConfiguration {
                                                     TemporalWorkflowProperties properties,
                                                     ToolRuntimeService toolRuntimeService,
                                                     ObjectProvider<PlanExecutionPhaseHandler> phaseHandler) {
+        PlanExecutionPhaseHandler handler = phaseHandler.getIfAvailable();
+        if (!(handler instanceof ResumableAgentRunExecutor)) {
+            throw new IllegalStateException(
+                "Temporal agent-run-v1 requires one business handler implementing both "
+                    + "PlanExecutionPhaseHandler and ResumableAgentRunExecutor");
+        }
         return new TemporalWorkflowRuntime(
             client, workerFactory, objectMapper, properties, toolRuntimeService,
-            phaseHandler.getIfAvailable());
+            handler);
     }
 
     @Bean

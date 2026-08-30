@@ -10,5 +10,7 @@ public interface PlanExecutionPhaseHandler {
 
     PlanStepPreparationResult prepare(PlanStepPreparationCommand command);
 
+    PreparedPlanStep finalizeStep(PlanStepFinalizationCommand command);
+
     PlanNodePersistenceResult persist(PlanNodePersistenceCommand command);
 }

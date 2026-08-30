@@ -97,7 +97,7 @@ class ProductionMcpDiagnosticRequestContinuityE2E {
         InterpretationPlan plan = plan(
             assetTool, templateTool, executorTool, diagnostics, inventedTemplateIds, environment);
         ReviewerUnavailableChatModel model = new ReviewerUnavailableChatModel(
-            objectMapper.writeValueAsString(plan));
+            objectMapper.writeValueAsString(plan), templateTool, discoveredTemplateIds);
         ToolRuntimeProperties runtimeProperties = new ToolRuntimeProperties();
         runtimeProperties.setMaxOutputBytes(12_000);
         runtimeProperties.setMaxOutputPreviewChars(2_000);
@@ -368,17 +368,30 @@ class ProductionMcpDiagnosticRequestContinuityE2E {
 
     private static final class ReviewerUnavailableChatModel implements ChatModel {
         private final String initialPlan;
+        private final String templateTool;
+        private final List<String> discoveredTemplateIds;
         private final AtomicInteger initialCalls = new AtomicInteger();
         private final AtomicInteger reviewerCalls = new AtomicInteger();
 
-        private ReviewerUnavailableChatModel(String initialPlan) {
+        private ReviewerUnavailableChatModel(String initialPlan,
+                                             String templateTool,
+                                             List<String> discoveredTemplateIds) {
             this.initialPlan = initialPlan;
+            this.templateTool = templateTool;
+            this.discoveredTemplateIds = List.copyOf(discoveredTemplateIds);
         }
 
         @Override
         public String chat(String message) {
             if (message.contains("runtime reviewer for one completed MCP tool call")) {
                 reviewerCalls.incrementAndGet();
+                if (message.contains(templateTool)) {
+                    String selectedIds = discoveredTemplateIds.stream()
+                        .map(id -> "\"" + id + "\"")
+                        .collect(java.util.stream.Collectors.joining(","));
+                    return "{\"satisfied\":true,\"reason\":\"All discovered diagnostics match the requested resource alert dimensions.\","
+                        + "\"selectedTemplateIds\":[" + selectedIds + "],\"rejectedTemplateIds\":[]}";
+                }
                 return """
                     {"error":{"message":"simulated reviewer unavailable","code":"upstream_unavailable"}}
                     """;

@@ -1,7 +1,9 @@
 package com.chatchat.agents.orchestration.answer;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContract;
-import com.chatchat.agents.orchestration.analysis.SemanticInsightRecipeCatalog;
+import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresentationContract;
+import com.chatchat.agents.orchestration.analysis.insight.SemanticInsightRecipeCatalog;
+
+
 import com.chatchat.agents.protocol.AnswerContract;
 import com.chatchat.agents.orchestration.answer.AnswerContractCompiler;
 import com.chatchat.agents.orchestration.answer.AnswerCriticRepairer;
@@ -24,8 +26,8 @@ class AnswerQualityBusinessNeutralityTest {
         "orchestration/answer/AnswerContractCompiler.java",
         "orchestration/evidence/EvidenceSufficiencyGate.java",
         "orchestration/answer/AnswerCriticRepairer.java",
-        "orchestration/analysis/AnalysisContextPresentationContract.java",
-        "orchestration/analysis/SemanticInsightRecipeCatalog.java"
+        "orchestration/analysis/contract/AnalysisContextPresentationContract.java",
+        "orchestration/analysis/insight/SemanticInsightRecipeCatalog.java"
     );
 
     private static final List<String> FORBIDDEN_BUSINESS_LITERALS = List.of(

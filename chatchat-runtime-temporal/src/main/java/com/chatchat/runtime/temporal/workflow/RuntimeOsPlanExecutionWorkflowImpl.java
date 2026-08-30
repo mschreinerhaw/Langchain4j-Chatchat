@@ -9,9 +9,10 @@ import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationResult;
+import com.chatchat.agents.runtime.plan.execution.PlanStepFinalizationCommand;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionReceipt;
 import com.chatchat.agents.runtime.plan.execution.PreparedPlanStep;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
-import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.runtime.temporal.activity.RuntimeOsPlanStageActivity;
 import com.chatchat.runtime.temporal.contract.TemporalPlanExecutionCommand;
 import com.chatchat.runtime.temporal.contract.TemporalPlanExecutionResult;
@@ -78,9 +79,8 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
             validatePreparedWave(decision.selectedStepIds(), prepared);
             List<InterpretationPlanRuntime.StepExecution> waveResults = new ArrayList<>();
             for (PreparedPlanStep step : prepared.steps()) {
-                InterpretationPlanRuntime.StepExecution result = step.immediateResult() == null
-                    ? executeToolChild(state, step)
-                    : step.immediateResult();
+                InterpretationPlanRuntime.StepExecution result = finishPreparedStep(
+                    stages, state, decision.parameterOverrides(), step);
                 waveResults.add(result);
                 if (result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
                     finalAnswer = result.finalAnswer();
@@ -113,7 +113,31 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
         return terminal("COMPLETED", state, executions, finalAnswer, null);
     }
 
-    private InterpretationPlanRuntime.StepExecution executeToolChild(
+    private InterpretationPlanRuntime.StepExecution finishPreparedStep(
+        RuntimeOsPlanStageActivity stages,
+        PlanExecutionContinuation state,
+        Map<Integer, Map<String, Object>> parameterOverrides,
+        PreparedPlanStep initial) {
+        PreparedPlanStep current = initial;
+        List<PlanToolExecutionReceipt> receipts = new ArrayList<>();
+        int invocationLimit = 4;
+        while (current.immediateResult() == null) {
+            if (current.toolCommand() == null || receipts.size() >= invocationLimit) {
+                throw new IllegalStateException("Prepared step exceeded its Tool Child invocation limit");
+            }
+            ToolRuntimeExecution execution = executeToolChild(state, current);
+            receipts.add(new PlanToolExecutionReceipt(current.toolCommand(), execution));
+            current = stages.finalizeStep(new PlanStepFinalizationCommand(
+                PlanStepFinalizationCommand.SCHEMA_VERSION, state, current.stepId(),
+                parameterOverrides, receipts));
+            if (current.stepId() != initial.stepId()) {
+                throw new IllegalStateException("Step finalization changed the prepared node identity");
+            }
+        }
+        return current.immediateResult();
+    }
+
+    private ToolRuntimeExecution executeToolChild(
         PlanExecutionContinuation state, PreparedPlanStep step) {
         ChildWorkflowOptions options = ChildWorkflowOptions.newBuilder()
             .setWorkflowId(Workflow.getInfo().getWorkflowId() + "::step::" + step.stepId()
@@ -124,17 +148,10 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
             .build();
         RuntimeOsToolExecutionWorkflow tool = Workflow.newChildWorkflowStub(
             RuntimeOsToolExecutionWorkflow.class, options);
-        ToolRuntimeExecution execution = tool.execute(new TemporalToolActivityCommand(
+        return tool.execute(new TemporalToolActivityCommand(
             step.toolCommand().request(), step.toolCommand().idempotencyKey(),
             step.toolActivityMaximumAttempts(), step.toolActivityStartToCloseSeconds(),
             step.toolActivityRetrySafe(), step.toolActivityRetryReason()));
-        ToolOutput output = execution == null ? null : execution.output();
-        boolean success = output != null && output.isSuccess();
-        return new InterpretationPlanRuntime.StepExecution(
-            step.stepId(), step.actionType(), step.toolName(), success,
-            output == null ? null : output.getData(),
-            success || output == null ? null : output.getErrorMessage(),
-            execution, null, 0L, step.metadata());
     }
 
     private ActivityOptions activityOptions(TemporalPlanExecutionCommand command) {

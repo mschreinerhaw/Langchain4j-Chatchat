@@ -1,10 +1,12 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+
+
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
 import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.observation.AgentObservationPipeline;

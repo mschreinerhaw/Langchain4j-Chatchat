@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration.analysis;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContract;
+import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresentationContract;
+
+
 
 import org.junit.jupiter.api.Test;
 

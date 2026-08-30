@@ -13,8 +13,11 @@ import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationResult;
+import com.chatchat.agents.runtime.plan.execution.PlanStepFinalizationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
+import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionReceipt;
 import com.chatchat.agents.runtime.plan.execution.PreparedPlanStep;
+import com.chatchat.agents.runtime.plan.execution.DeferredPlanToolExecutionException;
 import com.chatchat.agents.runtime.store.AgentRunStore;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -70,31 +73,64 @@ public final class AgentPlanPhaseActivityCoordinator {
     }
 
     public PlanStepPreparationResult prepare(PlanStepPreparationCommand command) {
-        PlanExecutionContinuation state = command.continuation();
+        List<PreparedPlanStep> steps = command.selectedStepIds().stream()
+            .map(stepId -> advance(command.continuation(), command.parameterOverrides(), stepId, List.of()))
+            .toList();
+        return new PlanStepPreparationResult(steps);
+    }
+
+    public PreparedPlanStep finalizeStep(PlanStepFinalizationCommand command) {
+        return advance(command.continuation(), command.parameterOverrides(),
+            command.stepId(), command.receipts());
+    }
+
+    private PreparedPlanStep advance(PlanExecutionContinuation state,
+                                     Map<Integer, Map<String, Object>> parameterOverrides,
+                                     int stepId,
+                                     List<PlanToolExecutionReceipt> receipts) {
         Map<String, Object> context = state.context();
         ChatModel model = operations.model(text(context.get("modelName")));
         String query = text(context.get("query"));
         String prompt = text(context.get("systemPrompt"));
         InterpretationPlan executablePlan = applyOverrides(
-            state.plan(), command.parameterOverrides());
+            state.plan(), parameterOverrides);
         InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
             executablePlan, toolRegistry, strings(context.get("allowedTools")),
             text(context.get("tenantId")), text(context.get("requestId")),
             text(context.get("conversationId")), text(context.get("userId")),
             map(context.get("attributes")));
+        PlanToolExecutionPort replayPort = toolCommand -> receipts.stream()
+            .filter(receipt -> receipt.command().idempotencyKey().equals(toolCommand.idempotencyKey()))
+            .map(PlanToolExecutionReceipt::execution)
+            .findFirst()
+            .orElseThrow(() -> new DeferredPlanToolExecutionException(toolCommand));
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService, new InterpretationPlanValidator(),
             new InterpretationPlanOptimizer(toolRegistry), runStore,
             review -> operations.review(model, query, prompt, review),
             decision -> operations.decide(model, query, prompt, decision),
             enrichment -> operations.enrich(model, query, enrichment),
-            operations.toolPort(), new LocalPlanDagControlPort());
-        List<InterpretationPlanRuntime.StepExecution> results = runtime.executeAdmittedWave(
-            request, command.selectedStepIds(), state.completedSteps(),
-            state.sessionId() + ":decision:" + (state.decisionCount() + 1));
-        return new PlanStepPreparationResult(results.stream().map(result -> new PreparedPlanStep(
-            result.stepId(), result.actionType(), result.toolName(), null, 1, 1L, false,
-            "executed_by_business_preparation_activity", result, result.metadata())).toList());
+            replayPort, new LocalPlanDagControlPort());
+        runtime.setJournalWritesEnabled(false);
+        try {
+            List<InterpretationPlanRuntime.StepExecution> results = runtime.executeAdmittedWave(
+                request, List.of(stepId), state.completedSteps(),
+                state.sessionId() + ":decision:" + (state.decisionCount() + 1));
+            if (results.size() != 1) {
+                throw new IllegalStateException("Prepared step did not produce exactly one result");
+            }
+            InterpretationPlanRuntime.StepExecution result = results.get(0);
+            return new PreparedPlanStep(result.stepId(), result.actionType(), result.toolName(),
+                null, 1, 1L, false, "not_applicable", result, result.metadata());
+        } catch (DeferredPlanToolExecutionException deferred) {
+            InterpretationPlan.Step definition = executablePlan.steps().stream()
+                .filter(step -> Objects.equals(step.id(), stepId)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown prepared step " + stepId));
+            return new PreparedPlanStep(stepId, definition.actionType(), definition.toolName(),
+                deferred.command(), 1, 300L, false,
+                "external tool calls are not assumed idempotent", null,
+                Map.of("phase", "AWAITING_TOOL_CHILD", "receiptCount", receipts.size()));
+        }
     }
 
     public PlanNodePersistenceResult persist(PlanNodePersistenceCommand command) {

@@ -12,7 +12,7 @@ spring:
   datasource:
     url: ${CHATCHAT_LICENSE_DB_URL:jdbc:h2:file:./data/license-center/license-audit;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
     username: ${CHATCHAT_LICENSE_DB_USERNAME:sa}
-    password: ${CHATCHAT_LICENSE_DB_PASSWORD:LiveMCP_H2#Audit@2026!Secure}
+    password: ${CHATCHAT_LICENSE_DB_PASSWORD:}
     driver-class-name: org.h2.Driver
   sql:
     init:
@@ -26,4 +26,4 @@ chatchat:
     auto-generate-keys: ${CHATCHAT_LICENSE_AUTO_GENERATE_KEYS:true}
     key-id: ${CHATCHAT_LICENSE_KEY_ID:default}
     username: ${CHATCHAT_LICENSE_CENTER_USERNAME:license-admin}
-    password: ${CHATCHAT_LICENSE_CENTER_PASSWORD:123456}
+    password: ${CHATCHAT_LICENSE_CENTER_PASSWORD:}

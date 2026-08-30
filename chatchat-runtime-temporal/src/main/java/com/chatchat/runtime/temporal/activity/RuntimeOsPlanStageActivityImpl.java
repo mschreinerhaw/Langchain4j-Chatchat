@@ -7,6 +7,8 @@ import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationResult;
+import com.chatchat.agents.runtime.plan.execution.PlanStepFinalizationCommand;
+import com.chatchat.agents.runtime.plan.execution.PreparedPlanStep;
 
 import io.temporal.failure.ApplicationFailure;
 
@@ -26,6 +28,11 @@ public final class RuntimeOsPlanStageActivityImpl implements RuntimeOsPlanStageA
     @Override
     public PlanStepPreparationResult prepare(PlanStepPreparationCommand command) {
         return requiredHandler().prepare(command);
+    }
+
+    @Override
+    public PreparedPlanStep finalizeStep(PlanStepFinalizationCommand command) {
+        return requiredHandler().finalizeStep(command);
     }
 
     @Override

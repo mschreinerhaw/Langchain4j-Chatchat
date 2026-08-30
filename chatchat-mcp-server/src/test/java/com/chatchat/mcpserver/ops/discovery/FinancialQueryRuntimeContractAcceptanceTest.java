@@ -119,8 +119,8 @@ class FinancialQueryRuntimeContractAcceptanceTest {
         assertThat(discoveryResult.get())
             .containsEntry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION)
             .containsEntry("targetKind", "business_database_query")
-            .containsEntry("categoryRequired", false)
-            .containsEntry("returnedCount", 1);
+            .containsEntry("categoryRequired", false);
+        assertThat((Integer) discoveryResult.get().get("returnedCount")).isPositive();
         assertThat(discoveryResult.get().get("selectedCategory").toString())
             .contains("market_data", "\u5e02\u573a\u884c\u60c5");
         assertThat(discoveryResult.get().get("retrievalFlow").toString())
@@ -253,8 +253,9 @@ class FinancialQueryRuntimeContractAcceptanceTest {
         if (!EXECUTION_TOOL.equals(request.getToolName())) {
             return failure(request.getToolName(), "unexpected tool");
         }
-        executionInput.set(arguments);
-        String templateId = String.valueOf(arguments.get("templateId"));
+        Map<String, Object> executorArguments = firstExecutableBatchArguments(arguments);
+        executionInput.set(executorArguments);
+        String templateId = String.valueOf(executorArguments.get("templateId"));
         DatabaseQueryConfig selected = maintainedQueries.stream()
             .filter(config -> templateId.equals(config.getToolName()))
             .findFirst()
@@ -270,6 +271,28 @@ class FinancialQueryRuntimeContractAcceptanceTest {
             "possiblyTruncated", queryResult.possiblyTruncated(),
             "evidenceBoundary", "仅代表已采集数据和维护样例定义的结果范围"
         ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> firstExecutableBatchArguments(Map<String, Object> arguments) {
+        Object rawCalls = arguments.get("calls");
+        if (!(rawCalls instanceof Iterable<?> calls)) {
+            return arguments;
+        }
+        for (Object item : calls) {
+            if (!(item instanceof Map<?, ?> rawCall) || rawCall.containsKey("preflightErrorCode")) {
+                continue;
+            }
+            Object rawArguments = rawCall.get("arguments");
+            if (!(rawArguments instanceof Map<?, ?> childArguments)) {
+                continue;
+            }
+            Object templateId = childArguments.get("templateId");
+            if ("sample_market_latest_movers".equals(String.valueOf(templateId))) {
+                return new LinkedHashMap<>((Map<String, Object>) childArguments);
+            }
+        }
+        throw new IllegalStateException("Runtime-owned template batch did not contain an executable market query");
     }
 
     private ToolRuntimeExecution success(String toolName, Object data) {

@@ -9,7 +9,6 @@ import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;

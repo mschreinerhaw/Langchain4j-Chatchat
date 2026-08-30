@@ -444,7 +444,7 @@ chatchat:
 
 `protocol` 支持 `auto`、`openai`、`dashscope-native`、`dashscope-multimodal` 和 `dashscope-text`。模型名包含 `.` 时，推荐使用带引号的 Spring Map 键，例如 `"[qwen3.8-max]"`。API Key 应由环境变量或密钥服务注入，不得提交到仓库。
 
-内部服务口令从各自 YAML 的 `encrypted-secret: ENC(...)` 加载，并通过 `config/internal-credential.key` 解密。生产部署应同步替换各服务密文与密钥文件，并限制密钥读取权限。
+内部服务口令必须通过 `CHATCHAT_INTERNAL_ENCRYPTED_SECRET` 注入，并通过部署侧提供的 `config/internal-credential.key` 解密。生产部署不得把密文或密钥提交到仓库，并应限制密钥读取权限。
 
 ## 生产打包
 

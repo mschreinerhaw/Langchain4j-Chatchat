@@ -1,7 +1,9 @@
 package com.chatchat.agents.orchestration.analysis;
 
-import com.chatchat.agents.orchestration.analysis.DeterministicInsightEngine;
-import com.chatchat.agents.orchestration.analysis.SemanticInsightContract;
+import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
+import com.chatchat.agents.orchestration.analysis.model.SemanticInsightContract;
+
+
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import org.junit.jupiter.api.Test;

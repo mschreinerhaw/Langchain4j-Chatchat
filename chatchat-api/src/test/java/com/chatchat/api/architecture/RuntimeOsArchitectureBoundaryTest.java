@@ -1,5 +1,11 @@
 package com.chatchat.api.architecture;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+
+
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.orchestration.AgentWorkflowDecisionEngine;

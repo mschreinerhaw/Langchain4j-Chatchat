@@ -1,5 +1,8 @@
 package com.chatchat.agents.orchestration.answer;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+
+
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
 import com.chatchat.agents.evidence.execution.EvidencePath;
@@ -12,7 +15,6 @@ import com.chatchat.agents.evidence.answer.AnswerAssemblyMode;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.AnswerDecisionEngine;
 import com.chatchat.agents.orchestration.answer.AnswerQualityEvaluator;

@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration.tool;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContract;
+import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresentationContract;
+
+
 import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
 
 import com.chatchat.common.tool.ToolMetadata;

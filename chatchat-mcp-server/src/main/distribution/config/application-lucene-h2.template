@@ -18,7 +18,7 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: "ENC(RJGDk0FA9Xht7fHK:VBpgvsk5UR2XGCoSxNL7eqlS0Lu4r2UG1U6vvQ6NM7KBEwQ6/5j09M/A+mdijO9H)"
+    encrypted-secret: "${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}"
     crypto-key-file: ./config/internal-credential.key
   mcp:
     grpc:

@@ -908,7 +908,9 @@ public class CommandTemplateDiscoveryService {
         }
         reasons.add("template index retrieval matched score=" + round(hit.score())
             + " channels=" + (channels.isEmpty() ? "lexical" : String.join("+", channels)));
-        return new Relevance(score, reasons.stream().limit(10).toList());
+        // The retrieval-channel evidence is appended after intent evidence and must
+        // survive compaction; downstream admission and audit both consume it.
+        return new Relevance(score, reasons.stream().limit(17).toList());
     }
 
     private LuceneMcpSearchService.TemplateDoc templateDoc(CommandTemplateConfig template) {
@@ -2013,7 +2015,10 @@ public class CommandTemplateDiscoveryService {
                 reasons.add("matched intent token '" + token + "' in '" + truncateReason(bestField) + "'");
             }
         }
-        return new Relevance(score, reasons.stream().limit(8).toList());
+        // Keep enough evidence for every independently expanded intent unit. A low
+        // cap made the explanation depend on synonym-map iteration order and could
+        // hide a later canonical signal even though it contributed to ranking.
+        return new Relevance(score, reasons.stream().limit(16).toList());
     }
 
     private Relevance decision(Relevance relevance,
@@ -2041,7 +2046,7 @@ public class CommandTemplateDiscoveryService {
             + ", lexical=" + round(lexicalScore)
             + ", type=" + round(typeMatch)
             + ", safety=" + round(safety));
-        return new Relevance(relevance.score(), reasons.stream().limit(10).toList(), round(finalScore), features);
+        return new Relevance(relevance.score(), reasons.stream().limit(18).toList(), round(finalScore), features);
     }
 
     private Relevance marketplaceDecision(Relevance relevance,
@@ -2076,7 +2081,7 @@ public class CommandTemplateDiscoveryService {
             + ", lucene=" + round(luceneScore)
             + ", risk=" + round(riskScore)
             + ", usage=" + round(usageScore));
-        return new Relevance(relevance.score(), reasons.stream().limit(10).toList(), round(finalScore), features);
+        return new Relevance(relevance.score(), reasons.stream().limit(18).toList(), round(finalScore), features);
     }
 
     private Map<String, Object> decisionMetadata(Relevance relevance) {

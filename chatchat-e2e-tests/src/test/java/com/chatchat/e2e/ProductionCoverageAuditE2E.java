@@ -96,7 +96,7 @@ class ProductionCoverageAuditE2E {
         Path root = repositoryRoot();
         List<Path> formerlyConditional = List.of(
             root.resolve("chatchat-api/src/test/java/com/chatchat/api/contract/MaintainedAgentEnvironmentCoverageTest.java"),
-            root.resolve("chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/metadata/EnterpriseMetadataWorkbookLoaderTest.java"),
+            root.resolve("chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/metadata/ingestion/EnterpriseMetadataWorkbookLoaderTest.java"),
             root.resolve("chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/sql/metadata/SqlMetadataLiveRegressionTest.java")
         );
         for (Path test : formerlyConditional) {

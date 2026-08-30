@@ -1,7 +1,9 @@
 package com.chatchat.agents.orchestration.analysis;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+
+
 
 import com.chatchat.common.runtime.summary.DataAnalysisPosition;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;

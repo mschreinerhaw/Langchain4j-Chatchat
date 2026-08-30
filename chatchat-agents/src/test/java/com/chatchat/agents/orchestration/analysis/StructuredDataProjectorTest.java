@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration.analysis;
 
-import com.chatchat.agents.orchestration.analysis.StructuredDataProjector;
+import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
+
+
 
 import org.junit.jupiter.api.Test;
 

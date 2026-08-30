@@ -2,7 +2,6 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.analysis.RocksDbAnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
@@ -105,7 +104,9 @@ class ProductionAnalysisSpillCheckpointE2E {
         }
 
         assertThat(first.iterations()).isGreaterThanOrEqualTo(4);
-        assertThat(firstModelCalls).hasValue(first.iterations());
+        // A logical spill iteration can include governed model repair attempts; the
+        // restart contract is that completed summaries are never invoked again.
+        assertThat(firstModelCalls.get()).isGreaterThanOrEqualTo(first.iterations());
         assertThat(first.coverageComplete()).isTrue();
         assertThat(restored.coverageComplete()).isTrue();
         assertThat(restored.processedRecordCount()).isEqualTo(first.returnedRecordCount());
@@ -115,7 +116,9 @@ class ProductionAnalysisSpillCheckpointE2E {
             .containsEntry("recordAnalysisEvidenceTraceComplete", true);
         assertThat(restored.promptEvidence())
             .contains("LINUX_LAST_LINE_119", "SQL_LAST_ROW_79", "JMX_LAST_SAMPLE_79", "API_LAST_ROW_79")
-            .contains("ROCKSDB_ANALYSIS_SPILL", "Raw evidence replay (lossless")
+            // Storage locators are checkpoint metadata, not model-visible business evidence.
+            .contains("Raw evidence replay (lossless")
+            .doesNotContain("ROCKSDB_ANALYSIS_SPILL")
             .doesNotContain("externalized-preview", "explicitTruncation=true");
         assertThat(restored.summaryResults()).allSatisfy(summary -> {
             assertThat(summary.evidence()).containsKeys(

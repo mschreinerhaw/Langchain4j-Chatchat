@@ -1,5 +1,11 @@
 package com.chatchat.agents.orchestration.analysis;
 
+import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+
+
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
 import com.chatchat.common.runtime.summary.ModelSummaryProgress;

@@ -1,5 +1,9 @@
 package com.chatchat.agents.orchestration.answer;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+
+
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
 import com.chatchat.agents.evidence.normalization.EvidenceChunk;
@@ -11,7 +15,6 @@ import com.chatchat.agents.evidence.answer.AnswerAssemblyMode;
 import com.chatchat.agents.protocol.AnswerContract;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.evidence.EvidenceSufficiencyGate;
 import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
 
@@ -29,7 +32,6 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.answer.AgentAnswerReview;
 import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
 import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.answer.DraftArtifactRuntimePolicy;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;

@@ -1,30 +1,32 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.analysis.context.ContextCompressionEnvelope;
+import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresentationContract;
+import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
+import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordChunkPlanner;
+import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisWorkerRetryPolicy;
+import com.chatchat.agents.orchestration.analysis.dispatch.BusinessAnalysisProgressProjector;
+import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
+import com.chatchat.agents.orchestration.analysis.model.SemanticInsightContract;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryCheckpointService;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
+import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
+
+
 import com.chatchat.agents.evidence.normalization.EvidenceSource;
 
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisContextPresentationContract;
-import com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary;
-import com.chatchat.agents.orchestration.analysis.AnalysisDatasetWorker;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.AnalysisWorkerRetryPolicy;
-import com.chatchat.agents.orchestration.analysis.BusinessAnalysisProgressProjector;
-import com.chatchat.agents.orchestration.analysis.AnalysisRecordChunkPlanner;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryCheckpointService;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceCoordinator;
-import com.chatchat.agents.orchestration.analysis.ContextCompressionEnvelope;
-import com.chatchat.agents.orchestration.analysis.ContextTokenEstimator;
-import com.chatchat.agents.orchestration.analysis.DatasetRelationshipPlan;
-import com.chatchat.agents.orchestration.analysis.DeterministicInsightEngine;
-import com.chatchat.agents.orchestration.analysis.HierarchicalAnalysisReducer;
-import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
-import com.chatchat.agents.orchestration.analysis.SemanticInsightContract;
-import com.chatchat.agents.orchestration.analysis.SemanticInsightContractProvider;
-import com.chatchat.agents.orchestration.analysis.StructuredDataProjector;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizationPort;
 import com.chatchat.agents.orchestration.evidence.ContextEvidenceAggregator;
@@ -46,6 +48,7 @@ import com.chatchat.agents.orchestration.planning.InterpretationPlanSnapshotServ
 import com.chatchat.agents.orchestration.planning.AgentPlanExecutionBridge;
 import com.chatchat.agents.orchestration.planning.AgentPlanPhaseActivityCoordinator;
 import com.chatchat.agents.orchestration.lifecycle.AgentRunLifecycleCoordinator;
+import com.chatchat.agents.orchestration.lifecycle.AgentRuntimeAttributeCompiler;
 import com.chatchat.agents.orchestration.lifecycle.AgentRunScopeBinder;
 import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedContextParameterBridge;
@@ -85,7 +88,6 @@ import com.chatchat.agents.runtime.AgentRunExecutor;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.agents.runtime.store.AgentRunStore;
 import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.answer.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.observation.DefaultAgentObservationPipeline;
@@ -126,6 +128,7 @@ import com.chatchat.agents.runtime.plan.execution.PlanModelArbitrationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanModelArbitrationResult;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationResult;
+import com.chatchat.agents.runtime.plan.execution.PlanStepFinalizationCommand;
 import com.chatchat.agents.runtime.plan.execution.PreparedPlanStep;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
@@ -220,6 +223,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         AGENT_TIMEOUT_MS_ATTRIBUTE,
         AGENT_DEADLINE_AT_ATTRIBUTE
     );
+    private final AgentRuntimeAttributeCompiler runtimeAttributeCompiler;
     private final AgentPlanningPort planner;
     private final AgentRunResultAdapter runResultAdapter;
     private final AgentRunScopeBinder runScopeBinder;
@@ -380,6 +384,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.planToolExecutionPort = new LocalPlanToolExecutionPort(toolRuntimeService);
         this.planDagControlPort = new LocalPlanDagControlPort();
         this.objectMapper = objectMapper;
+        this.runtimeAttributeCompiler = new AgentRuntimeAttributeCompiler(
+            runtimeGuard, () -> dagGovernanceContractProvider, AGENT_RUN_ID_ATTRIBUTE,
+            AGENT_MAX_STEPS_ATTRIBUTE, AGENT_MAX_TOOL_CALLS_ATTRIBUTE, AGENT_TIMEOUT_MS_ATTRIBUTE);
         this.planExecutionBridge = new AgentPlanExecutionBridge(objectMapper, AGENT_CANCELLATION_ATTRIBUTE);
         this.toolResultFactExtractor = new AgentToolResultFactExtractor(objectMapper);
         this.recordChunkPlanner = new AnalysisRecordChunkPlanner(objectMapper);
@@ -585,6 +592,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
     @Override
+    public PreparedPlanStep finalizeStep(PlanStepFinalizationCommand command) {
+        return planPhaseActivities.finalizeStep(command);
+    }
+
+    @Override
     public PlanNodePersistenceResult persist(PlanNodePersistenceCommand command) {
         return planPhaseActivities.persist(command);
     }
@@ -664,35 +676,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
 
 
     private Map<String, Object> runtimeAttributesFor(AgentRunRequest request) {
-        Map<String, Object> attributes = new LinkedHashMap<>();
-        if (request.getAttributes() != null) {
-            attributes.putAll(request.getAttributes());
-        }
-        if (request.getRunId() != null && !request.getRunId().isBlank()) {
-            attributes.put(AGENT_RUN_ID_ATTRIBUTE, request.getRunId());
-        }
-        if (request.getSkillId() != null && !request.getSkillId().isBlank()) {
-            attributes.putIfAbsent("agentId", request.getSkillId().trim());
-        }
-        if (request.getMaxSteps() != null) {
-            attributes.put(AGENT_MAX_STEPS_ATTRIBUTE, request.getMaxSteps());
-        }
-        if (request.getMaxToolCalls() != null) {
-            attributes.put(AGENT_MAX_TOOL_CALLS_ATTRIBUTE, request.getMaxToolCalls());
-        }
-        attributes.put(AGENT_TIMEOUT_MS_ATTRIBUTE,
-            request.getTimeoutMs() == null ? AgentRunRequest.DEFAULT_TIMEOUT_MS : request.getTimeoutMs());
-        pinDagGovernanceContract(attributes);
-        return runtimeGuard.attributesWithDeadline(attributes);
+        return runtimeAttributeCompiler.compile(request);
     }
 
     private void pinDagGovernanceContract(Map<String, Object> attributes) {
-        if (attributes == null || attributes.containsKey(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE)) {
-            return;
-        }
-        DagGovernanceContractProvider.ContractSnapshot contract =
-            dagGovernanceContractProvider.activeContract();
-        attributes.put(DagGovernanceContractProvider.CONTRACT_ATTRIBUTE, contract.toRuntimeAttribute());
+        runtimeAttributeCompiler.pinContract(attributes);
     }
 
     /**

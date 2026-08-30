@@ -1,5 +1,8 @@
 package com.chatchat.agents.orchestration.analysis;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+
+
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import org.junit.jupiter.api.Test;
 

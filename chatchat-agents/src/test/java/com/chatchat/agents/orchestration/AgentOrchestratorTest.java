@@ -1,10 +1,15 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+
+
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.answer.AnswerDecisionEngine;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
 
@@ -22,7 +27,6 @@ import com.chatchat.agents.runtime.observation.AgentObservation;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.answer.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.observation.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.store.InMemoryAgentRunStore;
@@ -340,15 +344,15 @@ class AgentOrchestratorTest {
             null, properties);
         LocalAnalysisTaskDispatcher delegate = new LocalAnalysisTaskDispatcher(2);
         orchestrator.setModelSummaryDispatcher(new ModelSummaryDispatcher<
-            com.chatchat.agents.orchestration.analysis.AnalysisTask,
-            com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary,
-            com.chatchat.agents.orchestration.analysis.AnalysisTaskResult>() {
+            com.chatchat.agents.orchestration.analysis.model.AnalysisTask,
+            com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary,
+            com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult>() {
             @Override
-            public DispatchBatch<com.chatchat.agents.orchestration.analysis.AnalysisTaskResult> dispatch(
-                List<com.chatchat.agents.orchestration.analysis.AnalysisTask> tasks,
+            public DispatchBatch<com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult> dispatch(
+                List<com.chatchat.agents.orchestration.analysis.model.AnalysisTask> tasks,
                 ModelSummaryWorker<
-                    com.chatchat.agents.orchestration.analysis.AnalysisTask,
-                    com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary> worker,
+                    com.chatchat.agents.orchestration.analysis.model.AnalysisTask,
+                    com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary> worker,
                 BooleanSupplier cancellationCheck,
                 ModelSummaryProgressListener progressListener
             ) {

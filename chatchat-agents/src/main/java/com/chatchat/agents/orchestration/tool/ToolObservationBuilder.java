@@ -1,9 +1,11 @@
 package com.chatchat.agents.orchestration.tool;
 
+import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
+import com.chatchat.agents.orchestration.analysis.insight.StructuredReasoningEvidenceAdapterRegistry;
+
+
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
-import com.chatchat.agents.orchestration.analysis.StructuredDataProjector;
-import com.chatchat.agents.orchestration.analysis.StructuredReasoningEvidenceAdapterRegistry;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
 
 import com.chatchat.agents.runtime.governance.McpEvidenceResult;

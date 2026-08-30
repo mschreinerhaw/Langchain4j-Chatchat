@@ -1,7 +1,9 @@
 package com.chatchat.agents.orchestration.answer;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+
+
 import com.chatchat.agents.orchestration.AgentOrchestrator;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.common.interaction.InteractionToolTrace;

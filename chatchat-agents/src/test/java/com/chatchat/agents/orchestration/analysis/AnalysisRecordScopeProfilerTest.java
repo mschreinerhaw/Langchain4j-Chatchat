@@ -1,5 +1,8 @@
 package com.chatchat.agents.orchestration.analysis;
 
+import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordScopeProfiler;
+
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

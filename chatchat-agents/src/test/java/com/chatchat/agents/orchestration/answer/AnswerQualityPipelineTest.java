@@ -15,7 +15,6 @@ import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 
 import com.chatchat.agents.runtime.answer.AgentAnswerReview;
 import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;

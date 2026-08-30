@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.failure.ApplicationFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +94,9 @@ public final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowAct
 
     private ResumableAgentRunExecutor requiredResumableExecutor() {
         if (resumableAgentRunExecutor == null) {
-            throw new IllegalStateException("Resumable Agent executor is not configured");
+            throw ApplicationFailure.newNonRetryableFailure(
+                "Resumable Agent executor is not configured",
+                "RESUMABLE_AGENT_EXECUTOR_UNAVAILABLE");
         }
         return resumableAgentRunExecutor;
     }

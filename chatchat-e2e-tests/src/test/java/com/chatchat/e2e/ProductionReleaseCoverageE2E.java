@@ -1,11 +1,14 @@
 package com.chatchat.e2e;
 
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
+import com.chatchat.agents.orchestration.analysis.insight.StructuredReasoningEvidenceAdapterRegistry;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+
+
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.StructuredReasoningEvidenceAdapterRegistry;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.FinalSummaryWebSearchEnhancer;
 import com.chatchat.agents.orchestration.AgentPlanner;
@@ -170,9 +173,9 @@ class ProductionReleaseCoverageE2E {
     void runtimeOsCoreContainsNoBusinessDecisionLiteralsOrSimulatedAnswers() throws IOException {
         Path root = repositoryRoot();
         List<Path> runtimeCore = List.of(
-            root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java"),
+            root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/runtime/tool/ToolRuntimeService.java"),
             root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentPlanner.java"),
-            root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/orchestration/FinalSummaryWebSearchEnhancer.java"),
+            root.resolve("chatchat-agents/src/main/java/com/chatchat/agents/orchestration/answer/FinalSummaryWebSearchEnhancer.java"),
             root.resolve("chatchat-api/src/main/java/com/chatchat/api/sidebar/SidebarCardService.java"),
             root.resolve("chatchat-api/src/main/java/com/chatchat/api/websocket/ChatWebSocketHandler.java")
         );
@@ -226,7 +229,7 @@ class ProductionReleaseCoverageE2E {
         String runtime = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java"));
         String orchestrator = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java"));
         String runtimeTests = Files.readString(root.resolve(
             "chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntimeTest.java"));
         String orchestratorTests = Files.readString(root.resolve(
@@ -285,27 +288,29 @@ class ProductionReleaseCoverageE2E {
         String livedataRegistration = Files.readString(root.resolve(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/livedata/LivedataApiRegistrationService.java"));
         String apiServiceConfigService = Files.readString(root.resolve(
-            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/api/ApiServiceConfigService.java"));
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/api/registry/ApiServiceConfigService.java"));
         String finalizer = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentAnswerFinalizer.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/answer/AgentAnswerFinalizer.java"));
         String observationBuilder = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/ToolObservationBuilder.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/ToolObservationBuilder.java"));
         String orchestrator = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrator.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java"));
+        String analysisDatasetWorker = Files.readString(root.resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/AnalysisDatasetWorker.java"));
         String summaryBridge = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryGovernanceBridge.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisSummaryGovernanceBridge.java"));
         String mcpAnalysisContextAdapter = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/McpAnalysisContextAdapter.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/McpAnalysisContextAdapter.java"));
         String summaryResult = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AnalysisSummaryResult.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/model/AnalysisSummaryResult.java"));
         String isolationScope = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/GovernanceIsolationScope.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/governance/GovernanceIsolationScope.java"));
         String mcpEvidenceBridge = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/McpEvidenceGovernanceBridge.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/governance/McpEvidenceGovernanceBridge.java"));
         String mcpEvidenceResult = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/McpEvidenceResult.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/governance/McpEvidenceResult.java"));
         String toolRuntime = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/ToolRuntimeService.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/tool/ToolRuntimeService.java"));
         String conversationEvidenceBridge = Files.readString(root.resolve(
             "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ConversationEvidenceLedgerBridge.java"));
         String conversationMemory = Files.readString(root.resolve(
@@ -315,9 +320,9 @@ class ProductionReleaseCoverageE2E {
         String agentChatHandler = Files.readString(root.resolve(
             "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/AgentChatModeHandler.java"));
         String structuredAdapter = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/StructuredReasoningEvidenceAdapterRegistry.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/insight/StructuredReasoningEvidenceAdapterRegistry.java"));
         String factGrounding = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/AgentRuntimeFactGroundingContract.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/observation/AgentRuntimeFactGroundingContract.java"));
         String renderer = Files.readString(root.resolve(
             "chatchat-api/web-app/src/js/components/VisualizationRenderer.js"));
         String rendererTemplate = Files.readString(root.resolve(
@@ -325,7 +330,7 @@ class ProductionReleaseCoverageE2E {
         String protocolTest = Files.readString(root.resolve(
             "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/tool/StandardToolExecutionResultFactoryTest.java"));
         String presentationTest = Files.readString(root.resolve(
-            "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentAnswerFinalizerEvidenceAnswerTest.java"));
+            "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/answer/AgentAnswerFinalizerEvidenceAnswerTest.java"));
         String governanceDocument = Files.readString(root.resolve(
             "docs/data-analysis-evidence-summary-governance.md"));
 
@@ -364,16 +369,17 @@ class ProductionReleaseCoverageE2E {
         assertThat(orchestrator)
             .contains("analysisSummaryGovernanceBridge.finalSynthesisInstruction()",
                 "analysisSummaryGovernanceBridge.govern(",
-                "analysisSummaryGovernanceBridge.position(",
-                "analysisSummaryGovernanceBridge.summarize(",
                 "analysisSummaryGovernanceBridge.ledger(",
                 "governedFinalSummaryResult(", "analysisSummaryResult",
                  "mcpAnalysisContextAdapter.adapt(reference, toolMetadata, output)",
                  "mcpAnalysisContextAdapter.adaptDataset(rootAnalysisContext, dataset)",
-                "analysisSummaryGovernanceBridge.requiresModelSummary(governedContext, oversized)",
                 "Mandatory analysis deliverable", "ensureGovernedNarrativeAnalysis(",
                 "governedNarrativeAnalysisAppended")
              .doesNotContain("api_data_identity.v1", "other API datasets");
+        assertThat(analysisDatasetWorker)
+            .contains("summaryProtocol.requiresModelSummary(",
+                "summaryProtocol.position(",
+                "summaryProtocol.summarize(");
         assertThat(mcpAnalysisContextAdapter)
             .contains("class McpAnalysisContextAdapter",
                 "mcpToolMeta", "analysisContext", "analysis_context",
@@ -387,7 +393,8 @@ class ProductionReleaseCoverageE2E {
         assertThat(apiServiceConfigService)
             .contains("updateDataContract(String id", "current.setOutputSchemaJson(");
         assertThat(summaryBridge)
-            .contains("BRIDGE_SCHEMA_VERSION = \"analysis_summary_bridge.v1\"",
+            .contains("BRIDGE_SCHEMA_VERSION =",
+                "DataAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION",
                 "DataAnalysisContextProtocol.GOVERNANCE_VERSION",
                  "missingSemanticSections", "semanticInferenceAllowed",
                  "analytical semantics", "analysis policy", "source extensions",
@@ -410,7 +417,8 @@ class ProductionReleaseCoverageE2E {
             .contains("McpEvidenceResult capture(", "trustedScope(ToolRuntimeRequest request)",
                 "MCP_RUNTIME_RETURNED_PAYLOAD", "crossTenantMergeAllowed", "summaryMutationAllowed");
         assertThat(mcpEvidenceResult)
-            .contains("SCHEMA_VERSION = \"mcp_evidence_result.v1\"",
+            .contains("SCHEMA_VERSION =",
+                "RuntimeEvidenceProtocol.EVIDENCE_SCHEMA_VERSION",
                 "GovernanceIsolationScope isolationScope", "Object payload", "descriptor()");
         assertThat(toolRuntime)
             .contains("evidenceGovernanceBridge.capture(",

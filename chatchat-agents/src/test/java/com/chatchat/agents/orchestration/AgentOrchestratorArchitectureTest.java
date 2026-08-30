@@ -1,5 +1,10 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.analysis.contract.AnalysisObjectiveContractCompiler;
+import com.chatchat.agents.orchestration.analysis.contract.AnalysisSemanticContractCompiler;
+import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordScopeProfiler;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -11,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentOrchestratorArchitectureTest {
 
     private static final int MAX_FACADE_LINES = 1_000;
-    private static final int ENGINE_MIGRATION_RATCHET_LINES = 7_310;
+    private static final int ENGINE_MIGRATION_RATCHET_LINES = 7_295;
     private static final int MAX_DOMAIN_COMPONENT_LINES = 1_000;
     private static final int PLANNER_MIGRATION_RATCHET_LINES = 1_750;
     private static final int ANSWER_FINALIZER_MIGRATION_RATCHET_LINES = 1_700;
@@ -34,6 +39,29 @@ class AgentOrchestratorArchitectureTest {
             "src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java",
             ENGINE_MIGRATION_RATCHET_LINES,
             "The migration ratchet must only move downward as responsibilities leave the engine");
+    }
+
+    @Test
+    void analysisImplementationsRemainInResponsibilitySubpackages() throws IOException {
+        Path analysisRoot = Path.of(System.getProperty("basedir", ".")).resolve(
+            "src/main/java/com/chatchat/agents/orchestration/analysis");
+
+        try (var files = Files.list(analysisRoot)) {
+            assertThat(files
+                .filter(path -> path.getFileName().toString().endsWith(".java"))
+                .map(path -> path.getFileName().toString())
+                .toList())
+                .as("The analysis root package is a boundary; implementations belong in child packages")
+                .containsExactly("package-info.java");
+        }
+        try (var directories = Files.list(analysisRoot)) {
+            assertThat(directories
+                .filter(Files::isDirectory)
+                .map(path -> path.getFileName().toString())
+                .sorted()
+                .toList())
+                .containsExactly("context", "contract", "dataset", "dispatch", "insight", "model", "summary");
+        }
     }
 
     @Test
@@ -83,6 +111,10 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Kernel scope projection must remain independent from workflow execution");
         assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/lifecycle/AgentRuntimeAttributeCompiler.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Run limits and DAG contract pinning must remain independent from orchestration");
+        assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/planning/InterpretationPlanSnapshotService.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "InterpretationPlan persistence must remain independent from workflow scheduling");
@@ -123,23 +155,23 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Evidence audit must remain independent from answer candidate selection");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisDatasetWorker.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/AnalysisDatasetWorker.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Dataset chunking, retry, checkpoint and reduction must remain worker-owned");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisObjectiveContractCompiler.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/contract/AnalysisObjectiveContractCompiler.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Question-to-dataset obligations must remain independent from model prompting");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisSemanticContractCompiler.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/contract/AnalysisSemanticContractCompiler.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Producer-declared semantics must remain independent from record-shape profiling");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisRecordScopeProfiler.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/dataset/AnalysisRecordScopeProfiler.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Returned-record structural profiling must remain deterministic and semantics-free");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/AnalysisSummaryGovernanceCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisSummaryGovernanceCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Final analysis governance must remain independent from Driver scheduling");
         assertSourceLineCount(

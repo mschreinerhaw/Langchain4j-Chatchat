@@ -6,6 +6,8 @@ import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationResult;
+import com.chatchat.agents.runtime.plan.execution.PlanStepFinalizationCommand;
+import com.chatchat.agents.runtime.plan.execution.PreparedPlanStep;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 
@@ -18,6 +20,9 @@ public interface RuntimeOsPlanStageActivity {
 
     @ActivityMethod(name = "runtime-os-plan-step-prepare-v1")
     PlanStepPreparationResult prepare(PlanStepPreparationCommand command);
+
+    @ActivityMethod(name = "runtime-os-plan-step-finalize-v1")
+    PreparedPlanStep finalizeStep(PlanStepFinalizationCommand command);
 
     @ActivityMethod(name = "runtime-os-plan-node-persist-v1")
     PlanNodePersistenceResult persist(PlanNodePersistenceCommand command);

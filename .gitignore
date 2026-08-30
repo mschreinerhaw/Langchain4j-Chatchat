@@ -14,6 +14,7 @@ target/
 *.pid
 **/config/env.local
 /.env.production
+**/internal-credential.key
 /chatchat-api/data/
 /chatchat-api/h2/
 /chatchat-api/src/resources/static/

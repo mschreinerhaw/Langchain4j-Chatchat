@@ -1,7 +1,9 @@
 package com.chatchat.agents.orchestration.analysis;
 
-import com.chatchat.agents.orchestration.analysis.SemanticInsightContract;
-import com.chatchat.agents.orchestration.analysis.SemanticInsightRecipeCatalog;
+import com.chatchat.agents.orchestration.analysis.insight.SemanticInsightRecipeCatalog;
+import com.chatchat.agents.orchestration.analysis.model.SemanticInsightContract;
+
+
 
 import org.junit.jupiter.api.Test;
 

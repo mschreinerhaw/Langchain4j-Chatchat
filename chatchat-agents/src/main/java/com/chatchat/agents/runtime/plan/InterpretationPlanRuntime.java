@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
 import com.chatchat.agents.runtime.plan.execution.LocalPlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionCommand;
+import com.chatchat.agents.runtime.plan.execution.DeferredPlanToolExecutionException;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.DeterministicPlanDagStateMachine;
 import com.chatchat.agents.runtime.plan.execution.LocalPlanDagControlPort;
@@ -187,6 +188,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     private final DagExecutionController dagExecutionController;
     private final StepInputEnricher stepInputEnricher;
     private NodeAttemptStore nodeAttemptStore;
+    private boolean journalWritesEnabled = true;
     private final McpToolRouter mcpToolRouter = new McpToolRouter();
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
@@ -283,6 +285,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     public void setNodeAttemptStore(NodeAttemptStore nodeAttemptStore) {
         this.nodeAttemptStore = nodeAttemptStore;
+    }
+
+    /** Disables speculative journal writes while a workflow Activity prepares or replays a step. */
+    public void setJournalWritesEnabled(boolean journalWritesEnabled) {
+        this.journalWritesEnabled = journalWritesEnabled;
     }
 
     /**
@@ -1001,7 +1008,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                                   Map<Integer, InterpretationPlan.Step> stepsById,
                                                   Map<Integer, StepExecution> completed,
                                                   List<StepExecution> waveResults) {
-        if (runStore == null || runId == null || runId.isBlank() || waveResults == null) {
+        if (!journalWritesEnabled || runStore == null || runId == null || runId.isBlank()
+            || waveResults == null) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -2085,6 +2093,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 result = validateStepOutput(request.plan(), step, result, completed, request);
                 recordPlanObservation(request, result, execution == null ? null : execution.output());
                 return result;
+            } catch (DeferredPlanToolExecutionException deferred) {
+                throw deferred;
             } catch (RuntimeException ex) {
                 log.warn("InterpretationPlan step failed before tool execution: traceId={}, stepId={}, tool={}, error={}",
                     executionTraceId(request),
@@ -2333,7 +2343,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                 InterpretationPlan.Step step,
                                 Map<Integer, StepExecution> completed) {
         String runId = runId(request);
-        if (runStore == null || runId == null || runId.isBlank() || step == null || step.id() == null) {
+        if (!journalWritesEnabled || runStore == null || runId == null || runId.isBlank()
+            || step == null || step.id() == null) {
             return;
         }
         Map<String, Object> executionPlan = new LinkedHashMap<>();
@@ -2364,7 +2375,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                        StepExecution step,
                                        ToolOutput output) {
         String runId = runId(request);
-        if (runStore == null || runId == null || runId.isBlank() || step == null || step.stepId() == null) {
+        if (!journalWritesEnabled || runStore == null || runId == null || runId.isBlank()
+            || step == null || step.stepId() == null) {
             return;
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -2454,7 +2466,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                    List<StepExecution> waveResults,
                                    StepExecution failed) {
         String runId = runId(request);
-        if (runStore == null || runId == null || runId.isBlank()) {
+        if (!journalWritesEnabled || runStore == null || runId == null || runId.isBlank()) {
             return;
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -3048,7 +3060,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         ExecutionRequest request, Map<String, Object> templateMatchAnalysis
     ) {
         String runId = runId(request);
-        if (runStore == null || runId == null || runId.isBlank()
+        if (!journalWritesEnabled || runStore == null || runId == null || runId.isBlank()
             || templateMatchAnalysis == null || templateMatchAnalysis.isEmpty()) {
             return;
         }
@@ -8810,7 +8822,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                           Set<Integer> remaining,
                                           Set<Integer> completedStepIds) {
         String runId = runId(request);
-        if (runStore == null || runId == null || runId.isBlank()) {
+        if (!journalWritesEnabled || runStore == null || runId == null || runId.isBlank()) {
             return;
         }
         Map<String, Object> decisionMetadata = decision == null ? Map.of() : decisionMetadata(decision);

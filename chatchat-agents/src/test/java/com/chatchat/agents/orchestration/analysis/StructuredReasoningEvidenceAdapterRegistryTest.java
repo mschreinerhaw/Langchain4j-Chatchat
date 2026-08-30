@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration.analysis;
 
-import com.chatchat.agents.orchestration.analysis.StructuredReasoningEvidenceAdapterRegistry;
+import com.chatchat.agents.orchestration.analysis.insight.StructuredReasoningEvidenceAdapterRegistry;
+
+
 
 import org.junit.jupiter.api.Test;
 

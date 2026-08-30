@@ -47,6 +47,33 @@ param(
 $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 
+# Fail before compilation when a production resource reintroduces a repository-owned credential.
+# Test fixtures may use isolated credentials, but src/main and packaged deployment configuration may not.
+$credentialScanRoots = @(
+    (Join-Path $repositoryRoot "packaging\config"),
+    (Join-Path $repositoryRoot "chatchat-api\src\main"),
+    (Join-Path $repositoryRoot "chatchat-mcp-server\src\main"),
+    (Join-Path $repositoryRoot "chatchat-runtime-news\src\main"),
+    (Join-Path $repositoryRoot "chatchat-license\src\main")
+) | Where-Object { Test-Path -LiteralPath $_ }
+$credentialPatterns = @(
+    'encrypted-secret\s*:\s*ENC\(',
+    '\$\{CHATCHAT_[A-Z0-9_]*(?:PASSWORD|SECRET)[A-Z0-9_]*:[^}\s$][^}]*\}'
+)
+$credentialFindings = @(
+    Get-ChildItem -Path $credentialScanRoots -Recurse -File |
+        Where-Object { $_.Extension -in @(".yml", ".yaml", ".template", ".properties", ".example") } |
+        Select-String -Pattern $credentialPatterns
+)
+$trackedKeyFindings = @(Get-ChildItem -Path $credentialScanRoots -Recurse -File -Filter "internal-credential.key")
+if ($credentialFindings.Count -gt 0 -or $trackedKeyFindings.Count -gt 0) {
+    $locations = $credentialFindings |
+        ForEach-Object { "$($_.Path):$($_.LineNumber)" } |
+        Sort-Object -Unique
+    $locations += $trackedKeyFindings | ForEach-Object { $_.FullName }
+    throw "Production configuration contains repository-owned credential defaults: $($locations -join ', ')"
+}
+
 if (-not $AllowConditionalSkips) {
     $missingReleaseInputs = @()
     if (-not $TencentWsaLive) { $missingReleaseInputs += "-TencentWsaLive" }
@@ -156,6 +183,10 @@ try {
         $resolvedMetadataPath = (Resolve-Path -LiteralPath $EnterpriseMetadataPath).Path
         $mavenArguments += "-Dchatchat.e2e.enterprise-metadata-path=$resolvedMetadataPath"
     }
+    # A release verdict must never reuse stale bytecode, test reports, or coverage data from a
+    # developer's previous incremental build. In particular, compiler-level generated-code
+    # metadata (for example Lombok's @Generated marker) is only reliable after a clean compile.
+    $mavenArguments += "clean"
     $mavenArguments += "verify"
     & mvn @mavenArguments
     if ($LASTEXITCODE -ne 0) {
@@ -186,8 +217,19 @@ try {
         throw "Production release requires zero skipped tests; skipped=$skipped. Use -AllowConditionalSkips only for non-release regression runs."
     }
 
-    $coverageReports = Get-ChildItem -Path $repositoryRoot -Recurse -File -Filter "jacoco.xml" |
-        Where-Object { $_.FullName -like "*\target\site\jacoco\jacoco.xml" }
+    # The E2E module executes production classes from multiple reactor modules. Its aggregate
+    # report is the release source of truth because summing per-module unit-test reports would
+    # discard that cross-module execution data. Keep the legacy reports only as a fallback for
+    # diagnostics when the aggregate goal has not run.
+    $aggregateCoverageReport = Join-Path $repositoryRoot "chatchat-e2e-tests\target\site\jacoco-aggregate\jacoco.xml"
+    if (Test-Path -LiteralPath $aggregateCoverageReport) {
+        $coverageReports = @(Get-Item -LiteralPath $aggregateCoverageReport)
+        $coverageMode = "aggregate"
+    } else {
+        $coverageReports = @(Get-ChildItem -Path $repositoryRoot -Recurse -File -Filter "jacoco.xml" |
+            Where-Object { $_.FullName -like "*\target\site\jacoco\jacoco.xml" })
+        $coverageMode = "per-module fallback"
+    }
     if ($coverageReports.Count -eq 0) {
         throw "Production release requires JaCoCo reports, but none were generated."
     }
@@ -204,7 +246,8 @@ try {
     }
     $lineRate = if (($lineCovered + $lineMissed) -eq 0) { 0 } else { $lineCovered / ($lineCovered + $lineMissed) }
     $branchRate = if (($branchCovered + $branchMissed) -eq 0) { 0 } else { $branchCovered / ($branchCovered + $branchMissed) }
-    Write-Host ("Coverage report: line={0:P2} branch={1:P2} modules={2}" -f $lineRate, $branchRate, $coverageReports.Count)
+    Write-Host ("Coverage report: line={0:P2} branch={1:P2} reports={2} mode={3}" -f `
+        $lineRate, $branchRate, $coverageReports.Count, $coverageMode)
     if ($lineRate -lt $MinimumLineCoverage -or $branchRate -lt $MinimumBranchCoverage) {
         throw ("Coverage below release threshold: line={0:P2}/{1:P2}, branch={2:P2}/{3:P2}" -f `
             $lineRate, $MinimumLineCoverage, $branchRate, $MinimumBranchCoverage)

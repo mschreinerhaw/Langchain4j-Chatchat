@@ -26,11 +26,11 @@
     "echarts": "^6.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
-    "markdown-it": "^14.2.0",
+    "markdown-it": "^15.0.1",
     "monaco-editor": "^0.52.2",
-    "pdfjs-dist": "^6.0.227",
+    "pdfjs-dist": "^6.2.108",
     "vue": "^3.5.22",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -39,5 +39,8 @@
     "playwright-core": "^1.54.2",
     "vite": "^7.1.7",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
   }
 }

@@ -3,6 +3,8 @@ package com.chatchat.runtime.temporal.config;
 import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
 import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
+import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
+import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;
@@ -15,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.withSettings;
 
 class TemporalWorkflowConfigurationTest {
 
@@ -53,6 +56,17 @@ class TemporalWorkflowConfigurationTest {
             });
     }
 
+    @Test
+    void temporalSelectionFailsFastWithoutResumableBusinessHandler() {
+        new ApplicationContextRunner()
+            .withUserConfiguration(MissingHandlerConfiguration.class,
+                TemporalWorkflowConfiguration.class)
+            .withPropertyValues(
+                "chatchat.agent-runtime.workflow-engine=temporal",
+                "chatchat.agent-runtime.temporal.target=127.0.0.1:7233")
+            .run(context -> assertThat(context).hasFailed());
+    }
+
     @Configuration(proxyBeanMethods = false)
     static class JsonConfiguration {
         @Bean
@@ -64,5 +78,17 @@ class TemporalWorkflowConfigurationTest {
         ToolRuntimeService toolRuntimeService() {
             return mock(ToolRuntimeService.class);
         }
+
+        @Bean
+        PlanExecutionPhaseHandler planExecutionPhaseHandler() {
+            return mock(PlanExecutionPhaseHandler.class,
+                withSettings().extraInterfaces(ResumableAgentRunExecutor.class));
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class MissingHandlerConfiguration {
+        @Bean ObjectMapper objectMapper() { return new ObjectMapper(); }
+        @Bean ToolRuntimeService toolRuntimeService() { return mock(ToolRuntimeService.class); }
     }
 }

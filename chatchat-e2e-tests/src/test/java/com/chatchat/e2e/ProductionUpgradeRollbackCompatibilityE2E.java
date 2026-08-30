@@ -5,7 +5,6 @@ import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.event.NoopAgentRunEventPublisher;
 import com.chatchat.agents.runtime.store.RocksDbAgentRunStore;
 import com.fasterxml.jackson.databind.ObjectMapper;

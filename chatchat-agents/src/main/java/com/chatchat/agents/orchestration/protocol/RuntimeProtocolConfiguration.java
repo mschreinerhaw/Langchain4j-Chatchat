@@ -1,15 +1,17 @@
 package com.chatchat.agents.orchestration.protocol;
 
+import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
+
+
 import com.chatchat.agents.runtime.governance.McpEvidenceGovernanceBridge;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
-import com.chatchat.agents.orchestration.analysis.AnalysisDatasetSummary;
-import com.chatchat.agents.orchestration.analysis.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.HierarchicalAnalysisReducer;
-import com.chatchat.agents.orchestration.analysis.LocalAnalysisTaskDispatcher;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
 import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;

@@ -8,7 +8,6 @@ import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 
-import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.answer.AgentAnswerReview;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;

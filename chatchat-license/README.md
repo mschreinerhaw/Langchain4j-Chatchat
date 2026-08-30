@@ -96,10 +96,10 @@ License Center 使用独立 H2 文件数据库保存授权签发与下载审计�
 ```text
 CHATCHAT_LICENSE_DB_URL=jdbc:h2:file:./data/license-center/license-audit;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
 CHATCHAT_LICENSE_DB_USERNAME=sa
-CHATCHAT_LICENSE_DB_PASSWORD=LiveMCP_H2#Audit@2026!Secure
+CHATCHAT_LICENSE_DB_PASSWORD=<generate-a-strong-secret>
 ```
 
-系统内置默认 H2 密码 `LiveMCP_H2#Audit@2026!Secure`，直接运行 JAR 或使用随包配置均可首次启动。
+系统不内置数据库密码。首次启动前必须通过 `CHATCHAT_LICENSE_DB_PASSWORD` 注入独立强密码。
 生产部署必须通过 `CHATCHAT_LICENSE_DB_PASSWORD` 替换为当前环境唯一的强密码；密码至少 20 位，
 且必须同时包含大小写字母、数字和特殊字符。若部署配置将密码显式留空，启动脚本会调用 OpenSSL
 生成随机强密码，写入 `config/license-center.env` 并将权限收紧为 `600`。已经使用其他密码创建过

@@ -19,7 +19,7 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: "ENC(RJGDk0FA9Xht7fHK:VBpgvsk5UR2XGCoSxNL7eqlS0Lu4r2UG1U6vvQ6NM7KBEwQ6/5j09M/A+mdijO9H)"
+    encrypted-secret: "${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}"
     crypto-key-file: ./config/internal-credential.key
   license:
     fail-startup-on-invalid: false
@@ -118,9 +118,9 @@ chatchat:
       index-dir: ./data/lucene/mcp
       open-search:
         enabled: true
-        url: ${CHATCHAT_OPENSEARCH_URL:https://192.168.195.221:9200}
+        url: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
         username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
-        password: ${CHATCHAT_OPENSEARCH_PASSWORD:apexSoft12345}
+        password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
         index-prefix: chatchat_mcp_dev_
         insecure-ssl: true
         request-timeout-ms: 30000

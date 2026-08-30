@@ -1,6 +1,8 @@
 package com.chatchat.chat.insight;
 
-import com.chatchat.agents.orchestration.analysis.SemanticInsightContractProvider;
+import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
+
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

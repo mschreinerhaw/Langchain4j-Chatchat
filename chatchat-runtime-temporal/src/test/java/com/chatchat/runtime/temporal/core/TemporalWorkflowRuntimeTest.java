@@ -16,6 +16,7 @@ import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationCommand;
 import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationResult;
+import com.chatchat.agents.runtime.plan.execution.PlanStepFinalizationCommand;
 import com.chatchat.agents.runtime.plan.execution.PreparedPlanStep;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
@@ -468,6 +469,70 @@ class TemporalWorkflowRuntimeTest {
         verify(phaseHandler, times(2)).arbitrate(any(PlanModelArbitrationCommand.class));
         verify(phaseHandler, times(2)).prepare(any(PlanStepPreparationCommand.class));
         verify(phaseHandler, times(2)).persist(any(PlanNodePersistenceCommand.class));
+    }
+
+    @Test
+    void preparedToolRunsAsChildWorkflowBeforeBusinessFinalization() throws Exception {
+        runtime.register("bootstrap-tool-child-v1", EchoInput.class, EchoOutput.class,
+            (input, context) -> new EchoOutput(input.value(), context.attempt()));
+        runtime.start(request("run-tool-child-bootstrap", "bootstrap-tool-child-v1", "ready"))
+            .completion().get(10, TimeUnit.SECONDS);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("analysis", "asset", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(new InterpretationPlan.Step(
+                1, "mcp_tool", "asset_query", Map.of("customerId", "c-1"),
+                List.of(), null, null))),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of("asset_query"),
+                List.of(), 60_000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(1.0, 0.0, true, List.of()), List.of()));
+        PlanExecutionContinuation initial = new PlanExecutionContinuation(
+            null, "tenant-a::tool-child", plan, List.of(1), List.of(),
+            List.of(), List.of(), 0, Map.of());
+        ToolRuntimeRequest toolRequest = ToolRuntimeRequest.builder()
+            .toolName("asset_query").runtimeMode("interpretation_plan")
+            .toolInput(ToolInput.builder().parameters(Map.of("customerId", "c-1")).build())
+            .build();
+        PlanToolExecutionCommand toolCommand = new PlanToolExecutionCommand(
+            null, "run-tool-child", "scope-1", "0", 1, "PRIMARY",
+            "fingerprint-1", "run-tool-child:step:1", toolRequest);
+        when(phaseHandler.arbitrate(any())).thenReturn(new PlanModelArbitrationResult(
+            "execute_wave", List.of(1), Map.of(), null, "admitted"));
+        when(phaseHandler.prepare(any())).thenReturn(new PlanStepPreparationResult(List.of(
+            new PreparedPlanStep(1, "mcp_tool", "asset_query", toolCommand,
+                1, 60, false, "non-idempotent", null, Map.of()))));
+        ToolRuntimeExecution toolExecution = new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("totalAssets", 100)), null, null, "success", Map.of());
+        when(toolRuntimeService.execute(any(ToolRuntimeRequest.class))).thenReturn(toolExecution);
+        when(phaseHandler.finalizeStep(any())).thenReturn(new PreparedPlanStep(
+            1, "mcp_tool", "asset_query", null, 1, 60, false, "not_applicable",
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "asset_query", true, Map.of("totalAssets", 100),
+                null, toolExecution, null, 1L, Map.of()), Map.of()));
+        when(phaseHandler.persist(any())).thenAnswer(invocation -> {
+            PlanNodePersistenceCommand command = invocation.getArgument(0);
+            PlanExecutionContinuation done = new PlanExecutionContinuation(
+                null, command.continuation().sessionId(), command.continuation().plan(),
+                List.of(), command.waveResults(), List.of(), List.of(), 1, Map.of());
+            return new PlanNodePersistenceResult(done, "COMPLETED");
+        });
+        RuntimeOsPlanExecutionWorkflow workflow = environment.getWorkflowClient().newWorkflowStub(
+            RuntimeOsPlanExecutionWorkflow.class,
+            WorkflowOptions.newBuilder().setWorkflowId("plan-tool-child-workflow")
+                .setTaskQueue(taskQueue).build());
+
+        TemporalPlanExecutionResult result = workflow.execute(
+            new TemporalPlanExecutionCommand(null, initial, 60, 1, false));
+
+        assertThat(result.status()).isEqualTo("COMPLETED");
+        verify(toolRuntimeService, times(1)).execute(any(ToolRuntimeRequest.class));
+        ArgumentCaptor<PlanStepFinalizationCommand> finalization =
+            ArgumentCaptor.forClass(PlanStepFinalizationCommand.class);
+        verify(phaseHandler).finalizeStep(finalization.capture());
+        assertThat(finalization.getValue().receipts()).hasSize(1);
+        assertThat(finalization.getValue().receipts().get(0).command().idempotencyKey())
+            .isEqualTo("run-tool-child:step:1");
     }
 
     private WorkflowStartRequest<EchoInput> request(String id, String type, String value) {

@@ -86,7 +86,7 @@ make existing Workflow histories non-replayable. The first two migration slices 
    The Activity revalidates serialized retry admission against the live runtime-owned tool metadata
    before invocation; stale or caller-forged retry claims fail non-retryably without calling the tool.
 
-The mature Agent executor still runs inside the execution Child Workflow's coarse Activity.
+The coarse Agent Activity remains only as the bootstrap/resume compatibility boundary.
 `InterpretationPlanRuntime` no longer calls
 `ToolRuntimeService` directly: primary step calls, retrieval-quality fallbacks and template-contract
 resolution all cross the serializable `plan_tool_execution.v1` port. With the local engine this port
@@ -105,10 +105,12 @@ state is closed and returned as the Workflow result, so recovery has an authorit
 snapshot. The Activity remains the execution plane for model arbitration and mature step logic, but
 it no longer owns Ready-node or commit-barrier decisions.
 
-The next slice moves model arbitration and remaining step preparation/persistence behind dedicated
-Activities, then promotes the deterministic scheduling loop into the execution Child Workflow. At
-that point tool executions can become direct Child Workflows instead of externally started durable
-Workflows.
+The deterministic scheduling loop now runs in the Plan Execution Child Workflow. Model arbitration,
+step preparation, post-tool evidence review and continuation commit use separately named Activities.
+Preparation never invokes an external tool: it emits `plan_tool_execution.v1`, the Workflow executes
+that command through a Tool Child Workflow, and a finalization Activity resumes the mature step
+logic with the recorded receipt. Retrieval-quality fallback calls repeat the same boundary. This
+keeps retry, timeout and idempotency decisions visible in Temporal history.
 
 The Temporal adapter package is classified by responsibility: `config`, `core`, `contract`,
 `workflow`, `activity` and `adapter`. The root package contains documentation only; an architecture
@@ -120,14 +122,17 @@ It executes business stages when a `PlanExecutionPhaseHandler` is supplied; with
 immediately with the non-retryable `PLAN_PHASE_HANDLER_UNAVAILABLE` application failure. It owns
 the deterministic `while (remaining)` loop, validates Ready-wave admission, evaluates the barrier
 and invokes tool executions as direct Child Workflows. Model arbitration, step preparation and node
-journal/checkpoint persistence use versioned `plan_*.v1` contracts and three separately
-named Activities. `AgentOrchestrationEngine` now implements the resumable Agent contract and
+journal/continuation persistence use versioned `plan_*.v1` contracts and four separately
+named Activities. Speculative preparation/finalization disables Agent journal writes so Activity
+re-execution cannot duplicate business events. `AgentOrchestrationEngine` now implements the resumable Agent contract and
 delegates Activity behavior to `AgentPlanPhaseActivityCoordinator`, which reuses the mature
 parameter-binding, template-batch and evidence-review runtime. For `agent-run-v1`, the Agent
 Execution Workflow runs a deterministic `bootstrap -> Plan Child Workflow -> resume` loop; a plan
 rewrite yields another continuation without invoking the top-level planner again. The legacy coarse
 Activity remains only behind Temporal versioning for replay of histories created before this change,
 and non-Agent registered workflow types continue to use the generic Activity route.
+Temporal configuration fails during Spring startup unless the business handler implements both
+`PlanExecutionPhaseHandler` and `ResumableAgentRunExecutor`; a miswired Worker cannot accept Runs.
 
 ## Configuration
 

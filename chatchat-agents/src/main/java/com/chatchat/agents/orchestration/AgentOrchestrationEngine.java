@@ -43,6 +43,8 @@ import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
 import com.chatchat.agents.orchestration.planning.InterpretationPlanWorkflowGuard;
 import com.chatchat.agents.orchestration.planning.AgentPlanEvolutionAuditor;
 import com.chatchat.agents.orchestration.planning.InterpretationPlanSnapshotService;
+import com.chatchat.agents.orchestration.planning.AgentPlanExecutionBridge;
+import com.chatchat.agents.orchestration.planning.AgentPlanPhaseActivityCoordinator;
 import com.chatchat.agents.orchestration.lifecycle.AgentRunLifecycleCoordinator;
 import com.chatchat.agents.orchestration.lifecycle.AgentRunScopeBinder;
 import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
@@ -118,6 +120,15 @@ import com.chatchat.agents.runtime.plan.execution.AgentPlanPipelineContinuation;
 import com.chatchat.agents.runtime.plan.execution.AgentPlanSuspendedException;
 import com.chatchat.agents.runtime.plan.execution.AgentRunExecutionSlice;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionContinuation;
+import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
+import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
+import com.chatchat.agents.runtime.plan.execution.PlanModelArbitrationCommand;
+import com.chatchat.agents.runtime.plan.execution.PlanModelArbitrationResult;
+import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationCommand;
+import com.chatchat.agents.runtime.plan.execution.PlanStepPreparationResult;
+import com.chatchat.agents.runtime.plan.execution.PreparedPlanStep;
+import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceCommand;
+import com.chatchat.agents.runtime.plan.execution.PlanNodePersistenceResult;
 import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
@@ -159,6 +170,7 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
 import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
 
@@ -166,7 +178,8 @@ import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
  * Agent orchestrator with tool planning and execution loop.
  */
 @Slf4j
-class AgentOrchestrationEngine implements AgentRunExecutor {
+class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExecutor,
+    PlanExecutionPhaseHandler {
 
     private static final int DEFAULT_MAX_STEPS = 3;
     private static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
@@ -188,9 +201,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
     private static final String WORKFLOW_PROBLEM_SOLVING = "agent_problem_solving";
-    private final ThreadLocal<Boolean> durablePlanSuspension =
-        ThreadLocal.withInitial(() -> Boolean.FALSE);
-    private final ThreadLocal<AgentRunRequest> activeAgentRunRequest = new ThreadLocal<>();
+    private final AgentPlanExecutionBridge planExecutionBridge;
+    private final AgentPlanPhaseActivityCoordinator planPhaseActivities;
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeService toolRuntimeService;
     private PlanToolExecutionPort planToolExecutionPort;
@@ -368,6 +380,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         this.planToolExecutionPort = new LocalPlanToolExecutionPort(toolRuntimeService);
         this.planDagControlPort = new LocalPlanDagControlPort();
         this.objectMapper = objectMapper;
+        this.planExecutionBridge = new AgentPlanExecutionBridge(objectMapper, AGENT_CANCELLATION_ATTRIBUTE);
         this.toolResultFactExtractor = new AgentToolResultFactExtractor(objectMapper);
         this.recordChunkPlanner = new AnalysisRecordChunkPlanner(objectMapper);
         this.summaryCheckpointService = new AnalysisSummaryCheckpointService(
@@ -413,6 +426,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         this.modelAssistedRetrievalBridge = new ModelAssistedRetrievalBridge(this.toolRegistry, objectMapper);
         this.modelAssistedContextParameterBridge =
             new ModelAssistedContextParameterBridge(this.toolRegistry, objectMapper);
+        this.planPhaseActivities = new AgentPlanPhaseActivityCoordinator(
+            toolRegistry, toolRuntimeService, this.runStore, phaseActivityOperations());
         this.answerFinalizer = new AgentAnswerFinalizer(
             resolvedAnswerReviewer,
             this.runtimeGuard,
@@ -544,22 +559,62 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     }
 
     /** Executes until completion or the first durable InterpretationPlan boundary. */
+    @Override
     public AgentRunExecutionSlice executeUntilPlanSuspension(
         AgentRunRequest request, KernelDataScope scope) {
-        durablePlanSuspension.set(Boolean.TRUE);
-        try {
-            return AgentRunExecutionSlice.completed(execute(request, scope));
-        } catch (AgentPlanSuspendedException suspension) {
-            return AgentRunExecutionSlice.suspended(suspension.continuation());
-        } finally {
-            durablePlanSuspension.remove();
-        }
+        return planExecutionBridge.executeUntilSuspension(request, scope, this::execute);
+    }
+
+    @Override
+    public AgentRunExecutionSlice resumeAfterPlanExecution(
+        AgentPlanPipelineContinuation continuation,
+        InterpretationPlanRuntime.ExecutionResult executionResult,
+        KernelDataScope scope
+    ) {
+        return planExecutionBridge.resume(continuation, executionResult, scope, this::execute);
+    }
+
+    @Override
+    public PlanModelArbitrationResult arbitrate(PlanModelArbitrationCommand command) {
+        return planPhaseActivities.arbitrate(command);
+    }
+
+    @Override
+    public PlanStepPreparationResult prepare(PlanStepPreparationCommand command) {
+        return planPhaseActivities.prepare(command);
+    }
+
+    @Override
+    public PlanNodePersistenceResult persist(PlanNodePersistenceCommand command) {
+        return planPhaseActivities.persist(command);
+    }
+
+    private AgentPlanPhaseActivityCoordinator.Operations phaseActivityOperations() {
+        return new AgentPlanPhaseActivityCoordinator.Operations() {
+            public ChatModel model(String name) { return chatModelResolver.resolveChatModel(name); }
+            public InterpretationPlanRuntime.DagDecision decide(ChatModel model, String query,
+                String prompt, InterpretationPlanRuntime.DagDecisionRequest request) {
+                return decideInterpretationPlanDagStep(model, query, prompt, () -> false, request);
+            }
+            public InterpretationPlanRuntime.StepReview review(ChatModel model, String query,
+                String prompt, InterpretationPlanRuntime.StepReviewRequest request) {
+                return reviewInterpretationPlanToolResult(model, query, prompt, () -> false, request);
+            }
+            public Map<String, Object> enrich(ChatModel model, String query,
+                InterpretationPlanRuntime.StepInputEnrichmentRequest request) {
+                String tool = request.step() == null ? null : request.step().toolName();
+                var evidence = templateRetrievalEvidenceContext(query, request.completed());
+                Map<String, Object> input = modelAssistedContextParameterBridge.propose(
+                    model, tool, request.input(), evidence);
+                return modelAssistedRetrievalBridge.enrichWithGate(
+                    model, tool, input, evidence).argumentsWithGateMarker();
+            }
+            public PlanToolExecutionPort toolPort() { return planToolExecutionPort; }
+        };
     }
 
     private AgentOrchestrator.AgentExecutionResult executeAgentRequest(AgentRunRequest request) {
-        activeAgentRunRequest.set(request);
-        try {
-            return executeAgent(
+        return planExecutionBridge.withRequest(request, () -> executeAgent(
                 request.getQuery(),
                 request.getTenantId(),
                 request.getAvailableTools(),
@@ -575,10 +630,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 request.getRequiredToolNames(),
                 request.isRequireBoundToolCall(),
                 runtimeAttributesFor(request)
-            );
-        } finally {
-            activeAgentRunRequest.remove();
-        }
+            ));
     }
 
 
@@ -860,6 +912,30 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             metadata.put("timeoutMs", runtimeGuard.runtimeLong(timeoutMs, 0L));
         }
         metadata.put("plannerSteps", plannerSteps);
+
+        AgentPlanPipelineContinuation continuation = planExecutionBridge.resumedPipeline();
+        if (continuation != null) {
+            return executeInterpretationPlanPipeline(
+                continuation.currentPlan(),
+                activeChatModel,
+                query,
+                systemPrompt,
+                tenantId,
+                requestId,
+                conversationId,
+                userId,
+                tools,
+                new LinkedHashMap<>(continuation.runtimeAttributes()),
+                new ArrayList<>(continuation.traces()),
+                new ArrayList<>(continuation.observations()),
+                new LinkedHashMap<>(continuation.metadata()),
+                documentIds,
+                documentTags,
+                webSearchResultLimit,
+                maxToolCalls,
+                cancellationCheck
+            );
+        }
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
         log.info("[{}] Agent planner capability projection. plannerVisibleTools={} internalToolDelegations={}",
@@ -1433,8 +1509,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             planDagControlPort
         );
         runtime.setNodeAttemptStore(nodeAttemptStore);
-        List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>();
-        List<Map<String, Object>> evidenceHistory = new ArrayList<>();
+        AgentPlanPipelineContinuation resumedPipeline = planExecutionBridge.resumedPipeline();
+        InterpretationPlan initialPipelinePlan = resumedPipeline == null
+            ? plan : resumedPipeline.initialPlan();
+        int resumedRewriteCount = resumedPipeline == null ? 0 : resumedPipeline.rewriteCount();
+        List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>(
+            resumedPipeline == null ? List.of() : resumedPipeline.attemptResults());
+        List<Map<String, Object>> evidenceHistory = new ArrayList<>(
+            resumedPipeline == null ? List.of() : resumedPipeline.evidenceHistory());
         InterpretationPlanValidator.ValidationResult initialEvaluation = validator.validate(
             plan,
             toolRegistry,
@@ -1455,10 +1537,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 tools,
                 workflowAttemptAttributes(runtimeAttributes, 0)
             );
-            suspendForDurablePlanExecution(
-                plan, executionRequest, runtimeAttributes, traces, observations, metadata);
-            firstResult = runtime.execute(executionRequest,
-                planKernelScope(tenantId, userId, requestId, conversationId, runtimeAttributes));
+            InterpretationPlanRuntime.ExecutionResult resumedResult = planExecutionBridge.consume(
+                plan, ToolCallFingerprint.forPlan(plan));
+            if (resumedResult != null) {
+                firstResult = resumedResult;
+            } else {
+                suspendForDurablePlanExecution(
+                    initialPipelinePlan, plan, executionRequest,
+                    resumedRewriteCount, maxRewriteTimes(initialPipelinePlan),
+                    planAttemptResults, evidenceHistory,
+                    runtimeAttributes, traces, observations, metadata);
+                firstResult = runtime.execute(executionRequest,
+                    planKernelScope(tenantId, userId, requestId, conversationId, runtimeAttributes));
+            }
         } else {
             firstResult = planEvaluationFailure("initial", initialEvaluation);
         }
@@ -1489,7 +1580,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             runtimeAttributes, metadata, cancellationCheck
         );
         evidenceHistory.add(firstEvidence);
-        int configuredMaxRewriteTimes = maxRewriteTimes(plan);
+        int configuredMaxRewriteTimes = maxRewriteTimes(initialPipelinePlan);
         boolean firstEvidenceAvailable = usableEvidenceAvailable(firstEvidence);
         boolean actionableEvidenceRefinementAvailable =
             !evidenceRefinementRequiredTools(evidenceHistory, tools).isEmpty();
@@ -1584,7 +1675,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             metadata.put("evidenceAugmentationOverrideReason",
                 "A non-empty MCP result had an actionable evidence gap; one bounded refinement round was preserved.");
         }
-        for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
+        for (int rewriteCount = resumedRewriteCount + 1;
+             rewriteCount <= maxRewriteTimes; rewriteCount++) {
             String rewriteSummary = planEvolutionAuditor.rewriteSummary(
                 rewriteCount,
                 currentPlan,
@@ -1775,6 +1867,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 tools,
                 rewriteExecutionAttributes
             );
+            suspendForDurablePlanExecution(
+                initialPipelinePlan, currentPlan, rewriteRequest,
+                rewriteCount, maxRewriteTimes, planAttemptResults, evidenceHistory,
+                runtimeAttributes, traces, observations, metadata);
             currentResult = runtime.execute(rewriteRequest,
                 planKernelScope(tenantId, userId, requestId, conversationId, rewriteExecutionAttributes));
             reusablePlanSteps = reusablePlanSteps(reusablePlanSteps, currentPlan, currentResult);
@@ -1915,7 +2011,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             && !duplicateToolPlanSuppressed
             && (maxRewriteTimes <= 0
                 || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes));
-        metadata.put("interpretationPlanFallbackMode", planEvolutionAuditor.fallbackMode(plan));
+        metadata.put("interpretationPlanFallbackMode",
+            planEvolutionAuditor.fallbackMode(initialPipelinePlan));
         String evidenceCompletionReason = usablePartialAnalysis
             ? "evidence_partial_analysis"
             : duplicateToolPlanSuppressed
@@ -2371,95 +2468,22 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     }
 
     private void suspendForDurablePlanExecution(
-        InterpretationPlan plan,
+        InterpretationPlan initialPlan,
+        InterpretationPlan currentPlan,
         InterpretationPlanRuntime.ExecutionRequest executionRequest,
+        int rewriteCount,
+        int maxRewriteTimes,
+        List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
+        List<Map<String, Object>> evidenceHistory,
         Map<String, Object> runtimeAttributes,
         List<InteractionToolTrace> traces,
         List<String> observations,
         Map<String, Object> metadata
     ) {
-        if (!Boolean.TRUE.equals(durablePlanSuspension.get())) {
-            return;
-        }
-        AgentRunRequest source = activeAgentRunRequest.get();
-        if (source == null) {
-            throw new IllegalStateException(
-                "Durable plan suspension requires the originating AgentRunRequest");
-        }
-        Map<String, Object> durableRuntimeAttributes = durableMap(runtimeAttributes);
-        Map<String, Object> executionContext = new LinkedHashMap<>();
-        executionContext.put("tenantId", executionRequest.tenantId());
-        executionContext.put("requestId", executionRequest.requestId());
-        executionContext.put("conversationId", executionRequest.conversationId());
-        executionContext.put("userId", executionRequest.userId());
-        executionContext.put("allowedTools", List.copyOf(
-            executionRequest.allowedTools() == null ? List.of() : executionRequest.allowedTools()));
-        executionContext.put("attributes", durableMap(executionRequest.attributes()));
-        String stableRunId = firstNonBlank(source.getRunId(),
-            firstNonBlank(source.getRequestId(), executionRequest.requestId()));
-        String continuationId = firstNonBlank(executionRequest.tenantId(), "default")
-            + "::" + firstNonBlank(stableRunId, "unscoped") + "::plan-attempt:1";
-        PlanExecutionContinuation planContinuation = new PlanExecutionContinuation(
-            PlanExecutionContinuation.SCHEMA_VERSION,
-            continuationId,
-            plan,
-            plan.steps().stream().map(InterpretationPlan.Step::id)
-                .filter(Objects::nonNull).toList(),
-            List.of(), List.of(), List.of(), 0,
-            durableMap(executionContext));
-        AgentPlanPipelineContinuation pipelineContinuation =
-            new AgentPlanPipelineContinuation(
-                AgentPlanPipelineContinuation.SCHEMA_VERSION,
-                continuationId,
-                durableRequest(source),
-                plan,
-                plan,
-                planContinuation,
-                1,
-                0,
-                maxRewriteTimes(plan),
-                List.of(),
-                List.of(),
-                traces,
-                observations,
-                durableRuntimeAttributes,
-                durableMap(metadata));
-        throw new AgentPlanSuspendedException(pipelineContinuation);
-    }
-
-    private AgentRunRequest durableRequest(AgentRunRequest source) {
-        return AgentRunRequest.builder()
-            .runId(source.getRunId())
-            .query(source.getQuery())
-            .tenantId(source.getTenantId())
-            .availableTools(List.copyOf(source.getAvailableTools() == null
-                ? List.of() : source.getAvailableTools()))
-            .systemPrompt(source.getSystemPrompt())
-            .modelName(source.getModelName())
-            .boundDocumentIds(List.copyOf(source.getBoundDocumentIds() == null
-                ? List.of() : source.getBoundDocumentIds()))
-            .boundDocumentTags(List.copyOf(source.getBoundDocumentTags() == null
-                ? List.of() : source.getBoundDocumentTags()))
-            .skillId(source.getSkillId())
-            .requestId(source.getRequestId())
-            .conversationId(source.getConversationId())
-            .userId(source.getUserId())
-            .webSearchResultLimit(source.getWebSearchResultLimit())
-            .requiredToolNames(List.copyOf(source.getRequiredToolNames() == null
-                ? List.of() : source.getRequiredToolNames()))
-            .requireBoundToolCall(source.isRequireBoundToolCall())
-            .maxSteps(source.getMaxSteps())
-            .maxToolCalls(source.getMaxToolCalls())
-            .timeoutMs(source.getTimeoutMs())
-            .attributes(durableMap(source.getAttributes()))
-            .build();
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> durableMap(Map<String, Object> source) {
-        Map<String, Object> values = new LinkedHashMap<>(source == null ? Map.of() : source);
-        values.remove(AGENT_CANCELLATION_ATTRIBUTE);
-        return objectMapper.convertValue(values, Map.class);
+        planExecutionBridge.suspend(
+            initialPlan, currentPlan, executionRequest, rewriteCount, maxRewriteTimes,
+            attemptResults, evidenceHistory, runtimeAttributes, traces, observations, metadata,
+            ToolCallFingerprint.forPlan(currentPlan));
     }
 
     protected Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes, int attempt) {

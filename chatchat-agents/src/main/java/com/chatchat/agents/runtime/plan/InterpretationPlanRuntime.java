@@ -1540,6 +1540,41 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         return futures.stream().map(CompletableFuture::join).toList();
     }
 
+    /**
+     * Executes exactly the Ready nodes already admitted by an external deterministic Workflow.
+     * Planning and DAG progression remain outside this method; node preparation, parameter
+     * binding, template batching and evidence review continue to use the mature runtime logic.
+     */
+    public List<StepExecution> executeAdmittedWave(ExecutionRequest request,
+                                                   List<Integer> admittedStepIds,
+                                                   List<StepExecution> completedSteps,
+                                                   String executionEpoch) {
+        Objects.requireNonNull(request, "request");
+        Set<Integer> admitted = admittedStepIds == null ? Set.of()
+            : admittedStepIds.stream().filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (admitted.isEmpty()) {
+            return List.of();
+        }
+        Map<Integer, InterpretationPlan.Step> definitions = request.plan().steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> step.id() != null)
+            .collect(Collectors.toMap(InterpretationPlan.Step::id, step -> step));
+        if (!definitions.keySet().containsAll(admitted)) {
+            throw new IllegalArgumentException("Admitted wave contains unknown plan step ids");
+        }
+        Map<Integer, StepExecution> completed = new LinkedHashMap<>();
+        if (completedSteps != null) {
+            completedSteps.stream().filter(Objects::nonNull)
+                .filter(step -> step.stepId() != null)
+                .forEach(step -> completed.put(step.stepId(), step));
+        }
+        List<InterpretationPlan.Step> selected = admitted.stream().sorted()
+            .map(definitions::get).toList();
+        return executeWave(selected, request, completed,
+            firstText(executionEpoch, executionTraceId(request) + ":external-wave"));
+    }
+
     private StepExecution executeStep(InterpretationPlan.Step step,
                                       ExecutionRequest request,
                                       Map<Integer, StepExecution> completed,

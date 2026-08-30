@@ -121,11 +121,13 @@ immediately with the non-retryable `PLAN_PHASE_HANDLER_UNAVAILABLE` application 
 the deterministic `while (remaining)` loop, validates Ready-wave admission, evaluates the barrier
 and invokes tool executions as direct Child Workflows. Model arbitration, step preparation and node
 journal/checkpoint persistence use versioned `plan_*.v1` contracts and three separately
-named Activities. A business-owned `PlanExecutionPhaseHandler` supplies those non-deterministic
-operations, keeping planning rules out of the Temporal adapter. The existing coarse Agent entry is
-retained as the compatibility route until `AgentOrchestrationEngine` exposes a resumable plan
-bootstrap/continuation boundary; switching before that boundary exists would create a second
-planner implementation.
+named Activities. `AgentOrchestrationEngine` now implements the resumable Agent contract and
+delegates Activity behavior to `AgentPlanPhaseActivityCoordinator`, which reuses the mature
+parameter-binding, template-batch and evidence-review runtime. For `agent-run-v1`, the Agent
+Execution Workflow runs a deterministic `bootstrap -> Plan Child Workflow -> resume` loop; a plan
+rewrite yields another continuation without invoking the top-level planner again. The legacy coarse
+Activity remains only behind Temporal versioning for replay of histories created before this change,
+and non-Agent registered workflow types continue to use the generic Activity route.
 
 ## Configuration
 

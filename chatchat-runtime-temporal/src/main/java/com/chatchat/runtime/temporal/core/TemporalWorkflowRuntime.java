@@ -10,6 +10,7 @@ import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
 import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
+import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
 import com.chatchat.runtime.temporal.activity.RuntimeOsPlanStageActivityImpl;
 import com.chatchat.runtime.temporal.activity.RuntimeOsToolActivityImpl;
 import com.chatchat.runtime.temporal.activity.RuntimeOsWorkflowActivityImpl;
@@ -86,7 +87,10 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
         this.workerFactory = workerFactory;
         this.objectMapper = objectMapper.copy();
         this.properties = properties;
-        this.activity = new RuntimeOsWorkflowActivityImpl(registry, this.objectMapper);
+        this.activity = new RuntimeOsWorkflowActivityImpl(
+            registry, this.objectMapper,
+            planExecutionPhaseHandler instanceof ResumableAgentRunExecutor resumable
+                ? resumable : null);
         this.toolActivity = toolRuntimeService == null ? null
             : new RuntimeOsToolActivityImpl(toolRuntimeService);
         this.planStageActivity = new RuntimeOsPlanStageActivityImpl(planExecutionPhaseHandler);

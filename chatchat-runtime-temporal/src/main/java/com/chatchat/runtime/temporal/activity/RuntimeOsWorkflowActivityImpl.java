@@ -3,6 +3,14 @@ package com.chatchat.runtime.temporal.activity;
 import com.chatchat.agents.runtime.workflow.WorkflowDefinition;
 import com.chatchat.agents.runtime.workflow.WorkflowExecutionContext;
 import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
+import com.chatchat.agents.runtime.AgentRunRequest;
+import com.chatchat.agents.runtime.AgentRunResult;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.plan.execution.AgentRunExecutionSlice;
+import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.runtime.temporal.contract.TemporalAgentExecutionSlice;
+import com.chatchat.runtime.temporal.contract.TemporalAgentResumeCommand;
 import com.chatchat.runtime.temporal.contract.TemporalWorkflowCommand;
 import com.chatchat.runtime.temporal.contract.TemporalWorkflowResult;
 import com.chatchat.runtime.temporal.core.TemporalWorkflowDefinitionRegistry;
@@ -21,6 +29,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Map;
 
 public final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowActivity, AutoCloseable {
 
@@ -29,14 +38,73 @@ public final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowAct
     private final TemporalWorkflowDefinitionRegistry registry;
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService heartbeatExecutor;
+    private final ResumableAgentRunExecutor resumableAgentRunExecutor;
 
     public RuntimeOsWorkflowActivityImpl(TemporalWorkflowDefinitionRegistry registry,
                                          ObjectMapper objectMapper) {
+        this(registry, objectMapper, null);
+    }
+
+    public RuntimeOsWorkflowActivityImpl(TemporalWorkflowDefinitionRegistry registry,
+                                         ObjectMapper objectMapper,
+                                         ResumableAgentRunExecutor resumableAgentRunExecutor) {
         this.registry = registry;
         this.objectMapper = objectMapper;
+        this.resumableAgentRunExecutor = resumableAgentRunExecutor;
         int heartbeatThreads = Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors()));
         this.heartbeatExecutor = Executors.newScheduledThreadPool(
             heartbeatThreads, new HeartbeatThreadFactory());
+    }
+
+    @Override
+    public TemporalAgentExecutionSlice bootstrapAgent(TemporalWorkflowCommand command) {
+        ResumableAgentRunExecutor executor = requiredResumableExecutor();
+        try {
+            AgentRunRequest request = objectMapper.readValue(command.inputJson(), AgentRunRequest.class);
+            return temporalSlice(executor.executeUntilPlanSuspension(request, kernelScope(request)));
+        } catch (JsonProcessingException failure) {
+            throw new IllegalStateException("Temporal Agent bootstrap payload conversion failed", failure);
+        }
+    }
+
+    @Override
+    public TemporalAgentExecutionSlice resumeAgent(TemporalAgentResumeCommand command) {
+        ResumableAgentRunExecutor executor = requiredResumableExecutor();
+        AgentRunRequest request = command.continuation().request();
+        var result = command.planResult();
+        InterpretationPlanRuntime.ExecutionResult executionResult =
+            new InterpretationPlanRuntime.ExecutionResult(
+                result.status(), "COMPLETED".equalsIgnoreCase(result.status()), false,
+                result.reason(), result.finalAnswer(), result.executions(),
+                Map.of("temporalPlanExecutionStatus", result.status()), 0L);
+        return temporalSlice(executor.resumeAfterPlanExecution(
+            command.continuation(), executionResult, kernelScope(request)));
+    }
+
+    private TemporalAgentExecutionSlice temporalSlice(AgentRunExecutionSlice slice) {
+        try {
+            String output = slice.completedResult() == null ? null
+                : objectMapper.writeValueAsString(slice.completedResult());
+            return new TemporalAgentExecutionSlice(slice.status(), output, slice.suspendedPlan());
+        } catch (JsonProcessingException failure) {
+            throw new IllegalStateException("Temporal Agent result conversion failed", failure);
+        }
+    }
+
+    private ResumableAgentRunExecutor requiredResumableExecutor() {
+        if (resumableAgentRunExecutor == null) {
+            throw new IllegalStateException("Resumable Agent executor is not configured");
+        }
+        return resumableAgentRunExecutor;
+    }
+
+    private KernelDataScope kernelScope(AgentRunRequest request) {
+        Map<String, Object> attributes = request.getAttributes() == null
+            ? Map.of() : request.getAttributes();
+        return new KernelDataScope(
+            request.getTenantId(), request.getUserId(), request.getRequestId(),
+            request.getConversationId(), request.getRunId(),
+            String.valueOf(attributes.getOrDefault("agentRuntimeEnvironment", "")), attributes);
     }
 
     @Override

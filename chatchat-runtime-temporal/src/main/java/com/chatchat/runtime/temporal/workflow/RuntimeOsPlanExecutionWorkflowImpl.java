@@ -52,7 +52,7 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
 
         while (!state.remainingStepIds().isEmpty()) {
             List<Integer> completedIds = executions.stream()
-                .filter(step -> step != null && step.stepId() != null)
+                .filter(step -> step != null && step.success() && step.stepId() != null)
                 .map(InterpretationPlanRuntime.StepExecution::stepId)
                 .distinct().sorted().toList();
             List<Integer> ready = machine.ready(graph, state.remainingStepIds(), completedIds);

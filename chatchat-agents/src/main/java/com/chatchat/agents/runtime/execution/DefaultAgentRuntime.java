@@ -44,6 +44,8 @@ import java.util.function.BooleanSupplier;
 @Service
 public class DefaultAgentRuntime implements AgentRuntime {
 
+    private static final String AGENT_WORKFLOW_TYPE = "agent-run-v1";
+
     private final AgentRunExecutor runExecutor;
     private final AgentRunStore runStore;
     private final WorkflowRuntime workflowRuntime;
@@ -83,6 +85,12 @@ public class DefaultAgentRuntime implements AgentRuntime {
         this.workflowRuntime = workflowRuntime == null
             ? new LocalWorkflowRuntime(ForkJoinPool.commonPool(), new AgentRuntimeProperties())
             : workflowRuntime;
+        this.workflowRuntime.register(
+            AGENT_WORKFLOW_TYPE,
+            AgentRunRequest.class,
+            AgentRunResult.class,
+            this::executeRegisteredWorkflow
+        );
     }
 
     @Override
@@ -127,17 +135,11 @@ public class DefaultAgentRuntime implements AgentRuntime {
         WorkflowHandle<AgentRunResult> workflow = workflowRuntime.start(
             new WorkflowStartRequest<>(
                 submitted.runId(),
-                "agent-run-v1",
+                AGENT_WORKFLOW_TYPE,
                 tenantId,
                 tenantId + ":" + requestId,
                 request
-            ),
-            (input, context) -> {
-                installCancellationSignal(input, context::cancellationRequested);
-                context.checkCancellation();
-                return persistWorkflowResult(submitted.runId(), run(input));
-            }
-        );
+            ));
         CompletableFuture<AgentRunResult> completion = workflow.completion()
             .handle((result, failure) -> finishWorkflow(submitted.runId(), result, failure));
         return new AgentRunHandle(submitted.runId(), completion);
@@ -278,6 +280,23 @@ public class DefaultAgentRuntime implements AgentRuntime {
             || status == AgentRunStatus.COMPLETED
             || status == AgentRunStatus.FAILED
             || status == AgentRunStatus.CANCELLED;
+    }
+
+    /**
+     * Durable workflow entry point. Temporal may dispatch an Activity again after a
+     * worker process is lost, so a terminal store record is the authoritative result.
+     */
+    private AgentRunResult executeRegisteredWorkflow(
+        AgentRunRequest input,
+        com.chatchat.agents.runtime.workflow.WorkflowExecutionContext context
+    ) {
+        AgentRun existing = runStore.find(input.getRunId()).orElse(null);
+        if (existing != null && isTerminal(existing.status())) {
+            return storedRunResult(existing);
+        }
+        installCancellationSignal(input, context::cancellationRequested);
+        context.checkCancellation();
+        return persistWorkflowResult(input.getRunId(), run(input));
     }
 
     private AgentRunResult persistWorkflowResult(String runId, AgentRunResult result) {

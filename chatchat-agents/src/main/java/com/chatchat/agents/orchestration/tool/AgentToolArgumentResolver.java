@@ -284,14 +284,15 @@ public class AgentToolArgumentResolver {
 
     private Map<String, Object> templateRequirementReviewDenied(
         Map<String, Object> input,
-        int admittedCount
+        int compatibleCandidateCount
     ) {
         Map<String, Object> denied = new LinkedHashMap<>(input == null ? Map.of() : input);
         denied.put(McpParamBindingResolver.STATUS_KEY, "DENIED");
         denied.put(McpParamBindingResolver.CODE_KEY, "TEMPLATE_REQUIREMENT_REVIEW_REQUIRED");
         denied.put(McpParamBindingResolver.ERROR_KEY,
             "Multiple business-template candidates require semantic admission from the original user question "
-                + "and cumulative analysis context before execution; admittedCount=" + admittedCount);
+                + "and cumulative analysis context before execution; compatibleCandidateCount="
+                + compatibleCandidateCount);
         return denied;
     }
 

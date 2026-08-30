@@ -7,6 +7,7 @@ import com.chatchat.agents.runtime.workflow.WorkflowExecutionSnapshot;
 import com.chatchat.agents.runtime.workflow.WorkflowExecutionStatus;
 import com.chatchat.agents.runtime.workflow.WorkflowHandle;
 import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
+import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
 import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
 
 import java.util.Optional;
@@ -30,6 +31,7 @@ public final class LocalWorkflowRuntime implements WorkflowRuntime {
 
     private final TenantFairExecutor executor;
     private final ConcurrentMap<String, ExecutionSlot<?>> executions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, WorkflowRegistration<?, ?>> registrations = new ConcurrentHashMap<>();
 
     public LocalWorkflowRuntime(Executor executor, AgentRuntimeProperties properties) {
         this.executor = new TenantFairExecutor(
@@ -39,16 +41,25 @@ public final class LocalWorkflowRuntime implements WorkflowRuntime {
     }
 
     @Override
-    public <I, O> WorkflowHandle<O> start(
-        WorkflowStartRequest<I> request,
-        WorkflowDefinition<I, O> definition
-    ) {
+    public <I, O> void register(String workflowType, Class<I> inputType, Class<O> outputType,
+                                WorkflowDefinition<I, O> definition) {
+        WorkflowRegistration<I, O> registration =
+            new WorkflowRegistration<>(workflowType, inputType, outputType, definition);
+        WorkflowRegistration<?, ?> existing = registrations.putIfAbsent(
+            registration.workflowType(), registration);
+        if (existing != null && (!existing.inputType().equals(inputType)
+            || !existing.outputType().equals(outputType))) {
+            throw new IllegalStateException("Workflow type is already registered with another contract: "
+                + workflowType);
+        }
+    }
+
+    @Override
+    public <I, O> WorkflowHandle<O> start(WorkflowStartRequest<I> request) {
         if (request == null) {
             throw new IllegalArgumentException("Workflow start request is required");
         }
-        if (definition == null) {
-            throw new IllegalArgumentException("Workflow definition is required");
-        }
+        WorkflowRegistration<I, O> registration = registration(request);
 
         ExecutionSlot<O> created = new ExecutionSlot<>(request);
         ExecutionSlot<?> existing = executions.putIfAbsent(request.workflowId(), created);
@@ -59,12 +70,25 @@ public final class LocalWorkflowRuntime implements WorkflowRuntime {
 
         try {
             executor.execute(request.tenantId(),
-                () -> execute(created, request.input(), definition),
+                () -> execute(created, request.input(), registration.definition()),
                 failure -> reject(created, failure));
         } catch (RejectedExecutionException failure) {
             reject(created, failure);
         }
         return new WorkflowHandle<>(request.workflowId(), true, created.completion);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <I, O> WorkflowRegistration<I, O> registration(WorkflowStartRequest<I> request) {
+        WorkflowRegistration<?, ?> registration = registrations.get(request.workflowType());
+        if (registration == null) {
+            throw new IllegalStateException("Workflow type is not registered: " + request.workflowType());
+        }
+        if (request.input() != null && !registration.inputType().isInstance(request.input())) {
+            throw new IllegalArgumentException("Workflow input does not match registered type: "
+                + request.workflowType());
+        }
+        return (WorkflowRegistration<I, O>) registration;
     }
 
     @Override

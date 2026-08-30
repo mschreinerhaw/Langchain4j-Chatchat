@@ -11,10 +11,14 @@ import java.util.Optional;
  */
 public interface WorkflowRuntime {
 
-    <I, O> WorkflowHandle<O> start(
-        WorkflowStartRequest<I> request,
+    <I, O> void register(
+        String workflowType,
+        Class<I> inputType,
+        Class<O> outputType,
         WorkflowDefinition<I, O> definition
     );
+
+    <I, O> WorkflowHandle<O> start(WorkflowStartRequest<I> request);
 
     boolean cancel(String workflowId, String reason);
 

@@ -111,6 +111,10 @@ public final class MandatoryWorkflowRecoveryCoordinator {
             List<InteractionToolTrace> predecessors = topology.predecessorTraces(
                 value(runtimeAttributes, "authoritativeWorkflowDag"), request.mandatoryTools(),
                 fallbackTool, request.traces());
+            if (!reviewCompletedDiscoveryPredecessors(
+                request, predecessors, reviewedDiscoveryTraces, candidateReviewer)) {
+                return;
+            }
             predecessors = reviewedTraces(predecessors, reviewedDiscoveryTraces);
             Map<String, Object> predecessorReview = resultReviewer.reviewPredecessors(fallbackTool, predecessors);
             if (!Boolean.TRUE.equals(predecessorReview.get("satisfied"))) {
@@ -214,6 +218,64 @@ public final class MandatoryWorkflowRecoveryCoordinator {
         request.metadata().put(remaining.isEmpty()
             ? "mandatoryWorkflowRecoveredAfterPlan" : "mandatoryWorkflowStillMissingAfterFallback",
             remaining.isEmpty() ? true : remaining);
+    }
+
+    /**
+     * Materializes semantic candidate admission for discovery tools that were completed by the
+     * primary plan before mandatory recovery started. Previously only discovery calls executed
+     * inside this recovery loop were projected, so a missing executor saw the raw multi-candidate
+     * output and correctly (but misleadingly) failed closed.
+     */
+    boolean reviewCompletedDiscoveryPredecessors(
+        Request request,
+        List<InteractionToolTrace> predecessors,
+        Map<String, InteractionToolTrace> reviewedDiscoveryTraces,
+        CandidateReviewer candidateReviewer
+    ) {
+        if (predecessors == null || predecessors.isEmpty()) {
+            return true;
+        }
+        for (InteractionToolTrace trace : predecessors) {
+            if (trace == null || !trace.isSuccess() || trace.getToolName() == null
+                || reviewedDiscoveryTraces.keySet().stream()
+                    .anyMatch(name -> toolNames.sameToolName(name, trace.getToolName()))) {
+                continue;
+            }
+            Object data = parseTraceOutput(trace.getOutput());
+            ToolOutput output = ToolOutput.builder()
+                .success(true)
+                .data(data)
+                .executionTimeMs(trace.getDurationMs())
+                .build();
+            SemanticReview semantic = candidateReviewer.review(
+                trace.getToolName(), trace.getInput(), output);
+            if (semantic == null || !semantic.required()) {
+                continue;
+            }
+            appendSemanticReview(request.metadata(), semantic);
+            request.observations().add("Mandatory workflow semantic candidate review reused completed discovery: "
+                + stringify(semantic.auditMetadata()));
+            if (!semantic.satisfied()) {
+                request.metadata().put("mandatoryWorkflowStoppedOnFailure", trace.getToolName());
+                request.metadata().put("mandatoryWorkflowSemanticReviewBlocked", true);
+                request.metadata().put("mandatoryWorkflowSemanticReviewReason", semantic.reason());
+                return false;
+            }
+            reviewedDiscoveryTraces.put(trace.getToolName(),
+                projectedTrace(trace, semantic.projectedOutput(), semantic));
+        }
+        return true;
+    }
+
+    private Object parseTraceOutput(String output) {
+        if (output == null || output.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(output, Object.class);
+        } catch (JsonProcessingException ignored) {
+            return output;
+        }
     }
 
     private AgentOrchestrator.ToolCallExecution invoke(Request request, ToolInvoker invoker,

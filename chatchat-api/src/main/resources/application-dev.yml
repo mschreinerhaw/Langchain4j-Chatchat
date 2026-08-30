@@ -164,6 +164,14 @@ chatchat:
     max-output-bytes: ${CHATCHAT_TOOL_MAX_OUTPUT_BYTES:262144}
     max-output-preview-chars: ${CHATCHAT_TOOL_MAX_OUTPUT_PREVIEW_CHARS:16000}
   agent-runtime:
+    workflow-engine: ${CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE:local}
+    temporal:
+      target: ${CHATCHAT_TEMPORAL_TARGET:127.0.0.1:7233}
+      namespace: ${CHATCHAT_TEMPORAL_NAMESPACE:default}
+      task-queue: ${CHATCHAT_TEMPORAL_TASK_QUEUE:chatchat-agent-runtime}
+      activity-start-to-close-seconds: ${CHATCHAT_TEMPORAL_ACTIVITY_TIMEOUT_SECONDS:86400}
+      activity-heartbeat-seconds: ${CHATCHAT_TEMPORAL_HEARTBEAT_SECONDS:5}
+      activity-maximum-attempts: ${CHATCHAT_TEMPORAL_ACTIVITY_MAX_ATTEMPTS:1}
     store-type: ${CHATCHAT_AGENT_RUNTIME_STORE_TYPE:database}
     model-token-budget: ${CHATCHAT_AGENT_MODEL_TOKEN_BUDGET:0}
     model-cost-budget: ${CHATCHAT_AGENT_MODEL_COST_BUDGET:0}

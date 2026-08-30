@@ -115,6 +115,14 @@ chatchat:
         port: 0
         type: http
   agent-runtime:
+    workflow-engine: ${CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE:local}
+    temporal:
+      target: ${CHATCHAT_TEMPORAL_TARGET:127.0.0.1:7233}
+      namespace: ${CHATCHAT_TEMPORAL_NAMESPACE:default}
+      task-queue: ${CHATCHAT_TEMPORAL_TASK_QUEUE:chatchat-agent-runtime}
+      activity-start-to-close-seconds: ${CHATCHAT_TEMPORAL_ACTIVITY_TIMEOUT_SECONDS:86400}
+      activity-heartbeat-seconds: ${CHATCHAT_TEMPORAL_HEARTBEAT_SECONDS:5}
+      activity-maximum-attempts: ${CHATCHAT_TEMPORAL_ACTIVITY_MAX_ATTEMPTS:1}
     max-concurrent-per-tenant: ${CHATCHAT_AGENT_MAX_CONCURRENT_PER_TENANT:4}
     max-queued-per-tenant: ${CHATCHAT_AGENT_MAX_QUEUED_PER_TENANT:50}
     tenant-fair-scheduling-enabled: true

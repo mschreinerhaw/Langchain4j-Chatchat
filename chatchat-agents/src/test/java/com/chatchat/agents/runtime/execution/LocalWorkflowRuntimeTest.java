@@ -23,15 +23,13 @@ class LocalWorkflowRuntimeTest {
         WorkflowStartRequest<String> request = new WorkflowStartRequest<>(
             "workflow-1", "agent-run-v1", "tenant-1", "tenant-1:request-1", "input");
         AtomicInteger executions = new AtomicInteger();
-
-        WorkflowHandle<String> first = runtime.start(request, (input, context) -> {
+        runtime.register("agent-run-v1", String.class, String.class, (input, context) -> {
             executions.incrementAndGet();
             return input + "-done";
         });
-        WorkflowHandle<String> duplicate = runtime.start(request, (input, context) -> {
-            executions.incrementAndGet();
-            return "must-not-run";
-        });
+
+        WorkflowHandle<String> first = runtime.start(request);
+        WorkflowHandle<String> duplicate = runtime.start(request);
 
         assertThat(first.newlyStarted()).isTrue();
         assertThat(duplicate.newlyStarted()).isFalse();
@@ -50,13 +48,12 @@ class LocalWorkflowRuntimeTest {
     void rejectsWorkflowIdReuseWithDifferentBusinessIdentity() {
         QueuedExecutor executor = new QueuedExecutor();
         LocalWorkflowRuntime runtime = new LocalWorkflowRuntime(executor, new AgentRuntimeProperties());
+        runtime.register("agent-run-v1", String.class, String.class, (input, context) -> input);
         runtime.start(new WorkflowStartRequest<>(
-            "workflow-2", "agent-run-v1", "tenant-1", "tenant-1:request-1", "input"),
-            (input, context) -> input);
+            "workflow-2", "agent-run-v1", "tenant-1", "tenant-1:request-1", "input"));
 
         assertThatThrownBy(() -> runtime.start(new WorkflowStartRequest<>(
-            "workflow-2", "agent-run-v1", "tenant-1", "tenant-1:request-2", "input"),
-            (input, context) -> input))
+            "workflow-2", "agent-run-v1", "tenant-1", "tenant-1:request-2", "input")))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("different type, tenant or idempotency key");
     }
@@ -66,12 +63,12 @@ class LocalWorkflowRuntimeTest {
         QueuedExecutor executor = new QueuedExecutor();
         LocalWorkflowRuntime runtime = new LocalWorkflowRuntime(executor, new AgentRuntimeProperties());
         AtomicInteger executions = new AtomicInteger();
+        runtime.register("agent-run-v1", String.class, String.class, (input, context) -> {
+            executions.incrementAndGet();
+            return input;
+        });
         WorkflowHandle<String> handle = runtime.start(new WorkflowStartRequest<>(
-            "workflow-3", "agent-run-v1", "tenant-1", "tenant-1:request-3", "input"),
-            (input, context) -> {
-                executions.incrementAndGet();
-                return input;
-            });
+            "workflow-3", "agent-run-v1", "tenant-1", "tenant-1:request-3", "input"));
 
         assertThat(runtime.cancel("workflow-3", "cancelled by user")).isTrue();
         executor.runNext();

@@ -35,6 +35,10 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-runtime-temporal</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-knowledge-base</artifactId>
         </dependency>
         <dependency>

@@ -28,10 +28,18 @@ closes automatic resubmission; it may only continue through an explicit confirma
 
 ## Temporal adapter boundary
 
-A future Temporal adapter replaces the default Spring `WorkflowRuntime` bean. The local bean is
-conditional on no other implementation being present and on
-`chatchat.agent-runtime.workflow-engine=local`. Selecting a distributed adapter without installing
-its bean intentionally fails application startup instead of silently falling back to local execution.
+The `chatchat-runtime-temporal` module provides the durable Temporal adapter. Set
+`CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE=temporal` to replace the local Spring
+`WorkflowRuntime` bean. Its Workflow id is the Agent `runId`; Temporal rejects reuse of that id and
+duplicate submissions attach to the existing result. The Activity heartbeats so cancellation reaches
+the existing Agent cancellation checks. A terminal `AgentRunStore` record is returned before any
+redispatch is executed, making process recovery idempotent at the business-run boundary.
+
+The current adapter intentionally uses one coarse-grained `agent-run-v1` Activity around the mature
+Agent executor. This gives durable ownership, restart attachment and cancellation without copying
+or forking orchestration logic. Activity retry defaults to one attempt because the existing tool
+side effects do not yet all have independent idempotency keys. Raise it only after those external
+operations have been audited.
 
 The adapter must preserve these mappings:
 
@@ -48,14 +56,32 @@ The adapter must preserve these mappings:
 LLM calls, network calls, database calls and clock/random access must remain in Activities. Temporal
 Workflow code must contain deterministic control flow only.
 
-## Migration sequence
+## Migration status and next granularity
 
-1. Implement `TemporalWorkflowRuntime` in a separate adapter module.
-2. Register the `agent-run-v1` Workflow and its Activities.
-3. Keep `AgentRunStore` as the read model during dual-write migration.
-4. Project Temporal history into existing business events; do not expose engine Worker terminology.
-5. Verify duplicate start, crash recovery, cancellation, activity retry and version-upgrade tests.
-6. Move lifecycle authority to Temporal only after reconciliation tests prove one terminal result.
+Completed in phase two:
+
+1. `TemporalWorkflowRuntime` is isolated in its own adapter module.
+2. `agent-run-v1` is a stable registered definition and `AgentRunStore` remains the business read model.
+3. Duplicate starts, durable attachment, terminal replay and cancellation are covered by tests.
+4. Engine terminology remains internal; existing progress projection emits business analysis stages.
+
+Later fine-grained migration may map plan branches to Child Workflows and idempotent LLM/MCP/database
+operations to Activities. It must not create a second planning implementation.
+
+## Configuration
+
+```text
+CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE=temporal
+CHATCHAT_TEMPORAL_TARGET=127.0.0.1:7233
+CHATCHAT_TEMPORAL_NAMESPACE=default
+CHATCHAT_TEMPORAL_TASK_QUEUE=chatchat-agent-runtime
+CHATCHAT_TEMPORAL_ACTIVITY_TIMEOUT_SECONDS=86400
+CHATCHAT_TEMPORAL_HEARTBEAT_SECONDS=5
+CHATCHAT_TEMPORAL_ACTIVITY_MAX_ATTEMPTS=1
+```
+
+Keep `workflow-engine=local` for an explicit rollback. Switching engines does not migrate active local
+runs; drain them first or reconcile them through `AgentRunStore`.
 
 The final answer/publication operation requires its own business idempotency key and database unique
 constraint. Workflow durability reduces duplicate execution but does not replace idempotent external

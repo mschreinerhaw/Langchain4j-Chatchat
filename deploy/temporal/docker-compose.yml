@@ -1,0 +1,35 @@
+services:
+  temporal-postgresql:
+    image: postgres:16.9
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal-local-only
+    volumes:
+      - temporal-postgresql-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  temporal:
+    image: temporalio/auto-setup:1.31.2
+    depends_on:
+      temporal-postgresql:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal-local-only
+      POSTGRES_SEEDS: temporal-postgresql
+    ports:
+      - "127.0.0.1:7233:7233"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7233"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  temporal-postgresql-data:

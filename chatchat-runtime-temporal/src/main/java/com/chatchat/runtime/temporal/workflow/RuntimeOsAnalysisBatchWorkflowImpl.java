@@ -2,7 +2,7 @@ package com.chatchat.runtime.temporal.workflow;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.common.runtime.summary.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
 import com.chatchat.runtime.temporal.activity.RuntimeOsAnalysisDatasetActivity;
 import com.chatchat.runtime.temporal.contract.TemporalAnalysisBatchCommand;
 import com.chatchat.runtime.temporal.contract.TemporalAnalysisDatasetCommand;

@@ -1,6 +1,7 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.spi;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
+import com.chatchat.common.runtime.summary.model.ModelSummary;
 
 import java.util.List;
 

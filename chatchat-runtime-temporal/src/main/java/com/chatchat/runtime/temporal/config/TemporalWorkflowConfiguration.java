@@ -9,7 +9,7 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecut
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
 import com.chatchat.runtime.temporal.adapter.TemporalModelSummaryDispatcher;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;

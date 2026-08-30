@@ -4,7 +4,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
-import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
 import dev.langchain4j.model.chat.ChatModel;
 
 import java.util.concurrent.CancellationException;

@@ -1,6 +1,7 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.analysis;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
 
 import java.util.List;
 import java.util.Set;

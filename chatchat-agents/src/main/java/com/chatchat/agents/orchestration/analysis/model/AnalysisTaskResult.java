@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration.analysis.model;
 
-import com.chatchat.common.runtime.summary.ModelSummaryTaskResult;
+import com.chatchat.common.runtime.summary.model.ModelSummaryTaskResult;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

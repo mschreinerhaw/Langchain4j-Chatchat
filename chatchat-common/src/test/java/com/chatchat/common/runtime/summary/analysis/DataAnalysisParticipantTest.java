@@ -1,4 +1,6 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.analysis;
+
+import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
 
 import org.junit.jupiter.api.Test;
 

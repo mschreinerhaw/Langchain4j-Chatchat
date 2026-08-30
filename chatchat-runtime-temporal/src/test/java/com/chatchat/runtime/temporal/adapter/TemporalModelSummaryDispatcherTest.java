@@ -3,7 +3,7 @@ package com.chatchat.runtime.temporal.adapter;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
 import com.chatchat.runtime.temporal.config.TemporalWorkflowProperties;
 import com.chatchat.runtime.temporal.core.TemporalWorkflowRuntime;
 import com.fasterxml.jackson.databind.ObjectMapper;

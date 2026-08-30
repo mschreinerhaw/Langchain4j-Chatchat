@@ -7,8 +7,8 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
-import com.chatchat.common.runtime.summary.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,6 +1,11 @@
 package com.chatchat.common.runtime.summary;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryWorker;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -59,6 +64,33 @@ class ModelSummaryContractTest {
             .isEmpty();
     }
 
+    @Test
+    void summaryKernelKeepsModelSpiAndAnalysisResponsibilitiesSeparated() throws IOException {
+        Path root = sourceRoot();
+        List<String> rootTypes;
+        List<String> categories;
+        try (var files = Files.list(root)) {
+            rootTypes = files.filter(Files::isRegularFile)
+                .map(path -> path.getFileName().toString())
+                .filter(name -> name.endsWith(".java"))
+                .toList();
+        }
+        try (var files = Files.list(root)) {
+            categories = files.filter(Files::isDirectory)
+                .map(path -> path.getFileName().toString())
+                .sorted()
+                .toList();
+        }
+
+        assertThat(rootTypes).containsExactly("package-info.java");
+        assertThat(categories).containsExactly("analysis", "model", "spi");
+        assertThat(importsUnder(root.resolve("model")))
+            .noneMatch(line -> line.contains(".summary.analysis.")
+                || line.contains(".summary.spi."));
+        assertThat(importsUnder(root.resolve("spi")))
+            .noneMatch(line -> line.contains(".summary.analysis."));
+    }
+
     private Path sourceRoot() {
         Path moduleLocal = Path.of("src/main/java/com/chatchat/common/runtime/summary");
         return Files.isDirectory(moduleLocal)
@@ -72,6 +104,14 @@ class ModelSummaryContractTest {
             return Files.readString(path);
         } catch (IOException exception) {
             throw new IllegalStateException("Cannot inspect " + path, exception);
+        }
+    }
+
+    private List<String> importsUnder(Path root) throws IOException {
+        try (var sources = Files.walk(root)) {
+            return sources.filter(path -> path.toString().endsWith(".java"))
+                .flatMap(path -> read(path).lines().filter(line -> line.startsWith("import ")))
+                .toList();
         }
     }
 }

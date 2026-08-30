@@ -2,7 +2,7 @@ package com.chatchat.agents.orchestration.analysis.dispatch;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
 
 import java.util.Map;
 

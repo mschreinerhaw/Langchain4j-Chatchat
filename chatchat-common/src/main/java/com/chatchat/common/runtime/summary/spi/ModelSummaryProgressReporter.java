@@ -1,4 +1,4 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.spi;
 
 import java.util.Map;
 

@@ -8,7 +8,7 @@ import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
 import com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.fasterxml.jackson.databind.ObjectMapper;

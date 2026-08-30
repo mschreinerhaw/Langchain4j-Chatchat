@@ -1,4 +1,7 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.spi;
+
+import com.chatchat.common.runtime.summary.model.ModelSummary;
+import com.chatchat.common.runtime.summary.model.ModelSummaryTask;
 
 /** Replaceable compute worker; implementations may run locally or behind RPC/message middleware. */
 @FunctionalInterface

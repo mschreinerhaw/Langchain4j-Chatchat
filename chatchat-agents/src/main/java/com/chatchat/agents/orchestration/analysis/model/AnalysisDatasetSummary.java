@@ -2,7 +2,7 @@ package com.chatchat.agents.orchestration.analysis.model;
 
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.ModelSummary;
+import com.chatchat.common.runtime.summary.model.ModelSummary;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

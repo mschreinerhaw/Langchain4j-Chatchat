@@ -1,4 +1,4 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.analysis;
 
 /**
  * Evidence boundary owned by one analysis participant invocation.

@@ -1,4 +1,8 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.spi;
+
+import com.chatchat.common.runtime.summary.model.ModelSummary;
+import com.chatchat.common.runtime.summary.model.ModelSummaryTask;
+import com.chatchat.common.runtime.summary.model.ModelSummaryTaskResult;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
 

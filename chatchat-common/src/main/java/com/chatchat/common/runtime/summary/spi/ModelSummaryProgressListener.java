@@ -1,4 +1,6 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.spi;
+
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
 
 /** Driver-side sink for durable Worker progress and heartbeat events. */
 @FunctionalInterface

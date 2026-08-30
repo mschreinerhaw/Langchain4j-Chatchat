@@ -5,7 +5,7 @@ import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGoverna
 
 
 
-import com.chatchat.common.runtime.summary.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;

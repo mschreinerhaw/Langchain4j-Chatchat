@@ -1,7 +1,7 @@
 package com.chatchat.runtime.temporal.contract;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.common.runtime.summary.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
 
 import java.util.List;
 import java.util.Map;

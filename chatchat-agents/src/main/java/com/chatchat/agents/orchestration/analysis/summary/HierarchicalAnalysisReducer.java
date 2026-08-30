@@ -6,13 +6,13 @@ import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.DataAnalysisAssignment;
-import com.chatchat.common.runtime.summary.DataAnalysisParticipant;
-import com.chatchat.common.runtime.summary.DataAnalysisScope;
-import com.chatchat.common.runtime.summary.DataAnalysisWork;
-import com.chatchat.common.runtime.summary.ModelSummaryReducer;
-import com.chatchat.common.runtime.summary.ModelSummaryModel;
-import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisAssignment;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisWork;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
 
 import java.util.ArrayList;
 import java.util.Collections;

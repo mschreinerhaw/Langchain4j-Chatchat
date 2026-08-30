@@ -12,7 +12,7 @@ import com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;
 import com.chatchat.runtime.temporal.core.TemporalWorkflowRuntime;
-import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

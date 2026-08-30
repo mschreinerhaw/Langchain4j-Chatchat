@@ -1,4 +1,4 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.model;
 
 import java.util.List;
 import java.util.Map;

@@ -4,7 +4,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisScope;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

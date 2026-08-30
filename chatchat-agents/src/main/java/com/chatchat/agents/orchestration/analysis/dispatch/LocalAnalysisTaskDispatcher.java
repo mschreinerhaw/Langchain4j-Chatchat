@@ -5,11 +5,11 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 
 
-import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
-import com.chatchat.common.runtime.summary.ModelSummaryProgress;
-import com.chatchat.common.runtime.summary.ModelSummaryProgressListener;
-import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
-import com.chatchat.common.runtime.summary.ModelSummaryWorker;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressListener;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryWorker;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;

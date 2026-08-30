@@ -2,9 +2,9 @@ package com.chatchat.agents.runtime.protocol;
 
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
-import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
-import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
-import com.chatchat.common.runtime.summary.ModelSummaryReducer;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
+import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

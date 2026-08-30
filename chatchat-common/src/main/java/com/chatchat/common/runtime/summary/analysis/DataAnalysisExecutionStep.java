@@ -1,4 +1,4 @@
-package com.chatchat.common.runtime.summary;
+package com.chatchat.common.runtime.summary.analysis;
 
 /** Canonical per-assignment analysis procedure shared by Worker and Driver implementations. */
 public enum DataAnalysisExecutionStep {

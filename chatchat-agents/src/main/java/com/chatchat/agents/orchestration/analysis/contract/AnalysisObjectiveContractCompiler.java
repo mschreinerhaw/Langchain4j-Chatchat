@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration.analysis.contract;
 
-import com.chatchat.common.runtime.summary.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
 
 import java.util.ArrayList;
 import java.util.Collections;

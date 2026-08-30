@@ -20,6 +20,39 @@ import static org.mockito.Mockito.mock;
 class MandatoryWorkflowRecoveryCoordinatorTest {
 
     @Test
+    void reusesCommittedSemanticReviewWithoutCallingModelReviewerAgain() {
+        MandatoryWorkflowRecoveryCoordinator coordinator = new MandatoryWorkflowRecoveryCoordinator(
+            new AgentToolNameResolver(), mock(AgentToolArgumentResolver.class),
+            mock(AgentWorkflowToolResolver.class), mock(AgentWorkflowStatePort.class),
+            mock(MandatoryWorkflowTopology.class), mock(MandatoryWorkflowRecoveryPolicy.class),
+            mock(MandatoryWorkflowResultReviewer.class), mock(ModelAssistedRetrievalBridge.class),
+            mock(AgentToolBudgetPort.class), mock(AgentRunStore.class), new ObjectMapper());
+        InteractionToolTrace reviewedDiscovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_customer_service_template_query")
+            .success(true)
+            .input(Map.of("keywords", List.of("trade")))
+            .output("{\"templates\":[{\"templateId\":\"trade-flow\"}]}")
+            .runtimeMetadata(Map.of(
+                "semanticCandidateReviewSatisfied", true,
+                "selectedTemplateIds", List.of("trade-flow")))
+            .build();
+        Map<String, InteractionToolTrace> reused = new LinkedHashMap<>();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        List<String> observations = new ArrayList<>();
+
+        boolean satisfied = coordinator.reviewCompletedDiscoveryPredecessors(
+            request(metadata, observations), List.of(reviewedDiscovery), reused,
+            (tool, input, output) -> {
+                throw new AssertionError("committed semantic review must not invoke the model reviewer again");
+            });
+
+        assertThat(satisfied).isTrue();
+        assertThat(reused).containsEntry(reviewedDiscovery.getToolName(), reviewedDiscovery);
+        assertThat(metadata).containsEntry("mandatoryWorkflowCommittedSemanticReviewReused", true);
+        assertThat(observations).singleElement().asString().contains("reused committed semantic candidate review");
+    }
+
+    @Test
     void projectsSemanticAdmissionForDiscoveryCompletedBeforeRecovery() {
         MandatoryWorkflowRecoveryCoordinator coordinator = new MandatoryWorkflowRecoveryCoordinator(
             new AgentToolNameResolver(),

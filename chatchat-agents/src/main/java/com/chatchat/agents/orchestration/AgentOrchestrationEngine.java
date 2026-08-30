@@ -33,6 +33,7 @@ import com.chatchat.agents.orchestration.evidence.AgentToolResultFactExtractor;
 import com.chatchat.agents.orchestration.evidence.AgentEvidenceGraphService;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
 import com.chatchat.agents.orchestration.evidence.RecoveredBatchEvidenceBridge;
+import com.chatchat.agents.orchestration.evidence.ReviewedPlanTraceProjector;
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.orchestration.model.DeadlineAwareChatModel;
@@ -6442,7 +6443,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             }
             records.add(record);
             if (step.toolExecution() != null && step.toolExecution().trace() != null) {
-                traces.add(step.toolExecution().trace());
+                traces.add(ReviewedPlanTraceProjector.project(
+                    step.toolExecution().trace(), step.output(), step.metadata(), objectMapper));
             }
             observations.add(planStepObservation(stage, step));
             String templateSelectionFeedback = templateSelectionFeedbackObservation(stage, step);

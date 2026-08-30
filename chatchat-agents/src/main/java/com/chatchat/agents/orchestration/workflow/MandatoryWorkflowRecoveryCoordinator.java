@@ -241,6 +241,14 @@ public final class MandatoryWorkflowRecoveryCoordinator {
                     .anyMatch(name -> toolNames.sameToolName(name, trace.getToolName()))) {
                 continue;
             }
+            if (trace.getRuntimeMetadata() != null
+                && Boolean.TRUE.equals(trace.getRuntimeMetadata().get("semanticCandidateReviewSatisfied"))) {
+                reviewedDiscoveryTraces.put(trace.getToolName(), trace);
+                request.metadata().put("mandatoryWorkflowCommittedSemanticReviewReused", true);
+                request.observations().add(
+                    "Mandatory workflow reused committed semantic candidate review for completed discovery.");
+                continue;
+            }
             Object data = parseTraceOutput(trace.getOutput());
             ToolOutput output = ToolOutput.builder()
                 .success(true)

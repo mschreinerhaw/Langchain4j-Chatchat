@@ -203,8 +203,9 @@ class HierarchicalAnalysisReducerTest {
             .contains("Original user question (authoritative analysis intent): " + originalQuestion)
             .contains("analysisContext", "assets", "first partition", "second partition")
             .contains("objectiveAlignment", "Never infer them from field names")
+            .contains("professional analysis stages", "calibrated inferences")
             .contains("do not aggregate, deduplicate, substitute, or generalize")
-            .contains("Do not concatenate chunk summaries");
+            .contains("Do not concatenate chunk summaries", "complete record inventories");
     }
 
     private DatasetRelationshipPlan.Dataset dataset(String reference, Object relationships) {

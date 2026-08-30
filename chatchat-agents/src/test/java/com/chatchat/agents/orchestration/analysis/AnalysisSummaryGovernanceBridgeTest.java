@@ -89,6 +89,8 @@ class AnalysisSummaryGovernanceBridgeTest {
                 && prompt.contains("ETF_SCALE")
                 && prompt.contains("按基金代码关联相邻交易日")
                 && prompt.contains("analysis_objective_contract.v1")
+                && prompt.contains("professional_data_analysis.v1")
+                && prompt.contains("CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE")
                 && prompt.contains("analysis_semantic_contract.v1")
                 && prompt.contains("analysis_record_scope_profile.v1")
                 && prompt.contains("DO_NOT_INFER_UNDECLARED_AGGREGATION_OR_RELATIONSHIPS")
@@ -124,6 +126,47 @@ class AnalysisSummaryGovernanceBridgeTest {
         assertThat(result.evidence().get("objectiveAlignment").toString())
             .contains("addressedAspects=[规模]", "unsupportedAspects=[精确净资金流]")
             .contains("规模变化仅作为代理指标");
+        assertThat(result.evidence().get("analysisObjectiveContract").toString())
+            .contains("professional_data_analysis.v1", "CALIBRATED_INFERENCE");
+    }
+
+    @Test
+    void preservesValidatedProfessionalInsightsAndQualityAssessment() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {
+              "summary":"Value 42 is the material returned observation.",
+              "analysisQuality":{"observedScope":"one returned record","grain":"record",
+                "qualitySignals":[],"reconciliationNeeds":[]},
+              "insights":[{"claimClass":"OBSERVED_RETURNED_FACT","claim":"Value is 42",
+                "significance":"It directly answers the requested level","recordRefs":["metrics.records[1]"],
+                "supportingValues":["42"],"confidence":"HIGH","caveats":[]},
+                {"claimClass":"AUTHORIZED_DERIVED_MEASURE","claim":"Unsupported derivation",
+                "significance":"Would be useful","recordRefs":["metrics.records[1]"],
+                "supportingValues":["42"],"confidence":"HIGH","caveats":[]},
+                {"claimClass":"CALIBRATED_INFERENCE","claim":"Overconfident inference",
+                "significance":"Would be useful","recordRefs":["metrics.records[1]"],
+                "supportingValues":["42"],"confidence":"HIGH","caveats":[]}],
+              "facts":[{"claim":"Value is 42","recordRefs":["metrics.records[1]"],
+                "exactValues":["42"]}],
+              "objectiveAlignment":{"addressedAspects":["level"],"unsupportedAspects":[],
+                "contribution":"Answers the requested level"},
+              "conflicts":[],"limitations":[],"rawReplayRecommended":false
+            }
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("VALUE", 42));
+
+        AnalysisSummaryResult result = bridge.summarize(model::chat, isolationScope,
+            bridge.position("metrics", 1, 1, 1, 1, 1),
+            bridge.govern("metrics", Map.of(), records), records, "Analyze the returned level");
+
+        assertThat(result.evidence().get("analysisQuality").toString())
+            .contains("one returned record", "grain=record");
+        assertThat(result.evidence().get("insights"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).hasSize(1);
+        assertThat(result.evidence().get("insights").toString())
+            .contains("OBSERVED_RETURNED_FACT", "Value is 42", "significance", "confidence=HIGH")
+            .doesNotContain("Unsupported derivation", "Overconfident inference", "template", "tool");
     }
 
     @Test

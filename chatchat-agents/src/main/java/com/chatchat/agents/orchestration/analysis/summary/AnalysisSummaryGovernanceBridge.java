@@ -22,8 +22,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CancellationException;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 /**
  * Bridges source-neutral summary governance into model analysis and records every chunk's
@@ -178,7 +179,15 @@ public final class AnalysisSummaryGovernanceBridge
             + "The analysisObjectiveContract is the Worker's binding task, not optional background. First decide "
             + "which requested aspects this dataset can answer. The summary must be a direct contribution to the "
             + "original question, not a generic description of rows. Explicitly preserve unsupported aspects for "
-            + "the reducer. The producer semantic contract is the only authority for field meaning, units, "
+            + "the reducer. Execute every stage in professionalAnalysisContract: establish scope and grain; audit "
+            + "coverage, nulls, duplicates, conflicts and comparability; measure objective-relevant levels, deltas, "
+            + "distributions, concentration or ratios only when semantics authorize them; identify material patterns "
+            + "and exceptions; test plausible alternative explanations; then calibrate conclusion strength to the "
+            + "observed time range, sample size and completeness. Explicitly distinguish returned observations, "
+            + "authorized derived measures and calibrated inferences. A derived measure must state its formula, "
+            + "inputs, unit and scope. An inference must state its evidence scope and at least one material caveat "
+            + "or alternative explanation. Do not promote a one-period observation or small sample into a stable "
+            + "behavioral, causal or longitudinal conclusion. The producer semantic contract is the only authority for field meaning, units, "
             + "aggregation, additivity, proxy relationships, population scope, and completeness. The structural "
             + "profile is descriptive only: never infer or change any of those semantics from field names, values, "
             + "constant/repeated values, or record shape. If a required semantic declaration is absent, mark it "
@@ -189,6 +198,13 @@ public final class AnalysisSummaryGovernanceBridge
             + "{\"summary\":\"compact question-directed Chinese findings\","
             + "\"objectiveAlignment\":{\"addressedAspects\":[],\"unsupportedAspects\":[],"
             + "\"contribution\":\"how this chunk helps answer the question\"},"
+            + "\"analysisQuality\":{\"observedScope\":\"\",\"grain\":\"\","
+            + "\"qualitySignals\":[],\"reconciliationNeeds\":[]},"
+            + "\"insights\":[{\"claimClass\":\"OBSERVED_RETURNED_FACT|AUTHORIZED_DERIVED_MEASURE|CALIBRATED_INFERENCE\","
+            + "\"claim\":\"material finding\",\"significance\":\"why it matters to the objective\","
+            + "\"recordRefs\":[\"dataset.records[n]\"],\"supportingValues\":[\"verbatim returned value\"],"
+            + "\"method\":\"formula or reasoning, when applicable\",\"confidence\":\"HIGH|MEDIUM|LOW\","
+            + "\"caveats\":[] }],"
             + "\"facts\":[{\"claim\":\"observed fact\","
             + "\"recordRefs\":[\"dataset.records[n]\"],\"exactValues\":[\"verbatim returned value\"]}],"
             + "\"entities\":[{\"key\":\"returned identity key\",\"value\":\"exact value\"}],"
@@ -199,7 +215,8 @@ public final class AnalysisSummaryGovernanceBridge
             + "the stated fact and exact values are genuinely supported within that complete range. "
             + "Set rawReplayRecommended=true when ambiguity, conflict, an incomplete source, or a relationship "
             + "that cannot be resolved inside this chunk requires the final synthesizer to reread the raw chunk. "
-            + "Lead with findings, not row counts or metadata. Prioritize objective-relevant findings and distinguish observed facts from inference. "
+            + "Lead with findings, not row counts or metadata. Prioritize objective-relevant findings; rank insights "
+            + "by materiality, do not reproduce all rows or turn the summary into a field inventory or data table. "
             + "If this chunk does not support the objective, return an empty facts array and explain why briefly.\n"
             + "Original user question (authoritative analysis intent): "
             + safeObjective(userObjective) + "\n"
@@ -215,7 +232,8 @@ public final class AnalysisSummaryGovernanceBridge
             String modelOutput = model.generate(prompt);
             if (modelOutput != null && !modelOutput.isBlank()) {
                 EvidenceCapsule capsule = evidenceCapsule(
-                    isolationScope, position, governedContext, records, modelOutput);
+                    isolationScope, position, governedContext, records, modelOutput,
+                    objectiveContract);
                 return AnalysisSummaryResult.chunk(
                     isolationScope, position.toMap(), governedContext, capsule.content(),
                     "MODEL_SUMMARY", capsule.evidence());
@@ -309,7 +327,8 @@ public final class AnalysisSummaryGovernanceBridge
                                             DataAnalysisPosition position,
                                             Map<String, Object> governedContext,
                                             List<Map<String, Object>> records,
-                                            String modelOutput) {
+                                            String modelOutput,
+                                            Map<String, Object> objectiveContract) {
         Map<String, Object> payload = parseObject(modelOutput);
         String content = string(payload.get("summary"));
         boolean structured = !payload.isEmpty() && content != null && !content.isBlank();
@@ -347,6 +366,10 @@ public final class AnalysisSummaryGovernanceBridge
         evidence.put("conflicts", strings(payload.get("conflicts")));
         evidence.put("limitations", strings(payload.get("limitations")));
         evidence.put("objectiveAlignment", objectiveAlignment(payload.get("objectiveAlignment")));
+        evidence.put("analysisObjectiveContract", objectiveContract == null
+            ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(objectiveContract)));
+        evidence.put("analysisQuality", copy(payload.get("analysisQuality")));
+        evidence.put("insights", validatedInsights(position, records, payload.get("insights")));
         evidence.put("rejectedFactCount", rejectedFacts);
         LinkedHashSet<Integer> citedRecords = citedRecordIndexes(position, facts);
         boolean factRecordCoverageComplete = records == null || records.isEmpty()
@@ -367,6 +390,46 @@ public final class AnalysisSummaryGovernanceBridge
         String contribution = string(source.get("contribution"));
         if (contribution != null) result.put("contribution", contribution);
         return Collections.unmodifiableMap(result);
+    }
+
+    private List<Map<String, Object>> validatedInsights(DataAnalysisPosition position,
+                                                        List<Map<String, Object>> records,
+                                                        Object value) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Set<String> allowedClasses = Set.of("OBSERVED_RETURNED_FACT",
+            "AUTHORIZED_DERIVED_MEASURE", "CALIBRATED_INFERENCE");
+        for (Map<String, Object> candidate : maps(value)) {
+            String claimClass = string(candidate.get("claimClass"));
+            String claim = string(candidate.get("claim"));
+            String significance = string(candidate.get("significance"));
+            String method = string(candidate.get("method"));
+            String confidence = string(candidate.get("confidence"));
+            if (confidence != null) confidence = confidence.toUpperCase(java.util.Locale.ROOT);
+            List<String> caveats = strings(candidate.get("caveats"));
+            List<String> references = strings(candidate.get("recordRefs")).stream()
+                .filter(reference -> validRecordReference(position, reference)).distinct().toList();
+            List<String> values = strings(candidate.get("supportingValues")).stream()
+                .filter(exact -> exactValueSupported(position, records, references, exact))
+                .distinct().toList();
+            if (!allowedClasses.contains(claimClass) || claim == null || claim.isBlank()
+                || significance == null || significance.isBlank()
+                || confidence == null || !Set.of("HIGH", "MEDIUM", "LOW").contains(confidence)
+                || references.isEmpty() || values.isEmpty()
+                || ("AUTHORIZED_DERIVED_MEASURE".equals(claimClass)
+                    && (method == null || method.isBlank()))
+                || ("CALIBRATED_INFERENCE".equals(claimClass) && caveats.isEmpty())) continue;
+            Map<String, Object> insight = new LinkedHashMap<>();
+            insight.put("claimClass", claimClass);
+            insight.put("claim", claim);
+            insight.put("recordRefs", references);
+            insight.put("supportingValues", values);
+            insight.put("significance", significance);
+            if (method != null) insight.put("method", method);
+            insight.put("confidence", confidence);
+            insight.put("caveats", caveats);
+            result.add(Collections.unmodifiableMap(insight));
+        }
+        return List.copyOf(result);
     }
 
     private LinkedHashSet<Integer> citedRecordIndexes(DataAnalysisPosition position,

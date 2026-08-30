@@ -224,11 +224,13 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
     private Map<String, Object> hierarchyEvidence(List<AnalysisSummaryResult> inputs,
                                                   Map<String, Object> additions) {
         Map<String, Object> evidence = new LinkedHashMap<>(additions);
-        for (String key : List.of("facts", "entities", "crossChunkKeys", "conflicts", "limitations")) {
+        for (String key : List.of("facts", "insights", "entities", "crossChunkKeys",
+            "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract")) {
             List<Object> values = new ArrayList<>();
             for (AnalysisSummaryResult input : inputs) {
                 Object value = input.evidence().get(key);
                 if (value instanceof Iterable<?> items) items.forEach(values::add);
+                else if (value instanceof Map<?, ?> map && !map.isEmpty()) values.add(value);
             }
             if (!values.isEmpty()) evidence.put(key, List.copyOf(values));
         }
@@ -266,12 +268,17 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "correlation. Without a declaration, preserve the observation, mark the semantic operation unknown, "
             + "and do not aggregate, deduplicate, substitute, or generalize it. Distinguish returned-detail-row "
             + "coverage from explicitly declared comparison/population coverage and source completeness. "
-            + "Do not promote chunk-local extrema, rankings, or trends to dataset/global conclusions unless completeness "
-            + "is explicitly evidenced. Preserve material exact values, conflicts and limitations. Keep dataset and "
+            + "Do not promote chunk-local extrema, rankings, trends, one-period behavior or a small sample to "
+            + "dataset/global, stable, causal or longitudinal conclusions unless scope and completeness support it. "
+            + "Apply the professional analysis stages carried in analysisObjectiveContract: reconcile scope and grain, "
+            + "quality signals and conflicts; combine the highest-materiality upstream insights; preserve the distinction "
+            + "between observed facts, authorized derived measures and calibrated inferences; retain formulas, supporting "
+            + "values, confidence and alternative explanations. Resolve contradictory claims when evidence permits, "
+            + "otherwise surface the conflict once. Preserve material exact values and limitations. Keep dataset and "
             + "result identity in the structured lineage only: never print resultId values, runtime ids, template ids, "
             + "tool names, schema keys, or technical evidence references in the business narrative. Do not infer "
-            + "relationships beyond the reduction context. "
-            + "Do not concatenate chunk summaries, output raw rows, or discuss execution metadata.";
+            + "relationships beyond the reduction context. Rank by relevance and materiality. Do not concatenate chunk "
+            + "summaries, output raw rows or complete record inventories, or discuss execution metadata.";
         try {
             String result = model.generate(prompt);
             return result == null || result.isBlank() ? null : result.trim();
@@ -292,7 +299,11 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("limitations", summary.evidence().getOrDefault("limitations", List.of()));
         result.put("objectiveAlignment",
             summary.evidence().getOrDefault("objectiveAlignment", Map.of()));
+        result.put("analysisObjectiveContract",
+            summary.evidence().getOrDefault("analysisObjectiveContract", Map.of()));
         result.put("facts", summary.evidence().getOrDefault("facts", List.of()));
+        result.put("insights", summary.evidence().getOrDefault("insights", List.of()));
+        result.put("analysisQuality", summary.evidence().getOrDefault("analysisQuality", Map.of()));
         result.put("recordCount", summary.evidence().getOrDefault("recordCount", 0));
         result.put("sourceComplete", summary.evidence().getOrDefault("sourceComplete", true));
         return Collections.unmodifiableMap(result);

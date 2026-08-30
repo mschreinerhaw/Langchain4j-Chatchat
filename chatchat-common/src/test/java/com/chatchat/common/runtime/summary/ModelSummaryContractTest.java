@@ -18,6 +18,7 @@ class ModelSummaryContractTest {
     void distributedSummaryPortsParticipateInRuntimeProtocolComposition() {
         assertThat(RuntimeProtocolPort.class).isAssignableFrom(ModelSummaryDispatcher.class);
         assertThat(RuntimeProtocolPort.class).isAssignableFrom(ModelSummaryReducer.class);
+        assertThat(RuntimeProtocolPort.class).isAssignableFrom(DataAnalysisParticipant.class);
         assertThat(ModelSummaryWorker.class.isAnnotationPresent(FunctionalInterface.class)).isTrue();
     }
 

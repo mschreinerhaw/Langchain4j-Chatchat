@@ -4,10 +4,13 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
 
 
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.common.runtime.summary.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.DataAnalysisScope;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +30,25 @@ class HierarchicalAnalysisReducerTest {
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
         "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
     private final AnalysisSummaryGovernanceBridge bridge = new AnalysisSummaryGovernanceBridge();
+
+    @Test
+    void workerAndDriverImplementTheSameRoleNeutralAnalysisParticipant() {
+        assertThat(DataAnalysisParticipant.class).isAssignableFrom(AnalysisDatasetWorker.class);
+        assertThat(DataAnalysisParticipant.class).isAssignableFrom(HierarchicalAnalysisReducer.class);
+
+        DatasetRelationshipPlan plan = DatasetRelationshipPlan.create(List.of(
+            dataset("orders", Map.of())));
+        HierarchicalAnalysisReducer.Context context = new HierarchicalAnalysisReducer.Context(
+            prompt -> "unused", scope, plan, "analyze trading preference");
+        HierarchicalAnalysisReducer.Request request = HierarchicalAnalysisReducer.Request.create(
+            context, List.of(chunk("orders", "orders evidence")));
+
+        assertThat(request.assignment().scope())
+            .isEqualTo(DataAnalysisScope.ASSIGNED_DATASET_COLLECTION);
+        assertThat(request.assignment().inputReferences())
+            .containsExactlyElementsOf(request.summaries().stream()
+                .map(AnalysisSummaryResult::resultId).distinct().toList());
+    }
 
     @Test
     void groupsOnlyDatasetsConnectedByExplicitRelationships() {

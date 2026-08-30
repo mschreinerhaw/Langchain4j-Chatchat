@@ -1,6 +1,9 @@
 package com.chatchat.agents.orchestration.analysis.model;
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.common.runtime.summary.DataAnalysisAssignment;
+import com.chatchat.common.runtime.summary.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.DataAnalysisWork;
 import com.chatchat.common.runtime.summary.ModelSummaryTask;
 
 import java.util.Collections;
@@ -28,7 +31,7 @@ public record AnalysisTask(
     int maximumRetries,
     long timeoutMs,
     int attempt
-) implements ModelSummaryTask {
+) implements ModelSummaryTask, DataAnalysisWork {
     public static final String SCHEMA_VERSION = "analysis_dataset_task.v1";
 
     public AnalysisTask {
@@ -119,6 +122,15 @@ public record AnalysisTask(
     /** Authoritative, unmodified user intent carried from Driver to every Worker stage. */
     public String originalUserQuestion() {
         return userObjective;
+    }
+
+    /** Common role-neutral view used by both local and durable analysis participants. */
+    @Override
+    public DataAnalysisAssignment assignment() {
+        return new DataAnalysisAssignment(
+            DataAnalysisAssignment.SCHEMA_VERSION, taskId, inputSha256,
+            DataAnalysisScope.DATASET, isolationScope, originalUserQuestion(),
+            List.of(datasetReference), analysisContext, timeoutMs, attempt);
     }
 
     private static Map<String, Object> immutable(Map<String, Object> source) {

@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.common.runtime.summary.DataAnalysisScope;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -50,6 +51,9 @@ class AnalysisTaskContractTest {
             .containsEntry("evidenceLocator", Map.of(
                 "store", "rocksdb", "evidenceId", "evidence-1"));
         assertThat(task.originalUserQuestion()).isEqualTo("analyze assets");
+        assertThat(task.assignment().scope()).isEqualTo(DataAnalysisScope.DATASET);
+        assertThat(task.assignment().inputReferences()).containsExactly("assets");
+        assertThat(task.assignment().originalUserQuestion()).isEqualTo("analyze assets");
     }
 
     @Test

@@ -36,12 +36,8 @@ public final class AnalysisDatasetActivityExecutor implements AnalysisDatasetExe
         try {
             ChatModel model = modelResolver.resolveChatModel(task.modelName());
             BooleanSupplier cancelled = () -> Thread.currentThread().isInterrupted();
-            AnalysisDatasetSummary summary = datasetWorker.execute(
-                model, task, progressReporter, cancelled, () -> {
-                    if (cancelled.getAsBoolean()) {
-                        throw new CancellationException("Dataset analysis was cancelled");
-                    }
-                });
+            AnalysisDatasetSummary summary = datasetWorker.analyze(
+                model, task, progressReporter, cancelled);
             task.isolationScope().requireSamePartition(summary.isolationScope());
             return AnalysisTaskResult.completed(task, executorId, summary, elapsed(startedAt));
         } catch (CancellationException cancelled) {

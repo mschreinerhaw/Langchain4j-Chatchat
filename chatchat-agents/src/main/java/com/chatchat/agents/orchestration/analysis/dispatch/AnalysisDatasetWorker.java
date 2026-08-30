@@ -12,6 +12,8 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.DataAnalysisScope;
 import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
 import dev.langchain4j.model.chat.ChatModel;
@@ -22,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
@@ -31,7 +34,8 @@ import java.util.function.BooleanSupplier;
  * remains outside this worker.
  */
 @Slf4j
-public final class AnalysisDatasetWorker {
+public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
+    ChatModel, AnalysisTask, AnalysisDatasetSummary> {
 
     private final AnalysisRecordChunkPlanner chunkPlanner;
     private final AnalysisSummaryCheckpointService checkpointService;
@@ -66,11 +70,55 @@ public final class AnalysisDatasetWorker {
         this.spillStore = store == null ? AnalysisEvidenceSpillStore.disabled() : store;
     }
 
+    @Override
+    public Set<DataAnalysisScope> supportedScopes() {
+        return Set.of(DataAnalysisScope.DATASET);
+    }
+
+    @Override
+    public AnalysisDatasetSummary analyzeAssigned(
+        ChatModel model,
+        AnalysisTask task,
+        ModelSummaryProgressReporter reporter,
+        BooleanSupplier cancellationCheck
+    ) {
+        Runnable cancellationGuard = () -> {
+            if (cancellationCheck.getAsBoolean()) {
+                throw new java.util.concurrent.CancellationException(
+                    "Dataset analysis was cancelled");
+            }
+        };
+        return executeAssigned(model, task, reporter, cancellationCheck, cancellationGuard);
+    }
+
+    @Override
+    public void reconcile(AnalysisTask task, AnalysisDatasetSummary result) {
+        if (!task.datasetReference().equals(result.datasetReference())) {
+            throw new IllegalStateException("Worker result escaped its assigned dataset");
+        }
+        if (!task.isolationScope().samePartition(result.isolationScope())) {
+            throw new IllegalStateException("Worker result escaped its assigned isolation partition");
+        }
+    }
+
+    /** Backwards-compatible local entry; durable execution uses the common analyze template. */
     public AnalysisDatasetSummary execute(ChatModel model,
                                           AnalysisTask task,
                                           ModelSummaryProgressReporter reporter,
                                           BooleanSupplier cancellationCheck,
                                           Runnable cancellationGuard) {
+        validateAssignment(task);
+        AnalysisDatasetSummary result = executeAssigned(
+            model, task, reporter, cancellationCheck, cancellationGuard);
+        reconcile(task, result);
+        return result;
+    }
+
+    private AnalysisDatasetSummary executeAssigned(ChatModel model,
+                                                    AnalysisTask task,
+                                                    ModelSummaryProgressReporter reporter,
+                                                    BooleanSupplier cancellationCheck,
+                                                    Runnable cancellationGuard) {
         ModelSummaryProgressReporter progress = reporter == null
             ? ModelSummaryProgressReporter.NOOP : reporter;
         Runnable guard = cancellationGuard == null ? () -> { } : cancellationGuard;

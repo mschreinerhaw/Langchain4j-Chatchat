@@ -6,23 +6,88 @@ import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
+import com.chatchat.common.runtime.summary.DataAnalysisAssignment;
+import com.chatchat.common.runtime.summary.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.DataAnalysisWork;
 import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.chatchat.common.runtime.summary.ModelSummaryModel;
+import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /** Reduces chunk evidence into dataset summaries and explicitly-related dataset groups. */
 public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
-    AnalysisSummaryResult, HierarchicalAnalysisReducer.Context, HierarchicalAnalysisReducer.Result> {
+    AnalysisSummaryResult, HierarchicalAnalysisReducer.Context, HierarchicalAnalysisReducer.Result>,
+    DataAnalysisParticipant<ModelSummaryModel, HierarchicalAnalysisReducer.Request,
+        HierarchicalAnalysisReducer.Result> {
 
     public static final String SCHEMA_VERSION = "hierarchical_analysis_reduce.v1";
     private static final int MAX_SUMMARY_INPUT_CHARS = 24_000;
 
     public Result reduce(ModelSummaryModel model,
+                         GovernanceIsolationScope isolationScope,
+                         DatasetRelationshipPlan relationshipPlan,
+                         List<AnalysisSummaryResult> chunkSummaries,
+                         String userObjective) {
+        Context context = new Context(model, isolationScope, relationshipPlan, userObjective);
+        return analyze(model, Request.create(context, chunkSummaries),
+            ModelSummaryProgressReporter.NOOP, () -> false);
+    }
+
+    @Override
+    public Set<DataAnalysisScope> supportedScopes() {
+        return Set.of(DataAnalysisScope.ASSIGNED_DATASET_COLLECTION);
+    }
+
+    @Override
+    public Result analyzeAssigned(ModelSummaryModel model,
+                                  Request work,
+                                  ModelSummaryProgressReporter progressReporter,
+                                  BooleanSupplier cancellationCheck) {
+        if (cancellationCheck.getAsBoolean()) {
+            throw new java.util.concurrent.CancellationException(
+                "Coordinating analysis was cancelled");
+        }
+        Context context = work.context();
+        return reduceAssigned(model, context.isolationScope(), context.relationshipPlan(),
+            work.summaries(), context.userObjective());
+    }
+
+    @Override
+    public void reconcile(Request work, Result result) {
+        Map<String, AnalysisSummaryResult> lineage = new LinkedHashMap<>();
+        work.summaries().forEach(summary -> lineage.put(summary.resultId(), summary));
+        result.datasetSummaries().forEach(summary -> lineage.put(summary.resultId(), summary));
+        result.relationshipGroupSummaries().forEach(summary -> lineage.put(summary.resultId(), summary));
+        Set<String> reachable = new java.util.LinkedHashSet<>();
+        result.finalInputs().forEach(summary -> collectLineage(summary, lineage, reachable));
+        List<String> missing = work.assignment().inputReferences().stream()
+            .filter(reference -> !reachable.contains(reference)).toList();
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException(
+                "Coordinating analysis lost assigned input lineage: " + missing);
+        }
+    }
+
+    private void collectLineage(AnalysisSummaryResult summary,
+                                Map<String, AnalysisSummaryResult> lineage,
+                                Set<String> reachable) {
+        if (summary == null || !reachable.add(summary.resultId())) return;
+        for (String inputId : summary.inputSummaryResultIds()) {
+            AnalysisSummaryResult input = lineage.get(inputId);
+            if (input != null) collectLineage(input, lineage, reachable);
+            else reachable.add(inputId);
+        }
+    }
+
+    private Result reduceAssigned(ModelSummaryModel model,
                          GovernanceIsolationScope isolationScope,
                          DatasetRelationshipPlan relationshipPlan,
                          List<AnalysisSummaryResult> chunkSummaries,
@@ -84,8 +149,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         if (context == null) {
             throw new IllegalArgumentException("summary reduction context is required");
         }
-        return reduce(context.model(), context.isolationScope(), context.relationshipPlan(),
-            summaries, context.userObjective());
+        return analyze(context.model(), Request.create(context, summaries),
+            ModelSummaryProgressReporter.NOOP, () -> false);
     }
 
     public AnalysisSummaryResult reduceDataset(ModelSummaryModel model,
@@ -319,6 +384,54 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             relationshipPlan = relationshipPlan == null
                 ? DatasetRelationshipPlan.create(List.of()) : relationshipPlan;
             userObjective = userObjective == null ? "" : userObjective;
+        }
+    }
+
+    /** Immutable Driver-side payload; it follows the same assignment contract as Worker work. */
+    public record Request(
+        DataAnalysisAssignment assignment,
+        Context context,
+        List<AnalysisSummaryResult> summaries
+    ) implements DataAnalysisWork {
+        public Request {
+            if (assignment == null) throw new IllegalArgumentException("assignment is required");
+            if (context == null) throw new IllegalArgumentException("reduction context is required");
+            summaries = summaries == null ? List.of() : List.copyOf(summaries);
+            if (summaries.isEmpty()) {
+                throw new IllegalArgumentException("assigned dataset summaries are required");
+            }
+            List<String> actualInputs = summaries.stream()
+                .map(AnalysisSummaryResult::resultId).distinct().toList();
+            if (!assignment.inputReferences().equals(actualInputs)) {
+                throw new IllegalArgumentException(
+                    "assignment input lineage does not match reduction summaries");
+            }
+            if (!context.isolationScope().samePartition(assignment.isolationScope())) {
+                throw new IllegalArgumentException("assignment isolation partition mismatch");
+            }
+            if (summaries.stream().anyMatch(summary ->
+                !context.isolationScope().samePartition(summary.isolationScope()))) {
+                throw new IllegalArgumentException("summary isolation partition mismatch");
+            }
+        }
+
+        public static Request create(Context context, List<AnalysisSummaryResult> summaries) {
+            if (context == null) throw new IllegalArgumentException("reduction context is required");
+            List<AnalysisSummaryResult> inputs = summaries == null ? List.of() : List.copyOf(summaries);
+            List<String> references = inputs.stream()
+                .map(AnalysisSummaryResult::resultId).distinct().toList();
+            String fingerprint = ModelProtocolJson.sha256Hex(Map.of(
+                "relationshipPlan", context.relationshipPlan().toMap(),
+                "originalUserQuestion", context.userObjective(),
+                "inputReferences", references));
+            DataAnalysisAssignment assignment = new DataAnalysisAssignment(
+                DataAnalysisAssignment.SCHEMA_VERSION,
+                context.isolationScope().partitionKey() + ":driver-reduce:" + fingerprint,
+                fingerprint, DataAnalysisScope.ASSIGNED_DATASET_COLLECTION,
+                context.isolationScope(), context.userObjective(), references,
+                Map.of("relationshipPlan", context.relationshipPlan().toMap()),
+                300_000L, 1);
+            return new Request(assignment, context, inputs);
         }
     }
 }

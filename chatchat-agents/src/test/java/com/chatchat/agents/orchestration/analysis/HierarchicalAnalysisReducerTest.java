@@ -220,4 +220,5 @@ class HierarchicalAnalysisReducerTest {
         return bridge.preserve(scope, bridge.position(dataset, 1, 1, 1, 1, 1),
             context, List.of(Map.of("VALUE", content)));
     }
+
 }

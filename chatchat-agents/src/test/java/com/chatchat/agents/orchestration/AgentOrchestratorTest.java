@@ -1790,6 +1790,38 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void retainsTrustedGlobalDriverSynthesisInsteadOfConcatenatingWorkerSummaries() {
+        GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
+            "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
+        AnalysisSummaryResult assets = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "dataset-assets", "chunkIndex", 1), Map.of(),
+            "Worker asset summary that must not be appended to the business answer.", "MODEL_SUMMARY");
+        AnalysisSummaryResult trades = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "dataset-trades", "chunkIndex", 1), Map.of(),
+            "Worker trade summary that must not become a second analysis section.", "MODEL_SUMMARY");
+        AgentOrchestrator.RecordCoverageBundle coverage = new AgentOrchestrator.RecordCoverageBundle(
+            "", "", List.of(), 2, 2, 2, false,
+            true, true, true, 0, List.of(assets, trades), List.of(assets, trades));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("modelAnalysisReviewContractVersion", "model_analysis_repair_v1");
+        String globalAnswer = "The account has a high invested balance and active intraday trading; "
+            + "both asset and transaction evidence were reconciled in this conclusion.";
+
+        String answer = newOrchestrator(mock(ChatModel.class)).ensureCompleteRecordCoveragePresented(
+            globalAnswer, coverage, metadata);
+
+        assertThat(answer)
+            .isEqualTo(globalAnswer)
+            .doesNotContain("Worker asset summary", "Worker trade summary");
+        assertThat(metadata)
+            .containsEntry("governedGlobalSynthesisRetained", true)
+            .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", false)
+            .containsEntry("returnedDataAnalysisRequired", true)
+            .containsEntry("ungovernedCandidateWithheld", false)
+            .containsEntry("governedNarrativeAnalysisSource", "GLOBAL_DRIVER_SYNTHESIS");
+    }
+
+    @Test
     void governedWorkerAnalysisReplacesDraftWithoutInspectingDomainTermsOrSchema() {
         GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
             "tenant-any", "user-any", "run-any", "request-any", "conversation-any");

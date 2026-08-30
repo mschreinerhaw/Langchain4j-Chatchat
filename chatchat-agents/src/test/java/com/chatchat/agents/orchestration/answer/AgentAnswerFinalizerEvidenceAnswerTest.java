@@ -578,6 +578,37 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    void governedBusinessAnalysisKeepsRawRowsOutOfMarkdownWithoutFrontendContract() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("api_template_execute")
+            .success(true)
+            .output("{\"columns\":[\"customerId\",\"asset\"],\"rows\":["
+                + "{\"customerId\":\"070200046604\",\"asset\":847174.25}]}")
+            .build();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("returnedDataAnalysisRequired", true);
+        metadata.put("governedNarrativeAnalysisAppended", true);
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "## 客户分析\n\n客户资产及交易情况已完成综合分析。",
+            List.of(trace), metadata, List.of("returned governed data"));
+
+        assertThat(result.answer())
+            .contains("客户资产及交易情况已完成综合分析")
+            .doesNotContain("查询结果明细", "customerId", "847174.25");
+        assertThat(result.metadata())
+            .containsEntry("toolResultPresentationMode", "structured_visualization")
+            .containsEntry("toolResultDataMarkdownSuppressed", true)
+            .containsEntry("toolResultDataMarkdownSuppressionReason", "governed_business_analysis")
+            .containsKey("visualizationSpec");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void apiOutputSchemaDescriptionsDoNotReplaceReturnedFieldNames() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(

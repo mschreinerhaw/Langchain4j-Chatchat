@@ -226,9 +226,14 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             values.putIfAbsent("dataVisualization", visualizationSpec);
             values.put("toolResultDataDisplayed", true);
             values.put("toolResultDataDisplaySource", visualizationSpec.get("sourceTool"));
-            if (userFacingPolicy.supportsStructuredResultPresentation(values)) {
+            boolean governedAnalysisResponse = Boolean.TRUE.equals(values.get("returnedDataAnalysisRequired"))
+                || Boolean.TRUE.equals(values.get("governedNarrativeAnalysisAppended"));
+            if (userFacingPolicy.supportsStructuredResultPresentation(values) || governedAnalysisResponse) {
                 values.put("toolResultPresentationMode", "structured_visualization");
                 values.put("toolResultDataMarkdownSuppressed", true);
+                if (governedAnalysisResponse) {
+                    values.put("toolResultDataMarkdownSuppressionReason", "governed_business_analysis");
+                }
             } else {
                 String answerWithTable = userFacingPolicy.appendToolResultTable(finalAnswer, visualizationSpec);
                 if (!answerWithTable.equals(finalAnswer)) {

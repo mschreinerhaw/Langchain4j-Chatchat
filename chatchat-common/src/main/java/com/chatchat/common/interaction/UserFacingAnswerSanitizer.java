@@ -12,12 +12,15 @@ import java.util.regex.Pattern;
  */
 public final class UserFacingAnswerSanitizer {
 
-    private static final String RECONCILIATION_ALIAS = "(?:SQL|META|STEP)-\\d+";
+    private static final String RECONCILIATION_ALIAS = "(?:(?:SQL|META|STEP)-\\d+|R\\d+)";
     private static final String UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
     private static final String MCP_CHUNK_REFERENCE = UUID + ":" + UUID
         + ":[a-z0-9_.:-]+#chunk-\\d+";
     private static final String STEP_REFERENCE = "iteration:\\d+:step:\\d+:tool:[a-z0-9_.:-]+";
-    private static final String INTERNAL_REFERENCE = "(?:" + MCP_CHUNK_REFERENCE + "|" + STEP_REFERENCE + ")";
+    private static final String ANALYSIS_SUMMARY_REFERENCE = UUID + ":[a-z0-9_.:-]+:"
+        + "(?:dataset-summary|relationship-summary|global-summary)#[a-z0-9_.:-]+";
+    private static final String INTERNAL_REFERENCE = "(?:" + MCP_CHUNK_REFERENCE + "|"
+        + ANALYSIS_SUMMARY_REFERENCE + "|" + STEP_REFERENCE + ")";
 
     private static final Pattern BACKTICK_MAPPING = Pattern.compile(
         "(?i)(?<![a-z0-9_])" + RECONCILIATION_ALIAS
@@ -28,7 +31,8 @@ public final class UserFacingAnswerSanitizer {
     private static final Pattern INTERNAL_REFERENCE_PATTERN = Pattern.compile(
         "(?i)(?<![a-z0-9_-])" + INTERNAL_REFERENCE + "(?![a-z0-9_-])");
     private static final Pattern INLINE_ALIAS = Pattern.compile(
-        "(?i)[ \\t]*\\[[ \\t]*" + RECONCILIATION_ALIAS + "[ \\t]*][ \\t]*");
+        "(?i)[ \\t]*(?:\\[[ \\t]*|\\([ \\t]*|（[ \\t]*)" + RECONCILIATION_ALIAS
+            + "(?:[ \\t]*]|[ \\t]*\\)|[ \\t]*）)[ \\t]*");
     private static final Pattern INDEX_ONLY_LINE = Pattern.compile(
         "(?i)^\\s*(?:#{1,6}\\s*)?(?:\\*\\*)?(?:证据索引|evidence\\s+index|reconciliation\\s+index)"
             + "(?:\\*\\*)?(?:\\s|\\\\|[,，;；、:：-])*$");
@@ -58,6 +62,7 @@ public final class UserFacingAnswerSanitizer {
                 .replaceAll("[ \\t]+([，。；、！？,.;!?])", "$1")
                 .replaceAll("[ \\t]+$", "");
             if (INDEX_ONLY_LINE.matcher(cleaned).matches()
+                || cleaned.matches("^\\s*(?:引用|来源|references?)\\s*[：:]?\\s*$")
                 || (EMPTY_LIST_LINE.matcher(cleaned).matches() && !line.isBlank())) {
                 continue;
             }

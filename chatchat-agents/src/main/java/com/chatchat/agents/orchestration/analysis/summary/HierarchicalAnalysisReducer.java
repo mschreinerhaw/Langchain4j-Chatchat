@@ -267,8 +267,10 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "and do not aggregate, deduplicate, substitute, or generalize it. Distinguish returned-detail-row "
             + "coverage from explicitly declared comparison/population coverage and source completeness. "
             + "Do not promote chunk-local extrema, rankings, or trends to dataset/global conclusions unless completeness "
-            + "is explicitly evidenced. Preserve material exact values, conflicts, limitations, dataset identity, and "
-            + "cite upstream resultId values inline. Do not infer relationships beyond the reduction context. "
+            + "is explicitly evidenced. Preserve material exact values, conflicts and limitations. Keep dataset and "
+            + "result identity in the structured lineage only: never print resultId values, runtime ids, template ids, "
+            + "tool names, schema keys, or technical evidence references in the business narrative. Do not infer "
+            + "relationships beyond the reduction context. "
             + "Do not concatenate chunk summaries, output raw rows, or discuss execution metadata.";
         try {
             String result = model.generate(prompt);
@@ -300,8 +302,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         StringBuilder merged = new StringBuilder();
         for (AnalysisSummaryResult input : inputs) {
             if (!merged.isEmpty()) merged.append("\n\n");
-            merged.append("[").append(input.resultId()).append("] ")
-                .append(abbreviate(input.content()));
+            merged.append(abbreviate(input.content()));
         }
         return merged.toString();
     }

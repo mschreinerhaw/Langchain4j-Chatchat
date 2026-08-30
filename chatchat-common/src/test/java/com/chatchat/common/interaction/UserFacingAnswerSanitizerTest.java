@@ -46,4 +46,18 @@ class UserFacingAnswerSanitizerTest {
 
         assertThat(UserFacingAnswerSanitizer.sanitize(answer)).isEqualTo(answer);
     }
+
+    @Test
+    void removesAnalysisLineageAliasesAndTheirEmptyBusinessHeading() {
+        String answer = """
+            引用：
+            R1=9001fee4-482b-4851-9eb9-df269765291f:att-1-2d0368b5-3007-40a2-aa69-69524a997cd3:dataset-summary#livedata_cx_mncg_khzc_r
+            R2=9001fee4-482b-4851-9eb9-df269765291f:att-1-2d0368b5-3007-40a2-aa69-69524a997cd3:relationship-summary#trade_group
+
+            总资产为847174.25（R1），交易流水覆盖20笔 (R2)。
+            """;
+
+        assertThat(UserFacingAnswerSanitizer.sanitize(answer))
+            .isEqualTo("总资产为847174.25，交易流水覆盖20笔。");
+    }
 }

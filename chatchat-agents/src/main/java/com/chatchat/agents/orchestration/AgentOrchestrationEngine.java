@@ -22,6 +22,7 @@ import com.chatchat.agents.orchestration.analysis.model.SemanticInsightContract;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryCheckpointService;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
+import com.chatchat.agents.orchestration.analysis.summary.GovernedGlobalSynthesisPolicy;
 import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
 import com.chatchat.agents.evidence.normalization.EvidenceSource;
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
@@ -4873,6 +4874,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         // Every non-empty Runtime result must be finalized from governed Worker analysis.
         // Domain terms, payload schemas, value matching and natural-language classifiers must
         // never become an escape hatch because Runtime OS accepts data from any domain and shape.
+        if (GovernedGlobalSynthesisPolicy.retain(answer, coverage.coverageComplete(),
+            coverage.evidenceTraceComplete(), metadata)) return answer.trim();
         List<AnalysisSummaryResult> preferredSummaries = coverage.synthesisInputs().isEmpty()
             ? coverage.summaryResults()
             : coverage.synthesisInputs();
@@ -4924,19 +4927,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 coverage.synthesisInputs().isEmpty() ? "CHUNK_COMPATIBILITY_FALLBACK" : "DRIVER_SYNTHESIS_INPUTS");
         }
         return appendix.toString().trim();
-    }
-
-    private boolean hasNarrativeAnalysis(String answer) {
-        if (answer == null || answer.isBlank()) return false;
-        String narrative = java.util.Arrays.stream(answer.split("\\R"))
-            .map(String::trim)
-            .filter(line -> !line.isBlank())
-            .filter(line -> !line.startsWith("#") && !line.startsWith("|") && !line.startsWith("```"))
-            .filter(line -> !line.matches("^[-:| ]+$"))
-            .filter(line -> !line.matches("^(?:[-*]\\s*)?(?:数据来源|来源|数据集|共?\\s*\\d+\\s*(?:行|个数据集)).*$"))
-            .map(line -> line.replaceAll("[`*_>#]", "").trim())
-            .collect(java.util.stream.Collectors.joining(" "));
-        return narrative.length() >= 40;
     }
 
     private record BatchRecordSet(String reference,

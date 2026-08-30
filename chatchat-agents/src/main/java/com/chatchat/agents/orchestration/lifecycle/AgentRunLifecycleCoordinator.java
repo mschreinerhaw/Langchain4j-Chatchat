@@ -8,6 +8,7 @@ import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.observation.AgentObservation;
 import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
+import com.chatchat.agents.runtime.plan.execution.AgentPlanSuspendedException;
 import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
 import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
@@ -55,6 +56,10 @@ public final class AgentRunLifecycleCoordinator {
             return completeDeadlineExceeded(run, ex);
         } catch (CancellationException ex) {
             return cancelled(runStore.cancel(run.runId(), ex.getMessage()));
+        } catch (AgentPlanSuspendedException suspension) {
+            // Suspension is a durable control-plane handoff, not a terminal business failure.
+            // The Temporal parent/child Workflow owns the continuation from this point.
+            throw suspension;
         } catch (RuntimeException ex) {
             log.error("Agent orchestration failed. runId={} requestId={} errorType={} error={}",
                 run.runId(), request.getRequestId(), ex.getClass().getName(), ex.getMessage(), ex);

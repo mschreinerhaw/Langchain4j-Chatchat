@@ -114,6 +114,10 @@ import com.chatchat.agents.runtime.plan.execution.LocalPlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.LocalPlanDagControlPort;
 import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
+import com.chatchat.agents.runtime.plan.execution.AgentPlanPipelineContinuation;
+import com.chatchat.agents.runtime.plan.execution.AgentPlanSuspendedException;
+import com.chatchat.agents.runtime.plan.execution.AgentRunExecutionSlice;
+import com.chatchat.agents.runtime.plan.execution.PlanExecutionContinuation;
 import com.chatchat.agents.runtime.plan.persistence.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanOptimizer;
@@ -184,6 +188,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
     private static final String WORKFLOW_PROBLEM_SOLVING = "agent_problem_solving";
+    private final ThreadLocal<Boolean> durablePlanSuspension =
+        ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private final ThreadLocal<AgentRunRequest> activeAgentRunRequest = new ThreadLocal<>();
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeService toolRuntimeService;
     private PlanToolExecutionPort planToolExecutionPort;
@@ -536,24 +543,42 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
         return runLifecycle.execute(request, this::executeAgentRequest);
     }
 
+    /** Executes until completion or the first durable InterpretationPlan boundary. */
+    public AgentRunExecutionSlice executeUntilPlanSuspension(
+        AgentRunRequest request, KernelDataScope scope) {
+        durablePlanSuspension.set(Boolean.TRUE);
+        try {
+            return AgentRunExecutionSlice.completed(execute(request, scope));
+        } catch (AgentPlanSuspendedException suspension) {
+            return AgentRunExecutionSlice.suspended(suspension.continuation());
+        } finally {
+            durablePlanSuspension.remove();
+        }
+    }
+
     private AgentOrchestrator.AgentExecutionResult executeAgentRequest(AgentRunRequest request) {
-        return executeAgent(
-            request.getQuery(),
-            request.getTenantId(),
-            request.getAvailableTools(),
-            request.getSystemPrompt(),
-            request.getModelName(),
-            request.getBoundDocumentIds(),
-            request.getBoundDocumentTags(),
-            request.getSkillId(),
-            request.getRequestId(),
-            request.getConversationId(),
-            request.getUserId(),
-            request.getWebSearchResultLimit(),
-            request.getRequiredToolNames(),
-            request.isRequireBoundToolCall(),
-            runtimeAttributesFor(request)
-        );
+        activeAgentRunRequest.set(request);
+        try {
+            return executeAgent(
+                request.getQuery(),
+                request.getTenantId(),
+                request.getAvailableTools(),
+                request.getSystemPrompt(),
+                request.getModelName(),
+                request.getBoundDocumentIds(),
+                request.getBoundDocumentTags(),
+                request.getSkillId(),
+                request.getRequestId(),
+                request.getConversationId(),
+                request.getUserId(),
+                request.getWebSearchResultLimit(),
+                request.getRequiredToolNames(),
+                request.isRequireBoundToolCall(),
+                runtimeAttributesFor(request)
+            );
+        } finally {
+            activeAgentRunRequest.remove();
+        }
     }
 
 
@@ -1430,6 +1455,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
                 tools,
                 workflowAttemptAttributes(runtimeAttributes, 0)
             );
+            suspendForDurablePlanExecution(
+                plan, executionRequest, runtimeAttributes, traces, observations, metadata);
             firstResult = runtime.execute(executionRequest,
                 planKernelScope(tenantId, userId, requestId, conversationId, runtimeAttributes));
         } else {
@@ -2341,6 +2368,98 @@ class AgentOrchestrationEngine implements AgentRunExecutor {
             userId,
             executionAttributes
         );
+    }
+
+    private void suspendForDurablePlanExecution(
+        InterpretationPlan plan,
+        InterpretationPlanRuntime.ExecutionRequest executionRequest,
+        Map<String, Object> runtimeAttributes,
+        List<InteractionToolTrace> traces,
+        List<String> observations,
+        Map<String, Object> metadata
+    ) {
+        if (!Boolean.TRUE.equals(durablePlanSuspension.get())) {
+            return;
+        }
+        AgentRunRequest source = activeAgentRunRequest.get();
+        if (source == null) {
+            throw new IllegalStateException(
+                "Durable plan suspension requires the originating AgentRunRequest");
+        }
+        Map<String, Object> durableRuntimeAttributes = durableMap(runtimeAttributes);
+        Map<String, Object> executionContext = new LinkedHashMap<>();
+        executionContext.put("tenantId", executionRequest.tenantId());
+        executionContext.put("requestId", executionRequest.requestId());
+        executionContext.put("conversationId", executionRequest.conversationId());
+        executionContext.put("userId", executionRequest.userId());
+        executionContext.put("allowedTools", List.copyOf(
+            executionRequest.allowedTools() == null ? List.of() : executionRequest.allowedTools()));
+        executionContext.put("attributes", durableMap(executionRequest.attributes()));
+        String stableRunId = firstNonBlank(source.getRunId(),
+            firstNonBlank(source.getRequestId(), executionRequest.requestId()));
+        String continuationId = firstNonBlank(executionRequest.tenantId(), "default")
+            + "::" + firstNonBlank(stableRunId, "unscoped") + "::plan-attempt:1";
+        PlanExecutionContinuation planContinuation = new PlanExecutionContinuation(
+            PlanExecutionContinuation.SCHEMA_VERSION,
+            continuationId,
+            plan,
+            plan.steps().stream().map(InterpretationPlan.Step::id)
+                .filter(Objects::nonNull).toList(),
+            List.of(), List.of(), List.of(), 0,
+            durableMap(executionContext));
+        AgentPlanPipelineContinuation pipelineContinuation =
+            new AgentPlanPipelineContinuation(
+                AgentPlanPipelineContinuation.SCHEMA_VERSION,
+                continuationId,
+                durableRequest(source),
+                plan,
+                plan,
+                planContinuation,
+                1,
+                0,
+                maxRewriteTimes(plan),
+                List.of(),
+                List.of(),
+                traces,
+                observations,
+                durableRuntimeAttributes,
+                durableMap(metadata));
+        throw new AgentPlanSuspendedException(pipelineContinuation);
+    }
+
+    private AgentRunRequest durableRequest(AgentRunRequest source) {
+        return AgentRunRequest.builder()
+            .runId(source.getRunId())
+            .query(source.getQuery())
+            .tenantId(source.getTenantId())
+            .availableTools(List.copyOf(source.getAvailableTools() == null
+                ? List.of() : source.getAvailableTools()))
+            .systemPrompt(source.getSystemPrompt())
+            .modelName(source.getModelName())
+            .boundDocumentIds(List.copyOf(source.getBoundDocumentIds() == null
+                ? List.of() : source.getBoundDocumentIds()))
+            .boundDocumentTags(List.copyOf(source.getBoundDocumentTags() == null
+                ? List.of() : source.getBoundDocumentTags()))
+            .skillId(source.getSkillId())
+            .requestId(source.getRequestId())
+            .conversationId(source.getConversationId())
+            .userId(source.getUserId())
+            .webSearchResultLimit(source.getWebSearchResultLimit())
+            .requiredToolNames(List.copyOf(source.getRequiredToolNames() == null
+                ? List.of() : source.getRequiredToolNames()))
+            .requireBoundToolCall(source.isRequireBoundToolCall())
+            .maxSteps(source.getMaxSteps())
+            .maxToolCalls(source.getMaxToolCalls())
+            .timeoutMs(source.getTimeoutMs())
+            .attributes(durableMap(source.getAttributes()))
+            .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> durableMap(Map<String, Object> source) {
+        Map<String, Object> values = new LinkedHashMap<>(source == null ? Map.of() : source);
+        values.remove(AGENT_CANCELLATION_ATTRIBUTE);
+        return objectMapper.convertValue(values, Map.class);
     }
 
     protected Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes, int attempt) {

@@ -40,6 +40,7 @@ class AnalysisTaskContractTest {
         assertThat(task.idempotencyKey())
             .isEqualTo("tenant-1:run-1:assets:sha-256-input");
         assertThat(task.toMap())
+            .containsEntry("modelName", "")
             .containsEntry("schemaVersion", "analysis_dataset_task.v1")
             .containsEntry("datasetCount", 8)
             .containsEntry("maximumChunkRows", 100)

@@ -1,11 +1,16 @@
 package com.chatchat.runtime.temporal.config;
 
-import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
 import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
 import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecutionPort;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
+import com.chatchat.runtime.temporal.adapter.TemporalModelSummaryDispatcher;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;
 import com.chatchat.runtime.temporal.core.TemporalWorkflowRuntime;
@@ -48,12 +53,13 @@ public class TemporalWorkflowConfiguration {
     }
 
     @Bean(destroyMethod = "close")
-    public WorkflowRuntime temporalWorkflowRuntime(WorkflowClient client,
+    public TemporalWorkflowRuntime temporalWorkflowRuntime(WorkflowClient client,
                                                     WorkerFactory workerFactory,
                                                     ObjectMapper objectMapper,
                                                     TemporalWorkflowProperties properties,
                                                     ToolRuntimeService toolRuntimeService,
-                                                    ObjectProvider<PlanExecutionPhaseHandler> phaseHandler) {
+                                                    ObjectProvider<PlanExecutionPhaseHandler> phaseHandler,
+                                                    ObjectProvider<AnalysisDatasetExecutionPort> analysisExecutionPort) {
         PlanExecutionPhaseHandler handler = phaseHandler.getIfAvailable();
         if (!(handler instanceof ResumableAgentRunExecutor)) {
             throw new IllegalStateException(
@@ -62,7 +68,19 @@ public class TemporalWorkflowConfiguration {
         }
         return new TemporalWorkflowRuntime(
             client, workerFactory, objectMapper, properties, toolRuntimeService,
-            handler);
+            handler, analysisExecutionPort::getIfAvailable);
+    }
+
+    @Bean
+    public ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
+        temporalAnalysisModelSummaryDispatcher(
+            WorkflowClient client,
+            TemporalWorkflowProperties properties,
+            ObjectMapper objectMapper,
+            ObjectProvider<TemporalWorkflowRuntime> runtime
+        ) {
+        return new TemporalModelSummaryDispatcher(client, properties, objectMapper,
+            () -> runtime.getObject().startWorker());
     }
 
     @Bean

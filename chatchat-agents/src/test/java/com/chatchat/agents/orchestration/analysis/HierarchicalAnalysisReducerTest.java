@@ -143,6 +143,28 @@ class HierarchicalAnalysisReducerTest {
     }
 
     @Test
+    void preservesTemplateAnalysisContractsInFinalPromptEvidence() {
+        Map<String, Object> context = Map.of(
+            "templateMatchAnalysis", Map.of("selectedTemplateIds", List.of("orders")),
+            "workerAnalysisContext", Map.of(
+                "schemaVersion", "worker_analysis_context.v2",
+                "originalUserQuestion", "analyze trading preference",
+                "currentTemplate", Map.of("templateId", "orders")));
+        AnalysisSummaryResult workerResult = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "orders", "chunkIndex", 1), context,
+            "orders analysis", "MODEL_SUMMARY");
+
+        HierarchicalAnalysisReducer.Result result = new HierarchicalAnalysisReducer().reduce(
+            prompt -> "unused", scope,
+            DatasetRelationshipPlan.create(List.of(new DatasetRelationshipPlan.Dataset("orders", context))),
+            List.of(workerResult), "analyze trading preference");
+
+        assertThat(result.promptEvidence())
+            .contains("templateMatchAnalysis", "workerAnalysisContext")
+            .contains("analyze trading preference", "orders analysis");
+    }
+
+    @Test
     void workerDatasetReductionCarriesTheCompleteOriginalUserQuestionAndMetadata() {
         String originalQuestion = "请结合全部持仓记录分析客户风险偏好，并说明结论依据。";
         AtomicReference<String> reductionPrompt = new AtomicReference<>();

@@ -297,7 +297,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             Map<String, Object> projection = new LinkedHashMap<>();
             if (context == null) return projection;
             for (String key : List.of("source", "capability", "business", "relationships",
-                "semantics", "quality", "analysisPolicy", "extensions", "contextCompleteness")) {
+                "semantics", "quality", "analysisPolicy", "extensions", "contextCompleteness",
+                "templateMatchAnalysis", "workerAnalysisContext")) {
                 Object value = context.get(key);
                 if (value != null && (!(value instanceof Map<?, ?> map) || !map.isEmpty())) {
                     projection.put(key, value);

@@ -11,6 +11,8 @@ import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
 import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecutionPort;
+import com.chatchat.runtime.temporal.activity.RuntimeOsAnalysisDatasetActivityImpl;
 import com.chatchat.runtime.temporal.activity.RuntimeOsPlanStageActivityImpl;
 import com.chatchat.runtime.temporal.activity.RuntimeOsToolActivityImpl;
 import com.chatchat.runtime.temporal.activity.RuntimeOsWorkflowActivityImpl;
@@ -18,6 +20,7 @@ import com.chatchat.runtime.temporal.config.TemporalWorkflowProperties;
 import com.chatchat.runtime.temporal.contract.TemporalWorkflowCommand;
 import com.chatchat.runtime.temporal.contract.TemporalWorkflowResult;
 import com.chatchat.runtime.temporal.workflow.RuntimeOsAgentExecutionWorkflowImpl;
+import com.chatchat.runtime.temporal.workflow.RuntimeOsAnalysisBatchWorkflowImpl;
 import com.chatchat.runtime.temporal.workflow.RuntimeOsPlanDagControlWorkflowImpl;
 import com.chatchat.runtime.temporal.workflow.RuntimeOsPlanExecutionWorkflowImpl;
 import com.chatchat.runtime.temporal.workflow.RuntimeOsTemporalWorkflow;
@@ -49,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /** Temporal-backed durable implementation of the Runtime OS workflow port. */
 public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoCloseable {
@@ -65,6 +69,7 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
     private final RuntimeOsWorkflowActivityImpl activity;
     private final RuntimeOsToolActivityImpl toolActivity;
     private final RuntimeOsPlanStageActivityImpl planStageActivity;
+    private final RuntimeOsAnalysisDatasetActivityImpl analysisDatasetActivity;
     private final ConcurrentMap<String, ActiveExecution<?>> activeExecutions = new ConcurrentHashMap<>();
     private final AtomicBoolean workerStarted = new AtomicBoolean(false);
 
@@ -83,6 +88,15 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
                                    ObjectMapper objectMapper, TemporalWorkflowProperties properties,
                                    ToolRuntimeService toolRuntimeService,
                                    PlanExecutionPhaseHandler planExecutionPhaseHandler) {
+        this(client, workerFactory, objectMapper, properties, toolRuntimeService,
+            planExecutionPhaseHandler, null);
+    }
+
+    public TemporalWorkflowRuntime(WorkflowClient client, WorkerFactory workerFactory,
+                                   ObjectMapper objectMapper, TemporalWorkflowProperties properties,
+                                   ToolRuntimeService toolRuntimeService,
+                                   PlanExecutionPhaseHandler planExecutionPhaseHandler,
+                                   Supplier<AnalysisDatasetExecutionPort> analysisExecutionPort) {
         this.client = client;
         this.workerFactory = workerFactory;
         this.objectMapper = objectMapper.copy();
@@ -94,6 +108,8 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
         this.toolActivity = toolRuntimeService == null ? null
             : new RuntimeOsToolActivityImpl(toolRuntimeService);
         this.planStageActivity = new RuntimeOsPlanStageActivityImpl(planExecutionPhaseHandler);
+        this.analysisDatasetActivity = analysisExecutionPort == null ? null
+            : new RuntimeOsAnalysisDatasetActivityImpl(analysisExecutionPort);
     }
 
     @Override
@@ -219,6 +235,11 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
         return activeExecutions.size();
     }
 
+    /** Starts the shared Runtime OS worker exactly once for runtime and adapter entry points. */
+    public void startWorker() {
+        ensureWorkerStarted();
+    }
+
     private synchronized void ensureWorkerStarted() {
         if (workerStarted.get()) {
             return;
@@ -227,6 +248,7 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
         worker.registerWorkflowImplementationTypes(
             RuntimeOsTemporalWorkflowImpl.class,
             RuntimeOsAgentExecutionWorkflowImpl.class,
+            RuntimeOsAnalysisBatchWorkflowImpl.class,
             RuntimeOsToolExecutionWorkflowImpl.class,
             RuntimeOsPlanDagControlWorkflowImpl.class,
             RuntimeOsPlanExecutionWorkflowImpl.class);
@@ -235,6 +257,9 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
             worker.registerActivitiesImplementations(toolActivity);
         }
         worker.registerActivitiesImplementations(planStageActivity);
+        if (analysisDatasetActivity != null) {
+            worker.registerActivitiesImplementations(analysisDatasetActivity);
+        }
         workerFactory.start();
         workerStarted.set(true);
     }

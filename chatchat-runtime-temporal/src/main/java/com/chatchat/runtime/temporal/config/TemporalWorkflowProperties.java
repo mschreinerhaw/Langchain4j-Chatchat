@@ -11,6 +11,8 @@ public class TemporalWorkflowProperties {
     private long activityStartToCloseSeconds = 86_400L;
     private long activityHeartbeatSeconds = 5L;
     private int activityMaximumAttempts = 1;
+    private int analysisMaximumParallelism = 4;
+    private long analysisMaximumPayloadBytes = 1_500_000L;
 
     public String getTarget() {
         return target;
@@ -60,6 +62,22 @@ public class TemporalWorkflowProperties {
         this.activityMaximumAttempts = activityMaximumAttempts;
     }
 
+    public int getAnalysisMaximumParallelism() {
+        return analysisMaximumParallelism;
+    }
+
+    public void setAnalysisMaximumParallelism(int analysisMaximumParallelism) {
+        this.analysisMaximumParallelism = analysisMaximumParallelism;
+    }
+
+    public long getAnalysisMaximumPayloadBytes() {
+        return analysisMaximumPayloadBytes;
+    }
+
+    public void setAnalysisMaximumPayloadBytes(long analysisMaximumPayloadBytes) {
+        this.analysisMaximumPayloadBytes = analysisMaximumPayloadBytes;
+    }
+
     public String target() {
         return text(target, "127.0.0.1:7233");
     }
@@ -82,6 +100,14 @@ public class TemporalWorkflowProperties {
 
     public int activityMaximumAttempts() {
         return Math.max(1, activityMaximumAttempts);
+    }
+
+    public int analysisMaximumParallelism() {
+        return Math.max(1, analysisMaximumParallelism);
+    }
+
+    public long analysisMaximumPayloadBytes() {
+        return Math.max(64_000L, analysisMaximumPayloadBytes);
     }
 
     private String text(String value, String fallback) {

@@ -1705,6 +1705,36 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void appendsEveryGovernedTemplateAnalysisWhenDraftOnlyCoversOneDataset() {
+        GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
+            "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
+        Map<String, Object> contract = Map.of("workerAnalysisContext", Map.of(
+            "schemaVersion", "worker_analysis_context.v2",
+            "originalUserQuestion", "分析资产、委托和交易偏好"));
+        AnalysisSummaryResult assets = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "livedata_assets", "chunkIndex", 1), contract,
+            "资产分析：总资产 847174.25，证券市值占比较高。", "MODEL_SUMMARY");
+        AnalysisSummaryResult orders = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "livedata_orders", "chunkIndex", 1), contract,
+            "委托分析：已返回买入、卖出及撤单记录，可据此分析交易方向与撤单行为。", "MODEL_SUMMARY");
+        AgentOrchestrator.RecordCoverageBundle coverage = new AgentOrchestrator.RecordCoverageBundle(
+            "", "", List.of(List.of("847174.25")), 2, 2, 2, false,
+            true, true, true, 0, List.of(assets, orders), List.of(assets, orders));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        String answer = newOrchestrator(mock(ChatModel.class)).ensureCompleteRecordCoveragePresented(
+            "总资产为 847174.25，账户证券仓位较高，但没有交易明细。", coverage, metadata);
+
+        assertThat(answer)
+            .contains("总资产为 847174.25")
+            .contains("已返回买入、卖出及撤单记录")
+            .contains("资产分析：总资产 847174.25");
+        assertThat(metadata)
+            .containsEntry("governedNarrativeAnalysisAppended", true)
+            .containsEntry("governedNarrativeAnalysisSummaryCount", 2);
+    }
+
+    @Test
     void adaptsMcpToolMetadataAndInheritsItIntoAssetCenterDatasetSummary() {
         String toolName = "mcp_asset_center_position_query";
         ToolRegistry registry = mock(ToolRegistry.class);
@@ -3255,6 +3285,20 @@ class AgentOrchestratorTest {
             .contains("financingRepaymentCny=105570122417")
             .contains("processedRecordCount=101")
             .doesNotContain("compact observation");
+    }
+
+    @Test
+    void answerReviewerReceivesCompactGovernedTemplateEvidence() {
+        String prompt = "preamble\nGoverned dataset analysis and coverage contract:\n"
+            + "orders: returned buy, sell and cancellation records\n"
+            + "Return only the final user-facing Markdown answer, no JSON.";
+
+        String evidence = newOrchestrator(mock(ChatModel.class))
+            .interpretationPlanReviewEvidenceContext(prompt);
+
+        assertThat(evidence)
+            .startsWith("Governed dataset analysis and coverage contract:")
+            .contains("returned buy, sell and cancellation records");
     }
 
     @Test

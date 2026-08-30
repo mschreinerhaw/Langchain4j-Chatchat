@@ -7,8 +7,10 @@ import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContra
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordChunkPlanner;
 import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecutionPort;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetActivityExecutor;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisWorkerRetryPolicy;
-import com.chatchat.agents.orchestration.analysis.dispatch.BusinessAnalysisProgressProjector;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisProgressRecorder;
 import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
@@ -101,7 +103,6 @@ import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
-import com.chatchat.common.runtime.summary.ModelSummaryProgress;
 import com.chatchat.common.runtime.summary.ModelSummaryProgressReporter;
 import com.chatchat.common.runtime.summary.ModelSummaryReducer;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
@@ -182,6 +183,7 @@ import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
  */
 @Slf4j
 class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExecutor,
+    AnalysisDatasetExecutionPort,
     PlanExecutionPhaseHandler {
 
     private static final int DEFAULT_MAX_STEPS = 3;
@@ -265,6 +267,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final AnalysisSummaryCheckpointService summaryCheckpointService;
     private final AnalysisSummaryGovernanceCoordinator summaryGovernanceCoordinator;
     private final AnalysisDatasetWorker analysisDatasetWorker;
+    private final AnalysisDatasetActivityExecutor analysisDatasetActivityExecutor;
+    private final AnalysisProgressRecorder analysisProgressRecorder;
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AgentToolResultFactExtractor toolResultFactExtractor;
     private final AgentEvidenceGraphService evidenceGraphService;
@@ -400,6 +404,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         AgentAnswerReviewer resolvedAnswerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
         this.planner = new AgentPlanner(toolRegistry, objectMapper);
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
+        this.analysisProgressRecorder = new AnalysisProgressRecorder(
+            this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.summaryGovernanceCoordinator = new AnalysisSummaryGovernanceCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.analysisDatasetWorker = new AnalysisDatasetWorker(
@@ -412,6 +418,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             new AgentPlanEvolutionAuditor(this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.toolObservationBuilder = new ToolObservationBuilder(this.evidenceTrustEvaluator);
         this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig);
+        this.analysisDatasetActivityExecutor = new AnalysisDatasetActivityExecutor(
+            this.chatModelResolver, this.analysisDatasetWorker);
         this.toolNames = new AgentToolNameResolver(new RegistryMcpCapabilityHierarchy(toolRegistry));
         this.planEvidenceAnalyzer = new InterpretationPlanEvidenceAnalyzer(
             this.toolResultFactExtractor,
@@ -3004,9 +3012,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName()));
             prompt = buildStructuralFallbackSummaryPrompt(query, systemPrompt, result, attemptResults);
         }
-        if (!recordCoverage.promptEvidence().isBlank()) {
-            prompt += "\n\n" + recordCoverage.promptEvidence();
-        }
+        if (!recordCoverage.promptEvidence().isBlank()
+            && cumulativeEvidenceResult.steps().stream().anyMatch(step -> step.metadata() != null
+                && step.metadata().containsKey(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY))) prompt =
+            com.chatchat.agents.orchestration.analysis.summary.GovernedRecordFinalPromptBuilder.build(
+                query, systemPrompt, recordCoverage.promptEvidence());
         String reviewEvidenceContext = interpretationPlanReviewEvidenceContext(prompt);
         if (metadata != null && !reviewEvidenceContext.isBlank()) {
             metadata.put("modelAnalysisReviewContext", reviewEvidenceContext);
@@ -3275,6 +3285,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             }
         }
         start = synthesisPrompt.indexOf("Executed plan attempts (");
+        if (start < 0) start = synthesisPrompt.indexOf(
+            "Governed dataset analysis and coverage contract:");
         if (start < 0) {
             return "";
         }
@@ -3798,7 +3810,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             )
         );
         ParallelAnalysisSummaryBatch parallelSummaries = prepareParallelAnalysisSummaries(
-            activeChatModel, query, recordSets, isolationScope, runtimeAttributes,
+            activeChatModel, query, stringValue(metadata == null ? null : metadata.get("modelName")),
+            recordSets, isolationScope, runtimeAttributes,
             cancellationCheck);
         if (metadata != null) {
             metadata.put("recordAnalysisSummaryParallel", parallelSummaries.isParallel());
@@ -3820,8 +3833,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             runResultAdapter.recordRuntimeObservation(
                 runtimeAttributes,
                 AGENT_RUN_ID_ATTRIBUTE,
-                "\u5df2\u5c06 " + parallelSummaries.taskCount() + " \u4e2a\u6570\u636e\u96c6\u5206\u6790\u4efb\u52a1\u5206\u53d1\u7ed9 "
-                    + parallelSummaries.workerCount() + " \u4e2a worker\u3002",
+                "\u5df2\u542f\u52a8 " + parallelSummaries.taskCount() + " \u4e2a\u6570\u636e\u96c6\u5206\u6790\u4efb\u52a1\uff0c\u5e76\u884c\u5ea6\u4e3a "
+                    + parallelSummaries.workerCount() + "\u3002",
                 "analysis_summary_governance",
                 metadataOf(
                     "type", "analysis_summary_dispatched",
@@ -4236,6 +4249,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private ParallelAnalysisSummaryBatch prepareParallelAnalysisSummaries(
         ChatModel activeChatModel,
         String query,
+        String modelName,
         List<BatchRecordSet> recordSets,
         GovernanceIsolationScope isolationScope,
         Map<String, Object> runtimeAttributes,
@@ -4259,6 +4273,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "records", recordSet.records(),
                 "analysisContext", governedContext,
                 "userObjective", firstNonBlank(query, ""),
+                "modelName", firstNonBlank(modelName, ""),
                 "maximumChunkRows", recordAnalysisChunkMaxRows,
                 "maximumChunkChars", recordAnalysisChunkMaxChars,
                 "maximumRetries", analysisSummaryWorkerMaxRetries
@@ -4274,7 +4289,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 AnalysisTask.SCHEMA_VERSION, taskId, inputSha256, isolationScope,
                 evidenceReference, datasetIndex, recordSets.size(), governedContext,
                 evidenceLocator,
-                recordSet.records(), query, recordAnalysisChunkMaxRows,
+                recordSet.records(), query, modelName, recordAnalysisChunkMaxRows,
                 recordAnalysisChunkMaxChars, analysisSpillThresholdBytes,
                 analysisSummaryWorkerMaxRetries,
                 analysisSummaryWorkerHeartbeatTimeoutMs, 1);
@@ -4294,7 +4309,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     () -> runtimeGuard.checkCancelled(cancellationCheck));
             },
             cancellationCheck,
-            progress -> recordAnalysisWorkerProgress(
+            progress -> analysisProgressRecorder.record(
                 runtimeAttributes, isolationScope, progress));
         log.info("analysisTaskDriverDispatched mode={} taskCount={} workerCount={}",
             dispatched.mode(), dispatched.taskCount(), dispatched.workerCount());
@@ -4302,24 +4317,13 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             dispatched, tasks, taskIdsByDatasetReference);
     }
 
-    private void recordAnalysisWorkerProgress(
-        Map<String, Object> runtimeAttributes,
-        GovernanceIsolationScope isolationScope,
-        ModelSummaryProgress progress
+    /** Executes a durable dataset Activity by resolving all process-local dependencies afresh. */
+    @Override
+    public AnalysisTaskResult execute(
+        AnalysisTask task,
+        ModelSummaryProgressReporter progressReporter
     ) {
-        if (progress == null) {
-            return;
-        }
-        Map<String, Object> metadata = BusinessAnalysisProgressProjector.metadata(progress);
-        metadata.put("tenantId", isolationScope.tenantId());
-        metadata.put("runId", isolationScope.runId());
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            BusinessAnalysisProgressProjector.content(progress),
-            "business_analysis_progress",
-            metadata
-        );
+        return analysisDatasetActivityExecutor.execute(task, progressReporter);
     }
 
     private SemanticInsightContractProvider.Resolution resolveSemanticInsightContracts(
@@ -4391,8 +4395,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             // final_answer/reasoning nodes are model products, not executed evidence.
             // They intentionally have no tool name and must never enter record coverage.
             if (step.toolName() == null || step.toolName().isBlank()) continue;
-            // Discovery outputs describe how to reach business data. Large template catalogs are
-            // routing metadata, not datasets to summarize record by record.
+        // Discovery catalogs are routing metadata, not business datasets.
             if (McpToolNamePolicy.isRoutingDiscovery(step.toolName())) continue;
             List<BatchRecordSet> stepSets = outputRecordSets(
                 resolvedStepOutput, step.toolName(), toolMetadataOrNull(step.toolName()));
@@ -4868,14 +4871,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                                                    Map<String, Object> metadata) {
         boolean containsReturnedValue = coverage.recordValueGroups().stream()
             .anyMatch(values -> containsAnyConcreteValue(answer, values));
-        if (hasNarrativeAnalysis(answer) && containsReturnedValue) {
+        boolean requiresPerDatasetContractCoverage = coverage.summaryResults().stream()
+            .anyMatch(summary -> summary.analysisContext()
+                .containsKey(TemplateWorkerAnalysisContext.ANALYSIS_CONTEXT_KEY));
+        if (hasNarrativeAnalysis(answer) && containsReturnedValue
+            && !requiresPerDatasetContractCoverage) {
             return answer;
         }
-        // The Driver has already reduced chunk summaries into dataset/relationship-level
-        // synthesis inputs. Falling back to summaryResults here would expose one narrative per
-        // pagination chunk, which is both an abstraction leak and highly repetitive for large
-        // result sets. Keep the raw chunk summaries only as a compatibility fallback for old or
-        // partially restored coverage bundles that predate hierarchical reduction.
+        // Prefer reduced dataset/relationship summaries; raw chunks are compatibility fallback.
         List<AnalysisSummaryResult> preferredSummaries = coverage.synthesisInputs().isEmpty()
             ? coverage.summaryResults()
             : coverage.synthesisInputs();

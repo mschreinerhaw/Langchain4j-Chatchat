@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.List;
 
@@ -63,7 +64,8 @@ public class RuntimeProtocolConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(ModelSummaryDispatcher.class)
+    @ConditionalOnProperty(prefix = "chatchat.agent-runtime", name = "workflow-engine",
+        havingValue = "local", matchIfMissing = true)
     public ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
         analysisModelSummaryDispatcher(AgentRuntimeProperties properties) {
         return new LocalAnalysisTaskDispatcher(properties.analysisSummaryWorkerCount());

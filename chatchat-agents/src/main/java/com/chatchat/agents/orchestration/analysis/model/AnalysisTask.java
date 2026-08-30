@@ -21,6 +21,7 @@ public record AnalysisTask(
     Map<String, Object> evidenceLocator,
     List<Map<String, Object>> records,
     String userObjective,
+    String modelName,
     int maximumChunkRows,
     int maximumChunkChars,
     int spillThresholdBytes,
@@ -47,6 +48,7 @@ public record AnalysisTask(
             throw new IllegalArgumentException("records or evidenceLocator is required");
         }
         userObjective = required(userObjective, "originalUserQuestion");
+        modelName = modelName == null ? "" : modelName.trim();
         maximumChunkRows = Math.max(1, maximumChunkRows);
         maximumChunkChars = Math.max(1_000, maximumChunkChars);
         spillThresholdBytes = Math.max(1_000, spillThresholdBytes);
@@ -75,6 +77,7 @@ public record AnalysisTask(
         value.put("records", records);
         value.put("userObjective", userObjective);
         value.put("originalUserQuestion", originalUserQuestion());
+        value.put("modelName", modelName);
         value.put("maximumChunkRows", maximumChunkRows);
         value.put("maximumChunkChars", maximumChunkChars);
         value.put("spillThresholdBytes", spillThresholdBytes);
@@ -87,6 +90,21 @@ public record AnalysisTask(
         value.put("modelTimeoutPolicy", "SYSTEM_MODEL_REQUEST_TIMEOUT");
         value.put("attempt", attempt);
         return Collections.unmodifiableMap(value);
+    }
+
+    /** Backwards-compatible constructor for persisted v1 tasks created before model routing. */
+    public AnalysisTask(
+        String schemaVersion, String taskId, String inputSha256,
+        GovernanceIsolationScope isolationScope, String datasetReference,
+        int datasetIndex, int datasetCount, Map<String, Object> analysisContext,
+        Map<String, Object> evidenceLocator, List<Map<String, Object>> records,
+        String userObjective, int maximumChunkRows, int maximumChunkChars,
+        int spillThresholdBytes, int maximumRetries, long timeoutMs, int attempt
+    ) {
+        this(schemaVersion, taskId, inputSha256, isolationScope, datasetReference,
+            datasetIndex, datasetCount, analysisContext, evidenceLocator, records,
+            userObjective, "", maximumChunkRows, maximumChunkChars, spillThresholdBytes,
+            maximumRetries, timeoutMs, attempt);
     }
 
     private static String required(String value, String field) {

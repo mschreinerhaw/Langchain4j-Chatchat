@@ -6,9 +6,13 @@ import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
 import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecutionPort;
+import com.chatchat.agents.orchestration.protocol.RuntimeProtocolConfiguration;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanDagControlPort;
 import com.chatchat.runtime.temporal.adapter.TemporalPlanToolExecutionPort;
 import com.chatchat.runtime.temporal.core.TemporalWorkflowRuntime;
+import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -22,7 +26,8 @@ import static org.mockito.Mockito.withSettings;
 class TemporalWorkflowConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-        .withUserConfiguration(JsonConfiguration.class, TemporalWorkflowConfiguration.class);
+        .withUserConfiguration(JsonConfiguration.class, RuntimeProtocolConfiguration.class,
+            TemporalWorkflowConfiguration.class);
 
     @Test
     void temporalSelectionInstallsDurableWorkflowRuntime() {
@@ -41,6 +46,9 @@ class TemporalWorkflowConfigurationTest {
                 assertThat(context).hasSingleBean(PlanDagControlPort.class);
                 assertThat(context.getBean(PlanDagControlPort.class))
                     .isInstanceOf(TemporalPlanDagControlPort.class);
+                assertThat(context).hasSingleBean(ModelSummaryDispatcher.class);
+                assertThat(context.getBean(ModelSummaryDispatcher.class).getClass().getSimpleName())
+                    .isEqualTo("TemporalModelSummaryDispatcher");
             });
     }
 
@@ -82,8 +90,11 @@ class TemporalWorkflowConfigurationTest {
         @Bean
         PlanExecutionPhaseHandler planExecutionPhaseHandler() {
             return mock(PlanExecutionPhaseHandler.class,
-                withSettings().extraInterfaces(ResumableAgentRunExecutor.class));
+                withSettings().extraInterfaces(ResumableAgentRunExecutor.class,
+                    AnalysisDatasetExecutionPort.class));
         }
+
+        @Bean AgentRuntimeProperties agentRuntimeProperties() { return new AgentRuntimeProperties(); }
     }
 
     @Configuration(proxyBeanMethods = false)

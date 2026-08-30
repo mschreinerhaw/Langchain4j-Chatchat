@@ -12,6 +12,7 @@ import com.chatchat.agents.orchestration.AgentOrchestrator;
 
 import com.chatchat.agents.orchestration.answer.AnswerDecisionEngine;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
+import com.chatchat.agents.orchestration.evidence.RecoveredBatchEvidenceBridge;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 
@@ -313,6 +314,51 @@ class AgentOrchestratorTest {
                 "SYSTEM_MODEL_REQUEST_TIMEOUT")
             .containsKeys("recordAnalysisSummaryWorkerHeartbeatIntervalMs",
                 "recordAnalysisSummaryWorkerHeartbeatTimeoutMs");
+    }
+
+    @Test
+    void mandatoryRecoveryBatchEntersWorkerAnalysisAndPublishesProgress() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        ToolCallResult child = new ToolCallResult(
+            "reviewed-template-1", "api_template_execute", "customer-assets", null,
+            "SUCCESS", 12L, "tool:assets",
+            Map.of("records", List.of(Map.of(
+                "KHH", "070200046604", "ZZC", 847174.25, "DRYK", 42263.81))), Map.of());
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "mandatory-batch", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(child));
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("api_template_execute").success(true).durationMs(20L)
+            .output(mapper.writeValueAsString(batch)).build();
+        List<InterpretationPlanRuntime.ExecutionResult> recovered =
+            RecoveredBatchEvidenceBridge.project(List.of(trace), mapper);
+        InterpretationPlanRuntime.ExecutionResult cumulative = newOrchestrator(mock(ChatModel.class))
+            .cumulativeEvidenceResult(recovered.get(0), recovered);
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                return "资产分析：客户总资产 847174.25，当日盈亏 42263.81。";
+            }
+        };
+        ToolRegistry registry = mock(ToolRegistry.class);
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            model, registry,
+            new ToolRuntimeService(registry, mapper, toolRuntimeProperties(), List.of(), List.of()),
+            mapper, new ModelsConfig(), new EvidenceTrustEvaluator(), runStore,
+            new DefaultAgentObservationPipeline(), new DefaultAgentAnswerReviewer(mapper),
+            null, new AgentRuntimeProperties());
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of("agentRunId", "recovered-run"));
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "分析客户资产", cumulative, Map.of("__agentRunId", "recovered-run"),
+            metadata, () -> false);
+
+        assertThat(coverage.returnedRecordCount()).isEqualTo(1);
+        assertThat(coverage.summaryResults()).isNotEmpty();
+        assertThat(metadata).containsEntry("recordAnalysisSummaryScheduledTaskCount", 1);
+        assertThat(runStore.observations("recovered-run")).anySatisfy(observation ->
+            assertThat(observation.source()).isEqualTo("business_analysis_progress"));
     }
 
     @Test
@@ -1732,12 +1778,39 @@ class AgentOrchestratorTest {
             "总资产为 847174.25，账户证券仓位较高，但没有交易明细。", coverage, metadata);
 
         assertThat(answer)
-            .contains("总资产为 847174.25")
+            .doesNotContain("但没有交易明细")
             .contains("已返回买入、卖出及撤单记录")
             .contains("资产分析：总资产 847174.25");
         assertThat(metadata)
             .containsEntry("governedNarrativeAnalysisAppended", true)
+            .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true)
+            .containsEntry("returnedDataAnalysisRequired", true)
+            .containsEntry("ungovernedCandidateWithheld", true)
             .containsEntry("governedNarrativeAnalysisSummaryCount", 2);
+    }
+
+    @Test
+    void governedWorkerAnalysisReplacesDraftWithoutInspectingDomainTermsOrSchema() {
+        GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
+            "tenant-any", "user-any", "run-any", "request-any", "conversation-any");
+        AnalysisSummaryResult summary = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "arbitrary-runtime-result", "chunkIndex", 1),
+            Map.of(), "Worker analysed an otherwise unknown payload shape.", "MODEL_SUMMARY");
+        AgentOrchestrator.RecordCoverageBundle coverage = new AgentOrchestrator.RecordCoverageBundle(
+            "", "", List.of(), 1, 1, 1, false,
+            true, true, true, 0, List.of(summary), List.of(summary));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        String answer = newOrchestrator(mock(ChatModel.class)).ensureCompleteRecordCoveragePresented(
+            "A domain-specific draft that must not bypass governed analysis.", coverage, metadata);
+
+        assertThat(answer)
+            .contains("Worker analysed an otherwise unknown payload shape")
+            .doesNotContain("domain-specific draft");
+        assertThat(metadata)
+            .containsEntry("returnedDataAnalysisRequired", true)
+            .containsEntry("ungovernedCandidateWithheld", true)
+            .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true);
     }
 
     @Test

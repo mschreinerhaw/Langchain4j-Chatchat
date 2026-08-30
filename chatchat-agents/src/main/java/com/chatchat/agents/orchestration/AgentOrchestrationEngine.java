@@ -32,6 +32,7 @@ import com.chatchat.agents.orchestration.evidence.InterpretationPlanEvidenceAnal
 import com.chatchat.agents.orchestration.evidence.AgentToolResultFactExtractor;
 import com.chatchat.agents.orchestration.evidence.AgentEvidenceGraphService;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
+import com.chatchat.agents.orchestration.evidence.RecoveredBatchEvidenceBridge;
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.orchestration.model.DeadlineAwareChatModel;
@@ -2072,6 +2073,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return planWorkflowBlockedResult;
         }
         if (!planAttemptResults.isEmpty()) {
+            planAttemptResults.addAll(RecoveredBatchEvidenceBridge.project(traces, objectMapper));
             String synthesisStage = Boolean.TRUE.equals(metadata.get("mandatoryWorkflowRecoveredAfterPlan"))
                 ? "mandatory_workflow_completed"
                 : "attempts_exhausted";
@@ -3163,12 +3165,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
     }
 
-    /**
-     * Builds the evidence view used by deterministic final-answer guards. Incremental DAG repair
+    /** Builds the evidence view used by deterministic final-answer guards. Incremental DAG repair
      * may move an executed batch into an earlier attempt while the latest attempt only contains
      * repaired downstream steps. Prompt synthesis already sees every attempt; the immutable
-     * record-coverage and concrete-value guards must see the same cumulative evidence chain.
-     */
+     * record-coverage and concrete-value guards must see the same cumulative evidence chain. */
     InterpretationPlanRuntime.ExecutionResult cumulativeEvidenceResult(
         InterpretationPlanRuntime.ExecutionResult latest,
         List<InterpretationPlanRuntime.ExecutionResult> attempts
@@ -4869,16 +4869,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private String ensureGovernedNarrativeAnalysis(String answer,
                                                    RecordCoverageBundle coverage,
                                                    Map<String, Object> metadata) {
-        boolean containsReturnedValue = coverage.recordValueGroups().stream()
-            .anyMatch(values -> containsAnyConcreteValue(answer, values));
-        boolean requiresPerDatasetContractCoverage = coverage.summaryResults().stream()
-            .anyMatch(summary -> summary.analysisContext()
-                .containsKey(TemplateWorkerAnalysisContext.ANALYSIS_CONTEXT_KEY));
-        if (hasNarrativeAnalysis(answer) && containsReturnedValue
-            && !requiresPerDatasetContractCoverage) {
-            return answer;
-        }
-        // Prefer reduced dataset/relationship summaries; raw chunks are compatibility fallback.
+        // Every non-empty Runtime result must be finalized from governed Worker analysis.
+        // Domain terms, payload schemas, value matching and natural-language classifiers must
+        // never become an escape hatch because Runtime OS accepts data from any domain and shape.
         List<AnalysisSummaryResult> preferredSummaries = coverage.synthesisInputs().isEmpty()
             ? coverage.summaryResults()
             : coverage.synthesisInputs();
@@ -4887,9 +4880,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .map(AnalysisSummaryResult::resultId)
             .collect(java.util.stream.Collectors.toSet());
         List<AnalysisSummaryResult> modelSummaries = preferredSummaries.stream()
-            // Do not replace a valid candidate answer with deterministic raw-record fallback
-            // text. A synthesis is presentation-ready only when a model produced it directly or
-            // when its lineage contains a governed model chunk.
             .filter(summary -> summary.outcome().startsWith("MODEL_")
                 || "MODEL_SUMMARY".equals(summary.outcome())
                 || summary.inputSummaryResultIds().stream().anyMatch(modelSummaryResultIds::contains))
@@ -4902,11 +4892,17 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .values().stream()
             .toList();
         if (modelSummaries.isEmpty()) {
-            if (metadata != null) metadata.put("governedNarrativeAnalysisUnavailable", true);
-            return answer;
+            if (metadata != null) {
+                metadata.put("governedNarrativeAnalysisUnavailable", true);
+                metadata.put("returnedDataAnalysisRequired", true);
+                metadata.put("ungovernedCandidateWithheld",
+                    !coverage.coverageComplete() || !coverage.evidenceTraceComplete());
+            }
+            if (coverage.coverageComplete() && coverage.evidenceTraceComplete()) return answer;
+            return "Runtime returned data, but no governed Worker analysis result is available; "
+                + "the unanalysed candidate conclusion was withheld.";
         }
-        StringBuilder appendix = new StringBuilder(
-            containsReturnedValue ? firstNonBlank(answer, "") : "");
+        StringBuilder appendix = new StringBuilder();
         appendix.append("\n\n## 数据分析总结\n\n");
         for (AnalysisSummaryResult summary : modelSummaries) {
             String dataset = stringValue(summary.position().get("datasetReference"));
@@ -4919,7 +4915,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         if (metadata != null) {
             metadata.put("governedNarrativeAnalysisAppended", true);
-            metadata.put("governedNarrativeAnalysisReplacedOperationalDraft", !containsReturnedValue);
+            metadata.put("governedNarrativeAnalysisReplacedOperationalDraft", true);
+            metadata.put("returnedDataAnalysisRequired", true);
+            metadata.put("ungovernedCandidateWithheld", true);
             metadata.put("governedNarrativeAnalysisSummaryCount", modelSummaries.size());
             metadata.put("governedNarrativeAnalysisSource",
                 coverage.synthesisInputs().isEmpty() ? "CHUNK_COMPATIBILITY_FALLBACK" : "DRIVER_SYNTHESIS_INPUTS");
@@ -4946,7 +4944,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         private BatchRecordSet(String reference, List<Map<String, Object>> records) {
             this(reference, Map.of(), records);
         }
-
         private BatchRecordSet {
             analysisContext = analysisContext == null ? Map.of() : Map.copyOf(analysisContext);
         }

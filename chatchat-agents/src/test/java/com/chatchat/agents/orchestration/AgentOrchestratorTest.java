@@ -1697,6 +1697,12 @@ class AgentOrchestratorTest {
             .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true)
             .containsEntry("governedNarrativeAnalysisSummaryCount", 1)
             .containsEntry("governedNarrativeAnalysisSource", "DRIVER_SYNTHESIS_INPUTS");
+        assertThat(metadata.get("dataAnalysisLifecycle"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("stage", "FINAL_SUMMARY_COMPLETED")
+            .containsEntry("datasetCount", 1)
+            .containsEntry("terminalTaskCount", 1)
+            .containsEntry("complete", true);
         verify(model).chat(argThat((String prompt) ->
             prompt.contains("客户资产快照")
                 && prompt.contains("分析资产规模与当日盈亏")

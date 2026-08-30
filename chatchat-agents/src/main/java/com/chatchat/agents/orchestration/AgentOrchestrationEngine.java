@@ -23,12 +23,8 @@ import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryCheckpo
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
 import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
-
-
 import com.chatchat.agents.evidence.normalization.EvidenceSource;
-
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
-
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizationPort;
 import com.chatchat.agents.orchestration.evidence.ContextEvidenceAggregator;
@@ -70,11 +66,9 @@ import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowResultReviewe
 import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowRecoveryPolicy;
 import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowRecoveryCoordinator;
 import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowTopology;
-
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.governance.McpEvidenceResult;
 import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
-
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
@@ -100,6 +94,7 @@ import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.common.runtime.summary.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.DataAnalysisLifecycle;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.chatchat.common.runtime.summary.ModelSummaryDispatcher;
@@ -158,7 +153,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -175,7 +169,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
-
 import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
 
 /**
@@ -295,7 +288,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
     private ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
         analysisTaskDispatcher;
-
     public AgentOrchestrationEngine(ChatModel chatModel,
                              ToolRegistry toolRegistry,
                              ToolRuntimeService toolRuntimeService,
@@ -305,7 +297,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             new EvidenceTrustEvaluator(), new InMemoryAgentRunStore(), new DefaultAgentObservationPipeline(),
             new DefaultAgentAnswerReviewer(objectMapper));
     }
-
     public AgentOrchestrationEngine(ChatModel chatModel,
                              ToolRegistry toolRegistry,
                              ToolRuntimeService toolRuntimeService,
@@ -3797,6 +3788,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return RecordCoverageBundle.empty();
         }
         DatasetRelationshipPlan relationshipPlan = buildDatasetRelationshipPlan(recordSets);
+        DataAnalysisLifecycle analysisLifecycle = DataAnalysisLifecycle
+            .begin(isolationScope.partitionKey() + ":record-analysis", recordSets.size())
+            .relationshipsEstablished(relationshipPlan.groups().size(), relationshipPlan.edges().size());
         runResultAdapter.recordRuntimeObservation(
             runtimeAttributes,
             AGENT_RUN_ID_ATTRIBUTE,
@@ -3813,6 +3807,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             activeChatModel, query, stringValue(metadata == null ? null : metadata.get("modelName")),
             recordSets, isolationScope, runtimeAttributes,
             cancellationCheck);
+        analysisLifecycle = analysisLifecycle.datasetsDispatched(parallelSummaries.taskCount());
         if (metadata != null) {
             metadata.put("recordAnalysisSummaryParallel", parallelSummaries.isParallel());
             metadata.put("recordAnalysisSummaryScheduledTaskCount", parallelSummaries.taskCount());
@@ -4067,6 +4062,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             );
             appendix.append("\n");
         }
+        analysisLifecycle = analysisLifecycle.workersReconciled(
+            analyzedDatasetCount, failedAnalysisDatasets.size());
         DeterministicInsightEngine.Result bundleInsightResult = deterministicInsightEngine.analyzeBundle(
             isolationScope, deterministicInsightDatasets);
         if (bundleInsightResult.executed()
@@ -4098,6 +4095,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             new HierarchicalAnalysisReducer.Context(
                 activeChatModel::chat, isolationScope, relationshipPlan, query),
             workerDatasetSummaryResults);
+        analysisLifecycle = analysisLifecycle.finalSummaryCompleted(
+            hierarchicalResult.finalInputs().size());
         promptEvidence.append(hierarchicalResult.promptEvidence());
         if (!rawReplayEvidence.isEmpty()) {
             promptEvidence.append("Raw evidence replay (lossless, selected by generic integrity rules). "
@@ -4165,6 +4164,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 hierarchicalResult.relationshipGroupSummaries().size());
             metadata.put("hierarchicalFinalInputCount", hierarchicalResult.finalInputs().size());
             metadata.put("hierarchicalUncoveredDatasets", hierarchicalResult.uncoveredDatasets());
+            metadata.put("dataAnalysisLifecycle", analysisLifecycle.toMap());
             metadata.put("hierarchicalAnalysisReduce", metadataOf(
                 "schemaVersion", HierarchicalAnalysisReducer.SCHEMA_VERSION,
                 "relationshipPlan", relationshipPlan.toMap(),

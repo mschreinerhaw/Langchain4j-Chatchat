@@ -13,6 +13,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.ChildWorkflowOptions;
 
@@ -51,7 +52,9 @@ public class RuntimeOsAgentExecutionWorkflowImpl implements RuntimeOsAgentExecut
         int suspensionCount = 0;
         while (AgentRunExecutionSlice.PLAN_SUSPENDED.equals(slice.status())) {
             if (++suspensionCount > 16) {
-                throw new IllegalStateException("Agent plan suspension limit exceeded");
+                throw ApplicationFailure.newNonRetryableFailure(
+                    "Agent plan suspension limit exceeded",
+                    "AGENT_EXECUTION_SUSPENSION_LIMIT_EXCEEDED");
             }
             var suspended = slice.suspendedPlan();
             ChildWorkflowOptions childOptions = ChildWorkflowOptions.newBuilder()
@@ -75,7 +78,9 @@ public class RuntimeOsAgentExecutionWorkflowImpl implements RuntimeOsAgentExecut
         }
         if (!AgentRunExecutionSlice.COMPLETED.equals(slice.status())
             || slice.outputJson() == null) {
-            throw new IllegalStateException("Agent suspend/resume loop returned an invalid terminal slice");
+            throw ApplicationFailure.newNonRetryableFailure(
+                "Agent suspend/resume loop returned an invalid terminal slice",
+                "AGENT_EXECUTION_INVALID_TERMINAL_SLICE");
         }
         return new TemporalWorkflowResult(slice.outputJson());
     }

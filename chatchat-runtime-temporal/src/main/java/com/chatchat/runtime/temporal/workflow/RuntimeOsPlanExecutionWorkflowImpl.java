@@ -22,6 +22,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
@@ -123,7 +124,8 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
         int invocationLimit = 4;
         while (current.immediateResult() == null) {
             if (current.toolCommand() == null || receipts.size() >= invocationLimit) {
-                throw new IllegalStateException("Prepared step exceeded its Tool Child invocation limit");
+                throw invariantViolation(
+                    "Prepared step exceeded its Tool Child invocation limit");
             }
             ToolRuntimeExecution execution = executeToolChild(state, current);
             receipts.add(new PlanToolExecutionReceipt(current.toolCommand(), execution));
@@ -131,7 +133,8 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
                 PlanStepFinalizationCommand.SCHEMA_VERSION, state, current.stepId(),
                 parameterOverrides, receipts));
             if (current.stepId() != initial.stepId()) {
-                throw new IllegalStateException("Step finalization changed the prepared node identity");
+                throw invariantViolation(
+                    "Step finalization changed the prepared node identity");
             }
         }
         return current.immediateResult();
@@ -166,7 +169,8 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
     private void validateSelectedReadyNodes(List<Integer> ready, List<Integer> selected) {
         Set<Integer> legal = new LinkedHashSet<>(ready);
         if (selected == null || selected.isEmpty() || !legal.containsAll(selected)) {
-            throw new IllegalStateException("Model arbitration selected nodes outside the Ready wave");
+            throw invariantViolation(
+                "Model arbitration selected nodes outside the Ready wave");
         }
     }
 
@@ -177,7 +181,7 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
         List<Integer> selectedIds = selected == null ? List.of() : selected.stream()
             .distinct().sorted().toList();
         if (!preparedIds.equals(selectedIds)) {
-            throw new IllegalStateException(
+            throw invariantViolation(
                 "Step preparation output does not match the admitted Ready nodes");
         }
     }
@@ -185,14 +189,14 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
     private void validateContinuationProgress(PlanExecutionContinuation previous,
                                               PlanExecutionContinuation next) {
         if (next == null || !previous.sessionId().equals(next.sessionId())) {
-            throw new IllegalStateException("Node persistence changed the plan session identity");
+            throw invariantViolation("Node persistence changed the plan session identity");
         }
         if (next.decisionCount() <= previous.decisionCount()
             || next.remainingStepIds().size() >= previous.remainingStepIds().size()) {
-            throw new IllegalStateException("Node persistence returned a non-progressing continuation");
+            throw invariantViolation("Node persistence returned a non-progressing continuation");
         }
         if (!previous.remainingStepIds().containsAll(next.remainingStepIds())) {
-            throw new IllegalStateException("Node persistence introduced unknown remaining nodes");
+            throw invariantViolation("Node persistence introduced unknown remaining nodes");
         }
     }
 
@@ -205,5 +209,10 @@ public class RuntimeOsPlanExecutionWorkflowImpl implements RuntimeOsPlanExecutio
 
     private String firstText(String primary, String fallback) {
         return primary == null || primary.isBlank() ? fallback : primary;
+    }
+
+    private ApplicationFailure invariantViolation(String message) {
+        return ApplicationFailure.newNonRetryableFailure(
+            message, "PLAN_EXECUTION_INVARIANT_VIOLATION");
     }
 }

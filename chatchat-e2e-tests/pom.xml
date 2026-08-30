@@ -26,6 +26,11 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-runtime-temporal</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-api</artifactId>
             <version>${project.version}</version>
             <classifier>plain</classifier>

@@ -90,7 +90,7 @@ public final class TemporalPlanToolExecutionPort implements PlanToolExecutionPor
             return stub.getResult(ToolRuntimeExecution.class);
         }
         var completion = stub.getResultAsync(ToolRuntimeExecution.class);
-        long heartbeatSeconds = Math.max(1L, properties.activityHeartbeatSeconds());
+        long heartbeatSeconds = Math.max(1L, properties.activityHeartbeatSeconds() / 3L);
         while (true) {
             try {
                 activityContext.heartbeat(Map.of(

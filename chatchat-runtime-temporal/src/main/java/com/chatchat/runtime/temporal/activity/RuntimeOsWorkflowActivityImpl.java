@@ -132,6 +132,8 @@ public final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowAct
                 return cancellation.get() || activityThread.isInterrupted();
             }
         };
+        long heartbeatIntervalSeconds = Math.max(
+            1L, command.activityHeartbeatSeconds() / 3L);
         ScheduledFuture<?> heartbeat = heartbeatExecutor.scheduleAtFixedRate(() -> {
             try {
                 temporalContext.heartbeat(null);
@@ -142,8 +144,7 @@ public final class RuntimeOsWorkflowActivityImpl implements RuntimeOsWorkflowAct
                 LOGGER.warn("Temporal Activity heartbeat failed; the next heartbeat will retry",
                     transientFailure);
             }
-        }, Math.max(1L, command.activityHeartbeatSeconds()),
-            Math.max(1L, command.activityHeartbeatSeconds()), TimeUnit.SECONDS);
+        }, heartbeatIntervalSeconds, heartbeatIntervalSeconds, TimeUnit.SECONDS);
         try {
             Object input = objectMapper.readValue(command.inputJson(), registration.inputType());
             Object output = executeRegistered(registration, input, context);

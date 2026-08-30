@@ -27,9 +27,49 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DefaultAgentRuntimeTest {
+
+    @Test
+    void duplicateSubmitSharesOneWorkflowExecutionAndOneConclusion() {
+        AgentRunRequest request = AgentRunRequest.builder()
+            .runId("runtime-idempotent-1")
+            .query("same business question")
+            .tenantId("tenant-idempotent")
+            .requestId("request-idempotent-1")
+            .build();
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        QueuedExecutor executor = new QueuedExecutor();
+        when(orchestrator.execute(eq(request), any(KernelDataScope.class))).thenAnswer(invocation -> {
+            runStore.start(request);
+            AgentRunResult result = AgentRunResult.builder()
+                .runId(request.getRunId())
+                .status(AgentRunStatus.COMPLETED)
+                .answer("only conclusion")
+                .stopReason("final_answer")
+                .build();
+            AgentRun completed = runStore.complete(request.getRunId(), result);
+            return result.withStatusAndEvents(completed.status(), completed.events());
+        });
+        DefaultAgentRuntime runtime = new DefaultAgentRuntime(orchestrator, runStore, executor);
+
+        AgentRunHandle first = runtime.submit(request);
+        AgentRunHandle duplicate = runtime.submit(request);
+
+        assertThat(executor.size()).isEqualTo(1);
+        executor.runNext();
+
+        assertThat(first.completion().join().answer()).isEqualTo("only conclusion");
+        assertThat(duplicate.completion().join().answer()).isEqualTo("only conclusion");
+        verify(orchestrator, times(1)).execute(eq(request), any(KernelDataScope.class));
+        assertThat(runtime.events(request.getRunId()))
+            .filteredOn(event -> event.type().name().equals("RUN_COMPLETED"))
+            .hasSize(1);
+    }
 
     @Test
     void submitQueuesRunAndCompletesThroughExecutor() {
@@ -306,6 +346,10 @@ class DefaultAgentRuntimeTest {
         private void runNext() {
             assertThat(tasks).isNotEmpty();
             tasks.remove().run();
+        }
+
+        private int size() {
+            return tasks.size();
         }
     }
 }

@@ -23,6 +23,8 @@ public class AgentRuntimeProperties {
     private boolean tenantFairSchedulingEnabled = true;
     private int keepAliveSeconds = 60;
     private String threadNamePrefix = "agent-runtime-";
+    /** Workflow execution adapter. The built-in value is local; distributed adapters own other values. */
+    private String workflowEngine = "local";
     private int maxStoredRuns = 10_000;
     private long terminalRunTtlMs = DEFAULT_RETENTION_MS;
     private boolean cleanupEnabled = true;

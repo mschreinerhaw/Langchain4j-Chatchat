@@ -7,7 +7,6 @@ import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.AgentRuntimeSnapshot;
 
-import com.chatchat.agents.runtime.config.AgentRuntimeExecutorConfig;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.event.AgentRunEvent;
 import com.chatchat.agents.runtime.observation.AgentObservation;
@@ -16,6 +15,9 @@ import com.chatchat.agents.runtime.run.AgentRunQuery;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.agents.runtime.run.AgentRunStep;
 import com.chatchat.agents.runtime.store.AgentRunStore;
+import com.chatchat.agents.runtime.workflow.WorkflowHandle;
+import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
+import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
 
 import com.chatchat.common.kernel.KernelDataDomain;
 import com.chatchat.common.kernel.KernelDataScope;
@@ -23,7 +25,6 @@ import com.chatchat.common.kernel.KernelInvocation;
 import com.chatchat.common.kernel.KernelResult;
 import com.chatchat.common.kernel.KernelViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -33,11 +34,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 
 @Service
@@ -45,30 +46,43 @@ public class DefaultAgentRuntime implements AgentRuntime {
 
     private final AgentRunExecutor runExecutor;
     private final AgentRunStore runStore;
-    private final Executor executor;
-    private final TenantFairExecutor tenantExecutor;
-    private final Map<String, AtomicBoolean> cancellationSignals = new ConcurrentHashMap<>();
-    private final Map<String, Thread> runningThreads = new ConcurrentHashMap<>();
+    private final WorkflowRuntime workflowRuntime;
 
     public DefaultAgentRuntime(AgentRunExecutor runExecutor, AgentRunStore runStore) {
-        this(runExecutor, runStore, ForkJoinPool.commonPool(), new AgentRuntimeProperties());
+        this(runExecutor, runStore,
+            new LocalWorkflowRuntime(ForkJoinPool.commonPool(), new AgentRuntimeProperties()));
     }
 
     public DefaultAgentRuntime(AgentRunExecutor runExecutor,
                                AgentRunStore runStore,
-                               @Qualifier(AgentRuntimeExecutorConfig.AGENT_RUNTIME_EXECUTOR) Executor executor) {
-        this(runExecutor, runStore, executor, new AgentRuntimeProperties());
+                               Executor executor) {
+        this(runExecutor, runStore,
+            new LocalWorkflowRuntime(executor, new AgentRuntimeProperties()));
+    }
+
+    public DefaultAgentRuntime(AgentRunExecutor runExecutor,
+                               AgentRunStore runStore,
+                               AgentRuntimeProperties properties) {
+        this(runExecutor, runStore,
+            new LocalWorkflowRuntime(ForkJoinPool.commonPool(), properties));
+    }
+
+    public DefaultAgentRuntime(AgentRunExecutor runExecutor,
+                               AgentRunStore runStore,
+                               Executor executor,
+                               AgentRuntimeProperties properties) {
+        this(runExecutor, runStore, new LocalWorkflowRuntime(executor, properties));
     }
 
     @Autowired
     public DefaultAgentRuntime(AgentRunExecutor runExecutor,
                                AgentRunStore runStore,
-                               @Qualifier(AgentRuntimeExecutorConfig.AGENT_RUNTIME_EXECUTOR) Executor executor,
-                               AgentRuntimeProperties properties) {
+                               WorkflowRuntime workflowRuntime) {
         this.runExecutor = runExecutor;
         this.runStore = runStore;
-        this.executor = executor == null ? ForkJoinPool.commonPool() : executor;
-        this.tenantExecutor = new TenantFairExecutor(this.executor, properties);
+        this.workflowRuntime = workflowRuntime == null
+            ? new LocalWorkflowRuntime(ForkJoinPool.commonPool(), new AgentRuntimeProperties())
+            : workflowRuntime;
     }
 
     @Override
@@ -103,36 +117,30 @@ public class DefaultAgentRuntime implements AgentRuntime {
     @Override
     public AgentRunHandle submit(AgentRunRequest request) {
         AgentRun submitted = runStore.submit(request);
-        AtomicBoolean cancellationSignal = installCancellationSignal(request, submitted.runId());
-        try {
-            CompletableFuture<AgentRunResult> completion = new CompletableFuture<>();
-            tenantExecutor.execute(request == null ? null : request.getTenantId(), () -> {
-                    runningThreads.put(submitted.runId(), Thread.currentThread());
-                    try {
-                        if (cancellationSignal.get()) {
-                            completion.complete(cancelledRunResult(
-                                runStore.cancel(submitted.runId(), "Agent run cancellation requested")));
-                            return;
-                        }
-                        completion.complete(run(request));
-                    } catch (Throwable failure) {
-                        completion.completeExceptionally(failure);
-                    } finally {
-                        runningThreads.remove(submitted.runId());
-                        cancellationSignals.remove(submitted.runId());
-                    }
-                }, rejection -> {
-                    cancellationSignals.remove(submitted.runId());
-                    AgentRun failed = runStore.fail(submitted.runId(),
-                        new RejectedExecutionException("Agent runtime executor rejected run", rejection));
-                    completion.complete(failedRunResult(failed));
-                });
-            return new AgentRunHandle(submitted.runId(), completion);
-        } catch (RejectedExecutionException ex) {
-            cancellationSignals.remove(submitted.runId());
-            AgentRun failed = runStore.fail(submitted.runId(), new RejectedExecutionException("Agent runtime executor rejected run", ex));
-            return new AgentRunHandle(submitted.runId(), CompletableFuture.completedFuture(failedRunResult(failed)));
+        if (isTerminal(submitted.status())) {
+            return new AgentRunHandle(submitted.runId(),
+                CompletableFuture.completedFuture(storedRunResult(submitted)));
         }
+
+        String tenantId = firstText(request == null ? null : request.getTenantId(), "default");
+        String requestId = firstText(request == null ? null : request.getRequestId(), submitted.runId());
+        WorkflowHandle<AgentRunResult> workflow = workflowRuntime.start(
+            new WorkflowStartRequest<>(
+                submitted.runId(),
+                "agent-run-v1",
+                tenantId,
+                tenantId + ":" + requestId,
+                request
+            ),
+            (input, context) -> {
+                installCancellationSignal(input, context::cancellationRequested);
+                context.checkCancellation();
+                return persistWorkflowResult(submitted.runId(), run(input));
+            }
+        );
+        CompletableFuture<AgentRunResult> completion = workflow.completion()
+            .handle((result, failure) -> finishWorkflow(submitted.runId(), result, failure));
+        return new AgentRunHandle(submitted.runId(), completion);
     }
 
     @Override
@@ -140,14 +148,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
         if (runId == null || runId.isBlank()) {
             throw new IllegalArgumentException("Agent run id is required");
         }
-        AtomicBoolean signal = cancellationSignals.get(runId);
-        if (signal != null) {
-            signal.set(true);
-        }
-        Thread runningThread = runningThreads.get(runId);
-        if (runningThread != null) {
-            runningThread.interrupt();
-        }
+        workflowRuntime.cancel(runId, "Agent run cancellation requested");
         return runStore.cancel(runId, "Agent run cancellation requested");
     }
 
@@ -198,7 +199,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
 
     @Override
     public AgentRuntimeSnapshot snapshot() {
-        return runStore.snapshot().withActiveCancellationSignals(cancellationSignals.size());
+        return runStore.snapshot().withActiveCancellationSignals(workflowRuntime.activeExecutionCount());
     }
 
     private KernelDataScope kernelScope(AgentRunRequest request) {
@@ -230,9 +231,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
         return value == null ? null : String.valueOf(value);
     }
 
-    private AtomicBoolean installCancellationSignal(AgentRunRequest request, String runId) {
-        AtomicBoolean signal = new AtomicBoolean(false);
-        cancellationSignals.put(runId, signal);
+    private void installCancellationSignal(AgentRunRequest request, BooleanSupplier workflowCancellation) {
         Map<String, Object> attributes = request.getAttributes() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(request.getAttributes());
@@ -240,12 +239,64 @@ public class DefaultAgentRuntime implements AgentRuntime {
             request.getTimeoutMs() == null ? AgentRunRequest.DEFAULT_TIMEOUT_MS : request.getTimeoutMs());
         Object existing = attributes.get("__agentCancellation");
         if (existing instanceof BooleanSupplier existingSupplier) {
-            attributes.put("__agentCancellation", (BooleanSupplier) () -> signal.get() || existingSupplier.getAsBoolean());
+            attributes.put("__agentCancellation",
+                (BooleanSupplier) () -> workflowCancellation.getAsBoolean() || existingSupplier.getAsBoolean());
         } else {
-            attributes.put("__agentCancellation", (BooleanSupplier) signal::get);
+            attributes.put("__agentCancellation", workflowCancellation);
         }
         request.setAttributes(attributes);
-        return signal;
+    }
+
+    private AgentRunResult finishWorkflow(String runId, AgentRunResult result, Throwable failure) {
+        if (failure == null) {
+            return result;
+        }
+        Throwable cause = unwrap(failure);
+        if (cause instanceof CancellationException || cause instanceof InterruptedException) {
+            return cancelledRunResult(runStore.cancel(runId, "Agent run cancellation requested"));
+        }
+        if (cause instanceof RejectedExecutionException) {
+            AgentRun failed = runStore.fail(runId,
+                new RejectedExecutionException("Agent runtime executor rejected run", cause));
+            return failedRunResult(failed);
+        }
+        runStore.fail(runId, cause);
+        throw new CompletionException(cause);
+    }
+
+    private Throwable unwrap(Throwable failure) {
+        Throwable current = failure;
+        while ((current instanceof CompletionException || current instanceof java.util.concurrent.ExecutionException)
+            && current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private boolean isTerminal(AgentRunStatus status) {
+        return status == AgentRunStatus.WAITING_CONFIRMATION
+            || status == AgentRunStatus.COMPLETED
+            || status == AgentRunStatus.FAILED
+            || status == AgentRunStatus.CANCELLED;
+    }
+
+    private AgentRunResult persistWorkflowResult(String runId, AgentRunResult result) {
+        AgentRun current = runStore.find(runId).orElse(null);
+        AgentRun persisted = current != null && isTerminal(current.status())
+            ? current
+            : runStore.complete(runId, result);
+        AgentRunResult effective = persisted.result() == null ? result : persisted.result();
+        return effective.withStatusAndEvents(persisted.status(), persisted.events());
+    }
+
+    private AgentRunResult storedRunResult(AgentRun run) {
+        if (run.result() != null) {
+            return run.result().withStatusAndEvents(run.status(), run.events());
+        }
+        if (run.status() == AgentRunStatus.CANCELLED) {
+            return cancelledRunResult(run);
+        }
+        return failedRunResult(run);
     }
 
     private AgentRunResult cancelledRunResult(AgentRun run) {

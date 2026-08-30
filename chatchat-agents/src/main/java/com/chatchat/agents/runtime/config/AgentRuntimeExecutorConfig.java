@@ -1,7 +1,12 @@
 package com.chatchat.agents.runtime.config;
 
+import com.chatchat.agents.runtime.execution.LocalWorkflowRuntime;
+import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
@@ -30,6 +35,17 @@ public class AgentRuntimeExecutorConfig {
         );
         executor.allowCoreThreadTimeOut(false);
         return executor;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(WorkflowRuntime.class)
+    @ConditionalOnProperty(prefix = "chatchat.agent-runtime", name = "workflow-engine",
+        havingValue = "local", matchIfMissing = true)
+    public WorkflowRuntime workflowRuntime(
+        @Qualifier(AGENT_RUNTIME_EXECUTOR) Executor executor,
+        AgentRuntimeProperties properties
+    ) {
+        return new LocalWorkflowRuntime(executor, properties);
     }
 
     private static final class AgentRuntimeThreadFactory implements ThreadFactory {

@@ -24,7 +24,8 @@ import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGoverna
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
 import com.chatchat.agents.orchestration.analysis.summary.GovernedGlobalSynthesisPolicy;
 import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
-import com.chatchat.agents.orchestration.analysis.summary.SemanticGapEvidenceBridge;
+import com.chatchat.agents.orchestration.analysis.summary.SemanticClaimCoordinator;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisLoopCoordinator;
 import com.chatchat.agents.orchestration.presentation.AgentLifecyclePresentationPolicy;
 import com.chatchat.agents.evidence.normalization.EvidenceSource;
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
@@ -75,7 +76,6 @@ import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.governance.McpEvidenceResult;
 import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
-import com.chatchat.agents.assessment.EvidenceExplorationPolicy;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
@@ -227,7 +227,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final AgentRuntimeAttributeCompiler runtimeAttributeCompiler;
     private final AgentPlanningPort planner;
     private final AgentRunResultAdapter runResultAdapter;
-    private final SemanticGapEvidenceBridge semanticGapEvidenceBridge;
+    private final SemanticClaimCoordinator semanticClaimCoordinator;
+    private final AnalysisLoopCoordinator analysisLoopCoordinator;
     private final AgentRunScopeBinder runScopeBinder;
     private final AgentRunLifecycleCoordinator runLifecycle;
     private final AgentPlanEvolutionAuditor planEvolutionAuditor;
@@ -253,7 +254,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         InterpretationPlanWorkflowGuard.GuardResult> interpretationPlanWorkflowGuard =
         new InterpretationPlanWorkflowGuard();
     private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
-    private final EvidenceExplorationPolicy evidenceExplorationPolicy = new EvidenceExplorationPolicy();
     private final AgentContextBudget contextBudget;
     private final int recordAnalysisChunkMaxChars;
     private final int recordAnalysisChunkMaxRows;
@@ -403,7 +403,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         AgentAnswerReviewer resolvedAnswerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
         this.planner = new AgentPlanner(toolRegistry, objectMapper);
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
-        this.semanticGapEvidenceBridge = new SemanticGapEvidenceBridge(
+        this.semanticClaimCoordinator = new SemanticClaimCoordinator(
+            this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
+        this.analysisLoopCoordinator = new AnalysisLoopCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.analysisProgressRecorder = new AnalysisProgressRecorder(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
@@ -1579,7 +1581,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         RecordCoverageBundle latestRecordCoverage = analyzeClaimAdmissionCoverage(
             activeChatModel, query, firstResult, planAttemptResults, runtimeAttributes, metadata,
             cancellationCheck);
-        firstEvidence = semanticGapEvidenceBridge.merge(firstEvidence,
+        firstEvidence = semanticClaimCoordinator.evaluate(firstEvidence,
             latestRecordCoverage.summaryResults(), 1, runtimeAttributes, metadata);
         evidenceHistory.add(firstEvidence);
         int configuredMaxRewriteTimes = maxRewriteTimes(initialPipelinePlan);
@@ -1924,7 +1926,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             latestRecordCoverage = analyzeClaimAdmissionCoverage(
                 activeChatModel, query, currentResult, planAttemptResults, runtimeAttributes, metadata,
                 cancellationCheck);
-            currentEvidence = semanticGapEvidenceBridge.merge(currentEvidence,
+            currentEvidence = semanticClaimCoordinator.evaluate(currentEvidence,
                 latestRecordCoverage.summaryResults(), rewriteCount + 1, runtimeAttributes, metadata);
             evidenceHistory.add(currentEvidence);
             latestAugmentationDecision = decideEvidenceAugmentation(
@@ -2930,7 +2932,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         InterpretationPlanRuntime.ExecutionResult latest, List<InterpretationPlanRuntime.ExecutionResult> attempts,
         Map<String, Object> runtimeAttributes, Map<String, Object> metadata, BooleanSupplier cancellationCheck) {
         if (activeChatModel == null || latest == null) return RecordCoverageBundle.empty();
-        return semanticGapEvidenceBridge.preflight(
+        return semanticClaimCoordinator.preflight(
             () -> buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
                 runtimeAttributes, metadata, cancellationCheck),
             RecordCoverageBundle::empty, runtimeAttributes, metadata);
@@ -6179,7 +6181,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
     private boolean evidenceSufficient(Map<String, Object> snapshot) {
-        return snapshot != null && booleanValue(snapshot.get("sufficient"));
+        return analysisLoopCoordinator.sufficient(snapshot);
     }
 
     private EvidenceAugmentationPolicy.Outcome decideEvidenceAugmentation(
@@ -6189,87 +6191,26 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         boolean authorizationRequired,
         Map<String, Object> metadata
     ) {
-        boolean sufficient = evidenceSufficient(snapshot);
-        boolean materialGap = !sufficient && (
-            result == null
-                || !result.success()
-                || collectionSize(snapshot == null ? null : snapshot.get("remainingMissing")) > 0
-                || collectionSize(snapshot == null ? null : snapshot.get("conflicts")) > 0
-        );
-        return evidenceAugmentationPolicy.decide(new EvidenceAugmentationPolicy.Context(
-            usableEvidenceAvailable(snapshot),
-            sufficient,
-            materialGap,
-            explorationAvailable,
-            authorizationRequired,
-            taskEvidenceRequirement(metadata)
-        ));
+        return analysisLoopCoordinator.decide(snapshot, result != null && result.success(),
+            explorationAvailable, authorizationRequired, metadata);
     }
 
     boolean evidenceExplorationAvailable(Map<String, Object> snapshot,
                                          InterpretationPlanRuntime.ExecutionResult result,
                                          List<String> availableTools,
                                          boolean budgetAvailable) {
-        return evidenceExplorationPolicy.available(snapshot, result != null && result.success(),
+        return analysisLoopCoordinator.explorationAvailable(snapshot, result != null && result.success(),
             availableTools != null && !availableTools.isEmpty(), budgetAvailable,
             snapshot != null && !evidenceRefinementRequiredTools(List.of(snapshot), availableTools).isEmpty());
     }
 
 
     private TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {
-        Object contract = metadata == null ? null : metadata.get("taskContract");
-        if (contract instanceof TaskContract taskContract) {
-            return taskContract.evidenceRequirement();
-        }
-        String configured = stringValue(metadata == null ? null : metadata.get("evidenceRequirement"));
-        if (configured != null) {
-            try {
-                return TaskContract.EvidenceRequirement.valueOf(configured.trim().toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException ignored) {
-                // Use the safe default below for older runtime metadata.
-            }
-        }
-        return TaskContract.EvidenceRequirement.OPTIONAL;
+        return analysisLoopCoordinator.evidenceRequirement(metadata);
     }
 
     private boolean usableEvidenceAvailable(Map<String, Object> snapshot) {
-        if (snapshot == null || !(snapshot.get("toolEvidence") instanceof Iterable<?> evidenceItems)) {
-            return false;
-        }
-        for (Object rawItem : evidenceItems) {
-            if (!(rawItem instanceof Map<?, ?> rawMap)) {
-                continue;
-            }
-            Map<String, Object> item = asStringObjectMap(rawMap);
-            if (meaningfulEvidenceValue(item.get("outputFacts"))
-                || meaningfulEvidenceValue(item.get("output"))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean meaningfulEvidenceValue(Object value) {
-        if (value == null) {
-            return false;
-        }
-        if (value instanceof CharSequence text) {
-            String normalized = text.toString().trim();
-            return !normalized.isEmpty()
-                && !"null".equalsIgnoreCase(normalized)
-                && !"[]".equals(normalized)
-                && !"{}".equals(normalized);
-        }
-        if (value instanceof Map<?, ?> map) {
-            return !map.isEmpty() && map.values().stream().anyMatch(this::meaningfulEvidenceValue);
-        }
-        if (value instanceof Iterable<?> values) {
-            return values.iterator().hasNext();
-        }
-        if (value.getClass().isArray()) {
-            return java.lang.reflect.Array.getLength(value) > 0;
-        }
-        return true;
+        return analysisLoopCoordinator.usableEvidence(snapshot);
     }
 
     private void recordEvidenceAugmentationDecision(
@@ -6278,35 +6219,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> runtimeAttributes,
         Map<String, Object> metadata
     ) {
-        if (outcome == null || metadata == null) {
-            return;
-        }
-        Map<String, Object> decision = metadataOf(
-            "contractVersion", outcome.contractVersion(),
-            "iteration", iteration,
-            "decision", outcome.decision().name(),
-            "answerAllowed", outcome.answerAllowed(),
-            "continueLoop", outcome.continueLoop(),
-            "reason", outcome.reason()
-        );
-        addCandidateList(metadataList(metadata, "evidenceAugmentationHistory"), List.of(decision));
-        metadata.put("evidenceAugmentationDecision", outcome.decision().name());
-        metadata.put("evidenceAugmentationAnswerAllowed", outcome.answerAllowed());
-        metadata.put("evidenceAugmentationContinueLoop", outcome.continueLoop());
-        metadata.put("evidenceAugmentationContractVersion", outcome.contractVersion());
-        runResultAdapter.recordRuntimeObservation(
-            runtimeAttributes,
-            AGENT_RUN_ID_ATTRIBUTE,
-            "Evidence augmentation decision for iteration " + iteration + ": "
-                + outcome.decision().name() + ".",
-            "evidence_augmentation_decision",
-            metadataOf(
-                "type", "evidence",
-                "workflow", "interpretation_plan",
-                "lifecyclePhase", "loop_decision",
-                "decision", decision
-            )
-        );
+        analysisLoopCoordinator.recordDecision(outcome, iteration, runtimeAttributes, metadata);
     }
 
     private void recordEvidenceStopState(
@@ -6315,23 +6228,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         String stopReason,
         int iterations
     ) {
-        if (metadata == null) {
-            return;
-        }
-        Object remainingMissing = snapshot == null
-            ? List.of()
-            : snapshot.getOrDefault("remainingMissing", snapshot.getOrDefault("missingEvidence", List.of()));
-        metadata.put("stopReason", stopReason);
-        metadata.put("evidenceConfidence", snapshot == null ? 0.0 : scoreValue(snapshot.get("confidence")));
-        metadata.put("remainingMissing", remainingMissing);
-        metadata.put("evidenceIterations", Math.max(0, iterations));
-        metadata.put("evidenceStopState", metadataOf(
-            "contractVersion", "agent_evidence_stop_v1",
-            "stopReason", stopReason,
-            "confidence", metadata.get("evidenceConfidence"),
-            "remainingMissing", remainingMissing,
-            "iterations", Math.max(0, iterations)
-        ));
+        analysisLoopCoordinator.recordStop(metadata, snapshot, stopReason, iterations);
     }
 
     private String evidenceRewriteReason(

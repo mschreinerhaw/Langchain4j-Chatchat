@@ -206,6 +206,9 @@ class AnalysisSummaryGovernanceBridgeTest {
             .contains("semantic_evidence_gap.v1", "route=REPLAN", "requiredCapabilityId=scale");
         assertThat(result.evidence().get("semanticGapRequests").toString())
             .contains("Resolve the rejected claim", "requiredCapabilities=[scale]");
+        assertThat(result.evidence().get("claimLifecycle").toString())
+            .contains("semantic_claim_lifecycle.v1", "revision=1", "state=GAP_CREATED",
+                "PROPOSED", "VALIDATING", "REJECTED", "GAP_CREATED", "evidenceVersion");
         assertThat(result.evidence().get("insights")).isEqualTo(List.of());
     }
 

@@ -224,7 +224,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
     private Map<String, Object> hierarchyEvidence(List<AnalysisSummaryResult> inputs,
                                                   Map<String, Object> additions) {
         Map<String, Object> evidence = new LinkedHashMap<>(additions);
-        for (String key : List.of("facts", "insights", "claimAdmissionDecisions", "semanticGaps",
+        for (String key : List.of("facts", "insights", "claimLifecycle", "claimAdmissionDecisions", "semanticGaps",
             "semanticGapRequests",
             "entities", "crossChunkKeys",
             "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract",
@@ -312,6 +312,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("claimAdmissionDecisions",
             summary.evidence().getOrDefault("claimAdmissionDecisions", List.of()));
         result.put("semanticGaps", summary.evidence().getOrDefault("semanticGaps", List.of()));
+        result.put("claimLifecycle", summary.evidence().getOrDefault("claimLifecycle", List.of()));
         result.put("semanticGapRequests",
             summary.evidence().getOrDefault("semanticGapRequests", List.of()));
         result.put("analysisQuality", summary.evidence().getOrDefault("analysisQuality", Map.of()));

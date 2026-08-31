@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentOrchestratorArchitectureTest {
 
     private static final int MAX_FACADE_LINES = 1_000;
-    private static final int ENGINE_MIGRATION_RATCHET_LINES = 7_295;
+    private static final int ENGINE_MIGRATION_RATCHET_LINES = 5_554;
     private static final int MAX_DOMAIN_COMPONENT_LINES = 1_000;
     private static final int PLANNER_MIGRATION_RATCHET_LINES = 1_750;
     private static final int ANSWER_FINALIZER_MIGRATION_RATCHET_LINES = 1_700;
@@ -174,6 +174,34 @@ class AgentOrchestratorArchitectureTest {
             "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisSummaryGovernanceCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Final analysis governance must remain independent from Driver scheduling");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisSynthesisCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Dataset, cross-dataset and final synthesis must remain outside the orchestration engine");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisCoverageCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Worker reconciliation and synthesis-input coverage must remain outside the orchestration engine");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisRefinementCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Evidence refinement routing and reusable execution state must remain outside the orchestration engine");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/planning/PlanExecutionResultCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Plan result review and workflow completion barriers must remain outside the orchestration engine");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/planning/PlanExecutionObservationCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Plan result traces, observations and audit metadata must remain outside the orchestration engine");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/dataset/AnalysisEvidenceCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Evidence projection and relationship planning must remain outside the orchestration engine");
+        assertSourceLineCount(
+            "src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/AnalysisDispatchCoordinator.java",
+            MAX_DOMAIN_COMPONENT_LINES,
+            "Worker task preparation, dispatch and reconciliation must remain outside the orchestration engine");
         assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/tool/AgentToolCallCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,

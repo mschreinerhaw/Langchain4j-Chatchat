@@ -202,6 +202,10 @@ class AnalysisSummaryGovernanceBridgeTest {
             .containsEntry("rawReplayRecommended", true);
         assertThat(result.evidence().get("claimAdmissionDecisions").toString())
             .contains("CAPABILITY_UNDECLARED", "OPERATION_NOT_AUTHORIZED", "admitted=false");
+        assertThat(result.evidence().get("semanticGaps").toString())
+            .contains("semantic_evidence_gap.v1", "route=REPLAN", "requiredCapabilityId=scale");
+        assertThat(result.evidence().get("semanticGapRequests").toString())
+            .contains("Resolve the rejected claim", "requiredCapabilities=[scale]");
         assertThat(result.evidence().get("insights")).isEqualTo(List.of());
     }
 

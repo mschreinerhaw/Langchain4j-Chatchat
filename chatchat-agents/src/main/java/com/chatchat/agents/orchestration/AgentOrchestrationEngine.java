@@ -24,6 +24,8 @@ import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGoverna
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
 import com.chatchat.agents.orchestration.analysis.summary.GovernedGlobalSynthesisPolicy;
 import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.summary.SemanticGapEvidenceBridge;
+import com.chatchat.agents.orchestration.presentation.AgentLifecyclePresentationPolicy;
 import com.chatchat.agents.evidence.normalization.EvidenceSource;
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
@@ -225,6 +227,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final AgentRuntimeAttributeCompiler runtimeAttributeCompiler;
     private final AgentPlanningPort planner;
     private final AgentRunResultAdapter runResultAdapter;
+    private final SemanticGapEvidenceBridge semanticGapEvidenceBridge;
     private final AgentRunScopeBinder runScopeBinder;
     private final AgentRunLifecycleCoordinator runLifecycle;
     private final AgentPlanEvolutionAuditor planEvolutionAuditor;
@@ -400,6 +403,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         AgentAnswerReviewer resolvedAnswerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
         this.planner = new AgentPlanner(toolRegistry, objectMapper);
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
+        this.semanticGapEvidenceBridge = new SemanticGapEvidenceBridge(
+            this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.analysisProgressRecorder = new AnalysisProgressRecorder(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.summaryGovernanceCoordinator = new AnalysisSummaryGovernanceCoordinator(
@@ -1088,7 +1093,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 requestRuntimeAttributes,
                 metadata,
                 "plan_generation",
-                planGenerationLifecycleContent(decision),
+                AgentLifecyclePresentationPolicy.planGenerationContent(decision),
                 metadataOf(
                     "step", step,
                     "action", decision.action(),
@@ -1571,6 +1576,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             activeChatModel, query, systemPrompt, plan, firstResult, 1, evidenceHistory,
             runtimeAttributes, metadata, cancellationCheck
         );
+        RecordCoverageBundle latestRecordCoverage = analyzeClaimAdmissionCoverage(
+            activeChatModel, query, firstResult, planAttemptResults, runtimeAttributes, metadata,
+            cancellationCheck);
+        firstEvidence = semanticGapEvidenceBridge.merge(firstEvidence,
+            latestRecordCoverage.summaryResults(), 1, runtimeAttributes, metadata);
         evidenceHistory.add(firstEvidence);
         int configuredMaxRewriteTimes = maxRewriteTimes(initialPipelinePlan);
         boolean firstEvidenceAvailable = usableEvidenceAvailable(firstEvidence);
@@ -1606,7 +1616,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 observations,
                 metadata,
                 cancellationCheck,
-                "initial"
+                "initial",
+                latestRecordCoverage
             );
             return finishSynthesizedInterpretationPlanAnswer(
                 activeChatModel,
@@ -1910,6 +1921,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 activeChatModel, query, systemPrompt, currentPlan, currentResult, rewriteCount + 1,
                 evidenceHistory, runtimeAttributes, metadata, cancellationCheck
             );
+            latestRecordCoverage = analyzeClaimAdmissionCoverage(
+                activeChatModel, query, currentResult, planAttemptResults, runtimeAttributes, metadata,
+                cancellationCheck);
+            currentEvidence = semanticGapEvidenceBridge.merge(currentEvidence,
+                latestRecordCoverage.summaryResults(), rewriteCount + 1, runtimeAttributes, metadata);
             evidenceHistory.add(currentEvidence);
             latestAugmentationDecision = decideEvidenceAugmentation(
                 currentEvidence,
@@ -1963,7 +1979,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     observations,
                     metadata,
                     cancellationCheck,
-                    rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount
+                    rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
+                    latestRecordCoverage
                 );
                 return finishSynthesizedInterpretationPlanAnswer(
                     activeChatModel,
@@ -2091,7 +2108,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 observations,
                 metadata,
                 cancellationCheck,
-                synthesisStage
+                synthesisStage,
+                latestRecordCoverage
             );
             return finishSynthesizedInterpretationPlanAnswer(
                 activeChatModel,
@@ -2908,6 +2926,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
     }
 
+    private RecordCoverageBundle analyzeClaimAdmissionCoverage(ChatModel activeChatModel, String query,
+        InterpretationPlanRuntime.ExecutionResult latest, List<InterpretationPlanRuntime.ExecutionResult> attempts,
+        Map<String, Object> runtimeAttributes, Map<String, Object> metadata, BooleanSupplier cancellationCheck) {
+        if (activeChatModel == null || latest == null) return RecordCoverageBundle.empty();
+        return semanticGapEvidenceBridge.preflight(
+            () -> buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
+                runtimeAttributes, metadata, cancellationCheck),
+            RecordCoverageBundle::empty, runtimeAttributes, metadata);
+    }
+
     private List<Map<String, Object>> objectMapList(Object value) {
         if (!(value instanceof Iterable<?> values)) {
             return List.of();
@@ -2922,27 +2950,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return List.copyOf(records);
     }
 
-    private String planGenerationLifecycleContent(AgentDecision decision) {
-        if (decision == null || decision.interpretationPlan() == null) {
-            return "Planner generated the next action.";
-        }
-        Object valid = decision.executionPlan() == null ? null : decision.executionPlan().get("interpretationPlanValid");
-        if (Boolean.TRUE.equals(valid)) {
-            return "Planner generated an executable InterpretationPlan DAG.";
-        }
-        return "Planner generated an InterpretationPlan DAG candidate that failed runtime validation.";
-    }
-
-    private String synthesizeInterpretationPlanAnswer(ChatModel activeChatModel,
-                                                      String query,
-                                                      String systemPrompt,
-                                                      InterpretationPlanRuntime.ExecutionResult result,
-                                                      List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
-                                                      Map<String, Object> runtimeAttributes,
-                                                      List<String> observations,
-                                                      Map<String, Object> metadata,
-                                                      BooleanSupplier cancellationCheck,
-                                                      String stage) {
+    private String synthesizeInterpretationPlanAnswer(ChatModel activeChatModel, String query, String systemPrompt,
+        InterpretationPlanRuntime.ExecutionResult result, List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
+        Map<String, Object> runtimeAttributes, List<String> observations, Map<String, Object> metadata,
+        BooleanSupplier cancellationCheck, String stage, RecordCoverageBundle precomputedRecordCoverage) {
         InterpretationPlanRuntime.ExecutionResult cumulativeEvidenceResult =
             cumulativeEvidenceResult(result, attemptResults);
         if (metadata != null && hasBatchExecutionResult(cumulativeEvidenceResult)) {
@@ -2965,8 +2976,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return result == null ? "" : firstNonBlank(result.finalAnswer(), "");
         }
         List<AgentObservation> storedObservations = storedInterpretationPlanObservations(runtimeAttributes);
-        RecordCoverageBundle recordCoverage = buildRecordCoverageBundle(
-            activeChatModel, query, cumulativeEvidenceResult, runtimeAttributes, metadata, cancellationCheck);
+        RecordCoverageBundle recordCoverage = precomputedRecordCoverage == null
+            ? buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult,
+                runtimeAttributes, metadata, cancellationCheck)
+            : precomputedRecordCoverage;
         List<InterpretationPlanRuntime.ExecutionResult> resolvedAttemptResults =
             resolvedSummaryEvidenceAttempts(attemptResults);
         InterpretationPlanRuntime.ExecutionResult resolvedResult = resolvedAttemptResults.isEmpty()

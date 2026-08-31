@@ -14,6 +14,9 @@ import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.analysis.semantic.CapabilityEvidenceClaimContract;
 import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimAdmissionPolicy;
+import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimGapPolicy;
+import com.chatchat.common.runtime.summary.analysis.semantic.SemanticEvidenceGapContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.SemanticGapAnalysisLoopAdapter;
 import com.chatchat.common.runtime.summary.analysis.semantic.SemanticOperation;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
@@ -53,6 +56,9 @@ public final class AnalysisSummaryGovernanceBridge
         new CapabilityEvidenceClaimCompiler();
     private final SemanticClaimAdmissionPolicy semanticClaimAdmissionPolicy =
         new SemanticClaimAdmissionPolicy();
+    private final SemanticClaimGapPolicy semanticClaimGapPolicy = new SemanticClaimGapPolicy();
+    private final SemanticGapAnalysisLoopAdapter semanticGapAnalysisLoopAdapter =
+        new SemanticGapAnalysisLoopAdapter();
 
     /** Applies an explicit producer policy before any model call. */
     public boolean requiresModelSummary(Map<String, Object> governedContext, boolean oversized) {
@@ -412,6 +418,11 @@ public final class AnalysisSummaryGovernanceBridge
         evidence.put("insights", validatedInsights);
         evidence.put("claimContractVersion", CapabilityEvidenceClaimContract.SCHEMA_VERSION);
         evidence.put("claimAdmissionDecisions", insightValidation.decisions());
+        evidence.put("semanticGaps", insightValidation.gaps());
+        evidence.put("semanticGapRequests", semanticGapAnalysisLoopAdapter
+            .toGapRequests(insightValidation.gapContracts()).stream()
+            .map(com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract.GapRequest::toMap)
+            .toList());
         evidence.put("rejectedInsightCount", rejectedInsights);
         if (!proposedInsights.isEmpty()) {
             content = validatedInsights.isEmpty()
@@ -481,6 +492,8 @@ public final class AnalysisSummaryGovernanceBridge
                                                 Map<String, Object> semanticContract) {
         List<Map<String, Object>> result = new ArrayList<>();
         List<Map<String, Object>> decisions = new ArrayList<>();
+        List<Map<String, Object>> gaps = new ArrayList<>();
+        List<SemanticEvidenceGapContract.Gap> gapContracts = new ArrayList<>();
         Set<String> allowedClasses = Set.of("OBSERVED_RETURNED_FACT",
             "AUTHORIZED_DERIVED_MEASURE", "CALIBRATED_INFERENCE");
         CapabilityEvidenceClaimContract.Capability capability = capabilityEvidenceClaimCompiler.compile(
@@ -527,11 +540,25 @@ public final class AnalysisSummaryGovernanceBridge
                 || confidence == null || !Set.of("HIGH", "MEDIUM", "LOW").contains(confidence)
                 || references.isEmpty() || values.isEmpty()) rejectionCodes.add("CLAIM_SHAPE_INVALID");
             rejectionCodes = rejectionCodes.stream().distinct().toList();
-            decisions.add(Map.of(
-                "candidateIndex", candidateIndex,
-                "claimClass", claimClass == null ? "" : claimClass,
-                "admitted", rejectionCodes.isEmpty(),
-                "rejectionCodes", rejectionCodes));
+            Map<String, Object> decision = new LinkedHashMap<>();
+            decision.put("candidateIndex", candidateIndex);
+            decision.put("claimClass", claimClass == null ? "" : claimClass);
+            decision.put("admitted", rejectionCodes.isEmpty());
+            decision.put("rejectionCodes", rejectionCodes);
+            if (!rejectionCodes.isEmpty()) {
+                CapabilityEvidenceClaimContract.Admission finalAdmission =
+                    new CapabilityEvidenceClaimContract.Admission(false, rejectionCodes);
+                SemanticEvidenceGapContract.Gap gap = semanticClaimGapPolicy.derive(
+                    capability, boundEvidence, proposedClaim, finalAdmission);
+                if (gap != null) {
+                    Map<String, Object> gapMap = gap.toMap();
+                    gaps.add(gapMap);
+                    gapContracts.add(gap);
+                    decision.put("semanticGapId", gap.gapId());
+                    decision.put("semanticGapRoute", gap.route().name());
+                }
+            }
+            decisions.add(Collections.unmodifiableMap(decision));
             if (!rejectionCodes.isEmpty()) continue;
             Map<String, Object> insight = new LinkedHashMap<>();
             insight.put("claimClass", claimClass);
@@ -552,7 +579,8 @@ public final class AnalysisSummaryGovernanceBridge
             insight.put("alternativeExplanations", alternatives);
             result.add(Collections.unmodifiableMap(insight));
         }
-        return new InsightValidation(List.copyOf(result), List.copyOf(decisions));
+        return new InsightValidation(List.copyOf(result), List.copyOf(decisions), List.copyOf(gaps),
+            List.copyOf(gapContracts));
     }
 
     private void putIfPresent(Map<String, Object> target, String key, Object value) {
@@ -565,7 +593,9 @@ public final class AnalysisSummaryGovernanceBridge
     }
 
     private record InsightValidation(List<Map<String, Object>> admitted,
-                                     List<Map<String, Object>> decisions) {
+                                     List<Map<String, Object>> decisions,
+                                     List<Map<String, Object>> gaps,
+                                     List<SemanticEvidenceGapContract.Gap> gapContracts) {
     }
 
     private LinkedHashSet<Integer> citedRecordIndexes(DataAnalysisPosition position,

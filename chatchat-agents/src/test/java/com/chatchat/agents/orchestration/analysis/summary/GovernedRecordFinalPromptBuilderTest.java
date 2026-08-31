@@ -14,7 +14,9 @@ class GovernedRecordFinalPromptBuilderTest {
 
         assertThat(prompt)
             .contains("workerAnalysisContext and templateMatchAnalysis")
-            .contains("Cover every successful non-empty dataset")
+            .contains("Account for every successful non-empty dataset")
+            .contains("omit irrelevant, rejected or merely catalog-like results")
+            .contains("never by query source, tool, search channel, chunk or execution view")
             .contains("do not claim that a type of record is missing")
             .contains("objective-aspect coverage matrix")
             .contains("one-period observation or small sample")

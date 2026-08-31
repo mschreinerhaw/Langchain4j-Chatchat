@@ -38,14 +38,14 @@ class EvidenceAugmentationPolicyTest {
     }
 
     @Test
-    void partialEvidenceStopsExplorationAndAnswersWithLimitations() {
+    void partialEvidenceContinuesWhenMaterialCoreGapHasActionablePath() {
         EvidenceAugmentationPolicy.Outcome outcome = policy.decide(new EvidenceAugmentationPolicy.Context(
             true, false, true, true, false, TaskContract.EvidenceRequirement.REQUIRED));
 
         assertThat(outcome.decision())
-            .isEqualTo(EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS);
+            .isEqualTo(EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE);
         assertThat(outcome.answerAllowed()).isTrue();
-        assertThat(outcome.continueLoop()).isFalse();
+        assertThat(outcome.continueLoop()).isTrue();
     }
 
     @Test

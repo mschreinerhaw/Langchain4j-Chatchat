@@ -176,6 +176,8 @@ final class EvidenceCompressionGate {
         }
         if (normalized.contains("missing") || normalized.contains("conflict")
             || normalized.contains("nextaction") || normalized.contains("hypothes")
+            || normalized.contains("analysiscoverage") || normalized.contains("gaprequest")
+            || normalized.contains("gapfingerprint")
             || normalized.contains("evaluation") || normalized.contains("executionlock")
             || normalized.contains("repair") || normalized.contains("contract")) {
             return 1;

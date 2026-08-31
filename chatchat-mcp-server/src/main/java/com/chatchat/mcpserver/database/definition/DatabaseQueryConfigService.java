@@ -13,6 +13,7 @@ import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.query.FeatureHashVectorizer;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.tool.ProducerSemanticMetadataPolicy;
 import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.chatchat.runtime.market.analysis.FinancialDatasetReadinessService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -337,7 +338,8 @@ public class DatabaseQueryConfigService {
         config.setSqlStepsJson(sqlSteps.isEmpty() ? null : writeSqlSteps(sqlSteps));
         config.setSqlTemplate(normalizeSqlTemplate(config, sqlSteps));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson()));
-        config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
+        config.setGovernanceJson(ProducerSemanticMetadataPolicy.normalize(
+            objectMapper, config.getGovernanceJson(), "governance"));
         config.setRoutingLabelsJson(normalizeJsonArray(
             mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()),
             "routingLabels"

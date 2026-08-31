@@ -345,6 +345,9 @@ public final class AgentPlanEvolutionAuditor {
         context.put("hypothesisIds", hypothesisIdsFromSnapshot(latest));
         context.put("conclusion", latest.getOrDefault("conclusion", ""));
         context.put("missingEvidence", latest.getOrDefault("missingEvidence", List.of()));
+        context.put("analysisCoverage", latest.getOrDefault("analysisCoverage", Map.of()));
+        context.put("gapRequests", latest.getOrDefault("gapRequests", List.of()));
+        context.put("gapFingerprint", latest.getOrDefault("gapFingerprint", ""));
         context.put("conflicts", latest.getOrDefault("conflicts", List.of()));
         context.put("nextActions", latest.getOrDefault("nextActions", List.of()));
         context.put("evidenceQuality", latest.getOrDefault("evidenceQuality", latest.getOrDefault("confidence", null)));

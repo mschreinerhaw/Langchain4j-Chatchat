@@ -1041,6 +1041,15 @@ class AgentOrchestratorTest {
             Map.of("nextActions", List.of(Map.of("tool", "generic_search"))),
             success, List.of("generic_search"), true))
             .isTrue();
+        assertThat(orchestrator.evidenceExplorationAvailable(
+            Map.of(
+                "remainingMissing", List.of(Map.of(
+                    "capability", "historical comparison",
+                    "reason", "only the current period is available")),
+                "toolEvidence", List.of(Map.of("shouldExpandQuery", true))),
+            success, List.of("generic_search"), true))
+            .as("a declarative business gap must be allowed to enter normal discovery")
+            .isTrue();
 
     }
 
@@ -3788,9 +3797,9 @@ class AgentOrchestratorTest {
             .containsExactly("document_search");
         assertThat(result.metadata())
             .containsEntry("interpretationPlanConfiguredMaxRewriteTimes", 2)
-            .containsEntry("interpretationPlanMaxRewriteTimes", 0)
+            .containsEntry("interpretationPlanMaxRewriteTimes", 2)
             .containsEntry("stopReason", "evidence_partial_analysis")
-            .doesNotContainKeys("evidenceAugmentationOverrideApplied", "interpretationPlanRewriteAttempted", "dagRepairEvents");
+            .containsEntry("interpretationPlanRewriteAttempted", true);
         List<Map<String, Object>> steps = (List<Map<String, Object>>) result.metadata().get("interpretationPlanStepExecutions");
         assertThat(steps)
             .anySatisfy(step -> {

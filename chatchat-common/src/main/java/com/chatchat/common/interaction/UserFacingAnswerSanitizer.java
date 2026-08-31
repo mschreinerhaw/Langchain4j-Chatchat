@@ -19,8 +19,10 @@ public final class UserFacingAnswerSanitizer {
     private static final String STEP_REFERENCE = "iteration:\\d+:step:\\d+:tool:[a-z0-9_.:-]+";
     private static final String ANALYSIS_SUMMARY_REFERENCE = UUID + ":[a-z0-9_.:-]+:"
         + "(?:dataset-summary|relationship-summary|global-summary)#[a-z0-9_.:-]+";
+    private static final String TOOL_REFERENCE = "mcp_[a-z0-9_]+(?:#chunk-\\d+|\\.rows)?";
     private static final String INTERNAL_REFERENCE = "(?:" + MCP_CHUNK_REFERENCE + "|"
-        + ANALYSIS_SUMMARY_REFERENCE + "|" + STEP_REFERENCE + ")";
+        + ANALYSIS_SUMMARY_REFERENCE + "|" + STEP_REFERENCE + "|" + TOOL_REFERENCE
+        + "|#chunk-\\d+)";
 
     private static final Pattern BACKTICK_MAPPING = Pattern.compile(
         "(?i)(?<![a-z0-9_])" + RECONCILIATION_ALIAS
@@ -29,7 +31,7 @@ public final class UserFacingAnswerSanitizer {
         "(?i)(?<![a-z0-9_])" + RECONCILIATION_ALIAS + "[ \\t]*=[ \\t]*`?" + INTERNAL_REFERENCE
             + "`?[ \\t]*\\\\?");
     private static final Pattern INTERNAL_REFERENCE_PATTERN = Pattern.compile(
-        "(?i)(?<![a-z0-9_-])" + INTERNAL_REFERENCE + "(?![a-z0-9_-])");
+        "(?i)(?<![a-z0-9_-])`?" + INTERNAL_REFERENCE + "`?(?![a-z0-9_-])");
     private static final Pattern INLINE_ALIAS = Pattern.compile(
         "(?i)[ \\t]*(?:\\[[ \\t]*|\\([ \\t]*|（[ \\t]*)" + RECONCILIATION_ALIAS
             + "(?:[ \\t]*]|[ \\t]*\\)|[ \\t]*）)[ \\t]*");
@@ -55,6 +57,16 @@ public final class UserFacingAnswerSanitizer {
         sanitized = INTERNAL_MAPPING.matcher(sanitized).replaceAll("");
         sanitized = INTERNAL_REFERENCE_PATTERN.matcher(sanitized).replaceAll("");
         sanitized = INLINE_ALIAS.matcher(sanitized).replaceAll(" ");
+        sanitized = sanitized
+            .replaceAll("(?i)\\b(?:analysisContext|workerAnalysisContext|templateMatchAnalysis)\\b", "")
+            .replaceAll("[（(]\\s*(?:证据|evidence|完整\\d+行见)\\s*[：:]?"
+                + "\\s*(?:[,，、;；至\\s]|#chunk-\\d+)*[）)]", "")
+            .replaceAll("完整\\d+行见\\s*(?=[；;。])", "")
+            .replaceAll("生产者声明位于\\s*(?:capability)?\\s*(?=[；;。])", "")
+            .replaceAll("(?i)\\bcapability\\b", "")
+            .replaceAll("([。！？!?])[；;]+", "$1")
+            .replaceAll("[；;]+。", "。")
+            .replaceAll("。{2,}", "。");
 
         List<String> retainedLines = new ArrayList<>();
         for (String line : sanitized.replace("\r", "").split("\n", -1)) {

@@ -177,4 +177,27 @@ class McpAnalysisContextAdapterTest {
             .doesNotContain("contractId=trusted", "tenantId=tenant-a",
                 "payload-injected", "tenant-b", "deterministicInsights");
     }
+
+    @Test
+    void consumesOnlyProducerDeclaredGenericSemanticsFromTrustedMcpMetadata() {
+        Map<String, Object> declaration = Map.of(
+            "schemaVersion", "producer_semantic_declaration.v1",
+            "capabilityId", "generic.observation",
+            "allowedOperations", List.of("OBSERVE"),
+            "fields", List.of(Map.of("name", "value", "meaning", "producer value")),
+            "evidenceScope", Map.of("grain", "", "timeScope", "",
+                "populationScope", "", "completeness", "UNKNOWN"),
+            "rules", List.of());
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("generic_source").categories(List.of("mcp"))
+            .metadata(Map.of("mcpToolMeta", Map.of("producerSemanticDeclaration", declaration)))
+            .build();
+
+        Map<String, Object> context = adapter.adapt("generic-data", metadata, Map.of());
+
+        assertThat(context.get("capability").toString())
+            .contains("generic.observation", "OBSERVE");
+        assertThat(context.get("schema").toString()).contains("producer value");
+        assertThat(context.toString()).doesNotContain("ETF", "customer", "finance");
+    }
 }

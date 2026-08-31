@@ -14,6 +14,8 @@ import com.chatchat.mcpserver.sql.execution.SqlScriptResult;
 import com.chatchat.mcpserver.sql.execution.SqlScriptStatementResult;
 import com.chatchat.tools.builtin.DatabaseToolProperties;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
+import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclaration;
+import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclarationProtocol;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -462,6 +464,8 @@ public class StandardToolExecutionResultFactory {
     public Map<String, Object> fromApi(ApiServiceConfig config, ApiInvokeResult result) {
         Map<String, Object> outputSchema = apiOutputSchema(config);
         List<Map<String, Object>> fieldMetadata = apiFieldMetadata(outputSchema);
+        Map<String, Object> capabilitySpec = config == null
+            ? Map.of() : apiJsonObject(config.getCapabilitySpecJson());
         Map<String, Object> analysisContext = config == null ? Map.of() : DataAnalysisContextProtocol.create(
             mapOf(
                 "type", "api_service",
@@ -470,7 +474,7 @@ public class StandardToolExecutionResultFactory {
                 "toolName", config.getToolName(),
                 "description", config.getDescription()
             ),
-            apiJsonObject(config.getCapabilitySpecJson()),
+            capabilitySpec,
             mapOf(
                 "id", config.getCategoryId(),
                 "code", config.getBusinessGroup(),
@@ -480,6 +484,7 @@ public class StandardToolExecutionResultFactory {
             mapOf("definition", outputSchema, "fields", fieldMetadata),
             apiJsonObject(config.getDependencySpecJson())
         );
+        analysisContext = applyProducerSemanticDeclaration(analysisContext, capabilitySpec);
         Map<String, Object> payload = base(
             "api_request", "api_response.v1",
             result.body() instanceof Map<?, ?> || result.body() instanceof List<?> ? "structured" : "semi_raw",
@@ -957,7 +962,7 @@ public class StandardToolExecutionResultFactory {
         String groupCode = firstText(config.getBusinessGroup(), "default");
         String groupName = firstText(config.getBusinessGroupName(), groupCode);
         String groupDescription = firstText(config.getBusinessGroupDescription(), "");
-        return DataAnalysisContextProtocol.create(
+        Map<String, Object> analysisContext = DataAnalysisContextProtocol.create(
             mapOf(
                 "type", "database_query_template",
                 "id", config.getId(),
@@ -979,6 +984,16 @@ public class StandardToolExecutionResultFactory {
             ),
             Map.of()
         );
+        return applyProducerSemanticDeclaration(
+            analysisContext, apiJsonObject(config.getGovernanceJson()));
+    }
+
+    private Map<String, Object> applyProducerSemanticDeclaration(Map<String, Object> analysisContext,
+                                                                  Map<String, Object> ownerMetadata) {
+        if (ownerMetadata == null || ownerMetadata.isEmpty()) return analysisContext;
+        ProducerSemanticDeclaration declaration = ProducerSemanticDeclarationProtocol.find(ownerMetadata);
+        return declaration == null ? analysisContext
+            : ProducerSemanticDeclarationProtocol.mergeIntoAnalysisContext(analysisContext, declaration);
     }
 
     private Map<String, Object> linuxCommandContext(LinuxCommandResult result,

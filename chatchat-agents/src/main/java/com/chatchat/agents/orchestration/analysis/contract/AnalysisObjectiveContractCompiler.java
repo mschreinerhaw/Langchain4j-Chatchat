@@ -39,6 +39,19 @@ public final class AnalysisObjectiveContractCompiler {
         contract.put("dimensions", strings(intent.get("dimensions")));
         contract.put("analysisFocus", strings(intent.get("analysisFocus")));
         contract.put("expectedRelationships", strings(intent.get("expectedRelationships")));
+        List<String> businessQuestions = new ArrayList<>();
+        businessQuestions.addAll(strings(currentTemplate.get("matchedQuestionAspects")));
+        businessQuestions.addAll(strings(intent.get("analysisFocus")));
+        businessQuestions.addAll(strings(intent.get("metrics")));
+        contract.put("analysisPlan", Map.of(
+            "schemaVersion", "business_analysis_plan.v1",
+            "primaryGoal", originalQuestion.trim(),
+            "businessQuestions", businessQuestions.stream().distinct().map(question -> Map.of(
+                "questionId", "q-" + Integer.toUnsignedString(question.hashCode(), 36),
+                "question", question,
+                "criticality", "CORE"
+            )).toList()
+        ));
         contract.put("professionalAnalysisContract",
             ProfessionalDataAnalysisContract.enterpriseDefault().toMap());
         contract.put("workerObligations", List.of(

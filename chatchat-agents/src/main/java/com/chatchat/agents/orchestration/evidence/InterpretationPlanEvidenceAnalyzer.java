@@ -8,6 +8,7 @@ import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract;
 import dev.langchain4j.model.chat.ChatModel;
 
 import java.util.ArrayList;
@@ -162,6 +163,9 @@ public final class InterpretationPlanEvidenceAnalyzer {
         boolean sufficient = booleanValue(firstObject(analysis, "sufficient", "satisfied", "complete"))
             && missingEvidence.isEmpty()
             && conflicts.isEmpty();
+        AnalysisLoopContract analysisCoverage = analysisCoverage(
+            query, diagnosticRun, previouslyCompletedDiagnosticChecks, toolEvidence,
+            missingEvidence, nextActions, sufficient);
         double confidence = evidenceGraphService.evidenceConfidence(toolEvidence, hypotheses);
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("contractVersion", "interpretation_evidence_iteration_v1");
@@ -188,6 +192,10 @@ public final class InterpretationPlanEvidenceAnalyzer {
         snapshot.put("remainingMissing", missingEvidence);
         snapshot.put("nextActions", evidenceAnalysisValue(analysis,
             "next_actions", "nextActions", "next_queries", "nextQueries", "query_revisions", "queryRevisions"));
+        snapshot.put("analysisCoverage", analysisCoverage.toMap());
+        snapshot.put("gapRequests", analysisCoverage.gapRequests().stream()
+            .map(AnalysisLoopContract.GapRequest::toMap).toList());
+        snapshot.put("gapFingerprint", analysisCoverage.gapFingerprint());
         snapshot.put("toolEvidence", toolEvidence);
         if (diagnosticRun != null) {
             snapshot.put("diagnosticRun", diagnosticRun);
@@ -202,6 +210,7 @@ public final class InterpretationPlanEvidenceAnalyzer {
         metadata.put("interpretationPlanEvidenceConfidence", confidence);
         metadata.put("interpretationPlanRemainingMissing", missingEvidence);
         metadata.put("interpretationPlanEvidenceGraph", evidenceGraph);
+        metadata.put("interpretationPlanAnalysisCoverage", analysisCoverage.toMap());
         for (Map<String, Object> evidenceObject : toolEvidence) {
             runResultAdapter.recordRuntimeObservation(
                 runtimeAttributes,
@@ -270,6 +279,95 @@ public final class InterpretationPlanEvidenceAnalyzer {
             );
         }
         return snapshot;
+    }
+
+    private AnalysisLoopContract analysisCoverage(
+        String query,
+        DiagnosticRun diagnosticRun,
+        Set<String> previouslyCompleted,
+        List<Map<String, Object>> toolEvidence,
+        List<Object> missingEvidence,
+        List<Object> nextActions,
+        boolean sufficient
+    ) {
+        List<String> successfulEvidenceIds = toolEvidence == null ? List.of() : toolEvidence.stream()
+            .filter(item -> item != null && Boolean.TRUE.equals(item.get("success")))
+            .map(item -> stringValue(item.get("evidenceId")))
+            .filter(id -> id != null && !id.isBlank()).distinct().toList();
+        List<AnalysisLoopContract.QuestionCoverage> questions = new ArrayList<>();
+        List<AnalysisLoopContract.GapRequest> gaps = new ArrayList<>();
+        Set<String> prior = previouslyCompleted == null ? Set.of() : previouslyCompleted;
+        if (diagnosticRun != null && diagnosticRun.checks() != null) {
+            for (DiagnosticRun.CheckResult check : diagnosticRun.checks()) {
+                if (check == null) continue;
+                String questionId = firstNonBlank(check.checkId(), "diagnostic-question-" + (questions.size() + 1));
+                String capability = firstNonBlank(check.capability(), check.dimension());
+                boolean covered = "completed".equals(check.status())
+                    || prior.contains(normalizedDiagnosticCheckId(check.checkId()));
+                AnalysisLoopContract.Criticality criticality = check.required()
+                    ? AnalysisLoopContract.Criticality.CORE
+                    : AnalysisLoopContract.Criticality.SUPPORTING;
+                questions.add(new AnalysisLoopContract.QuestionCoverage(
+                    questionId,
+                    firstNonBlank(firstNonBlank(check.dimension(), capability), questionId),
+                    criticality,
+                    covered ? AnalysisLoopContract.CoverageStatus.SUPPORTED
+                        : AnalysisLoopContract.CoverageStatus.UNSUPPORTED,
+                    capability == null ? List.of() : List.of(capability),
+                    covered ? successfulEvidenceIds : List.of(),
+                    covered ? List.of() : List.of(firstNonBlank(check.reason(), "required evidence is missing"))
+                ));
+                if (!covered && check.required()) {
+                    gaps.add(new AnalysisLoopContract.GapRequest(
+                        questionId,
+                        "Retrieve evidence for " + firstNonBlank(firstNonBlank(check.dimension(), capability), questionId),
+                        capability == null ? List.of() : List.of(capability),
+                        "USER_REQUESTED_SCOPE",
+                        firstNonBlank(check.dimension(), "PRODUCER_DECLARED_GRAIN"),
+                        AnalysisLoopContract.Criticality.CORE,
+                        firstNonBlank(check.reason(), "required diagnostic capability is not covered")
+                    ));
+                }
+            }
+        }
+        if (questions.isEmpty()) {
+            boolean partial = !successfulEvidenceIds.isEmpty() && !sufficient;
+            List<String> missing = missingEvidence == null ? List.of() : missingEvidence.stream()
+                .map(String::valueOf).filter(value -> !value.isBlank()).distinct().toList();
+            questions.add(new AnalysisLoopContract.QuestionCoverage(
+                "primary-goal", firstNonBlank(query, "Complete the requested business analysis"),
+                AnalysisLoopContract.Criticality.CORE,
+                sufficient ? AnalysisLoopContract.CoverageStatus.SUPPORTED
+                    : partial ? AnalysisLoopContract.CoverageStatus.PARTIAL
+                    : AnalysisLoopContract.CoverageStatus.UNSUPPORTED,
+                requiredCapabilities(missingEvidence, nextActions), successfulEvidenceIds, missing));
+            if (!sufficient && (!missing.isEmpty() || (nextActions != null && !nextActions.isEmpty()))) {
+                gaps.add(new AnalysisLoopContract.GapRequest(
+                    "primary-goal", "Retrieve evidence that closes the remaining business-question gap",
+                    requiredCapabilities(missingEvidence, nextActions), "USER_REQUESTED_SCOPE",
+                    "PRODUCER_DECLARED_GRAIN", AnalysisLoopContract.Criticality.CORE,
+                    missing.isEmpty() ? "an evidence refinement action remains" : String.join("; ", missing)
+                ));
+            }
+        }
+        return AnalysisLoopContract.of(query, questions, gaps);
+    }
+
+    private List<String> requiredCapabilities(List<Object> missingEvidence, List<Object> nextActions) {
+        LinkedHashSet<String> capabilities = new LinkedHashSet<>();
+        for (Object raw : List.of(missingEvidence == null ? List.of() : missingEvidence,
+            nextActions == null ? List.of() : nextActions)) {
+            if (!(raw instanceof Iterable<?> values)) continue;
+            for (Object value : values) {
+                if (!(value instanceof Map<?, ?> map)) continue;
+                Map<String, Object> item = asStringObjectMap(map);
+                for (String key : List.of("capability", "dimension", "requiredCapability", "retrievalGoal")) {
+                    String capability = stringValue(item.get(key));
+                    if (capability != null && !capability.isBlank()) capabilities.add(capability);
+                }
+            }
+        }
+        return List.copyOf(capabilities);
     }
 
     private boolean satisfiedTemplateExecutionEvidence(Map<String, Object> evidence) {
@@ -398,6 +496,8 @@ public final class InterpretationPlanEvidenceAnalyzer {
                 ? Map.of()
                 : asMap(step.metadata().get("evidenceEvaluation"));
             item.put("shouldExpandQuery", evidenceEvaluation.get("shouldExpandQuery"));
+            item.put("retryable", step.metadata() == null ? null : step.metadata().get("retryable"));
+            item.put("resultCode", step.metadata() == null ? null : step.metadata().get("resultCode"));
             item.put("hypotheses", step.metadata() == null ? List.of()
                 : step.metadata().getOrDefault("hypotheses", List.of()));
             item.put("templateExecutionReview", step.metadata() == null ? Map.of()

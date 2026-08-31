@@ -75,4 +75,24 @@ class TemplateKnowledgeProtocolTest {
         assertThat(parameters.missingParameters()).containsExactly("customerId");
         assertThat(parameters.recoveryAction()).isEqualTo(TemplateRecoveryAction.REQUEST_PARAMETERS);
     }
+
+    @Test
+    void validatesAndCarriesProducerSemanticsWithoutRuntimeDomainKnowledge() {
+        Map<String, Object> declaration = Map.of(
+            "schemaVersion", "producer_semantic_declaration.v1",
+            "capabilityId", "generic.observation",
+            "allowedOperations", List.of("OBSERVE"),
+            "fields", List.of(Map.of("name", "value", "meaning", "producer supplied value")),
+            "evidenceScope", Map.of("grain", "", "timeScope", "",
+                "populationScope", "", "completeness", "UNKNOWN"),
+            "rules", List.of());
+
+        StandardTemplateKnowledge template = TemplateKnowledgeProtocol.template(Map.of(
+            "templateId", "generic_observation", "producerSemanticDeclaration", declaration));
+
+        assertThat(template.attributes().get("producerSemanticDeclaration").toString())
+            .contains("generic.observation", "OBSERVE");
+        assertThat(template.attributes().get("analysisContext").toString())
+            .contains("capabilityId=generic.observation", "producer supplied value");
+    }
 }

@@ -23,6 +23,7 @@ public final class AnalysisSemanticContractCompiler {
         contract.put("semanticAuthority", suppliedSections.stream().anyMatch(this::semanticSection)
             ? "PRODUCER_DECLARED" : "UNDECLARED");
         contract.put("declaredSections", suppliedSections.stream().filter(this::semanticSection).toList());
+        copyDeclared(contract, context, suppliedSections, "capability");
         copyDeclared(contract, context, suppliedSections, "schema");
         copyDeclared(contract, context, suppliedSections, "semantics");
         copyDeclared(contract, context, suppliedSections, "relationships");
@@ -46,7 +47,7 @@ public final class AnalysisSemanticContractCompiler {
     }
 
     private boolean semanticSection(String value) {
-        return List.of("schema", "semantics", "relationships", "quality", "analysisPolicy")
+        return List.of("capability", "schema", "semantics", "relationships", "quality", "analysisPolicy")
             .contains(value);
     }
 

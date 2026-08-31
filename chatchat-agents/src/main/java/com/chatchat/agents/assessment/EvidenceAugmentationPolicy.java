@@ -1,9 +1,10 @@
 package com.chatchat.agents.assessment;
 
 /**
- * Deterministic Agent Loop policy. Usable partial evidence terminates exploration
- * with explicit limitations; only the absence of usable evidence justifies another
- * retrieval attempt. Evidence gaps are not an answer gate.
+ * Deterministic Agent Loop policy. A material, actionable evidence gap is closed
+ * before synthesis even when the current round already returned partial evidence.
+ * Partial evidence is synthesized with limitations only after exploration is no
+ * longer available. Evidence gaps are not an answer gate once the bounded loop ends.
  */
 public final class EvidenceAugmentationPolicy {
 
@@ -19,13 +20,13 @@ public final class EvidenceAugmentationPolicy {
             return outcome(Decision.COMPLETE, true, false,
                 "The current evidence supports completion.");
         }
-        if (resolved.evidenceAvailable()) {
-            return outcome(Decision.ANALYZE_WITH_LIMITATIONS, true, false,
-                "Usable evidence exists; remaining gaps affect confidence and limitations, not answer permission.");
-        }
         if (resolved.materialGap() && resolved.explorationAvailable()) {
             return outcome(Decision.RETRIEVE_MORE, true, true,
-                "No usable evidence is available and an actionable retrieval path remains.");
+                "A material evidence gap remains and an actionable bounded retrieval path is available.");
+        }
+        if (resolved.evidenceAvailable()) {
+            return outcome(Decision.ANALYZE_WITH_LIMITATIONS, true, false,
+                "Usable evidence exists, but the remaining gap cannot be closed within the current retrieval boundary.");
         }
         if (resolved.evidenceRequirement() == TaskContract.EvidenceRequirement.OPTIONAL) {
             return outcome(Decision.ANALYZE_WITH_LIMITATIONS, true, false,

@@ -44,4 +44,19 @@ class AnalysisSemanticContractCompilerTest {
         assertThat(result.get("semantics")).isEqualTo(declaredSemantics);
         assertThat(result.toString()).doesNotContain("fund", "ETF", "capitalFlow");
     }
+
+    @Test
+    void preservesCapabilityAsProducerSemanticAuthority() {
+        Map<String, Object> capability = Map.of(
+            "capabilityId", "generic-analysis",
+            "allowedOperations", List.of("OBSERVE", "COMPARE"));
+
+        Map<String, Object> result = compiler.compile(Map.of(
+            "capability", capability,
+            "contextCompleteness", Map.of("suppliedSections", List.of("capability"))));
+
+        assertThat(result).containsEntry("semanticAuthority", "PRODUCER_DECLARED");
+        assertThat(result.get("capability")).isEqualTo(capability);
+        assertThat(result.get("declaredSections").toString()).contains("capability");
+    }
 }

@@ -73,6 +73,7 @@ import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.governance.McpEvidenceResult;
 import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
+import com.chatchat.agents.assessment.EvidenceExplorationPolicy;
 import com.chatchat.agents.assessment.RuntimeAnswerCandidate;
 import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
@@ -249,6 +250,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         InterpretationPlanWorkflowGuard.GuardResult> interpretationPlanWorkflowGuard =
         new InterpretationPlanWorkflowGuard();
     private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
+    private final EvidenceExplorationPolicy evidenceExplorationPolicy = new EvidenceExplorationPolicy();
     private final AgentContextBudget contextBudget;
     private final int recordAnalysisChunkMaxChars;
     private final int recordAnalysisChunkMaxRows;
@@ -6195,16 +6197,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                                          InterpretationPlanRuntime.ExecutionResult result,
                                          List<String> availableTools,
                                          boolean budgetAvailable) {
-        if (!budgetAvailable || availableTools == null || availableTools.isEmpty()) {
-            return false;
-        }
-        if (result == null || !result.success()) {
-            return true;
-        }
-        if (snapshot == null) {
-            return false;
-        }
-        return !evidenceRefinementRequiredTools(List.of(snapshot), availableTools).isEmpty();
+        return evidenceExplorationPolicy.available(snapshot, result != null && result.success(),
+            availableTools != null && !availableTools.isEmpty(), budgetAvailable,
+            snapshot != null && !evidenceRefinementRequiredTools(List.of(snapshot), availableTools).isEmpty());
     }
 
 
@@ -6336,6 +6331,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return "EVIDENCE_REFINEMENT_REQUIRED: conclusion="
             + firstNonBlank(stringValue(latest.get("conclusion")), "none")
             + "; missingEvidence=" + latest.getOrDefault("missingEvidence", List.of())
+            + "; analysisCoverage=" + latest.getOrDefault("analysisCoverage", Map.of())
+            + "; gapRequests=" + latest.getOrDefault("gapRequests", List.of())
             + "; conflicts=" + latest.getOrDefault("conflicts", List.of())
             + "; previousExecutionError="
             + firstNonBlank(result == null ? null : result.errorMessage(), "none");

@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.tool;
 
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
+import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclarationProtocol;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -123,6 +124,12 @@ public final class McpAnalysisContextAdapter implements RuntimeAnalysisContextPr
         Map<String, Object> generated = DataAnalysisContextProtocol.create(
             source, capability, business, schema, parsed(relationships), semantics, quality,
             analysisPolicy, extensions);
+        Object producerDeclaration = firstValue(mcpMeta, extra,
+            ProducerSemanticDeclarationProtocol.CONTEXT_KEY, "producer_semantic_declaration");
+        if (producerDeclaration != null) {
+            generated = ProducerSemanticDeclarationProtocol.mergeIntoAnalysisContext(
+                generated, parsed(producerDeclaration));
+        }
         return deepMerge(generated, declared);
     }
 

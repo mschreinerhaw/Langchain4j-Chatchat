@@ -7,6 +7,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.tool.ProducerSemanticMetadataPolicy;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -307,6 +308,8 @@ public class ApiServiceConfigService {
             config.setInputSchemaJson(gateway.getInputSchemaJson());
         }
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
+        config.setCapabilitySpecJson(ProducerSemanticMetadataPolicy.normalize(
+            objectMapper, config.getCapabilitySpecJson(), "capabilitySpec"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         if (config.getTimeoutMs() <= 0) {
             config.setTimeoutMs(20000);

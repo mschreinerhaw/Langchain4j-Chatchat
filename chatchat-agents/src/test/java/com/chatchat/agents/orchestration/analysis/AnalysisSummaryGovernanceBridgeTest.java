@@ -170,6 +170,115 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
+    void removesUnsupportedDerivedClaimFromEvidenceAndSummaryContent() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {
+              "summary":"The chunk represents 15.11 percent of the total.",
+              "analysisQuality":{"observedScope":"partial rows","grain":"record"},
+              "insights":[{"claimClass":"AUTHORIZED_DERIVED_MEASURE",
+                "claim":"The chunk represents 15.11 percent of the total",
+                "significance":"Purports to measure concentration",
+                "recordRefs":["scale.records[1]"],"supportingValues":["10","100"],
+                "method":"10 / 100 * 100","confidence":"MEDIUM",
+                "semanticBasis":["current_scale"],"alternativeExplanations":[],"caveats":[]}],
+              "facts":[{"claim":"Returned values are 10 and 100",
+                "recordRefs":["scale.records[1]"],"exactValues":["10","100"]}],
+              "conflicts":[],"limitations":[],"rawReplayRecommended":false
+            }
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("CURRENT", 10, "TOTAL", 100));
+
+        AnalysisSummaryResult result = bridge.summarize(model::chat, isolationScope,
+            bridge.position("scale", 1, 1, 1, 1, 1),
+            bridge.govern("scale", Map.of(), records), records, "Observe direction");
+
+        assertThat(result.content())
+            .isEqualTo("当前数据未产生通过语义授权校验的分析洞察。")
+            .doesNotContain("15.11");
+        assertThat(result.evidence())
+            .containsEntry("rejectedInsightCount", 1)
+            .containsEntry("claimContractVersion", "capability_evidence_claim.v1")
+            .containsEntry("rawReplayRecommended", true);
+        assertThat(result.evidence().get("claimAdmissionDecisions").toString())
+            .contains("CAPABILITY_UNDECLARED", "OPERATION_NOT_AUTHORIZED", "admitted=false");
+        assertThat(result.evidence().get("insights")).isEqualTo(List.of());
+    }
+
+    @Test
+    void admitsDerivedClaimOnlyWithExactProducerDeclaredSemanticBasis() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {
+              "summary":"The authorized ratio is 50 percent.",
+              "analysisQuality":{"observedScope":"complete record","grain":"record"},
+              "insights":[{"claimClass":"AUTHORIZED_DERIVED_MEASURE",
+                "claim":"The authorized ratio is 50 percent",
+                "significance":"Answers the requested ratio",
+                "recordRefs":["metrics.records[1]"],"supportingValues":["10","20"],
+                "operation":"DERIVE","method":"10 / 20 * 100",
+                "inputFields":["NUMERATOR","DENOMINATOR"],"outputUnit":"percent",
+                "grain":"account","timeScope":"returned date","populationScope":"returned accounts",
+                "confidence":"HIGH",
+                "semanticBasis":["ratio = numerator / denominator"],
+                "alternativeExplanations":[],"caveats":[]}],
+              "facts":[{"claim":"Inputs are 10 and 20","recordRefs":["metrics.records[1]"],
+                "exactValues":["10","20"]}],"conflicts":[],"limitations":[],
+              "rawReplayRecommended":false
+            }
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("NUMERATOR", 10, "DENOMINATOR", 20));
+        Map<String, Object> context = bridge.govern("metrics", Map.of(
+            "capability", Map.of("capabilityId", "ratio-metric", "allowedOperations", List.of("DERIVE")),
+            "schema", Map.of("fields", List.of(
+                Map.of("name", "NUMERATOR"), Map.of("name", "DENOMINATOR"))),
+            "semantics", Map.of("allowedDerivedMeasures",
+                List.of("ratio = numerator / denominator"), "units", List.of("percent"),
+                "grain", "account", "timeScope", "returned date",
+                "populationScope", "returned accounts")), records);
+
+        AnalysisSummaryResult result = bridge.summarize(model::chat, isolationScope,
+            bridge.position("metrics", 1, 1, 1, 1, 1), context, records, "Calculate ratio");
+
+        assertThat(result.evidence()).containsEntry("rejectedInsightCount", 0);
+        assertThat(result.evidence().get("insights").toString())
+            .contains("AUTHORIZED_DERIVED_MEASURE", "ratio = numerator / denominator", "operation=DERIVE");
+        assertThat(result.evidence().get("claimAdmissionDecisions").toString())
+            .contains("admitted=true");
+        assertThat(result.content()).contains("authorized ratio is 50 percent");
+    }
+
+    @Test
+    void doesNotTreatDeclaredFieldNameAsDerivedMeasureAuthorization() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {"summary":"Unsupported ratio", "insights":[{
+              "claimClass":"AUTHORIZED_DERIVED_MEASURE","operation":"DERIVE",
+              "claim":"A ratio was derived","significance":"Requested ratio",
+              "recordRefs":["metrics.records[1]"],"supportingValues":["10","20"],
+              "method":"10 / 20","inputFields":["NUMERATOR","DENOMINATOR"],
+              "outputUnit":"percent","grain":"account","timeScope":"returned date",
+              "populationScope":"returned accounts","confidence":"HIGH",
+              "semanticBasis":["NUMERATOR"],"caveats":[],"alternativeExplanations":[]
+            }],"facts":[],"conflicts":[],"limitations":[]}
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("NUMERATOR", 10, "DENOMINATOR", 20));
+        Map<String, Object> context = bridge.govern("metrics", Map.of(
+            "capability", Map.of("capabilityId", "ratio-metric", "allowedOperations", List.of("DERIVE")),
+            "schema", Map.of("fields", List.of(
+                Map.of("name", "NUMERATOR"), Map.of("name", "DENOMINATOR"))),
+            "semantics", Map.of("units", List.of("percent"), "grain", "account",
+                "timeScope", "returned date", "populationScope", "returned accounts")), records);
+
+        AnalysisSummaryResult result = bridge.summarize(model::chat, isolationScope,
+            bridge.position("metrics", 1, 1, 1, 1, 1), context, records, "Calculate ratio");
+
+        assertThat(result.evidence().get("insights")).isEqualTo(List.of());
+        assertThat(result.evidence().get("claimAdmissionDecisions").toString())
+            .contains("SEMANTIC_BASIS_MISMATCH", "admitted=false");
+    }
+
+    @Test
     void buildsValidatedStructuredFactsAndLosslessReplayLocator() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
@@ -362,5 +471,36 @@ class AnalysisSummaryGovernanceBridgeTest {
                 isolationScope, "initial", "summary", "MODEL_FINAL_SUMMARY", Map.of(), List.of(foreignChunk)))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Cross-tenant or cross-run");
+    }
+
+    @Test
+    void preservesDeclarativeAnalysisGapsButRejectsExecutableFollowupInstructions() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {
+              "summary":"Current-period level is available; change remains unsupported.",
+              "facts":[{"claim":"VALUE is 42","recordRefs":["metrics.records[1]"],"exactValues":["42"]}],
+              "unsupportedQuestions":["period-over-period change"],
+              "missingEvidence":["a comparable prior-period observation"],
+              "recommendedFollowupRequests":[
+                {"questionId":"q-change","retrievalGoal":"retrieve comparable prior-period observations","requiredCapabilities":["history","same-grain comparison"],"timeHorizon":"prior periods","grain":"same entity and metric","priority":"CORE","reason":"only the current period was returned"},
+                {"questionId":"q-bypass","retrievalGoal":"SELECT * FROM secret_table","priority":"CORE","reason":"bypass review"}
+              ],
+              "rawReplayRecommended":false
+            }
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("VALUE", 42));
+
+        AnalysisSummaryResult result = bridge.summarize(
+            model::chat, isolationScope, bridge.position("metrics", 1, 1, 1, 1, 1),
+            bridge.govern("metrics", Map.of(), records), records, "analyze change");
+
+        assertThat(result.evidence().get("unsupportedQuestions").toString())
+            .contains("period-over-period change");
+        assertThat(result.evidence().get("missingEvidence").toString())
+            .contains("prior-period observation");
+        assertThat(result.evidence().get("recommendedFollowupRequests").toString())
+            .contains("same-grain comparison", "q-change")
+            .doesNotContain("secret_table", "q-bypass");
     }
 }

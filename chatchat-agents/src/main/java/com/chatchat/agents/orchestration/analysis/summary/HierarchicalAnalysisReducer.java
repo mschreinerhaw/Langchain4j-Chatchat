@@ -225,7 +225,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                                                   Map<String, Object> additions) {
         Map<String, Object> evidence = new LinkedHashMap<>(additions);
         for (String key : List.of("facts", "insights", "entities", "crossChunkKeys",
-            "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract")) {
+            "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract",
+            "datasetFindings", "metrics", "rankings", "analyzedRelationships", "businessConclusions",
+            "unsupportedQuestions", "missingEvidence", "recommendedFollowupRequests")) {
             List<Object> values = new ArrayList<>();
             for (AnalysisSummaryResult input : inputs) {
                 Object value = input.evidence().get(key);
@@ -273,7 +275,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "Apply the professional analysis stages carried in analysisObjectiveContract: reconcile scope and grain, "
             + "quality signals and conflicts; combine the highest-materiality upstream insights; preserve the distinction "
             + "between observed facts, authorized derived measures and calibrated inferences; retain formulas, supporting "
-            + "values, confidence and alternative explanations. Resolve contradictory claims when evidence permits, "
+            + "values, validated semanticBasis, confidence and alternative explanations. Treat evidence.insights as "
+            + "the only admitted analytical claims: never recreate a calculation or inference omitted by validation, "
+            + "and never recover rejected claims from free-text content. Resolve contradictory claims when evidence permits, "
             + "otherwise surface the conflict once. Preserve material exact values and limitations. Keep dataset and "
             + "result identity in the structured lineage only: never print resultId values, runtime ids, template ids, "
             + "tool names, schema keys, or technical evidence references in the business narrative. Do not infer "
@@ -304,6 +308,17 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("facts", summary.evidence().getOrDefault("facts", List.of()));
         result.put("insights", summary.evidence().getOrDefault("insights", List.of()));
         result.put("analysisQuality", summary.evidence().getOrDefault("analysisQuality", Map.of()));
+        result.put("datasetFindings", summary.evidence().getOrDefault("datasetFindings", List.of()));
+        result.put("metrics", summary.evidence().getOrDefault("metrics", Map.of()));
+        result.put("rankings", summary.evidence().getOrDefault("rankings", Map.of()));
+        result.put("analyzedRelationships",
+            summary.evidence().getOrDefault("analyzedRelationships", List.of()));
+        result.put("businessConclusions", summary.evidence().getOrDefault("businessConclusions", List.of()));
+        result.put("unsupportedQuestions", summary.evidence().getOrDefault("unsupportedQuestions", List.of()));
+        result.put("missingEvidence", summary.evidence().getOrDefault("missingEvidence", List.of()));
+        result.put("recommendedFollowupRequests",
+            summary.evidence().getOrDefault("recommendedFollowupRequests", List.of()));
+        result.put("rejectedInsightCount", summary.evidence().getOrDefault("rejectedInsightCount", 0));
         result.put("recordCount", summary.evidence().getOrDefault("recordCount", 0));
         result.put("sourceComplete", summary.evidence().getOrDefault("sourceComplete", true));
         return Collections.unmodifiableMap(result);

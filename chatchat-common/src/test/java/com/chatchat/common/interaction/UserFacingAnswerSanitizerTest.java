@@ -60,4 +60,15 @@ class UserFacingAnswerSanitizerTest {
         assertThat(UserFacingAnswerSanitizer.sanitize(answer))
             .isEqualTo("总资产为847174.25，交易流水覆盖20笔。");
     }
+
+    @Test
+    void removesBareToolChunkReferencesAndEmptyEvidenceWrappers() {
+        String answer = "规模字段为空（证据：`mcp_chatchat_mcp_server_sql_query_execute#chunk-1`, "
+            + "`mcp_chatchat_mcp_server_web_search#chunk-2`）。完整20行见 "
+            + "mcp_chatchat_mcp_server_web_search.rows；生产者声明位于 "
+            + "mcp_chatchat_mcp_server_sql_query_execute analysisContext capability。";
+
+        assertThat(UserFacingAnswerSanitizer.sanitize(answer))
+            .isEqualTo("规模字段为空。");
+    }
 }

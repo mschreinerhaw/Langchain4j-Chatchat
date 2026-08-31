@@ -1,5 +1,7 @@
 package com.chatchat.common.knowledge.template;
 
+import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclaration;
+import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclarationProtocol;
 import com.chatchat.common.knowledge.SearchHit;
 import com.chatchat.common.knowledge.SearchStatus;
 import com.chatchat.common.knowledge.StandardSearchResult;
@@ -58,11 +60,21 @@ public final class TemplateKnowledgeProtocol {
             text(nested(candidate, "invocationExample", "tool")),
             text(nested(candidate, "executionBinding", "toolName")),
             text(nested(candidate, "sqlExecutionBinding", "toolName")));
+        Map<String, Object> attributes = new LinkedHashMap<>(candidate);
+        Object declarationValue = first(candidate,
+            ProducerSemanticDeclarationProtocol.CONTEXT_KEY, "producer_semantic_declaration");
+        if (declarationValue != null) {
+            ProducerSemanticDeclaration declaration = ProducerSemanticDeclarationProtocol.parse(declarationValue);
+            attributes.put(ProducerSemanticDeclarationProtocol.CONTEXT_KEY, declaration.toMap());
+            Map<String, Object> existingContext = map(first(candidate, "analysisContext", "analysis_context"));
+            attributes.put("analysisContext", ProducerSemanticDeclarationProtocol.mergeIntoAnalysisContext(
+                existingContext, declaration));
+        }
         return new StandardTemplateKnowledge(templateId,
             firstText(text(first(candidate, "templateType", "template_type", "assetType", "kind")), "generic"),
             firstText(executor, ""), firstText(text(candidate.get("title")), templateId),
             firstText(text(first(candidate, "summary", "description")), ""), parameterSchema,
-            outputSchema, required, new LinkedHashMap<>(candidate));
+            outputSchema, required, attributes);
     }
 
     private static Map<String, Object> evidence(Map<String, Object> candidate) {

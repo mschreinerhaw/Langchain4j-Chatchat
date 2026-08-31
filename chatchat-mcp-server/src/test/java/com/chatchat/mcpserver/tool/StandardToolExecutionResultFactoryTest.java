@@ -31,6 +31,37 @@ class StandardToolExecutionResultFactoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void apiProducerPublishesItsGenericSemanticDeclarationInAnalysisContext() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setId("generic-api");
+        config.setToolName("generic_api_execute");
+        config.setTitle("Generic metrics");
+        config.setMethod("GET");
+        config.setOutputSchemaJson("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"number\"}}}");
+        config.setCapabilitySpecJson("""
+            {"producerSemanticDeclaration":{
+              "schemaVersion":"producer_semantic_declaration.v1",
+              "capabilityId":"generic.observation",
+              "allowedOperations":["OBSERVE"],
+              "fields":[{"name":"value","meaning":"producer supplied value"}],
+              "evidenceScope":{"grain":"","timeScope":"","populationScope":"","completeness":"UNKNOWN"},
+              "rules":[]
+            }}
+            """);
+
+        Map<String, Object> envelope = factory.fromApi(config, new ApiInvokeResult(
+            true, 200, Map.of(), List.of(Map.of("value", 7)), "[{\"value\":7}]", null, false));
+        Map<String, Object> context = (Map<String, Object>) envelope.get("analysisContext");
+
+        assertThat(context.get("capability").toString())
+            .contains("generic.observation", "OBSERVE");
+        assertThat(context.get("producerSemanticDeclaration").toString())
+            .contains("producer_semantic_declaration.v1");
+        assertThat(context.toString()).doesNotContain("ETF", "customer", "finance");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void apiExecutionUsesStandardEnvelopeAndKeepsUpstreamCompletenessUnknown() {
         ApiServiceConfig config = new ApiServiceConfig();
         config.setId("api-1");

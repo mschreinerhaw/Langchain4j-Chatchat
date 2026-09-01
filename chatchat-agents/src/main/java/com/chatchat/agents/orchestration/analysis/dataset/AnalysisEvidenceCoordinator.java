@@ -6,6 +6,7 @@ import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
 import com.chatchat.agents.runtime.batch.ToolCallResult;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
@@ -72,6 +73,11 @@ public final class AnalysisEvidenceCoordinator {
     }
 
     public Projection project(InterpretationPlanRuntime.ExecutionResult result) {
+        return project(result, Map.of());
+    }
+
+    public Projection project(InterpretationPlanRuntime.ExecutionResult result,
+                              Map<String, Object> runtimeAttributes) {
         if (result == null || result.steps() == null) return new Projection(List.of(), List.of());
         Map<String, Map<String, Object>> templateMatches = templateRequirementMatches(result.steps());
         List<Dataset> datasets = new ArrayList<>();
@@ -103,7 +109,12 @@ public final class AnalysisEvidenceCoordinator {
                 outputDatasets(resolved, step.toolName(), toolMetadata(step.toolName())),
                 null, templateMatches));
         }
-        return new Projection(List.copyOf(datasets), List.copyOf(excluded));
+        List<Dataset> scopedDatasets = datasets.stream()
+            .map(dataset -> new Dataset(dataset.reference(),
+                AgentRoleAnalysisContext.attach(dataset.analysisContext(), runtimeAttributes),
+                dataset.records()))
+            .toList();
+        return new Projection(scopedDatasets, List.copyOf(excluded));
     }
 
     public DatasetRelationshipPlan relationshipPlan(

@@ -35,6 +35,58 @@ class AgentChatModeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void propagatesMaintainedAgentRoleMetadataToPromptAndRuntimeAnalysisContext() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator, skillCatalogService,
+            new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge));
+        SkillDefinition base = skillWithoutWebSearch();
+        SkillDefinition configured = new SkillDefinition(
+            base.id(), "Service analyst", "Analyze service quality and capacity",
+            List.of("Daily service review", "Capacity planning"),
+            List.of("quality", "capacity"), base.defaultMode(), base.modelName(),
+            base.systemPrompt(), base.firstUseGreeting(), base.preferredToolPrefixes(),
+            base.boundMcpServiceIds(), base.boundMcpToolNames(), base.boundDocumentIds(),
+            base.boundDocumentTags(), base.toolConfigs(), base.routingSettings(), base.workflowConfig(),
+            base.defaultDataAsset(), base.assetSelectionPolicy(), base.quickQuestions(),
+            base.marketStatus(), base.defaultAgent());
+        when(skillCatalogService.resolve("ops")).thenReturn(configured);
+        when(bridge.registeredTools()).thenReturn(List.of());
+        when(orchestrator.executeAgent(
+            anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
+        )).thenReturn(agentResult("ok"));
+
+        handler.handle(InteractionRequest.builder().mode("agent_chat").skillId("ops")
+                .query("analyze current results").userId("u1").build(),
+            InteractionContext.builder().requestId("req-role").conversationId("conv-role")
+                .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
+
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> attributes = ArgumentCaptor.forClass(Map.class);
+        verify(orchestrator).executeAgent(
+            anyString(), isNull(), anyList(), systemPrompt.capture(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(),
+            attributes.capture());
+
+        assertThat(systemPrompt.getValue())
+            .contains("Agent role analysis pipeline context", "Service analyst",
+                "Analyze service quality and capacity", "Daily service review", "quality")
+            .contains("orientation context, not returned data");
+        Map<String, Object> role = (Map<String, Object>) attributes.getValue()
+            .get("agent_role_analysis_context");
+        assertThat(role)
+            .containsEntry("roleName", "Service analyst")
+            .containsEntry("businessDescription", "Analyze service quality and capacity")
+            .containsEntry("businessScenarios", List.of("Daily service review", "Capacity planning"))
+            .containsEntry("tags", List.of("quality", "capacity"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void taskWorkflowSnapshotOverridesLaterAgentConfiguration() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

@@ -3,6 +3,7 @@ package com.chatchat.agents.runtime.plan;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.protocol.ToolProtocolContractResolver;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -169,6 +170,9 @@ public class InterpretationPlanRewriter {
                                       EvidenceCompressionGate.CompressionResult compressedEvidence) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are an MCP plan rewriter.\n");
+        String roleContext = AgentRoleAnalysisContext.promptSection(
+            request.agentRoleAnalysisContext(), "DAG_REWRITE_AND_TEMPLATE_RESELECTION");
+        if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
         prompt.append("Your job is to repair a failed InterpretationPlan without executing tools.\n");
         prompt.append("Output exactly one valid InterpretationPlan JSON object. No markdown, comments, code fences, or natural language.\n");
         prompt.append("For incremental repair, include only mutable-region and new steps; Runtime restores frozen nodes before validation.\n");
@@ -1092,8 +1096,26 @@ public class InterpretationPlanRewriter {
         ToolRegistry toolRegistry,
         List<RequiredToolExecution> requiredToolExecutions,
         List<Map<String, Object>> evidenceHistory,
-        InterpretationPlan.ExecutionPolicy budgetCeilings
+        InterpretationPlan.ExecutionPolicy budgetCeilings,
+        Map<String, Object> agentRoleAnalysisContext
     ) {
+        public RewriteRequest {
+            agentRoleAnalysisContext = AgentRoleAnalysisContext.validate(agentRoleAnalysisContext);
+        }
+
+        public RewriteRequest(InterpretationPlan originalPlan,
+                              InterpretationPlan.Step failedStep,
+                              String failureReason,
+                              List<String> observations,
+                              List<String> availableTools,
+                              ToolRegistry toolRegistry,
+                              List<RequiredToolExecution> requiredToolExecutions,
+                              List<Map<String, Object>> evidenceHistory,
+                              InterpretationPlan.ExecutionPolicy budgetCeilings) {
+            this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
+                requiredToolExecutions, evidenceHistory, budgetCeilings, Map.of());
+        }
+
         public RewriteRequest(InterpretationPlan originalPlan,
                               InterpretationPlan.Step failedStep,
                               String failureReason,
@@ -1103,7 +1125,7 @@ public class InterpretationPlanRewriter {
                               List<RequiredToolExecution> requiredToolExecutions,
                               List<Map<String, Object>> evidenceHistory) {
             this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
-                requiredToolExecutions, evidenceHistory, null);
+                requiredToolExecutions, evidenceHistory, null, Map.of());
         }
 
         public RewriteRequest(InterpretationPlan originalPlan,
@@ -1114,7 +1136,7 @@ public class InterpretationPlanRewriter {
                               ToolRegistry toolRegistry,
                               List<RequiredToolExecution> requiredToolExecutions) {
             this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
-                requiredToolExecutions, List.of(), null);
+                requiredToolExecutions, List.of(), null, Map.of());
         }
 
         public RewriteRequest(InterpretationPlan originalPlan,
@@ -1124,7 +1146,7 @@ public class InterpretationPlanRewriter {
                               List<String> availableTools,
                               ToolRegistry toolRegistry) {
             this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry,
-                List.of(), List.of(), null);
+                List.of(), List.of(), null, Map.of());
         }
     }
 

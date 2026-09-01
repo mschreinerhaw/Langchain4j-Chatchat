@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.lifecycle;
 
 import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
 import com.chatchat.agents.runtime.AgentRunRequest;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 
 import java.util.LinkedHashMap;
@@ -42,6 +43,8 @@ public final class AgentRuntimeAttributeCompiler {
         if (request.getMaxToolCalls() != null) {
             attributes.put(maxToolCallsAttribute, request.getMaxToolCalls());
         }
+        AgentRoleAnalysisContext.pinToRuntime(
+            attributes, request.getRunId(), request.getSkillId());
         attributes.put(timeoutAttribute, request.getTimeoutMs() == null
             ? AgentRunRequest.DEFAULT_TIMEOUT_MS : request.getTimeoutMs());
         pinContract(attributes);

@@ -14,6 +14,8 @@ class GovernedRecordFinalPromptBuilderTest {
 
         assertThat(prompt)
             .contains("workerAnalysisContext and templateMatchAnalysis")
+            .contains("agent_role_analysis_context attached to governed inputs")
+            .contains("business description, business scenarios and tags")
             .contains("Account for every successful non-empty dataset")
             .contains("omit irrelevant, rejected or merely catalog-like results")
             .contains("never by query source, tool, search channel, chunk or execution view")
@@ -23,6 +25,8 @@ class GovernedRecordFinalPromptBuilderTest {
             .contains("A table of values, configuration inventory")
             .contains("current state, declared baseline/comparable reference, material deviation")
             .contains("do not present cumulative counters as current rates")
+            .contains("producer-returned metric at its declared grain is an observation")
+            .contains("do not claim that aggregation authorization is missing")
             .contains("do not reproduce complete record tables")
             .contains("livedata_orders summary")
             .doesNotContain("Executed plan attempts");

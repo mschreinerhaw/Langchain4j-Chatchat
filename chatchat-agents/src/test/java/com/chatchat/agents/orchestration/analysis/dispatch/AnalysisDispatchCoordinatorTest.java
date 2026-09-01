@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
@@ -42,6 +43,25 @@ class AnalysisDispatchCoordinatorTest {
             assertThat(task.idempotencyKey()).isEqualTo(task.taskId() + ":" + task.inputSha256());
             assertThat(task.inputSha256()).hasSize(64);
             assertThat(batch.taskCount()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void attachesRuntimeAgentRoleContextToEveryWorkerTask() {
+        CapturingDispatcher dispatcher = new CapturingDispatcher(false);
+        AnalysisDispatchCoordinator coordinator = coordinator(dispatcher);
+        Map<String, Object> role = AgentRoleAnalysisContext.create(
+            "Quality analyst", "Analyze service quality", List.of("Daily review"),
+            List.of("quality"));
+
+        try (AnalysisDispatchCoordinator.DispatchBatch ignored = coordinator.dispatch(
+            new AnalysisDispatchCoordinator.DispatchRequest(null, "analyze returned data",
+                "model", List.of(new AnalysisDispatchCoordinator.DatasetInput(
+                    "dataset-a", Map.of(), List.of(Map.of("value", 7)))),
+                GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
+                Map.of(AgentRoleAnalysisContext.RUNTIME_ATTRIBUTE, role), () -> false))) {
+            assertThat(dispatcher.tasks.get(0).analysisContext())
+                .containsEntry(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, role);
         }
     }
 

@@ -65,7 +65,8 @@ public final class AnalysisCoverageCoordinator {
     }
 
     public CoverageBundle analyze(Request request) {
-        AnalysisEvidenceCoordinator.Projection projection = evidenceCoordinator.project(request.result());
+        AnalysisEvidenceCoordinator.Projection projection = evidenceCoordinator.project(
+            request.result(), request.runtimeAttributes());
         List<AnalysisEvidenceCoordinator.Dataset> datasets = projection.datasets();
         writeExcludedMetadata(request.metadata(), projection.excludedDatasets());
         projection.excludedDatasets().forEach(excluded -> observe(request,

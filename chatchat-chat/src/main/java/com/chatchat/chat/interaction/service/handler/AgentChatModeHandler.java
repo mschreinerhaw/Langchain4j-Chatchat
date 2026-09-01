@@ -1,6 +1,7 @@
 package com.chatchat.chat.interaction.service.handler;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRuntime;
@@ -90,6 +91,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         String resolvedSkillId = resolvedSkillId(request, skill);
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
+        Map<String, Object> agentRoleContext = agentRoleContext(skill);
         AgentLearningService.RuntimeExperienceContext runtimeExperience = learningService == null
             ? AgentLearningService.RuntimeExperienceContext.empty()
             : learningService.resolveRuntimeExperience(
@@ -105,7 +107,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         String systemPrompt = appendResponseContract(
             appendDefaultDataAssetPolicy(
                 appendMcpExecutionContext(
-                    appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext),
+                    appendExperienceContext(AgentRoleAnalysisContext.appendPrompt(
+                        resolveSystemPrompt(request, skill, context), agentRoleContext), experienceContext),
                     executionContext
                 ),
                 skill
@@ -117,6 +120,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             : request.getModelName();
 
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        if (!agentRoleContext.isEmpty()) {
+            runtimeAttributes.put(AgentRoleAnalysisContext.RUNTIME_ATTRIBUTE, agentRoleContext);
+        }
         if (context.conversationEvidence() != null && !context.conversationEvidence().isBlank()) {
             runtimeAttributes.put("conversationEvidenceProjection", context.conversationEvidence());
             runtimeAttributes.put("conversationEvidenceCurrentFact", false);
@@ -246,6 +252,12 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             return skill.id();
         }
         return request.getSkillId();
+    }
+
+    private Map<String, Object> agentRoleContext(SkillDefinition skill) {
+        if (skill == null) return Map.of();
+        return AgentRoleAnalysisContext.create(
+            skill.label(), skill.description(), skill.usageScenarios(), skill.skillTags());
     }
 
     /**

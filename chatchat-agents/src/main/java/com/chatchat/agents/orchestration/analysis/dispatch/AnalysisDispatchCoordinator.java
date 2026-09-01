@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
@@ -67,7 +68,9 @@ public final class AnalysisDispatchCoordinator {
             String evidenceReference = occurrence == 1
                 ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
             Map<String, Object> governedContext = summaryProtocol.govern(
-                evidenceReference, dataset.analysisContext(), dataset.records());
+                evidenceReference,
+                AgentRoleAnalysisContext.attach(dataset.analysisContext(), request.runtimeAttributes()),
+                dataset.records());
             String inputSha256 = ModelProtocolJson.sha256Hex(Map.of(
                 "schemaVersion", AnalysisTask.SCHEMA_VERSION,
                 "datasetReference", evidenceReference,

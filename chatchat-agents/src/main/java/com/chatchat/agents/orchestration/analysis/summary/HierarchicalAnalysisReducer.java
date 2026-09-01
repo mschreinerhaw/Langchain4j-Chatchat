@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration.analysis.summary;
 
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 
@@ -199,11 +200,17 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                 && group.datasetReferences().contains(edge.toDataset()))
             .map(DatasetRelationshipPlan.Edge::toMap)
             .toList();
-        String content = synthesize(model, "RELATIONSHIP_GROUP_SYNTHESIS", objective, inputs, Map.of(
-            "groupId", group.groupId(),
-            "datasetReferences", group.datasetReferences(),
-            "authorizedRelationships", groupEdges,
-            "rule", "Correlate only through the authorized relationships; do not invent joins or recalculate values."));
+        Map<String, Object> commonRoleContext = commonAgentRoleContext(inputs);
+        Map<String, Object> reduceContext = new LinkedHashMap<>();
+        reduceContext.put("groupId", group.groupId());
+        reduceContext.put("datasetReferences", group.datasetReferences());
+        reduceContext.put("authorizedRelationships", groupEdges);
+        reduceContext.put("rule", "Correlate only through the authorized relationships; do not invent joins or recalculate values.");
+        if (!commonRoleContext.isEmpty()) {
+            reduceContext.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, commonRoleContext);
+        }
+        String content = synthesize(model, "RELATIONSHIP_GROUP_SYNTHESIS", objective, inputs,
+            Collections.unmodifiableMap(reduceContext));
         boolean fallback = content == null || content.isBlank();
         if (fallback) content = deterministicMerge(inputs);
         return AnalysisSummaryResult.intermediateSummary(
@@ -213,7 +220,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             content,
             fallback ? "DETERMINISTIC_RELATIONSHIP_REDUCE_FALLBACK" : "MODEL_RELATIONSHIP_REDUCE",
             Map.of("groupId", group.groupId(), "datasetReferences", group.datasetReferences()),
-            Map.of("relationships", groupEdges),
+            groupAnalysisContext(groupEdges, commonRoleContext),
             Map.of("inputDatasetCount", inputs.size(), "complete", true),
             inputs,
             hierarchyEvidence(inputs, Map.of(
@@ -266,6 +273,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "Reduction context: " + ModelProtocolJson.compact(reduceContext) + "\n"
             + "Upstream summaries: " + ModelProtocolJson.compact(projections) + "\n"
             + "Produce a concise business analysis that directly answers the original question. Treat upstream "
+            + "agent_role_analysis_context as maintained orientation for relevance, analytical emphasis and vocabulary, never "
+            + "as returned evidence, semantic authorization or a replacement for the original question. Treat upstream "
             + "objectiveAlignment as a coverage contract: merge addressed aspects, retain unsupported aspects, and "
             + "do not replace an unsupported requested metric. Field meaning, aggregation, additivity, proxy "
             + "relationships, population scope, and completeness are valid only when explicitly producer-declared "
@@ -307,6 +316,11 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("position", summary.position());
         result.put("content", abbreviate(summary.content()));
         result.put("outcome", summary.outcome());
+        Object roleContext = summary.analysisContext().get(
+            AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY);
+        if (roleContext instanceof Map<?, ?> role && !role.isEmpty()) {
+            result.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, roleContext);
+        }
         result.put("evidenceId", summary.evidence().get("evidenceId"));
         result.put("conflicts", summary.evidence().getOrDefault("conflicts", List.of()));
         result.put("limitations", summary.evidence().getOrDefault("limitations", List.of()));
@@ -338,6 +352,32 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("recordCount", summary.evidence().getOrDefault("recordCount", 0));
         result.put("sourceComplete", summary.evidence().getOrDefault("sourceComplete", true));
         return Collections.unmodifiableMap(result);
+    }
+
+    private Map<String, Object> groupAnalysisContext(List<Map<String, Object>> relationships,
+                                                      Map<String, Object> roleContext) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("relationships", relationships);
+        if (roleContext != null && !roleContext.isEmpty()) {
+            context.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, roleContext);
+        }
+        return Collections.unmodifiableMap(context);
+    }
+
+    private Map<String, Object> commonAgentRoleContext(List<AnalysisSummaryResult> inputs) {
+        List<Map<String, Object>> contexts = new ArrayList<>();
+        for (AnalysisSummaryResult input : inputs) {
+            Object value = input.analysisContext().get(
+                AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY);
+            if (!(value instanceof Map<?, ?> raw)) continue;
+            Map<String, Object> copy = new LinkedHashMap<>();
+            raw.forEach((key, item) -> {
+                if (key != null) copy.put(String.valueOf(key), item);
+            });
+            Map<String, Object> context = Collections.unmodifiableMap(copy);
+            if (!context.isEmpty() && !contexts.contains(context)) contexts.add(context);
+        }
+        return contexts.size() == 1 ? contexts.get(0) : Map.of();
     }
 
     private String deterministicMerge(List<AnalysisSummaryResult> inputs) {
@@ -406,7 +446,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             if (context == null) return projection;
             for (String key : List.of("source", "capability", "business", "relationships",
                 "semantics", "quality", "analysisPolicy", "extensions", "contextCompleteness",
-                "templateMatchAnalysis", "workerAnalysisContext")) {
+                "templateMatchAnalysis", "workerAnalysisContext",
+                AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY)) {
                 Object value = context.get(key);
                 if (value != null && (!(value instanceof Map<?, ?> map) || !map.isEmpty())) {
                     projection.put(key, value);

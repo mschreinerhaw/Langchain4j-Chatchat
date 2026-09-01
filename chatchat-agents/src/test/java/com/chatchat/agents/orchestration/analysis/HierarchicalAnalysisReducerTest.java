@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
 import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
@@ -167,6 +168,9 @@ class HierarchicalAnalysisReducerTest {
     @Test
     void preservesTemplateAnalysisContractsInFinalPromptEvidence() {
         Map<String, Object> context = Map.of(
+            AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, AgentRoleAnalysisContext.create(
+                "Activity analyst", "Analyze activity quality",
+                List.of("Daily review"), List.of("quality")),
             "templateMatchAnalysis", Map.of("selectedTemplateIds", List.of("orders")),
             "workerAnalysisContext", Map.of(
                 "schemaVersion", "worker_analysis_context.v2",
@@ -182,8 +186,46 @@ class HierarchicalAnalysisReducerTest {
             List.of(workerResult), "analyze trading preference");
 
         assertThat(result.promptEvidence())
-            .contains("templateMatchAnalysis", "workerAnalysisContext")
+            .contains("templateMatchAnalysis", "workerAnalysisContext",
+                AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY)
+            .contains("Analyze activity quality", "Daily review", "quality")
             .contains("analyze trading preference", "orders analysis");
+    }
+
+    @Test
+    void preservesCommonAgentRoleContextAcrossRelationshipGroupReduction() {
+        Map<String, Object> role = AgentRoleAnalysisContext.create(
+            "Reliability analyst", "Analyze service reliability",
+            List.of("Incident review"), List.of("reliability"));
+        Map<String, Object> leftContext = bridge.govern("left", Map.of(
+            AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, role,
+            "relationships", Map.of("targetDataset", "right")),
+            List.of(Map.of("VALUE", 1)));
+        Map<String, Object> rightContext = bridge.govern("right", Map.of(
+            AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, role), List.of(Map.of("VALUE", 2)));
+        List<AnalysisSummaryResult> inputs = List.of(
+            bridge.preserve(scope, bridge.position("left", 1, 1, 1, 1, 1), leftContext,
+                List.of(Map.of("VALUE", 1))),
+            bridge.preserve(scope, bridge.position("right", 1, 1, 1, 1, 1), rightContext,
+                List.of(Map.of("VALUE", 2))));
+        AtomicReference<String> prompt = new AtomicReference<>();
+
+        HierarchicalAnalysisReducer.Result result = new HierarchicalAnalysisReducer().reduce(value -> {
+            prompt.set(value);
+            return "combined analysis";
+        }, scope, DatasetRelationshipPlan.create(List.of(
+            new DatasetRelationshipPlan.Dataset("left", leftContext),
+            new DatasetRelationshipPlan.Dataset("right", rightContext))), inputs,
+            "analyze returned service data");
+
+        assertThat(prompt.get()).contains(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
+            "Analyze service reliability",
+            "Incident review", "orientation");
+        assertThat(result.relationshipGroupSummaries()).singleElement().satisfies(summary ->
+            assertThat(summary.analysisContext())
+                .containsEntry(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, role));
+        assertThat(result.promptEvidence()).contains(
+            AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, "Analyze service reliability");
     }
 
     @Test

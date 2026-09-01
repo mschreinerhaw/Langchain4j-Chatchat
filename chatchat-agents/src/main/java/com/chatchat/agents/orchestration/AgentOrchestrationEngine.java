@@ -75,6 +75,7 @@ import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowRecoveryPolic
 import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowRecoveryCoordinator;
 import com.chatchat.agents.orchestration.workflow.MandatoryWorkflowTopology;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.governance.McpEvidenceResult;
 import com.chatchat.agents.runtime.run.AgentOutcomeProjection;
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
@@ -1534,13 +1535,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             null, plan, 1, "INITIAL", List.of(), runtimeAttributes, metadata);
 
         InterpretationPlanValidator validator = new InterpretationPlanValidator();
+        Map<String, Object> pipelineRuntimeAttributes = runtimeAttributes;
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             validator,
             new InterpretationPlanOptimizer(toolRegistry),
             runStore,
-            request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
-            request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request),
+            request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt,
+                cancellationCheck, request, pipelineRuntimeAttributes),
+            request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt,
+                cancellationCheck, request, pipelineRuntimeAttributes),
             request -> {
                 String stepTool = request.step() == null ? null : request.step().toolName();
                 ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidenceContext =
@@ -1784,7 +1788,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                         budgetCaps.latencyBudgetMs(),
                         null
                     )
-                    : null
+                    : null,
+                AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes)
             ));
             InterpretationPlan rewrittenPlan = rewrite.rewrittenPlan();
             InterpretationPlanValidator.ValidationResult rewrittenValidation = rewrite.validation();
@@ -2621,11 +2626,24 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         BooleanSupplier cancellationCheck,
         InterpretationPlanRuntime.DagDecisionRequest request
     ) {
+        return decideInterpretationPlanDagStep(
+            activeChatModel, query, systemPrompt, cancellationCheck, request, Map.of());
+    }
+
+    private InterpretationPlanRuntime.DagDecision decideInterpretationPlanDagStep(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        BooleanSupplier cancellationCheck,
+        InterpretationPlanRuntime.DagDecisionRequest request,
+        Map<String, Object> runtimeAttributes
+    ) {
         runtimeGuard.checkCancelled(cancellationCheck);
         if (activeChatModel == null || request == null) {
             return InterpretationPlanRuntime.DagDecision.abort("LLM DAG controller is unavailable.");
         }
-        String prompt = buildInterpretationPlanDagDecisionPrompt(query, systemPrompt, request);
+        String prompt = buildInterpretationPlanDagDecisionPrompt(
+            query, systemPrompt, request, runtimeAttributes);
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=interpretation_plan_dag_decision decisionCount={} purpose={} promptChars={} readyStepCount={} remainingStepCount={} completedStepCount={} modelClass={}",
             request.decisionCount(),
@@ -2720,6 +2738,13 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     String buildInterpretationPlanDagDecisionPrompt(String query,
                                                     String systemPrompt,
                                                     InterpretationPlanRuntime.DagDecisionRequest request) {
+        return buildInterpretationPlanDagDecisionPrompt(query, systemPrompt, request, Map.of());
+    }
+
+    String buildInterpretationPlanDagDecisionPrompt(String query,
+                                                    String systemPrompt,
+                                                    InterpretationPlanRuntime.DagDecisionRequest request,
+                                                    Map<String, Object> runtimeAttributes) {
         ContextTokenEstimator.Size evidenceSize = estimateDagDecisionEvidenceSize(request);
         int dagEvidenceTokenBudget = dagDecisionEvidenceTokenBudget();
         boolean compressionEnabled = evidenceSize.tokens() > dagEvidenceTokenBudget;
@@ -2728,7 +2753,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             systemPrompt,
             request,
             compressionEnabled,
-            evidenceSize
+            evidenceSize,
+            runtimeAttributes
         );
         if (compressionEnabled) {
             ContextTokenEstimator.Size compressedSize = contextTokenEstimator.estimate(prompt);
@@ -2748,12 +2774,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         String systemPrompt,
         InterpretationPlanRuntime.DagDecisionRequest request,
         boolean compressionEnabled,
-        ContextTokenEstimator.Size evidenceSize
+        ContextTokenEstimator.Size evidenceSize,
+        Map<String, Object> runtimeAttributes
     ) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("System policy inheritance: the validated plan already carries the user intent, scope, "
             + "constraints, and approved tools. This controller may narrow execution but must not expand that scope.\n\n");
         prompt.append("You are the responsible Agent Runtime DAG execution controller.\n");
+        String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
+            runtimeAttributes, "DAG_EXECUTION_AND_SEMANTIC_ARBITRATION");
+        if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
         prompt.append("Java Runtime has already computed the authoritative Ready node set. ")
             .append("Your role is limited to semantic arbitration among those legal candidates; Java owns ordinary scheduling.\n");
         prompt.append("Decision protocol:\n")
@@ -4164,6 +4194,18 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         BooleanSupplier cancellationCheck,
         InterpretationPlanRuntime.StepReviewRequest request
     ) {
+        return reviewInterpretationPlanToolResult(
+            activeChatModel, query, systemPrompt, cancellationCheck, request, Map.of());
+    }
+
+    private InterpretationPlanRuntime.StepReview reviewInterpretationPlanToolResult(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        BooleanSupplier cancellationCheck,
+        InterpretationPlanRuntime.StepReviewRequest request,
+        Map<String, Object> runtimeAttributes
+    ) {
         runtimeGuard.checkCancelled(cancellationCheck);
         if (activeChatModel == null || request == null || request.execution() == null) {
             return InterpretationPlanRuntime.StepReview.accepted("Model reviewer unavailable; accepting tool result.", Map.of(
@@ -4179,7 +4221,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             request.attempt(),
             request.maxAttempts(),
             activeChatModel.getClass().getName());
-        String raw = activeChatModel.chat(buildToolResultReviewPrompt(query, systemPrompt, request));
+        String raw = activeChatModel.chat(buildToolResultReviewPrompt(
+            query, systemPrompt, request, runtimeAttributes));
         log.info("agentModelResponse phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
@@ -4350,10 +4393,20 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     protected String buildToolResultReviewPrompt(String query,
                                                String systemPrompt,
                                                InterpretationPlanRuntime.StepReviewRequest request) {
+        return buildToolResultReviewPrompt(query, systemPrompt, request, Map.of());
+    }
+
+    protected String buildToolResultReviewPrompt(String query,
+                                               String systemPrompt,
+                                               InterpretationPlanRuntime.StepReviewRequest request,
+                                               Map<String, Object> runtimeAttributes) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("System policy inheritance: the validated step already carries the user intent, scope, "
             + "constraints, and approved tool. Review only this execution and do not expand that scope.\n\n");
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
+        String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
+            runtimeAttributes, "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION");
+        if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
         prompt.append("Return strict JSON only with this shape:\n");
         prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"],\"scope_basis\":{\"source\":\"user_query|tool_result\",\"reference\":\"exact user quote or returned JSON path\"},\"capability_basis\":{\"source\":\"tool_result|tool_metadata\",\"reference\":\"returned capability JSON path or declared tool capability\"},\"expected_evidence_types\":[\"specific evidence type\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"analysis_intent\":{\"business_goal\":\"goal\",\"analysis_subject\":\"subject\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"scope\",\"expected_relationships\":[]},\"template_relationships\":[{\"from_template_id\":\"template-id\",\"to_template_id\":\"template-id\",\"relation_type\":\"business relation\",\"description\":\"evidence-based description\"}],\"template_evaluations\":[{\"template_id\":\"template-id\",\"business_group\":\"returned group\",\"relevance\":0.0,\"relevance_level\":\"HIGH|MEDIUM|LOW\",\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[],\"matched_question_aspects\":[\"question aspect\"],\"relationship_hints\":[\"declared relationship to another selected dataset\"]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
@@ -5232,7 +5285,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             new InterpretationPlanRuntime.StepReviewRequest(
                 null, step, stepExecution, Map.of(), 1, 1,
                 runtimeAttributes == null ? null : stringValue(runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE))
-            )
+            ),
+            runtimeAttributes
         );
         if (review == null) {
             return MandatoryCandidateReview.rejected(

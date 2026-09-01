@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
 
 
@@ -57,7 +58,10 @@ class AnalysisSummaryGovernanceBridgeTest {
             && prompt.contains("Identify position concentration risk")
             && prompt.contains("objective-relevant findings"))))
             .thenReturn("第 2 分块总结");
-        Map<String, Object> context = bridge.govern("positions", Map.of(),
+        Map<String, Object> context = bridge.govern("positions", Map.of(
+                AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, AgentRoleAnalysisContext.create(
+                    "Quality analyst", "Analyze service quality",
+                    List.of("Daily review"), List.of("quality"))),
             List.of(Map.of("VALUE", 1)));
         DataAnalysisPosition position =
             bridge.position("positions", 2, 3, 51, 75, 120);
@@ -77,7 +81,13 @@ class AnalysisSummaryGovernanceBridgeTest {
         assertThat(ledger.toString())
             .contains("analysis_summary_bridge.v1", "summary_governance.v1", "第 2 分块总结");
         verify(model).chat(argThat((String prompt) -> prompt.contains("Missing semantic sections remain unknown")
-            && prompt.contains("Lead with findings, not row counts or metadata")));
+            && prompt.contains("Lead with findings, not row counts or metadata")
+            && prompt.contains("already returned by the producer at the declared record grain is an observed fact")
+            && prompt.contains("quoting that value is OBSERVE, not AGGREGATE or DERIVE")
+            && prompt.contains("self-contained, decision-useful conclusion")
+            && prompt.contains("When agent_role_analysis_context is present")
+            && prompt.contains("Analyze service quality")
+            && prompt.contains("Daily review")));
     }
 
     @Test

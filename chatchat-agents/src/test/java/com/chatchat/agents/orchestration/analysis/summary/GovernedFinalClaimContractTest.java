@@ -55,6 +55,26 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
+    void preservesModelSelectedBusinessSectionsWithoutAllowingNewClaimText() {
+        AnalysisSummaryResult second = summary().withEvidence(Map.of(
+            "insights", List.of(insight("claim-2", "存在需要关注的例外")),
+            "claimAdmissionDecisions", List.of(Map.of(
+                "claimId", "claim-2", "admitted", true))));
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(
+            List.of(summary(), second));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["claim-1"],
+             "sections":[{"sectionType":"EXCEPTIONS","claimIds":["claim-2"]}]}
+            """, compilation);
+
+        assertThat(projection.markdown())
+            .contains("## 核心结论", "## 异常与边界", "返回值为 42", "存在需要关注的例外")
+            .doesNotContain("模型新增结论");
+    }
+
+    @Test
     void legacySummaryWithoutClaimContractIsDistinguishedFromRejectedClaims() {
         AnalysisSummaryResult legacy = AnalysisSummaryResult.chunk(
             GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),

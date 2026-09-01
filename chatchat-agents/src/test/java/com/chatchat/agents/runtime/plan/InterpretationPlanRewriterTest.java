@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
@@ -17,6 +18,25 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanRewriterTest {
+
+    @Test
+    void rewriteAndTemplateReselectionReceiveTheRunRoleObjective() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        CapturingChatModel chatModel = new CapturingChatModel(
+            objectMapper.writeValueAsString(originalPlan()));
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel, objectMapper, new InterpretationPlanValidator());
+        Map<String, Object> role = AgentRoleAnalysisContext.create(
+            "Capacity analyst", "Find capacity risks", List.of("Capacity planning"), List.of("capacity"));
+
+        rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+            originalPlan(), originalPlan().steps().get(0), "repair",
+            List.of(), List.of("document_search"), mock(ToolRegistry.class),
+            List.of(), List.of(), null, role));
+
+        assertThat(chatModel.lastPrompt()).contains(
+            "DAG_REWRITE_AND_TEMPLATE_RESELECTION", "Find capacity risks", "Capacity planning");
+    }
 
     @Test
     void repairsExactLockedEdgesForTemplateBindingsInsideOrderedBatch() {

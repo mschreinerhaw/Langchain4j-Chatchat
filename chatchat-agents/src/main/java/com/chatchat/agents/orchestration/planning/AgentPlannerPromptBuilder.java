@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.planning;
 
 import com.chatchat.agents.protocol.ToolProtocolContractResolver;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
@@ -66,6 +67,9 @@ public final class AgentPlannerPromptBuilder {
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
         }
+        String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
+            runtimeAttributes, "DAG_BUILD_AND_TEMPLATE_DISCOVERY_PLANNING");
+        if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: produce a safe, executable InterpretationPlan for the MCP runtime.\n");
         ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);

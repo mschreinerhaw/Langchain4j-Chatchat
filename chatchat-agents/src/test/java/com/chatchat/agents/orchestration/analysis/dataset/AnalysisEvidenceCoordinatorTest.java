@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.analysis.dataset;
 
 import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
@@ -20,6 +21,25 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisEvidenceCoordinatorTest {
+
+    @Test
+    void pinsRoleContextBeforeDatasetRelationshipAndWorkerPlanning() {
+        AnalysisEvidenceCoordinator coordinator = coordinator();
+        Map<String, Object> attributes = new java.util.LinkedHashMap<>(Map.of(
+            AgentRoleAnalysisContext.RUNTIME_ATTRIBUTE,
+            AgentRoleAnalysisContext.create("Quality analyst", "Find quality risks",
+                List.of("Quality review"), List.of("quality"))));
+        AgentRoleAnalysisContext.pinToRuntime(attributes, "run-quality", "agent-quality");
+
+        AnalysisEvidenceCoordinator.Projection projection = coordinator.project(
+            result(step("runtime_source", Map.of("records", List.of(Map.of("opaque", 1))))),
+            attributes);
+
+        assertThat(projection.datasets().get(0).analysisContext())
+            .containsKey(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY);
+        assertThat(projection.datasets().get(0).analysisContext().toString())
+            .contains("run-quality", "Find quality risks");
+    }
 
     @Test
     void projectsArbitraryRecordsWithoutBusinessFieldAssumptions() {

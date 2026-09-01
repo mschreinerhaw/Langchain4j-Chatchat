@@ -15,6 +15,7 @@ import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
 import com.chatchat.agents.orchestration.evidence.RecoveredBatchEvidenceBridge;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 
 import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
@@ -80,6 +81,37 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void runScopedRoleContextReachesDagControlAndTemplateSelectionPrompts() {
+        Map<String, Object> attributes = new LinkedHashMap<>(Map.of(
+            AgentRoleAnalysisContext.RUNTIME_ATTRIBUTE,
+            AgentRoleAnalysisContext.create("Operations analyst", "Prioritize service reliability",
+                List.of("Incident review"), List.of("reliability"))));
+        AgentRoleAnalysisContext.pinToRuntime(attributes, "run-role", "agent-role");
+        InterpretationPlanRuntime.DagDecisionRequest dagRequest =
+            new InterpretationPlanRuntime.DagDecisionRequest(
+                null, Set.of(1), Map.of(), List.of(), Set.of(), 1,
+                InterpretationExecutionProtocol.VERSION, "trace", "");
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "template_discovery", true,
+                Map.of("templates", List.of()), null, null, null, 1L);
+        InterpretationPlanRuntime.StepReviewRequest reviewRequest =
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1, "run-role");
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+
+        String dagPrompt = orchestrator.buildInterpretationPlanDagDecisionPrompt(
+            "review reliability", null, dagRequest, attributes);
+        String templatePrompt = orchestrator.buildToolResultReviewPrompt(
+            "review reliability", null, reviewRequest, attributes);
+
+        assertThat(dagPrompt).contains(
+            "DAG_EXECUTION_AND_SEMANTIC_ARBITRATION", "Prioritize service reliability", "run-role");
+        assertThat(templatePrompt).contains(
+            "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION", "Prioritize service reliability", "run-role");
+    }
 
     @Test
     void mandatoryPreflightValidatesCompiledBatchChildrenInsteadOfScalarEnvelope() {

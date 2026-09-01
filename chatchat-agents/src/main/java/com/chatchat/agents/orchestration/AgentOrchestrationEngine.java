@@ -1863,9 +1863,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     rewrittenValidation,
                     evaluationError
                 );
-                if (rewrittenPlan != null) {
-                    currentPlan = rewrittenPlan;
-                }
                 planAttemptResults.add(currentResult);
                 continue;
             }

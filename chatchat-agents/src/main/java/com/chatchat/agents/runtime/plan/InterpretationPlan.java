@@ -318,10 +318,11 @@ public record InterpretationPlan(
 
     public record Binding(
         Integer from,
+        @JsonAlias("outputPath")
         @JsonProperty("output_path")
         String outputPath,
         Integer to,
-        @JsonAlias({"input_path", "inputPath"})
+        @JsonAlias({"input_path", "inputPath", "inputField"})
         @JsonProperty("input_field")
         String inputField,
         String type,

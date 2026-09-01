@@ -19,6 +19,17 @@ class InterpretationPlanValidatorTest {
     private final InterpretationPlanValidator validator = new InterpretationPlanValidator();
 
     @Test
+    void bindingProtocolAcceptsCamelCaseAliasesFromModelRewrite() throws Exception {
+        InterpretationPlan.Binding binding = new ObjectMapper().readValue("""
+            {"from":1,"outputPath":"$.templates[0].templateId","to":2,
+             "inputField":"$.calls[0].arguments.templateId","type":"jsonpath","required":true}
+            """, InterpretationPlan.Binding.class);
+
+        assertThat(binding.outputPath()).isEqualTo("$.templates[0].templateId");
+        assertThat(binding.inputField()).isEqualTo("$.calls[0].arguments.templateId");
+    }
+
+    @Test
     void validatesBatchFromDeclaredCapabilityWithoutRecognizedToolName() {
         String toolName = "tenant_operation_gateway";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

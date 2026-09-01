@@ -4123,6 +4123,64 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void rejectedRewriteDoesNotBecomeDuplicateBaselineForCorrectedRewrite() {
+        String initialPlan = """
+            {"version":"1.0","intent":{"type":"document_retrieval","goal":"Recover evidence","risk_level":"low"},
+             "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+             "plan":{"steps":[
+               {"id":1,"action_type":"mcp_tool","tool_name":"document_search","input":{"query":"definition"},"depends_on":[]},
+               {"id":2,"action_type":"final_answer","tool_name":"","input":{"answer":"Document answer"},"depends_on":[1]}]},
+             "execution_policy":{"max_steps":2,"allow_parallel":false,"allow_tool":["document_search","web_search"],"deny_tool":[],"max_rewrite_times":2,"fallback_mode":"partial_result"},
+             "review":{"self_check":{"completeness_score":0.5,"hallucination_risk":0.2,"tool_sufficiency":false,"missing_steps":[]},"fallback_plan":[]}}
+            """;
+        String invalidRewrite = """
+            {"version":"1.0","intent":{"type":"web_search","goal":"Recover evidence","risk_level":"low"},
+             "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+             "plan":{"steps":[
+               {"id":1,"action_type":"mcp_tool","tool_name":"web_search","input":{"query":"definition"},"depends_on":[]},
+               {"id":2,"action_type":"final_answer","tool_name":"","input":{"answer":"Web answer"},"depends_on":[1]}],
+               "bindings":[{"from":1,"sourcePath":"$.results[0].snippet","to":2,"targetField":"$.answer","type":"jsonpath","required":false}]},
+             "execution_policy":{"max_steps":2,"allow_parallel":false,"allow_tool":["web_search"],"deny_tool":["document_search"],"max_rewrite_times":2,"fallback_mode":"partial_result"},
+             "review":{"self_check":{"completeness_score":0.7,"hallucination_risk":0.2,"tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[]}}
+            """;
+        String correctedRewrite = invalidRewrite
+            .replace("\"sourcePath\"", "\"output_path\"")
+            .replace("\"targetField\"", "\"input_field\"");
+        QueueChatModel chatModel = new QueueChatModel(
+            initialPlan,
+            invalidRewrite,
+            correctedRewrite,
+            "{\"accepted\":true,\"feedback\":\"Corrected rewrite executed.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search").title("Document Search").description("Search documents").riskLevel("low").build());
+        when(toolRegistry.getToolMetadata("web_search")).thenReturn(ToolMetadata.builder()
+            .id("web_search").title("Web Search").description("Search web pages").riskLevel("low").build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any()))
+            .thenReturn(ToolOutput.failure("document backend down"));
+        when(toolRegistry.executeEnhancedTool(eq("web_search"), any())).thenReturn(webSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel, toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(), new ModelsConfig());
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Recover the definition.", "tenant-1", List.of("document_search", "web_search"),
+            "Recover with available evidence.", null, List.of(), List.of(), "research",
+            "req-rejected-rewrite-baseline", "conv-rejected-rewrite-baseline", "user-1",
+            10, List.of(), false);
+
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search", "web_search");
+        assertThat(result.metadata())
+            .containsEntry("interpretationPlanRewriteValid", true)
+            .doesNotContainEntry("duplicateToolPlanSuppressed", true);
+    }
+
+    @Test
     void interpretationPlanHonorsZeroRewriteBudgetAndFallsBack() {
         QueueChatModel chatModel = new QueueChatModel(
             """

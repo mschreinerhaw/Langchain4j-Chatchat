@@ -517,10 +517,10 @@ public class ToolObservationBuilder {
         projection.put("resultSetId", resultSetId);
         projection.put("resultSetOrdinal", resultSetOrdinal);
         projection.put("resultSetMode", "SINGLE_TEMPLATE");
-        projection.put("callId", result.callId());
-        projection.put("templateId", firstNonBlank(result.templateId(), result.templateCode()));
-        projection.put("toolName", firstNonBlank(result.normalizedToolName(), result.toolName()));
-        projection.put("status", result.status());
+        putIfPresent(projection, "callId", result.callId());
+        putIfPresent(projection, "templateId", firstNonBlank(result.templateId(), result.templateCode()));
+        putIfPresent(projection, "toolName", firstNonBlank(result.normalizedToolName(), result.toolName()));
+        putIfPresent(projection, "status", result.status());
         projection.put("evidenceUsable", result.evidenceUsable());
         projection.put("durationMs", result.durationMs());
         putIfPresent(projection, "evidenceId", result.evidenceId());

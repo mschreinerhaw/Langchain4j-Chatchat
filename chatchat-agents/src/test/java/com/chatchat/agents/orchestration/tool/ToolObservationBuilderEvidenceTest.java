@@ -272,6 +272,30 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void batchExecutionEvidenceAcceptsUnscheduledChildWithoutOptionalToolIdentity() {
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "database-health", "SEQUENTIAL", "start", "end", "BATCH_COMPILATION_INCOMPLETE",
+            new ToolCallBatchResult.Summary(1, 0, 0, 0, 1, 0),
+            List.of(new ToolCallResult(
+                "missing-check", null, null, "asset-dev",
+                "NOT_EXECUTED", 0L, null, null,
+                Map.of(
+                    "code", "AUTHORIZED_TEMPLATE_NOT_FOUND",
+                    "message", "No authorized template returned for this check")))
+        );
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence("sql_query_execute", batch);
+
+        assertThat(evidence)
+            .contains("\"schemaVersion\":\"batch_execution_evidence.v1\"")
+            .contains("\"callId\":\"missing-check\"")
+            .contains("\"status\":\"NOT_EXECUTED\"")
+            .contains("\"evidenceUsable\":false")
+            .contains("AUTHORIZED_TEMPLATE_NOT_FOUND")
+            .doesNotContain("\"toolName\":null", "\"templateId\":null");
+    }
+
+    @Test
     void enterpriseMetadataDiscoveryExposesDescriptiveEvidenceCoverageWithoutConformanceVerdict() {
         Map<String, Object> discovery = Map.of(
             "schemaVersion", "enterprise_metadata_search_result.v3",

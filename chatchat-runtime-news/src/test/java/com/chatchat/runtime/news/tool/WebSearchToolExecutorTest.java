@@ -126,10 +126,12 @@ class WebSearchToolExecutorTest {
             irrelevantDocument("noise-1"), irrelevantDocument("noise-2"), irrelevantDocument("noise-3")));
         TencentWebSearchClient external = mock(TencentWebSearchClient.class);
         when(external.enabled()).thenReturn(true);
-        when(external.search("A股主要指数行情成交量", 10)).thenReturn(response("quality-fallback"));
+        when(external.search("A股主要指数 行情成交量", 10)).thenReturn(response("quality-fallback"));
 
         var output = new WebSearchToolExecutor(store, properties, external).execute(
-            ToolInput.builder().parameters(Map.of("query", "A股主要指数行情成交量")).build());
+            ToolInput.builder().parameters(Map.of(
+                "query", "请分析A股主要指数行情和成交量是否出现异常",
+                "queryTerms", List.of("A股主要指数", "行情成交量"))).build());
 
         assertThat(output.isSuccess()).isTrue();
         assertThat((Map<String, Object>) output.getData())
@@ -138,7 +140,7 @@ class WebSearchToolExecutorTest {
             .containsEntry("localEvidenceSufficient", false)
             .containsEntry("externalSearchRequired", true)
             .containsEntry("externalWebCount", 1);
-        verify(external).search("A股主要指数行情成交量", 10);
+        verify(external).search("A股主要指数 行情成交量", 10);
     }
 
     @Test
@@ -169,19 +171,22 @@ class WebSearchToolExecutorTest {
         properties.getOpenSearch().setEnabled(false);
         TencentWebSearchClient external = mock(TencentWebSearchClient.class);
         when(external.enabled()).thenReturn(true);
-        when(external.search("杭州西湖附近热点", 5)).thenReturn(new TencentWebSearchClient.SearchResponse(
+        when(external.search("杭州 西湖 当前热点", 5)).thenReturn(new TencentWebSearchClient.SearchResponse(
             List.of(new TencentWebSearchClient.SearchPage(
                 "西湖景区动态", "https://example.com/hangzhou", "2026/07/31 09:00:00",
                 "杭州西湖景区最新信息", "示例站点", 0.91)), "request-1", "standard"));
 
         var output = new WebSearchToolExecutor(mock(NewsDocumentStore.class), properties, external)
             .execute(ToolInput.builder().parameters(
-                Map.of("query", "杭州西湖附近热点", "num_results", 5)).build());
+                Map.of("query", "请帮我看看杭州西湖附近最近有什么热点",
+                    "queryTerms", List.of("杭州", "西湖", "当前热点"), "num_results", 5)).build());
 
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data).containsEntry("mode", "external_web_search")
             .containsEntry("externalProvider", "tencent-wsa")
+            .containsEntry("externalSearchQuery", "杭州 西湖 当前热点")
+            .containsEntry("externalSearchQuerySource", "analyzed_keywords")
             .containsEntry("count", 1);
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
         assertThat(results.get(0)).containsEntry("resultType", "web")
@@ -198,10 +203,10 @@ class WebSearchToolExecutorTest {
         when(store.search(any())).thenReturn(List.of());
         TencentWebSearchClient external = mock(TencentWebSearchClient.class);
         when(external.enabled()).thenReturn(true);
-        when(external.search("领域知识", 10)).thenThrow(new IllegalStateException("rate limited"));
+        when(external.search("领域知识检索", 10)).thenThrow(new IllegalStateException("rate limited"));
 
         var output = new WebSearchToolExecutor(store, properties, external).execute(
-            ToolInput.builder().parameters(Map.of("query", "领域知识")).build());
+            ToolInput.builder().parameters(Map.of("query", "领域知识", "intent", "领域知识检索")).build());
 
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
@@ -221,12 +226,14 @@ class WebSearchToolExecutorTest {
         TencentWebSearchClient.SearchResponse response = response("cached-request");
         WebSearchCache cache = mock(WebSearchCache.class);
         when(cache.enabled()).thenReturn(true);
-        when(cache.findHighlyRelated("Hangzhou West Lake hotspots"))
+        when(cache.findHighlyRelated("West Lake current hotspots"))
             .thenReturn(java.util.Optional.of(new WebSearchCache.CachedSearch(
                 "Hangzhou West Lake current hotspots", 0.92D, response)));
 
         var output = new WebSearchToolExecutor(store, properties, external, cache).execute(
-            ToolInput.builder().parameters(Map.of("query", "Hangzhou West Lake hotspots")).build());
+            ToolInput.builder().parameters(Map.of(
+                "query", "Could you find the latest information about Hangzhou West Lake?",
+                "queryTerms", List.of("West Lake", "current hotspots"))).build());
 
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
@@ -245,17 +252,18 @@ class WebSearchToolExecutorTest {
         properties.getWebSearch().getCache().setForceExternal(true);
         TencentWebSearchClient external = mock(TencentWebSearchClient.class);
         when(external.enabled()).thenReturn(true);
-        when(external.search("fresh query", 10)).thenReturn(response("fresh-request"));
+        when(external.search("fresh analyzed terms", 10)).thenReturn(response("fresh-request"));
         WebSearchCache cache = mock(WebSearchCache.class);
         when(cache.enabled()).thenReturn(true);
 
         var output = new WebSearchToolExecutor(mock(NewsDocumentStore.class), properties, external, cache)
-            .execute(ToolInput.builder().parameters(Map.of("query", "fresh query")).build());
+            .execute(ToolInput.builder().parameters(Map.of(
+                "query", "fresh query", "queryTerms", List.of("fresh analyzed terms"))).build());
 
         assertThat(output.isSuccess()).isTrue();
         verify(cache, never()).findHighlyRelated(any());
-        verify(external).search("fresh query", 10);
-        verify(cache).put("fresh query", response("fresh-request"));
+        verify(external).search("fresh analyzed terms", 10);
+        verify(cache).put("fresh analyzed terms", response("fresh-request"));
     }
 
     @Test
@@ -267,11 +275,12 @@ class WebSearchToolExecutorTest {
         when(external.enabled()).thenReturn(false);
         WebSearchCache cache = mock(WebSearchCache.class);
         when(cache.enabled()).thenReturn(true);
-        when(cache.findHighlyRelated("cached only")).thenReturn(java.util.Optional.of(
+        when(cache.findHighlyRelated("cached analyzed terms")).thenReturn(java.util.Optional.of(
             new WebSearchCache.CachedSearch("cached only", 1D, response("cached-request"))));
 
         var output = new WebSearchToolExecutor(mock(NewsDocumentStore.class), properties, external, cache)
-            .execute(ToolInput.builder().parameters(Map.of("query", "cached only")).build());
+            .execute(ToolInput.builder().parameters(Map.of(
+                "query", "cached only", "keywords", List.of("cached analyzed terms"))).build());
 
         assertThat(output.isSuccess()).isTrue();
         assertThat((Map<String, Object>) output.getData()).containsEntry("webSearchCacheHit", true);

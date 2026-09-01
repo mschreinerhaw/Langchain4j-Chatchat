@@ -177,7 +177,8 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         data.put("externalSearchTool", ExternalWebSearchToolExecutor.INTERNAL_TOOL_NAME);
         data.put("externalSearchToolVisibility", "internal_bridge_only");
         copyIfPresent(externalData, data, "cachedQuery", "cacheSimilarity", "externalProvider",
-            "externalRequestId", "externalVersion");
+            "externalRequestId", "externalVersion", "externalSearchQuery", "externalSearchQuerySource",
+            "externalSearchTerms");
         data.put("results", results);
         data.put("reference_urls", NewsToolSupport.evidenceUrls(results));
         if (!warnings.isEmpty()) data.put("warnings", warnings);

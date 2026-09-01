@@ -4,6 +4,7 @@ import com.chatchat.common.concurrent.CancellationSupport;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
+import com.chatchat.runtime.news.search.ExternalSearchQueryResolver;
 import com.chatchat.runtime.news.search.TencentWebSearchClient;
 import com.chatchat.runtime.news.search.WebSearchCache;
 import org.slf4j.Logger;
@@ -43,8 +44,13 @@ public class ExternalWebSearchToolExecutor implements NewsToolExecutor {
     @Override
     public ToolOutput execute(ToolInput input) {
         CancellationSupport.throwIfCancelled(INTERNAL_TOOL_NAME);
-        String query = input.getParameterAsString("query", "").trim();
-        if (query.isBlank()) return ToolOutput.failure("query parameter is required");
+        String originalQuery = input.getParameterAsString("query", "").trim();
+        ExternalSearchQueryResolver.ResolvedQuery resolvedQuery = ExternalSearchQueryResolver.resolve(input);
+        String query = resolvedQuery.query();
+        if (query.isBlank()) {
+            return ToolOutput.failure("Analyzed queryTerms, keywords, or intent is required for external web retrieval; "
+                + "the original user question is not sent to the external provider");
+        }
         if (!available()) return NewsToolSupport.unavailable(INTERNAL_TOOL_NAME);
 
         int size = NewsToolSupport.boundedInt(input.getParameterAsNumber("num_results"), 10, 1, 50);
@@ -89,7 +95,10 @@ public class ExternalWebSearchToolExecutor implements NewsToolExecutor {
         List<Map<String, Object>> results = response.pages().stream()
             .map(page -> externalItem(page, retrievalSource)).toList();
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("query", query);
+        data.put("query", originalQuery);
+        data.put("externalSearchQuery", query);
+        data.put("externalSearchQuerySource", resolvedQuery.source());
+        data.put("externalSearchTerms", resolvedQuery.terms());
         data.put("provider", "chatchat-runtime-news");
         data.put("mode", cached == null ? "external_web_search" : "cached_web_search");
         data.put("internalTool", true);

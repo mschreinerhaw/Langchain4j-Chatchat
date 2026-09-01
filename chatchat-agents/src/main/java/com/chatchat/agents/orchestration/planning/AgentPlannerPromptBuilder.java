@@ -227,9 +227,6 @@ public final class AgentPlannerPromptBuilder {
             prompt.append("- When ").append(crawlerTool).append(" depends on ").append(discoverySearchTool)
                 .append(", bind the selected search result URL into crawler input url, e.g. {\"from\":1,\"output_path\":\"$.results[0].url\",\"to\":2,\"input_field\":\"url\",\"type\":\"jsonpath\"}.\n");
             prompt.append("- Do not use placeholder inputs such as {\"url\":\"\"} or template strings such as ${step1.results[0].url}; use plan.bindings instead.\n\n");
-            prompt.append("Web search query fidelity:\n");
-            prompt.append("- For web_search.query, preserve the user's original search phrase as much as possible. Do not append inferred years, stale years, or extra date tokens.\n");
-            prompt.append("- If the user says today, latest, current, recent, \u4eca\u5929, \u6700\u65b0, \u8fd1\u671f, or \u5f53\u524d, keep that temporal wording instead of converting it to another year unless the user explicitly requested an absolute date.\n\n");
         }
         if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {
             prompt.append("Knowledge document recall hints:\n");

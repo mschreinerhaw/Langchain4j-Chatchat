@@ -42,8 +42,10 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 + "index and reads bounded observations from relevant collected datasets before considering the "
                 + "external API. Financial asset mapping is an internal stage of this tool and always receives the "
                 + "same query. For an exact dataset follow-up, call web_search again with dataset.",
-            List.of(text("query", "News topic, business question, or financial data keywords", false),
-                stringArray("queryTerms", "Optional independent news keywords. The local news index searches and aggregates each item; when omitted, keywords are extracted from query automatically.", 8),
+            List.of(text("query", "Original user question retained for local routing and audit; it is never sent directly to the external search provider", false),
+                stringArray("queryTerms", "Analyzed, independent search keywords or short phrases. Local retrieval searches each item; external retrieval combines them and excludes the original question.", 8),
+                stringArray("keywords", "Alias of queryTerms for analyzed search keywords", 8),
+                text("intent", "Analyzed search intent used by external retrieval when analyzed keywords are unavailable", false),
                 number("num_results", "Maximum number of unified search results to return", 10, 1, 50),
                 bool("financial_data_required", "Compatibility marker for callers that explicitly require financial "
                     + "observations. Normal web_search calls already retrieve dynamically matched local financial data; "

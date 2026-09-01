@@ -39,6 +39,9 @@ class RemoteNewsMcpToolProviderTest {
         assertThat(parameter.getMetadata())
             .containsEntry("items", Map.of("type", "string"))
             .containsEntry("maxItems", 8);
+        assertThat(provider.definitions().stream().findFirst().orElseThrow().parameters())
+            .extracting(item -> item.getName())
+            .contains("query", "queryTerms", "keywords", "intent");
     }
 
     @Test

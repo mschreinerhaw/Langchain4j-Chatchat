@@ -246,6 +246,8 @@ Runtime 保留完整工具输出、结构化证据对象、来源节点和尝试
 
 本地金融数据记录与本地新闻命中的合计证据量达到 `chatchat.runtime.news.web-search.minimum-local-results`（默认 `3`）时，不调用付费联网 API。`force-external` 仅作为显式运维覆盖开关，并通过 `retrievalOrder`、`externalSearchRole`、`localEvidenceSufficient` 和 `externalSearchRequired` 返回实际路由信息，便于审计。
 
+需要补充联网证据时，搜索执行层直接读取调用链中已有的 `queryTerms`、`keywords` 或 `intent`，不会直接把 `query` 中的用户原始问题发送给外部 API，也不会在 Runtime OS 中增加特定业务的提示词或推断规则。响应中的 `externalSearchQuery`、`externalSearchQuerySource` 和 `externalSearchTerms` 会记录实际检索内容及来源；缺少已有检索信号时，外部调用会失败关闭，而不是退回原问题。
+
 ## MCP 发布命名规范
 
 MCP 发布名称必须与 API 流程审核使用的规范工具名一致。

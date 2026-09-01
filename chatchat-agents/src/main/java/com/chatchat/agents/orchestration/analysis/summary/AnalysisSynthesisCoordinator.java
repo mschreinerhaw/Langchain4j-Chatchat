@@ -97,6 +97,23 @@ public final class AnalysisSynthesisCoordinator {
 
     /** Executes the single final model call, its deterministic fallback and final governance. */
     public FinalSynthesisResult synthesizeFinal(FinalModelSynthesisRequest request) {
+        if (Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"))) {
+            log.warn("analysisSynthesisBlocked runId={} stage={} barrierStatus={} "
+                    + "acceptedWorkerCount={} rejectedWorkerCount={}",
+                request.runId(), request.stage(),
+                request.metadata().get("analysisSynthesisBarrierStatus"),
+                request.metadata().get("analysisAcceptedWorkerCount"),
+                request.metadata().get("analysisRejectedWorkerCount"));
+            request.metadata().put("analysisSynthesisBlocked", true);
+            request.metadata().put("analysisOutputAdmitted", false);
+            request.metadata().put("analysisOutputAdmissionReason",
+                "DRIVER_SYNTHESIS_BARRIER_BLOCKED");
+            request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+            request.metadata().put("interpretationPlanSummaryGenerated", false);
+            request.metadata().put("interpretationPlanFinalResultProduced", false);
+            return new FinalSynthesisResult(
+                AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE, null, false);
+        }
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={}",
             request.runId(), request.stage(), request.model().getClass().getName(),
@@ -107,15 +124,22 @@ public final class AnalysisSynthesisCoordinator {
             answer = request.model().chat(request.prompt());
         } catch (RuntimeException ex) {
             if (ex instanceof AgentDeadlineExceededException) throw ex;
+            log.warn("agentModelFailure phase=interpretation_plan_summary runId={} stage={} "
+                    + "fallbackAllowed={} errorType={} error={}",
+                request.runId(), request.stage(), request.fallbackAllowed(),
+                ex.getClass().getName(), safeMessage(ex));
             request.metadata().put("interpretationPlanSummaryGenerated", false);
             request.metadata().put("interpretationPlanSummaryFailure", safeMessage(ex));
             if (!request.fallbackAllowed()) {
                 request.metadata().putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
                 return new FinalSynthesisResult("", null, false);
             }
-            answer = request.fallbackSupplier().get();
             outcome = "DETERMINISTIC_FINAL_FALLBACK";
             request.metadata().put("interpretationPlanDeterministicSummaryFallback", true);
+            // Publish the fallback marker before constructing the fallback. Presentation governance
+            // must know that the candidate is not a model-authored global synthesis, otherwise a
+            // long serialized tool envelope can be misclassified as narrative analysis.
+            answer = request.fallbackSupplier().get();
             request.metadata().putIfAbsent("executionStatus", "PARTIAL_RESULT_PRESENTED");
         }
 
@@ -126,6 +150,16 @@ public final class AnalysisSynthesisCoordinator {
                 outcome = "MODEL_EMPTY_RUNTIME_FINAL_FALLBACK";
             }
         }
+        AnalysisOutputAdmissionPolicy.Admission admission =
+            AnalysisOutputAdmissionPolicy.admit(answer);
+        request.metadata().put("analysisOutputAdmissionReason", admission.reason());
+        request.metadata().put("analysisOutputAdmitted", admission.admitted());
+        if (!admission.admitted()) {
+            answer = AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
+            outcome = "ANALYSIS_OUTPUT_WITHHELD";
+            request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+            request.metadata().put("rawAnalysisOutputWithheld", true);
+        }
         AnalysisSummaryResult governed = finalizeSummary(request.governance(answer, outcome));
         answer = governed.content();
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
@@ -135,8 +169,10 @@ public final class AnalysisSynthesisCoordinator {
             request.runId(), request.stage(), ModelProtocolJson.prettyJsonForLog(answer));
         answerCandidateCollector.register(request.metadata(), AnswerCandidateCollector.FINAL_SYNTHESIS, answer);
         request.metadata().put("interpretationPlanSummaryGenerated",
-            !"DETERMINISTIC_FINAL_FALLBACK".equals(outcome));
-        request.metadata().put("interpretationPlanFinalResultProduced", true);
+            !"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)
+                && !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
+        request.metadata().put("interpretationPlanFinalResultProduced",
+            !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
         request.metadata().put("interpretationPlanSummaryStage", request.stage());
         request.metadata().put("interpretationPlanAttemptCount", request.attemptCount());
         request.metadata().put("interpretationPlanStoredObservationCount", request.storedObservationCount());
@@ -151,13 +187,26 @@ public final class AnalysisSynthesisCoordinator {
         resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
             "InterpretationPlan " + request.stage() + " final stepwise summary generated.",
             "interpretation_plan_summary", observation);
-        return new FinalSynthesisResult(answer, governed, true);
+        return new FinalSynthesisResult(answer, governed,
+            !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
     }
 
     /** Applies the governed Worker narrative and lossless coverage fallback before publication. */
     public String presentGovernedAnalysis(String answer, PresentationRequest request) {
-        if (request.returnedRecordCount() == 0) return answer;
+        if (request.returnedRecordCount() == 0) {
+            AnalysisOutputAdmissionPolicy.Admission admission =
+                AnalysisOutputAdmissionPolicy.admit(answer);
+            if (admission.admitted()) return answer;
+            recordWithheld(request, admission.reason());
+            return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
+        }
         String governedAnswer = governedNarrative(answer, request);
+        if (Boolean.TRUE.equals(request.metadata().get("rawAnalysisOutputWithheld"))) {
+            // A fail-closed decision must be terminal for presentation. Appending the raw coverage
+            // appendix here would recreate the exact publication leak that the admission gate
+            // rejected above.
+            return governedAnswer;
+        }
         boolean everyRecordReferenced = !request.iterative()
             && request.recordValueGroups().stream()
                 .allMatch(values -> containsAnyConcreteValue(governedAnswer, values));
@@ -208,11 +257,27 @@ public final class AnalysisSynthesisCoordinator {
         if (modelSummaries.isEmpty()) {
             request.metadata().put("governedNarrativeAnalysisUnavailable", true);
             request.metadata().put("returnedDataAnalysisRequired", true);
-            request.metadata().put("ungovernedCandidateWithheld",
-                !request.coverageComplete() || !request.evidenceTraceComplete());
-            if (request.coverageComplete() && request.evidenceTraceComplete()) return answer;
-            return "Runtime returned data, but no governed Worker analysis result is available; "
-                + "the unanalysed candidate conclusion was withheld.";
+            AnalysisOutputAdmissionPolicy.Admission admission =
+                AnalysisOutputAdmissionPolicy.admit(answer);
+            boolean modelNarrative = admission.admitted()
+                && !Boolean.TRUE.equals(request.metadata()
+                    .get("interpretationPlanDeterministicSummaryFallback"));
+            if (modelNarrative) {
+                // Worker lineage is preferred, but a final model can still produce a legitimate
+                // narrative for ordinary document/tool evidence. The accident boundary is raw
+                // protocol publication, not the absence of a particular implementation lineage.
+                request.metadata().put("ungovernedCandidateWithheld", false);
+                request.metadata().put("analysisOutputAdmissionReason", admission.reason());
+                request.metadata().put("analysisOutputAdmitted", true);
+                return answer.trim();
+            }
+            request.metadata().put("ungovernedCandidateWithheld", true);
+            request.metadata().put("analysisOutputAdmissionReason",
+                admission.admitted()
+                    ? "DETERMINISTIC_OUTPUT_WITHOUT_GOVERNED_ANALYSIS" : admission.reason());
+            request.metadata().put("analysisOutputAdmitted", false);
+            request.metadata().put("rawAnalysisOutputWithheld", true);
+            return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
         }
         StringBuilder narrative = new StringBuilder("\n\n## 数据分析总结\n\n");
         for (AnalysisSummaryResult summary : modelSummaries) {
@@ -233,6 +298,13 @@ public final class AnalysisSynthesisCoordinator {
             request.synthesisInputs().isEmpty()
                 ? "CHUNK_COMPATIBILITY_FALLBACK" : "DRIVER_SYNTHESIS_INPUTS");
         return narrative.toString().trim();
+    }
+
+    private void recordWithheld(PresentationRequest request, String reason) {
+        request.metadata().put("analysisOutputAdmissionReason", reason);
+        request.metadata().put("analysisOutputAdmitted", false);
+        request.metadata().put("rawAnalysisOutputWithheld", true);
+        request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
     }
 
     private boolean containsAnyConcreteValue(String answer, List<String> values) {

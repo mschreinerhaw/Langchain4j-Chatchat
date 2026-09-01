@@ -63,24 +63,10 @@ public final class AnalysisSummaryGovernanceBridge
 
     /** Applies an explicit producer policy before any model call. */
     public boolean requiresModelSummary(Map<String, Object> governedContext, boolean oversized) {
-        Map<String, Object> policy = copy(governedContext == null
-            ? null : governedContext.get("analysisPolicy"));
-        Object enabled = policy.get("enabled");
-        if (Boolean.FALSE.equals(enabled) || "false".equalsIgnoreCase(String.valueOf(enabled))) {
-            return false;
-        }
-        String mode = String.valueOf(policy.getOrDefault("mode", "")).trim().toUpperCase();
-        if (List.of("PRESERVE_ONLY", "REFERENCE_ONLY", "DO_NOT_ANALYZE").contains(mode)) {
-            return false;
-        }
-        Map<String, Object> completeness = copy(governedContext == null
-            ? null : governedContext.get("contextCompleteness"));
-        Object sections = completeness.get("suppliedSections");
-        boolean semanticContextDeclared = sections instanceof List<?> list && !list.isEmpty();
-        if (completeness.isEmpty()) {
-            semanticContextDeclared = governedContext != null && !governedContext.isEmpty();
-        }
-        return oversized || semanticContextDeclared;
+        // Returned data is analysis work regardless of its shape or the completeness of producer
+        // semantics. Producer policy constrains permitted operations and claims; it cannot bypass
+        // the Runtime's minimum observation analysis.
+        return true;
     }
 
     public Map<String, Object> govern(String reference,

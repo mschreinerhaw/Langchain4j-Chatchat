@@ -428,16 +428,16 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
-    void appliesExplicitAnalysisPolicyBeforeCallingTheModel() {
+    void returnedDataAlwaysRequiresWorkerAnalysisRegardlessOfProducerPolicy() {
         assertThat(bridge.requiresModelSummary(Map.of(
             "source", Map.of("displayName", "资产目录"),
-            "analysisPolicy", Map.of("mode", "REFERENCE_ONLY")), true)).isFalse();
+            "analysisPolicy", Map.of("mode", "REFERENCE_ONLY")), true)).isTrue();
         assertThat(bridge.requiresModelSummary(Map.of(
             "source", Map.of("displayName", "持仓结果"),
             "analysisPolicy", Map.of("mode", "ANALYZE_RETURNED_RECORDS")), false)).isTrue();
         assertThat(bridge.requiresModelSummary(Map.of(
             "source", Map.of("displayName", "受限结果"),
-            "analysisPolicy", Map.of("enabled", false)), false)).isFalse();
+            "analysisPolicy", Map.of("enabled", false)), false)).isTrue();
     }
 
     @Test

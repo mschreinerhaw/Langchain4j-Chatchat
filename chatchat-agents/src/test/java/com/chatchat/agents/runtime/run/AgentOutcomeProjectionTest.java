@@ -49,4 +49,17 @@ class AgentOutcomeProjectionTest {
         assertThat(outcome.workflowStatus()).isEqualTo("PENDING_REQUIRED_EVIDENCE");
         assertThat(outcome.publicStatus()).isEqualTo("RUNNING");
     }
+
+    @Test
+    void withheldRawAnalysisOutputFailsTheRunEvenWithAnExplanatoryMessage() {
+        AgentOutcomeProjection.Outcome outcome = projection.project(Map.of(
+            "rawAnalysisOutputWithheld", true,
+            "executionStatus", "NO_PRESENTABLE_ANALYSIS"
+        ), "Analysis synthesis failed; raw evidence was withheld.");
+
+        assertThat(outcome.runStatus()).isEqualTo("FAILED");
+        assertThat(outcome.answerStatus()).isEqualTo("FAILED");
+        assertThat(outcome.workflowStatus()).isEqualTo("ANALYSIS_SYNTHESIS_FAILED");
+        assertThat(outcome.publicStatus()).isEqualTo("FAILED");
+    }
 }

@@ -30,6 +30,14 @@ public final class AgentOutcomeProjection {
             return new Outcome("COMPLETED", hasAnswer ? "PARTIAL" : "EMPTY", "BUDGET_EXHAUSTED",
                 "TIME_BUDGET_EXHAUSTED", CONTRACT_VERSION);
         }
+        if (booleanValue(values.get("rawAnalysisOutputWithheld"))
+            || booleanValue(values.get("analysisSynthesisBlocked"))) {
+            // Retrieval may have completed, but an analysis request is not successful unless a
+            // publishable synthesis exists. The explanatory message is an error report, not a
+            // substitute business answer.
+            return new Outcome("FAILED", "FAILED", "ANALYSIS_SYNTHESIS_FAILED",
+                "FAILED", CONTRACT_VERSION);
+        }
         if (mandatoryBlocked) {
             boolean mandatoryPending = booleanValue(values.get("mandatoryWorkflowPending"))
                 && !booleanValue(values.get("mandatoryWorkflowTerminal"));

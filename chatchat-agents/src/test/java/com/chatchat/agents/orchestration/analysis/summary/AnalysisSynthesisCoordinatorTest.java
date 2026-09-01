@@ -110,6 +110,98 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
+    void modelFailureNeverPublishesRawRuntimeEnvelopeAsAnalysis() {
+        AnalysisSummaryGovernanceCoordinator governance = mock(AnalysisSummaryGovernanceCoordinator.class);
+        when(governance.finalizeSummary(any())).thenAnswer(invocation -> {
+            AnalysisSummaryGovernanceCoordinator.FinalSummaryRequest request = invocation.getArgument(0);
+            return AnalysisSummaryResult.finalSummary(
+                scope, "completed", request.content(), request.outcome(), Map.of(), List.of());
+        });
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", governance,
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        ChatModel failing = mock(ChatModel.class);
+        when(failing.chat("prompt")).thenThrow(new IllegalStateException("model unavailable"));
+        String rawFallback = "## 可用执行结果\n\n- 返回内容：`{\"_aggregation\":\"STRUCTURED_MAP\","
+            + "\"_fieldCount\":8,\"_assessmentCapability\":\"LIMITED\","
+            + "\"schemaVersion\":\"tool_execution_result.v1\",\"toolName\":\"query\","
+            + "\"runtimeMetadata\":{},\"dataCompleteness\":{},\"sourceMetadata\":{},"
+            + "\"payloadType\":\"structured\",\"padding\":\"" + "x".repeat(1_000)
+            + "\"}`\n成功子项：1；未成功子项：0";
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            request(failing, metadata, candidate -> candidate, () -> rawFallback, true));
+
+        assertThat(result.content())
+            .isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE)
+            .doesNotContain("_aggregation", "可用执行结果", "toolName");
+        assertThat(result.generated()).isFalse();
+        assertThat(metadata)
+            .containsEntry("analysisOutputAdmitted", false)
+            .containsEntry("analysisOutputAdmissionReason", "EXECUTION_MANIFEST_NOT_ANALYSIS")
+            .containsEntry("rawAnalysisOutputWithheld", true)
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
+            .containsEntry("interpretationPlanFinalResultProduced", false);
+    }
+
+    @Test
+    void nonEmptyModelResponseStillCannotPublishRawRuntimeEnvelope() {
+        AnalysisSummaryGovernanceCoordinator governance = mock(AnalysisSummaryGovernanceCoordinator.class);
+        when(governance.finalizeSummary(any())).thenAnswer(invocation -> {
+            AnalysisSummaryGovernanceCoordinator.FinalSummaryRequest request = invocation.getArgument(0);
+            return AnalysisSummaryResult.finalSummary(
+                scope, "completed", request.content(), request.outcome(), Map.of(), List.of());
+        });
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", governance,
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat("prompt")).thenReturn(
+            "## 可用执行结果\n- 返回内容：`{\"_aggregation\":\"STRUCTURED_MAP\","
+                + "\"_fieldCount\":8,\"_assessmentCapability\":\"LIMITED\","
+                + "\"schemaVersion\":\"result.v1\",\"toolName\":\"query\","
+                + "\"runtimeMetadata\":{},\"dataCompleteness\":{},\"sourceMetadata\":{},"
+                + "\"payloadType\":\"structured\",\"padding\":\"" + "x".repeat(1_000)
+                + "\"}`\n成功子项：1；未成功子项：0");
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            request(model, metadata, candidate -> candidate, () -> "unused", true));
+
+        assertThat(result.content()).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(result.generated()).isFalse();
+        assertThat(metadata)
+            .containsEntry("analysisOutputAdmitted", false)
+            .containsEntry("rawAnalysisOutputWithheld", true)
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+    }
+
+    @Test
+    void presentationFailsClosedWhenReturnedDataHasNoGovernedWorkerAnalysis() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId",
+            mock(AnalysisSummaryGovernanceCoordinator.class),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        String answer = coordinator.presentGovernedAnalysis(
+            "## 可用执行结果\n\n- 返回内容：`raw rows`\n成功子项：1；未成功子项：0",
+            new AnalysisSynthesisCoordinator.PresentationRequest(
+                "raw appendix", List.of(List.of("raw")), 1, false,
+                true, true, true, List.of(), List.of(), metadata));
+
+        assertThat(answer).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(metadata)
+            .containsEntry("governedNarrativeAnalysisUnavailable", true)
+            .containsEntry("ungovernedCandidateWithheld", true)
+            .containsEntry("analysisOutputAdmitted", false);
+    }
+
+    @Test
     void deadlineCancellationIsNotConvertedIntoAContentFallback() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId",
@@ -125,6 +217,32 @@ class AnalysisSynthesisCoordinatorTest {
                 () -> "must not be used", true)))
             .isInstanceOf(AgentDeadlineExceededException.class)
             .hasMessageContaining("deadline exhausted");
+    }
+
+    @Test
+    void driverBarrierPreventsFinalModelInvocationWithoutAcceptedWorkerAnalysis() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId",
+            mock(AnalysisSummaryGovernanceCoordinator.class),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        ChatModel model = mock(ChatModel.class);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", false);
+        metadata.put("analysisSynthesisBarrierStatus", "BLOCKED");
+        metadata.put("analysisAcceptedWorkerCount", 0);
+        metadata.put("analysisRejectedWorkerCount", 2);
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            request(model, metadata, candidate -> candidate, () -> "unused", true));
+
+        assertThat(result.generated()).isFalse();
+        assertThat(result.content()).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(metadata)
+            .containsEntry("analysisSynthesisBlocked", true)
+            .containsEntry("analysisOutputAdmissionReason", "DRIVER_SYNTHESIS_BARRIER_BLOCKED")
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+        org.mockito.Mockito.verifyNoInteractions(model);
     }
 
     @Test

@@ -16,9 +16,15 @@ public final class GovernedGlobalSynthesisPolicy {
                                  boolean coverageComplete,
                                  boolean evidenceTraceComplete,
                                  Map<String, Object> metadata) {
+        boolean supervisedDriverSynthesis = metadata != null
+            && Boolean.TRUE.equals(metadata.get("analysisSynthesisBarrierReady"));
+        boolean reviewedDriverSynthesis = metadata != null
+            && CONTRACT_VERSION.equals(metadata.get("modelAnalysisReviewContractVersion"));
         if (metadata == null
-            || !CONTRACT_VERSION.equals(metadata.get("modelAnalysisReviewContractVersion"))
-            || !coverageComplete || !evidenceTraceComplete || !hasNarrativeAnalysis(answer)) {
+            || (!supervisedDriverSynthesis && !reviewedDriverSynthesis)
+            || Boolean.TRUE.equals(metadata.get("interpretationPlanDeterministicSummaryFallback"))
+            || !AnalysisOutputAdmissionPolicy.admit(answer).admitted()
+            || !hasNarrativeAnalysis(answer, supervisedDriverSynthesis)) {
             return false;
         }
         metadata.put("governedGlobalSynthesisRetained", true);
@@ -29,7 +35,7 @@ public final class GovernedGlobalSynthesisPolicy {
         return true;
     }
 
-    private static boolean hasNarrativeAnalysis(String answer) {
+    private static boolean hasNarrativeAnalysis(String answer, boolean supervisedDriverSynthesis) {
         if (answer == null || answer.isBlank()) return false;
         String narrative = Arrays.stream(answer.split("\\R"))
             .map(String::trim)
@@ -39,6 +45,6 @@ public final class GovernedGlobalSynthesisPolicy {
             .filter(line -> !line.matches("^(?:[-*]\\s*)?(?:数据来源|来源|数据集|共?\\s*\\d+\\s*(?:行|个数据集)).*$"))
             .map(line -> line.replaceAll("[`*_>#]", "").trim())
             .collect(Collectors.joining(" "));
-        return narrative.length() >= 40;
+        return narrative.length() >= (supervisedDriverSynthesis ? 12 : 40);
     }
 }

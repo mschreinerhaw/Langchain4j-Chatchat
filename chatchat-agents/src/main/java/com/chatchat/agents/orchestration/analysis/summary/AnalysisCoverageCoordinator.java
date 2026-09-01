@@ -16,6 +16,7 @@ import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisWorkerSupervision;
 import dev.langchain4j.model.chat.ChatModel;
 
 import java.nio.charset.StandardCharsets;
@@ -124,6 +125,8 @@ public final class AnalysisCoverageCoordinator {
         List<Map<String, Object>> insightDecisions = new ArrayList<>();
         List<Map<String, Object>> presentationViews = new ArrayList<>();
         List<Map<String, Object>> failures = new ArrayList<>();
+        List<DataAnalysisWorkerSupervision.WorkerReport> workerReports = new ArrayList<>();
+        AnalysisWorkerSupervisor workerSupervisor = new AnalysisWorkerSupervisor();
         Map<String, Integer> occurrences = new LinkedHashMap<>();
         Counters counters = new Counters();
 
@@ -138,6 +141,22 @@ public final class AnalysisCoverageCoordinator {
             counters.sourceComplete &= dataset.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
             AnalysisDispatchCoordinator.Outcome outcome = dispatched.await(reference);
+            DataAnalysisWorkerSupervision.WorkerReport workerReport = workerSupervisor.inspect(
+                reference, dataset.records().size(), outcome,
+                evidenceCoordinator::hasTraceableEvidence);
+            workerReports.add(workerReport);
+            observeWorkerSupervision(request, workerReport, datasetIndex, datasets.size());
+            if (!workerReport.acceptedForSynthesis()) {
+                if (workerReport.productStatus()
+                    == DataAnalysisWorkerSupervision.ProductStatus.EXECUTION_FAILED) {
+                    recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
+                        datasets.size(), dataset.records().size(), outcome);
+                } else {
+                    recordRejectedWorkerProduct(request, prompt, appendix, failures, reference,
+                        datasetIndex, datasets.size(), dataset.records().size(), outcome, workerReport);
+                }
+                continue;
+            }
             if (!outcome.success()) {
                 recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
                     datasets.size(), dataset.records().size(), outcome);
@@ -185,7 +204,28 @@ public final class AnalysisCoverageCoordinator {
             appendix.append("\n");
         }
 
-        DataAnalysisLifecycle lifecycle = initialLifecycle.workersReconciled(counters.analyzed, failures.size());
+        DataAnalysisWorkerSupervision.DriverReport supervision =
+            new DataAnalysisWorkerSupervision().reconcile(datasets.size(), workerReports);
+        writeSupervisionMetadata(request, supervision);
+        DataAnalysisLifecycle lifecycle = initialLifecycle.workersReconciled(
+            supervision.acceptedWorkerCount(), supervision.rejectedWorkerCount());
+        if (!supervision.synthesisReady()) {
+            prompt.append("Driver synthesis barrier is blocked: no Worker produced an admitted "
+                + "business-analysis product. Raw returned records must not be summarized or published.\n");
+            HierarchicalAnalysisReducer.Result hierarchy = new HierarchicalAnalysisReducer.Result(
+                relationshipPlan, List.of(), List.of(), List.of(),
+                datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList());
+            boolean coverageComplete = false;
+            boolean traceComplete = false;
+            appendCoverage(prompt, hierarchy, failures, counters, coverageComplete, traceComplete);
+            writeResultMetadata(request, datasets.size(), relationshipPlan, lifecycle, hierarchy,
+                governedSummaries, failures, insightResults, insightDecisions, presentationViews,
+                counters, coverageComplete, traceComplete);
+            return new CoverageBundle(prompt.toString(), appendix.toString(), List.of(),
+                counters.returned, 0, counters.iterations, counters.iterative,
+                false, counters.sourceComplete, false, counters.rawReplay,
+                List.of(), List.of());
+        }
         AnalysisSynthesisCoordinator.HierarchicalSynthesisResult synthesis =
             synthesisCoordinator.synthesizeHierarchy(
                 new AnalysisSynthesisCoordinator.HierarchicalSynthesisRequest(
@@ -219,6 +259,84 @@ public final class AnalysisCoverageCoordinator {
             counters.returned, counters.processed, counters.iterations, counters.iterative,
             coverageComplete, counters.sourceComplete, traceComplete, counters.rawReplay,
             List.copyOf(governedSummaries), hierarchy.finalInputs());
+    }
+
+    private void observeWorkerSupervision(
+        Request request,
+        DataAnalysisWorkerSupervision.WorkerReport report,
+        int index,
+        int count
+    ) {
+        boolean accepted = report.acceptedForSynthesis();
+        String stage = report.fullyCompliant() ? "ANALYSIS_ACCEPTED"
+            : accepted ? "ANALYSIS_DEGRADED" : "ANALYSIS_REJECTED";
+        observe(request,
+            "第 " + index + "/" + count + " 组数据分析"
+                + (accepted ? "已通过质量验收。" : "未通过质量验收，不会进入综合结论。"),
+            "business_analysis_progress", metadataOf(
+                "type", "analysis_worker_supervision",
+                "stage", stage,
+                "workReference", report.datasetReference(),
+                "workIndex", index,
+                "workCount", count,
+                "workerReport", report.toMap()));
+    }
+
+    private void recordRejectedWorkerProduct(
+        Request request,
+        StringBuilder prompt,
+        StringBuilder appendix,
+        List<Map<String, Object>> failures,
+        String reference,
+        int index,
+        int count,
+        int records,
+        AnalysisDispatchCoordinator.Outcome outcome,
+        DataAnalysisWorkerSupervision.WorkerReport report
+    ) {
+        Map<String, Object> failure = metadataOf(
+            "workReference", reference, "workIndex", index, "workCount", count,
+            "recordCount", records, "status", report.productStatus().name(),
+            "durationMs", report.durationMs(), "error", String.join(",", report.reasons()),
+            "workerReport", report.toMap());
+        failures.add(failure);
+        prompt.append("- ").append(reference)
+            .append(" returned data but did not produce an admitted Worker analysis. "
+                + "Do not use its raw payload as a conclusion. Supervision: ")
+            .append(ModelProtocolJson.compact(report.toMap())).append("\n");
+        appendix.append("### ").append(reference)
+            .append("\n\n- 数据已返回，但分析质量验收未通过，本数据集未进入综合结论。\n\n");
+    }
+
+    private void writeSupervisionMetadata(
+        Request request,
+        DataAnalysisWorkerSupervision.DriverReport supervision
+    ) {
+        if (request.metadata() != null) {
+            request.metadata().put("analysisWorkerSupervision", supervision.toMap());
+            request.metadata().put("analysisWorkerSupervisionSchemaVersion",
+                DataAnalysisWorkerSupervision.SCHEMA_VERSION);
+            request.metadata().put("analysisSynthesisBarrierReady", supervision.synthesisReady());
+            request.metadata().put("analysisSynthesisBarrierStatus",
+                supervision.barrierStatus().name());
+            request.metadata().put("analysisAcceptedWorkerCount",
+                supervision.acceptedWorkerCount());
+            request.metadata().put("analysisRejectedWorkerCount",
+                supervision.rejectedWorkerCount());
+        }
+        observe(request,
+            supervision.synthesisReady()
+                ? "数据分析任务已完成对账，可以开始综合结论。"
+                : "数据分析任务已完成对账，但没有通过质量验收的分析结果，暂不生成综合结论。",
+            "business_analysis_progress", metadataOf(
+                "type", "analysis_driver_barrier",
+                "stage", supervision.synthesisReady()
+                    ? "SYNTHESIS_READY" : "SYNTHESIS_BLOCKED",
+                "workReference", supervision.expectedWorkerCount() == 1
+                    ? supervision.workers().get(0).datasetReference() : "all-datasets",
+                "workIndex", supervision.terminalWorkerCount(),
+                "workCount", supervision.expectedWorkerCount(),
+                "supervision", supervision.toMap()));
     }
 
     private void collectInsights(Request request, AnalysisEvidenceCoordinator.Dataset dataset,

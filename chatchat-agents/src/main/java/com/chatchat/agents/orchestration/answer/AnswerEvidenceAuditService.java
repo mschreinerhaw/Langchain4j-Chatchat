@@ -43,6 +43,12 @@ final class AnswerEvidenceAuditService {
         if (result.criticalUnboundClaims() > 0) limitations.add("CRITICAL_CLAIM_WITHOUT_EVIDENCE_BINDING");
         if (result.unknownReferences() > 0) limitations.add("UNKNOWN_EVIDENCE_REFERENCE");
         metadata.put("answerEvidenceLimitations", limitations.stream().distinct().toList());
+        if (Boolean.TRUE.equals(metadata.get("deterministicMandatoryWorkflowFailure"))
+            || Boolean.TRUE.equals(metadata.get("fatalExecutionBlocked"))) {
+            metadata.put("answerEvidenceUserVisible", false);
+            metadata.put("evidenceWarningSuppressedForExecutionFailure", true);
+            return answer;
+        }
         if (answer != null && !answer.contains("证据完整性提示")) {
             return answer + "\n\n> **证据完整性提示**：部分关键结论尚未与本次返回证据逐条绑定，"
                 + "或引用无法核验。相关内容应视为待核验分析，不宜直接作为决策依据。";

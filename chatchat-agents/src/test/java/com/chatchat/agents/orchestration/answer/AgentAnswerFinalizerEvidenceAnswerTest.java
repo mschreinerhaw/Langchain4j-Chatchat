@@ -1236,6 +1236,33 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    void doesNotAppendEvidenceWarningToDeterministicExecutionFailure() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("deterministicMandatoryWorkflowFailure", true);
+        metadata.put("fatalExecutionBlocked", true);
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "必需数据获取步骤 42 尚未执行；前置节点失败或覆盖校验未通过。",
+            List.of(), metadata, List.of("""
+                [Evidence 1]
+                citation: doc://runtime-report#chunk=1
+                content: 必需数据获取步骤 41 已完成。
+                """));
+
+        assertThat(result.answer())
+            .contains("必需数据获取步骤 42 尚未执行")
+            .doesNotContain("证据完整性提示", "待核验分析");
+        assertThat(result.metadata())
+            .containsEntry("evidenceWarningSuppressedForExecutionFailure", true)
+            .containsEntry("answerEvidenceUserVisible", false);
+    }
+
+    @Test
     void replacesNoMatchFallbackWhenDocumentEvidenceExists() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");

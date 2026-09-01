@@ -5692,8 +5692,9 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .contains("mandatory_fetch_alert_template 已执行并失败")
-            .contains("mandatory_query_execute 尚未调度或因前置依赖失败而跳过")
+            .contains("必需数据获取步骤已执行但失败")
+            .contains("必需数据获取步骤尚未执行；前置节点失败或覆盖校验未通过")
+            .doesNotContain("mandatory_fetch_alert_template", "mandatory_query_execute")
             .doesNotContain("This answer must not be used");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -5702,6 +5703,8 @@ class AgentOrchestratorTest {
             .containsEntry("fatalExecutionBlocked", true)
             .containsEntry("mandatoryWorkflowBlocked", true)
             .containsEntry("mandatoryWorkflowCompleted", false)
+            .containsEntry("failedToolLimitationsSuppressedForExecutionFailure", true)
+            .containsEntry("evidenceWarningSuppressedForExecutionFailure", true)
             .containsEntry("errorCode", "MANDATORY_TOOL_EXECUTION_FAILED")
             .containsEntry("stopReason", "mandatory_workflow_incomplete");
         assertThat((List<String>) result.metadata().get("missingMandatoryTools"))

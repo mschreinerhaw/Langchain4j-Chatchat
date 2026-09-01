@@ -2433,22 +2433,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         metadata.put("deterministicMandatoryWorkflowFailure", true);
         String workflowContractError = stringValue(metadata.get("mandatoryWorkflowContractError"));
         if (workflowContractError != null && !workflowContractError.isBlank()) {
-            String contractFailure = "必需工具 " + String.join(", ", missingMandatoryTools)
-                + " 未执行：模板发现结果没有提供与该执行器兼容的运行时合同。"
-                + " 已完成的工具证据均已保留；请检查工作流必需工具配置或维护匹配的模板。"
-                + " 技术原因：" + workflowContractError;
+            String contractFailure = "必需数据获取步骤未执行：模板发现结果没有提供兼容的运行时合同。"
+                + " 已完成的数据证据均已保留；请检查数据能力配置或维护匹配的模板。";
             return answerFinalizer.finishExecution(contractFailure, traces, metadata, observations);
         }
         List<String> failureParts = new ArrayList<>();
         if (!failedMandatoryTools.isEmpty()) {
-            failureParts.add("必需工具 " + String.join(", ", failedMandatoryTools) + " 已执行并失败");
+            failureParts.add("必需数据获取步骤已执行但失败");
         }
         if (!pendingMandatoryTools.isEmpty()) {
-            failureParts.add("必需工具 " + String.join(", ", pendingMandatoryTools) + " 正在等待确认");
+            failureParts.add("必需数据获取步骤正在等待确认");
         }
         if (!unattemptedMandatoryTools.isEmpty()) {
-            failureParts.add("必需工具 " + String.join(", ", unattemptedMandatoryTools)
-                + " 尚未调度或因前置依赖失败而跳过");
+            failureParts.add("必需数据获取步骤尚未执行；前置节点失败或覆盖校验未通过");
         }
         String deterministicFailure = String.join("；", failureParts)
             + "。本次工作流未满足必需证据条件。"

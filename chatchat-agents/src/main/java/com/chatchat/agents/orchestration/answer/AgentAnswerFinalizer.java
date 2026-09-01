@@ -258,7 +258,12 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             } else {
                 values.put("toolResultEvidenceMarkdownAppended", false);
                 values.put("toolResultEvidenceMarkdownSuppressed", true);
-                finalAnswer = userFacingPolicy.appendFailedToolLimitations(finalAnswer, toolEvidence);
+                if (Boolean.TRUE.equals(values.get("deterministicMandatoryWorkflowFailure"))
+                    || Boolean.TRUE.equals(values.get("fatalExecutionBlocked"))) {
+                    values.put("failedToolLimitationsSuppressedForExecutionFailure", true);
+                } else {
+                    finalAnswer = userFacingPolicy.appendFailedToolLimitations(finalAnswer, toolEvidence);
+                }
             }
         }
         finalAnswer = userFacingPolicy.applyUserFacingSectionPolicy(finalAnswer, query, values);

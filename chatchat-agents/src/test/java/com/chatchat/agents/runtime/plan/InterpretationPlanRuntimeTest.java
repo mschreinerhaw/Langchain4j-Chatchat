@@ -9215,7 +9215,7 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void compilesSharedDiagnosticExecutorIntoFiveAuditableTemplateCallsWhenReviewFindsAnotherGap() {
+    void executesCoveredDiagnosticChecksAndPreservesUnmatchedCheckAsEvidenceGap() {
         String discoveryTool = "database_ops_template_search";
         String executorTool = "sql_query_execute";
         List<String> templateIds = List.of(
@@ -9267,6 +9267,17 @@ class InterpretationPlanRuntimeTest {
                 "executionContext", Map.of("assetId", "asset-other")
             )
         ));
+        templates.add(Map.of(
+            "templateId", "UNRELATED_INVENTORY",
+            "name", "Unrelated inventory",
+            "description", "Lists unrelated objects",
+            "parameterSchema", Map.of("type", "object", "required", List.of()),
+            "sqlExecutionBinding", Map.of(
+                "toolName", executorTool,
+                "templateId", "UNRELATED_INVENTORY",
+                "executionContext", Map.of("assetId", "asset-oracle-dev")
+            )
+        ));
 
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(discoveryTool)).thenReturn(true);
@@ -9304,10 +9315,13 @@ class InterpretationPlanRuntimeTest {
                     Map.of("remoteToolInvoked", true)
                 );
             }
-            List<ToolCallResult> results = templateIds.stream()
-                .map(templateId -> new ToolCallResult(
-                    templateId.toLowerCase(), executorTool, templateId, "asset-oracle-dev", "SUCCESS",
-                    1, "evidence-" + templateId, Map.of("ok", true), Map.of()
+            List<String> callIds = List.of(
+                "instance_status", "current_sessions", "lock_wait",
+                "system_wait_events", "tablespace_usage");
+            List<ToolCallResult> results = java.util.stream.IntStream.range(0, templateIds.size())
+                .mapToObj(index -> new ToolCallResult(
+                    callIds.get(index), executorTool, templateIds.get(index), "asset-oracle-dev", "SUCCESS",
+                    1, "evidence-" + templateIds.get(index), Map.of("ok", true), Map.of()
                 ))
                 .toList();
             return new ToolRuntimeExecution(
@@ -9328,7 +9342,8 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.DiagnosticCheck("current_sessions", "session_info", "concurrency", true, 2, List.of(3)),
             new InterpretationPlan.DiagnosticCheck("lock_wait", "lock_wait", "concurrency", true, 3, List.of(3)),
             new InterpretationPlan.DiagnosticCheck("system_wait_events", "system_wait_events", "performance", true, 4, List.of(3)),
-            new InterpretationPlan.DiagnosticCheck("tablespace_usage", "tablespace_usage", "capacity", true, 5, List.of(3))
+            new InterpretationPlan.DiagnosticCheck("tablespace_usage", "tablespace_usage", "capacity", true, 5, List.of(3)),
+            new InterpretationPlan.DiagnosticCheck("uncovered_latency", "request_latency", "latency", true, 6, List.of(3))
         );
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -9432,6 +9447,12 @@ class InterpretationPlanRuntimeTest {
             .as("status=%s error=%s metadata=%s steps=%s",
                 result.status(), result.errorMessage(), result.metadata(), result.steps())
             .isTrue();
+        assertThat(result.metadata().get("diagnosticRun"))
+            .isInstanceOfSatisfying(DiagnosticRun.class, run -> {
+                assertThat(run.coverage()).isEqualTo(new DiagnosticRun.Coverage(6, 5, 0, 1, 0.833));
+                assertThat(run.checks()).filteredOn(check -> "uncovered_latency".equals(check.checkId()))
+                    .singleElement().satisfies(check -> assertThat(check.status()).isEqualTo("missing"));
+            });
         assertThat(result.steps().get(0).metadata())
             .containsEntry("toolResultReviewPartialAccepted", true)
             .containsEntry("partialEvidence", true);
@@ -9594,6 +9615,117 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("assetId", "asset-node-metrics")
             .containsEntry("assetName", "node-metrics")
             .containsEntry("env", "PROD");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void ordinaryDiagnosticBatchExecutesMatchedChecksWhenOneRequiredCheckIsUncovered() {
+        String discoveryTool = "tenant_diagnostic_template_query";
+        String executorTool = "tenant_diagnostic_batch_execute";
+        List<Map<String, Object>> templates = List.of(
+            diagnosticTemplate("STATUS_VIEW", "status_view", executorTool),
+            diagnosticTemplate("LOCK_VIEW", "lock_view", executorTool),
+            diagnosticTemplate("CONFIG_VIEW", "config_view", executorTool),
+            diagnosticTemplate("UNRELATED_VIEW", "unrelated_inventory", executorTool)
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation -> {
+            String toolName = invocation.getArgument(0);
+            ToolMetadata.ToolMetadataBuilder builder = ToolMetadata.builder()
+                .id(toolName)
+                .riskLevel("low");
+            if (executorTool.equals(toolName)) {
+                builder.metadata(Map.of(
+                    "capabilities", List.of("template_execution", "batch_execution")));
+            }
+            return builder.build();
+        });
+        AtomicReference<ToolRuntimeRequest> executionRequest = new AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (discoveryTool.equals(request.getToolName())) {
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of(
+                    "queryIr", Map.of("asset", Map.of(
+                        "scoped", true,
+                        "selected", Map.of(
+                            "id", "asset-diagnostic",
+                            "name", "diagnostic-target",
+                            "environment", "DEV"))),
+                    "templates", templates
+                )), ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            executionRequest.set(request);
+            List<Map<String, Object>> calls = (List<Map<String, Object>>)
+                request.getToolInput().getParameters().get("calls");
+            List<ToolCallResult> results = calls.stream().map(call -> {
+                Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
+                return new ToolCallResult(String.valueOf(call.get("callId")), executorTool,
+                    String.valueOf(arguments.get("templateId")), "asset-diagnostic", "SUCCESS",
+                    1, "evidence-" + call.get("callId"), Map.of("ok", true), Map.of());
+            }).toList();
+            return new ToolRuntimeExecution(ToolOutput.success(new ToolCallBatchResult(
+                "diagnostic-step-2", "SEQUENTIAL", "start", "end", "SUCCESS",
+                new ToolCallBatchResult.Summary(3, 3, 0, 0, 0, 3), results
+            )), ToolMetadata.builder().id(executorTool).build(), null, "success",
+                Map.of("batchExecution", true));
+        });
+        List<InterpretationPlan.DiagnosticCheck> checks = List.of(
+            new InterpretationPlan.DiagnosticCheck("status_check", "status_view", "status", true, 1, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("lock_check", "lock_view", "locks", true, 2, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("missing_check", "missing_metric", "missing", true, 3, List.of(2)),
+            new InterpretationPlan.DiagnosticCheck("config_check", "config_view", "configuration", true, 4, List.of(2))
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("diagnosis", "inspect target", "low"), context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                    Map.of("query", "inspect target"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", executorTool,
+                    Map.of("executionContext", Map.of("env", "DEV"), "parameters", Map.of()),
+                    List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "",
+                    Map.of("answer", "partial diagnosis"), List.of(2), null, null)
+            ), List.of(), List.of(), List.of(), null,
+                new InterpretationPlan.DiagnosticProfile("diagnostic-profile", "generic", checks)),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(discoveryTool, executorTool), List.of(), 30_000), review());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService, new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3))));
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(plan, toolRegistry,
+                List.of(discoveryTool, executorTool), "tenant", "request", "conversation", "user", Map.of()));
+
+        assertThat(result.success()).as(result.errorMessage()).isTrue();
+        List<Map<String, Object>> calls = (List<Map<String, Object>>)
+            executionRequest.get().getToolInput().getParameters().get("calls");
+        assertThat(calls).extracting(call -> call.get("callId"))
+            .containsExactly("status_check", "lock_check", "config_check");
+        assertThat(result.metadata().get("diagnosticRun"))
+            .isInstanceOfSatisfying(DiagnosticRun.class, run -> {
+                assertThat(run.coverage()).isEqualTo(new DiagnosticRun.Coverage(4, 3, 0, 1, 0.75));
+                assertThat(run.checks()).filteredOn(check -> "missing_check".equals(check.checkId()))
+                    .singleElement().satisfies(check -> assertThat(check.status()).isEqualTo("missing"));
+            });
+    }
+
+    private Map<String, Object> diagnosticTemplate(String templateId,
+                                                   String capability,
+                                                   String executorTool) {
+        return Map.of(
+            "templateId", templateId,
+            "capability", capability,
+            "description", capability,
+            "parameterSchema", Map.of("type", "object", "required", List.of()),
+            "executionBinding", Map.of(
+                "toolName", executorTool,
+                "templateId", templateId,
+                "executionContext", Map.of(
+                    "assetId", "asset-diagnostic", "assetName", "diagnostic-target", "env", "DEV"))
+        );
     }
 
     private static Map<String, Object> userQueryParameterProtocol(Integer stepId,

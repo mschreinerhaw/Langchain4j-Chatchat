@@ -5435,10 +5435,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 }
             }
         }
-        // A diagnostic profile describes evidence coverage; it does not imply that one
-        // executor step must become a batch. Compile a batch only when discovery supplied
-        // enough authorized contracts to represent every required check. Otherwise keep the
-        // normal scalar template invocation selected by the plan binding.
+        // A diagnostic profile describes evidence coverage. Compile every semantically covered
+        // check and leave uncovered checks visible to DiagnosticRun so the evidence loop can
+        // retrieve the gap or finish with explicit limitations. One missing producer capability
+        // must not discard independent evidence that is already executable.
         if (templates.size() < checks.size()) {
             return null;
         }
@@ -5484,10 +5484,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     + "assignedTemplateIds={}, candidateTemplateIds={}",
                 unmatchedCheckIds, assignedTemplateIds,
                 templates.stream().map(this::canonicalTemplateId).filter(Objects::nonNull).toList());
-            throw new IllegalStateException(
-                "DIAGNOSTIC_TEMPLATE_COVERAGE_MISMATCH: governed template candidates do not "
-                    + "semantically cover required checks " + unmatchedCheckIds
-                    + "; template discovery must be retried with the missing check intent");
+            log.info("Diagnostic batch will preserve covered checks and expose unmatched checks "
+                    + "to the evidence-gap loop: unmatchedCheckIds={}", unmatchedCheckIds);
         }
         List<Map<String, Object>> calls = new ArrayList<>();
         String outerTool = null;
@@ -5590,7 +5588,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
             calls.add(call);
         }
-        if (calls.size() != checks.size() || outerTool == null) {
+        if (calls.isEmpty() || outerTool == null) {
             return null;
         }
         Map<String, Object> batch = new LinkedHashMap<>();

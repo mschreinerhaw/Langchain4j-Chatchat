@@ -90,6 +90,8 @@ class AnalysisSummaryGovernanceBridgeTest {
                 && prompt.contains("按基金代码关联相邻交易日")
                 && prompt.contains("analysis_objective_contract.v1")
                 && prompt.contains("professional_data_analysis.v1")
+                && prompt.contains("professional_analysis_depth.v1")
+                && prompt.contains("A list of values, configuration facts, record counts")
                 && prompt.contains("CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE")
                 && prompt.contains("analysis_semantic_contract.v1")
                 && prompt.contains("analysis_record_scope_profile.v1")

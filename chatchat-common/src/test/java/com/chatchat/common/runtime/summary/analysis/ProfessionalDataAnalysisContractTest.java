@@ -21,4 +21,18 @@ class ProfessionalDataAnalysisContractTest {
             .contains("KEEP_FULL_DETAIL_OUT_OF_THE_NARRATIVE_UNLESS_REQUESTED")
             .doesNotContain("customer", "portfolio", "transaction");
     }
+
+    @Test
+    void distinguishesDiagnosisFromADataInventoryWithoutDomainRules() {
+        ProfessionalAnalysisDepthContract contract =
+            ProfessionalAnalysisDepthContract.enterpriseDefault();
+
+        assertThat(contract.toMap().toString())
+            .contains("professional_analysis_depth.v1")
+            .contains("DIAGNOSE=[STATE, BASELINE, DEVIATION, IMPACT, HYPOTHESIS, "
+                + "ALTERNATIVE_EXPLANATION, VERIFICATION]")
+            .contains("A_DATA_INVENTORY_IS_NOT_AN_ANALYTICAL_CONCLUSION")
+            .contains("UNSUPPORTED_REQUIRED_DEPTH_BECOMES_AN_EVIDENCE_GAP")
+            .doesNotContain("mysql", "database", "etf", "customer");
+    }
 }

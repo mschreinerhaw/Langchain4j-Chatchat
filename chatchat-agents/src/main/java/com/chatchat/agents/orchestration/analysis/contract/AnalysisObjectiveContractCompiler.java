@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.contract;
 
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.ProfessionalAnalysisDepthContract;
 import com.chatchat.common.runtime.summary.analysis.ProfessionalDataAnalysisContract;
 
 import java.util.ArrayList;
@@ -54,6 +55,8 @@ public final class AnalysisObjectiveContractCompiler {
         ));
         contract.put("professionalAnalysisContract",
             ProfessionalDataAnalysisContract.enterpriseDefault().toMap());
+        contract.put("professionalAnalysisDepthContract",
+            ProfessionalAnalysisDepthContract.enterpriseDefault().toMap());
         contract.put("workerObligations", List.of(
             "ANSWER_ONLY_OBJECTIVE_RELEVANT_ASPECTS",
             "PRESERVE_PRODUCER_DECLARED_FIELD_SEMANTICS",
@@ -62,6 +65,8 @@ public final class AnalysisObjectiveContractCompiler {
             "REPORT_UNSUPPORTED_OBJECTIVE_ASPECTS",
             "PRESERVE_EXACT_VALUES_AND_RECORD_REFERENCES",
             "COMPLETE_EVERY_PROFESSIONAL_ANALYSIS_STAGE",
+            "CLASSIFY_THE_OBJECTIVE_MODE_AND_SATISFY_ITS_MINIMUM_REASONING_DEPTH",
+            "TURN_EACH_UNSUPPORTED_REQUIRED_DEPTH_DIMENSION_INTO_A_DECLARATIVE_EVIDENCE_GAP",
             "SEPARATE_OBSERVATION_DERIVATION_AND_INFERENCE",
             "CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE"));
         return Collections.unmodifiableMap(contract);

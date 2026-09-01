@@ -228,6 +228,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             "semanticGapRequests",
             "entities", "crossChunkKeys",
             "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract",
+            "analysisDepth", "analysisDepthContractVersion",
             "datasetFindings", "metrics", "rankings", "analyzedRelationships", "businessConclusions",
             "unsupportedQuestions", "missingEvidence", "recommendedFollowupRequests")) {
             List<Object> values = new ArrayList<>();
@@ -280,7 +281,13 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "values, validated semanticBasis, confidence and alternative explanations. Treat evidence.insights as "
             + "the only admitted analytical claims: never recreate a calculation or inference omitted by validation, "
             + "and never recover rejected claims from free-text content. Resolve contradictory claims when evidence permits, "
-            + "otherwise surface the conflict once. Preserve material exact values and limitations. Keep dataset and "
+            + "otherwise surface the conflict once. Reconcile upstream analysisDepth coverage against the objective mode. "
+            + "Do not accept a data inventory, generic risk list or generic recommendation as a diagnosis. A diagnostic "
+            + "or decision conclusion must connect an admitted observation to an authorized baseline or comparison, a "
+            + "material deviation, its supported impact, competing explanations, discriminating verification and a "
+            + "prioritized action. Preserve unsupported depth dimensions and their follow-up requests instead of filling "
+            + "them with common knowledge. "
+            + "Preserve material exact values and limitations. Keep dataset and "
             + "result identity in the structured lineage only: never print resultId values, runtime ids, template ids, "
             + "tool names, schema keys, or technical evidence references in the business narrative. Do not infer "
             + "relationships beyond the reduction context. Rank by relevance and materiality. Do not concatenate chunk "
@@ -316,6 +323,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("semanticGapRequests",
             summary.evidence().getOrDefault("semanticGapRequests", List.of()));
         result.put("analysisQuality", summary.evidence().getOrDefault("analysisQuality", Map.of()));
+        result.put("analysisDepth", summary.evidence().getOrDefault("analysisDepth", Map.of()));
         result.put("datasetFindings", summary.evidence().getOrDefault("datasetFindings", List.of()));
         result.put("metrics", summary.evidence().getOrDefault("metrics", Map.of()));
         result.put("rankings", summary.evidence().getOrDefault("rankings", Map.of()));

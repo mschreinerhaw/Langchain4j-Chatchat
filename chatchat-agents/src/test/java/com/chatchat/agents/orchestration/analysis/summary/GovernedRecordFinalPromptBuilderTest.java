@@ -20,6 +20,9 @@ class GovernedRecordFinalPromptBuilderTest {
             .contains("do not claim that a type of record is missing")
             .contains("objective-aspect coverage matrix")
             .contains("one-period observation or small sample")
+            .contains("A table of values, configuration inventory")
+            .contains("current state, declared baseline/comparable reference, material deviation")
+            .contains("do not present cumulative counters as current rates")
             .contains("do not reproduce complete record tables")
             .contains("livedata_orders summary")
             .doesNotContain("Executed plan attempts");

@@ -60,7 +60,9 @@ final class SemanticGapEvidenceBridge {
         Map<String, Object> runtimeAttributes,
                                      Map<String, Object> metadata) {
         Map<String, Map<String, Object>> gapsById = collect(summaries, "semanticGaps", "gapId");
-        if (gapsById.isEmpty()) {
+        List<Map<String, Object>> analyticalGapCandidates = normalizedAnalyticalGapRequests(
+            collect(summaries, "recommendedFollowupRequests", "questionId").values());
+        if (gapsById.isEmpty() && analyticalGapCandidates.isEmpty()) {
             Map<String, Object> admitted = new LinkedHashMap<>(evidence == null ? Map.of() : evidence);
             mergeClaimLifecycle(summaries, admitted, metadata);
             return Collections.unmodifiableMap(admitted);
@@ -69,25 +71,94 @@ final class SemanticGapEvidenceBridge {
             collect(summaries, "semanticGapRequests", "questionId");
         List<Map<String, Object>> semanticGaps = List.copyOf(gapsById.values());
         GapControl gapControl = controlGaps(semanticGaps, summaries, metadata);
+        DepthGapControl depthGapControl = controlAnalyticalGaps(
+            analyticalGapCandidates, summaries, metadata);
         List<Map<String, Object>> semanticGapRequests = requestsById.values().stream()
             .filter(request -> !gapControl.terminalGapIds().contains(text(request.get("questionId"))))
+            .toList();
+        List<Map<String, Object>> analyticalGapRequests = analyticalGapCandidates.stream()
+            .filter(request -> !depthGapControl.terminalGapIds().contains(text(request.get("questionId"))))
             .toList();
         Map<String, Object> merged = new LinkedHashMap<>(evidence == null ? Map.of() : evidence);
         merged.put("semanticGaps", semanticGaps);
         merged.put("semanticGapRequests", semanticGapRequests);
         merged.put("semanticGapResolutionStates", gapControl.states());
+        merged.put("analysisDepthGapRequests", analyticalGapRequests);
+        merged.put("analysisDepthGapResolutionStates", depthGapControl.states());
         List<Map<String, Object>> existingRequests = asMapList(merged.get("gapRequests")).stream()
             .filter(request -> !gapControl.terminalGapIds().contains(text(request.get("questionId"))))
+            .filter(request -> !depthGapControl.terminalGapIds().contains(text(request.get("questionId"))))
             .toList();
-        merged.put("gapRequests", mergeRequests(existingRequests, semanticGapRequests));
+        merged.put("gapRequests", mergeRequests(
+            mergeRequests(existingRequests, semanticGapRequests), analyticalGapRequests));
         List<Object> missing = new ArrayList<>();
         if (merged.get("remainingMissing") instanceof Iterable<?> values) values.forEach(missing::add);
         missing.addAll(semanticGaps);
+        missing.addAll(analyticalGapRequests);
         merged.put("remainingMissing", List.copyOf(missing));
-        if (!semanticGapRequests.isEmpty()) merged.put("sufficient", false);
+        if (!semanticGapRequests.isEmpty() || !analyticalGapRequests.isEmpty()) {
+            merged.put("sufficient", false);
+        }
         mergeClaimLifecycle(summaries, merged, metadata);
-        record(semanticGaps, semanticGapRequests, iteration, runtimeAttributes, metadata);
+        record(semanticGaps,
+            mergeRequests(semanticGapRequests, analyticalGapRequests),
+            iteration, runtimeAttributes, metadata);
         return Collections.unmodifiableMap(merged);
+    }
+
+    private List<Map<String, Object>> normalizedAnalyticalGapRequests(
+        java.util.Collection<Map<String, Object>> requests
+    ) {
+        List<Map<String, Object>> normalized = new ArrayList<>();
+        Set<String> identities = new LinkedHashSet<>();
+        for (Map<String, Object> source : requests) {
+            Map<String, Object> request = new LinkedHashMap<>(source);
+            String identity = SemanticClaimLifecycleContract.fingerprint(List.of(
+                value(request.get("retrievalGoal")), strings(request.get("requiredCapabilities")),
+                value(request.get("timeHorizon")), value(request.get("grain")),
+                value(request.get("reason"))));
+            String questionId = text(request.get("questionId"));
+            if (questionId == null) questionId = "analysis-depth-" + identity.substring(0, 16);
+            if (!identities.add(questionId)) continue;
+            request.put("questionId", questionId);
+            request.put("gapSource", "ANALYSIS_DEPTH");
+            normalized.add(Collections.unmodifiableMap(request));
+        }
+        return List.copyOf(normalized);
+    }
+
+    private DepthGapControl controlAnalyticalGaps(List<Map<String, Object>> requests,
+                                                   List<AnalysisSummaryResult> summaries,
+                                                   Map<String, Object> metadata) {
+        Map<String, Map<String, Object>> previous = new LinkedHashMap<>();
+        for (Map<String, Object> state : asMapList(metadata.get("analysisDepthGapResolutionStates"))) {
+            previous.put(text(state.get("gapFingerprint")), state);
+        }
+        String evidenceVersion = aggregateVersion(summaries, "contentSha256");
+        List<Map<String, Object>> states = new ArrayList<>();
+        Set<String> terminalIds = new LinkedHashSet<>();
+        for (Map<String, Object> request : requests) {
+            String fingerprint = SemanticClaimLifecycleContract.fingerprint(List.of(
+                value(request.get("retrievalGoal")), strings(request.get("requiredCapabilities")),
+                value(request.get("timeHorizon")), value(request.get("grain")),
+                value(request.get("reason"))));
+            Map<String, Object> prior = previous.get(fingerprint);
+            boolean terminal = prior != null
+                && java.util.Objects.equals(evidenceVersion, text(prior.get("evidenceVersion")));
+            Map<String, Object> state = new LinkedHashMap<>();
+            state.put("gapFingerprint", fingerprint);
+            state.put("questionId", request.get("questionId"));
+            state.put("attemptCount", prior == null ? 1 : integer(prior.get("attemptCount"), 1) + 1);
+            state.put("evidenceVersion", evidenceVersion);
+            state.put("lastResolution", terminal ? "ANALYZE_WITH_LIMITATIONS" : "RETRIEVE_MORE");
+            state.put("terminalReason", terminal ? "NO_NEW_EVIDENCE" : "NONE");
+            states.add(Collections.unmodifiableMap(state));
+            if (terminal) terminalIds.add(text(request.get("questionId")));
+        }
+        metadata.put("analysisDepthGapResolutionStates", List.copyOf(states));
+        metadata.put("analysisDepthGapCount", requests.size());
+        metadata.put("analysisDepthGapTerminalCount", terminalIds.size());
+        return new DepthGapControl(List.copyOf(states), Set.copyOf(terminalIds));
     }
 
     private GapControl controlGaps(List<Map<String, Object>> gaps,
@@ -282,6 +353,14 @@ final class SemanticGapEvidenceBridge {
         return text.isEmpty() ? null : text;
     }
 
+    private String value(Object value) {
+        String text = text(value);
+        return text == null ? "" : text;
+    }
+
     private record GapControl(List<Map<String, Object>> states, Set<String> terminalGapIds) {
+    }
+
+    private record DepthGapControl(List<Map<String, Object>> states, Set<String> terminalGapIds) {
     }
 }

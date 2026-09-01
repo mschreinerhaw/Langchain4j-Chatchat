@@ -96,6 +96,44 @@ class SemanticGapEvidenceBridgeTest {
         assertThat(asMapList(metadata.get("semanticClaimHistory"))).hasSize(2);
     }
 
+    @Test
+    void analyticalDepthGapJoinsEvidenceLoopAndStopsWithoutNewEvidence() {
+        SemanticClaimCoordinator bridge = new SemanticClaimCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId");
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        Map<String, Object> request = Map.of(
+            "retrievalGoal", "Retrieve a comparable baseline and time series for the requested diagnosis",
+            "requiredCapabilities", List.of("COMPARE", "TREND"),
+            "timeHorizon", "USER_REQUESTED_SCOPE",
+            "grain", "OBSERVATION",
+            "priority", "CORE",
+            "reason", "Baseline and deviation are unsupported"
+        );
+        AnalysisSummaryResult summary = summary(Map.of(
+            "contentSha256", "evidence-v1",
+            "recommendedFollowupRequests", List.of(request)));
+
+        Map<String, Object> first = bridge.evaluate(
+            Map.of("sufficient", true, "gapRequests", List.of()), List.of(summary), 1,
+            Map.of("agentRunId", "run"), metadata);
+
+        assertThat(first).containsEntry("sufficient", false);
+        assertThat(asMapList(first.get("analysisDepthGapRequests"))).singleElement()
+            .satisfies(gap -> assertThat(gap)
+                .containsEntry("gapSource", "ANALYSIS_DEPTH")
+                .containsEntry("retrievalGoal",
+                    "Retrieve a comparable baseline and time series for the requested diagnosis"));
+        assertThat(asMapList(first.get("gapRequests"))).hasSize(1);
+
+        Map<String, Object> repeated = bridge.evaluate(first, List.of(summary), 2,
+            Map.of("agentRunId", "run"), metadata);
+        assertThat(asMapList(repeated.get("analysisDepthGapRequests"))).isEmpty();
+        assertThat(metadata).containsEntry("analysisDepthGapTerminalCount", 1);
+        assertThat(asMapList(metadata.get("analysisDepthGapResolutionStates")).get(0))
+            .containsEntry("terminalReason", "NO_NEW_EVIDENCE")
+            .containsEntry("lastResolution", "ANALYZE_WITH_LIMITATIONS");
+    }
+
     private AnalysisSummaryResult summary(Map<String, Object> evidence) {
         return AnalysisSummaryResult.chunk(
             GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),

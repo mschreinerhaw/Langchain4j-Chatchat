@@ -212,12 +212,24 @@ public final class AnalysisSummaryGovernanceBridge
             + "unknown and do not calculate, aggregate, deduplicate, substitute, or generalize on that basis. "
             + "Chunk extrema or rankings are chunk-local unless "
             + "the returned data explicitly declares a complete dataset/global scope. "
+            + "Apply professionalAnalysisDepthContract deterministically: classify the objective as DESCRIBE, "
+            + "COMPARE, DIAGNOSE, FORECAST or DECIDE; then cover every minimum reasoning dimension for that mode. "
+            + "A list of values, configuration facts, record counts, generic risks or generic recommendations is "
+            + "not analysis. Analytical depth requires an authorized comparison basis, material deviation, likely "
+            + "impact, competing explanations, discriminating verification evidence and prioritized action whenever "
+            + "the selected mode requires them. Never invent a threshold, baseline, causal link or impact. For each "
+            + "required depth dimension that current semantics or evidence cannot support, mark it unsupported and "
+            + "emit one declarative recommendedFollowupRequest describing the capability, time range and grain needed. "
             + "Output contract: return only one JSON object with this source-neutral shape: "
             + "{\"summary\":\"compact question-directed Chinese findings\","
             + "\"objectiveAlignment\":{\"addressedAspects\":[],\"unsupportedAspects\":[],"
             + "\"contribution\":\"how this chunk helps answer the question\"},"
             + "\"analysisQuality\":{\"observedScope\":\"\",\"grain\":\"\","
             + "\"qualitySignals\":[],\"reconciliationNeeds\":[]},"
+            + "\"analysisDepth\":{\"objectiveMode\":\"DESCRIBE|COMPARE|DIAGNOSE|FORECAST|DECIDE\","
+            + "\"addressedDimensions\":[],\"unsupportedDimensions\":[],"
+            + "\"comparisonBasis\":[],\"materialDeviations\":[],\"impacts\":[],"
+            + "\"hypotheses\":[],\"verificationNeeds\":[],\"prioritizedActions\":[]},"
             + "\"insights\":[{\"claimClass\":\"OBSERVED_RETURNED_FACT|AUTHORIZED_DERIVED_MEASURE|CALIBRATED_INFERENCE\","
             + "\"claim\":\"material finding\",\"significance\":\"why it matters to the objective\","
             + "\"recordRefs\":[\"dataset.records[n]\"],\"supportingValues\":[\"verbatim returned value\"],"
@@ -411,6 +423,8 @@ public final class AnalysisSummaryGovernanceBridge
         evidence.put("analysisSemanticContract", semanticContract == null
             ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(semanticContract)));
         evidence.put("analysisQuality", copy(payload.get("analysisQuality")));
+        evidence.put("analysisDepth", analysisDepth(payload.get("analysisDepth")));
+        evidence.put("analysisDepthContractVersion", "professional_analysis_depth.v1");
         List<Map<String, Object>> proposedInsights = maps(payload.get("insights"));
         InsightValidation insightValidation = validatedInsights(
             position, records, proposedInsights, semanticContract);
@@ -451,6 +465,26 @@ public final class AnalysisSummaryGovernanceBridge
         result.put("unsupportedAspects", strings(source.get("unsupportedAspects")));
         String contribution = string(source.get("contribution"));
         if (contribution != null) result.put("contribution", contribution);
+        return Collections.unmodifiableMap(result);
+    }
+
+    private Map<String, Object> analysisDepth(Object value) {
+        Map<String, Object> source = copy(value);
+        Map<String, Object> result = new LinkedHashMap<>();
+        String objectiveMode = string(source.get("objectiveMode"));
+        if (objectiveMode != null) {
+            objectiveMode = objectiveMode.toUpperCase(java.util.Locale.ROOT);
+        }
+        if (objectiveMode == null || !Set.of(
+            "DESCRIBE", "COMPARE", "DIAGNOSE", "FORECAST", "DECIDE").contains(objectiveMode)) {
+            objectiveMode = "DESCRIBE";
+        }
+        result.put("objectiveMode", objectiveMode);
+        for (String key : List.of("addressedDimensions", "unsupportedDimensions",
+            "comparisonBasis", "materialDeviations", "impacts", "hypotheses",
+            "verificationNeeds", "prioritizedActions")) {
+            result.put(key, strings(source.get(key)));
+        }
         return Collections.unmodifiableMap(result);
     }
 

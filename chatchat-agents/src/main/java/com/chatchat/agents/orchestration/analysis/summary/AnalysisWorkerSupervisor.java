@@ -83,9 +83,11 @@ final class AnalysisWorkerSupervisor {
             || traceable == null || !traceable.test(result)) {
             return false;
         }
-        return nonEmpty(result.evidence().get("facts"))
-            || nonEmpty(result.evidence().get("insights"))
-            || nonEmpty(result.evidence().get("businessConclusions"))
+        if (number(result.evidence().get("rejectedFactCount")) > 0
+            || number(result.evidence().get("rejectedInsightCount")) > 0) {
+            return false;
+        }
+        return nonEmpty(result.evidence().get("insights"))
             || nonEmpty(result.evidence().get("unsupportedQuestions"))
             || nonEmpty(result.evidence().get("missingEvidence"));
     }
@@ -138,6 +140,15 @@ final class AnalysisWorkerSupervisor {
         if (value instanceof List<?> list) return !list.isEmpty();
         if (value instanceof Map<?, ?> map) return !map.isEmpty();
         return value != null && !String.valueOf(value).isBlank();
+    }
+
+    private int number(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return value == null ? 0 : Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     private String text(String value, String fallback) {

@@ -15,6 +15,7 @@ import dev.langchain4j.model.chat.ChatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ public final class AnalysisSynthesisCoordinator {
     private final AnalysisSummaryGovernanceCoordinator governanceCoordinator;
     private final DeterministicInsightEngine deterministicInsightEngine;
     private final AnswerCandidateCollector answerCandidateCollector;
+    private final GovernedFinalClaimContract finalClaimContract = new GovernedFinalClaimContract();
     private ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
         HierarchicalAnalysisReducer.Result> hierarchicalReducer;
 
@@ -115,13 +117,45 @@ public final class AnalysisSynthesisCoordinator {
                 AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE, null, false);
         }
         long startedAt = System.currentTimeMillis();
-        log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={}",
+        List<AnalysisSummaryResult> claimSources = new ArrayList<>(request.summaryResults());
+        claimSources.addAll(request.synthesisInputs());
+        GovernedFinalClaimContract.Compilation claimCompilation =
+            finalClaimContract.compile(claimSources);
+        boolean synthesisBarrierReady =
+            Boolean.TRUE.equals(request.metadata().get("analysisSynthesisBarrierReady"));
+        boolean claimBoundPublication = claimCompilation.active() && synthesisBarrierReady;
+        boolean governedClaimContractEmpty = synthesisBarrierReady
+            && claimCompilation.claimContractObserved() && !claimCompilation.active();
+        request.metadata().put("finalClaimPublicationContractVersion",
+            GovernedFinalClaimContract.SCHEMA_VERSION);
+        request.metadata().put("finalClaimPublicationContractObserved",
+            claimCompilation.claimContractObserved());
+        request.metadata().put("finalClaimPublicationContractActive", claimBoundPublication);
+        request.metadata().put("finalAdmittedClaimCount", claimCompilation.claims().size());
+        if (governedClaimContractEmpty) {
+            log.warn("analysisSynthesisBlocked runId={} stage={} reason={} admittedClaimCount=0",
+                request.runId(), request.stage(), "NO_ADMITTED_SEMANTIC_CLAIMS");
+            request.metadata().put("analysisSynthesisBlocked", true);
+            request.metadata().put("analysisOutputAdmitted", false);
+            request.metadata().put("analysisOutputAdmissionReason",
+                "NO_ADMITTED_SEMANTIC_CLAIMS");
+            request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+            request.metadata().put("interpretationPlanSummaryGenerated", false);
+            request.metadata().put("interpretationPlanFinalResultProduced", false);
+            return new FinalSynthesisResult(
+                AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE, null, false);
+        }
+        String modelPrompt = claimBoundPublication
+            ? finalClaimContract.appendSelectionInstruction(request.prompt(), claimCompilation)
+            : request.prompt();
+        log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={} claimBoundPublication={} admittedClaimCount={}",
             request.runId(), request.stage(), request.model().getClass().getName(),
-            request.prompt().length(), request.stepCount(), request.storedObservationCount());
+            modelPrompt.length(), request.stepCount(), request.storedObservationCount(),
+            claimBoundPublication, claimCompilation.claims().size());
         String answer;
         String outcome = "MODEL_FINAL_SUMMARY";
         try {
-            answer = request.model().chat(request.prompt());
+            answer = request.model().chat(modelPrompt);
         } catch (RuntimeException ex) {
             if (ex instanceof AgentDeadlineExceededException) throw ex;
             log.warn("agentModelFailure phase=interpretation_plan_summary runId={} stage={} "
@@ -130,21 +164,45 @@ public final class AnalysisSynthesisCoordinator {
                 ex.getClass().getName(), safeMessage(ex));
             request.metadata().put("interpretationPlanSummaryGenerated", false);
             request.metadata().put("interpretationPlanSummaryFailure", safeMessage(ex));
-            if (!request.fallbackAllowed()) {
-                request.metadata().putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
-                return new FinalSynthesisResult("", null, false);
+            if (claimBoundPublication) {
+                GovernedFinalClaimContract.Projection projection =
+                    finalClaimContract.project("", claimCompilation);
+                answer = projection.markdown();
+                outcome = "DETERMINISTIC_CLAIM_BOUND_FINAL_SUMMARY";
+                request.metadata().put("finalClaimSelectionAccepted", false);
+                request.metadata().put("finalClaimSelectionReason",
+                    "FINAL_MODEL_FAILED_" + projection.reason());
+                request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
+                request.metadata().put("interpretationPlanDeterministicClaimFallback", true);
+            } else {
+                if (!request.fallbackAllowed()) {
+                    request.metadata().putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
+                    return new FinalSynthesisResult("", null, false);
+                }
+                outcome = "DETERMINISTIC_FINAL_FALLBACK";
+                request.metadata().put("interpretationPlanDeterministicSummaryFallback", true);
+                // Publish the fallback marker before constructing the fallback. Presentation governance
+                // must know that the candidate is not a model-authored global synthesis, otherwise a
+                // long serialized tool envelope can be misclassified as narrative analysis.
+                answer = request.fallbackSupplier().get();
+                request.metadata().putIfAbsent("executionStatus", "PARTIAL_RESULT_PRESENTED");
             }
-            outcome = "DETERMINISTIC_FINAL_FALLBACK";
-            request.metadata().put("interpretationPlanDeterministicSummaryFallback", true);
-            // Publish the fallback marker before constructing the fallback. Presentation governance
-            // must know that the candidate is not a model-authored global synthesis, otherwise a
-            // long serialized tool envelope can be misclassified as narrative analysis.
-            answer = request.fallbackSupplier().get();
-            request.metadata().putIfAbsent("executionStatus", "PARTIAL_RESULT_PRESENTED");
         }
 
         if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
-            answer = request.postProcessor().apply(answer);
+            if (claimBoundPublication) {
+                GovernedFinalClaimContract.Projection projection =
+                    finalClaimContract.project(answer, claimCompilation);
+                answer = projection.markdown();
+                outcome = projection.modelSelectionAccepted()
+                    ? "CLAIM_BOUND_FINAL_SUMMARY" : "DETERMINISTIC_CLAIM_BOUND_FINAL_SUMMARY";
+                request.metadata().put("finalClaimSelectionAccepted",
+                    projection.modelSelectionAccepted());
+                request.metadata().put("finalClaimSelectionReason", projection.reason());
+                request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
+            } else {
+                answer = request.postProcessor().apply(answer);
+            }
             if (answer == null || answer.isBlank()) {
                 answer = request.emptyModelFallback();
                 outcome = "MODEL_EMPTY_RUNTIME_FINAL_FALLBACK";

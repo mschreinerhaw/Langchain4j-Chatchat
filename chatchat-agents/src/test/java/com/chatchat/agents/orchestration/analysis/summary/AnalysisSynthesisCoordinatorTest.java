@@ -246,6 +246,79 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
+    void driverPublishesOnlyAdmittedClaimsWhenFinalModelReturnsFreeText() {
+        AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", governance,
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("客户具有模型擅自推断出的稳定交易风格");
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            claimBoundRequest(model, metadata, claimSummary(), true));
+
+        assertThat(result.content()).contains("返回记录显示数值为 42")
+            .doesNotContain("稳定交易风格");
+        assertThat(metadata)
+            .containsEntry("finalClaimPublicationContractActive", true)
+            .containsEntry("finalClaimSelectionAccepted", false)
+            .containsEntry("finalClaimSelectionReason", "FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
+    }
+
+    @Test
+    void finalModelFailureStillPublishesDeterministicAdmittedClaims() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenThrow(new IllegalStateException("model unavailable"));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            claimBoundRequest(model, metadata, claimSummary(), false));
+
+        assertThat(result.content()).contains("返回记录显示数值为 42");
+        assertThat(metadata)
+            .containsEntry("interpretationPlanDeterministicClaimFallback", true)
+            .containsEntry("finalClaimSelectionAccepted", false);
+    }
+
+    @Test
+    void driverFailsClosedWhenClaimContractProducesNoAdmittedClaims() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        ChatModel model = mock(ChatModel.class);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        AnalysisSummaryResult rejected = claimSummary().withEvidence(Map.of(
+            "insights", List.of(Map.of(
+                "claimId", "claim-1", "claim", "不得发布的推断",
+                "claimClass", "INFERRED", "recordRefs", List.of("dataset.records[1]"),
+                "supportingValues", List.of("42"))),
+            "claimAdmissionDecisions", List.of(Map.of(
+                "claimId", "claim-1", "admitted", false))));
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            claimBoundRequest(model, metadata, rejected, true));
+
+        assertThat(result.generated()).isFalse();
+        assertThat(result.content()).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(metadata)
+            .containsEntry("finalClaimPublicationContractObserved", true)
+            .containsEntry("finalAdmittedClaimCount", 0)
+            .containsEntry("analysisOutputAdmissionReason", "NO_ADMITTED_SEMANTIC_CLAIMS")
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+        org.mockito.Mockito.verifyNoInteractions(model);
+    }
+
+    @Test
     void presentationReplacesUngovernedDraftWithDriverSynthesis() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId",
@@ -286,5 +359,43 @@ class AnalysisSynthesisCoordinatorTest {
             scope, "DATASET_SYNTHESIS", "dataset-summary#" + dataset, content,
             "MODEL_DATASET_REDUCE", Map.of("datasetReference", dataset), Map.of(),
             Map.of("complete", true), List.of(), Map.of());
+    }
+
+    private AnalysisSynthesisCoordinator.FinalModelSynthesisRequest claimBoundRequest(
+        ChatModel model, Map<String, Object> metadata, AnalysisSummaryResult summary,
+        boolean fallbackAllowed
+    ) {
+        return new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+            model, "prompt", "completed", "run-a", 2, 1, 3,
+            fallbackAllowed, () -> "unsafe raw fallback", candidate -> candidate, "empty fallback",
+            1, 1, true, true, true, 1, 0,
+            List.of(summary), List.of(summary), Map.of("agentRunId", "run-a"), metadata);
+    }
+
+    private AnalysisSummaryResult claimSummary() {
+        Map<String, Object> insight = Map.of(
+            "claimId", "claim-1",
+            "claim", "返回记录显示数值为 42",
+            "claimClass", "OBSERVED_RETURNED_FACT",
+            "confidence", "HIGH",
+            "recordRefs", List.of("dataset.records[1]"),
+            "supportingValues", List.of("42"),
+            "caveats", List.of());
+        return AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "dataset-a", "chunkIndex", 1), Map.of(),
+            "返回记录显示数值为 42", "MODEL_SUMMARY", Map.of(
+                "insights", List.of(insight),
+                "claimAdmissionDecisions", List.of(Map.of(
+                    "claimId", "claim-1", "admitted", true))));
+    }
+
+    private AnalysisSummaryGovernanceCoordinator passthroughGovernance() {
+        AnalysisSummaryGovernanceCoordinator governance = mock(AnalysisSummaryGovernanceCoordinator.class);
+        when(governance.finalizeSummary(any())).thenAnswer(invocation -> {
+            AnalysisSummaryGovernanceCoordinator.FinalSummaryRequest request = invocation.getArgument(0);
+            return AnalysisSummaryResult.finalSummary(
+                scope, "completed", request.content(), request.outcome(), Map.of(), List.of());
+        });
+        return governance;
     }
 }

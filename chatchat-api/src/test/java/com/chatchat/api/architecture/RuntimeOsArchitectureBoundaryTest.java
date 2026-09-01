@@ -93,12 +93,12 @@ class RuntimeOsArchitectureBoundaryTest {
     @Test
     void dataAnalysisSummaryModelAndModelPortLiveInCommon() {
         assertThat(source(
-            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/DataAnalysisSummary.java"))
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/analysis/DataAnalysisSummary.java"))
             .contains("interface DataAnalysisSummary extends ModelSummary",
                 "DataAnalysisIsolationScope isolationScope()")
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
         assertThat(source(
-            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/DataAnalysisSummaryProtocol.java"))
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/analysis/DataAnalysisSummaryProtocol.java"))
             .contains("interface DataAnalysisSummaryProtocol", "extends RuntimeProtocolPort",
                 "ModelSummaryModel model", "DataAnalysisPosition position")
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
@@ -117,12 +117,12 @@ class RuntimeOsArchitectureBoundaryTest {
     @Test
     void driverWorkerControlPlaneHasOneTransportNeutralCommonContract() {
         assertThat(source(
-            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/ModelSummaryDispatcher.java"))
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/spi/ModelSummaryDispatcher.java"))
             .contains("ModelSummaryProgressListener progressListener", "boolean cancel(String taskId)",
                 "boolean closed()")
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
         assertThat(source(
-            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/ModelSummaryWorker.java"))
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/spi/ModelSummaryWorker.java"))
             .contains("ModelSummaryProgressReporter progressReporter")
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
         assertThat(source(

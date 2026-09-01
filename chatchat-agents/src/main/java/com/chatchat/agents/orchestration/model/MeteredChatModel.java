@@ -4,6 +4,8 @@ import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 
 
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,6 +54,32 @@ public final class MeteredChatModel implements ChatModel {
         long startedAt = System.currentTimeMillis();
         String response = delegate.chat(message);
         long responseTokens = estimator.estimate(response).tokens();
+        synchronized (this) {
+            inputTokens += promptTokens;
+            outputTokens += responseTokens;
+            invocations++;
+            latencyMs += Math.max(0, System.currentTimeMillis() - startedAt);
+            estimatedCost += promptTokens * inputCostPerThousandTokens / 1_000D
+                + responseTokens * outputCostPerThousandTokens / 1_000D;
+            publish();
+            enforce(inputTokens + outputTokens, estimatedCost);
+        }
+        return response;
+    }
+
+    @Override
+    public ChatResponse doChat(ChatRequest request) {
+        String requestText = request == null ? "" : request.toString();
+        long promptTokens = estimator.estimate(requestText).tokens();
+        synchronized (this) {
+            enforce(inputTokens + outputTokens + promptTokens,
+                estimatedCost + promptTokens * inputCostPerThousandTokens / 1_000D);
+        }
+        long startedAt = System.currentTimeMillis();
+        ChatResponse response = delegate.chat(request);
+        String responseText = response == null || response.aiMessage() == null
+            ? "" : response.aiMessage().toString();
+        long responseTokens = estimator.estimate(responseText).tokens();
         synchronized (this) {
             inputTokens += promptTokens;
             outputTokens += responseTokens;

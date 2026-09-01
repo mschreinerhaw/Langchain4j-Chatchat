@@ -4,6 +4,8 @@ import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.orchestration.model.DeadlineAwareChatModel;
 
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,5 +49,23 @@ class DeadlineAwareChatModelTest {
             }
         }, () -> -1L);
         assertThat(model.chat("test")).isEqualTo("ok");
+    }
+
+    @Test
+    void forwardsNativeChatRequestThroughDeadlineBoundary() {
+        DeadlineAwareChatModel model = new DeadlineAwareChatModel(new ChatModel() {
+            @Override
+            public ChatResponse doChat(ChatRequest request) {
+                return ChatResponse.builder()
+                    .aiMessage(dev.langchain4j.data.message.AiMessage.from("ok"))
+                    .build();
+            }
+        }, () -> 1_000L);
+
+        ChatResponse response = model.chat(ChatRequest.builder()
+            .messages(java.util.List.of(dev.langchain4j.data.message.UserMessage.from("test")))
+            .build());
+
+        assertThat(response.aiMessage().text()).isEqualTo("ok");
     }
 }

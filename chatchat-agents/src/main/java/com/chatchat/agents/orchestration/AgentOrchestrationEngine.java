@@ -401,7 +401,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.runStore = runStore == null ? new InMemoryAgentRunStore() : runStore;
         this.observationPipeline = observationPipeline == null ? new DefaultAgentObservationPipeline() : observationPipeline;
         AgentAnswerReviewer resolvedAnswerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
-        this.planner = new AgentPlanner(toolRegistry, objectMapper);
+        this.planner = new AgentPlanner(toolRegistry, objectMapper, agentRuntimeProperties);
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
         this.semanticClaimCoordinator = new SemanticClaimCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);

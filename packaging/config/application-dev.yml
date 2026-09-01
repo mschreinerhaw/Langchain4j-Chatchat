@@ -131,6 +131,8 @@ chatchat:
         type: http
   agent-runtime:
     workflow-engine: ${CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE:local}
+    native-tool-calling-enabled: ${CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED:true}
+    native-tool-calling-max-tools: ${CHATCHAT_AGENT_NATIVE_TOOL_CALLING_MAX_TOOLS:8}
     temporal:
       target: ${CHATCHAT_TEMPORAL_TARGET:127.0.0.1:7233}
       namespace: ${CHATCHAT_TEMPORAL_NAMESPACE:default}

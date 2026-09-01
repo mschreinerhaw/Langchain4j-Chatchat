@@ -9,6 +9,7 @@ import com.chatchat.agents.orchestration.planning.PlanRewriteContext;
 import com.chatchat.agents.orchestration.planning.PlannerValidationContext;
 import com.chatchat.agents.orchestration.planning.AgentPlannerPromptBuilder;
 import com.chatchat.agents.orchestration.planning.InterpretationPlanPayloadNormalizer;
+import com.chatchat.agents.orchestration.planning.NativeToolCallingPlanner;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeDto;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeParser;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
@@ -18,6 +19,7 @@ import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.protocol.ToolProtocolContractResolver;
 import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.DagRepairResult;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
@@ -44,6 +46,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -76,14 +79,33 @@ public class AgentPlanner implements AgentPlanningPort {
     private final AgentPlanCandidateScorer candidateScorer;
     private final AgentPlanAttributionPolicy attributionPolicy;
     private final PlannerEnvelopeParser envelopeParser;
+    private final NativeToolCallingPlanner nativeToolCallingPlanner;
     private final InterpretationPlanValidator interpretationPlanValidator = new InterpretationPlanValidator();
     private final ToolProtocolContractResolver toolProtocolContracts = new ToolProtocolContractResolver();
 
     AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper) {
-        this(toolRegistry, objectMapper, Clock.systemDefaultZone());
+        this(toolRegistry, objectMapper, Clock.systemDefaultZone(),
+            new NativeToolCallingPlanner(toolRegistry, objectMapper, false, 1));
     }
 
     AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper, Clock clock) {
+        this(toolRegistry, objectMapper, clock,
+            new NativeToolCallingPlanner(toolRegistry, objectMapper, false, 1));
+    }
+
+    AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper,
+                 AgentRuntimeProperties runtimeProperties) {
+        this(toolRegistry, objectMapper, Clock.systemDefaultZone(),
+            new NativeToolCallingPlanner(
+                toolRegistry,
+                objectMapper,
+                runtimeProperties != null && runtimeProperties.isNativeToolCallingEnabled(),
+                runtimeProperties == null ? 8 : runtimeProperties.nativeToolCallingMaxTools()
+            ));
+    }
+
+    AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper, Clock clock,
+                 NativeToolCallingPlanner nativeToolCallingPlanner) {
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
         this.clock = clock == null ? Clock.systemDefaultZone() : clock;
@@ -95,6 +117,7 @@ public class AgentPlanner implements AgentPlanningPort {
         this.candidateScorer = new AgentPlanCandidateScorer(toolRegistry);
         this.attributionPolicy = new AgentPlanAttributionPolicy(MAX_PLAN_REPAIR_ATTEMPTS);
         this.envelopeParser = new PlannerEnvelopeParser(objectMapper);
+        this.nativeToolCallingPlanner = nativeToolCallingPlanner;
     }
 
     @Override
@@ -142,6 +165,13 @@ public class AgentPlanner implements AgentPlanningPort {
                                              String documentSearchTool,
                                              String verificationWebSearchTool,
                                              Map<String, Object> runtimeAttributes) {
+        Optional<AgentDecision> nativeDecision = nativeDecision(
+            activeChatModel, query, systemPrompt, availableTools, observations,
+            mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
+            runtimeAttributes);
+        if (nativeDecision.isPresent()) {
+            return nativeDecision.get();
+        }
         String prompt = buildPlannerPrompt(
             query,
             systemPrompt,
@@ -278,6 +308,36 @@ public class AgentPlanner implements AgentPlanningPort {
             ? invalidPlannerDecision(
                 lastRaw, "non_json_response", "Planner did not return valid JSON.", validationContext)
             : lastDecision;
+    }
+
+    private Optional<AgentDecision> nativeDecision(ChatModel activeChatModel,
+                                                   String query,
+                                                   String systemPrompt,
+                                                   List<String> availableTools,
+                                                   List<String> observations,
+                                                   List<String> mandatoryTools,
+                                                   boolean requireToolBeforeFinal,
+                                                   boolean requireDocumentWebVerification,
+                                                   Map<String, Object> runtimeAttributes) {
+        if (nativeToolCallingPlanner == null || !requireToolBeforeFinal
+            || requireDocumentWebVerification || observations != null && !observations.isEmpty()
+            || mandatoryTools == null || mandatoryTools.size() != 1
+            || hasAuthoritativeWorkflow(runtimeAttributes)) {
+            return Optional.empty();
+        }
+        String mandatoryTool = matchingAvailableTool(availableTools, mandatoryTools.get(0));
+        if (mandatoryTool == null || toolRegistry == null
+            || toolRegistry.getWorkflowRole(mandatoryTool) != ToolWorkflowRole.DIRECT) {
+            return Optional.empty();
+        }
+        return nativeToolCallingPlanner.decide(
+            activeChatModel, query, systemPrompt, List.of(mandatoryTool), observations, true);
+    }
+
+    private boolean hasAuthoritativeWorkflow(Map<String, Object> runtimeAttributes) {
+        if (runtimeAttributes == null) return false;
+        Object dag = runtimeAttributes.get("authoritativeWorkflowDag");
+        return dag instanceof Collection<?> collection && !collection.isEmpty();
     }
 
     private PlannerExecutionResult plannerExecutionResult(AgentDecision decision,

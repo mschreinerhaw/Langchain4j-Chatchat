@@ -48,7 +48,7 @@ class AgentPlanBudgetPolicyTest {
     }
 
     @Test
-    void preservesSmallerModelSelectedBudgets() {
+    void runtimeLatencyBudgetRemainsAuthoritativeWhenModelSuggestsShorterLatency() {
         InterpretationPlan plan = plan(new InterpretationPlan.ExecutionPolicy(
             2, false, List.of(), List.of(), null, 1, "safe_answer",
             Map.of(), 4.0, 45000, 0.8
@@ -59,8 +59,26 @@ class AgentPlanBudgetPolicyTest {
             new AgentPlanBudgetPolicy.BudgetCaps(3, 10.0, 120000)
         );
 
-        assertThat(result.adjusted()).isFalse();
-        assertThat(result.plan()).isSameAs(plan);
+        assertThat(result.adjusted()).isTrue();
+        assertThat(result.plan().executionPolicy().maxSteps()).isEqualTo(2);
+        assertThat(result.plan().executionPolicy().costBudget()).isEqualTo(4.0);
+        assertThat(result.plan().executionPolicy().latencyBudgetMs()).isEqualTo(120000);
+    }
+
+    @Test
+    void modelDeclaredLatencyIsAdvisoryWhenRuntimeHasNoLatencyBudget() {
+        InterpretationPlan plan = plan(new InterpretationPlan.ExecutionPolicy(
+            3, false, List.of(), List.of(), null, 1, "partial_result",
+            Map.of(), 4.0, 60000, 0.8
+        ));
+
+        AgentPlanBudgetPolicy.ApplyResult result = AgentPlanBudgetPolicy.apply(
+            plan, new AgentPlanBudgetPolicy.BudgetCaps(null, null, null));
+
+        assertThat(result.adjusted()).isTrue();
+        assertThat(result.plan().executionPolicy().latencyBudgetMs()).isNull();
+        assertThat(result.plan().executionPolicy().maxSteps()).isEqualTo(3);
+        assertThat(result.plan().executionPolicy().costBudget()).isEqualTo(4.0);
     }
 
     @Test

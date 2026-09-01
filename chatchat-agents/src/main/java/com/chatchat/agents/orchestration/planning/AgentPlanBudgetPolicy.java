@@ -7,8 +7,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Resolves the Agent-configured planning budget and applies it as a hard ceiling
- * to model-produced execution policies.
+ * Resolves Agent-configured budgets and compiles the hard execution policy.
+ * Model-produced latency is advisory; only a Runtime/Workflow latency budget may
+ * stop execution.
  */
 public final class AgentPlanBudgetPolicy {
 
@@ -39,20 +40,26 @@ public final class AgentPlanBudgetPolicy {
     }
 
     public static ApplyResult apply(InterpretationPlan plan, BudgetCaps caps) {
-        if (plan == null || caps == null || !caps.configured()) {
+        if (plan == null) {
             return new ApplyResult(plan, false);
         }
+        BudgetCaps runtimeCaps = caps == null ? new BudgetCaps(null, null, null) : caps;
         InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
         if (policy == null) {
+            if (!runtimeCaps.configured()) {
+                return new ApplyResult(plan, false);
+            }
             policy = new InterpretationPlan.ExecutionPolicy(
-                caps.maxSteps(), false, null, null, null, null, null,
-                null, caps.costBudget(), caps.latencyBudgetMs(), null
+                runtimeCaps.maxSteps(), false, null, null, null, null, null,
+                null, runtimeCaps.costBudget(), runtimeCaps.latencyBudgetMs(), null
             );
             return new ApplyResult(withPolicy(plan, policy), true);
         }
-        Integer maxSteps = ceiling(policy.maxSteps(), caps.maxSteps());
-        Double costBudget = ceiling(policy.costBudget(), caps.costBudget());
-        Integer latencyBudgetMs = ceiling(policy.latencyBudgetMs(), caps.latencyBudgetMs());
+        Integer maxSteps = ceiling(policy.maxSteps(), runtimeCaps.maxSteps());
+        Double costBudget = ceiling(policy.costBudget(), runtimeCaps.costBudget());
+        // A model may estimate latency, but it is not an authority that may terminate a
+        // durable workflow. The configured Runtime value is the sole hard latency budget.
+        Integer latencyBudgetMs = runtimeCaps.latencyBudgetMs();
         if (Objects.equals(maxSteps, policy.maxSteps())
             && Objects.equals(costBudget, policy.costBudget())
             && Objects.equals(latencyBudgetMs, policy.latencyBudgetMs())) {

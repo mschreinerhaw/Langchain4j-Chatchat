@@ -1499,6 +1499,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         AgentPlanBudgetPolicy.BudgetCaps budgetCaps = AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes);
         AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(plan, budgetCaps);
         plan = budgetResult.plan();
+        metadata.put("runtimePlanLatencyBudgetMs", budgetCaps.latencyBudgetMs());
+        metadata.put("effectivePlanLatencyBudgetMs",
+            plan.executionPolicy() == null ? null : plan.executionPolicy().latencyBudgetMs());
+        metadata.put("modelPlanLatencyBudgetEnforced", false);
         Object authoritativeWorkflowDag = runtimeAttributes == null
             ? null : runtimeAttributes.get("authoritativeWorkflowDag");
         String authoritativeWorkflowTaskId = runtimeAttributes == null

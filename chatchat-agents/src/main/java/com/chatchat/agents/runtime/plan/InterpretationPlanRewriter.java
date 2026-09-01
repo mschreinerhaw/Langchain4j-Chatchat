@@ -1041,12 +1041,10 @@ public class InterpretationPlanRewriter {
                 ? budgetCeilings.costBudget()
                 : Math.min(costBudget, budgetCeilings.costBudget());
         }
-        Integer latencyBudgetMs = rewrittenPolicy.latencyBudgetMs();
-        if (budgetCeilings != null && budgetCeilings.latencyBudgetMs() != null) {
-            latencyBudgetMs = latencyBudgetMs == null
-                ? budgetCeilings.latencyBudgetMs()
-                : Math.min(latencyBudgetMs, budgetCeilings.latencyBudgetMs());
-        }
+        // Rewritten model policies cannot manufacture a hard deadline. Only the Runtime
+        // ceiling is authoritative; null means latency remains advisory and unenforced.
+        Integer latencyBudgetMs = budgetCeilings == null
+            ? null : budgetCeilings.latencyBudgetMs();
         return new InterpretationPlan.ExecutionPolicy(
             maxSteps,
             rewrittenPolicy.allowParallel(),

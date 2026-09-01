@@ -1,10 +1,14 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
+import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticTemplateMatcher;
 import com.chatchat.agents.runtime.plan.persistence.NodeAttemptStore;
 import com.chatchat.agents.runtime.plan.persistence.PlanStepCheckpoint;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionCommand;
+import com.chatchat.agents.runtime.plan.contract.PlanEdgeContractValidator;
+import com.chatchat.agents.runtime.plan.protocol.ToolProtocolPayloadNavigator;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
+import com.chatchat.agents.runtime.plan.execution.PlanDagDecisionGuard;
 import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
 
 import com.chatchat.agents.runtime.event.AgentRunEvent;
@@ -4018,11 +4022,7 @@ class InterpretationPlanRuntimeTest {
     @Test
     @SuppressWarnings("unchecked")
     void doesNotBindJavaProcessCheckToIoTemplateFromOneGenericToken() throws Exception {
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            mock(ToolRuntimeService.class),
-            new InterpretationPlanValidator(),
-            mock(InterpretationPlanRuntime.DagExecutionController.class)
-        );
+        DiagnosticTemplateMatcher matcher = new DiagnosticTemplateMatcher();
         List<InterpretationPlan.DiagnosticCheck> checks = List.of(
             new InterpretationPlan.DiagnosticCheck(
                 "resource_usage", "resource_usage", "host_resource", true, 1, List.of(3)),
@@ -4038,27 +4038,23 @@ class InterpretationPlanRuntimeTest {
             Map.of("templateId", "CHECK_DOCKER_CONTAINERS", "name", "Docker containers",
                 "description", "Read docker container inventory")
         );
-        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "diagnosticTemplateAssignments", List.class, List.class, Map.class);
-        method.setAccessible(true);
-
-        Map<Integer, Integer> mismatched = (Map<Integer, Integer>) method.invoke(
-            runtime, checks, mismatchedTemplates, Map.of("java_process", "CHECK_PROCESS"));
+        Map<Integer, Integer> mismatched = matcher.assignments(
+            checks, mismatchedTemplates, Map.of("java_process", "CHECK_PROCESS"), Map.of());
 
         assertThat(mismatched)
             .containsEntry(0, 0)
             .containsEntry(2, 2)
             .doesNotContainKey(1);
 
-        Map<Integer, Integer> mismatchedWithoutHints = (Map<Integer, Integer>) method.invoke(
-            runtime, checks, mismatchedTemplates, Map.of());
+        Map<Integer, Integer> mismatchedWithoutHints = matcher.assignments(
+            checks, mismatchedTemplates, Map.of(), Map.of());
         assertThat(mismatchedWithoutHints)
             .containsEntry(0, 0)
             .containsEntry(2, 2)
             .doesNotContainKey(1);
 
-        Map<Integer, Integer> wrongExplicitHint = (Map<Integer, Integer>) method.invoke(
-            runtime, checks, mismatchedTemplates, Map.of("java_process", "CHECK_IO_STATUS"));
+        Map<Integer, Integer> wrongExplicitHint = matcher.assignments(
+            checks, mismatchedTemplates, Map.of("java_process", "CHECK_IO_STATUS"), Map.of());
         assertThat(wrongExplicitHint)
             .as("an explicit binding must not override a semantic contradiction")
             .doesNotContainEntry(1, 1);
@@ -4069,19 +4065,15 @@ class InterpretationPlanRuntimeTest {
                 "description", "Read Java process inventory"),
             mismatchedTemplates.get(2)
         );
-        Map<Integer, Integer> matched = (Map<Integer, Integer>) method.invoke(
-            runtime, checks, matchedTemplates, Map.of("java_process", "CHECK_PROCESS"));
+        Map<Integer, Integer> matched = matcher.assignments(
+            checks, matchedTemplates, Map.of("java_process", "CHECK_PROCESS"), Map.of());
         assertThat(matched).containsAllEntriesOf(Map.of(0, 0, 1, 1, 2, 2));
     }
 
     @Test
     @SuppressWarnings("unchecked")
     void diagnosticTemplateHintsPreferResolvedBindingsOverPlannerPlaceholders() throws Exception {
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            mock(ToolRuntimeService.class),
-            new InterpretationPlanValidator(),
-            mock(InterpretationPlanRuntime.DagExecutionController.class)
-        );
+        DiagnosticTemplateMatcher matcher = new DiagnosticTemplateMatcher();
         Map<String, Object> planned = Map.of("calls", List.of(
             Map.of("callId", "resource_usage", "arguments", Map.of(
                 "template", "{{bindings.templateResource}}")),
@@ -4094,21 +4086,14 @@ class InterpretationPlanRuntimeTest {
             Map.of("callId", "java_process", "purpose", "process inventory",
                 "arguments", Map.of("template", "CHECK_PROCESS"))
         ));
-        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "resolvedDiagnosticTemplateHints", Map.class, Map.class);
-        method.setAccessible(true);
-
-        Map<String, String> hints = (Map<String, String>) method.invoke(runtime, planned, resolved);
+        Map<String, String> hints = matcher.resolvedTemplateHints(planned, resolved);
 
         assertThat(hints).containsExactlyInAnyOrderEntriesOf(Map.of(
             "resource_usage", "CHECK_MEMORY",
             "java_process", "CHECK_PROCESS"
         ));
 
-        Method contextMethod = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "resolvedDiagnosticCallContexts", Map.class, Map.class);
-        contextMethod.setAccessible(true);
-        Map<String, String> contexts = (Map<String, String>) contextMethod.invoke(runtime, planned, resolved);
+        Map<String, String> contexts = matcher.resolvedCallContexts(planned, resolved);
         assertThat(contexts.get("resource_usage")).contains("memory", "cpu");
         assertThat(contexts.get("java_process")).contains("process inventory");
     }
@@ -4517,6 +4502,36 @@ class InterpretationPlanRuntimeTest {
                 .containsKey("deterministicContractRepairs"));
         assertThat(result.steps()).noneMatch(step -> step.errorMessage() != null
             && step.errorMessage().contains("EDGE_CONTRACT_FAILED"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recoversCanonicalTemplateAssetContextFromExternalizedRoutingProjection() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class));
+        Map<String, Object> output = Map.of(
+            "schemaVersion", "tool_result_summary.v1",
+            "summaryTruncated", true,
+            "preview", Map.of("data", Map.of("templates", List.of(Map.of("templateId", "MYSQL_INNODB_STATUS")))),
+            "routingProjection", Map.of("queryIr", Map.of("asset", Map.of(
+                "scoped", true,
+                "selected", Map.of(
+                    "id", "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+                    "name", "LiveData测试库_223",
+                    "toolName", "db_query_mysql_223_livedata",
+                    "environment", "DEV")))));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "templateDiscoveryAssetExecutionContext", Object.class);
+        method.setAccessible(true);
+
+        Map<String, Object> context = (Map<String, Object>) method.invoke(runtime, output);
+
+        assertThat(context)
+            .containsEntry("assetId", "c5c085c4-067b-4a0f-876c-e1c4f808232f")
+            .containsEntry("assetName", "LiveData测试库_223")
+            .containsEntry("assetToolName", "db_query_mysql_223_livedata")
+            .containsEntry("env", "DEV");
     }
 
     @Test
@@ -7749,36 +7764,16 @@ class InterpretationPlanRuntimeTest {
         );
         Map<Integer, InterpretationPlan.Step> stepsById = new java.util.LinkedHashMap<>();
         plan.steps().forEach(step -> stepsById.put(step.id(), step));
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            mock(ToolRuntimeService.class),
-            new InterpretationPlanValidator(),
-            scriptedController(List.of())
-        );
-        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "validateDecision",
-            InterpretationPlanRuntime.DagDecision.class,
-            InterpretationPlan.class,
-            java.util.Set.class,
-            Map.class,
-            java.util.Set.class
-        );
-        method.setAccessible(true);
-
-        Object validation = method.invoke(
-            runtime,
+        PlanDagDecisionGuard.DecisionValidation validation = new PlanDagDecisionGuard().validate(
             InterpretationPlanRuntime.DagDecision.finalAnswer(2, "done", "scripted final"),
             plan,
             new java.util.LinkedHashSet<>(List.of(2, 3)),
             stepsById,
-            new java.util.LinkedHashSet<>(List.of(1))
+            new java.util.LinkedHashSet<>(List.of(1)),
+            new java.util.LinkedHashSet<>(List.of(2, 3))
         );
-        Method validMethod = validation.getClass().getDeclaredMethod("valid");
-        Method messageMethod = validation.getClass().getDeclaredMethod("message");
-        validMethod.setAccessible(true);
-        messageMethod.setAccessible(true);
-
-        assertThat((Boolean) validMethod.invoke(validation)).isFalse();
-        assertThat((String) messageMethod.invoke(validation))
+        assertThat(validation.valid()).isFalse();
+        assertThat(validation.message())
             .contains("final_answer must be the last executed step")
             .contains("3");
     }
@@ -7802,36 +7797,16 @@ class InterpretationPlanRuntimeTest {
         );
         Map<Integer, InterpretationPlan.Step> stepsById = new java.util.LinkedHashMap<>();
         plan.steps().forEach(step -> stepsById.put(step.id(), step));
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            mock(ToolRuntimeService.class),
-            new InterpretationPlanValidator(),
-            scriptedController(List.of())
-        );
-        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "validateDecision",
-            InterpretationPlanRuntime.DagDecision.class,
-            InterpretationPlan.class,
-            java.util.Set.class,
-            Map.class,
-            java.util.Set.class
-        );
-        method.setAccessible(true);
-
-        Object validation = method.invoke(
-            runtime,
+        PlanDagDecisionGuard.DecisionValidation validation = new PlanDagDecisionGuard().validate(
             InterpretationPlanRuntime.DagDecision.executeStep(2, "scripted final as execute_step"),
             plan,
             new java.util.LinkedHashSet<>(List.of(2, 3)),
             stepsById,
-            new java.util.LinkedHashSet<>(List.of(1))
+            new java.util.LinkedHashSet<>(List.of(1)),
+            new java.util.LinkedHashSet<>(List.of(2, 3))
         );
-        Method validMethod = validation.getClass().getDeclaredMethod("valid");
-        Method messageMethod = validation.getClass().getDeclaredMethod("message");
-        validMethod.setAccessible(true);
-        messageMethod.setAccessible(true);
-
-        assertThat((Boolean) validMethod.invoke(validation)).isFalse();
-        assertThat((String) messageMethod.invoke(validation))
+        assertThat(validation.valid()).isFalse();
+        assertThat(validation.message())
             .contains("final_answer must be the last executed step")
             .contains("3");
     }
@@ -7893,12 +7868,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void acceptsAssetTypeEdgeContractFromAssetEnvelopeWhenQueryScopeOmitted() throws Exception {
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            mock(ToolRuntimeService.class),
-            new InterpretationPlanValidator(),
-            scriptedController(List.of())
-        );
+    void acceptsAssetTypeEdgeContractFromAssetEnvelopeWhenQueryScopeOmitted() {
         Map<String, Object> output = Map.of(
             "schemaVersion", "asset_query_result.v1",
             "success", true,
@@ -7915,21 +7885,10 @@ class InterpretationPlanRuntimeTest {
                 )
             ))
         );
-        var method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "checkContract",
-            InterpretationPlan.EdgeContract.class,
-            Object.class
-        );
-        method.setAccessible(true);
-        Object check = method.invoke(
-            runtime,
-            new InterpretationPlan.EdgeContract(1, 2, "assetType", "string", true),
-            output
-        );
-        var success = check.getClass().getDeclaredMethod("success");
-        success.setAccessible(true);
+        PlanEdgeContractValidator validator = new PlanEdgeContractValidator(
+            new ToolProtocolPayloadNavigator());
 
-        assertThat(success.invoke(check)).isEqualTo(true);
+        assertThat(validator.contractValue(output, "assetType")).isEqualTo("ssh_host");
     }
 
     @Test
@@ -9077,6 +9036,9 @@ class InterpretationPlanRuntimeTest {
                     "required", "transit-template".equals(id)
                         ? List.of("khh", "missingOnlyForTransit") : List.of("khh")
                 ));
+                template.put("executionBinding", Map.of(
+                    "toolName", executorTool,
+                    "templateId", id));
                 return template;
             })
             .toList();
@@ -9090,7 +9052,18 @@ class InterpretationPlanRuntimeTest {
             ToolRuntimeRequest request = invocation.getArgument(0);
             if (discoveryTool.equals(request.getToolName())) {
                 return new ToolRuntimeExecution(
-                    ToolOutput.success(Map.of("templates", templates)),
+                    ToolOutput.success(Map.of(
+                        "schemaVersion", "tool_result_summary.v1",
+                        "summaryTruncated", true,
+                        "routingProjection", Map.of(
+                            "queryIr", Map.of("asset", Map.of(
+                                "scoped", true,
+                                "selected", Map.of(
+                                    "id", "asset-live-dev",
+                                    "name", "LiveData测试库_223",
+                                    "toolName", "db_query_mysql_223_livedata",
+                                    "environment", "DEV"))),
+                            "templates", templates))),
                     ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
             }
             if (analysisTool.equals(request.getToolName())) {
@@ -9175,6 +9148,11 @@ class InterpretationPlanRuntimeTest {
             Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");
             assertThat((Map<String, Object>) arguments.get("parameters"))
                 .containsEntry("khh", "100200241779");
+            assertThat((Map<String, Object>) arguments.get("executionContext"))
+                .containsEntry("assetId", "asset-live-dev")
+                .containsEntry("assetName", "LiveData测试库_223")
+                .containsEntry("assetToolName", "db_query_mysql_223_livedata")
+                .containsEntry("env", "DEV");
         });
         assertThat(calls.get(0)).doesNotContainKey("preflightErrorCode");
         assertThat(calls.get(1)).doesNotContainKey("preflightErrorCode");

@@ -3675,7 +3675,15 @@ public class ToolRuntimeService {
         }
         Map<String, Object> selectedAsset = projectedSelectedAsset(source);
         if (!selectedAsset.isEmpty()) {
-            projection.put("queryIr", Map.of("asset", Map.of("selected", selectedAsset)));
+            Map<String, Object> projectedAssetEnvelope = new LinkedHashMap<>();
+            projectedAssetEnvelope.put("selected", selectedAsset);
+            Object queryIr = source.get("queryIr");
+            if (queryIr instanceof Map<?, ?> queryMap
+                && queryMap.get("asset") instanceof Map<?, ?> assetEnvelope
+                && assetEnvelope.get("scoped") instanceof Boolean scoped) {
+                projectedAssetEnvelope.put("scoped", scoped);
+            }
+            projection.put("queryIr", Map.of("asset", Map.copyOf(projectedAssetEnvelope)));
         }
         if (projectedAssets.isEmpty() && projectedTemplates.isEmpty() && selectedAsset.isEmpty()) {
             return Map.of();

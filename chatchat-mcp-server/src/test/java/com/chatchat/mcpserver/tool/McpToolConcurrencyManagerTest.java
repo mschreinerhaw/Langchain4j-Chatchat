@@ -109,6 +109,61 @@ class McpToolConcurrencyManagerTest {
             .isFalse();
     }
 
+    @Test
+    void thrownSystemFailureIsCountedOncePerInvocation() {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        ChatChatMcpServerProperties.LimitProperties limit =
+            new ChatChatMcpServerProperties.LimitProperties(1, 1, 1, 0, "sql");
+        limit.setFailureThreshold(2);
+        properties.getConcurrency().setTools(new LinkedHashMap<>(Map.of("sql_query_execute", limit)));
+        manager = new McpToolConcurrencyManager(properties, new ObjectMapper());
+        java.util.concurrent.atomic.AtomicInteger invocations = new java.util.concurrent.atomic.AtomicInteger();
+
+        McpSchema.CallToolResult first = manager.execute("sql_query_execute", "sql", Map.of(), () -> {
+            invocations.incrementAndGet();
+            throw new IllegalStateException("temporary datasource failure");
+        });
+        McpSchema.CallToolResult second = manager.execute("sql_query_execute", "sql", Map.of(), () -> {
+            invocations.incrementAndGet();
+            throw new IllegalStateException("temporary datasource failure");
+        });
+        McpSchema.CallToolResult third = manager.execute("sql_query_execute", "sql", Map.of(), () -> {
+            invocations.incrementAndGet();
+            return successResult("must not execute while open");
+        });
+
+        assertThat(((Map<?, ?>) first.structuredContent()).get("status")).isEqualTo("FAILED");
+        assertThat(((Map<?, ?>) second.structuredContent()).get("status")).isEqualTo("FAILED");
+        assertThat(((Map<?, ?>) third.structuredContent()).get("status")).isEqualTo("CIRCUIT_OPEN");
+        assertThat(invocations).hasValue(2);
+    }
+
+    @Test
+    void invalidArgumentsDoNotOpenAvailabilityCircuit() {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        ChatChatMcpServerProperties.LimitProperties limit =
+            new ChatChatMcpServerProperties.LimitProperties(1, 1, 1, 0, "sql");
+        limit.setFailureThreshold(1);
+        properties.getConcurrency().setTools(new LinkedHashMap<>(Map.of("sql_query_execute", limit)));
+        manager = new McpToolConcurrencyManager(properties, new ObjectMapper());
+        java.util.concurrent.atomic.AtomicInteger invocations = new java.util.concurrent.atomic.AtomicInteger();
+
+        for (int attempt = 0; attempt < 4; attempt++) {
+            McpSchema.CallToolResult rejected = manager.execute("sql_query_execute", "sql", Map.of(), () -> {
+                invocations.incrementAndGet();
+                throw new IllegalArgumentException("ambiguous execution context");
+            });
+            assertThat(((Map<?, ?>) rejected.structuredContent()).get("status")).isEqualTo("FAILED");
+        }
+        McpSchema.CallToolResult recovered = manager.execute("sql_query_execute", "sql", Map.of(), () -> {
+            invocations.incrementAndGet();
+            return successResult("valid request");
+        });
+
+        assertThat(recovered.isError()).isFalse();
+        assertThat(invocations).hasValue(5);
+    }
+
     private McpToolConcurrencyManager manager;
 
     @AfterEach

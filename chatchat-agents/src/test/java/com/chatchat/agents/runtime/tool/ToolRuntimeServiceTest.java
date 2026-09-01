@@ -593,7 +593,7 @@ class ToolRuntimeServiceTest {
         template.put("templateDsl", Map.of("sql", "select secret implementation body"));
         when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of(
             "schemaVersion", "template_query_result.v3",
-            "queryIr", Map.of("asset", Map.of("selected", Map.of(
+            "queryIr", Map.of("asset", Map.of("scoped", true, "selected", Map.of(
                 "id", "host-41", "name", "tenant-runtime-host", "environment", "DEV",
                 "password", "must-not-leak"))),
             "templates", List.of(template)
@@ -639,6 +639,8 @@ class ToolRuntimeServiceTest {
                         .containsEntry("templateId", "sample_margin_trade_latest")
                         .containsKey("sqlExecutionBinding")
                         .doesNotContainKeys("templateDsl", "sql"));
+                Map<?, ?> assetEnvelope = (Map<?, ?>) ((Map<?, ?>) projection.get("queryIr")).get("asset");
+                assertThat(assetEnvelope.get("scoped")).isEqualTo(true);
             });
         } finally {
             service.shutdown();

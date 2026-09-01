@@ -157,7 +157,6 @@ public class McpToolConcurrencyManager {
             releaseIfNotStarted(executionState, permits);
             return limitResult(STATUS_TIMEOUT, toolName, normalizedLevel, "MCP tool execution was cancelled");
         } catch (ExecutionException ex) {
-            circuit.recordFailure(toolLimit);
             Throwable cause = ex.getCause() == null ? ex : ex.getCause();
             return limitResult("FAILED", toolName, normalizedLevel,
                 cause.getClass().getSimpleName() + ": " + cause.getMessage());
@@ -183,11 +182,17 @@ public class McpToolConcurrencyManager {
             }
             return enforceMaxOutput(toolName, normalizedLevel, result, toolLimit);
         } catch (Throwable throwable) {
-            circuit.recordFailure(toolLimit);
+            if (isCircuitFailure(throwable)) {
+                circuit.recordFailure(toolLimit);
+            }
             throw throwable;
         } finally {
             release(permits);
         }
+    }
+
+    private boolean isCircuitFailure(Throwable throwable) {
+        return throwable != null && !(throwable instanceof IllegalArgumentException);
     }
 
     /**

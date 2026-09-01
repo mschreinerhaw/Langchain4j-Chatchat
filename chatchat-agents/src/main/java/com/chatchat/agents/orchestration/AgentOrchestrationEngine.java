@@ -48,6 +48,7 @@ import com.chatchat.agents.orchestration.planning.AgentDecision;
 import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
 import com.chatchat.agents.orchestration.planning.PlanExecutionResultCoordinator;
 import com.chatchat.agents.orchestration.planning.PlanExecutionObservationCoordinator;
+import com.chatchat.agents.orchestration.planning.RuntimeFunctionCallingPolicy;
 import com.chatchat.agents.orchestration.planning.AgentPlanEvolutionAuditor;
 import com.chatchat.agents.orchestration.planning.InterpretationPlanSnapshotService;
 import com.chatchat.agents.orchestration.planning.AgentPlanExecutionBridge;
@@ -1049,7 +1050,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 activeChatModel, query, systemPrompt, plannerVisibleTools, observations, documentIds,
                 documentTags, plannerMandatoryTools, plannerRequiresToolBeforeFinal,
                 requireDocumentWebVerification, documentSearchTool,
-                verificationWebSearchTool, requestRuntimeAttributes));
+                verificationWebSearchTool, RuntimeFunctionCallingPolicy.planningAttributes(requestRuntimeAttributes, plannerVisibleTools, mandatoryTools, plannerCompletedTools, authoritativeWorkflowDag, requireDocumentWebVerification, workflowTools, toolRegistry)));
             AgentDecision decision = plannerResult.decision();
             if (decision.interpretationPlan() != null
                 && decision.interpretationPlan().executionPolicy() != null) {

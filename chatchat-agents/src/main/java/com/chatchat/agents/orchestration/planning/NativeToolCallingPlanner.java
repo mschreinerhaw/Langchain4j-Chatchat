@@ -21,16 +21,15 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.regex.Pattern;
 
 /**
- * Uses the model provider's native function-calling protocol as a decision input.
+ * Uses the model provider's native function-calling protocol to generate arguments
+ * for one tool already selected by the Runtime.
  *
  * <p>This component never executes a tool. It only converts a provider tool call into
  * an {@link AgentDecision}; the existing Agent Runtime remains the sole execution and
@@ -45,48 +44,45 @@ public final class NativeToolCallingPlanner {
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final boolean enabled;
-    private final int maxTools;
 
     public NativeToolCallingPlanner(ToolRegistry toolRegistry,
                                     ObjectMapper objectMapper,
-                                    boolean enabled,
-                                    int maxTools) {
+                                    boolean enabled) {
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
         this.enabled = enabled;
-        this.maxTools = Math.max(1, Math.min(32, maxTools));
     }
 
     public Optional<AgentDecision> decide(ChatModel model,
                                           String query,
                                           String systemPrompt,
-                                          List<String> candidateTools,
+                                          String designatedTool,
                                           List<String> observations,
-                                          boolean toolRequired) {
+                                          RuntimeDesignatedFunctionCall designation) {
         if (!enabled || model == null || toolRegistry == null || objectMapper == null) {
             return Optional.empty();
         }
-        List<String> toolNames = portableRegisteredTools(candidateTools);
-        if (toolNames.isEmpty() || toolNames.size() > maxTools) {
+        if (designation == null || !designation.required()
+            || designatedTool == null || !designatedTool.equals(designation.toolName())) {
             return Optional.empty();
         }
-
-        List<ToolSpecification> specifications = new ArrayList<>();
-        for (String toolName : toolNames) {
-            toSpecification(toolName).ifPresent(specifications::add);
-        }
-        if (specifications.size() != toolNames.size()) {
+        Optional<String> registeredTool = portableRegisteredTool(designatedTool);
+        if (registeredTool.isEmpty()) {
             return Optional.empty();
         }
+        String toolName = registeredTool.get();
+        Optional<ToolSpecification> specification = toSpecification(toolName);
+        if (specification.isEmpty()) return Optional.empty();
 
         try {
             ChatResponse response = model.chat(ChatRequest.builder()
                 .messages(List.of(
-                    SystemMessage.from(nativeSystemPrompt(systemPrompt, toolRequired)),
+                    SystemMessage.from(nativeSystemPrompt(systemPrompt)),
                     UserMessage.from(nativeUserPrompt(query, observations))
                 ))
-                .toolSpecifications(specifications)
-                .toolChoice(toolRequired ? ToolChoice.REQUIRED : ToolChoice.AUTO)
+                // Exactly one Runtime-designated tool is published. The model never receives a choice set.
+                .toolSpecifications(List.of(specification.get()))
+                .toolChoice(ToolChoice.REQUIRED)
                 .build());
             AiMessage message = response == null ? null : response.aiMessage();
             if (message == null || !message.hasToolExecutionRequests()) {
@@ -99,9 +95,9 @@ public final class NativeToolCallingPlanner {
                 return Optional.empty();
             }
             ToolExecutionRequest call = calls.get(0);
-            if (call == null || !toolNames.contains(call.name())) {
-                log.warn("Native function-calling planner rejected unavailable tool name={}",
-                    call == null ? null : call.name());
+            if (call == null || !toolName.equals(call.name())) {
+                log.warn("Native function-calling planner rejected non-designated tool expected={} actual={}",
+                    toolName, call == null ? null : call.name());
                 return Optional.empty();
             }
             Map<String, Object> arguments = parseArguments(call.arguments());
@@ -110,6 +106,8 @@ public final class NativeToolCallingPlanner {
             }
             Map<String, Object> executionPlan = new LinkedHashMap<>();
             executionPlan.put("decisionProtocol", "native_function_calling");
+            executionPlan.put("runtimeDesignationContract", designation.contractVersion());
+            executionPlan.put("runtimeDesignationSource", designation.source());
             if (call.id() != null && !call.id().isBlank()) {
                 executionPlan.put("nativeToolCallId", call.id());
             }
@@ -205,25 +203,19 @@ public final class NativeToolCallingPlanner {
         }
     }
 
-    private List<String> portableRegisteredTools(List<String> candidates) {
-        Set<String> names = new LinkedHashSet<>();
-        if (candidates != null) {
-            for (String candidate : candidates) {
-                if (candidate != null && PORTABLE_TOOL_NAME.matcher(candidate).matches()
-                    && toolRegistry.hasTool(candidate)) {
-                    names.add(candidate);
-                }
-            }
+    private Optional<String> portableRegisteredTool(String candidate) {
+        if (candidate == null || !PORTABLE_TOOL_NAME.matcher(candidate).matches()
+            || !toolRegistry.hasTool(candidate)) {
+            return Optional.empty();
         }
-        return List.copyOf(names);
+        return Optional.of(candidate);
     }
 
-    private String nativeSystemPrompt(String systemPrompt, boolean toolRequired) {
-        String policy = toolRequired
-            ? "Select exactly one supplied function. Do not answer in text and do not invent tool names or arguments."
-            : "Use a supplied function only when it is needed. Never invent tool names or arguments.";
-        return firstNonBlank(systemPrompt, "You are a tool-selection planner.") + "\n\n" + policy
-            + " The function call is only a proposal; the Agent Runtime validates and executes it.";
+    private String nativeSystemPrompt(String systemPrompt) {
+        return firstNonBlank(systemPrompt, "You generate arguments for a Runtime-designated tool.")
+            + "\n\nThe Runtime has already selected the only supplied function. Generate exactly one call "
+            + "to that function. Do not select, replace, skip, or invent a tool. The Runtime validates "
+            + "all arguments and remains the sole execution authority.";
     }
 
     private String nativeUserPrompt(String query, List<String> observations) {

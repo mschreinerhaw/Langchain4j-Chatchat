@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.planning.AgentDecision;
+import com.chatchat.agents.orchestration.planning.RuntimeDesignatedFunctionCall;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
@@ -66,7 +67,11 @@ class AgentPlannerNativeToolCallingTest {
             false,
             null,
             null,
-            Map.of()
+            Map.of(
+                RuntimeDesignatedFunctionCall.CONTEXT_KEY,
+                new RuntimeDesignatedFunctionCall(
+                    "document_search", "test_runtime_scheduler").toMap()
+            )
         );
 
         AgentDecision decision = result.decision();
@@ -77,5 +82,95 @@ class AgentPlannerNativeToolCallingTest {
         assertThat(decision.executionPlan())
             .containsEntry("decisionProtocol", "native_function_calling")
             .containsEntry("nativeToolCallGoverned", true);
+    }
+
+    @Test
+    void mandatoryToolAloneDoesNotAuthorizeNativeFunctionCalling() {
+        ToolRegistry registry = directRegistry();
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        properties.setNativeToolCallingEnabled(true);
+        AgentPlanner planner = new AgentPlanner(registry, new ObjectMapper(), properties);
+        AtomicInteger nativeRequests = new AtomicInteger();
+        ChatModel model = jsonFallbackModel(nativeRequests);
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "Search", null, List.of("document_search"), List.of(),
+            List.of(), List.of(), List.of("document_search"), true,
+            false, null, null, Map.of());
+
+        assertThat(nativeRequests).hasValue(0);
+        assertThat(result.decision().executionPlan())
+            .doesNotContainEntry("decisionProtocol", "native_function_calling");
+    }
+
+    @Test
+    void authoritativeDagCannotBeCollapsedIntoNativeFunctionCalling() {
+        ToolRegistry registry = directRegistry();
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        properties.setNativeToolCallingEnabled(true);
+        AgentPlanner planner = new AgentPlanner(registry, new ObjectMapper(), properties);
+        AtomicInteger nativeRequests = new AtomicInteger();
+        Map<String, Object> runtime = Map.of(
+            RuntimeDesignatedFunctionCall.CONTEXT_KEY,
+            new RuntimeDesignatedFunctionCall("document_search", "test_runtime_scheduler").toMap(),
+            "authoritativeWorkflowDag", List.of(Map.of("id", "search", "tool", "document_search"))
+        );
+
+        planner.decideNextAction(
+            jsonFallbackModel(nativeRequests), "Search", null, List.of("document_search"), List.of(),
+            List.of(), List.of(), List.of("document_search"), true,
+            false, null, null, runtime);
+
+        assertThat(nativeRequests).hasValue(0);
+    }
+
+    @Test
+    void publisherWorkflowRoleCannotBeTurnedIntoDirectFunctionCalling() {
+        ToolRegistry registry = directRegistry();
+        when(registry.getWorkflowRole("document_search"))
+            .thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        properties.setNativeToolCallingEnabled(true);
+        AgentPlanner planner = new AgentPlanner(registry, new ObjectMapper(), properties);
+        AtomicInteger nativeRequests = new AtomicInteger();
+
+        planner.decideNextAction(
+            jsonFallbackModel(nativeRequests), "Execute template", null,
+            List.of("document_search"), List.of(), List.of(), List.of(),
+            List.of("document_search"), true, false, null, null,
+            Map.of(
+                RuntimeDesignatedFunctionCall.CONTEXT_KEY,
+                new RuntimeDesignatedFunctionCall(
+                    "document_search", "test_runtime_scheduler").toMap()
+            ));
+
+        assertThat(nativeRequests).hasValue(0);
+    }
+
+    private ToolRegistry directRegistry() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool("document_search")).thenReturn(true);
+        when(registry.getWorkflowRole("document_search")).thenReturn(ToolWorkflowRole.DIRECT);
+        when(registry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .description("Search trusted documents")
+            .agentCompatible(true)
+            .parameters(List.of())
+            .build());
+        return registry;
+    }
+
+    private ChatModel jsonFallbackModel(AtomicInteger nativeRequests) {
+        return new ChatModel() {
+            @Override
+            public ChatResponse doChat(ChatRequest request) {
+                if (request.toolSpecifications() != null && !request.toolSpecifications().isEmpty()) {
+                    nativeRequests.incrementAndGet();
+                }
+                return ChatResponse.builder().aiMessage(AiMessage.from(
+                    "{\"action\":\"final\",\"answer\":\"fallback\",\"reason\":\"json planner\"}"
+                )).build();
+            }
+        };
     }
 }

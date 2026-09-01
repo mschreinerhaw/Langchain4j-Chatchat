@@ -10,6 +10,7 @@ import com.chatchat.agents.orchestration.planning.PlannerValidationContext;
 import com.chatchat.agents.orchestration.planning.AgentPlannerPromptBuilder;
 import com.chatchat.agents.orchestration.planning.InterpretationPlanPayloadNormalizer;
 import com.chatchat.agents.orchestration.planning.NativeToolCallingPlanner;
+import com.chatchat.agents.orchestration.planning.RuntimeDesignatedFunctionCallingAdapter;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeDto;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeParser;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
@@ -46,7 +47,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -85,12 +85,12 @@ public class AgentPlanner implements AgentPlanningPort {
 
     AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper) {
         this(toolRegistry, objectMapper, Clock.systemDefaultZone(),
-            new NativeToolCallingPlanner(toolRegistry, objectMapper, false, 1));
+            new NativeToolCallingPlanner(toolRegistry, objectMapper, false));
     }
 
     AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper, Clock clock) {
         this(toolRegistry, objectMapper, clock,
-            new NativeToolCallingPlanner(toolRegistry, objectMapper, false, 1));
+            new NativeToolCallingPlanner(toolRegistry, objectMapper, false));
     }
 
     AgentPlanner(ToolRegistry toolRegistry, ObjectMapper objectMapper,
@@ -99,8 +99,7 @@ public class AgentPlanner implements AgentPlanningPort {
             new NativeToolCallingPlanner(
                 toolRegistry,
                 objectMapper,
-                runtimeProperties != null && runtimeProperties.isNativeToolCallingEnabled(),
-                runtimeProperties == null ? 8 : runtimeProperties.nativeToolCallingMaxTools()
+                runtimeProperties != null && runtimeProperties.isNativeToolCallingEnabled()
             ));
     }
 
@@ -165,10 +164,7 @@ public class AgentPlanner implements AgentPlanningPort {
                                              String documentSearchTool,
                                              String verificationWebSearchTool,
                                              Map<String, Object> runtimeAttributes) {
-        Optional<AgentDecision> nativeDecision = nativeDecision(
-            activeChatModel, query, systemPrompt, availableTools, observations,
-            mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
-            runtimeAttributes);
+        var nativeDecision = RuntimeDesignatedFunctionCallingAdapter.decide(nativeToolCallingPlanner, toolRegistry, activeChatModel, query, systemPrompt, availableTools, observations, requireDocumentWebVerification, runtimeAttributes);
         if (nativeDecision.isPresent()) {
             return nativeDecision.get();
         }
@@ -308,36 +304,6 @@ public class AgentPlanner implements AgentPlanningPort {
             ? invalidPlannerDecision(
                 lastRaw, "non_json_response", "Planner did not return valid JSON.", validationContext)
             : lastDecision;
-    }
-
-    private Optional<AgentDecision> nativeDecision(ChatModel activeChatModel,
-                                                   String query,
-                                                   String systemPrompt,
-                                                   List<String> availableTools,
-                                                   List<String> observations,
-                                                   List<String> mandatoryTools,
-                                                   boolean requireToolBeforeFinal,
-                                                   boolean requireDocumentWebVerification,
-                                                   Map<String, Object> runtimeAttributes) {
-        if (nativeToolCallingPlanner == null || !requireToolBeforeFinal
-            || requireDocumentWebVerification || observations != null && !observations.isEmpty()
-            || mandatoryTools == null || mandatoryTools.size() != 1
-            || hasAuthoritativeWorkflow(runtimeAttributes)) {
-            return Optional.empty();
-        }
-        String mandatoryTool = matchingAvailableTool(availableTools, mandatoryTools.get(0));
-        if (mandatoryTool == null || toolRegistry == null
-            || toolRegistry.getWorkflowRole(mandatoryTool) != ToolWorkflowRole.DIRECT) {
-            return Optional.empty();
-        }
-        return nativeToolCallingPlanner.decide(
-            activeChatModel, query, systemPrompt, List.of(mandatoryTool), observations, true);
-    }
-
-    private boolean hasAuthoritativeWorkflow(Map<String, Object> runtimeAttributes) {
-        if (runtimeAttributes == null) return false;
-        Object dag = runtimeAttributes.get("authoritativeWorkflowDag");
-        return dag instanceof Collection<?> collection && !collection.isEmpty();
     }
 
     private PlannerExecutionResult plannerExecutionResult(AgentDecision decision,

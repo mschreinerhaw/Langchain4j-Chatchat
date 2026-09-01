@@ -1,13 +1,16 @@
 # Native Function Calling with the MCP Runtime
 
-The Agent supports a guarded native function-calling fast path. Native model tool calls are
-planning decisions only: they never execute a tool directly and never bypass `ToolRuntimeService`
-or the MCP Runtime Kernel.
+The Agent supports a Runtime-designated native function-calling adapter. Function Calling does
+not select a tool. The Runtime first resolves the user-controlled workflow and designates exactly
+one ready tool; the model is then allowed only to generate arguments for that tool. Native calls
+never execute a tool directly and never bypass `ToolRuntimeService` or the MCP Runtime Kernel.
 
 ## Execution path
 
 ```text
-ChatModel + ToolSpecification
+User workflow / Runtime scheduler
+  -> RuntimeDesignatedFunctionCall(exactly one tool)
+  -> ChatModel + one ToolSpecification + toolChoice=REQUIRED
   -> ToolExecutionRequest
   -> AgentDecision(action=tool)
   -> AgentOrchestrationEngine
@@ -16,14 +19,19 @@ ChatModel + ToolSpecification
   -> MCP Runtime Kernel
 ```
 
-The fast path is used only for the first decision when exactly one mandatory tool is visible,
-the tool declares the `DIRECT` workflow role, no authoritative workflow DAG is active, and
-document/web verification is not required. Multi-step discovery, template and execution flows
-continue to use the InterpretationPlan DAG planner.
+The adapter is used only when the Runtime scheduler has designated the next mandatory tool and
+that exact tool is visible and declares the `DIRECT` workflow role. Request attributes cannot mint
+this designation; the orchestration engine removes any caller-provided value and creates a
+step-scoped contract itself.
+
+Authoritative user workflow DAGs, document/web verification chains, and publisher parent-child
+roles do not enter this adapter. Their ready-node selection, dependencies, routing and execution
+continue to be owned by the InterpretationPlan/runtime workflow machinery.
 
 If the provider does not support native function calling, returns malformed arguments, returns
-multiple calls, or names a tool outside the request allow-list, planning falls back to the JSON
-planner. Runtime deadline, cancellation and model-budget failures are not swallowed by fallback.
+multiple calls, or names anything other than the exact designated tool, planning falls back to
+the JSON planner. Runtime deadline, cancellation and model-budget failures are not swallowed by
+fallback.
 
 ## Configuration
 
@@ -31,13 +39,11 @@ planner. Runtime deadline, cancellation and model-budget failures are not swallo
 chatchat:
   agent-runtime:
     native-tool-calling-enabled: true
-    native-tool-calling-max-tools: 8
 ```
 
 Environment variables:
 
 - `CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED`
-- `CHATCHAT_AGENT_NATIVE_TOOL_CALLING_MAX_TOOLS`
 
 Set `CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED=false` to return all decisions to the existing
 JSON/InterpretationPlan planner without changing MCP execution behavior.

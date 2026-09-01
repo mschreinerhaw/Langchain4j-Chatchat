@@ -76,10 +76,8 @@ public class AgentRuntimeProperties {
     private double modelInputCostPerThousandTokens = 0D;
     private double modelOutputCostPerThousandTokens = 0D;
     private double budgetAlertRatio = 0.8D;
-    /** Uses provider-native function calling for the first, single mandatory direct tool decision. */
+    /** Lets the model generate arguments for an exact Runtime-designated DIRECT tool. */
     private boolean nativeToolCallingEnabled = false;
-    /** Upper bound on function specifications sent in one native tool-selection request. */
-    private int nativeToolCallingMaxTools = 8;
 
     public int corePoolSize() {
         return Math.max(1, corePoolSize);
@@ -220,7 +218,4 @@ public class AgentRuntimeProperties {
         return Math.max(0.01D, Math.min(1D, budgetAlertRatio));
     }
 
-    public int nativeToolCallingMaxTools() {
-        return Math.max(1, Math.min(32, nativeToolCallingMaxTools));
-    }
 }

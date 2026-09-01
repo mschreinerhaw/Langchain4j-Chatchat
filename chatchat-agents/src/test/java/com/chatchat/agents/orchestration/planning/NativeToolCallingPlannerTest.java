@@ -34,7 +34,7 @@ class NativeToolCallingPlannerTest {
     @Test
     void convertsNativeCallIntoGovernedAgentDecisionWithoutExecutingTool() throws Exception {
         ToolRegistry registry = registry("document_search");
-        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, true, 8);
+        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, true);
         AtomicReference<ChatRequest> captured = new AtomicReference<>();
         ChatModel model = model(request -> {
             captured.set(request);
@@ -43,7 +43,7 @@ class NativeToolCallingPlannerTest {
 
         Optional<AgentDecision> result = planner.decide(
             model, "Find the runtime architecture", "Follow enterprise policy",
-            List.of("document_search"), List.of(), true);
+            "document_search", List.of(), designation("document_search"));
 
         assertThat(result).isPresent();
         assertThat(result.orElseThrow().action()).isEqualTo("tool");
@@ -51,7 +51,8 @@ class NativeToolCallingPlannerTest {
         assertThat(result.orElseThrow().arguments()).containsEntry("query", "runtime architecture");
         assertThat(result.orElseThrow().executionPlan())
             .containsEntry("decisionProtocol", "native_function_calling")
-            .containsEntry("nativeToolCallGoverned", true);
+            .containsEntry("nativeToolCallGoverned", true)
+            .containsEntry("runtimeDesignationContract", RuntimeDesignatedFunctionCall.CONTRACT_VERSION);
         assertThat(captured.get().toolChoice()).isEqualTo(ToolChoice.REQUIRED);
         assertThat(captured.get().toolSpecifications()).hasSize(1);
         JsonNode schema = mapper.readTree(captured.get().toolSpecifications().get(0).toJson());
@@ -64,11 +65,11 @@ class NativeToolCallingPlannerTest {
     @Test
     void rejectsProviderToolNameOutsideRuntimeCandidateSet() {
         ToolRegistry registry = registry("document_search");
-        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, true, 8);
+        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, true);
 
         Optional<AgentDecision> result = planner.decide(
             model(request -> response("call-2", "invented_tool", "{}")),
-            "Search", null, List.of("document_search"), List.of(), true);
+            "Search", null, "document_search", List.of(), designation("document_search"));
 
         assertThat(result).isEmpty();
     }
@@ -76,13 +77,13 @@ class NativeToolCallingPlannerTest {
     @Test
     void disabledModeDoesNotContactModel() {
         ToolRegistry registry = registry("document_search");
-        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, false, 8);
+        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, false);
         AtomicInteger calls = new AtomicInteger();
 
         Optional<AgentDecision> result = planner.decide(model(request -> {
             calls.incrementAndGet();
             return response("call-3", "document_search", "{}");
-        }), "Search", null, List.of("document_search"), List.of(), true);
+        }), "Search", null, "document_search", List.of(), designation("document_search"));
 
         assertThat(result).isEmpty();
         assertThat(calls).hasValue(0);
@@ -91,12 +92,31 @@ class NativeToolCallingPlannerTest {
     @Test
     void doesNotHideRuntimeDeadlineFailureBehindPlannerFallback() {
         ToolRegistry registry = registry("document_search");
-        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, true, 8);
+        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, true);
 
         assertThatThrownBy(() -> planner.decide(model(request -> {
             throw new AgentDeadlineExceededException("deadline");
-        }), "Search", null, List.of("document_search"), List.of(), true))
+        }), "Search", null, "document_search", List.of(), designation("document_search")))
             .isInstanceOf(AgentDeadlineExceededException.class);
+    }
+
+    @Test
+    void mismatchedRuntimeDesignationDoesNotContactModel() {
+        ToolRegistry registry = registry("document_search");
+        NativeToolCallingPlanner planner = new NativeToolCallingPlanner(registry, mapper, true);
+        AtomicInteger calls = new AtomicInteger();
+
+        Optional<AgentDecision> result = planner.decide(model(request -> {
+            calls.incrementAndGet();
+            return response("call-4", "document_search", "{}");
+        }), "Search", null, "document_search", List.of(), designation("other_tool"));
+
+        assertThat(result).isEmpty();
+        assertThat(calls).hasValue(0);
+    }
+
+    private RuntimeDesignatedFunctionCall designation(String toolName) {
+        return new RuntimeDesignatedFunctionCall(toolName, "test_runtime_scheduler");
     }
 
     private ToolRegistry registry(String toolName) {

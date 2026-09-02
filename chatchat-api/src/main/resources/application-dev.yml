@@ -215,9 +215,9 @@ chatchat:
     rebuild-on-startup: false
     opensearch:
       enabled: true
-      url: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
-      username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
-      password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
+      url: https://127.0.0.1:9200
+      username: admin
+      password: admin
       index-name: chatchat_documents_dev
       insecure-ssl: true
       connect-timeout-ms: 5000
@@ -231,7 +231,7 @@ chatchat:
         request-timeout-ms: 300000
         enabled: true
         endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
-        api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
+        api-key: 
         model: kinfra-text-embedding-4b
         dimension: 1024
         vector-field: contentVector

@@ -90,11 +90,7 @@ public final class AnalysisCoverageCoordinator {
                 "type", "dataset_relationship_plan", "relationshipPlan", relationshipPlan.toMap()));
 
         AnalysisDispatchCoordinator.DispatchBatch dispatched = dispatchCoordinator.dispatch(
-            new AnalysisDispatchCoordinator.DispatchRequest(request.model(), request.query(),
-                stringValue(request.metadata() == null ? null : request.metadata().get("modelName")),
-                datasets.stream().map(dataset -> new AnalysisDispatchCoordinator.DatasetInput(
-                    dataset.reference(), dataset.analysisContext(), dataset.records())).toList(),
-                request.isolationScope(), request.runtimeAttributes(), request.cancellationCheck()));
+            dispatchRequest(request, datasets, false));
         lifecycle = lifecycle.datasetsDispatched(dispatched.taskCount());
         writeDispatchMetadata(request.metadata(), dispatched);
         if (dispatched.taskCount() > 0) {
@@ -103,11 +99,78 @@ public final class AnalysisCoverageCoordinator {
                 metadataOf("type", "analysis_summary_dispatched", "taskCount", dispatched.taskCount(),
                     "workerCount", dispatched.workerCount(), "dispatchMode", dispatched.mode()));
         }
+        CoverageBundle firstPass;
         try {
-            return reconcile(request, datasets, relationshipPlan, lifecycle, dispatched);
+            firstPass = reconcile(request, datasets, relationshipPlan, lifecycle, dispatched);
         } finally {
             dispatched.close();
         }
+        if (!automaticReanalysisRequired(request, firstPass)) return firstPass;
+
+        request.metadata().put("analysisAutomaticReanalysisTriggered", true);
+        request.metadata().put("analysisAutomaticReanalysisRound", 1);
+        request.metadata().put("analysisReuseExistingDataset", true);
+        request.metadata().put("analysisDataRequeryAllowed", false);
+        observe(request,
+            "已保留现有数据并从 Worker 分析阶段自动重试，无需重新获取数据。",
+            "analysis_summary_governance", metadataOf(
+                "type", "analysis_reanalysis_started", "round", 1,
+                "resumeFrom", "WORKER_ANALYSIS", "reuseExistingDataset", true,
+                "dataAcquisitionAllowed", false));
+        AnalysisDispatchCoordinator.DispatchBatch retryBatch = dispatchCoordinator.dispatch(
+            dispatchRequest(request, datasets, true));
+        try {
+            CoverageBundle retry = reconcile(request, datasets, relationshipPlan,
+                lifecycle, retryBatch);
+            request.metadata().put("analysisAutomaticReanalysisCompleted", true);
+            request.metadata().put("analysisAutomaticReanalysisRecovered",
+                !retry.synthesisInputs().isEmpty());
+            return retry;
+        } finally {
+            retryBatch.close();
+        }
+    }
+
+    private AnalysisDispatchCoordinator.DispatchRequest dispatchRequest(
+        Request request,
+        List<AnalysisEvidenceCoordinator.Dataset> datasets,
+        boolean reanalysis
+    ) {
+        List<AnalysisDispatchCoordinator.DatasetInput> inputs = datasets.stream()
+            .map(dataset -> new AnalysisDispatchCoordinator.DatasetInput(
+                dataset.reference(), reanalysis
+                    ? reanalysisContext(dataset.analysisContext(), request.metadata())
+                    : dataset.analysisContext(), dataset.records()))
+            .toList();
+        return new AnalysisDispatchCoordinator.DispatchRequest(
+            request.model(), request.query(),
+            stringValue(request.metadata() == null ? null : request.metadata().get("modelName")),
+            inputs, request.isolationScope(), request.runtimeAttributes(), request.cancellationCheck());
+    }
+
+    private Map<String, Object> reanalysisContext(Map<String, Object> source,
+                                                   Map<String, Object> metadata) {
+        Map<String, Object> context = new LinkedHashMap<>(source == null ? Map.of() : source);
+        context.put("analysisRepair", Map.of(
+            "round", 1,
+            "resumeFrom", "WORKER_ANALYSIS",
+            "reuseExistingDataset", true,
+            "dataAcquisitionAllowed", false,
+            "workerSupervision", metadata == null
+                ? Map.of() : metadata.getOrDefault("analysisWorkerSupervision", Map.of()),
+            "repairRequests", metadata == null
+                ? List.of() : metadata.getOrDefault("analysisRepairRequests", List.of())));
+        return Map.copyOf(context);
+    }
+
+    private boolean automaticReanalysisRequired(Request request, CoverageBundle firstPass) {
+        if (request.metadata() == null || firstPass == null
+            || firstPass.returnedRecordCount() == 0
+            || !firstPass.synthesisInputs().isEmpty()) return false;
+        if (Boolean.TRUE.equals(request.metadata().get("analysisAutomaticReanalysisTriggered"))) {
+            return false;
+        }
+        return Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"));
     }
 
     private CoverageBundle reconcile(

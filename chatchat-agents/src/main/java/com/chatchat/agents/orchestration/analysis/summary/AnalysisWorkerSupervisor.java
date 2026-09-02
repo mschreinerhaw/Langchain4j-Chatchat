@@ -116,11 +116,12 @@ final class AnalysisWorkerSupervisor {
     ) {
         if (result == null || !"MODEL_SUMMARY".equals(result.outcome())
             || result.content() == null || result.content().isBlank()
-            || !Boolean.TRUE.equals(result.evidence().get("structured"))
-            || !completeWorkerAnalysisReport(result)
             || traceable == null || !traceable.test(result)) {
             return false;
         }
+        // Protocol completeness is a quality grade, not proof that analysis does not exist.
+        // A readable model-authored report bound to immutable returned-record evidence remains
+        // usable as a degraded Worker product; Reducer/Driver can preserve its limitations.
         return AnalysisOutputAdmissionPolicy.admitWorkerNarrative(result.content()).admitted();
     }
 

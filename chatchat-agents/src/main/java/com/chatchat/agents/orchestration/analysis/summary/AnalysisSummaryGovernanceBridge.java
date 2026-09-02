@@ -26,6 +26,8 @@ import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,6 +45,8 @@ import java.util.concurrent.CancellationException;
  */
 public final class AnalysisSummaryGovernanceBridge
     implements DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> {
+
+    private static final Logger log = LoggerFactory.getLogger(AnalysisSummaryGovernanceBridge.class);
 
     public static final String BRIDGE_SCHEMA_VERSION =
         DataAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION;
@@ -169,6 +173,10 @@ public final class AnalysisSummaryGovernanceBridge
             safeObjective(userObjective), position, governedContext);
         Map<String, Object> recordScopeProfile = recordScopeProfiler.profile(records);
         Map<String, Object> semanticContract = semanticContractCompiler.compile(governedContext);
+        // Kept temporarily as an executable specification while downstream prompt snapshots
+        // migrate to the compact contract. The constant-false branch prevents constructing and
+        // serializing this legacy prompt at runtime.
+        if (false) {
         String prompt = "You are performing immutable record-grounded analysis under "
             + DataAnalysisContextProtocol.GOVERNANCE_VERSION + ". "
             + "Analyze only the returned records below in Chinese, prioritizing facts that answer the user's "
@@ -307,8 +315,11 @@ public final class AnalysisSummaryGovernanceBridge
             + "Analysis summary bridge position: " + ModelProtocolJson.compact(position.toMap()) + "\n"
             + "Governed analysis context: " + ModelProtocolJson.compact(governedContext) + "\n"
             + "Returned records: " + ModelProtocolJson.compact(records);
+        }
         try {
-            String modelOutput = model.generate(prompt);
+            String modelOutput = model.generate(compactWorkerPrompt(
+                userObjective, objectiveContract, semanticContract,
+                recordScopeProfile, position, governedContext, records));
             if (modelOutput != null && !modelOutput.isBlank()) {
                 EvidenceCapsule capsule = evidenceCapsule(
                     isolationScope, position, governedContext, records, modelOutput,
@@ -319,10 +330,62 @@ public final class AnalysisSummaryGovernanceBridge
             }
         } catch (CancellationException cancelled) {
             throw cancelled;
-        } catch (RuntimeException ignored) {
-            // The immutable returned-record fallback remains authoritative.
+        } catch (RuntimeException failure) {
+            // Do not log the prompt, model output or returned records. The Worker invocation
+            // already applied its retry policy; this terminal diagnostic explains why the
+            // immutable evidence fallback was produced without leaking business data.
+            log.warn("analysisWorkerSummaryUnavailable dataset={} chunk={}/{} errorType={} error={}",
+                position.datasetReference(), position.chunkIndex(), position.chunkCount(),
+                failure.getClass().getName(), safeError(failure));
         }
         return fallback(isolationScope, position, governedContext, records);
+    }
+
+    private String safeError(RuntimeException failure) {
+        String message = failure == null ? "" : failure.getMessage();
+        if (message == null || message.isBlank()) {
+            return failure == null ? "unknown model failure" : failure.getClass().getSimpleName();
+        }
+        return message.length() <= 500 ? message : message.substring(0, 500);
+    }
+
+    private String compactWorkerPrompt(String userObjective,
+                                       Map<String, Object> objectiveContract,
+                                       Map<String, Object> semanticContract,
+                                       Map<String, Object> recordScopeProfile,
+                                       DataAnalysisPosition position,
+                                       Map<String, Object> governedContext,
+                                       List<Map<String, Object>> records) {
+        return "You are the Worker in a governed business-analysis pipeline ("
+            + BRIDGE_SCHEMA_VERSION + "). Analyze the returned records in Chinese and deliver a professional "
+            + "work report, not a row inventory. Use the original question and agent_role_analysis_context to "
+            + "understand the decision goal, business scenario and relevant vocabulary. Context guides analysis "
+            + "but is not returned evidence. When analysisRepair is present, revise the prior rejected analysis "
+            + "against its supervision reasons and repair requests while reusing the supplied records; do not "
+            + "request or assume a new data query. Missing semantic sections remain unknown.\n"
+            + "Lead with findings, not row counts or metadata. Complete the dataset-level reasoning now; do not "
+            + "defer it to the Driver. Establish scope and grain, answer every supported objective aspect, connect "
+            + "related returned metrics, identify material patterns and exceptions, explain why they matter, and "
+            + "state precise evidence gaps. A value already returned by the producer at its declared grain is an "
+            + "observed fact; quoting it is OBSERVE, not AGGREGATE or DERIVE. Derived values require an explicit "
+            + "formula and semantic authorization. Calibrated inferences require caveats. Never infer undeclared "
+            + "joins, aggregation, causality, completeness or long-term behavior.\n"
+            + "Return one JSON object. Required fields: summary; demandAnalysis with decisionGoal, "
+            + "answeredQuestions and openQuestions; metricAssociations (empty when none); objectiveAlignment; "
+            + "insights; facts; conflicts; limitations; missingEvidence; recommendedFollowupRequests; "
+            + "rawReplayRecommended. Each fact cites recordRefs and exactValues. Each insight contains claimClass "
+            + "(OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE), claim, significance, "
+            + "operation, recordRefs, supportingValues, confidence and caveats. Include method, inputFields, unit, "
+            + "scope, semanticBasis and alternatives when applicable. Preserve a complete, decision-useful summary "
+            + "even when some candidate analysis remains pending validation.\n"
+            + "Original user question (authoritative analysis intent): " + safeObjective(userObjective) + "\n"
+            + "Analysis objective contract: " + ModelProtocolJson.compact(objectiveContract) + "\n"
+            + "Producer semantic contract: " + ModelProtocolJson.compact(semanticContract) + "\n"
+            + "Returned-record scope: " + ModelProtocolJson.compact(recordScopeProfile) + "\n"
+            + "Analysis position: " + ModelProtocolJson.compact(position.toMap()) + "\n"
+            + "Governed context (includes agent_role_analysis_context when configured): "
+            + ModelProtocolJson.compact(governedContext) + "\n"
+            + "Returned records: " + ModelProtocolJson.compact(records);
     }
 
     private String safeObjective(String value) {

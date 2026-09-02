@@ -86,6 +86,46 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
+    void degradedTraceableWorkerNarrativeStillReachesTheDriver() {
+        AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", governance,
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        AnalysisSummaryResult degradedWorkerReport = AnalysisSummaryResult.chunk(
+            scope,
+            Map.of("datasetReference", "customer_assets", "chunkIndex", 1),
+            Map.of(),
+            "The returned account snapshot shows 847174.25 total assets, 846262.20 in securities "
+                + "and 912.05 cash; the account is therefore almost fully invested.",
+            "MODEL_SUMMARY",
+            Map.of("structured", false, "rawReplayAvailable", true,
+                "analysisNarrativeStatus", "PRESERVED_GOVERNED_WORKER_REPORT"));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        ChatModel driver = mock(ChatModel.class);
+        when(driver.chat("prompt")).thenReturn(
+            "## Core conclusion\n\nThe returned snapshot is almost fully invested, with only 912.05 cash available.");
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                driver, "prompt", "completed", "run-a", 1, 1, 0,
+                true, () -> "fallback", candidate -> candidate, "empty fallback",
+                1, 1, true, true, true, 1, 0,
+                List.of(degradedWorkerReport), List.of(degradedWorkerReport),
+                Map.of("agentRunId", "run-a"), metadata));
+
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("almost fully invested", "912.05");
+        assertThat(metadata)
+            .containsEntry("analysisDriverModelInvoked", true)
+            .containsEntry("finalClaimPublicationContractObserved", false)
+            .containsEntry("analysisOutputAdmitted", true)
+            .doesNotContainEntry("analysisDriverModelSkipReason", "NO_ADMITTED_SEMANTIC_CLAIMS");
+        verify(driver).chat("prompt");
+    }
+
+    @Test
     void modelFailureUsesGovernedDeterministicFallbackWhenPolicyAllowsIt() {
         AnalysisSummaryGovernanceCoordinator governance = mock(AnalysisSummaryGovernanceCoordinator.class);
         AnalysisSummaryResult governed = AnalysisSummaryResult.finalSummary(
@@ -136,7 +176,7 @@ class AnalysisSynthesisCoordinatorTest {
             request(failing, metadata, candidate -> candidate, () -> rawFallback, true));
 
         assertThat(result.content())
-            .isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE)
+            .contains("分析未完成", "支撑数据", "复用已获取的数据")
             .doesNotContain("_aggregation", "可用执行结果", "toolName");
         assertThat(result.generated()).isFalse();
         assertThat(metadata)
@@ -172,7 +212,7 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> candidate, () -> "unused", true));
 
-        assertThat(result.content()).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(result.content()).contains("分析未完成", "复用已获取的数据");
         assertThat(result.generated()).isFalse();
         assertThat(metadata)
             .containsEntry("analysisOutputAdmitted", false)
@@ -238,7 +278,7 @@ class AnalysisSynthesisCoordinatorTest {
             request(model, metadata, candidate -> candidate, () -> "unused", true));
 
         assertThat(result.generated()).isFalse();
-        assertThat(result.content()).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(result.content()).contains("分析未完成", "Worker 分析", "禁止重新查询相同数据");
         assertThat(metadata)
             .containsEntry("analysisSynthesisBlocked", true)
             .containsEntry("analysisDriverModelInvoked", false)
@@ -418,7 +458,7 @@ class AnalysisSynthesisCoordinatorTest {
             claimBoundRequest(model, metadata, rejected, true));
 
         assertThat(result.generated()).isFalse();
-        assertThat(result.content()).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(result.content()).contains("分析未完成", "发布治理", "复用已获取的数据");
         assertThat(metadata)
             .containsEntry("finalClaimPublicationContractObserved", true)
             .containsEntry("finalAdmittedClaimCount", 0)

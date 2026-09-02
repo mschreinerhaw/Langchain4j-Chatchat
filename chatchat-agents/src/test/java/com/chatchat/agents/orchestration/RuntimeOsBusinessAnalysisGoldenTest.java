@@ -18,12 +18,80 @@ import org.junit.jupiter.api.Test;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Business-level release gates for the complete Runtime OS dataset-analysis path. */
 class RuntimeOsBusinessAnalysisGoldenTest {
+
+    @Test
+    void rejectedWorkerAnalysisIsRetriedFromExistingDatasetWithoutRequery() {
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AtomicInteger modelCalls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                if (modelCalls.incrementAndGet() == 1) return "MCP_TOOL_ERROR: analysis protocol unavailable";
+                assertThat(prompt).contains("analysisRepair", "reuseExistingDataset", "customer_assets");
+                return "The retained account snapshot shows total assets of 847174.25, securities "
+                    + "of 846262.20 and cash of 912.05, indicating very limited cash flexibility.";
+            }
+        };
+        AgentOrchestrator orchestrator = orchestrator(model, runStore, 1);
+        InterpretationPlanRuntime.ExecutionResult result = execution(List.of(
+            dataset(1, "customer_assets", Map.of(
+                "CUSTOMER_ID", "070200046604", "TOTAL_ASSET", 847174.25,
+                "SECURITY_VALUE", 846262.20, "CASH", 912.05))));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "agentRunId", "automatic-reanalysis-golden"));
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "Analyze the customer's asset structure", result,
+            Map.of("__agentRunId", "automatic-reanalysis-golden"), metadata, () -> false);
+
+        assertThat(modelCalls.get()).isEqualTo(2);
+        assertThat(coverage.synthesisInputs()).isNotEmpty();
+        assertThat(metadata)
+            .containsEntry("analysisAutomaticReanalysisTriggered", true)
+            .containsEntry("analysisAutomaticReanalysisCompleted", true)
+            .containsEntry("analysisAutomaticReanalysisRecovered", true)
+            .containsEntry("analysisReuseExistingDataset", true)
+            .containsEntry("analysisDataRequeryAllowed", false);
+    }
+
+    @Test
+    void traceableWorkerNarrativeContinuesThroughThePipelineWhenJsonProtocolIsIncomplete() {
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String prompt) {
+                return "The account has total assets of 847174.25, security value of 846262.20 "
+                    + "and only 912.05 in cash, so the returned snapshot is heavily invested.";
+            }
+        };
+        AgentOrchestrator orchestrator = orchestrator(model, runStore, 1);
+        InterpretationPlanRuntime.ExecutionResult result = execution(List.of(
+            dataset(1, "customer_assets", Map.of(
+                "CUSTOMER_ID", "070200046604", "TOTAL_ASSET", 847174.25,
+                "SECURITY_VALUE", 846262.20, "CASH", 912.05))));
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "agentRunId", "degraded-analysis-golden"));
+
+        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+            model, "Analyze the customer's asset structure", result,
+            Map.of("__agentRunId", "degraded-analysis-golden"), metadata, () -> false);
+
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.summaryResults()).isNotEmpty();
+        assertThat(coverage.synthesisInputs()).isNotEmpty();
+        assertThat(metadata)
+            .containsEntry("analysisSynthesisBarrierReady", true)
+            .containsEntry("analysisSynthesisBarrierStatus", "READY");
+        assertThat(metadata.get("analysisWorkerSupervision").toString())
+            .contains("ANALYSIS_DEGRADED", "acceptedForSynthesis=true");
+    }
 
     @Test
     void customerProfileWaitsForAndAnalyzesEveryReturnedBusinessDataset() {

@@ -233,8 +233,19 @@
             </div>
           </section>
         </div>
+        <details
+          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && isSupportingDatasetVisualization(message.visualizationSpec)"
+          class="supporting-dataset-attachment"
+          :open="message.visualizationSpec?.ui?.defaultCollapsed === false"
+        >
+          <summary>支撑数据（证据附件）</summary>
+          <VisualizationRenderer
+            :spec="message.visualizationSpec"
+            @drill-down="handleVisualizationDrillDown(message, $event)"
+          />
+        </details>
         <VisualizationRenderer
-          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming"
+          v-else-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming"
           :spec="message.visualizationSpec"
           @drill-down="handleVisualizationDrillDown(message, $event)"
         />

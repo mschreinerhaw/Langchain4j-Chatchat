@@ -221,6 +221,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                 "non_empty_mcp_result_with_empty_answer");
         }
         Map<String, Object> visualizationSpec = userFacingPolicy.toolResultVisualizationSpec(traces);
+        if (!visualizationSpec.isEmpty()
+            && Boolean.FALSE.equals(values.get("supportingDatasetPrimaryDisplayAllowed"))) {
+            visualizationSpec = supportingDatasetSpec(visualizationSpec,
+                Boolean.TRUE.equals(values.get("supportingDatasetDefaultCollapsed")));
+        }
         if (!visualizationSpec.isEmpty()) {
             values.putIfAbsent("visualizationSpec", visualizationSpec);
             values.putIfAbsent("dataVisualization", visualizationSpec);
@@ -1638,6 +1643,19 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             }
         });
         return result;
+    }
+
+    private Map<String, Object> supportingDatasetSpec(Map<String, Object> source,
+                                                      boolean defaultCollapsed) {
+        Map<String, Object> spec = new LinkedHashMap<>(source);
+        Map<String, Object> ui = new LinkedHashMap<>(objectMap(spec.get("ui")));
+        ui.put("channel", "supporting_dataset");
+        ui.put("role", "evidence_attachment");
+        ui.put("primaryDisplay", false);
+        ui.put("defaultCollapsed", defaultCollapsed);
+        spec.put("ui", Map.copyOf(ui));
+        spec.put("presentationChannel", "supporting_dataset");
+        return Map.copyOf(spec);
     }
 
     private Object firstPresent(Object first, Object second) {

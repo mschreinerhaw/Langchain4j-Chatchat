@@ -56,7 +56,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             && prompt.contains("recordFrom\":51")
             && prompt.contains("recordTo\":75")
             && prompt.contains("Identify position concentration risk")
-            && prompt.contains("objective-relevant findings"))))
+            && prompt.contains("professional work report"))))
             .thenReturn("第 2 分块总结");
         Map<String, Object> context = bridge.govern("positions", Map.of(
                 AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, AgentRoleAnalysisContext.create(
@@ -82,10 +82,8 @@ class AnalysisSummaryGovernanceBridgeTest {
             .contains("analysis_summary_bridge.v1", "summary_governance.v1", "第 2 分块总结");
         verify(model).chat(argThat((String prompt) -> prompt.contains("Missing semantic sections remain unknown")
             && prompt.contains("Lead with findings, not row counts or metadata")
-            && prompt.contains("already returned by the producer at the declared record grain is an observed fact")
-            && prompt.contains("quoting that value is OBSERVE, not AGGREGATE or DERIVE")
-            && prompt.contains("self-contained, decision-useful conclusion")
-            && prompt.contains("When agent_role_analysis_context is present")
+            && prompt.contains("observed fact; quoting it is OBSERVE, not AGGREGATE or DERIVE")
+            && prompt.contains("agent_role_analysis_context")
             && prompt.contains("Analyze service quality")
             && prompt.contains("Daily review")));
     }
@@ -101,19 +99,14 @@ class AnalysisSummaryGovernanceBridgeTest {
                 && prompt.contains("analysis_objective_contract.v1")
                 && prompt.contains("professional_data_analysis.v1")
                 && prompt.contains("professional_analysis_depth.v1")
-                && prompt.contains("A list of values, configuration facts, record counts")
                 && prompt.contains("CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE")
                 && prompt.contains("analysis_semantic_contract.v1")
                 && prompt.contains("analysis_record_scope_profile.v1")
                 && prompt.contains("DO_NOT_INFER_UNDECLARED_AGGREGATION_OR_RELATIONSHIPS")
                 && prompt.contains("STRUCTURAL_STATISTICS_ONLY_NO_SEMANTIC_INFERENCE")
-                && prompt.contains("never infer or change any of those semantics")
-                && prompt.contains("semantic decision context")
                 && prompt.contains("demandAnalysis")
                 && prompt.contains("metricAssociations")
-                && prompt.contains("PENDING_VALIDATION")
-                && prompt.contains("Worker responsible for completing the analysis")
-                && prompt.contains("Do not defer dataset-level reasoning"))))
+                && prompt.contains("Complete the dataset-level reasoning now"))))
             .thenReturn("""
                 {"summary":"规模上升","objectiveAlignment":{"addressedAspects":["规模"],
                 "unsupportedAspects":["精确净资金流"],"contribution":"规模变化仅作为代理指标"},

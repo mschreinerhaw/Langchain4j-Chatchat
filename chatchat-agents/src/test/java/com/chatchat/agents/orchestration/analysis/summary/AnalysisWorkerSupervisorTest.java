@@ -106,7 +106,7 @@ class AnalysisWorkerSupervisorTest {
     }
 
     @Test
-    void rejectsUnstructuredNarrativeAndRuntimeProtocolText() {
+    void degradesTraceableUnstructuredNarrativeButRejectsRuntimeProtocolText() {
         AnalysisSummaryResult narrative = chunk(
             "MODEL_SUMMARY", "customer assets were analyzed", Map.of("evidenceId", "evidence-1"));
         AnalysisSummaryResult protocol = chunk(
@@ -118,16 +118,16 @@ class AnalysisWorkerSupervisorTest {
             "dataset-a", 1, outcome(dataset(protocol, "SUCCESS")), ignored -> true);
 
         assertThat(narrativeReport.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
-        assertThat(narrativeReport.acceptedForSynthesis()).isFalse();
-        assertThat(narrativeReport.reasons()).contains("ANALYSIS_PROTOCOL_NOT_SATISFIED");
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_DEGRADED);
+        assertThat(narrativeReport.acceptedForSynthesis()).isTrue();
+        assertThat(narrativeReport.reasons()).contains("ANALYSIS_PROTOCOL_DEGRADED");
         assertThat(rejected.productStatus())
             .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
         assertThat(rejected.acceptedForSynthesis()).isFalse();
     }
 
     @Test
-    void rejectsStructuredWorkerOutputWithoutDemandAndMetricAssessment() {
+    void degradesStructuredWorkerOutputWithoutDemandAndMetricAssessment() {
         AnalysisSummaryResult incomplete = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
@@ -142,9 +142,9 @@ class AnalysisWorkerSupervisorTest {
             "dataset-a", 1, outcome(dataset(incomplete, "SUCCESS")), ignored -> true);
 
         assertThat(report.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
-        assertThat(report.acceptedForSynthesis()).isFalse();
-        assertThat(report.reasons()).contains("WORKER_ANALYSIS_REPORT_INCOMPLETE");
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_DEGRADED);
+        assertThat(report.acceptedForSynthesis()).isTrue();
+        assertThat(report.reasons()).contains("ANALYSIS_PROTOCOL_DEGRADED");
     }
 
     private AnalysisDispatchCoordinator.Outcome outcome(AnalysisDatasetSummary summary) {

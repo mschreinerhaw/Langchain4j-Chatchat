@@ -179,6 +179,11 @@ export default {
     this.codeCopyResetTimers.clear();
   },
   methods: {
+    isSupportingDatasetVisualization(spec = {}) {
+      return spec?.presentationChannel === "supporting_dataset"
+        || spec?.ui?.channel === "supporting_dataset"
+        || spec?.ui?.role === "evidence_attachment";
+    },
     toolCallMessageKey(message = {}) {
       return String(message.id || message.taskId || message.runId || "");
     },

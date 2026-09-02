@@ -13,8 +13,8 @@ import java.util.Locale;
 final class AnalysisOutputAdmissionPolicy {
 
     static final String WITHHELD_MESSAGE =
-        "本轮数据已获取，但分析过程未能完成，因此没有生成可发布的结论。"
-            + "请稍后重试；已获取的数据不会被当作分析结论直接展示。";
+        "本轮数据获取已完成，但分析结果未达到发布条件。系统未发布未经证据支持的判断；"
+            + "已有数据已保留，可继续用于后续分析。";
 
     private static final List<String> ENVELOPE_MARKERS = List.of(
         "\"_aggregation\"", "\"_fieldcount\"", "\"_assessmentcapability\"",

@@ -17,6 +17,17 @@ function render(source) {
 }
 
 describe("tool execution evidence", () => {
+  it("recognizes supporting datasets as evidence attachments", () => {
+    expect(methods.isSupportingDatasetVisualization({
+      presentationChannel: "supporting_dataset",
+      ui: { role: "evidence_attachment", defaultCollapsed: true }
+    })).toBe(true);
+    expect(methods.isSupportingDatasetVisualization({
+      type: "table",
+      ui: { defaultView: "table" }
+    })).toBe(false);
+  });
+
   it("hides numbered web citation markers in dynamic report answers", () => {
     const markdownHtml = renderArtifactMarkdownHtml(
       "关注行业数据 [网页7][网页8]。\n\n风险提示 [网页3]。"

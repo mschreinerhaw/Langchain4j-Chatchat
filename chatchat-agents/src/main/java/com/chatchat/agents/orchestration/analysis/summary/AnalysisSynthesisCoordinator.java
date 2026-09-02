@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.analysis.summary;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisExecutionOutcome;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
@@ -121,8 +122,10 @@ public final class AnalysisSynthesisCoordinator {
             request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
             request.metadata().put("interpretationPlanSummaryGenerated", false);
             request.metadata().put("interpretationPlanFinalResultProduced", false);
+            AnalysisExecutionOutcome executionOutcome = blockedOutcome(
+                request, "DRIVER_SYNTHESIS_BARRIER_BLOCKED", false);
             return new FinalSynthesisResult(
-                AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE, null, false);
+                executionOutcome.failureReport(), null, false);
         }
         long startedAt = System.currentTimeMillis();
         // The Driver consumes the final Worker/Reducer reports. Chunk-level products remain
@@ -166,8 +169,10 @@ public final class AnalysisSynthesisCoordinator {
             request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
             request.metadata().put("interpretationPlanSummaryGenerated", false);
             request.metadata().put("interpretationPlanFinalResultProduced", false);
+            AnalysisExecutionOutcome executionOutcome = blockedOutcome(
+                request, "NO_ADMITTED_SEMANTIC_CLAIMS", true);
             return new FinalSynthesisResult(
-                AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE, null, false);
+                executionOutcome.failureReport(), null, false);
         }
         String modelPrompt = claimBoundPublication
             ? finalClaimContract.appendSelectionInstruction(request.prompt(), claimCompilation)
@@ -247,10 +252,14 @@ public final class AnalysisSynthesisCoordinator {
         request.metadata().put("analysisOutputAdmissionReason", admission.reason());
         request.metadata().put("analysisOutputAdmitted", admission.admitted());
         if (!admission.admitted()) {
-            answer = AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
+            AnalysisExecutionOutcome executionOutcome = blockedOutcome(
+                request, admission.reason(), true);
+            answer = executionOutcome.failureReport();
             outcome = "ANALYSIS_OUTPUT_WITHHELD";
             request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
             request.metadata().put("rawAnalysisOutputWithheld", true);
+        } else {
+            recordCompletedOutcome(request);
         }
         AnalysisSummaryResult governed = finalizeSummary(request.governance(answer, outcome));
         List<String> publishedClaimIds = strings(request.metadata().get("finalPublishedClaimIds"));
@@ -453,7 +462,143 @@ public final class AnalysisSynthesisCoordinator {
         request.metadata().put("analysisOutputAdmissionReason", reason);
         request.metadata().put("analysisOutputAdmitted", false);
         request.metadata().put("rawAnalysisOutputWithheld", true);
+        request.metadata().put("returnedDataAnalysisRequired", true);
+        request.metadata().put("supportingDatasetPrimaryDisplayAllowed", false);
+        request.metadata().put("supportingDatasetDefaultCollapsed", true);
         request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+    }
+
+    private void recordCompletedOutcome(FinalModelSynthesisRequest request) {
+        boolean complete = request.coverageComplete() && request.evidenceTraceComplete()
+            && request.sourceContentComplete();
+        AnalysisExecutionOutcome outcome = new AnalysisExecutionOutcome(
+            AnalysisExecutionOutcome.SCHEMA_VERSION,
+            complete ? AnalysisExecutionOutcome.ExecutionStatus.COMPLETED
+                : AnalysisExecutionOutcome.ExecutionStatus.PARTIALLY_COMPLETED,
+            AnalysisExecutionOutcome.FailureCategory.NONE,
+            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
+            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
+            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
+            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
+            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
+            unresolvedGaps(request.metadata(), request.synthesisInputs()),
+            AnalysisExecutionOutcome.RetryDirective.none(),
+            AnalysisExecutionOutcome.Publishability.PUBLISHABLE_ANALYSIS,
+            complete ? "ANALYSIS_COMPLETED" : "ANALYSIS_COMPLETED_WITH_LIMITATIONS");
+        request.metadata().put("analysisExecutionOutcome", outcome.toMap());
+        request.metadata().put("analysisExecutionOutcomeSchemaVersion",
+            AnalysisExecutionOutcome.SCHEMA_VERSION);
+        request.metadata().put("analysisExecutionStatus", outcome.status().name());
+        request.metadata().put("analysisFailureCategory", outcome.failureCategory().name());
+        request.metadata().put("analysisReportChannel", "analysis_report");
+        request.metadata().putIfAbsent("supportingDatasetChannel", "supporting_dataset");
+    }
+
+    private AnalysisExecutionOutcome blockedOutcome(FinalModelSynthesisRequest request,
+                                                     String reason,
+                                                     boolean governanceReached) {
+        List<Map<String, Object>> gaps = unresolvedGaps(request.metadata(), request.synthesisInputs());
+        boolean dataAvailable = request.returnedRecordCount() > 0;
+        boolean workersAccepted = number(request.metadata().get("analysisAcceptedWorkerCount")) > 0
+            || !request.summaryResults().isEmpty();
+        boolean reducersAccepted = !request.synthesisInputs().isEmpty();
+        AnalysisExecutionOutcome.ExecutionStatus status;
+        AnalysisExecutionOutcome.FailureCategory category;
+        AnalysisExecutionOutcome.RetryDirective retry;
+        if (!dataAvailable) {
+            status = AnalysisExecutionOutcome.ExecutionStatus.EXECUTION_FAILED;
+            category = AnalysisExecutionOutcome.FailureCategory.DATA_FAILURE;
+            retry = AnalysisExecutionOutcome.RetryDirective.none();
+        } else if (!gaps.isEmpty()) {
+            status = AnalysisExecutionOutcome.ExecutionStatus.NEEDS_MORE_EVIDENCE;
+            category = AnalysisExecutionOutcome.FailureCategory.EVIDENCE_GAP;
+            retry = new AnalysisExecutionOutcome.RetryDirective(
+                "PLAN_GAP_RETRIEVAL", "GAP_PLANNER", true, true, 1);
+        } else {
+            status = AnalysisExecutionOutcome.ExecutionStatus.NEEDS_REANALYSIS;
+            category = governanceReached
+                ? AnalysisExecutionOutcome.FailureCategory.GOVERNANCE_REJECTION
+                : AnalysisExecutionOutcome.FailureCategory.ANALYSIS_FAILURE;
+            retry = new AnalysisExecutionOutcome.RetryDirective(
+                "RETRY_ANALYSIS", workersAccepted ? "REDUCER_REVIEW" : "WORKER_ANALYSIS",
+                true, false, 1);
+        }
+        AnalysisExecutionOutcome executionOutcome = new AnalysisExecutionOutcome(
+            AnalysisExecutionOutcome.SCHEMA_VERSION, status, category,
+            dataAvailable ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
+                : AnalysisExecutionOutcome.PhaseStatus.FAILED,
+            workersAccepted ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
+                : AnalysisExecutionOutcome.PhaseStatus.REJECTED,
+            reducersAccepted ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
+                : AnalysisExecutionOutcome.PhaseStatus.BLOCKED,
+            AnalysisExecutionOutcome.PhaseStatus.BLOCKED,
+            governanceReached ? AnalysisExecutionOutcome.PhaseStatus.REJECTED
+                : AnalysisExecutionOutcome.PhaseStatus.NOT_STARTED,
+            gaps, retry, AnalysisExecutionOutcome.Publishability.GOVERNED_FAILURE_REPORT_ONLY,
+            reason);
+        request.metadata().put("analysisExecutionOutcome", executionOutcome.toMap());
+        request.metadata().put("analysisExecutionOutcomeSchemaVersion",
+            AnalysisExecutionOutcome.SCHEMA_VERSION);
+        request.metadata().put("analysisExecutionStatus", executionOutcome.status().name());
+        request.metadata().put("analysisFailureCategory", executionOutcome.failureCategory().name());
+        request.metadata().put("analysisRetryDirective", executionOutcome.retryDirective().toMap());
+        request.metadata().put("analysisReuseExistingDataset", retry.reuseExistingDataset());
+        request.metadata().put("analysisDataRequeryAllowed", retry.dataAcquisitionAllowed());
+        request.metadata().put("returnedDataAnalysisRequired", dataAvailable);
+        request.metadata().put("rawAnalysisOutputWithheld", dataAvailable);
+        request.metadata().put("supportingDatasetChannel", "supporting_dataset");
+        request.metadata().put("supportingDatasetPrimaryDisplayAllowed", false);
+        request.metadata().put("supportingDatasetDefaultCollapsed", true);
+        return executionOutcome;
+    }
+
+    private List<Map<String, Object>> unresolvedGaps(
+        Map<String, Object> metadata,
+        List<AnalysisSummaryResult> reports
+    ) {
+        LinkedHashMap<String, Map<String, Object>> gaps = new LinkedHashMap<>();
+        for (String key : List.of("analysisGapRequests", "semanticClaimGapRequests", "gapRequests")) {
+            for (Map<String, Object> gap : maps(metadata == null ? null : metadata.get(key))) {
+                gaps.putIfAbsent(gapKey(gap), gap);
+            }
+        }
+        if (reports != null) {
+            for (AnalysisSummaryResult report : reports) {
+                if (report == null || report.evidence() == null) continue;
+                for (String key : List.of("semanticGapRequests", "analysisDepthGapRequests")) {
+                    for (Map<String, Object> gap : maps(report.evidence().get(key))) {
+                        gaps.putIfAbsent(gapKey(gap), gap);
+                    }
+                }
+            }
+        }
+        return List.copyOf(gaps.values());
+    }
+
+    private String gapKey(Map<String, Object> gap) {
+        Object id = gap.get("requestId");
+        if (id == null) id = gap.get("questionId");
+        if (id == null) id = gap.get("gapId");
+        return id == null || String.valueOf(id).isBlank()
+            ? ModelProtocolJson.sha256Hex(gap) : String.valueOf(id);
+    }
+
+    private int number(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return value == null ? 0 : Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private List<Map<String, Object>> maps(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) return List.of();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : iterable) {
+            if (item instanceof Map<?, ?> source) result.add(map(source));
+        }
+        return List.copyOf(result);
     }
 
     private boolean containsAnyConcreteValue(String answer, List<String> values) {

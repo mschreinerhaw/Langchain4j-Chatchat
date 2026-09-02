@@ -610,6 +610,47 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void failedAnalysisPublishesStatusAndKeepsRowsAsCollapsedSupportingDataset() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            (chatModel, query, systemPrompt, observations, answer) ->
+                new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("api_template_execute")
+            .success(true)
+            .output("{\"columns\":[\"customerId\",\"asset\"],\"rows\":["
+                + "{\"customerId\":\"070200046604\",\"asset\":847174.25}]}")
+            .build();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("returnedDataAnalysisRequired", true);
+        metadata.put("rawAnalysisOutputWithheld", true);
+        metadata.put("supportingDatasetPrimaryDisplayAllowed", false);
+        metadata.put("supportingDatasetDefaultCollapsed", true);
+        metadata.put("analysisExecutionStatus", "NEEDS_REANALYSIS");
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "# 分析未完成\n\n已有数据已保留，将复用已有数据重新执行 Worker 分析。",
+            List.of(trace), metadata, List.of("analysis did not pass governance"));
+
+        assertThat(result.answer())
+            .contains("分析未完成", "复用已有数据")
+            .doesNotContain("查询结果明细", "customerId", "847174.25");
+        assertThat(result.metadata())
+            .containsEntry("toolResultDataMarkdownSuppressed", true)
+            .containsEntry("toolResultPresentationMode", "structured_visualization");
+        Map<String, Object> visualization =
+            (Map<String, Object>) result.metadata().get("visualizationSpec");
+        assertThat(visualization)
+            .containsEntry("presentationChannel", "supporting_dataset");
+        assertThat((Map<String, Object>) visualization.get("ui"))
+            .containsEntry("role", "evidence_attachment")
+            .containsEntry("primaryDisplay", false)
+            .containsEntry("defaultCollapsed", true);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void apiOutputSchemaDescriptionsDoNotReplaceReturnedFieldNames() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->

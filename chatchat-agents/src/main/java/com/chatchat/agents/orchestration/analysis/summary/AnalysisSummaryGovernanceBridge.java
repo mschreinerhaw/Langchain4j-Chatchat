@@ -13,6 +13,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.analysis.semantic.CapabilityEvidenceClaimContract;
 import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimAdmissionPolicy;
@@ -277,6 +278,9 @@ public final class AnalysisSummaryGovernanceBridge
             + "\"priority\":\"CORE|SUPPORTING\",\"reason\":\"\"}],"
             + "\"rawReplayRecommended\":false}. "
             + "Every fact must cite an in-range record reference and at least one exact returned value. "
+            + "Every objective-relevant returned metric or state mentioned in summary, demandAnalysis or "
+            + "businessConclusions must also appear in facts with its record reference and exact value; never leave "
+            + "a supported requested dimension only in free text. "
             + "Cover every returned record with at least one fact reference; a range reference is valid only when "
             + "the stated fact and exact values are genuinely supported within that complete range. "
             + "Set rawReplayRecommended=true when ambiguity, conflict, an incomplete source, or a relationship "
@@ -436,6 +440,7 @@ public final class AnalysisSummaryGovernanceBridge
         Map<String, Object> evidence = new LinkedHashMap<>(rawEvidence(
             isolationScope, position, governedContext, records, structured, false));
         evidence.put("facts", List.copyOf(facts));
+        evidence.put("observedFactClaims", observedFactClaims(position, facts));
         evidence.put("entities", maps(payload.get("entities")));
         evidence.put("crossChunkKeys", strings(payload.get("crossChunkKeys")));
         evidence.put("conflicts", strings(payload.get("conflicts")));
@@ -508,6 +513,38 @@ public final class AnalysisSummaryGovernanceBridge
         String contribution = string(source.get("contribution"));
         if (contribution != null) result.put("contribution", contribution);
         return Collections.unmodifiableMap(result);
+    }
+
+    /**
+     * Turns only already validated, directly returned facts into publishable observation Claims.
+     * This does not derive, aggregate or infer anything and therefore needs no business hardcoding.
+     */
+    private List<Map<String, Object>> observedFactClaims(DataAnalysisPosition position,
+                                                          List<Map<String, Object>> facts) {
+        if (facts == null || facts.isEmpty()) return List.of();
+        List<Map<String, Object>> claims = new ArrayList<>();
+        for (Map<String, Object> fact : facts) {
+            String claim = string(fact.get("claim"));
+            List<String> recordRefs = strings(fact.get("recordRefs"));
+            List<String> supportingValues = strings(fact.get("exactValues"));
+            if (claim == null || claim.isBlank() || recordRefs.isEmpty()
+                || supportingValues.isEmpty()) continue;
+            String claimId = "observed-fact:" + DataAnalysisLayerGovernanceContract.fingerprint(
+                List.of(position.datasetReference(), claim,
+                    recordRefs.stream().sorted().toList(),
+                    supportingValues.stream().sorted().toList()));
+            claims.add(Map.of(
+                "claimId", claimId,
+                "claim", claim,
+                "claimClass", "OBSERVED_RETURNED_FACT",
+                "operation", "OBSERVE",
+                "recordRefs", recordRefs,
+                "supportingValues", supportingValues,
+                "confidence", "HIGH",
+                "significance", "Validated returned observation relevant to the analysis objective.",
+                "caveats", List.of()));
+        }
+        return List.copyOf(claims);
     }
 
     private Map<String, Object> demandAnalysis(Object value) {

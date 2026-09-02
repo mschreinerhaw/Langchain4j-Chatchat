@@ -168,6 +168,31 @@ class GovernedFinalClaimContractTest {
         assertThat(projection.markdown()).doesNotContain("无依据的问题判断");
     }
 
+    @Test
+    void publishesValidatedObservedFactsEvenWhenWorkerProducedNoInsight() {
+        AnalysisSummaryResult factsOnly = AnalysisSummaryResult.chunk(
+            GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
+            Map.of("datasetReference", "account-overview", "chunkIndex", 1), Map.of(),
+            "Account metrics were observed.", "MODEL_SUMMARY", Map.of(
+                "observedFactClaims", List.of(Map.of(
+                    "claimId", "observed-fact:asset",
+                    "claim", "Total assets are 847174.25 and current-day profit is 42263.81",
+                    "claimClass", "OBSERVED_RETURNED_FACT",
+                    "recordRefs", List.of("account-overview.records[1]"),
+                    "supportingValues", List.of("847174.25", "42263.81"),
+                    "confidence", "HIGH", "caveats", List.of()))));
+
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(factsOnly));
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["observed-fact:asset"],"sections":[]}
+            """, compilation);
+
+        assertThat(compilation.active()).isTrue();
+        assertThat(compilation.claimContractObserved()).isTrue();
+        assertThat(projection.markdown()).contains("847174.25", "42263.81");
+    }
+
     private AnalysisSummaryResult summary() {
         return AnalysisSummaryResult.chunk(
             GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),

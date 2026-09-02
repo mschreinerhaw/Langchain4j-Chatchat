@@ -362,6 +362,9 @@ class AnalysisSummaryGovernanceBridgeTest {
             .containsEntry("citedRecordCount", 1)
             .containsEntry("factRecordCoverageComplete", true)
             .containsEntry("rejectedFactCount", 0);
+        assertThat(result.evidence().get("observedFactClaims").toString())
+            .contains("observed-fact:", "OBSERVED_RETURNED_FACT", "supportingValues=[12000]",
+                "operation=OBSERVE");
         assertThat(String.valueOf(result.evidence().get("contentSha256"))).hasSize(64);
         assertThat(result.evidence().toString())
             .contains("positions.records[1]", "MARKET_VALUE 为 12000", "exactValues=[12000]")

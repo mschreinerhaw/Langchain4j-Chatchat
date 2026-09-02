@@ -43,6 +43,31 @@ class AnalysisWorkerSupervisorTest {
     }
 
     @Test
+    void acceptsFactOnlyWorkerReportAfterExactValueValidation() {
+        AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "Observed account metrics", Map.of(
+            "structured", true,
+            "evidenceId", "evidence-1",
+            "analysisDecisionOperatingModelVersion", "data_analysis_decision_operating_model.v1",
+            "analysisParticipantRole", "WORKER",
+            "workerAnalysisReportSchemaVersion", "worker_analysis_report.v1",
+            "workerDemandAnalysisComplete", true,
+            "workerMetricAssociationAssessmentDeclared", true,
+            "rejectedFactCount", 0,
+            "rejectedInsightCount", 0,
+            "observedFactClaims", List.of(Map.of(
+                "claimId", "observed-fact:asset", "claim", "Total assets are 847174.25",
+                "recordRefs", List.of("dataset-a.records[1]"),
+                "supportingValues", List.of("847174.25")))));
+
+        DataAnalysisWorkerSupervision.WorkerReport report = supervisor.inspect(
+            "dataset-a", 1, outcome(dataset(chunk, "SUCCESS")), ignored -> true);
+
+        assertThat(report.productStatus())
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+        assertThat(report.acceptedForSynthesis()).isTrue();
+    }
+
+    @Test
     void degradesWorkerProductWhenAnyProposedClaimWasRejected() {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,

@@ -6,6 +6,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryCheckpointService;
 import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.summary.AnalysisReportLogProjection;
 
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
@@ -195,6 +196,10 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
                 "workerRetryCount", Math.max(0, attemptCount.get() - 1),
                 "workerMaximumRetries", task.maximumRetries(),
                 "workerMaximumAttempts", task.maximumAttempts()));
+            log.info("analysisWorkerReport runId={} taskId={} dataset={} chunk={}/{} report={}",
+                task.isolationScope().runId(), task.taskId(), task.datasetReference(),
+                position.chunkIndex(), position.chunkCount(),
+                ModelProtocolJson.compact(AnalysisReportLogProjection.project("WORKER", summary)));
             chunks.add(new AnalysisDatasetSummary.ChunkResult(
                 summary, spillReference, checkpointInputSha256, restoredCheckpoint,
                 attemptCount.get()));
@@ -325,20 +330,12 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
             phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
             chunkIndex, chunkCount, attempt, task.maximumAttempts(),
             model.getClass().getName(), prompt == null ? 0 : prompt.length());
-        log.debug("analysisWorkerModelPrompt phase={} runId={} taskId={} dataset={} "
-                + "chunk={}/{} attempt={} prompt=\n{}",
-            phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
-            chunkIndex, chunkCount, attempt, ModelProtocolJson.prettyJsonForLog(prompt));
         String response = model.chat(prompt);
         log.info("analysisWorkerModelResponse phase={} runId={} taskId={} dataset={} "
                 + "chunk={}/{} attempt={} durationMs={} responseChars={}",
             phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
             chunkIndex, chunkCount, attempt, System.currentTimeMillis() - startedAt,
             response == null ? 0 : response.length());
-        log.info("analysisWorkerModelOutput phase={} runId={} taskId={} dataset={} "
-                + "chunk={}/{} attempt={} summary=\n{}",
-            phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
-            chunkIndex, chunkCount, attempt, ModelProtocolJson.prettyJsonForLog(response));
         return requireResponse(response, source);
     }
 

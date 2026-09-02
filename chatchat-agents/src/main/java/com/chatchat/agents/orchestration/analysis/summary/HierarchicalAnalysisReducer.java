@@ -15,6 +15,8 @@ import com.chatchat.common.runtime.summary.analysis.DataAnalysisWork;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,6 +34,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
 
     public static final String SCHEMA_VERSION = "hierarchical_analysis_reduce.v1";
     private static final int MAX_SUMMARY_INPUT_CHARS = 24_000;
+    private static final Logger log = LoggerFactory.getLogger(HierarchicalAnalysisReducer.class);
 
     public Result reduce(ModelSummaryModel model,
                          GovernanceIsolationScope isolationScope,
@@ -174,7 +177,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             : chunks.size() == 1 ? first.content() : deterministicMerge(chunks);
         boolean fallback = content == null || content.isBlank();
         if (fallback) content = deterministicMerge(chunks);
-        return AnalysisSummaryResult.intermediateSummary(
+        AnalysisSummaryResult result = AnalysisSummaryResult.intermediateSummary(
             scope,
             "DATASET_SYNTHESIS",
             "dataset-summary#" + dataset,
@@ -194,6 +197,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                     DataAnalysisDecisionOperatingModel.ParticipantRole.REDUCER.name(),
                 "managementReviewInput", true))
         );
+        log.info("analysisReducerReport layer=REDUCER scope=DATASET dataset={} report={}",
+            dataset, ModelProtocolJson.compact(AnalysisReportLogProjection.project("REDUCER", result)));
+        return result;
     }
 
     private AnalysisSummaryResult reduceGroup(ModelSummaryModel model,
@@ -220,7 +226,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             Collections.unmodifiableMap(reduceContext));
         boolean fallback = content == null || content.isBlank();
         if (fallback) content = deterministicMerge(inputs);
-        return AnalysisSummaryResult.intermediateSummary(
+        AnalysisSummaryResult result = AnalysisSummaryResult.intermediateSummary(
             scope,
             "RELATIONSHIP_GROUP_SYNTHESIS",
             "relationship-summary#" + group.groupId(),
@@ -239,12 +245,16 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                 "managementReviewInput", true,
                 "authorizedRelationships", groupEdges))
         );
+        log.info("analysisReducerReport layer=REDUCER scope=RELATIONSHIP_GROUP groupId={} report={}",
+            group.groupId(), ModelProtocolJson.compact(
+                AnalysisReportLogProjection.project("REDUCER", result)));
+        return result;
     }
 
     private Map<String, Object> hierarchyEvidence(List<AnalysisSummaryResult> inputs,
                                                   Map<String, Object> additions) {
         Map<String, Object> evidence = new LinkedHashMap<>(additions);
-        for (String key : List.of("facts", "insights", "claimLifecycle", "claimAdmissionDecisions", "semanticGaps",
+        for (String key : List.of("facts", "observedFactClaims", "insights", "claimLifecycle", "claimAdmissionDecisions", "semanticGaps",
             "semanticGapRequests",
             "entities", "crossChunkKeys",
             "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract",
@@ -306,7 +316,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "between observed facts, authorized derived measures and calibrated inferences; retain formulas, supporting "
             + "values, validated semanticBasis, confidence and alternative explanations. Treat evidence.insights as "
             + "the only admitted analytical claims: never recreate a calculation or inference omitted by validation, "
-            + "and never recover rejected claims from free-text content. Resolve contradictory claims when evidence permits, "
+            + "and never recover rejected claims from free-text content. evidence.observedFactClaims contains facts "
+            + "that already passed exact returned-value validation; preserve them as OBSERVED_RETURNED_FACT claims "
+            + "without recalculation, aggregation or inference. Resolve contradictory claims when evidence permits, "
             + "otherwise surface the conflict once. Reconcile upstream analysisDepth coverage against the objective mode. "
             + "Do not accept a data inventory, generic risk list or generic recommendation as a diagnosis. A diagnostic "
             + "or decision conclusion must connect an admitted observation to an authorized baseline or comparison, a "
@@ -350,6 +362,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("analysisObjectiveContract",
             summary.evidence().getOrDefault("analysisObjectiveContract", Map.of()));
         result.put("facts", summary.evidence().getOrDefault("facts", List.of()));
+        result.put("observedFactClaims",
+            summary.evidence().getOrDefault("observedFactClaims", List.of()));
         result.put("insights", summary.evidence().getOrDefault("insights", List.of()));
         result.put("claimAdmissionDecisions",
             summary.evidence().getOrDefault("claimAdmissionDecisions", List.of()));

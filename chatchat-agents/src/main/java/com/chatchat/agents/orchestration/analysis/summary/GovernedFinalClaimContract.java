@@ -38,7 +38,8 @@ final class GovernedFinalClaimContract {
                 // evaluated, while an empty list must not turn ordinary document/workflow answers
                 // into a governed data-analysis publication.
                 claimContractObserved = claimContractObserved
-                    || !maps(summary.evidence().get("claimAdmissionDecisions")).isEmpty();
+                    || !maps(summary.evidence().get("claimAdmissionDecisions")).isEmpty()
+                    || !maps(summary.evidence().get("observedFactClaims")).isEmpty();
                 boolean admissionDecisionsDeclared =
                     !maps(summary.evidence().get("claimAdmissionDecisions")).isEmpty();
                 Set<String> explicitlyAdmitted = admittedClaimIds(summary.evidence());
@@ -59,6 +60,19 @@ final class GovernedFinalClaimContract {
                         text(insight.get("significance")),
                         strings(insight.get("caveats")),
                         claimSource(summary)));
+                }
+                for (Map<String, Object> factClaim : maps(
+                    summary.evidence().get("observedFactClaims"))) {
+                    String claimId = text(factClaim.get("claimId"));
+                    String claim = text(factClaim.get("claim"));
+                    List<String> recordRefs = strings(factClaim.get("recordRefs"));
+                    List<String> supportingValues = strings(factClaim.get("supportingValues"));
+                    if (claimId.isBlank() || claim.isBlank() || recordRefs.isEmpty()
+                        || supportingValues.isEmpty()) continue;
+                    claims.putIfAbsent(claimId, new Claim(
+                        claimId, claim, "OBSERVED_RETURNED_FACT",
+                        text(factClaim.get("confidence")), text(factClaim.get("significance")),
+                        strings(factClaim.get("caveats")), claimSource(summary)));
                 }
             }
         }
@@ -118,7 +132,10 @@ final class GovernedFinalClaimContract {
         return (prompt == null ? "" : prompt)
             + "\n\nFinal publication contract (binding): the following ledger contains the only business "
             + "claims authorized for publication. Select and order claim IDs; do not paraphrase, combine, "
-            + "recalculate or add claims. Select the smallest non-redundant set that answers the original question. "
+            + "recalculate or add claims. Cover every aspect of the original question for which the ledger contains "
+            + "supporting claims, using the smallest non-redundant set that still provides that complete coverage. "
+            + "Never report a requested dimension as missing or unavailable when the ledger contains a claim that "
+            + "answers it. Do not omit a supported dimension merely because its evidence is a direct observation. "
             + "Prefer claims that explain a material change, comparison, concentration, exception, supported impact "
             + "or action over bare counts, extrema and inventory facts. Do not select a weaker restatement when a "
             + "stronger admitted claim already contains it. Put at most three decisive claims in headlineClaimIds; "

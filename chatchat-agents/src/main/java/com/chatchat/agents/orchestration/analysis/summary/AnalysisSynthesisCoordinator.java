@@ -182,8 +182,6 @@ public final class AnalysisSynthesisCoordinator {
                 + "claimBoundPublication={} admittedClaimCount={}",
             request.runId(), request.stage(), request.model().getClass().getName(),
             modelPrompt.length(), claimBoundPublication, claimCompilation.claims().size());
-        log.debug("analysisDriverModelPrompt runId={} stage={} prompt=\n{}",
-            request.runId(), request.stage(), ModelProtocolJson.prettyJsonForLog(modelPrompt));
         String answer;
         String outcome = "MODEL_FINAL_SUMMARY";
         try {
@@ -310,10 +308,10 @@ public final class AnalysisSynthesisCoordinator {
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             request.runId(), request.stage(), System.currentTimeMillis() - startedAt,
             answer == null ? 0 : answer.length());
-        log.info("agentModelOutput phase=interpretation_plan_summary runId={} stage={} answer=\n{}",
-            request.runId(), request.stage(), ModelProtocolJson.prettyJsonForLog(answer));
-        log.info("analysisDriverModelOutput runId={} stage={} outcome={} answer=\n{}",
-            request.runId(), request.stage(), outcome, ModelProtocolJson.prettyJsonForLog(answer));
+        log.info("analysisDriverReport runId={} stage={} report={}",
+            request.runId(), request.stage(), ModelProtocolJson.compact(
+                AnalysisReportLogProjection.project(
+                    "DRIVER", governed, request.synthesisInputs().size())));
         answerCandidateCollector.register(request.metadata(), AnswerCandidateCollector.FINAL_SYNTHESIS, answer);
         request.metadata().put("interpretationPlanSummaryGenerated",
             !"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)

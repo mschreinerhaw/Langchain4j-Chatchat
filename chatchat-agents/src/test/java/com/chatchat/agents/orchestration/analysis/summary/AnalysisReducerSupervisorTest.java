@@ -28,6 +28,8 @@ class AnalysisReducerSupervisorTest {
                     DataAnalysisDecisionOperatingModel.SCHEMA_VERSION,
                 "analysisParticipantRole", "REDUCER",
                 "managementReviewInput", true,
+                "observedFactClaims", List.of(Map.of(
+                    "claimId", "observed-fact:asset", "claim", "Observed account value")),
                 "missingEvidence", List.of("comparison baseline missing")));
 
         AnalysisReducerSupervisor.Review review =
@@ -37,7 +39,7 @@ class AnalysisReducerSupervisorTest {
             assertThat(result.evidence()).containsKeys(
                 "analysisReportAdmission", "analysisEvidenceLineage", "analysisRepairRequests");
             assertThat(result.evidence().get("analysisReportAdmission").toString())
-                .contains("ADMITTED", "REDUCER_REPORT");
+                .contains("ADMITTED", "REDUCER_REPORT", "observed-fact:asset");
         });
         assertThat(review.repairRequests()).singleElement().satisfies(repair ->
             assertThat(repair.toString()).contains("REPLAN_EVIDENCE", "WORKER_REPORT"));

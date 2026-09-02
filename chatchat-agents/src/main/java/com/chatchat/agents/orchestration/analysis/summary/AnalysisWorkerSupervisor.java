@@ -90,6 +90,7 @@ final class AnalysisWorkerSupervisor {
             return false;
         }
         return nonEmpty(result.evidence().get("insights"))
+            || nonEmpty(result.evidence().get("observedFactClaims"))
             || nonEmpty(result.evidence().get("unsupportedQuestions"))
             || nonEmpty(result.evidence().get("missingEvidence"));
     }

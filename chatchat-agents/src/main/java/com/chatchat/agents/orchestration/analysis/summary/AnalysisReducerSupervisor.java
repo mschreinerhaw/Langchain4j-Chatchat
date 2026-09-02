@@ -81,7 +81,9 @@ final class AnalysisReducerSupervisor {
             reasons.add("UPSTREAM_REPORT_LINEAGE_INCOMPLETE");
         }
 
-        List<String> claimIds = claimIds(evidence.get("insights"));
+        List<String> claimIds = new ArrayList<>(claimIds(evidence.get("insights")));
+        claimIds.addAll(claimIds(evidence.get("observedFactClaims")));
+        claimIds = claimIds.stream().distinct().toList();
         List<DataAnalysisLayerGovernanceContract.LineageEdge> lineage = candidate.inputSummaryResultIds().stream()
             .map(input -> new DataAnalysisLayerGovernanceContract.LineageEdge(
                 "", input, candidate.resultId(),

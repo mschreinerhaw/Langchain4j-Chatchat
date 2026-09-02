@@ -167,14 +167,15 @@ class AgentAnswerFinalizerTaskAssessmentTest {
         );
 
         assertThat(result.answer())
-            .contains("基于 MCP 查询结果的分析")
-            .contains("USERS")
-            .contains("102400")
-            .doesNotContain("证据不足，无法分析");
+            .contains("# 分析未完成")
+            .contains("分析报告：未通过发布准入")
+            .doesNotContain("可以并且必须", "事实基础", "USERS", "102400");
         assertThat(result.metadata())
             .containsEntry("mcpResultEvidenceAvailability", "AVAILABLE")
             .containsEntry("mcpResultAnswerAllowed", true)
             .containsEntry("evidenceRefusalBlocked", true)
+            .containsEntry("finalPayloadType", "FAILURE_REPORT")
+            .containsEntry("supportingDatasetPrimaryDisplayAllowed", false)
             .containsEntry("taskResultEvidenceStatus", "PARTIAL")
             .containsEntry("taskResultEvidenceAvailability", "AVAILABLE")
             .containsEntry("taskResultAnalysisCapability", "PARTIAL")

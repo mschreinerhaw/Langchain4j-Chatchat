@@ -89,8 +89,17 @@ public final class AnalysisCoverageCoordinator {
             "analysis_summary_governance", metadataOf(
                 "type", "dataset_relationship_plan", "relationshipPlan", relationshipPlan.toMap()));
 
+        Object driverRepairs = request.metadata() == null ? null
+            : request.metadata().get("analysisDriverRepairRequests");
+        boolean resumedDriverRepair = request.metadata() != null
+            && request.metadata().containsKey("analysisDriverRepairRound")
+            && driverRepairs instanceof java.util.Collection<?> repairs && !repairs.isEmpty();
         AnalysisDispatchCoordinator.DispatchBatch dispatched = dispatchCoordinator.dispatch(
-            dispatchRequest(request, datasets, false));
+            dispatchRequest(request, datasets, resumedDriverRepair));
+        if (resumedDriverRepair) {
+            request.metadata().put("analysisDriverRepairDatasetReused", true);
+            request.metadata().put("analysisDataRequeryAllowed", false);
+        }
         lifecycle = lifecycle.datasetsDispatched(dispatched.taskCount());
         writeDispatchMetadata(request.metadata(), dispatched);
         if (dispatched.taskCount() > 0) {

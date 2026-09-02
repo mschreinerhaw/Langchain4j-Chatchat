@@ -94,7 +94,9 @@ public record AnalysisExecutionOutcome(
 
     private String nextStep() {
         return switch (status) {
-            case NEEDS_REANALYSIS -> "复用已获取的数据，从 Worker 分析阶段重新执行；禁止重新查询相同数据。";
+            case NEEDS_REANALYSIS -> "复用已获取的数据，从 "
+                + (retryDirective.resumeFrom().isBlank() ? "分析检查点" : retryDirective.resumeFrom())
+                + " 重新执行；禁止重新查询相同数据。";
             case NEEDS_MORE_EVIDENCE -> "保留现有数据，由 Gap Planner 根据未解决缺口补充必要证据后继续分析。";
             case INSUFFICIENT_EVIDENCE -> "当前已达到执行边界，保留证据并明确限制，不生成业务判断。";
             case PARTIALLY_COMPLETED -> "基于已通过准入的报告继续处理，其余缺口进入补证或重分析队列。";

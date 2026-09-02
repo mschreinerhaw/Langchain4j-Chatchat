@@ -23,12 +23,23 @@ final class AnalysisOutputAdmissionPolicy {
         "\"payloadtype\"", "\"executionsource\""
     );
 
+    private static final List<String> INTERNAL_INSTRUCTION_MARKERS = List.of(
+        "可以并且必须基于现有数据进行分析",
+        "以下工具结果是本次分析的事实基础",
+        "缺失内容将在限制说明中单独列出",
+        "you must analyze the existing data",
+        "the following tool result is the factual basis"
+    );
+
     private AnalysisOutputAdmissionPolicy() {
     }
 
     static Admission admit(String candidate) {
         if (candidate == null || candidate.isBlank()) {
             return new Admission(false, "EMPTY_ANALYSIS_OUTPUT");
+        }
+        if (WITHHELD_MESSAGE.equals(candidate.trim())) {
+            return new Admission(false, "WITHHELD_STATUS_NOT_ANALYSIS");
         }
         String normalized = candidate.toLowerCase(Locale.ROOT);
         long markerCount = ENVELOPE_MARKERS.stream().filter(normalized::contains).count();
@@ -41,10 +52,14 @@ final class AnalysisOutputAdmissionPolicy {
             && normalized.contains("\"accepted\"")
             && normalized.contains("\"feedback\"")
             && normalized.contains("\"revisedanswer\"");
-        if (executionManifest || serializedEnvelope || reviewProtocol) {
+        boolean internalInstruction = INTERNAL_INSTRUCTION_MARKERS.stream()
+            .map(marker -> marker.toLowerCase(Locale.ROOT))
+            .anyMatch(normalized::contains);
+        if (executionManifest || serializedEnvelope || reviewProtocol || internalInstruction) {
             return new Admission(false,
                 executionManifest ? "EXECUTION_MANIFEST_NOT_ANALYSIS"
                     : reviewProtocol ? "REVIEW_PROTOCOL_NOT_ANALYSIS"
+                    : internalInstruction ? "INTERNAL_INSTRUCTION_NOT_ANALYSIS"
                     : "RUNTIME_ENVELOPE_NOT_ANALYSIS");
         }
         return new Admission(true, "ANALYSIS_NARRATIVE_ADMITTED");

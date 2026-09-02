@@ -299,6 +299,24 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
+    void driverRejectedClaimCannotReenterThePublishedDecision() {
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v3",
+             "driverReview":{"claimAssessments":[
+               {"claimId":"claim-1","verdict":"REJECT","reason":"unsupported"}]},
+             "findings":[{"section":"CORE","text":"Returned value is 42",
+               "basisClaimIds":["claim-1"]}],
+             "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"selected"}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason())
+            .isEqualTo("DRIVER_REJECTED_CLAIM_SELECTED_FOR_PUBLICATION");
+    }
+
+    @Test
     void deduplicatesObservedFactAndInsightBoundToTheSameEvidence() {
         AnalysisSummaryResult duplicate = summary().withEvidence(Map.of(
             "observedFactClaims", List.of(Map.of(

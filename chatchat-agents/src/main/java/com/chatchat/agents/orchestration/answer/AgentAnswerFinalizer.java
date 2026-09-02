@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration.answer;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
 
@@ -175,8 +176,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         Map<String, Object> values = metadata == null ? new LinkedHashMap<>() : metadata;
         McpResultEvidencePolicy.Assessment mcpAssessment =
             recordMcpResultEvidencePolicy(values, traces);
-        String policyCompliantCandidate = enforceMcpResultAnalysisPolicy(
-            candidateAnswer, mcpAssessment, values);
+        String policyCompliantCandidate = values.containsKey("analysisReportContract")
+            ? enforceAnalysisReportContract(candidateAnswer, values)
+            : enforceMcpResultAnalysisPolicy(candidateAnswer, mcpAssessment, values);
         AnswerQualityEvaluator.QualityReport policyCompliantQuality =
             Boolean.TRUE.equals(values.get("evidenceRefusalBlocked")) ? null : qualityReport;
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal == null
@@ -198,6 +200,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             activeChatModel, query, systemPrompt, selectedAnswer, values, observations,
             this::sanitizeFinalMarkdown);
         String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
+        if (values.containsKey("analysisReportContract")) {
+            finalAnswer = enforceAnalysisReportContract(finalAnswer, values);
+        }
         if (finalAnswer.isBlank()) {
             String metadataReport = deterministicReportRenderer.deterministicEnterpriseMetadataReport(traces);
             if (!metadataReport.isBlank()) {
@@ -215,7 +220,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             }
         }
         if (finalAnswer.isBlank() && mcpAssessment.resultAvailable()) {
-            finalAnswer = mcpResultAnalysisFallback();
+            finalAnswer = analysisFailureReport(values,
+                "NON_EMPTY_MCP_RESULT_WITHOUT_PUBLISHABLE_REPORT");
             values.put("evidenceRefusalBlocked", true);
             values.put("evidenceRefusalBlockedReason",
                 "non_empty_mcp_result_with_empty_answer");
@@ -991,7 +997,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                         "partial_non_empty_mcp_result_with_insufficient_evidence_refusal");
                     metadata.put("originalRefusalPreview", shortText(candidateAnswer, 1000));
                 }
-                partialCandidate = mcpResultAnalysisFallback();
+                return analysisFailureReport(metadata,
+                    "PARTIAL_MCP_RESULT_WITHOUT_PUBLISHABLE_REPORT");
             }
             return preserveCandidateWithEvidenceLimitation(
                 partialCandidate,
@@ -1018,7 +1025,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                     : "non_empty_mcp_result_with_insufficient_evidence_refusal");
             metadata.put("originalRefusalPreview", shortText(answer, 1000));
         }
-        return mcpResultAnalysisFallback();
+        return analysisFailureReport(metadata,
+            "MCP_RESULT_WITHOUT_PUBLISHABLE_REPORT");
     }
 
     private String preserveCandidateWithEvidenceLimitation(String candidateAnswer,
@@ -1059,14 +1067,87 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             + "当前不能据此推断事实、数值、趋势或建议；请检查工具状态与返回协议后重试。";
     }
 
-    private String mcpResultAnalysisFallback() {
-        return """
-            ## 基于 MCP 查询结果的分析
+    private String enforceAnalysisReportContract(String candidateAnswer,
+                                                 Map<String, Object> metadata) {
+        Map<String, Object> contract = objectMap(metadata.get("analysisReportContract"));
+        String candidate = candidateAnswer == null ? "" : candidateAnswer.trim();
+        String renderedText = stringValue(contract.get("renderedText")).trim();
+        String reportType = stringValue(contract.get("reportType"));
+        String publishability = stringValue(contract.get("publishability"));
+        boolean supportedSchema = AnalysisReportContract.SCHEMA_VERSION.equals(
+            stringValue(contract.get("schemaVersion")));
+        boolean internalInstruction = AnalysisReportContract.isInternalInstruction(candidate);
+        int semanticUnitCount = intValue(contract.get("admittedFactCount"))
+            + intValue(contract.get("admittedInsightCount"))
+            + intValue(contract.get("admittedConclusionCount"));
+        boolean driverReport = "DRIVER_REPORT".equals(reportType)
+            && "PUBLISHABLE_REPORT".equals(publishability)
+            && semanticUnitCount > 0
+            && !internalInstruction;
+        boolean failureReport = "FAILURE_REPORT".equals(reportType)
+            && "PUBLISHABLE_FAILURE_REPORT".equals(publishability)
+            && !internalInstruction;
+        boolean exactPayload = !candidate.isBlank() && candidate.equals(renderedText);
+        if (supportedSchema && (driverReport || failureReport) && exactPayload) {
+            metadata.put("finalPayloadContractAdmitted", true);
+            metadata.put("finalPayloadType", reportType);
+            log.info("analysisFinalPayloadAdmission reportType={} publishability={} "
+                    + "semanticUnitCount={} admitted=true",
+                reportType, publishability, semanticUnitCount);
+            return candidate;
+        }
+        metadata.put("finalPayloadContractAdmitted", false);
+        metadata.put("finalPayloadContractRejectionReason",
+            !supportedSchema ? "UNSUPPORTED_REPORT_CONTRACT_SCHEMA"
+                : !driverReport && !failureReport ? "NON_PUBLISHABLE_REPORT_TYPE_OR_SEMANTICS"
+                : "RENDERED_TEXT_CONTRACT_MISMATCH");
+        metadata.put("rejectedFinalPayloadType", reportType);
+        log.warn("analysisFinalPayloadAdmission reportType={} publishability={} "
+                + "semanticUnitCount={} admitted=false reason={}",
+            reportType, publishability, semanticUnitCount,
+            metadata.get("finalPayloadContractRejectionReason"));
+        return analysisFailureReport(metadata, "FINAL_PAYLOAD_CONTRACT_REJECTED");
+    }
 
-            MCP 工具已经成功返回非空查询结果，因此可以并且必须基于现有数据进行分析。以下工具结果是本次分析的事实基础。
+    private String analysisFailureReport(Map<String, Object> metadata, String reason) {
+        String report = """
+            # 分析未完成
 
-            当前结果可能没有覆盖用户期望的全部字段或指标；这只影响分析完整度和置信度，不影响对已返回数据的展示与分析。缺失内容将在限制说明中单独列出。
+            本轮数据获取已完成，但分析阶段未形成满足发布要求的有效报告。系统没有把分析指令、上下文说明或未经治理的中间文本作为分析结论发布。
+
+            ## 当前状态
+
+            - 数据获取：完成
+            - 分析报告：未通过发布准入
+            - 管理结论：未生成
+            - 已获取数据：保留，可用于重新分析
+
+            ## 恢复动作
+
+            - 复用现有数据重新执行分析，不重新查询相同数据。
             """.trim();
+        if (metadata != null) {
+            AnalysisReportContract contract = AnalysisReportContract.failureReport(report);
+            metadata.put("analysisReportContract", contract.toMap());
+            metadata.put("analysisReportContractSchemaVersion",
+                AnalysisReportContract.SCHEMA_VERSION);
+            metadata.put("finalPayloadType", contract.reportType().name());
+            metadata.put("finalPayloadFallbackReason", reason);
+            metadata.put("returnedDataAnalysisRequired", true);
+            metadata.put("rawAnalysisOutputWithheld", true);
+            metadata.put("supportingDatasetPrimaryDisplayAllowed", false);
+            metadata.put("supportingDatasetDefaultCollapsed", true);
+        }
+        return report;
+    }
+
+    private int intValue(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return value == null ? 0 : Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     private boolean refusesAnalysis(String answer) {

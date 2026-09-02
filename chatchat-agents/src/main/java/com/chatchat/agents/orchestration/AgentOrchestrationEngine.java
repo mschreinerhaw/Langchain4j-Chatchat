@@ -3110,7 +3110,59 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     recordCoverage.sourceContentComplete(), recordCoverage.iterations(),
                     recordCoverage.rawReplayChunkCount(), recordCoverage.summaryResults(),
                     recordCoverage.synthesisInputs(), runtimeAttributes, metadata));
+        if (driverChallengeRepairRequired(metadata)) {
+            metadata.put("analysisDriverRepairRound", 1);
+            metadata.put("analysisDriverRepairStarted", true);
+            metadata.put("analysisDriverRepairBudget", 1);
+            metadata.put("analysisDriverRepairBudgetRemaining", 0);
+            metadata.put("analysisReuseExistingDataset", true);
+            metadata.put("analysisDataRequeryAllowed", false);
+            recordLifecyclePhase(runtimeAttributes, metadata, "driver_challenge_repair",
+                "Driver challenge routed to the governed analysis pipeline using retained data.",
+                metadataOf("stage", stage, "round", 1, "reuseExistingDataset", true,
+                    "dataAcquisitionAllowed", false,
+                    "repairRequests", metadata.get("analysisDriverRepairRequests")));
+            RecordCoverageBundle repairedCoverage = buildRecordCoverageBundle(
+                activeChatModel, query, cumulativeEvidenceResult,
+                runtimeAttributes, metadata, cancellationCheck);
+            String repairedPrompt = com.chatchat.agents.orchestration.analysis.summary
+                .GovernedRecordFinalPromptBuilder.build(
+                    query, systemPrompt, repairedCoverage.promptEvidence());
+            synthesis = analysisSynthesisCoordinator.synthesizeFinal(
+                new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                    activeChatModel, repairedPrompt, stage, firstNonBlank(runId, ""),
+                    result == null || result.steps() == null ? 0 : result.steps().size(),
+                    attemptResults == null ? 0 : attemptResults.size(), storedObservations.size(),
+                    summarizeAvailableResults(runtimeAttributes),
+                    () -> ensureCompleteRecordCoveragePresented(
+                        buildDeterministicAvailableResultAnswer(cumulativeEvidenceResult),
+                        repairedCoverage, metadata),
+                    candidate -> {
+                        String guarded = ensureConcreteBatchEvidencePresented(
+                            candidate, query, cumulativeEvidenceResult, metadata);
+                        guarded = ensureCompleteRecordCoveragePresented(
+                            guarded, repairedCoverage, metadata);
+                        return removeUnsupportedCurrentTurnDocumentReferences(
+                            guarded, cumulativeEvidenceResult, metadata);
+                    },
+                    result == null ? "" : firstNonBlank(result.finalAnswer(), ""),
+                    repairedCoverage.returnedRecordCount(), repairedCoverage.processedRecordCount(),
+                    repairedCoverage.coverageComplete(), repairedCoverage.evidenceTraceComplete(),
+                    repairedCoverage.sourceContentComplete(), repairedCoverage.iterations(),
+                    repairedCoverage.rawReplayChunkCount(), repairedCoverage.summaryResults(),
+                    repairedCoverage.synthesisInputs(), runtimeAttributes, metadata));
+            metadata.put("analysisDriverRepairFinished", true);
+        }
         return synthesis.content();
+    }
+
+    private boolean driverChallengeRepairRequired(Map<String, Object> metadata) {
+        if (metadata == null || metadata.containsKey("analysisDriverRepairRound")) return false;
+        Object repairs = metadata.get("analysisDriverRepairRequests");
+        return Boolean.TRUE.equals(metadata.get("analysisRepairRequired"))
+            && repairs instanceof java.util.Collection<?> values && !values.isEmpty()
+            && Boolean.TRUE.equals(metadata.get("analysisReuseExistingDataset"))
+            && Boolean.FALSE.equals(metadata.get("analysisDataRequeryAllowed"));
     }
 
     private List<InterpretationPlanRuntime.ExecutionResult> resolvedSummaryEvidenceAttempts(

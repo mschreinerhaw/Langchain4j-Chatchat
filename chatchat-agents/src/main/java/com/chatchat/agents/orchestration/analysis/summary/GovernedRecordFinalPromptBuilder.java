@@ -79,7 +79,9 @@ public final class GovernedRecordFinalPromptBuilder {
             .append(userQuestion == null ? "" : userQuestion)
             .append("\n\nGoverned dataset analysis and coverage contract:\n")
             .append(governedRecordEvidence == null ? "" : governedRecordEvidence)
-            .append("\n\nReturn only the final user-facing Markdown answer, no JSON or internal protocol details.");
+            .append("\n\nFollow the binding Driver decision contract appended by the Runtime when present; it owns the ")
+            .append("machine-readable output shape and the Runtime renders the admitted user-facing Markdown. When no ")
+            .append("such contract is present, return only the final user-facing Markdown answer.");
         return prompt.toString();
     }
 }

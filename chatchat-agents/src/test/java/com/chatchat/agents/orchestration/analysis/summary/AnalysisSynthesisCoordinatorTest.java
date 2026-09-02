@@ -5,6 +5,7 @@ import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEn
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
@@ -289,7 +290,7 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
-    void driverPublishesOnlyAdmittedClaimsWhenFinalModelReturnsFreeText() {
+    void driverRejectsFreeTextThatSkippedMandatoryReviewProtocol() {
         AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
@@ -303,16 +304,17 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), true));
 
-        assertThat(result.content()).contains("返回记录显示数值为 42")
+        assertThat(result.content()).contains("分析未完成", "DRIVER_REVIEW")
             .doesNotContain("稳定交易风格");
         assertThat(metadata)
             .containsEntry("finalClaimPublicationContractActive", true)
-            .containsEntry("finalClaimSelectionAccepted", false)
-            .containsEntry("finalClaimSelectionReason", "FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
+            .containsEntry("analysisDriverReviewCompleted", false)
+            .containsEntry("analysisDriverReviewStatus", "INVALID")
+            .containsEntry("analysisExecutionStatus", "NEEDS_REANALYSIS");
     }
 
     @Test
-    void finalModelFailureStillPublishesDeterministicAdmittedClaims() {
+    void finalModelFailureRequiresDriverReviewRetryInsteadOfSilentClaimPublication() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -325,10 +327,13 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), false));
 
-        assertThat(result.content()).contains("返回记录显示数值为 42");
+        assertThat(result.content()).contains("分析未完成", "DRIVER_REVIEW")
+            .doesNotContain("返回记录显示数值为 42");
         assertThat(metadata)
             .containsEntry("interpretationPlanDeterministicClaimFallback", true)
-            .containsEntry("finalClaimSelectionAccepted", false);
+            .containsEntry("analysisDriverReviewCompleted", false)
+            .containsEntry("analysisReuseExistingDataset", true)
+            .containsEntry("analysisDataRequeryAllowed", false);
     }
 
     @Test
@@ -345,8 +350,15 @@ class AnalysisSynthesisCoordinatorTest {
                 && prompt.contains("manager reviewing completed Worker analysis reports")
                 && prompt.contains("Admitted claim ledger"))))
             .thenReturn("""
-                {"schemaVersion":"governed_final_claim_selection.v1",
-                 "headlineClaimIds":["claim-1"],"sections":[],
+                {"schemaVersion":"governed_management_synthesis.v3",
+                 "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
+                   "evidenceSufficiency":{},"crossWorkerConflicts":[],"duplicateEvidence":[],
+                   "unsupportedInferences":[],"missingCriticalDimensions":[],
+                   "claimAssessments":[{"claimId":"claim-1","verdict":"ACCEPT","reason":"grounded"}],
+                   "challenges":[]},
+                 "driverReasoning":{"derivedClaims":[]},
+                 "findings":[{"section":"CORE","text":"返回记录显示数值为 42","basisClaimIds":["claim-1"]}],
+                 "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"answers objective"}],
                  "demandAnalysis":{"decisionGoal":"定位增长来源与风险",
                    "priorityQuestions":["收益是否集中"]},
                  "metricAssociations":[{"title":"检验收益贡献与集中度",
@@ -366,9 +378,9 @@ class AnalysisSynthesisCoordinatorTest {
             claimBoundRequest(model, metadata, claimSummary(), true));
 
         assertThat(result.content()).contains(
-            "## 需求分析", "定位增长来源与风险",
-            "## 指标联想与后续分析", "待验证分析方向", "收益贡献率",
-            "## 分析复盘与改进方向", "缺少比较基准", "优先完成趋势验证");
+            "## 需求理解与未决问题", "定位增长来源与风险",
+            "## 指标联想与待验证方向", "收益贡献率",
+            "## 管理复盘与下一步", "缺少比较基准", "优先完成趋势验证");
         assertThat(metadata)
             .containsEntry("analysisDriverModelInvoked", true)
             .containsEntry("finalClaimSelectionAccepted", true);
@@ -401,8 +413,15 @@ class AnalysisSynthesisCoordinatorTest {
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("claim-reducer") && !prompt.contains("claim-1"))))
             .thenReturn("""
-                {"schemaVersion":"governed_final_claim_selection.v1",
-                 "headlineClaimIds":["claim-reducer"],"sections":[]}
+                {"schemaVersion":"governed_management_synthesis.v3",
+                 "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
+                   "evidenceSufficiency":{},"crossWorkerConflicts":[],"duplicateEvidence":[],
+                   "unsupportedInferences":[],"missingCriticalDimensions":[],
+                   "claimAssessments":[{"claimId":"claim-reducer","verdict":"ACCEPT","reason":"grounded"}],
+                   "challenges":[]},
+                 "driverReasoning":{"derivedClaims":[]},
+                 "findings":[{"section":"CORE","text":"Reducer归并后的管理分析结论","basisClaimIds":["claim-reducer"]}],
+                 "coverage":[{"claimId":"claim-reducer","disposition":"USED","reason":"management finding"}]}
                 """);
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
@@ -465,7 +484,12 @@ class AnalysisSynthesisCoordinatorTest {
             .containsEntry("analysisDriverModelInvoked", false)
             .containsEntry("analysisDriverModelSkipReason", "NO_ADMITTED_SEMANTIC_CLAIMS")
             .containsEntry("analysisOutputAdmissionReason", "NO_ADMITTED_SEMANTIC_CLAIMS")
-            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
+            .containsEntry("finalPayloadType", "FAILURE_REPORT")
+            .containsKey("analysisReportContract");
+        assertThat((Map<String, Object>) metadata.get("analysisReportContract"))
+            .containsEntry("reportType", "FAILURE_REPORT")
+            .containsEntry("publishability", "PUBLISHABLE_FAILURE_REPORT");
         org.mockito.Mockito.verifyNoInteractions(model);
     }
 
@@ -487,7 +511,17 @@ class AnalysisSynthesisCoordinatorTest {
             prompt.contains("Worker: assets are concentrated")
                 && prompt.contains("fact:assets") && prompt.contains("coverage"))))
             .thenReturn("""
-                {"schemaVersion":"governed_management_synthesis.v2",
+                {"schemaVersion":"governed_management_synthesis.v3",
+                 "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
+                   "evidenceSufficiency":{},"crossWorkerConflicts":[],"duplicateEvidence":[],
+                   "unsupportedInferences":[],"missingCriticalDimensions":[],
+                   "claimAssessments":[
+                     {"claimId":"fact:assets","verdict":"ACCEPT","reason":"grounded"},
+                     {"claimId":"fact:trades","verdict":"ACCEPT","reason":"grounded"}],
+                   "challenges":[]},
+                 "driverReasoning":{"derivedClaims":[{"derivedClaimId":"driver-derived:portfolio-activity",
+                   "text":"The account combines limited cash flexibility with active two-way trading.",
+                   "basisClaimIds":["fact:assets","fact:trades"],"caveats":[]}]},
                  "findings":[
                    {"section":"CORE","text":"The account is almost entirely invested in securities with little cash flexibility, while the returned day also shows active two-way trading.",
                     "basisClaimIds":["fact:assets","fact:trades"]},
@@ -536,6 +570,66 @@ class AnalysisSynthesisCoordinatorTest {
         assertThat(metadata)
             .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true)
             .containsEntry("governedNarrativeAnalysisSource", "DRIVER_SYNTHESIS_INPUTS");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void driverChallengesLowerLayerClaimAndRoutesRepairWithoutRawDataRequery() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        AnalysisSummaryResult report = claimSummary();
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
+            prompt.contains("DRIVER_REVIEW")
+                && prompt.contains("CHIEF_DECISION_MAKER")
+                && prompt.contains("客户经营分析决策者")
+                && prompt.contains("claim-1"))))
+            .thenReturn("""
+                {"schemaVersion":"governed_management_synthesis.v3",
+                 "driverReview":{"status":"CHALLENGE","requirementCoverage":[],
+                   "claimConsistency":[],"evidenceSufficiency":{},"crossWorkerConflicts":[],
+                   "duplicateEvidence":[],"unsupportedInferences":["missing comparison basis"],
+                   "missingCriticalDimensions":["historical baseline"],
+                   "claimAssessments":[{"claimId":"claim-1","verdict":"REJECT",
+                     "reason":"No comparison basis"}],
+                   "challenges":[{"targetLayer":"WORKER_REPORT",
+                     "targetReportId":"tenant-a:run-a:dataset-a#chunk-1",
+                     "claimIds":["claim-1"],"reason":"No comparison basis",
+                     "requiredCorrection":"Reanalyze as a current observation only"}]},
+                 "driverReasoning":{"derivedClaims":[]},"findings":[],"coverage":[]}
+                """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        Map<String, Object> runtime = Map.of(
+            AgentRoleAnalysisContext.RUNTIME_ATTRIBUTE,
+            AgentRoleAnalysisContext.create("客户经营分析决策者",
+                "审查客户经营分析并形成管理决策", List.of("客户分析"), List.of("决策")));
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                model, "prompt", "completed", "run-a", 2, 1, 3,
+                true, () -> "unsafe", candidate -> candidate, "empty",
+                1, 1, true, true, true, 1, 0,
+                List.of(report), List.of(report), runtime, metadata));
+
+        assertThat(result.generated()).isFalse();
+        assertThat(result.content()).contains("分析未完成", "WORKER_ANALYSIS")
+            .doesNotContain("返回记录显示数值为 42");
+        assertThat(metadata)
+            .containsEntry("analysisDriverReviewStatus", "CHALLENGE")
+            .containsEntry("analysisDriverDecisionAction", "DRIVER_CHALLENGE")
+            .containsEntry("analysisRepairRequired", true)
+            .containsEntry("analysisReuseExistingDataset", true)
+            .containsEntry("analysisDataRequeryAllowed", false)
+            .containsKey("analysisDriverPipelineContext")
+            .containsKey("analysisDriverRepairRequests");
+        Map<String, Object> outcome = (Map<String, Object>) metadata.get("analysisExecutionOutcome");
+        assertThat((Map<String, Object>) outcome.get("retryDirective"))
+            .containsEntry("resumeFrom", "WORKER_ANALYSIS")
+            .containsEntry("reuseExistingDataset", true)
+            .containsEntry("dataAcquisitionAllowed", false);
     }
 
     private AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request(

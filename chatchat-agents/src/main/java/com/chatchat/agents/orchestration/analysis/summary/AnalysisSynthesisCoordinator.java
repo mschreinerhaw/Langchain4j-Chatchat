@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration.analysis.summary;
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisExecutionOutcome;
+import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
@@ -40,6 +41,8 @@ public final class AnalysisSynthesisCoordinator {
     private final DeterministicInsightEngine deterministicInsightEngine;
     private final AnswerCandidateCollector answerCandidateCollector;
     private final GovernedFinalClaimContract finalClaimContract = new GovernedFinalClaimContract();
+    private final AnalysisDriverPipelineContext driverPipelineContext =
+        new AnalysisDriverPipelineContext();
     private ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
         HierarchicalAnalysisReducer.Result> hierarchicalReducer;
 
@@ -174,9 +177,18 @@ public final class AnalysisSynthesisCoordinator {
             return new FinalSynthesisResult(
                 executionOutcome.failureReport(), null, false);
         }
-        String modelPrompt = claimBoundPublication
-            ? finalClaimContract.appendSelectionInstruction(request.prompt(), claimCompilation)
+        Map<String, Object> pipelineContext = driverPipelineContext.build(
+            request.summaryResults(), claimSources, request.runtimeAttributes(), request.metadata());
+        request.metadata().put("analysisDriverPipelineContext", pipelineContext);
+        request.metadata().put("analysisDriverPipelineContextSchemaVersion",
+            AnalysisDriverPipelineContext.SCHEMA_VERSION);
+        String driverPrompt = claimBoundPublication
+            ? request.prompt() + "\n\nBinding Driver role pipeline context (not evidence): "
+                + ModelProtocolJson.compact(pipelineContext)
             : request.prompt();
+        String modelPrompt = claimBoundPublication
+            ? finalClaimContract.appendSelectionInstruction(driverPrompt, claimCompilation)
+            : driverPrompt;
         request.metadata().put("analysisDriverModelInvoked", true);
         request.metadata().put("analysisDriverModelPromptChars", modelPrompt.length());
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={} claimBoundPublication={} admittedClaimCount={}",
@@ -189,8 +201,13 @@ public final class AnalysisSynthesisCoordinator {
             modelPrompt.length(), claimBoundPublication, claimCompilation.claims().size());
         String answer;
         String outcome = "MODEL_FINAL_SUMMARY";
+        GovernedFinalClaimContract.DriverAudit driverAudit = null;
         try {
             answer = request.model().chat(modelPrompt);
+            if (claimBoundPublication) {
+                driverAudit = finalClaimContract.inspectDriverAudit(answer, claimCompilation,
+                    claimSources.stream().map(AnalysisSummaryResult::resultId).toList());
+            }
         } catch (RuntimeException ex) {
             if (ex instanceof AgentDeadlineExceededException) throw ex;
             log.warn("agentModelFailure phase=interpretation_plan_summary runId={} stage={} "
@@ -224,13 +241,38 @@ public final class AnalysisSynthesisCoordinator {
             }
         }
 
+        if (claimBoundPublication) {
+            recordDriverAudit(request, driverAudit);
+            if (driverAudit == null || !driverAudit.valid()) {
+                String reason = driverAudit == null
+                    ? "DRIVER_REVIEW_NOT_COMPLETED" : driverAudit.reason();
+                AnalysisExecutionOutcome executionOutcome = blockedOutcome(request, reason, true);
+                return new FinalSynthesisResult(executionOutcome.failureReport(), null, false);
+            }
+            if (!driverAudit.challenges().isEmpty()) {
+                recordDriverChallenges(request, driverAudit);
+                AnalysisExecutionOutcome executionOutcome = blockedOutcome(
+                    request, "DRIVER_CHALLENGE_REQUIRES_REPAIR", true);
+                return new FinalSynthesisResult(executionOutcome.failureReport(), null, false);
+            }
+            recordDriverDerivedClaims(request, driverAudit);
+        }
+
         if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
             if (claimBoundPublication) {
                 GovernedFinalClaimContract.Projection projection =
                     finalClaimContract.project(answer, claimCompilation);
+                if (!projection.modelSelectionAccepted()) {
+                    request.metadata().put("finalClaimSelectionAccepted", false);
+                    request.metadata().put("finalClaimSelectionReason", projection.reason());
+                    request.metadata().put("finalPublishedClaimIds", List.of());
+                    AnalysisExecutionOutcome executionOutcome = blockedOutcome(
+                        request, "DRIVER_DECISION_REJECTED_" + projection.reason(), true);
+                    return new FinalSynthesisResult(
+                        executionOutcome.failureReport(), null, false);
+                }
                 answer = projection.markdown();
-                outcome = projection.modelSelectionAccepted()
-                    ? "CLAIM_BOUND_FINAL_SUMMARY" : "DETERMINISTIC_CLAIM_BOUND_FINAL_SUMMARY";
+                outcome = "CLAIM_BOUND_FINAL_SUMMARY";
                 request.metadata().put("finalClaimSelectionAccepted",
                     projection.modelSelectionAccepted());
                 request.metadata().put("finalClaimSelectionReason", projection.reason());
@@ -318,6 +360,9 @@ public final class AnalysisSynthesisCoordinator {
             DataAnalysisLineageGraph.SCHEMA_VERSION);
         request.metadata().put("analysisSummaryResult", governed.toMap());
         answer = governed.content();
+        if (admission.admitted() && claimBoundPublication) {
+            recordFinalReportContract(request, answer);
+        }
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             request.runId(), request.stage(), System.currentTimeMillis() - startedAt,
             answer == null ? 0 : answer.length());
@@ -468,6 +513,102 @@ public final class AnalysisSynthesisCoordinator {
         request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
     }
 
+    private void recordDriverAudit(FinalModelSynthesisRequest request,
+                                   GovernedFinalClaimContract.DriverAudit audit) {
+        Map<String, Object> value = audit == null
+            ? GovernedFinalClaimContract.DriverAudit.invalid(
+                "DRIVER_REVIEW_NOT_COMPLETED").toMap()
+            : audit.toMap();
+        request.metadata().put("analysisDriverReview", value);
+        request.metadata().put("analysisDriverReviewStatus",
+            audit == null ? "INVALID" : audit.status());
+        request.metadata().put("analysisDriverReviewCompleted", audit != null && audit.valid());
+        request.metadata().put("analysisDriverDecisionStages", Map.of(
+            "DRIVER_REVIEW", audit != null && audit.valid() ? "COMPLETED" : "REJECTED",
+            "DRIVER_REASONING", audit != null && audit.valid() ? "COMPLETED" : "BLOCKED",
+            "DRIVER_DECISION", audit != null && audit.valid()
+                && audit.challenges().isEmpty() ? "READY" : "BLOCKED"));
+        log.info("analysisDriverReview runId={} status={} valid={} challengeCount={} "
+                + "derivedClaimCount={} reason={}", request.runId(),
+            audit == null ? "INVALID" : audit.status(), audit != null && audit.valid(),
+            audit == null ? 0 : audit.challenges().size(),
+            audit == null ? 0 : audit.derivedClaims().size(),
+            audit == null ? "DRIVER_REVIEW_NOT_COMPLETED" : audit.reason());
+    }
+
+    private void recordDriverChallenges(FinalModelSynthesisRequest request,
+                                        GovernedFinalClaimContract.DriverAudit audit) {
+        List<Map<String, Object>> challenges = audit.challenges().stream()
+            .map(GovernedFinalClaimContract.DriverChallenge::toMap).toList();
+        List<Map<String, Object>> repairs = new ArrayList<>();
+        for (GovernedFinalClaimContract.DriverChallenge challenge : audit.challenges()) {
+            boolean worker = "WORKER_REPORT".equals(challenge.targetLayer());
+            DataAnalysisLayerGovernanceContract.Layer target = worker
+                ? DataAnalysisLayerGovernanceContract.Layer.WORKER_REPORT
+                : DataAnalysisLayerGovernanceContract.Layer.REDUCER_REPORT;
+            DataAnalysisLayerGovernanceContract.RepairRoute route = worker
+                ? DataAnalysisLayerGovernanceContract.RepairRoute.REANALYZE_WORKER
+                : DataAnalysisLayerGovernanceContract.RepairRoute.RERUN_REDUCER;
+            DataAnalysisLayerGovernanceContract.RepairRequest repair =
+                new DataAnalysisLayerGovernanceContract.RepairRequest(
+                    "", challenge.targetReportId(), target, route,
+                    challenge.requiredCorrection(), List.of(challenge.reason()),
+                    List.of("GOVERNED_REPORT_REANALYSIS"), List.of(), "", "", target);
+            Map<String, Object> repairMap = new LinkedHashMap<>(repair.toMap());
+            repairMap.put("challengedClaimIds", challenge.claimIds());
+            repairMap.put("issuedBy", "DRIVER_REVIEW");
+            repairs.add(Map.copyOf(repairMap));
+        }
+        List<Map<String, Object>> combined = new ArrayList<>(
+            maps(request.metadata().get("analysisRepairRequests")));
+        combined.addAll(repairs);
+        request.metadata().put("analysisDriverChallenges", challenges);
+        request.metadata().put("analysisDriverRepairRequests", List.copyOf(repairs));
+        request.metadata().put("analysisRepairRequests", List.copyOf(combined));
+        request.metadata().put("analysisRepairRequired", true);
+        request.metadata().put("analysisDriverDecisionAction", "DRIVER_CHALLENGE");
+        request.metadata().putIfAbsent("analysisDriverRepairBudget", 1);
+        request.metadata().put("analysisDriverRepairTerminationCondition",
+            "ONE_GOVERNED_REPAIR_ROUND_OR_ADMITTED_DRIVER_DECISION");
+        request.metadata().put("analysisReuseExistingDataset", true);
+        request.metadata().put("analysisDataRequeryAllowed", false);
+        request.metadata().put("analysisSynthesisBarrierReady", false);
+        request.metadata().put("analysisSynthesisBarrierStatus", "DRIVER_CHALLENGE_REPAIR_REQUIRED");
+    }
+
+    private void recordDriverDerivedClaims(FinalModelSynthesisRequest request,
+                                           GovernedFinalClaimContract.DriverAudit audit) {
+        request.metadata().put("analysisDriverDecisionAction", "APPROVE");
+        if (request.metadata().containsKey("analysisDriverRepairRound")) {
+            request.metadata().put("analysisDriverRepairCompleted", true);
+            request.metadata().put("analysisDriverRepairBudgetRemaining", 0);
+            request.metadata().put("analysisRepairRequired", false);
+            request.metadata().put("analysisDriverChallenges", List.of());
+        }
+        List<Map<String, Object>> derived = audit.derivedClaims().stream()
+            .map(GovernedFinalClaimContract.DerivedClaim::toMap).toList();
+        request.metadata().put("analysisDriverDerivedClaims", derived);
+        if (audit.derivedClaims().isEmpty()) return;
+        List<DataAnalysisLineageGraph.Node> nodes = audit.derivedClaims().stream()
+            .map(claim -> new DataAnalysisLineageGraph.Node(
+                claim.derivedClaimId(), "DRIVER_DERIVED_CLAIM",
+                Map.of("caveats", claim.caveats()))).toList();
+        List<DataAnalysisLayerGovernanceContract.LineageEdge> edges = new ArrayList<>();
+        for (GovernedFinalClaimContract.DerivedClaim claim : audit.derivedClaims()) {
+            claim.basisClaimIds().forEach(basis -> edges.add(
+                new DataAnalysisLayerGovernanceContract.LineageEdge(
+                    "", basis, claim.derivedClaimId(),
+                    DataAnalysisLayerGovernanceContract.Relation.DERIVED_FROM,
+                    DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION)));
+        }
+        DataAnalysisLineageGraph graph = DataAnalysisLineageGraph
+            .fromMap(request.metadata().get("analysisLineageGraph"))
+            .plus(nodes, edges);
+        request.metadata().put("analysisLineageGraph", graph.toMap());
+        request.metadata().put("analysisLineageGraphSchemaVersion",
+            DataAnalysisLineageGraph.SCHEMA_VERSION);
+    }
+
     private void recordCompletedOutcome(FinalModelSynthesisRequest request) {
         boolean complete = request.coverageComplete() && request.evidenceTraceComplete()
             && request.sourceContentComplete();
@@ -494,6 +635,39 @@ public final class AnalysisSynthesisCoordinator {
         request.metadata().putIfAbsent("supportingDatasetChannel", "supporting_dataset");
     }
 
+    private void recordFinalReportContract(FinalModelSynthesisRequest request, String answer) {
+        List<String> publishedClaimIds = strings(request.metadata().get("finalPublishedClaimIds"));
+        Set<String> published = Set.copyOf(publishedClaimIds);
+        Set<String> facts = new java.util.LinkedHashSet<>();
+        Set<String> insights = new java.util.LinkedHashSet<>();
+        List<AnalysisSummaryResult> reports = request.synthesisInputs().isEmpty()
+            ? request.summaryResults() : request.synthesisInputs();
+        for (AnalysisSummaryResult report : reports) {
+            if (report == null || report.evidence() == null) continue;
+            for (Map<String, Object> fact : maps(report.evidence().get("observedFactClaims"))) {
+                String claimId = text(fact.get("claimId"));
+                if (published.contains(claimId)) facts.add(claimId);
+            }
+            for (Map<String, Object> insight : maps(report.evidence().get("insights"))) {
+                String claimId = text(insight.get("claimId"));
+                if (!published.contains(claimId)) continue;
+                if ("OBSERVED_RETURNED_FACT".equals(text(insight.get("claimClass")))) {
+                    facts.add(claimId);
+                } else {
+                    insights.add(claimId);
+                }
+            }
+        }
+        int unclassifiedConclusions = Math.max(0,
+            published.size() - facts.size() - insights.size());
+        AnalysisReportContract reportContract = AnalysisReportContract.driverReport(
+            answer, facts.size(), insights.size(), unclassifiedConclusions);
+        request.metadata().put("analysisReportContract", reportContract.toMap());
+        request.metadata().put("analysisReportContractSchemaVersion",
+            AnalysisReportContract.SCHEMA_VERSION);
+        request.metadata().put("finalPayloadType", reportContract.reportType().name());
+    }
+
     private AnalysisExecutionOutcome blockedOutcome(FinalModelSynthesisRequest request,
                                                      String reason,
                                                      boolean governanceReached) {
@@ -505,10 +679,26 @@ public final class AnalysisSynthesisCoordinator {
         AnalysisExecutionOutcome.ExecutionStatus status;
         AnalysisExecutionOutcome.FailureCategory category;
         AnalysisExecutionOutcome.RetryDirective retry;
+        boolean driverReviewFailure = reason != null && reason.startsWith("DRIVER_REVIEW");
+        boolean driverDecisionFailure = reason != null && reason.startsWith("DRIVER_DECISION");
+        boolean driverChallengeFailure = "DRIVER_CHALLENGE_REQUIRES_REPAIR".equals(reason);
+        boolean workerChallenge = maps(request.metadata().get("analysisDriverChallenges"))
+            .stream().anyMatch(challenge ->
+                "WORKER_REPORT".equals(text(challenge.get("targetLayer"))));
         if (!dataAvailable) {
             status = AnalysisExecutionOutcome.ExecutionStatus.EXECUTION_FAILED;
             category = AnalysisExecutionOutcome.FailureCategory.DATA_FAILURE;
             retry = AnalysisExecutionOutcome.RetryDirective.none();
+        } else if (driverReviewFailure || driverDecisionFailure || driverChallengeFailure) {
+            status = AnalysisExecutionOutcome.ExecutionStatus.NEEDS_REANALYSIS;
+            category = AnalysisExecutionOutcome.FailureCategory.GOVERNANCE_REJECTION;
+            String resumeFrom = driverReviewFailure ? "DRIVER_REVIEW"
+                : driverDecisionFailure ? "DRIVER_DECISION"
+                : workerChallenge ? "WORKER_ANALYSIS" : "REDUCER_REVIEW";
+            retry = new AnalysisExecutionOutcome.RetryDirective(
+                driverReviewFailure ? "RETRY_DRIVER_REVIEW"
+                    : driverDecisionFailure ? "RETRY_DRIVER_DECISION" : "RETRY_ANALYSIS",
+                resumeFrom, true, false, 1);
         } else if (!gaps.isEmpty()) {
             status = AnalysisExecutionOutcome.ExecutionStatus.NEEDS_MORE_EVIDENCE;
             category = AnalysisExecutionOutcome.FailureCategory.EVIDENCE_GAP;
@@ -519,8 +709,11 @@ public final class AnalysisSynthesisCoordinator {
             category = governanceReached
                 ? AnalysisExecutionOutcome.FailureCategory.GOVERNANCE_REJECTION
                 : AnalysisExecutionOutcome.FailureCategory.ANALYSIS_FAILURE;
+            String resumeFrom = driverReviewFailure ? "DRIVER_REVIEW"
+                : workerChallenge ? "WORKER_ANALYSIS"
+                : workersAccepted ? "REDUCER_REVIEW" : "WORKER_ANALYSIS";
             retry = new AnalysisExecutionOutcome.RetryDirective(
-                "RETRY_ANALYSIS", workersAccepted ? "REDUCER_REVIEW" : "WORKER_ANALYSIS",
+                driverReviewFailure ? "RETRY_DRIVER_REVIEW" : "RETRY_ANALYSIS", resumeFrom,
                 true, false, 1);
         }
         AnalysisExecutionOutcome executionOutcome = new AnalysisExecutionOutcome(
@@ -549,6 +742,12 @@ public final class AnalysisSynthesisCoordinator {
         request.metadata().put("supportingDatasetChannel", "supporting_dataset");
         request.metadata().put("supportingDatasetPrimaryDisplayAllowed", false);
         request.metadata().put("supportingDatasetDefaultCollapsed", true);
+        AnalysisReportContract reportContract = AnalysisReportContract.failureReport(
+            executionOutcome.failureReport());
+        request.metadata().put("analysisReportContract", reportContract.toMap());
+        request.metadata().put("analysisReportContractSchemaVersion",
+            AnalysisReportContract.SCHEMA_VERSION);
+        request.metadata().put("finalPayloadType", reportContract.reportType().name());
         return executionOutcome;
     }
 

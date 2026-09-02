@@ -26,4 +26,18 @@ public final class DataAnalysisDecisionOperatingModel {
         GOVERNED_WORKER_REDUCER_REPORTS_ONLY,
         WORKER_REPORT_COMPATIBILITY_FALLBACK
     }
+
+    /** Mandatory management reasoning stages; collection/rendering is not a Driver stage. */
+    public enum DriverDecisionStage {
+        DRIVER_REVIEW,
+        DRIVER_REASONING,
+        DRIVER_DECISION
+    }
+
+    public enum DriverAction {
+        APPROVE,
+        CHALLENGE_WORKER,
+        CHALLENGE_REDUCER,
+        REQUEST_MORE_EVIDENCE
+    }
 }

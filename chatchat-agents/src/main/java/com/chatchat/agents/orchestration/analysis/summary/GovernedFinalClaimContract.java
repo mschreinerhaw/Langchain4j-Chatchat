@@ -25,7 +25,8 @@ import java.util.Set;
  */
 final class GovernedFinalClaimContract {
 
-    static final String SCHEMA_VERSION = "governed_management_synthesis.v2";
+    static final String SCHEMA_VERSION = "governed_management_synthesis.v3";
+    private static final String LEGACY_SCHEMA_VERSION_V2 = "governed_management_synthesis.v2";
     private static final String LEGACY_SCHEMA_VERSION = "governed_final_claim_selection.v1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MAX_FALLBACK_CLAIMS = 30;
@@ -98,6 +99,7 @@ final class GovernedFinalClaimContract {
         Map<String, Object> payload = parseObject(modelOutput);
         String schemaVersion = text(payload.get("schemaVersion"));
         if (payload.isEmpty() || (!SCHEMA_VERSION.equals(schemaVersion)
+            && !LEGACY_SCHEMA_VERSION_V2.equals(schemaVersion)
             && !LEGACY_SCHEMA_VERSION.equals(schemaVersion))) {
             return deterministic(compilation, "FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
         }
@@ -164,6 +166,99 @@ final class GovernedFinalClaimContract {
             true, "CLAIM_SELECTION_ADMITTED");
     }
 
+    DriverAudit inspectDriverAudit(String modelOutput, Compilation compilation,
+                                   Collection<String> reportIds) {
+        Map<String, Object> payload = parseObject(modelOutput);
+        if (!SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))) {
+            return DriverAudit.invalid("DRIVER_REVIEW_PROTOCOL_MISSING");
+        }
+        Map<String, Object> review = object(payload.get("driverReview"));
+        Map<String, Object> reasoning = object(payload.get("driverReasoning"));
+        Set<String> requiredReviewFields = Set.of(
+            "status", "requirementCoverage", "claimConsistency", "evidenceSufficiency",
+            "crossWorkerConflicts", "duplicateEvidence", "unsupportedInferences",
+            "missingCriticalDimensions", "claimAssessments", "challenges");
+        if (!review.keySet().containsAll(requiredReviewFields)
+            || !reasoning.containsKey("derivedClaims")) {
+            return DriverAudit.invalid("DRIVER_REVIEW_FIELDS_INCOMPLETE");
+        }
+        String reviewStatus = text(review.get("status")).toUpperCase(java.util.Locale.ROOT);
+        if (!Set.of("PASS", "CHALLENGE").contains(reviewStatus)) {
+            return DriverAudit.invalid("DRIVER_REVIEW_STATUS_INVALID");
+        }
+        List<ClaimAssessment> assessments = maps(review.get("claimAssessments")).stream()
+            .map(this::claimAssessment).filter(java.util.Objects::nonNull).toList();
+        Set<String> assessed = assessments.stream().map(ClaimAssessment::claimId)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (assessments.size() != assessed.size()
+            || !assessed.containsAll(compilation.claims().keySet())
+            || assessments.stream().anyMatch(item -> !compilation.claims().containsKey(item.claimId()))) {
+            return DriverAudit.invalid("DRIVER_REVIEW_CLAIM_COVERAGE_INCOMPLETE");
+        }
+        Set<String> validReports = reportIds == null ? Set.of() : reportIds.stream()
+            .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        List<DriverChallenge> challenges = maps(review.get("challenges")).stream()
+            .map(this::driverChallenge).filter(java.util.Objects::nonNull).toList();
+        boolean invalidChallenge = challenges.stream().anyMatch(challenge ->
+            challenge.claimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id))
+                || (!challenge.targetReportId().isBlank()
+                    && !validReports.contains(challenge.targetReportId())));
+        if (invalidChallenge || ("CHALLENGE".equals(reviewStatus) && challenges.isEmpty())
+            || ("PASS".equals(reviewStatus) && !challenges.isEmpty())) {
+            return DriverAudit.invalid("DRIVER_CHALLENGE_INVALID");
+        }
+        List<DerivedClaim> derivedClaims = maps(reasoning.get("derivedClaims")).stream()
+            .map(this::derivedClaim).filter(java.util.Objects::nonNull).toList();
+        boolean duplicateDerivedId = derivedClaims.stream().map(DerivedClaim::derivedClaimId)
+            .distinct().count() != derivedClaims.size();
+        boolean invalidDerived = duplicateDerivedId || derivedClaims.stream().anyMatch(derived ->
+            derived.basisClaimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id))
+                || !numbersGrounded(derived.text(), derived.basisClaimIds(), compilation));
+        if (invalidDerived) return DriverAudit.invalid("DRIVER_DERIVED_CLAIM_INVALID");
+        Map<String, Object> reviewSummary = new LinkedHashMap<>();
+        reviewSummary.put("status", reviewStatus);
+        reviewSummary.put("requirementCoverage", value(review, "requirementCoverage", List.of()));
+        reviewSummary.put("claimConsistency", value(review, "claimConsistency", List.of()));
+        reviewSummary.put("evidenceSufficiency", value(review, "evidenceSufficiency", Map.of()));
+        reviewSummary.put("crossWorkerConflicts", value(review, "crossWorkerConflicts", List.of()));
+        reviewSummary.put("duplicateEvidence", value(review, "duplicateEvidence", List.of()));
+        reviewSummary.put("unsupportedInferences", value(review, "unsupportedInferences", List.of()));
+        reviewSummary.put("missingCriticalDimensions", value(review, "missingCriticalDimensions", List.of()));
+        reviewSummary.put("claimAssessments", assessments.stream().map(ClaimAssessment::toMap).toList());
+        return new DriverAudit(true, "DRIVER_REVIEW_ADMITTED", reviewStatus,
+            Map.copyOf(reviewSummary), challenges, derivedClaims);
+    }
+
+    private ClaimAssessment claimAssessment(Map<String, Object> source) {
+        String claimId = text(source.get("claimId"));
+        String verdict = text(source.get("verdict")).toUpperCase(java.util.Locale.ROOT);
+        if (claimId.isBlank() || !Set.of("ACCEPT", "DOWNGRADE", "REJECT").contains(verdict)) {
+            return null;
+        }
+        return new ClaimAssessment(claimId, verdict, text(source.get("reason")));
+    }
+
+    private DriverChallenge driverChallenge(Map<String, Object> source) {
+        String targetLayer = text(source.get("targetLayer")).toUpperCase(java.util.Locale.ROOT);
+        String reason = text(source.get("reason"));
+        String correction = text(source.get("requiredCorrection"));
+        List<String> claimIds = strings(source.get("claimIds"));
+        if (!Set.of("WORKER_REPORT", "REDUCER_REPORT").contains(targetLayer)
+            || reason.isBlank() || correction.isBlank() || claimIds.isEmpty()) return null;
+        return new DriverChallenge(targetLayer, text(source.get("targetReportId")),
+            claimIds, reason, correction);
+    }
+
+    private DerivedClaim derivedClaim(Map<String, Object> source) {
+        String narrative = text(source.get("text"));
+        List<String> basis = strings(source.get("basisClaimIds"));
+        if (narrative.isBlank() || basis.isEmpty()) return null;
+        String id = text(source.get("derivedClaimId"));
+        if (id.isBlank()) id = "driver-derived:" + DataAnalysisLayerGovernanceContract
+            .fingerprint(List.of(narrative, basis));
+        return new DerivedClaim(id, narrative, basis, strings(source.get("caveats")));
+    }
+
     private Projection projectNarrative(Map<String, Object> payload, Compilation compilation,
                                          List<NarrativeFinding> findings) {
         if (findings.isEmpty()) {
@@ -183,7 +278,16 @@ final class GovernedFinalClaimContract {
         coverage.stream().filter(item -> "USED".equals(item.disposition()))
             .map(ClaimCoverage::claimId).forEach(selected::add);
 
+        Set<String> rejectedByDriver = maps(object(payload.get("driverReview"))
+            .get("claimAssessments")).stream()
+            .filter(item -> "REJECT".equals(text(item.get("verdict")).toUpperCase(
+                java.util.Locale.ROOT)))
+            .map(item -> text(item.get("claimId")))
+            .filter(id -> !id.isBlank())
+            .collect(java.util.stream.Collectors.toSet());
+
         boolean unknownBasis = selected.stream().anyMatch(id -> !compilation.claims().containsKey(id));
+        boolean rejectedClaimPublished = selected.stream().anyMatch(rejectedByDriver::contains);
         boolean invalidFindingBasis = findings.stream().anyMatch(finding ->
             finding.basisClaimIds().isEmpty()
                 || finding.basisClaimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id)));
@@ -207,6 +311,9 @@ final class GovernedFinalClaimContract {
         boolean incompleteCoverageMatrix = !coverageByClaim.keySet().containsAll(requiredObserved);
         if (unknownBasis || invalidFindingBasis) {
             return deterministic(compilation, "INVALID_MANAGEMENT_FINDING_BASIS");
+        }
+        if (rejectedClaimPublished) {
+            return deterministic(compilation, "DRIVER_REJECTED_CLAIM_SELECTED_FOR_PUBLICATION");
         }
         if (invalidCoverage || incompleteCoverageMatrix) {
             return deterministic(compilation, "INCOMPLETE_CLAIM_COVERAGE_MATRIX");
@@ -277,6 +384,16 @@ final class GovernedFinalClaimContract {
             + "supporting context, or consciously excluded as not material. Coverage does not require publishing "
             + "every fact; it prevents accidental loss during synthesis. Return only one JSON object with this shape: "
             + "{\"schemaVersion\":\"" + SCHEMA_VERSION + "\","
+            + "\"driverReview\":{\"status\":\"PASS|CHALLENGE\","
+            + "\"requirementCoverage\":[],\"claimConsistency\":[],\"evidenceSufficiency\":{},"
+            + "\"crossWorkerConflicts\":[],\"duplicateEvidence\":[],\"unsupportedInferences\":[],"
+            + "\"missingCriticalDimensions\":[],"
+            + "\"claimAssessments\":[{\"claimId\":\"\",\"verdict\":\"ACCEPT|DOWNGRADE|REJECT\",\"reason\":\"\"}],"
+            + "\"challenges\":[{\"targetLayer\":\"WORKER_REPORT|REDUCER_REPORT\","
+            + "\"targetReportId\":\"\",\"claimIds\":[],\"reason\":\"\","
+            + "\"requiredCorrection\":\"\"}]},"
+            + "\"driverReasoning\":{\"derivedClaims\":[{\"derivedClaimId\":\"\","
+            + "\"text\":\"\",\"basisClaimIds\":[],\"caveats\":[]}]},"
             + "\"findings\":[{\"section\":\"CORE|EVIDENCE|EXCEPTION|ACTION\","
             + "\"text\":\"management-level synthesized conclusion\",\"basisClaimIds\":[]}],"
             + "\"coverage\":[{\"claimId\":\"\","
@@ -300,7 +417,14 @@ final class GovernedFinalClaimContract {
             + "non-empty review item must cite selected basisClaimIds; it is an evaluation of the admitted analysis, "
             + "not permission to create a new business fact. "
             + "Unknown IDs, missing finding bases, invented numeric values, or an incomplete observed-fact coverage "
-            + "matrix invalidate the synthesis. "
+            + "matrix invalidate the synthesis. Execute three mandatory stages before returning. DRIVER_REVIEW "
+            + "independently checks requirement coverage, every admitted Claim, evidence sufficiency, cross-Worker "
+            + "conflict, duplicate evidence, unsupported inference and missing critical dimensions. Agreement from "
+            + "reports sharing the same lineage is not independent confirmation. DRIVER_REASONING may create derived "
+            + "Claims only from admitted basisClaimIds, with alternatives and caveats. DRIVER_DECISION writes findings "
+            + "only after review. You may downgrade or reject lower-layer Claims. A material error must set review "
+            + "status CHALLENGE, identify the target report and Claims, and request a concrete correction; challenged "
+            + "Claims must not enter the final decision. Assess every ledger Claim exactly once. "
             + "Do not return Markdown. Admitted claim ledger: " + ModelProtocolJson.compact(ledger);
     }
 
@@ -596,6 +720,19 @@ final class GovernedFinalClaimContract {
         return List.copyOf(result);
     }
 
+    private Map<String, Object> object(Object value) {
+        if (!(value instanceof Map<?, ?> source)) return Map.of();
+        Map<String, Object> result = new LinkedHashMap<>();
+        source.forEach((key, item) -> {
+            if (key != null) result.put(String.valueOf(key), item);
+        });
+        return Map.copyOf(result);
+    }
+
+    private Object value(Map<String, Object> source, String key, Object fallback) {
+        return source == null ? fallback : source.getOrDefault(key, fallback);
+    }
+
     private List<String> strings(Object value) {
         if (!(value instanceof Collection<?> collection)) return List.of();
         return collection.stream().filter(java.util.Objects::nonNull).map(String::valueOf)
@@ -624,6 +761,62 @@ final class GovernedFinalClaimContract {
 
     record Projection(boolean modelSelectionAccepted, String reason, String markdown,
                       List<String> selectedClaimIds) {
+    }
+
+    record DriverAudit(boolean valid, String reason, String status,
+                       Map<String, Object> review,
+                       List<DriverChallenge> challenges,
+                       List<DerivedClaim> derivedClaims) {
+        DriverAudit {
+            review = review == null ? Map.of() : Map.copyOf(review);
+            challenges = challenges == null ? List.of() : List.copyOf(challenges);
+            derivedClaims = derivedClaims == null ? List.of() : List.copyOf(derivedClaims);
+        }
+
+        static DriverAudit invalid(String reason) {
+            return new DriverAudit(false, reason, "INVALID", Map.of(), List.of(), List.of());
+        }
+
+        Map<String, Object> toMap() {
+            return Map.of(
+                "schemaVersion", "driver_review.v1",
+                "valid", valid,
+                "reason", reason,
+                "status", status,
+                "review", review,
+                "challenges", challenges.stream().map(DriverChallenge::toMap).toList(),
+                "derivedClaims", derivedClaims.stream().map(DerivedClaim::toMap).toList());
+        }
+    }
+
+    record ClaimAssessment(String claimId, String verdict, String reason) {
+        Map<String, Object> toMap() {
+            return Map.of("claimId", claimId, "verdict", verdict, "reason", reason);
+        }
+    }
+
+    record DriverChallenge(String targetLayer, String targetReportId,
+                           List<String> claimIds, String reason,
+                           String requiredCorrection) {
+        Map<String, Object> toMap() {
+            return Map.of(
+                "targetLayer", targetLayer,
+                "targetReportId", targetReportId,
+                "claimIds", claimIds,
+                "reason", reason,
+                "requiredCorrection", requiredCorrection);
+        }
+    }
+
+    record DerivedClaim(String derivedClaimId, String text,
+                        List<String> basisClaimIds, List<String> caveats) {
+        Map<String, Object> toMap() {
+            return Map.of(
+                "derivedClaimId", derivedClaimId,
+                "text", text,
+                "basisClaimIds", basisClaimIds,
+                "caveats", caveats);
+        }
     }
 
     private record Section(String type, List<String> claimIds) {

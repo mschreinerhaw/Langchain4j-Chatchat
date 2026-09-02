@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration.answer;
 
+import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 
 
@@ -628,9 +629,12 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         metadata.put("supportingDatasetPrimaryDisplayAllowed", false);
         metadata.put("supportingDatasetDefaultCollapsed", true);
         metadata.put("analysisExecutionStatus", "NEEDS_REANALYSIS");
+        String failureReport = "# 分析未完成\n\n已有数据已保留，将复用已有数据重新执行 Worker 分析。";
+        metadata.put("analysisReportContract",
+            AnalysisReportContract.failureReport(failureReport).toMap());
 
         AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
-            "# 分析未完成\n\n已有数据已保留，将复用已有数据重新执行 Worker 分析。",
+            failureReport,
             List.of(trace), metadata, List.of("analysis did not pass governance"));
 
         assertThat(result.answer())
@@ -638,7 +642,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .doesNotContain("查询结果明细", "customerId", "847174.25");
         assertThat(result.metadata())
             .containsEntry("toolResultDataMarkdownSuppressed", true)
-            .containsEntry("toolResultPresentationMode", "structured_visualization");
+            .containsEntry("toolResultPresentationMode", "structured_visualization")
+            .containsEntry("finalPayloadContractAdmitted", true)
+            .containsEntry("finalPayloadType", "FAILURE_REPORT");
         Map<String, Object> visualization =
             (Map<String, Object>) result.metadata().get("visualizationSpec");
         assertThat(visualization)
@@ -647,6 +653,38 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .containsEntry("role", "evidence_attachment")
             .containsEntry("primaryDisplay", false)
             .containsEntry("defaultCollapsed", true);
+    }
+
+    @Test
+    void internalInstructionCannotPassAsDriverReport() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            null,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String instruction = "## 基于 MCP 查询结果的分析\n\n"
+            + "MCP 工具已经成功返回非空查询结果，因此可以并且必须基于现有数据进行分析。"
+            + "以下工具结果是本次分析的事实基础。";
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisReportContract", Map.of(
+            "schemaVersion", AnalysisReportContract.SCHEMA_VERSION,
+            "reportType", "ANALYSIS_CONTEXT",
+            "sourceStage", "WORKER",
+            "admittedFactCount", 0,
+            "admittedInsightCount", 0,
+            "admittedConclusionCount", 0,
+            "publishability", "NON_PUBLISHABLE",
+            "renderedText", instruction));
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            instruction, List.of(), metadata, List.of());
+
+        assertThat(result.answer())
+            .contains("# 分析未完成", "分析报告：未通过发布准入")
+            .doesNotContain("可以并且必须", "以下工具结果是本次分析的事实基础");
+        assertThat(result.metadata())
+            .containsEntry("finalPayloadContractAdmitted", true)
+            .containsEntry("finalPayloadType", "FAILURE_REPORT")
+            .containsEntry("rejectedFinalPayloadType", "ANALYSIS_CONTEXT");
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.analysis.semantic.CapabilityEvidenceClaimContract;
 import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimAdmissionPolicy;
@@ -46,6 +47,8 @@ public final class AnalysisSummaryGovernanceBridge
         DataAnalysisSummaryProtocol.BRIDGE_SCHEMA_VERSION;
     public static final String EVIDENCE_SCHEMA_VERSION =
         DataAnalysisSummaryProtocol.EVIDENCE_SCHEMA_VERSION;
+    public static final String WORKER_REPORT_SCHEMA_VERSION =
+        DataAnalysisDecisionOperatingModel.WORKER_REPORT_SCHEMA_VERSION;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final AnalysisObjectiveContractCompiler objectiveContractCompiler =
@@ -224,8 +227,27 @@ public final class AnalysisSummaryGovernanceBridge
             + "the selected mode requires them. Never invent a threshold, baseline, causal link or impact. For each "
             + "required depth dimension that current semantics or evidence cannot support, mark it unsupported and "
             + "emit one declarative recommendedFollowupRequest describing the capability, time range and grain needed. "
+            + "You are the Worker responsible for completing the analysis of this assigned dataset before reporting "
+            + "upward. Do not defer dataset-level reasoning to the final Driver. Perform demand analysis before writing "
+            + "findings: infer the user's decision goal from the original "
+            + "question and agent_role_analysis_context, state which questions this dataset answers, and retain the "
+            + "important unanswered questions. Explore useful associations among metrics actually present in returned "
+            + "records or explicitly declared by the producer. A relationship supported by authorized semantics and "
+            + "record evidence may be an insight; otherwise it must be emitted only as PENDING_VALIDATION with its "
+            + "candidate metrics, proposed method and missing validation evidence. Never present a candidate association "
+            + "as an observed correlation, behavioral pattern or causal conclusion. "
+            + "metricAssociations must always be present. When no responsible association can be proposed from this "
+            + "dataset, return an empty array and record the blocking reason in demandAnalysis.openQuestions or "
+            + "recommendedFollowupRequests. "
+            + "Your output is an analytical work report consumed by a management-level Driver: make the contribution, "
+            + "problems found, evidence gaps and next analytical work explicit through objectiveAlignment, "
+            + "demandAnalysis, metricAssociations, limitations and recommendedFollowupRequests. "
             + "Output contract: return only one JSON object with this source-neutral shape: "
             + "{\"summary\":\"compact question-directed Chinese findings\","
+            + "\"demandAnalysis\":{\"decisionGoal\":\"\",\"answeredQuestions\":[],\"openQuestions\":[]},"
+            + "\"metricAssociations\":[{\"title\":\"\",\"status\":\"SUPPORTED|PENDING_VALIDATION\","
+            + "\"basisRecordRefs\":[],\"candidateMetrics\":[],\"analysisMethod\":\"\","
+            + "\"validationNeeded\":[]}],"
             + "\"objectiveAlignment\":{\"addressedAspects\":[],\"unsupportedAspects\":[],"
             + "\"contribution\":\"how this chunk helps answer the question\"},"
             + "\"analysisQuality\":{\"observedScope\":\"\",\"grain\":\"\","
@@ -427,6 +449,17 @@ public final class AnalysisSummaryGovernanceBridge
         evidence.put("missingEvidence", strings(payload.get("missingEvidence")));
         evidence.put("recommendedFollowupRequests", followupRequests(payload.get("recommendedFollowupRequests")));
         evidence.put("objectiveAlignment", objectiveAlignment(payload.get("objectiveAlignment")));
+        Map<String, Object> demandAnalysis = demandAnalysis(payload.get("demandAnalysis"));
+        evidence.put("demandAnalysis", demandAnalysis);
+        evidence.put("metricAssociations", metricAssociations(payload.get("metricAssociations"), position));
+        evidence.put("analysisDecisionOperatingModelVersion",
+            DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
+        evidence.put("analysisParticipantRole",
+            DataAnalysisDecisionOperatingModel.ParticipantRole.WORKER.name());
+        evidence.put("workerAnalysisReportSchemaVersion", WORKER_REPORT_SCHEMA_VERSION);
+        evidence.put("workerDemandAnalysisComplete", workerDemandAnalysisComplete(demandAnalysis));
+        evidence.put("workerMetricAssociationAssessmentDeclared",
+            payload.containsKey("metricAssociations"));
         evidence.put("analysisObjectiveContract", objectiveContract == null
             ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(objectiveContract)));
         evidence.put("analysisSemanticContract", semanticContract == null
@@ -475,6 +508,48 @@ public final class AnalysisSummaryGovernanceBridge
         String contribution = string(source.get("contribution"));
         if (contribution != null) result.put("contribution", contribution);
         return Collections.unmodifiableMap(result);
+    }
+
+    private Map<String, Object> demandAnalysis(Object value) {
+        Map<String, Object> source = copy(value);
+        Map<String, Object> result = new LinkedHashMap<>();
+        String decisionGoal = string(source.get("decisionGoal"));
+        if (decisionGoal != null) result.put("decisionGoal", decisionGoal);
+        result.put("answeredQuestions", strings(source.get("answeredQuestions")));
+        result.put("openQuestions", strings(source.get("openQuestions")));
+        return Collections.unmodifiableMap(result);
+    }
+
+    private boolean workerDemandAnalysisComplete(Map<String, Object> demandAnalysis) {
+        if (demandAnalysis == null || demandAnalysis.isEmpty()) return false;
+        String decisionGoal = string(demandAnalysis.get("decisionGoal"));
+        return decisionGoal != null && !decisionGoal.isBlank()
+            && (!strings(demandAnalysis.get("answeredQuestions")).isEmpty()
+                || !strings(demandAnalysis.get("openQuestions")).isEmpty());
+    }
+
+    private List<Map<String, Object>> metricAssociations(Object value,
+                                                          DataAnalysisPosition position) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> source : maps(value)) {
+            String title = string(source.get("title"));
+            if (title == null || title.isBlank()) continue;
+            List<String> basisRecordRefs = strings(source.get("basisRecordRefs")).stream()
+                .filter(reference -> validRecordReference(position, reference)).distinct().toList();
+            String requestedStatus = string(source.get("status"));
+            String status = "SUPPORTED".equalsIgnoreCase(requestedStatus)
+                && !basisRecordRefs.isEmpty() ? "SUPPORTED" : "PENDING_VALIDATION";
+            Map<String, Object> association = new LinkedHashMap<>();
+            association.put("title", title);
+            association.put("status", status);
+            association.put("basisRecordRefs", basisRecordRefs);
+            association.put("candidateMetrics", strings(source.get("candidateMetrics")));
+            String method = string(source.get("analysisMethod"));
+            if (method != null) association.put("analysisMethod", method);
+            association.put("validationNeeded", strings(source.get("validationNeeded")));
+            result.add(Collections.unmodifiableMap(association));
+        }
+        return List.copyOf(result);
     }
 
     private Map<String, Object> analysisDepth(Object value) {

@@ -130,11 +130,23 @@ class HierarchicalAnalysisReducerTest {
             model::chat, scope, plan, chunks, "analyze portfolio activity");
 
         assertThat(result.datasetSummaries()).hasSize(3)
-            .allSatisfy(summary -> assertThat(summary.scope()).isEqualTo("DATASET_SYNTHESIS"));
+            .allSatisfy(summary -> {
+                assertThat(summary.scope()).isEqualTo("DATASET_SYNTHESIS");
+                assertThat(summary.evidence())
+                    .containsEntry("analysisDecisionOperatingModelVersion",
+                        "data_analysis_decision_operating_model.v1")
+                    .containsEntry("analysisParticipantRole", "REDUCER")
+                    .containsEntry("managementReviewInput", true);
+            });
         assertThat(result.relationshipGroupSummaries()).singleElement().satisfies(summary -> {
             assertThat(summary.scope()).isEqualTo("RELATIONSHIP_GROUP_SYNTHESIS");
             assertThat(summary.content()).isEqualTo("assets and positions combined analysis");
             assertThat(summary.inputSummaryResultIds()).hasSize(2);
+            assertThat(summary.evidence())
+                .containsEntry("analysisDecisionOperatingModelVersion",
+                    "data_analysis_decision_operating_model.v1")
+                .containsEntry("analysisParticipantRole", "REDUCER")
+                .containsEntry("managementReviewInput", true);
         });
         assertThat(result.finalInputs()).hasSize(2)
             .extracting(AnalysisSummaryResult::scope)

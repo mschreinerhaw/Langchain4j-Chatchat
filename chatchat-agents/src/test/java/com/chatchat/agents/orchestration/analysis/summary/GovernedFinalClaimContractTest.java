@@ -87,6 +87,87 @@ class GovernedFinalClaimContractTest {
         assertThat(compilation.claimContractObserved()).isFalse();
     }
 
+    @Test
+    void publishesDemandAnalysisAndClearlyUnverifiedMetricDirections() {
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["claim-1"],"sections":[],
+             "demandAnalysis":{"decisionGoal":"判断资产增长来源与风险暴露",
+               "priorityQuestions":["收益是否集中于少数标的"]},
+             "metricAssociations":[{"title":"检验收益贡献与持仓集中度的关系",
+               "basisClaimIds":["claim-1"],
+               "candidateMetrics":["当日盈亏贡献率","持仓市值占比"],
+               "analysisMethod":"按标的计算贡献并对照持仓权重",
+               "validationNeeded":["完整持仓范围","指标聚合语义"]}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.markdown()).contains(
+            "## 需求分析", "判断资产增长来源与风险暴露",
+            "## 指标联想与后续分析", "待验证分析方向",
+            "当日盈亏贡献率", "完整持仓范围");
+    }
+
+    @Test
+    void rejectsMetricDirectionWithoutSelectedAdmittedBasis() {
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["claim-1"],"sections":[],
+             "metricAssociations":[{"title":"越界联想","basisClaimIds":["claim-x"],
+               "candidateMetrics":["未知指标"],"analysisMethod":"推断","validationNeeded":[]}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("INVALID_METRIC_ASSOCIATION_BASIS");
+        assertThat(projection.markdown()).doesNotContain("越界联想", "未知指标");
+    }
+
+    @Test
+    void publishesManagementReviewGroundedInWorkerClaims() {
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["claim-1"],"sections":[],
+             "managementReview":{
+               "overallAssessment":{"text":"现有分析确认了当前返回值，但解释链仍不完整",
+                 "basisClaimIds":["claim-1"]},
+               "identifiedProblems":[{"text":"缺少可用于比较的基准",
+                 "basisClaimIds":["claim-1"]}],
+               "improvementSuggestions":[{"text":"补充同口径历史基准后再评价偏离程度",
+                 "basisClaimIds":["claim-1"]}],
+               "nextWorkDirections":[{"text":"优先验证指标变化与业务事件的时间对应关系",
+                 "basisClaimIds":["claim-1"]}]}}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.markdown()).contains(
+            "## 分析复盘与改进方向", "总体评价：现有分析确认了当前返回值",
+            "发现的问题：缺少可用于比较的基准",
+            "改进建议：补充同口径历史基准",
+            "下一步方向：优先验证指标变化");
+    }
+
+    @Test
+    void rejectsUngroundedManagementReview() {
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["claim-1"],"sections":[],
+             "managementReview":{"identifiedProblems":[
+               {"text":"无依据的问题判断","basisClaimIds":["claim-x"]}]}}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("INVALID_MANAGEMENT_REVIEW_BASIS");
+        assertThat(projection.markdown()).doesNotContain("无依据的问题判断");
+    }
+
     private AnalysisSummaryResult summary() {
         return AnalysisSummaryResult.chunk(
             GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),

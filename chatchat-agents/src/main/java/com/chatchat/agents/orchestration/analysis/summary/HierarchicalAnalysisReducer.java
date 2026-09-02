@@ -8,6 +8,7 @@ import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisAssignment;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisParticipant;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisWork;
@@ -185,7 +186,13 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             first.analysisContext(),
             Map.of("inputChunkCount", chunks.size(), "complete", true),
             chunks,
-            hierarchyEvidence(chunks, Map.of("reduceSchemaVersion", SCHEMA_VERSION))
+            hierarchyEvidence(chunks, Map.of(
+                "reduceSchemaVersion", SCHEMA_VERSION,
+                "analysisDecisionOperatingModelVersion",
+                    DataAnalysisDecisionOperatingModel.SCHEMA_VERSION,
+                "analysisParticipantRole",
+                    DataAnalysisDecisionOperatingModel.ParticipantRole.REDUCER.name(),
+                "managementReviewInput", true))
         );
     }
 
@@ -224,7 +231,13 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             Map.of("inputDatasetCount", inputs.size(), "complete", true),
             inputs,
             hierarchyEvidence(inputs, Map.of(
-                "reduceSchemaVersion", SCHEMA_VERSION, "authorizedRelationships", groupEdges))
+                "reduceSchemaVersion", SCHEMA_VERSION,
+                "analysisDecisionOperatingModelVersion",
+                    DataAnalysisDecisionOperatingModel.SCHEMA_VERSION,
+                "analysisParticipantRole",
+                    DataAnalysisDecisionOperatingModel.ParticipantRole.REDUCER.name(),
+                "managementReviewInput", true,
+                "authorizedRelationships", groupEdges))
         );
     }
 
@@ -236,6 +249,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             "entities", "crossChunkKeys",
             "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract",
             "analysisDepth", "analysisDepthContractVersion",
+            "demandAnalysis", "metricAssociations",
             "datasetFindings", "metrics", "rankings", "analyzedRelationships", "businessConclusions",
             "unsupportedQuestions", "missingEvidence", "recommendedFollowupRequests")) {
             List<Object> values = new ArrayList<>();
@@ -273,6 +287,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "Reduction context: " + ModelProtocolJson.compact(reduceContext) + "\n"
             + "Upstream summaries: " + ModelProtocolJson.compact(projections) + "\n"
             + "Produce a concise business analysis that directly answers the original question. Treat upstream "
+            + "summaries as completed Worker analysis reports, not as raw data descriptions. Consolidate their work, "
+            + "preserve each report's analytical contribution and detect disagreements, evidence gaps and weakly "
+            + "supported areas for the final management-level Driver. Do not simply concatenate Worker narratives. "
             + "agent_role_analysis_context as maintained orientation for relevance, analytical emphasis and vocabulary, never "
             + "as returned evidence, semantic authorization or a replacement for the original question. Treat upstream "
             + "objectiveAlignment as a coverage contract: merge addressed aspects, retain unsupported aspects, and "
@@ -296,6 +313,10 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "material deviation, its supported impact, competing explanations, discriminating verification and a "
             + "prioritized action. Preserve unsupported depth dimensions and their follow-up requests instead of filling "
             + "them with common knowledge. "
+            + "Merge upstream demandAnalysis into a question-directed decision goal, distinguishing answered from "
+            + "open questions. Preserve upstream metricAssociations as analysis candidates. Only an association "
+            + "already admitted as an insight may be stated as a finding; otherwise label it pending validation and "
+            + "retain the proposed metrics, method and missing evidence without inventing correlation or causality. "
             + "Preserve material exact values and limitations. Keep dataset and "
             + "result identity in the structured lineage only: never print resultId values, runtime ids, template ids, "
             + "tool names, schema keys, or technical evidence references in the business narrative. Do not infer "
@@ -338,6 +359,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             summary.evidence().getOrDefault("semanticGapRequests", List.of()));
         result.put("analysisQuality", summary.evidence().getOrDefault("analysisQuality", Map.of()));
         result.put("analysisDepth", summary.evidence().getOrDefault("analysisDepth", Map.of()));
+        result.put("demandAnalysis", summary.evidence().getOrDefault("demandAnalysis", Map.of()));
+        result.put("metricAssociations",
+            summary.evidence().getOrDefault("metricAssociations", List.of()));
         result.put("datasetFindings", summary.evidence().getOrDefault("datasetFindings", List.of()));
         result.put("metrics", summary.evidence().getOrDefault("metrics", Map.of()));
         result.put("rankings", summary.evidence().getOrDefault("rankings", Map.of()));

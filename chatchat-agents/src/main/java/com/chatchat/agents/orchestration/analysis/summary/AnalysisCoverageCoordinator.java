@@ -15,6 +15,7 @@ import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisWorkerSupervision;
 import dev.langchain4j.model.chat.ChatModel;
@@ -249,9 +250,18 @@ public final class AnalysisCoverageCoordinator {
                 == governedSummaries.size();
         appendCoverage(prompt, hierarchy, failures, counters, coverageComplete, traceComplete);
         if (!rawReplay.isEmpty()) {
-            prompt.append("Raw evidence replay (lossless, selected by generic integrity rules). "
-                    + "Use only when an intermediate summary is incomplete or inconsistent:\n")
-                .append(rawReplay);
+            // Raw replay is retained for Worker repair and governance diagnostics, but never enters
+            // the management-level Driver prompt. The Driver reviews admitted analysis products;
+            // allowing it to reinterpret raw rows would collapse the Worker/Driver responsibility boundary.
+            if (request.metadata() != null) {
+                request.metadata().put("analysisRawReplayAvailableForWorkerRepair", true);
+                request.metadata().put("analysisRawReplayWithheldFromDriver", true);
+            }
+            observe(request, "原始证据回放已保留用于分析修复和审计，不进入综合决策模型。",
+                "analysis_summary_governance", metadataOf(
+                    "type", "analysis_raw_replay_isolated",
+                    "rawReplayChunkCount", counters.rawReplay,
+                    "driverAccess", false));
         }
         writeResultMetadata(request, datasets.size(), relationshipPlan, lifecycle, hierarchy,
             governedSummaries, failures, insightResults, insightDecisions, presentationViews,
@@ -475,6 +485,10 @@ public final class AnalysisCoverageCoordinator {
         Map<String, Object> metadata = request.metadata();
         if (metadata == null) return;
         metadata.put("recordAnalysisContractVersion", "record_grounded_analysis.v1");
+        metadata.put("analysisDecisionOperatingModelVersion",
+            DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
+        metadata.put("analysisGovernanceParticipantRole",
+            DataAnalysisDecisionOperatingModel.ParticipantRole.GOVERNANCE.name());
         metadata.put("recordAnalysisReturnedRecordCount", counters.returned);
         metadata.put("recordAnalysisProcessedRecordCount", counters.processed);
         metadata.put("recordAnalysisCoverageComplete", complete);

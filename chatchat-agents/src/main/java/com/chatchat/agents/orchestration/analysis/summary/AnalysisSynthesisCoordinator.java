@@ -9,6 +9,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import dev.langchain4j.model.chat.ChatModel;
@@ -100,6 +101,11 @@ public final class AnalysisSynthesisCoordinator {
     /** Executes the single final model call, its deterministic fallback and final governance. */
     public FinalSynthesisResult synthesizeFinal(FinalModelSynthesisRequest request) {
         if (Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"))) {
+            request.metadata().put("analysisDriverModelInvoked", false);
+            request.metadata().put("analysisDriverModelSkipReason",
+                "DRIVER_SYNTHESIS_BARRIER_BLOCKED");
+            log.warn("analysisDriverModelSkipped runId={} stage={} reason={}",
+                request.runId(), request.stage(), "DRIVER_SYNTHESIS_BARRIER_BLOCKED");
             log.warn("analysisSynthesisBlocked runId={} stage={} barrierStatus={} "
                     + "acceptedWorkerCount={} rejectedWorkerCount={}",
                 request.runId(), request.stage(),
@@ -117,8 +123,19 @@ public final class AnalysisSynthesisCoordinator {
                 AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE, null, false);
         }
         long startedAt = System.currentTimeMillis();
-        List<AnalysisSummaryResult> claimSources = new ArrayList<>(request.summaryResults());
-        claimSources.addAll(request.synthesisInputs());
+        // The Driver consumes the final Worker/Reducer reports. Chunk-level products remain
+        // lineage and audit evidence, but cannot bypass hierarchical consolidation.
+        List<AnalysisSummaryResult> claimSources = request.synthesisInputs().isEmpty()
+            ? new ArrayList<>(request.summaryResults())
+            : new ArrayList<>(request.synthesisInputs());
+        request.metadata().put("analysisDecisionOperatingModelVersion",
+            DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
+        request.metadata().put("analysisParticipantRole",
+            DataAnalysisDecisionOperatingModel.ParticipantRole.DRIVER.name());
+        request.metadata().put("analysisDriverInputMode", request.synthesisInputs().isEmpty()
+            ? DataAnalysisDecisionOperatingModel.DriverInputMode.WORKER_REPORT_COMPATIBILITY_FALLBACK.name()
+            : DataAnalysisDecisionOperatingModel.DriverInputMode.GOVERNED_WORKER_REDUCER_REPORTS_ONLY.name());
+        request.metadata().put("analysisDriverInputReportCount", claimSources.size());
         GovernedFinalClaimContract.Compilation claimCompilation =
             finalClaimContract.compile(claimSources);
         boolean synthesisBarrierReady =
@@ -133,6 +150,11 @@ public final class AnalysisSynthesisCoordinator {
         request.metadata().put("finalClaimPublicationContractActive", claimBoundPublication);
         request.metadata().put("finalAdmittedClaimCount", claimCompilation.claims().size());
         if (governedClaimContractEmpty) {
+            request.metadata().put("analysisDriverModelInvoked", false);
+            request.metadata().put("analysisDriverModelSkipReason",
+                "NO_ADMITTED_SEMANTIC_CLAIMS");
+            log.warn("analysisDriverModelSkipped runId={} stage={} reason={}",
+                request.runId(), request.stage(), "NO_ADMITTED_SEMANTIC_CLAIMS");
             log.warn("analysisSynthesisBlocked runId={} stage={} reason={} admittedClaimCount=0",
                 request.runId(), request.stage(), "NO_ADMITTED_SEMANTIC_CLAIMS");
             request.metadata().put("analysisSynthesisBlocked", true);
@@ -148,10 +170,18 @@ public final class AnalysisSynthesisCoordinator {
         String modelPrompt = claimBoundPublication
             ? finalClaimContract.appendSelectionInstruction(request.prompt(), claimCompilation)
             : request.prompt();
+        request.metadata().put("analysisDriverModelInvoked", true);
+        request.metadata().put("analysisDriverModelPromptChars", modelPrompt.length());
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={} claimBoundPublication={} admittedClaimCount={}",
             request.runId(), request.stage(), request.model().getClass().getName(),
             modelPrompt.length(), request.stepCount(), request.storedObservationCount(),
             claimBoundPublication, claimCompilation.claims().size());
+        log.info("analysisDriverModelRequest runId={} stage={} modelClass={} promptChars={} "
+                + "claimBoundPublication={} admittedClaimCount={}",
+            request.runId(), request.stage(), request.model().getClass().getName(),
+            modelPrompt.length(), claimBoundPublication, claimCompilation.claims().size());
+        log.debug("analysisDriverModelPrompt runId={} stage={} prompt=\n{}",
+            request.runId(), request.stage(), ModelProtocolJson.prettyJsonForLog(modelPrompt));
         String answer;
         String outcome = "MODEL_FINAL_SUMMARY";
         try {
@@ -225,6 +255,8 @@ public final class AnalysisSynthesisCoordinator {
             answer == null ? 0 : answer.length());
         log.info("agentModelOutput phase=interpretation_plan_summary runId={} stage={} answer=\n{}",
             request.runId(), request.stage(), ModelProtocolJson.prettyJsonForLog(answer));
+        log.info("analysisDriverModelOutput runId={} stage={} outcome={} answer=\n{}",
+            request.runId(), request.stage(), outcome, ModelProtocolJson.prettyJsonForLog(answer));
         answerCandidateCollector.register(request.metadata(), AnswerCandidateCollector.FINAL_SYNTHESIS, answer);
         request.metadata().put("interpretationPlanSummaryGenerated",
             !"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)

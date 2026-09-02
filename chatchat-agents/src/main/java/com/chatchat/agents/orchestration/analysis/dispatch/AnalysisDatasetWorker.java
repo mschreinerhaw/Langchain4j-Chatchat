@@ -168,7 +168,13 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
                 : checkpointService.restore(task.isolationScope(), checkpointKey,
                     checkpointInputSha256);
             boolean restoredCheckpoint = summary != null;
-            if (restoredCheckpoint) restoredCheckpointCount++;
+            if (restoredCheckpoint) {
+                restoredCheckpointCount++;
+                log.info("analysisWorkerSummaryRestored phase=chunk_summary runId={} taskId={} "
+                        + "dataset={} chunk={}/{} checkpointKey={} outcome={}",
+                    task.isolationScope().runId(), task.taskId(), task.datasetReference(),
+                    position.chunkIndex(), position.chunkCount(), checkpointKey, summary.outcome());
+            }
             if (summary == null) {
                 summary = summarizeChunk(model, task, position, chunk, modelSummaryRequired,
                     attemptCount, progress, cancellationCheck);
@@ -217,7 +223,8 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
         }
         return summaryProtocol.summarize(
             prompt -> retryPolicy.execute(task.maximumRetries(), cancellationCheck,
-                ignored -> requireResponse(model.chat(prompt), "Analysis model"),
+                attempt -> invokeWorkerModel(model, task, position, prompt, attempt,
+                    "chunk_summary", "Analysis model"),
                 attemptCount::set,
                 (attempt, failure) -> {
                     log.warn("analysisChunkAttemptFailed dataset={} chunk={}/{} attempt={}/{} error={}",
@@ -255,13 +262,20 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
         AnalysisSummaryResult datasetSummary = checkpointEligible
             ? checkpointService.restore(task.isolationScope(), checkpointKey, inputSha256) : null;
         boolean restored = datasetSummary != null;
+        if (restored) {
+            log.info("analysisWorkerSummaryRestored phase=dataset_reduce runId={} taskId={} "
+                    + "dataset={} checkpointKey={} outcome={}",
+                task.isolationScope().runId(), task.taskId(), task.datasetReference(),
+                checkpointKey, datasetSummary.outcome());
+        }
         if (datasetSummary == null) {
             progress.report("DATASET_REDUCING", details(
                 "chunkCount", summaries.size(),
                 "originalQuestionPresent", !task.originalUserQuestion().isBlank()));
             datasetSummary = datasetReducer.reduceDataset(
                 prompt -> retryPolicy.execute(task.maximumRetries(), cancellationCheck,
-                    ignored -> requireResponse(model.chat(prompt), "Dataset reduction model"),
+                    attempt -> invokeWorkerModel(model, task, null, prompt, attempt,
+                        "dataset_reduce", "Dataset reduction model"),
                     attempts::set,
                     (attempt, failure) -> {
                         log.warn("analysisDatasetReduceAttemptFailed dataset={} attempt={}/{} error={}",
@@ -294,6 +308,38 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
             throw new IllegalStateException(source + " returned an empty response");
         }
         return value;
+    }
+
+    private String invokeWorkerModel(ChatModel model,
+                                     AnalysisTask task,
+                                     DataAnalysisPosition position,
+                                     String prompt,
+                                     int attempt,
+                                     String phase,
+                                     String source) {
+        long startedAt = System.currentTimeMillis();
+        int chunkIndex = position == null ? 0 : position.chunkIndex();
+        int chunkCount = position == null ? 0 : position.chunkCount();
+        log.info("analysisWorkerModelRequest phase={} runId={} taskId={} dataset={} "
+                + "chunk={}/{} attempt={}/{} modelClass={} promptChars={}",
+            phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
+            chunkIndex, chunkCount, attempt, task.maximumAttempts(),
+            model.getClass().getName(), prompt == null ? 0 : prompt.length());
+        log.debug("analysisWorkerModelPrompt phase={} runId={} taskId={} dataset={} "
+                + "chunk={}/{} attempt={} prompt=\n{}",
+            phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
+            chunkIndex, chunkCount, attempt, ModelProtocolJson.prettyJsonForLog(prompt));
+        String response = model.chat(prompt);
+        log.info("analysisWorkerModelResponse phase={} runId={} taskId={} dataset={} "
+                + "chunk={}/{} attempt={} durationMs={} responseChars={}",
+            phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
+            chunkIndex, chunkCount, attempt, System.currentTimeMillis() - startedAt,
+            response == null ? 0 : response.length());
+        log.info("analysisWorkerModelOutput phase={} runId={} taskId={} dataset={} "
+                + "chunk={}/{} attempt={} summary=\n{}",
+            phase, task.isolationScope().runId(), task.taskId(), task.datasetReference(),
+            chunkIndex, chunkCount, attempt, ModelProtocolJson.prettyJsonForLog(response));
+        return requireResponse(response, source);
     }
 
     private Map<String, Object> details(Object... values) {

@@ -28,7 +28,7 @@ class AnalysisCoverageCoordinatorTest {
     void returnsCompleteEmptyCoverageWithoutDispatchWhenNoEvidenceDatasetsExist() {
         AnalysisEvidenceCoordinator evidence = mock(AnalysisEvidenceCoordinator.class);
         AnalysisDispatchCoordinator dispatch = mock(AnalysisDispatchCoordinator.class);
-        when(evidence.project(any())).thenReturn(
+        when(evidence.project(any(), any())).thenReturn(
             new AnalysisEvidenceCoordinator.Projection(List.of(), List.of()));
         AnalysisCoverageCoordinator coordinator = new AnalysisCoverageCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", evidence, dispatch,

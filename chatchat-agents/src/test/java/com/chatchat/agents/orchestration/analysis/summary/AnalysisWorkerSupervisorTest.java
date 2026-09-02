@@ -23,6 +23,11 @@ class AnalysisWorkerSupervisorTest {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
+            "analysisDecisionOperatingModelVersion", "data_analysis_decision_operating_model.v1",
+            "analysisParticipantRole", "WORKER",
+            "workerAnalysisReportSchemaVersion", "worker_analysis_report.v1",
+            "workerDemandAnalysisComplete", true,
+            "workerMetricAssociationAssessmentDeclared", true,
             "rejectedFactCount", 0,
             "rejectedInsightCount", 0,
             "insights", List.of(Map.of(
@@ -42,6 +47,11 @@ class AnalysisWorkerSupervisorTest {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
+            "analysisDecisionOperatingModelVersion", "data_analysis_decision_operating_model.v1",
+            "analysisParticipantRole", "WORKER",
+            "workerAnalysisReportSchemaVersion", "worker_analysis_report.v1",
+            "workerDemandAnalysisComplete", true,
+            "workerMetricAssociationAssessmentDeclared", true,
             "rejectedInsightCount", 1,
             "insights", List.of(Map.of(
                 "claimId", "claim-1", "claim", "observed",
@@ -71,23 +81,45 @@ class AnalysisWorkerSupervisorTest {
     }
 
     @Test
-    void distinguishesDegradedNarrativeFromRuntimeProtocolText() {
+    void rejectsUnstructuredNarrativeAndRuntimeProtocolText() {
         AnalysisSummaryResult narrative = chunk(
             "MODEL_SUMMARY", "customer assets were analyzed", Map.of("evidenceId", "evidence-1"));
         AnalysisSummaryResult protocol = chunk(
             "MODEL_SUMMARY", "必需工具未执行：Tool call batch failed", Map.of("evidenceId", "evidence-2"));
 
-        DataAnalysisWorkerSupervision.WorkerReport degraded = supervisor.inspect(
+        DataAnalysisWorkerSupervision.WorkerReport narrativeReport = supervisor.inspect(
             "dataset-a", 1, outcome(dataset(narrative, "SUCCESS")), ignored -> true);
         DataAnalysisWorkerSupervision.WorkerReport rejected = supervisor.inspect(
             "dataset-a", 1, outcome(dataset(protocol, "SUCCESS")), ignored -> true);
 
-        assertThat(degraded.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_DEGRADED);
-        assertThat(degraded.acceptedForSynthesis()).isTrue();
+        assertThat(narrativeReport.productStatus())
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
+        assertThat(narrativeReport.acceptedForSynthesis()).isFalse();
+        assertThat(narrativeReport.reasons()).contains("ANALYSIS_PROTOCOL_NOT_SATISFIED");
         assertThat(rejected.productStatus())
             .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
         assertThat(rejected.acceptedForSynthesis()).isFalse();
+    }
+
+    @Test
+    void rejectsStructuredWorkerOutputWithoutDemandAndMetricAssessment() {
+        AnalysisSummaryResult incomplete = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
+            "structured", true,
+            "evidenceId", "evidence-1",
+            "analysisDecisionOperatingModelVersion", "data_analysis_decision_operating_model.v1",
+            "analysisParticipantRole", "WORKER",
+            "workerAnalysisReportSchemaVersion", "worker_analysis_report.v1",
+            "workerDemandAnalysisComplete", false,
+            "workerMetricAssociationAssessmentDeclared", false,
+            "insights", List.of(Map.of("claimId", "claim-1"))));
+
+        DataAnalysisWorkerSupervision.WorkerReport report = supervisor.inspect(
+            "dataset-a", 1, outcome(dataset(incomplete, "SUCCESS")), ignored -> true);
+
+        assertThat(report.productStatus())
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
+        assertThat(report.acceptedForSynthesis()).isFalse();
+        assertThat(report.reasons()).contains("WORKER_ANALYSIS_REPORT_INCOMPLETE");
     }
 
     private AnalysisDispatchCoordinator.Outcome outcome(AnalysisDatasetSummary summary) {

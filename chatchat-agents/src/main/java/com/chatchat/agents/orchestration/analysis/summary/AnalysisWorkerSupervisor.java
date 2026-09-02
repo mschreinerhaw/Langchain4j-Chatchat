@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoord
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisWorkerSupervision;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,6 +81,7 @@ final class AnalysisWorkerSupervisor {
         if (result == null || !"MODEL_SUMMARY".equals(result.outcome())
             || result.content() == null || result.content().isBlank()
             || !Boolean.TRUE.equals(result.evidence().get("structured"))
+            || !completeWorkerAnalysisReport(result)
             || traceable == null || !traceable.test(result)) {
             return false;
         }
@@ -101,6 +103,9 @@ final class AnalysisWorkerSupervisor {
         if (!Boolean.TRUE.equals(result.evidence().get("structured"))) {
             return "ANALYSIS_PROTOCOL_NOT_SATISFIED";
         }
+        if (!completeWorkerAnalysisReport(result)) {
+            return "WORKER_ANALYSIS_REPORT_INCOMPLETE";
+        }
         return "ANALYSIS_HAS_NO_ADMISSIBLE_FINDING_OR_GAP";
     }
 
@@ -110,10 +115,25 @@ final class AnalysisWorkerSupervisor {
     ) {
         if (result == null || !"MODEL_SUMMARY".equals(result.outcome())
             || result.content() == null || result.content().isBlank()
+            || !Boolean.TRUE.equals(result.evidence().get("structured"))
+            || !completeWorkerAnalysisReport(result)
             || traceable == null || !traceable.test(result)) {
             return false;
         }
         return AnalysisOutputAdmissionPolicy.admitWorkerNarrative(result.content()).admitted();
+    }
+
+    private boolean completeWorkerAnalysisReport(AnalysisSummaryResult result) {
+        if (result == null || result.evidence() == null) return false;
+        return DataAnalysisDecisionOperatingModel.SCHEMA_VERSION.equals(
+                result.evidence().get("analysisDecisionOperatingModelVersion"))
+            && DataAnalysisDecisionOperatingModel.ParticipantRole.WORKER.name().equals(
+                result.evidence().get("analysisParticipantRole"))
+            && DataAnalysisDecisionOperatingModel.WORKER_REPORT_SCHEMA_VERSION.equals(
+                result.evidence().get("workerAnalysisReportSchemaVersion"))
+            && Boolean.TRUE.equals(result.evidence().get("workerDemandAnalysisComplete"))
+            && Boolean.TRUE.equals(
+                result.evidence().get("workerMetricAssociationAssessmentDeclared"));
     }
 
     private DataAnalysisWorkerSupervision.WorkerReport report(

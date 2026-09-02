@@ -246,7 +246,7 @@ class AgentOrchestratorTest {
                 workersStarted.countDown();
                 try {
                     workersStarted.await(2, TimeUnit.SECONDS);
-                    return "parallel dataset summary";
+                    return structuredWorkerAnalysis("parallel dataset summary");
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                     throw new IllegalStateException(interrupted);
@@ -293,7 +293,7 @@ class AgentOrchestratorTest {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
-                return "worker summary";
+                return structuredWorkerAnalysis("worker summary");
             }
         };
         InterpretationPlanRuntime.ExecutionResult result =
@@ -370,7 +370,8 @@ class AgentOrchestratorTest {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
-                return "资产分析：客户总资产 847174.25，当日盈亏 42263.81。";
+                return structuredWorkerAnalysis(
+                    "资产分析：客户总资产 847174.25，当日盈亏 42263.81。");
             }
         };
         ToolRegistry registry = mock(ToolRegistry.class);
@@ -398,7 +399,7 @@ class AgentOrchestratorTest {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
-                return "successful dataset summary";
+                return structuredWorkerAnalysis("successful dataset summary");
             }
         };
         InterpretationPlanRuntime.ExecutionResult result =
@@ -479,7 +480,7 @@ class AgentOrchestratorTest {
                 if (modelCalls.incrementAndGet() < 4) {
                     throw new IllegalStateException("transient analysis failure");
                 }
-                return "recovered worker summary";
+                return structuredWorkerAnalysis("recovered worker summary");
             }
         };
         InterpretationPlanRuntime.ExecutionResult result =
@@ -516,7 +517,7 @@ class AgentOrchestratorTest {
             @Override
             public String chat(String prompt) {
                 modelRequests.incrementAndGet();
-                return "canonical dataset summary";
+                return structuredWorkerAnalysis("canonical dataset summary");
             }
         };
         List<Map<String, Object>> records = List.of(
@@ -1460,7 +1461,9 @@ class AgentOrchestratorTest {
                 "templates succeeded", 1L, Map.of("reusedPlanStepIds", List.of(1, 2, 3)))),
             Map.of(), 1L
         );
-        ChatModel model = analysisFixtureModel();
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(
+            structuredWorkerAnalysis("The authoritative value was analyzed."));
         AgentOrchestrator orchestrator = newOrchestrator(model, new DefaultToolRegistry());
         InterpretationPlanRuntime.ExecutionResult cumulative = orchestrator.cumulativeEvidenceResult(
             repairedAttempt, List.of(firstAttempt, repairedAttempt));
@@ -1500,7 +1503,9 @@ class AgentOrchestratorTest {
         InterpretationPlanRuntime.ExecutionResult result =
             new InterpretationPlanRuntime.ExecutionResult(
                 "success", true, false, null, null, steps, Map.of(), 1_001L);
-        ChatModel model = analysisFixtureModel();
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(
+            structuredWorkerAnalysis("The authoritative value was analyzed."));
         AgentOrchestrator orchestrator = newOrchestrator(
             model, new DefaultToolRegistry());
 
@@ -1551,7 +1556,8 @@ class AgentOrchestratorTest {
             "success", true, false, null, null, List.of(step), Map.of(), 10L
         );
         ChatModel model = analysisFixtureModel();
-        when(model.chat(any(String.class))).thenReturn("chunk evidence summary");
+        when(model.chat(any(String.class))).thenReturn(
+            structuredWorkerAnalysis("chunk evidence summary"));
         AgentOrchestrator orchestrator = newOrchestrator(model);
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
             "tenantId", "tenant-summary",
@@ -1635,7 +1641,7 @@ class AgentOrchestratorTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
             modelCalls.incrementAndGet();
-            return "generic chunk summary";
+            return structuredWorkerAnalysis("generic chunk summary covering v11-");
         });
         InMemoryAnalysisSpillStore spillStore = new InMemoryAnalysisSpillStore();
         AgentOrchestrator orchestrator = newOrchestrator(model);
@@ -1698,7 +1704,9 @@ class AgentOrchestratorTest {
         InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
             "success", true, false, null, null, List.of(step), Map.of(), 10L
         );
-        ChatModel model = analysisFixtureModel();
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(
+            structuredWorkerAnalysis("The orders and assets rows were analyzed."));
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze metadata", result, Map.of(),
                 new LinkedHashMap<>(), () -> false);
@@ -1723,7 +1731,12 @@ class AgentOrchestratorTest {
         InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
             "success", true, false, null, null, List.of(first, second), Map.of(), 10L);
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("consolidated metadata analysis");
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            String prompt = invocation.getArgument(0, String.class);
+            return prompt.contains("immutable record-grounded analysis")
+                ? structuredWorkerAnalysis("The orders and assets rows were analyzed.")
+                : "consolidated metadata analysis";
+        });
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze metadata", result, Map.of(),
@@ -1742,7 +1755,8 @@ class AgentOrchestratorTest {
                 assertThat(summary.content()).isEqualTo("consolidated metadata analysis");
             });
         assertThat(coverage.promptEvidence())
-            .contains("sql_metadata_search#occurrence-2", "orders", "assets");
+            .contains("sql_metadata_search#occurrence-2", "consolidated metadata analysis")
+            .doesNotContain("Raw evidence replay");
     }
 
     @Test
@@ -1763,8 +1777,8 @@ class AgentOrchestratorTest {
                 output, null, null, null, 10L, Map.of())),
             Map.of(), 10L);
         ChatModel model = analysisFixtureModel();
-        when(model.chat(any(String.class))).thenReturn(
-            "该资产快照显示总资产为 847174.25，当日盈亏为 42263.81；该结论仅基于当前返回记录。");
+        when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis(
+            "该资产快照显示总资产为 847174.25，当日盈亏为 42263.81；该结论仅基于当前返回记录。"));
         AgentOrchestrator orchestrator = newOrchestrator(model);
         Map<String, Object> metadata = new LinkedHashMap<>();
 
@@ -1918,7 +1932,8 @@ class AgentOrchestratorTest {
                 1, "mcp_tool", toolName, true, output, null, null, null, 10L, Map.of())),
             Map.of(), 10L);
         ChatModel model = analysisFixtureModel();
-        when(model.chat(any(String.class))).thenReturn("持仓市值为 100 元，口径为账户-证券-业务日。 ");
+        when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis(
+            "持仓市值为 100 元，口径为账户-证券-业务日。"));
         AgentOrchestrator orchestrator = newOrchestrator(model, registry);
 
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
@@ -1969,7 +1984,8 @@ class AgentOrchestratorTest {
             "success", true, false, null, null, List.of(step), Map.of(), 10L
         );
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("linux output chunk summary");
+        when(model.chat(any(String.class))).thenReturn(
+            structuredWorkerAnalysis("linux output chunk summary: LINUX_HEAD through LINUX_TAIL"));
         Map<String, Object> metadata = new LinkedHashMap<>();
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
@@ -1983,7 +1999,8 @@ class AgentOrchestratorTest {
         assertThat(coverage.processedRecordCount()).isEqualTo(coverage.returnedRecordCount());
         assertThat(coverage.promptEvidence())
             .contains("linux_command_execute#stdout", "linux output chunk summary")
-            .contains("traceable_chunk_evidence.v1", "Raw evidence replay", "LINUX_HEAD", "LINUX_TAIL")
+            .contains("traceable_chunk_evidence.v1", "LINUX_HEAD", "LINUX_TAIL")
+            .doesNotContain("Raw evidence replay")
             .contains("Runtime metrics", "Collect runtime metric values", "$.data.stdout");
         assertThat(metadata).containsEntry("recordAnalysisIterative", true);
         assertThat(metadata).containsEntry("recordAnalysisSourceContentComplete", true);
@@ -2067,7 +2084,9 @@ class AgentOrchestratorTest {
                 1, "mcp_tool", "mcp_vendor_linux_command_execute", true,
                 batch, null, null, null, 10L, Map.of())),
             Map.of(), 10L);
-        ChatModel model = analysisFixtureModel();
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis(
+            "CHECK_DOCKER_CONTAINERS found abc123 postgres:16 Up 3 days."));
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze docker containers", result,
@@ -2105,8 +2124,9 @@ class AgentOrchestratorTest {
             "success", true, false, null, null, List.of(step), Map.of(), 10L);
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(
-            "The returned preview contains process 324493 running inceptor-executor; "
-                + "the conclusion is limited to the returned preview.");
+            structuredWorkerAnalysis(
+                "The returned preview contains process 324493 running inceptor-executor; "
+                    + "the conclusion is limited to the returned preview."));
         Map<String, Object> metadata = new LinkedHashMap<>();
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
@@ -2157,7 +2177,8 @@ class AgentOrchestratorTest {
         ToolRuntimeService runtime = new ToolRuntimeService(
             registry, new ObjectMapper(), runtimeProperties, List.of(), List.of());
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("Docker containers include abc123 transwarp/quark, status Up 3 days.");
+        when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis(
+            "Docker containers include abc123 transwarp/quark, status Up 3 days."));
         try {
             ToolRuntimeExecution execution = runtime.execute(ToolRuntimeRequest.builder()
                 .toolName("linux_command_execute").runtimeMode("agent_chat")
@@ -2225,7 +2246,8 @@ class AgentOrchestratorTest {
             "success", true, false, null, null, List.of(step), Map.of(), 10L
         );
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("SQL 分块业务分析");
+        when(model.chat(any(String.class))).thenReturn(
+            structuredWorkerAnalysis("SQL 分块业务分析"));
         Map<String, Object> metadata = new LinkedHashMap<>();
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
@@ -2268,7 +2290,7 @@ class AgentOrchestratorTest {
             Map.of(), 10L
         );
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("SQL null value analysis");
+        when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis("SQL null value analysis"));
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(
@@ -2300,7 +2322,7 @@ class AgentOrchestratorTest {
             Map.of(), 10L
         );
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("SQL script null value analysis");
+        when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis("SQL script null value analysis"));
 
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(
@@ -2330,6 +2352,9 @@ class AgentOrchestratorTest {
         when(model.chat(any(String.class))).thenReturn("""
             {
               "summary": "HeapUsedMb 为 42。",
+              "demandAnalysis": {"decisionGoal":"Analyze JVM memory evidence.",
+                "answeredQuestions":["Heap usage was observed."],"openQuestions":[]},
+              "metricAssociations": [],
               "facts": [{
                 "claim": "HeapUsedMb 为 42",
                 "recordRefs": ["java.lang:type=Memory.records[1]"],
@@ -2949,7 +2974,10 @@ class AgentOrchestratorTest {
             Map.of(), 10L);
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn("""
-            {"summary":"Returned metrics analyzed.","facts":[],"entities":[],
+            {"summary":"Returned metrics analyzed: totalMemory 98304; node-1 and node-2 are HEALTHY.",
+             "demandAnalysis":{"decisionGoal":"Analyze returned HTTP metrics.",
+               "answeredQuestions":["Returned metrics were reviewed."],"openQuestions":[]},
+             "metricAssociations":[],"facts":[],"entities":[],
              "crossChunkKeys":[],"conflicts":[],"limitations":[],"rawReplayRecommended":false}
             """);
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -6137,6 +6165,10 @@ class AgentOrchestratorTest {
         return """
             {
               "summary":"%s",
+              "demandAnalysis":{"decisionGoal":"Exercise the requested analysis path in this fixture.",
+                "answeredQuestions":[],
+                "openQuestions":["This fixture intentionally does not assert a domain conclusion."]},
+              "metricAssociations":[],
               "facts":[],
               "insights":[],
               "businessConclusions":[],

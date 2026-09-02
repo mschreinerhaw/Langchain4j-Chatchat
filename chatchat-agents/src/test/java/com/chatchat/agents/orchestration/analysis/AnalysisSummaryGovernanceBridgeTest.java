@@ -108,10 +108,21 @@ class AnalysisSummaryGovernanceBridgeTest {
                 && prompt.contains("DO_NOT_INFER_UNDECLARED_AGGREGATION_OR_RELATIONSHIPS")
                 && prompt.contains("STRUCTURAL_STATISTICS_ONLY_NO_SEMANTIC_INFERENCE")
                 && prompt.contains("never infer or change any of those semantics")
-                && prompt.contains("semantic decision context"))))
+                && prompt.contains("semantic decision context")
+                && prompt.contains("demandAnalysis")
+                && prompt.contains("metricAssociations")
+                && prompt.contains("PENDING_VALIDATION")
+                && prompt.contains("Worker responsible for completing the analysis")
+                && prompt.contains("Do not defer dataset-level reasoning"))))
             .thenReturn("""
                 {"summary":"规模上升","objectiveAlignment":{"addressedAspects":["规模"],
                 "unsupportedAspects":["精确净资金流"],"contribution":"规模变化仅作为代理指标"},
+                "demandAnalysis":{"decisionGoal":"判断资金流向","answeredQuestions":["规模变化"],
+                "openQuestions":["净申购来源"]},
+                "metricAssociations":[{"title":"规模变化与净申购联动",
+                "status":"SUPPORTED","basisRecordRefs":[],
+                "candidateMetrics":["规模变化","净申购额"],"analysisMethod":"同周期对照",
+                "validationNeeded":["净申购明细"]}],
                 "facts":[{"claim":"规模上升391519.6",
                 "recordRefs":["etf.records[1]"],"exactValues":["391519.6"]}],
                 "entities":[],"crossChunkKeys":[],"conflicts":[],"limitations":[],
@@ -140,6 +151,17 @@ class AnalysisSummaryGovernanceBridgeTest {
             .contains("规模变化仅作为代理指标");
         assertThat(result.evidence().get("analysisObjectiveContract").toString())
             .contains("professional_data_analysis.v1", "CALIBRATED_INFERENCE");
+        assertThat(result.evidence().get("demandAnalysis").toString())
+            .contains("判断资金流向", "answeredQuestions=[规模变化]", "openQuestions=[净申购来源]");
+        assertThat(result.evidence().get("metricAssociations").toString())
+            .contains("规模变化与净申购联动", "status=PENDING_VALIDATION", "净申购明细");
+        assertThat(result.evidence())
+            .containsEntry("analysisDecisionOperatingModelVersion",
+                "data_analysis_decision_operating_model.v1")
+            .containsEntry("analysisParticipantRole", "WORKER")
+            .containsEntry("workerAnalysisReportSchemaVersion", "worker_analysis_report.v1")
+            .containsEntry("workerDemandAnalysisComplete", true)
+            .containsEntry("workerMetricAssociationAssessmentDeclared", true);
     }
 
     @Test

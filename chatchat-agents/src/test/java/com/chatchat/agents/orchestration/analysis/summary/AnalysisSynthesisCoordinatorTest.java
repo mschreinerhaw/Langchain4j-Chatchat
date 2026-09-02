@@ -240,6 +240,8 @@ class AnalysisSynthesisCoordinatorTest {
         assertThat(result.content()).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
         assertThat(metadata)
             .containsEntry("analysisSynthesisBlocked", true)
+            .containsEntry("analysisDriverModelInvoked", false)
+            .containsEntry("analysisDriverModelSkipReason", "DRIVER_SYNTHESIS_BARRIER_BLOCKED")
             .containsEntry("analysisOutputAdmissionReason", "DRIVER_SYNTHESIS_BARRIER_BLOCKED")
             .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
         org.mockito.Mockito.verifyNoInteractions(model);
@@ -289,6 +291,100 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
+    void driverReceivesDemandAndMetricAssociationTaskAndPublishesSafeDirections() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
+            prompt.contains("demandAnalysis")
+                && prompt.contains("metricAssociations")
+                && prompt.contains("managementReview")
+                && prompt.contains("manager reviewing completed Worker analysis reports")
+                && prompt.contains("Admitted claim ledger"))))
+            .thenReturn("""
+                {"schemaVersion":"governed_final_claim_selection.v1",
+                 "headlineClaimIds":["claim-1"],"sections":[],
+                 "demandAnalysis":{"decisionGoal":"定位增长来源与风险",
+                   "priorityQuestions":["收益是否集中"]},
+                 "metricAssociations":[{"title":"检验收益贡献与集中度",
+                   "basisClaimIds":["claim-1"],"candidateMetrics":["收益贡献率","持仓占比"],
+                   "analysisMethod":"按标的对照","validationNeeded":["完整持仓"]}],
+                 "managementReview":{
+                   "overallAssessment":{"text":"Worker已形成初步事实判断，但解释深度不足",
+                     "basisClaimIds":["claim-1"]},
+                   "identifiedProblems":[{"text":"缺少比较基准","basisClaimIds":["claim-1"]}],
+                   "improvementSuggestions":[{"text":"补充历史同口径数据","basisClaimIds":["claim-1"]}],
+                   "nextWorkDirections":[{"text":"优先完成趋势验证","basisClaimIds":["claim-1"]}]}}
+                """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            claimBoundRequest(model, metadata, claimSummary(), true));
+
+        assertThat(result.content()).contains(
+            "## 需求分析", "定位增长来源与风险",
+            "## 指标联想与后续分析", "待验证分析方向", "收益贡献率",
+            "## 分析复盘与改进方向", "缺少比较基准", "优先完成趋势验证");
+        assertThat(metadata)
+            .containsEntry("analysisDriverModelInvoked", true)
+            .containsEntry("finalClaimSelectionAccepted", true);
+    }
+
+    @Test
+    void driverUsesReducerReportsInsteadOfBypassingThemWithChunkClaims() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        AnalysisSummaryResult chunk = claimSummary();
+        Map<String, Object> reducerInsight = Map.of(
+            "claimId", "claim-reducer",
+            "claim", "Reducer归并后的管理分析结论",
+            "claimClass", "OBSERVED_RETURNED_FACT",
+            "confidence", "HIGH",
+            "recordRefs", List.of("dataset.records[1]"),
+            "supportingValues", List.of("42"),
+            "caveats", List.of());
+        AnalysisSummaryResult reducer = AnalysisSummaryResult.intermediateSummary(
+            scope, "DATASET_SYNTHESIS", "dataset-summary#dataset-a",
+            "Reducer归并后的管理分析结论", "MODEL_DATASET_REDUCE",
+            Map.of("datasetReference", "dataset-a"), Map.of(), Map.of("complete", true),
+            List.of(chunk), Map.of(
+                "insights", List.of(reducerInsight),
+                "claimAdmissionDecisions", List.of(Map.of(
+                    "claimId", "claim-reducer", "admitted", true))));
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
+            prompt.contains("claim-reducer") && !prompt.contains("claim-1"))))
+            .thenReturn("""
+                {"schemaVersion":"governed_final_claim_selection.v1",
+                 "headlineClaimIds":["claim-reducer"],"sections":[]}
+                """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request =
+            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                model, "prompt", "completed", "run-a", 2, 1, 3,
+                true, () -> "unsafe fallback", candidate -> candidate, "empty fallback",
+                1, 1, true, true, true, 1, 0,
+                List.of(chunk), List.of(reducer), Map.of("agentRunId", "run-a"), metadata);
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(request);
+
+        assertThat(result.content()).contains("Reducer归并后的管理分析结论")
+            .doesNotContain("返回记录显示数值为 42");
+        assertThat(metadata)
+            .containsEntry("analysisDecisionOperatingModelVersion",
+                "data_analysis_decision_operating_model.v1")
+            .containsEntry("analysisParticipantRole", "DRIVER")
+            .containsEntry("analysisDriverInputMode", "GOVERNED_WORKER_REDUCER_REPORTS_ONLY")
+            .containsEntry("analysisDriverInputReportCount", 1);
+    }
+
+    @Test
     void driverFailsClosedWhenClaimContractProducesNoAdmittedClaims() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
@@ -313,6 +409,8 @@ class AnalysisSynthesisCoordinatorTest {
         assertThat(metadata)
             .containsEntry("finalClaimPublicationContractObserved", true)
             .containsEntry("finalAdmittedClaimCount", 0)
+            .containsEntry("analysisDriverModelInvoked", false)
+            .containsEntry("analysisDriverModelSkipReason", "NO_ADMITTED_SEMANTIC_CLAIMS")
             .containsEntry("analysisOutputAdmissionReason", "NO_ADMITTED_SEMANTIC_CLAIMS")
             .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
         org.mockito.Mockito.verifyNoInteractions(model);

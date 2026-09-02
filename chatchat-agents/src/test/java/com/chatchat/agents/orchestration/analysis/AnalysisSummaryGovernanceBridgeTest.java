@@ -290,6 +290,36 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
+    void preservesCompleteWorkerNarrativeWhenAllClaimsAreAdmitted() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {"summary":"The returned level is 42; this directly answers the current-state question and should be retained for comparison with a future period.",
+             "demandAnalysis":{"decisionGoal":"Understand the current level",
+               "answeredQuestions":["Current level"],"openQuestions":["Change over time"]},
+             "metricAssociations":[],
+             "insights":[{"claimClass":"OBSERVED_RETURNED_FACT","operation":"OBSERVE",
+               "claim":"The returned level is 42","significance":"Answers the current-state question",
+               "recordRefs":["metrics.records[1]"],"supportingValues":["42"],
+               "confidence":"HIGH","caveats":[]}],
+             "facts":[{"claim":"The returned level is 42",
+               "recordRefs":["metrics.records[1]"],"exactValues":["42"]}],
+             "conflicts":[],"limitations":[],"rawReplayRecommended":false}
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("VALUE", 42));
+
+        AnalysisSummaryResult result = bridge.summarize(model::chat, isolationScope,
+            bridge.position("metrics", 1, 1, 1, 1, 1),
+            bridge.govern("metrics", Map.of(), records), records,
+            "Understand the current level and future comparison needs");
+
+        assertThat(result.content()).contains(
+            "directly answers the current-state question", "comparison with a future period");
+        assertThat(result.evidence())
+            .containsEntry("rejectedInsightCount", 0)
+            .containsEntry("analysisNarrativeStatus", "PRESERVED_GOVERNED_WORKER_REPORT");
+    }
+
+    @Test
     void doesNotTreatDeclaredFieldNameAsDerivedMeasureAuthorization() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""

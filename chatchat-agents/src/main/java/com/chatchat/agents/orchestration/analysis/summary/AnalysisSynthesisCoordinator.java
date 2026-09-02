@@ -230,6 +230,10 @@ public final class AnalysisSynthesisCoordinator {
                     projection.modelSelectionAccepted());
                 request.metadata().put("finalClaimSelectionReason", projection.reason());
                 request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
+                log.info("analysisDriverGovernance runId={} stage={} admitted={} reason={} "
+                        + "publishedClaimCount={}",
+                    request.runId(), request.stage(), projection.modelSelectionAccepted(),
+                    projection.reason(), projection.selectedClaimIds().size());
             } else {
                 answer = request.postProcessor().apply(answer);
             }

@@ -430,6 +430,53 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
+    void driverPublishesGroundedManagementSynthesisInsteadOfClaimInventory() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        AnalysisSummaryResult assets = factReport("assets", "fact:assets",
+            "Worker: assets are concentrated in securities and cash is limited.",
+            "Total assets 847174.25, security value 846262.20, cash 912.05",
+            List.of("847174.25", "846262.20", "912.05"));
+        AnalysisSummaryResult trades = factReport("trades", "fact:trades",
+            "Worker: the returned day contains active two-way trading.",
+            "There are 20 trades: 11 buys and 9 sells", List.of("20", "11", "9"));
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
+            prompt.contains("Worker: assets are concentrated")
+                && prompt.contains("fact:assets") && prompt.contains("coverage"))))
+            .thenReturn("""
+                {"schemaVersion":"governed_management_synthesis.v2",
+                 "findings":[
+                   {"section":"CORE","text":"The account is almost entirely invested in securities with little cash flexibility, while the returned day also shows active two-way trading.",
+                    "basisClaimIds":["fact:assets","fact:trades"]},
+                   {"section":"EVIDENCE","text":"Total assets are 847174.25, security value is 846262.20 and cash is 912.05; the day contains 20 trades, including 11 buys and 9 sells.",
+                    "basisClaimIds":["fact:assets","fact:trades"]}],
+                 "coverage":[
+                   {"claimId":"fact:assets","disposition":"USED","reason":"asset structure"},
+                   {"claimId":"fact:trades","disposition":"USED","reason":"trading activity"}]}
+                """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request =
+            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                model, "Completed reports:\n" + assets.content() + "\n" + trades.content(),
+                "completed", "run-a", 2, 2, 4, true, () -> "unsafe fallback",
+                candidate -> candidate, "empty fallback", 2, 2,
+                true, true, true, 2, 0, List.of(assets, trades), List.of(assets, trades),
+                Map.of("agentRunId", "run-a"), metadata);
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(request);
+
+        assertThat(result.content()).contains(
+            "almost entirely invested in securities", "847174.25", "11 buys and 9 sells");
+        assertThat(metadata)
+            .containsEntry("finalClaimSelectionAccepted", true)
+            .containsEntry("finalClaimSelectionReason", "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
+    }
+
+    @Test
     void presentationReplacesUngovernedDraftWithDriverSynthesis() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId",
@@ -498,6 +545,16 @@ class AnalysisSynthesisCoordinatorTest {
                 "insights", List.of(insight),
                 "claimAdmissionDecisions", List.of(Map.of(
                     "claimId", "claim-1", "admitted", true))));
+    }
+
+    private AnalysisSummaryResult factReport(String dataset, String claimId, String report,
+                                             String claim, List<String> values) {
+        return AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", dataset, "chunkIndex", 1), Map.of(),
+            report, "MODEL_SUMMARY", Map.of("observedFactClaims", List.of(Map.of(
+                "claimId", claimId, "claim", claim,
+                "recordRefs", List.of(dataset + ".records[1]"),
+                "supportingValues", values, "confidence", "HIGH", "caveats", List.of()))));
     }
 
     private AnalysisSummaryGovernanceCoordinator passthroughGovernance() {

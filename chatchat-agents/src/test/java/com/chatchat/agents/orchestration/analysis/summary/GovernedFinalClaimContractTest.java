@@ -193,6 +193,136 @@ class GovernedFinalClaimContractTest {
         assertThat(projection.markdown()).contains("847174.25", "42263.81");
     }
 
+    @Test
+    void rejectsDriverSelectionThatOmitsAnAnalyzedSourceAndFallsBackToFullCoverage() {
+        AnalysisSummaryResult account = factSummary(
+            "account-overview", "observed-fact:account", "Total assets are 847174.25", "847174.25");
+        AnalysisSummaryResult trades = factSummary(
+            "trade-history", "observed-fact:trades", "There are 20 returned trades", "20");
+
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(
+            List.of(account, trades));
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["observed-fact:trades"],"sections":[],
+             "managementReview":{"identifiedProblems":[{"text":"Account data is missing",
+               "basisClaimIds":["observed-fact:trades"]}]}}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("INCOMPLETE_ANALYSIS_SOURCE_COVERAGE");
+        assertThat(projection.markdown()).contains("847174.25", "20")
+            .doesNotContain("Account data is missing");
+    }
+
+    @Test
+    void rejectsSelectionThatOmitsAnObservedFactInsideTheSameReturnedDataset() {
+        AnalysisSummaryResult combined = AnalysisSummaryResult.chunk(
+            GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
+            Map.of("datasetReference", "combined-result", "chunkIndex", 1), Map.of(),
+            "Combined account and trade analysis", "MODEL_SUMMARY",
+            Map.of("observedFactClaims", List.of(
+                Map.of("claimId", "observed-fact:account", "claim", "Total assets are 847174.25",
+                    "recordRefs", List.of("combined-result.records[1]"),
+                    "supportingValues", List.of("847174.25")),
+                Map.of("claimId", "observed-fact:trades", "claim", "There are 20 trades",
+                    "recordRefs", List.of("combined-result.records[2]"),
+                    "supportingValues", List.of("20")))));
+
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(combined));
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_final_claim_selection.v1",
+             "headlineClaimIds":["observed-fact:trades"],"sections":[]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("INCOMPLETE_OBSERVED_FACT_COVERAGE");
+        assertThat(projection.markdown()).contains("847174.25", "20");
+    }
+
+    @Test
+    void admitsProfessionalManagementSynthesisBoundToClaimsWithoutCopyingTheLedger() {
+        AnalysisSummaryResult combined = AnalysisSummaryResult.chunk(
+            GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
+            Map.of("datasetReference", "customer-analysis", "chunkIndex", 1), Map.of(),
+            "Worker completed account and trading analysis", "MODEL_SUMMARY",
+            Map.of("observedFactClaims", List.of(
+                Map.of("claimId", "fact:assets", "claim",
+                    "Total assets are 847174.25 and security value is 846262.20",
+                    "recordRefs", List.of("customer-analysis.records[1]"),
+                    "supportingValues", List.of("847174.25", "846262.20")),
+                Map.of("claimId", "fact:cash", "claim", "Cash balance is 912.05",
+                    "recordRefs", List.of("customer-analysis.records[1]"),
+                    "supportingValues", List.of("912.05")),
+                Map.of("claimId", "fact:trades", "claim", "There are 20 trades",
+                    "recordRefs", List.of("customer-analysis.records[2]"),
+                    "supportingValues", List.of("20")))));
+
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(combined));
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v2",
+             "findings":[
+               {"section":"CORE","text":"The account is overwhelmingly invested in securities, with limited cash available while trading remains active.",
+                "basisClaimIds":["fact:assets","fact:cash","fact:trades"]},
+               {"section":"EVIDENCE","text":"Total assets are 847174.25, security value is 846262.20, cash is 912.05, and 20 trades were returned.",
+                "basisClaimIds":["fact:assets","fact:cash","fact:trades"]}],
+             "coverage":[
+               {"claimId":"fact:assets","disposition":"USED","reason":"answers asset structure"},
+               {"claimId":"fact:cash","disposition":"USED","reason":"answers liquidity"},
+               {"claimId":"fact:trades","disposition":"USED","reason":"answers activity"}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.reason()).isEqualTo("GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
+        assertThat(projection.markdown())
+            .contains("overwhelmingly invested in securities", "847174.25", "20 trades");
+        assertThat(projection.selectedClaimIds())
+            .containsExactly("fact:assets", "fact:cash", "fact:trades");
+    }
+
+    @Test
+    void rejectsManagementSynthesisWithInventedValue() {
+        AnalysisSummaryResult account = factSummary(
+            "account-overview", "fact:account", "Total assets are 847174.25", "847174.25");
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(account));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v2",
+             "findings":[{"section":"CORE","text":"Total assets grew by 99.5%.",
+               "basisClaimIds":["fact:account"]}],
+             "coverage":[{"claimId":"fact:account","disposition":"USED","reason":"asset result"}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("UNGROUNDED_MANAGEMENT_FINDING_VALUE");
+        assertThat(projection.markdown()).doesNotContain("99.5%");
+    }
+
+    @Test
+    void deduplicatesObservedFactAndInsightBoundToTheSameEvidence() {
+        AnalysisSummaryResult duplicate = summary().withEvidence(Map.of(
+            "observedFactClaims", List.of(Map.of(
+                "claimId", "observed-fact:duplicate", "claim", "Returned value is 42",
+                "recordRefs", List.of("dataset.records[1]"),
+                "supportingValues", List.of("42")))));
+
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(duplicate));
+
+        assertThat(compilation.claims()).hasSize(1).containsKey("claim-1");
+    }
+
+    private AnalysisSummaryResult factSummary(String dataset, String claimId,
+                                               String claim, String value) {
+        return AnalysisSummaryResult.chunk(
+            GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
+            Map.of("datasetReference", dataset, "chunkIndex", 1), Map.of(), claim,
+            "MODEL_SUMMARY", Map.of("observedFactClaims", List.of(Map.of(
+                "claimId", claimId, "claim", claim, "claimClass", "OBSERVED_RETURNED_FACT",
+                "recordRefs", List.of(dataset + ".records[1]"),
+                "supportingValues", List.of(value), "confidence", "HIGH",
+                "caveats", List.of()))));
+    }
+
     private AnalysisSummaryResult summary() {
         return AnalysisSummaryResult.chunk(
             GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),

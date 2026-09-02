@@ -40,6 +40,12 @@ public final class AnalysisReportLogProjection {
         putIfPresent(value, "metricAssociations", evidence.get("metricAssociations"));
         putIfPresent(value, "businessConclusions", evidence.get("businessConclusions"));
         putIfPresent(value, "missingEvidence", evidence.get("missingEvidence"));
+        putIfPresent(value, "objectiveAlignment", evidence.get("objectiveAlignment"));
+        putIfPresent(value, "analysisDepth", evidence.get("analysisDepth"));
+        Object narrativeStatus = evidence.get("analysisNarrativeStatus");
+        if (narrativeStatus != null && !String.valueOf(narrativeStatus).isBlank()) {
+            value.put("analysisNarrativeStatus", String.valueOf(narrativeStatus));
+        }
         value.put("insightCount", size(evidence.get("insights")));
         value.put("observedFactClaimCount", size(evidence.get("observedFactClaims")));
         value.put("conflictCount", size(evidence.get("conflicts")));

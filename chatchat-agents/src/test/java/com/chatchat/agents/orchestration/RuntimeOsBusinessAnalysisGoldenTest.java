@@ -97,6 +97,9 @@ class RuntimeOsBusinessAnalysisGoldenTest {
                 return """
                 {
               "summary":"ETF 资金净流入 120 万份。",
+              "demandAnalysis":{"decisionGoal":"Analyze ETF scale and flow","answeredQuestions":[],
+                "openQuestions":["Flow semantics require producer authorization"]},
+              "metricAssociations":[],
               "insights":[{
                 "claimClass":"AUTHORIZED_DERIVED_MEASURE",
                 "operation":"DERIVE",
@@ -193,12 +196,16 @@ class RuntimeOsBusinessAnalysisGoldenTest {
             case "customer_realized_results" -> "2";
             default -> "1";
         };
-        return """
+        String report = """
             {"summary":"%s 已完成业务分析。",
              "facts":[{"claim":"%s 返回关键值 %s",
                "recordRefs":["%s.records[1]"],"exactValues":["%s"]}],
              "insights":[],"conflicts":[],"limitations":[],"rawReplayRecommended":false}
             """.formatted(reference, reference, value, reference, value);
+        return report.replaceFirst("\\{", "{\"demandAnalysis\":{"
+            + "\"decisionGoal\":\"Analyze the returned customer dataset\","
+            + "\"answeredQuestions\":[\"The returned dataset was analyzed\"],"
+            + "\"openQuestions\":[]},\"metricAssociations\":[],");
     }
 
     private ToolRuntimeProperties toolRuntimeProperties() {

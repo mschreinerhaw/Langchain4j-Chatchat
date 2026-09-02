@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.analysis.summary;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -17,18 +18,21 @@ import java.util.Set;
 /**
  * Publication boundary between governed Claim admission and the final language model.
  *
- * <p>The model may select and order admitted claims and propose clearly marked, non-factual
- * demand/metric investigation directions grounded in those claims. It cannot author new business
- * facts. User-facing Markdown is rendered deterministically from the admitted claim ledger.</p>
+ * <p>The Driver may synthesize completed Worker/Reducer reports into management-level findings,
+ * while every finding remains bound to admitted evidence Claims. Governance validates lineage,
+ * observed-fact coverage and numeric grounding; it does not reduce the Driver to copying a Claim
+ * ledger. User-facing Markdown is rendered from the admitted grounded synthesis.</p>
  */
 final class GovernedFinalClaimContract {
 
-    static final String SCHEMA_VERSION = "governed_final_claim_selection.v1";
+    static final String SCHEMA_VERSION = "governed_management_synthesis.v2";
+    private static final String LEGACY_SCHEMA_VERSION = "governed_final_claim_selection.v1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MAX_FALLBACK_CLAIMS = 30;
 
     Compilation compile(List<AnalysisSummaryResult> summaries) {
         Map<String, Claim> claims = new LinkedHashMap<>();
+        Set<String> observedEvidenceSignatures = new LinkedHashSet<>();
         boolean claimContractObserved = false;
         if (summaries != null) {
             for (AnalysisSummaryResult summary : summaries) {
@@ -54,12 +58,17 @@ final class GovernedFinalClaimContract {
                         || (admissionDecisionsDeclared && !explicitlyAdmitted.contains(claimId))) {
                         continue;
                     }
-                    claims.putIfAbsent(claimId, new Claim(
+                    Claim admitted = new Claim(
                         claimId, claim, claimClass,
                         text(insight.get("confidence")),
                         text(insight.get("significance")),
                         strings(insight.get("caveats")),
-                        claimSource(summary)));
+                        claimSource(summary, insight), recordRefs, supportingValues);
+                    claims.putIfAbsent(claimId, admitted);
+                    if ("OBSERVED_RETURNED_FACT".equals(claimClass)) {
+                        observedEvidenceSignatures.add(evidenceSignature(
+                            admitted.sourceScope(), recordRefs, supportingValues));
+                    }
                 }
                 for (Map<String, Object> factClaim : maps(
                     summary.evidence().get("observedFactClaims"))) {
@@ -69,10 +78,13 @@ final class GovernedFinalClaimContract {
                     List<String> supportingValues = strings(factClaim.get("supportingValues"));
                     if (claimId.isBlank() || claim.isBlank() || recordRefs.isEmpty()
                         || supportingValues.isEmpty()) continue;
+                    String source = claimSource(summary, factClaim);
+                    String signature = evidenceSignature(source, recordRefs, supportingValues);
+                    if (!observedEvidenceSignatures.add(signature)) continue;
                     claims.putIfAbsent(claimId, new Claim(
                         claimId, claim, "OBSERVED_RETURNED_FACT",
                         text(factClaim.get("confidence")), text(factClaim.get("significance")),
-                        strings(factClaim.get("caveats")), claimSource(summary)));
+                        strings(factClaim.get("caveats")), source, recordRefs, supportingValues));
                 }
             }
         }
@@ -84,8 +96,16 @@ final class GovernedFinalClaimContract {
             return new Projection(false, "NO_ADMITTED_CLAIMS", "", List.of());
         }
         Map<String, Object> payload = parseObject(modelOutput);
-        if (payload.isEmpty() || !SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))) {
+        String schemaVersion = text(payload.get("schemaVersion"));
+        if (payload.isEmpty() || (!SCHEMA_VERSION.equals(schemaVersion)
+            && !LEGACY_SCHEMA_VERSION.equals(schemaVersion))) {
             return deterministic(compilation, "FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
+        }
+        List<NarrativeFinding> narrativeFindings = maps(payload.get("findings")).stream()
+            .map(this::narrativeFinding).filter(java.util.Objects::nonNull).limit(20).toList();
+        if (SCHEMA_VERSION.equals(schemaVersion) || !narrativeFindings.isEmpty()
+            || payload.containsKey("coverage")) {
+            return projectNarrative(payload, compilation, narrativeFindings);
         }
         List<String> headlineClaimIds = strings(payload.get("headlineClaimIds"));
         List<Section> sections = maps(payload.get("sections")).stream()
@@ -110,6 +130,19 @@ final class GovernedFinalClaimContract {
         boolean invalidReviewBasis = managementReview.items().stream()
             .flatMap(item -> item.basisClaimIds().stream())
             .anyMatch(id -> !selected.contains(id) || !compilation.claims().containsKey(id));
+        Set<String> coveredSources = selected.stream().map(compilation.claims()::get)
+            .filter(java.util.Objects::nonNull).map(Claim::sourceScope)
+            .filter(source -> source != null && !source.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> requiredSources = compilation.claims().values().stream()
+            .map(Claim::sourceScope).filter(source -> source != null && !source.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        boolean incompleteSourceCoverage = !coveredSources.containsAll(requiredSources);
+        boolean incompleteObservedFactCoverage = compilation.claims().values().stream()
+            .filter(Claim::observedFact)
+            .anyMatch(observed -> selected.stream().map(compilation.claims()::get)
+                .filter(java.util.Objects::nonNull)
+                .noneMatch(selectedClaim -> evidenceCovers(selectedClaim, observed)));
         if (selected.isEmpty() || unknownClaim) {
             return deterministic(compilation, unknownClaim
                 ? "UNKNOWN_FINAL_CLAIM_ID" : "EMPTY_FINAL_CLAIM_SELECTION");
@@ -120,9 +153,109 @@ final class GovernedFinalClaimContract {
         if (invalidReviewBasis) {
             return deterministic(compilation, "INVALID_MANAGEMENT_REVIEW_BASIS");
         }
+        if (incompleteSourceCoverage) {
+            return deterministic(compilation, "INCOMPLETE_ANALYSIS_SOURCE_COVERAGE");
+        }
+        if (incompleteObservedFactCoverage) {
+            return deterministic(compilation, "INCOMPLETE_OBSERVED_FACT_COVERAGE");
+        }
         return render(compilation, headlineClaimIds, sections, selected,
             demandAnalysis, metricAssociations, managementReview,
             true, "CLAIM_SELECTION_ADMITTED");
+    }
+
+    private Projection projectNarrative(Map<String, Object> payload, Compilation compilation,
+                                         List<NarrativeFinding> findings) {
+        if (findings.isEmpty()) {
+            return deterministic(compilation, "EMPTY_MANAGEMENT_FINDINGS");
+        }
+        List<ClaimCoverage> coverage = maps(payload.get("coverage")).stream()
+            .map(this::claimCoverage).filter(java.util.Objects::nonNull).toList();
+        DemandAnalysis demandAnalysis = demandAnalysis(payload.get("demandAnalysis"));
+        List<MetricAssociation> metricAssociations = maps(payload.get("metricAssociations")).stream()
+            .map(this::metricAssociation).filter(java.util.Objects::nonNull).limit(8).toList();
+        ManagementReview managementReview = managementReview(payload.get("managementReview"));
+
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        findings.forEach(finding -> selected.addAll(finding.basisClaimIds()));
+        metricAssociations.forEach(association -> selected.addAll(association.basisClaimIds()));
+        managementReview.items().forEach(item -> selected.addAll(item.basisClaimIds()));
+        coverage.stream().filter(item -> "USED".equals(item.disposition()))
+            .map(ClaimCoverage::claimId).forEach(selected::add);
+
+        boolean unknownBasis = selected.stream().anyMatch(id -> !compilation.claims().containsKey(id));
+        boolean invalidFindingBasis = findings.stream().anyMatch(finding ->
+            finding.basisClaimIds().isEmpty()
+                || finding.basisClaimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id)));
+        boolean ungroundedNumbers = findings.stream().anyMatch(finding ->
+            !numbersGrounded(finding.text(), finding.basisClaimIds(), compilation))
+            || managementReview.items().stream().anyMatch(item ->
+                !numbersGrounded(item.text(), item.basisClaimIds(), compilation));
+
+        Map<String, ClaimCoverage> coverageByClaim = new LinkedHashMap<>();
+        boolean invalidCoverage = false;
+        for (ClaimCoverage item : coverage) {
+            if (!compilation.claims().containsKey(item.claimId())
+                || coverageByClaim.putIfAbsent(item.claimId(), item) != null
+                || ("USED".equals(item.disposition()) && !selected.contains(item.claimId()))) {
+                invalidCoverage = true;
+            }
+        }
+        Set<String> requiredObserved = compilation.claims().values().stream()
+            .filter(Claim::observedFact).map(Claim::claimId)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        boolean incompleteCoverageMatrix = !coverageByClaim.keySet().containsAll(requiredObserved);
+        if (unknownBasis || invalidFindingBasis) {
+            return deterministic(compilation, "INVALID_MANAGEMENT_FINDING_BASIS");
+        }
+        if (invalidCoverage || incompleteCoverageMatrix) {
+            return deterministic(compilation, "INCOMPLETE_CLAIM_COVERAGE_MATRIX");
+        }
+        if (ungroundedNumbers) {
+            return deterministic(compilation, "UNGROUNDED_MANAGEMENT_FINDING_VALUE");
+        }
+        return renderNarrative(compilation, findings, selected, demandAnalysis,
+            metricAssociations, managementReview);
+    }
+
+    private NarrativeFinding narrativeFinding(Map<String, Object> source) {
+        String text = text(source.get("text"));
+        List<String> basis = strings(source.get("basisClaimIds"));
+        if (text.isBlank() || basis.isEmpty()) return null;
+        String section = text(source.get("section")).toUpperCase(java.util.Locale.ROOT);
+        if (!Set.of("CORE", "EVIDENCE", "EXCEPTION", "ACTION").contains(section)) {
+            section = "EVIDENCE";
+        }
+        return new NarrativeFinding(section, text, basis);
+    }
+
+    private ClaimCoverage claimCoverage(Map<String, Object> source) {
+        String claimId = text(source.get("claimId"));
+        String disposition = text(source.get("disposition")).toUpperCase(java.util.Locale.ROOT);
+        if (claimId.isBlank() || !Set.of("USED", "SUPPORTING_CONTEXT", "NOT_MATERIAL")
+            .contains(disposition)) return null;
+        return new ClaimCoverage(claimId, disposition, text(source.get("reason")));
+    }
+
+    private boolean numbersGrounded(String narrative, List<String> basisClaimIds,
+                                    Compilation compilation) {
+        Set<String> allowed = new LinkedHashSet<>();
+        for (String claimId : basisClaimIds) {
+            Claim claim = compilation.claims().get(claimId);
+            if (claim == null) continue;
+            allowed.addAll(numberTokens(claim.text()));
+            claim.supportingValues().forEach(value -> allowed.addAll(numberTokens(value)));
+        }
+        return allowed.containsAll(numberTokens(narrative));
+    }
+
+    private Set<String> numberTokens(String value) {
+        if (value == null || value.isBlank()) return Set.of();
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+            .compile("[-+]?\\d+(?:[.,]\\d+)*%?").matcher(value);
+        Set<String> result = new LinkedHashSet<>();
+        while (matcher.find()) result.add(matcher.group().replace(",", ""));
+        return result;
     }
 
     String appendSelectionInstruction(String prompt, Compilation compilation) {
@@ -130,19 +263,24 @@ final class GovernedFinalClaimContract {
         List<Map<String, Object>> ledger = compilation.claims().values().stream()
             .map(Claim::toPromptMap).toList();
         return (prompt == null ? "" : prompt)
-            + "\n\nFinal publication contract (binding): the following ledger contains the only business "
-            + "claims authorized for publication. Select and order claim IDs; do not paraphrase, combine, "
-            + "recalculate or add claims. Cover every aspect of the original question for which the ledger contains "
-            + "supporting claims, using the smallest non-redundant set that still provides that complete coverage. "
+            + "\n\nFinal management-synthesis contract (binding): the Worker and Reducer reports above are "
+            + "the primary analytical input. The ledger below is their evidence index and factual boundary; it is "
+            + "not the final report and must not be copied as a row inventory. Act as the management-level Driver: "
+            + "combine related findings, explain their business meaning, identify tensions and evaluate the quality "
+            + "of the completed analysis. Every synthesized finding must cite the admitted claim IDs that support it. "
+            + "You may paraphrase and combine supported claims into a more useful management conclusion, but may not "
+            + "invent a value, entity state, comparison, threshold, relationship or cause absent from those claims. "
             + "Never report a requested dimension as missing or unavailable when the ledger contains a claim that "
             + "answers it. Do not omit a supported dimension merely because its evidence is a direct observation. "
-            + "Prefer claims that explain a material change, comparison, concentration, exception, supported impact "
-            + "or action over bare counts, extrema and inventory facts. Do not select a weaker restatement when a "
-            + "stronger admitted claim already contains it. Put at most three decisive claims in headlineClaimIds; "
-            + "place remaining necessary support under a source-neutral sectionType. Return only one JSON object "
-            + "with this exact shape: "
-            + "{\"schemaVersion\":\"" + SCHEMA_VERSION + "\",\"headlineClaimIds\":[],"
-            + "\"sections\":[{\"sectionType\":\"EVIDENCE|EXCEPTIONS|ACTIONS\",\"claimIds\":[]}],"
+            + "Prefer a small number of decision-useful findings over repeated factual restatements. Complete the "
+            + "coverage matrix for every OBSERVED_RETURNED_FACT, including facts used in a finding, retained only as "
+            + "supporting context, or consciously excluded as not material. Coverage does not require publishing "
+            + "every fact; it prevents accidental loss during synthesis. Return only one JSON object with this shape: "
+            + "{\"schemaVersion\":\"" + SCHEMA_VERSION + "\","
+            + "\"findings\":[{\"section\":\"CORE|EVIDENCE|EXCEPTION|ACTION\","
+            + "\"text\":\"management-level synthesized conclusion\",\"basisClaimIds\":[]}],"
+            + "\"coverage\":[{\"claimId\":\"\","
+            + "\"disposition\":\"USED|SUPPORTING_CONTEXT|NOT_MATERIAL\",\"reason\":\"\"}],"
             + "\"demandAnalysis\":{\"decisionGoal\":\"\",\"priorityQuestions\":[]},"
             + "\"metricAssociations\":[{\"title\":\"\",\"basisClaimIds\":[],"
             + "\"candidateMetrics\":[],\"analysisMethod\":\"\",\"validationNeeded\":[]}],"
@@ -151,7 +289,8 @@ final class GovernedFinalClaimContract {
             + "\"identifiedProblems\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
             + "\"improvementSuggestions\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
             + "\"nextWorkDirections\":[{\"text\":\"\",\"basisClaimIds\":[]}]}}. "
-            + "demandAnalysis explains the decision goal and open questions without adding facts. "
+            + "Put at most three decisive conclusions in CORE. A finding's numbers must already occur in its cited "
+            + "claims or supporting values. demandAnalysis explains the decision goal and open questions without adding facts. "
             + "metricAssociations are optional, explicitly unverified follow-up directions grounded in selected "
             + "admitted claims. Each must cite selected basisClaimIds and state candidate metrics, method and "
             + "validation needed. Never introduce a new observed value, entity state, threshold or causal claim. "
@@ -160,16 +299,99 @@ final class GovernedFinalClaimContract {
             + "specific improvements and prioritized next work. Do not repeat the ledger as a row inventory. Every "
             + "non-empty review item must cite selected basisClaimIds; it is an evaluation of the admitted analysis, "
             + "not permission to create a new business fact. "
-            + "Unknown IDs invalidate the whole selection. "
+            + "Unknown IDs, missing finding bases, invented numeric values, or an incomplete observed-fact coverage "
+            + "matrix invalidate the synthesis. "
             + "Do not return Markdown. Admitted claim ledger: " + ModelProtocolJson.compact(ledger);
     }
 
     private Projection deterministic(Compilation compilation, String reason) {
-        LinkedHashSet<String> selected = compilation.claims().keySet().stream()
-            .limit(MAX_FALLBACK_CLAIMS)
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        compilation.claims().values().stream().filter(Claim::observedFact)
+            .map(Claim::claimId).forEach(selected::add);
+        Set<String> representedSources = new LinkedHashSet<>();
+        for (Claim claim : compilation.claims().values()) {
+            String source = claim.sourceScope();
+            if (source != null && !source.isBlank() && representedSources.add(source)) {
+                selected.add(claim.claimId());
+            }
+        }
+        for (String claimId : compilation.claims().keySet()) {
+            if (selected.size() >= MAX_FALLBACK_CLAIMS) break;
+            selected.add(claimId);
+        }
         return render(compilation, List.copyOf(selected), List.of(), selected,
             DemandAnalysis.empty(), List.of(), ManagementReview.empty(), false, reason);
+    }
+
+    private Projection renderNarrative(Compilation compilation,
+                                       List<NarrativeFinding> findings,
+                                       Collection<String> selected,
+                                       DemandAnalysis demandAnalysis,
+                                       List<MetricAssociation> metricAssociations,
+                                       ManagementReview managementReview) {
+        StringBuilder answer = new StringBuilder("# 数据分析结论\n");
+        appendNarrativeSection(answer, "核心结论", findings, "CORE");
+        appendNarrativeSection(answer, "关键依据", findings, "EVIDENCE");
+        appendNarrativeSection(answer, "异常与风险", findings, "EXCEPTION");
+        appendNarrativeSection(answer, "建议动作", findings, "ACTION");
+        if (demandAnalysis != null && !demandAnalysis.emptyValue()) {
+            answer.append("\n## 需求理解与未决问题\n\n");
+            if (!demandAnalysis.decisionGoal().isBlank()) {
+                answer.append("- 决策目标：").append(demandAnalysis.decisionGoal()).append('\n');
+            }
+            demandAnalysis.priorityQuestions().forEach(question ->
+                answer.append("- 未决问题：").append(question).append('\n'));
+        }
+        if (metricAssociations != null && !metricAssociations.isEmpty()) {
+            answer.append("\n## 指标联想与待验证方向\n\n");
+            for (MetricAssociation association : metricAssociations) {
+                answer.append("- ").append(association.title());
+                if (!association.candidateMetrics().isEmpty()) {
+                    answer.append("；候选指标：")
+                        .append(String.join("、", association.candidateMetrics()));
+                }
+                if (!association.analysisMethod().isBlank()) {
+                    answer.append("；分析方法：").append(association.analysisMethod());
+                }
+                if (!association.validationNeeded().isEmpty()) {
+                    answer.append("；验证所需：")
+                        .append(String.join("、", association.validationNeeded()));
+                }
+                answer.append('\n');
+            }
+        }
+        if (managementReview != null && !managementReview.emptyValue()) {
+            answer.append("\n## 管理复盘与下一步\n\n");
+            if (managementReview.overallAssessment() != null) {
+                answer.append("- 总体评价：")
+                    .append(managementReview.overallAssessment().text()).append('\n');
+            }
+            managementReview.identifiedProblems().forEach(item ->
+                answer.append("- 分析问题：").append(item.text()).append('\n'));
+            managementReview.improvementSuggestions().forEach(item ->
+                answer.append("- 改进建议：").append(item.text()).append('\n'));
+            managementReview.nextWorkDirections().forEach(item ->
+                answer.append("- 下一步：").append(item.text()).append('\n'));
+        }
+        return new Projection(true, "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED",
+            answer.toString().trim(), List.copyOf(selected));
+    }
+
+    private void appendNarrativeSection(StringBuilder answer, String title,
+                                        List<NarrativeFinding> findings, String section) {
+        List<NarrativeFinding> sectionFindings = findings.stream()
+            .filter(finding -> section.equals(finding.section())).toList();
+        if (sectionFindings.isEmpty()) return;
+        answer.append("\n## ").append(title).append("\n\n");
+        sectionFindings.forEach(finding ->
+            answer.append("- ").append(finding.text()).append('\n'));
+    }
+
+    private boolean evidenceCovers(Claim candidate, Claim observed) {
+        if (candidate.claimId().equals(observed.claimId())) return true;
+        return !observed.recordRefs().isEmpty() && !observed.supportingValues().isEmpty()
+            && candidate.recordRefs().containsAll(observed.recordRefs())
+            && candidate.supportingValues().containsAll(observed.supportingValues());
     }
 
     private Projection render(Compilation compilation, Collection<String> headlineClaimIds,
@@ -302,13 +524,27 @@ final class GovernedFinalClaimContract {
         return reviewText.isBlank() || basis.isEmpty() ? null : new ReviewItem(reviewText, basis);
     }
 
-    private String claimSource(AnalysisSummaryResult summary) {
+    private String claimSource(AnalysisSummaryResult summary, Map<String, Object> claim) {
+        List<String> references = strings(claim == null ? null : claim.get("recordRefs"));
+        if (!references.isEmpty()) {
+            String reference = references.get(0);
+            int marker = reference.indexOf(".records[");
+            if (marker > 0) return reference.substring(0, marker);
+        }
         if (summary == null || summary.position() == null) return "";
         for (String key : List.of("datasetReference", "groupId", "scope")) {
             String value = text(summary.position().get(key));
             if (!value.isBlank()) return value;
         }
         return summary.scope();
+    }
+
+    private String evidenceSignature(String source, List<String> recordRefs,
+                                     List<String> supportingValues) {
+        return DataAnalysisLayerGovernanceContract.fingerprint(List.of(
+            source == null ? "" : source,
+            recordRefs == null ? List.of() : recordRefs.stream().sorted().toList(),
+            supportingValues == null ? List.of() : supportingValues.stream().sorted().toList()));
     }
 
     private List<String> boundedStrings(Object value, int maximumItems, int maximumChars) {
@@ -462,9 +698,29 @@ final class GovernedFinalClaimContract {
         }
     }
 
+    private record NarrativeFinding(String section, String text,
+                                    List<String> basisClaimIds) {
+        private NarrativeFinding {
+            basisClaimIds = basisClaimIds == null ? List.of() : List.copyOf(basisClaimIds);
+        }
+    }
+
+    private record ClaimCoverage(String claimId, String disposition, String reason) {
+    }
+
     private record Claim(String claimId, String text, String claimClass,
                          String confidence, String significance, List<String> caveats,
-                         String sourceScope) {
+                         String sourceScope, List<String> recordRefs,
+                         List<String> supportingValues) {
+        private Claim {
+            recordRefs = recordRefs == null ? List.of() : List.copyOf(recordRefs);
+            supportingValues = supportingValues == null ? List.of() : List.copyOf(supportingValues);
+        }
+
+        private boolean observedFact() {
+            return "OBSERVED_RETURNED_FACT".equals(claimClass);
+        }
+
         private Map<String, Object> toPromptMap() {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("claimId", claimId);
@@ -474,6 +730,8 @@ final class GovernedFinalClaimContract {
             if (significance != null && !significance.isBlank()) result.put("significance", significance);
             if (caveats != null && !caveats.isEmpty()) result.put("caveats", caveats);
             if (sourceScope != null && !sourceScope.isBlank()) result.put("sourceScope", sourceScope);
+            if (!recordRefs.isEmpty()) result.put("recordRefs", recordRefs);
+            if (!supportingValues.isEmpty()) result.put("supportingValues", supportingValues);
             return Map.copyOf(result);
         }
     }

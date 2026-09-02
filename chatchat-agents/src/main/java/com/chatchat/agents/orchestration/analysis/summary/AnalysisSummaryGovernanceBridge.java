@@ -281,8 +281,9 @@ public final class AnalysisSummaryGovernanceBridge
             + "Every objective-relevant returned metric or state mentioned in summary, demandAnalysis or "
             + "businessConclusions must also appear in facts with its record reference and exact value; never leave "
             + "a supported requested dimension only in free text. "
-            + "Cover every returned record with at least one fact reference; a range reference is valid only when "
-            + "the stated fact and exact values are genuinely supported within that complete range. "
+            + "Cite the records or valid ranges that support each material finding. Do not create one fact per row "
+            + "merely to demonstrate mechanical coverage; analytical completeness is measured against the user's "
+            + "decision questions and material returned evidence, not by reproducing the dataset. "
             + "Set rawReplayRecommended=true when ambiguity, conflict, an incomplete source, or a relationship "
             + "that cannot be resolved inside this chunk requires the final synthesizer to reread the raw chunk. "
             + "Lead with findings, not row counts or metadata. Prioritize objective-relevant findings; rank insights "
@@ -487,12 +488,16 @@ public final class AnalysisSummaryGovernanceBridge
             .map(com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract.GapRequest::toMap)
             .toList());
         evidence.put("rejectedInsightCount", rejectedInsights);
-        if (!proposedInsights.isEmpty()) {
+        // Claims anchor the Worker's report; they must not replace an otherwise fully admitted
+        // professional analysis. Quarantine free text only when at least one claim was rejected.
+        if (rejectedInsights > 0) {
             content = validatedInsights.isEmpty()
                 ? "当前数据未产生通过语义授权校验的分析洞察。"
                 : validatedInsights.stream().map(insight -> insight.get("claim") + "（"
                     + insight.get("significance") + "）").collect(java.util.stream.Collectors.joining("；"));
         }
+        evidence.put("analysisNarrativeStatus", rejectedInsights > 0
+            ? "QUARANTINED_REJECTED_CLAIMS" : "PRESERVED_GOVERNED_WORKER_REPORT");
         evidence.put("rejectedFactCount", rejectedFacts);
         LinkedHashSet<Integer> citedRecords = citedRecordIndexes(position, facts);
         boolean factRecordCoverageComplete = records == null || records.isEmpty()
@@ -500,8 +505,8 @@ public final class AnalysisSummaryGovernanceBridge
         evidence.put("citedRecordCount", citedRecords.size());
         evidence.put("factRecordCoverageComplete", factRecordCoverageComplete);
         evidence.put("rawReplayRecommended",
-            truthy(payload.get("rawReplayRecommended")) || rejectedFacts > 0 || rejectedInsights > 0 || !structured
-                || !factRecordCoverageComplete);
+            truthy(payload.get("rawReplayRecommended")) || rejectedFacts > 0
+                || rejectedInsights > 0 || !structured);
         return new EvidenceCapsule(content, Collections.unmodifiableMap(evidence));
     }
 

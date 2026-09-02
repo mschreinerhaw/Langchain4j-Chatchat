@@ -16,6 +16,7 @@ import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisWorkerSupervision;
 import dev.langchain4j.model.chat.ChatModel;
@@ -38,6 +39,9 @@ public final class AnalysisCoverageCoordinator {
     private final AnalysisDispatchCoordinator dispatchCoordinator;
     private final DeterministicInsightEngine insightEngine;
     private final AnalysisSynthesisCoordinator synthesisCoordinator;
+    private final AnalysisReducerSupervisor reducerSupervisor = new AnalysisReducerSupervisor();
+    private final AnalysisGovernanceStateCoordinator governanceStateCoordinator =
+        new AnalysisGovernanceStateCoordinator();
     private final Configuration configuration;
     private AnalysisEvidenceSpillStore spillStore;
 
@@ -236,6 +240,29 @@ public final class AnalysisCoverageCoordinator {
         lifecycle = synthesis.lifecycle();
         DeterministicInsightEngine.Result bundleInsights = synthesis.crossDatasetInsights();
         HierarchicalAnalysisReducer.Result hierarchy = synthesis.hierarchy();
+        AnalysisReducerSupervisor.Review reducerReview =
+            reducerSupervisor.inspect(hierarchy.finalInputs());
+        AnalysisGovernanceStateCoordinator.State governanceState =
+            governanceStateCoordinator.reconcile(reducerReview.admittedInputs(),
+                reducerReview.repairRequests(), request.metadata());
+        hierarchy = new HierarchicalAnalysisReducer.Result(
+            hierarchy.relationshipPlan(), hierarchy.datasetSummaries(),
+            hierarchy.relationshipGroupSummaries(), reducerReview.admittedInputs(),
+            hierarchy.uncoveredDatasets());
+        writeReducerGovernanceMetadata(request, reducerReview, governanceState);
+        observe(request,
+            reducerReview.rejectedCount() == 0
+                ? "分析主管报告已通过治理准入，可进入综合决策。"
+                : "部分分析主管报告未通过治理准入，已生成补证或重算请求。",
+            "analysis_summary_governance", metadataOf(
+                "type", "analysis_reducer_admission",
+                "admittedCount", reducerReview.admittedInputs().size(),
+                "rejectedCount", reducerReview.rejectedCount(),
+                "repairRequestCount", reducerReview.repairRequests().size(),
+                "activeRepairRequestCount", governanceState.activeRepairRequests().size(),
+                "terminalRepairRequestCount", reducerReview.repairRequests().size()
+                    - governanceState.activeRepairRequests().size(),
+                "gapRequests", toGapRequests(governanceState.activeRepairRequests())));
         if (bundleInsights.executed()
             && (!bundleInsights.findings().isEmpty() || !bundleInsights.issues().isEmpty())) {
             insightResults.add(bundleInsights.toMap());
@@ -248,6 +275,11 @@ public final class AnalysisCoverageCoordinator {
             && governedSummaries.stream().allMatch(evidenceCoordinator::hasTraceableEvidence)
             && governedSummaries.stream().map(AnalysisSummaryResult::resultId).distinct().count()
                 == governedSummaries.size();
+        if (hierarchy.finalInputs().isEmpty()) {
+            traceComplete = false;
+            prompt.append("Driver synthesis barrier is blocked: no Reducer report passed layered governance. "
+                + "Use the generated analysis repair requests instead of reconstructing conclusions from raw evidence.\n");
+        }
         appendCoverage(prompt, hierarchy, failures, counters, coverageComplete, traceComplete);
         if (!rawReplay.isEmpty()) {
             // Raw replay is retained for Worker repair and governance diagnostics, but never enters
@@ -270,6 +302,55 @@ public final class AnalysisCoverageCoordinator {
             counters.returned, counters.processed, counters.iterations, counters.iterative,
             coverageComplete, counters.sourceComplete, traceComplete, counters.rawReplay,
             List.copyOf(governedSummaries), hierarchy.finalInputs());
+    }
+
+    private void writeReducerGovernanceMetadata(
+        Request request,
+        AnalysisReducerSupervisor.Review review,
+        AnalysisGovernanceStateCoordinator.State governanceState
+    ) {
+        Map<String, Object> metadata = request.metadata();
+        if (metadata == null) return;
+        metadata.put("analysisReducerAdmissionDecisions", review.admissionDecisions());
+        metadata.put("analysisReducerAdmittedReportCount", review.admittedInputs().size());
+        metadata.put("analysisReducerRejectedReportCount", review.rejectedCount());
+        metadata.put("analysisRepairRequests", review.repairRequests());
+        metadata.put("analysisRepairRequired", !governanceState.activeRepairRequests().isEmpty());
+        List<Map<String, Object>> gapRequests = toGapRequests(governanceState.activeRepairRequests());
+        metadata.put("analysisGapRequests", gapRequests);
+        metadata.put("gapRequests", gapRequests);
+        if (review.admittedInputs().isEmpty()) {
+            metadata.put("analysisSynthesisBarrierReady", false);
+            metadata.put("analysisSynthesisBarrierStatus", "REDUCER_ADMISSION_BLOCKED");
+        } else {
+            metadata.put("analysisSynthesisBarrierReady", true);
+            metadata.put("analysisSynthesisBarrierStatus",
+                review.rejectedCount() == 0 ? "READY" : "READY_WITH_REDUCER_LIMITATIONS");
+        }
+    }
+
+    private List<Map<String, Object>> toGapRequests(List<Map<String, Object>> repairs) {
+        if (repairs == null || repairs.isEmpty()) return List.of();
+        return repairs.stream().map(repair -> new AnalysisLoopContract.GapRequest(
+                stringValue(repair.get("requestId")),
+                stringValue(repair.get("goal")),
+                stringList(repair.get("requiredCapabilities")),
+                stringValue(repair.get("requiredTimeScope")),
+                stringValue(repair.get("requiredGrain")),
+                AnalysisLoopContract.Criticality.CORE,
+                stringValue(repair.get("route")))
+            .toMap()).toList();
+    }
+
+    private List<String> stringList(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) return List.of();
+        List<String> result = new ArrayList<>();
+        iterable.forEach(item -> {
+            if (item != null && !String.valueOf(item).isBlank()) {
+                result.add(String.valueOf(item).trim());
+            }
+        });
+        return result.stream().distinct().toList();
     }
 
     private void observeWorkerSupervision(

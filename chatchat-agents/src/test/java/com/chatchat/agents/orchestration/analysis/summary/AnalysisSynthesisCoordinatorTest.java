@@ -8,6 +8,7 @@ import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisLineageGraph;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 
@@ -381,7 +382,19 @@ class AnalysisSynthesisCoordinatorTest {
                 "data_analysis_decision_operating_model.v1")
             .containsEntry("analysisParticipantRole", "DRIVER")
             .containsEntry("analysisDriverInputMode", "GOVERNED_WORKER_REDUCER_REPORTS_ONLY")
-            .containsEntry("analysisDriverInputReportCount", 1);
+            .containsEntry("analysisDriverInputReportCount", 1)
+            .containsKeys("analysisDriverAdmission", "analysisEvidenceLineage",
+                "analysisClaimLifecycle");
+        assertThat(result.governedResult().evidence())
+            .containsKeys("analysisReportAdmission", "analysisEvidenceLineage",
+                "analysisClaimLifecycle", "analysisPublishedClaimIds");
+        assertThat(result.governedResult().evidence().get("analysisClaimLifecycle").toString())
+            .contains("claim-reducer", "SYNTHESIZED", "PUBLISHED");
+        DataAnalysisLineageGraph graph = DataAnalysisLineageGraph.fromMap(
+            metadata.get("analysisLineageGraph"));
+        assertThat(graph.ancestors(result.governedResult().resultId()))
+            .extracting(DataAnalysisLineageGraph.Node::nodeId)
+            .contains(reducer.resultId(), "claim-reducer");
     }
 
     @Test

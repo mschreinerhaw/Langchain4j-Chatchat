@@ -10,6 +10,8 @@ import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
+import com.chatchat.common.runtime.summary.analysis.DataAnalysisLineageGraph;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import dev.langchain4j.model.chat.ChatModel;
@@ -249,6 +251,61 @@ public final class AnalysisSynthesisCoordinator {
             request.metadata().put("rawAnalysisOutputWithheld", true);
         }
         AnalysisSummaryResult governed = finalizeSummary(request.governance(answer, outcome));
+        List<String> publishedClaimIds = strings(request.metadata().get("finalPublishedClaimIds"));
+        DataAnalysisLayerGovernanceContract.Admission driverAdmission =
+            new DataAnalysisLayerGovernanceContract.Admission(
+                "", governed.resultId(), DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION,
+                admission.admitted() ? DataAnalysisLayerGovernanceContract.State.PUBLISHED
+                    : DataAnalysisLayerGovernanceContract.State.REJECTED,
+                admission.admitted(), List.of(admission.reason()),
+                request.synthesisInputs().stream().map(AnalysisSummaryResult::resultId).toList(),
+                publishedClaimIds);
+        List<DataAnalysisLayerGovernanceContract.LineageEdge> driverLineageEdges = new ArrayList<>();
+        String governedResultId = governed.resultId();
+        request.synthesisInputs().forEach(input -> driverLineageEdges.add(
+            new DataAnalysisLayerGovernanceContract.LineageEdge(
+                "", input.resultId(), governedResultId,
+                DataAnalysisLayerGovernanceContract.Relation.DERIVED_FROM,
+                DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION)));
+        publishedClaimIds.forEach(claimId -> driverLineageEdges.add(
+            new DataAnalysisLayerGovernanceContract.LineageEdge(
+                "", claimId, governedResultId,
+                DataAnalysisLayerGovernanceContract.Relation.SUPPORTS,
+                DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION)));
+        List<Map<String, Object>> driverLineage = driverLineageEdges.stream()
+            .map(DataAnalysisLayerGovernanceContract.LineageEdge::toMap).toList();
+        List<Map<String, Object>> publishedClaimLifecycle = publishedClaimIds.stream()
+            .map(claimId -> new DataAnalysisLayerGovernanceContract.ClaimTransition(
+                "", claimId, DataAnalysisLayerGovernanceContract.Layer.DRIVER_DECISION,
+                DataAnalysisLayerGovernanceContract.State.SYNTHESIZED,
+                DataAnalysisLayerGovernanceContract.State.PUBLISHED,
+                request.synthesisInputs().stream().map(AnalysisSummaryResult::resultId).toList(),
+                "Claim was selected by the governed Driver publication contract.").toMap())
+            .toList();
+        governed = governed.withEvidence(Map.of(
+            "analysisReportAdmission", driverAdmission.toMap(),
+            "analysisEvidenceLineage", List.copyOf(driverLineage),
+            "analysisClaimLifecycle", publishedClaimLifecycle,
+            "analysisPublishedClaimIds", publishedClaimIds));
+        request.metadata().put("analysisDriverAdmission", driverAdmission.toMap());
+        request.metadata().put("analysisEvidenceLineage", List.copyOf(driverLineage));
+        request.metadata().put("analysisClaimLifecycle", publishedClaimLifecycle);
+        List<DataAnalysisLineageGraph.Node> driverNodes = new ArrayList<>();
+        driverNodes.add(new DataAnalysisLineageGraph.Node(
+            governedResultId, "DRIVER_DECISION",
+            Map.of("outcome", governed.outcome(), "admitted", admission.admitted())));
+        request.synthesisInputs().forEach(input -> driverNodes.add(
+            new DataAnalysisLineageGraph.Node(input.resultId(), "REPORT",
+                Map.of("scope", input.scope()))));
+        publishedClaimIds.forEach(claimId -> driverNodes.add(
+            new DataAnalysisLineageGraph.Node(claimId, "CLAIM", Map.of("published", true))));
+        DataAnalysisLineageGraph lineageGraph = DataAnalysisLineageGraph
+            .fromMap(request.metadata().get("analysisLineageGraph"))
+            .plus(driverNodes, driverLineageEdges);
+        request.metadata().put("analysisLineageGraph", lineageGraph.toMap());
+        request.metadata().put("analysisLineageGraphSchemaVersion",
+            DataAnalysisLineageGraph.SCHEMA_VERSION);
+        request.metadata().put("analysisSummaryResult", governed.toMap());
         answer = governed.content();
         log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
             request.runId(), request.stage(), System.currentTimeMillis() - startedAt,
@@ -423,6 +480,17 @@ public final class AnalysisSynthesisCoordinator {
     private String preview(String value) {
         if (value == null) return "";
         return value.length() <= 500 ? value : value.substring(0, 500) + "...";
+    }
+
+    private List<String> strings(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) return List.of();
+        List<String> result = new ArrayList<>();
+        iterable.forEach(item -> {
+            if (item != null && !String.valueOf(item).isBlank()) {
+                result.add(String.valueOf(item).trim());
+            }
+        });
+        return result.stream().distinct().toList();
     }
 
     private void record(HierarchicalSynthesisRequest request, String message, String type,

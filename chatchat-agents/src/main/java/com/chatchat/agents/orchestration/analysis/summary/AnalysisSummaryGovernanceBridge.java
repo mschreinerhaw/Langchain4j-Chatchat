@@ -378,6 +378,7 @@ public final class AnalysisSummaryGovernanceBridge
             + "joins, aggregation, causality, completeness or long-term behavior.\n"
             + "Return one JSON object. Required fields: summary; demandAnalysis with decisionGoal, "
             + "answeredQuestions and openQuestions; metricAssociations (empty when none); objectiveAlignment; "
+            + "analysisItems (one disposition for every analysisAgenda item applicable to this dataset); "
             + "insights; facts; conflicts; limitations; missingEvidence; recommendedFollowupRequests; "
             + "rawReplayRecommended. Each fact cites recordRefs and exactValues. Each insight contains claimClass "
             + "(OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE), claim, significance, "
@@ -385,7 +386,11 @@ public final class AnalysisSummaryGovernanceBridge
             + "scope, semanticBasis and alternatives when applicable. Preserve a complete, decision-useful summary "
             + "even when some candidate analysis remains pending validation. Every objective-relevant returned "
             + "dataset must contribute its material current-state facts to summary/facts/insights; a gap list is not "
-            + "a substitute for analyzing the supplied records.\n"
+            + "a substitute for analyzing the supplied records. analysisItems shape: [{itemId, analysisType, status "
+            + "(SUPPORTED|PARTIAL|NOT_APPLICABLE|REVIEW_REQUIRED), finding, businessMeaning, basisRecordRefs, "
+            + "supportingValues, method, confidence, timeScope, limitations}]. A SUPPORTED, PARTIAL or "
+            + "REVIEW_REQUIRED item must cite exact returned evidence. NOT_APPLICABLE must explain why this dataset "
+            + "cannot address it.\n"
             + "Original user question (authoritative analysis intent): " + safeObjective(userObjective) + "\n"
             + "Analysis objective contract: " + ModelProtocolJson.compact(objectiveContract) + "\n"
             + "Producer semantic contract: " + ModelProtocolJson.compact(semanticContract) + "\n"
@@ -529,6 +534,9 @@ public final class AnalysisSummaryGovernanceBridge
         Map<String, Object> demandAnalysis = demandAnalysis(payload.get("demandAnalysis"));
         evidence.put("demandAnalysis", demandAnalysis);
         evidence.put("metricAssociations", metricAssociations(payload.get("metricAssociations"), position));
+        evidence.put("analysisItems", analysisItems(
+            payload.get("analysisItems"), position, records));
+        evidence.put("workerAnalysisItemsDeclared", payload.containsKey("analysisItems"));
         evidence.put("analysisDecisionOperatingModelVersion",
             DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
         evidence.put("analysisParticipantRole",
@@ -662,6 +670,46 @@ public final class AnalysisSummaryGovernanceBridge
             if (method != null) association.put("analysisMethod", method);
             association.put("validationNeeded", strings(source.get("validationNeeded")));
             result.add(Collections.unmodifiableMap(association));
+        }
+        return List.copyOf(result);
+    }
+
+    private List<Map<String, Object>> analysisItems(Object value,
+                                                    DataAnalysisPosition position,
+                                                    List<Map<String, Object>> records) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Set<String> allowedStatuses = Set.of(
+            "SUPPORTED", "PARTIAL", "NOT_APPLICABLE", "REVIEW_REQUIRED");
+        for (Map<String, Object> source : maps(value)) {
+            String itemId = string(source.get("itemId"));
+            String analysisType = string(source.get("analysisType"));
+            String status = string(source.get("status"));
+            if (itemId == null || itemId.isBlank() || analysisType == null
+                || analysisType.isBlank() || status == null) continue;
+            status = status.toUpperCase(java.util.Locale.ROOT);
+            if (!allowedStatuses.contains(status)) continue;
+            List<String> references = strings(source.get("basisRecordRefs")).stream()
+                .filter(reference -> validRecordReference(position, reference)).distinct().toList();
+            List<String> values = strings(source.get("supportingValues")).stream()
+                .filter(exact -> exactValueSupported(position, records, references, exact))
+                .distinct().toList();
+            if (!"NOT_APPLICABLE".equals(status)
+                && (references.isEmpty() || values.isEmpty())) {
+                status = "REVIEW_REQUIRED";
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("itemId", itemId);
+            item.put("analysisType", analysisType);
+            item.put("status", status);
+            putIfPresent(item, "finding", source.get("finding"));
+            putIfPresent(item, "businessMeaning", source.get("businessMeaning"));
+            item.put("basisRecordRefs", references);
+            item.put("supportingValues", values);
+            putIfPresent(item, "method", source.get("method"));
+            putIfPresent(item, "confidence", source.get("confidence"));
+            putIfPresent(item, "timeScope", source.get("timeScope"));
+            item.put("limitations", strings(source.get("limitations")));
+            result.add(Collections.unmodifiableMap(item));
         }
         return List.copyOf(result);
     }

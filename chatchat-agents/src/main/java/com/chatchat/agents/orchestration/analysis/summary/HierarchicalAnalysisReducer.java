@@ -261,6 +261,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract",
             "analysisDepth", "analysisDepthContractVersion",
             "demandAnalysis", "metricAssociations",
+            "analysisItems",
             "datasetFindings", "metrics", "rankings", "analyzedRelationships", "businessConclusions",
             "unsupportedQuestions", "missingEvidence", "recommendedFollowupRequests")) {
             List<Object> values = new ArrayList<>();
@@ -301,6 +302,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "summaries as completed Worker analysis reports, not as raw data descriptions. Consolidate their work, "
             + "preserve each report's analytical contribution and detect disagreements, evidence gaps and weakly "
             + "supported areas for the final management-level Driver. Do not simply concatenate Worker narratives. "
+            + "Reconcile the dynamic analysisAgenda and analysisItems: preserve each item's disposition, combine "
+            + "compatible findings, surface conflicts, and ensure supported items remain visible to the Driver. "
             + "Apply a supported-first invariant: first consolidate what the returned evidence establishes for each "
             + "objective dimension, including current-period levels, composition, rankings, transactions and outcomes; "
             + "only then summarize limitations. Missing longitudinal evidence limits trend or stable-preference claims "
@@ -384,6 +387,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         result.put("demandAnalysis", summary.evidence().getOrDefault("demandAnalysis", Map.of()));
         result.put("metricAssociations",
             summary.evidence().getOrDefault("metricAssociations", List.of()));
+        result.put("analysisItems",
+            summary.evidence().getOrDefault("analysisItems", List.of()));
         result.put("datasetFindings", summary.evidence().getOrDefault("datasetFindings", List.of()));
         result.put("metrics", summary.evidence().getOrDefault("metrics", Map.of()));
         result.put("rankings", summary.evidence().getOrDefault("rankings", Map.of()));
@@ -495,7 +500,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                 "demandAnalysis", "observedFactClaims", "insights", "datasetFindings",
                 "metrics", "rankings", "analyzedRelationships", "businessConclusions",
                 "conflicts", "limitations", "analysisQuality", "analysisDepth",
-                "metricAssociations", "claimAdmissionDecisions")) {
+                "metricAssociations", "analysisItems", "claimAdmissionDecisions")) {
                 Object value = evidence.get(key);
                 if (value != null && (!(value instanceof Map<?, ?> map) || !map.isEmpty())
                     && (!(value instanceof Collection<?> items) || !items.isEmpty())) {

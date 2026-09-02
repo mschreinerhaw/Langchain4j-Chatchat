@@ -53,6 +53,8 @@ public final class AnalysisObjectiveContractCompiler {
                 "criticality", "CORE"
             )).toList()
         ));
+        contract.put("analysisAgenda", analysisAgenda(originalQuestion, intent,
+            businessQuestions));
         contract.put("professionalAnalysisContract",
             ProfessionalDataAnalysisContract.enterpriseDefault().toMap());
         contract.put("professionalAnalysisDepthContract",
@@ -68,8 +70,66 @@ public final class AnalysisObjectiveContractCompiler {
             "CLASSIFY_THE_OBJECTIVE_MODE_AND_SATISFY_ITS_MINIMUM_REASONING_DEPTH",
             "TURN_EACH_UNSUPPORTED_REQUIRED_DEPTH_DIMENSION_INTO_A_DECLARATIVE_EVIDENCE_GAP",
             "SEPARATE_OBSERVATION_DERIVATION_AND_INFERENCE",
+            "COMPLETE_DYNAMIC_ANALYSIS_AGENDA_BEFORE_REPORTING_GAPS",
+            "BIND_EACH_SUPPORTED_ANALYSIS_ITEM_TO_FACTS_OR_CLAIMS",
             "CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE"));
         return Collections.unmodifiableMap(contract);
+    }
+
+    private Map<String, Object> analysisAgenda(String originalQuestion,
+                                               Map<String, Object> intent,
+                                               List<String> businessQuestions) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        addItem(items, "CURRENT_STATE", originalQuestion, strings(intent.get("metrics")),
+            strings(intent.get("dimensions")), List.of());
+        if (!strings(intent.get("dimensions")).isEmpty()) {
+            addItem(items, "STRUCTURE_AND_DISTRIBUTION",
+                "Analyze composition, distribution and concentration across requested dimensions",
+                strings(intent.get("metrics")), strings(intent.get("dimensions")), List.of());
+        }
+        if (!strings(intent.get("metrics")).isEmpty()) {
+            addItem(items, "PERFORMANCE_AND_CONTRIBUTION",
+                "Analyze material metric levels, outcomes, contribution and exceptions",
+                strings(intent.get("metrics")), strings(intent.get("dimensions")), List.of());
+        }
+        for (String focus : strings(intent.get("analysisFocus"))) {
+            addItem(items, "BEHAVIOR_OR_PATTERN", focus, strings(intent.get("metrics")),
+                strings(intent.get("dimensions")), List.of());
+        }
+        for (String relationship : strings(intent.get("expectedRelationships"))) {
+            addItem(items, "CROSS_METRIC_OR_DATASET_RELATIONSHIP", relationship,
+                strings(intent.get("metrics")), strings(intent.get("dimensions")),
+                List.of(relationship));
+        }
+        for (String question : businessQuestions) {
+            addItem(items, "REQUIREMENT_SPECIFIC", question, strings(intent.get("metrics")),
+                strings(intent.get("dimensions")), List.of());
+        }
+        List<Map<String, Object>> distinct = items.stream()
+            .collect(java.util.stream.Collectors.toMap(
+                item -> String.valueOf(item.get("itemId")), item -> item,
+                (left, right) -> left,
+                LinkedHashMap::new)).values().stream().toList();
+        return Map.of(
+            "schemaVersion", "dynamic_analysis_agenda.v1",
+            "completionPolicy", "SUPPORTED_FIRST_ADVISORY_GAPS_LAST",
+            "items", distinct);
+    }
+
+    private void addItem(List<Map<String, Object>> items, String type, String question,
+                         List<String> metrics, List<String> dimensions,
+                         List<String> relationships) {
+        if (question == null || question.isBlank()) return;
+        String signature = type + "|" + question.trim();
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("itemId", "analysis-item-" + Integer.toUnsignedString(signature.hashCode(), 36));
+        item.put("analysisType", type);
+        item.put("question", question.trim());
+        item.put("candidateMetrics", metrics);
+        item.put("candidateDimensions", dimensions);
+        item.put("expectedRelationships", relationships);
+        item.put("requiredDisposition", "SUPPORTED|PARTIAL|NOT_APPLICABLE|REVIEW_REQUIRED");
+        items.add(Collections.unmodifiableMap(item));
     }
 
     private void put(Map<String, Object> target, String key, Object value) {

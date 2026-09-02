@@ -161,6 +161,36 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
+    void preservesEvidenceBoundDynamicAnalysisItemsForReducerAndDriver() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {"summary":"Current level is 42 and directly answers the current-state item.",
+             "demandAnalysis":{"decisionGoal":"Understand current state",
+               "answeredQuestions":["Current state"],"openQuestions":[]},
+             "metricAssociations":[],
+             "analysisItems":[{"itemId":"analysis-item-current","analysisType":"CURRENT_STATE",
+               "status":"SUPPORTED","finding":"Current level is 42",
+               "businessMeaning":"Establishes the returned current state",
+               "basisRecordRefs":["metrics.records[1]"],"supportingValues":["42"],
+               "method":"OBSERVE","confidence":"HIGH","timeScope":"returned period",
+               "limitations":[]}],
+             "facts":[{"claim":"Current level is 42","recordRefs":["metrics.records[1]"],
+               "exactValues":["42"]}],"insights":[],"conflicts":[],"limitations":[]}
+            """);
+        List<Map<String, Object>> records = List.of(Map.of("VALUE", 42));
+
+        AnalysisSummaryResult result = bridge.summarize(model::chat, isolationScope,
+            bridge.position("metrics", 1, 1, 1, 1, 1),
+            bridge.govern("metrics", Map.of(), records), records, "Analyze current state");
+
+        assertThat(result.evidence())
+            .containsEntry("workerAnalysisItemsDeclared", true);
+        assertThat(result.evidence().get("analysisItems").toString())
+            .contains("analysis-item-current", "status=SUPPORTED", "Current level is 42",
+                "metrics.records[1]", "supportingValues=[42]");
+    }
+
+    @Test
     void preservesValidatedProfessionalInsightsAndQualityAssessment() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""

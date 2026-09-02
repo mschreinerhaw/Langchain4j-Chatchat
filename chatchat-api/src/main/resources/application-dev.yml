@@ -37,37 +37,37 @@ server:
 
 chatchat:
   data-science:
-    workspace-root: ${CHATCHAT_PYTHON_WORKSPACE_ROOT:./data/python-assets}
-    max-data-file-bytes: ${CHATCHAT_PYTHON_MAX_DATA_FILE_BYTES:52428800}
-    data-cleanup-interval-ms: ${CHATCHAT_PYTHON_DATA_CLEANUP_INTERVAL_MS:3600000}
-    docker-command: ${CHATCHAT_PYTHON_DOCKER_COMMAND:docker}
-    default-image: ${CHATCHAT_PYTHON_DEFAULT_IMAGE:python:3.12-slim}
-    cpu-limit: ${CHATCHAT_PYTHON_CPU_LIMIT:2}
-    memory-limit: ${CHATCHAT_PYTHON_MEMORY_LIMIT:4g}
-    timeout-seconds: ${CHATCHAT_PYTHON_TIMEOUT_SECONDS:300}
-    output-limit-bytes: ${CHATCHAT_PYTHON_OUTPUT_LIMIT_BYTES:1000000}
-    index-name: ${CHATCHAT_PYTHON_INDEX_NAME:mcp_python_template_index}
+    workspace-root: ./data/python-assets
+    max-data-file-bytes: 52428800
+    data-cleanup-interval-ms: 3600000
+    docker-command: docker
+    default-image: python:3.12-slim
+    cpu-limit: 2
+    memory-limit: 4g
+    timeout-seconds: 300
+    output-limit-bytes: 1000000
+    index-name: mcp_python_template_index
   audit:
-    default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
+    default-query-window-days: 7
   ui-artifact:
-    enabled: ${CHATCHAT_UI_ARTIFACT_ENABLED:true}
+    enabled: true
     # local and shared both use Java NIO. For shared mode, storage-path must be an OS-mounted NFSv4/SMB3/CephFS path.
-    store-type: ${CHATCHAT_UI_ARTIFACT_STORE_TYPE:local}
-    storage-path: ${CHATCHAT_UI_ARTIFACT_STORAGE_PATH:./data/ui-artifacts}
-    shared-marker-file: ${CHATCHAT_UI_ARTIFACT_SHARED_MARKER:.chatchat-artifact-store}
-    migrate-legacy-on-read: ${CHATCHAT_UI_ARTIFACT_MIGRATE_LEGACY_ON_READ:true}
+    store-type: local
+    storage-path: ./data/ui-artifacts
+    shared-marker-file: .chatchat-artifact-store
+    migrate-legacy-on-read: true
     # Render every non-empty UI response through the governed artifact renderer by default.
-    always-externalize: ${CHATCHAT_UI_ARTIFACT_ALWAYS_EXTERNALIZE:true}
+    always-externalize: true
     # Used only when always-externalize is false.
-    externalize-threshold-bytes: ${CHATCHAT_UI_ARTIFACT_THRESHOLD_BYTES:131072}
-    answer-preview-characters: ${CHATCHAT_UI_ARTIFACT_PREVIEW_CHARACTERS:4000}
-    ttl-seconds: ${CHATCHAT_UI_ARTIFACT_TTL_SECONDS:2592000}
-    cleanup-interval-ms: ${CHATCHAT_UI_ARTIFACT_CLEANUP_INTERVAL_MS:3600000}
+    externalize-threshold-bytes: 131072
+    answer-preview-characters: 4000
+    ttl-seconds: 2592000
+    cleanup-interval-ms: 3600000
   http:
     json-request:
-      enabled: ${CHATCHAT_JSON_REQUEST_LIMIT_ENABLED:true}
-      max-bytes: ${CHATCHAT_JSON_REQUEST_MAX_BYTES:2097152}
-      warning-bytes: ${CHATCHAT_JSON_REQUEST_WARNING_BYTES:524288}
+      enabled: true
+      max-bytes: 2097152
+      warning-bytes: 524288
   chat:
     detail-store:
       type: rocksdb
@@ -86,14 +86,14 @@ chatchat:
   mcp:
     grpc:
       client:
-        enabled: ${CHATCHAT_MCP_GRPC_ENABLED:true}
-        host: ${CHATCHAT_MCP_GRPC_HOST:localhost}
-        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
-        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:true}
-        trust-certificate-path: ${CHATCHAT_MCP_GRPC_TRUST_CERT:}
-        deadline-ms: ${CHATCHAT_MCP_GRPC_DEADLINE_MS:1800000}
-        max-inbound-message-bytes: ${CHATCHAT_MCP_GRPC_MAX_MESSAGE_BYTES:4194304}
-        max-response-bytes: ${CHATCHAT_MCP_GRPC_MAX_RESPONSE_BYTES:536870912}
+        enabled: true
+        host: localhost
+        port: 9091
+        plaintext: true
+        trust-certificate-path: 
+        deadline-ms: 1800000
+        max-inbound-message-bytes: 4194304
+        max-response-bytes: 536870912
     capabilities:
       news:
         enabled: true
@@ -143,46 +143,46 @@ chatchat:
       max-pool-size: 16
       max-concurrent-tasks-per-tenant: 4
       execution-timeout-ms: 0
-      database-queue-enabled: ${CHATCHAT_AGENT_DATABASE_QUEUE_ENABLED:true}
-      database-queue-poll-ms: ${CHATCHAT_AGENT_DATABASE_QUEUE_POLL_MS:250}
-      database-quota-reconcile-ms: ${CHATCHAT_AGENT_DATABASE_QUOTA_RECONCILE_MS:30000}
-      database-queue-claim-batch-size: ${CHATCHAT_AGENT_DATABASE_QUEUE_CLAIM_BATCH_SIZE:16}
-      worker-lease-ms: ${CHATCHAT_AGENT_WORKER_LEASE_MS:120000}
-      worker-heartbeat-ms: ${CHATCHAT_AGENT_WORKER_HEARTBEAT_MS:10000}
-      task-max-attempts: ${CHATCHAT_AGENT_TASK_MAX_ATTEMPTS:3}
-      retry-base-delay-ms: ${CHATCHAT_AGENT_RETRY_BASE_DELAY_MS:1000}
-      retry-max-delay-ms: ${CHATCHAT_AGENT_RETRY_MAX_DELAY_MS:60000}
-      worker-version: ${CHATCHAT_AGENT_WORKER_VERSION:1.0}
-      worker-capabilities: ${CHATCHAT_AGENT_WORKER_CAPABILITIES:dag-v2,conditional-edge-v1}
+      database-queue-enabled: true
+      database-queue-poll-ms: 250
+      database-quota-reconcile-ms: 30000
+      database-queue-claim-batch-size: 16
+      worker-lease-ms: 120000
+      worker-heartbeat-ms: 10000
+      task-max-attempts: 3
+      retry-base-delay-ms: 1000
+      retry-max-delay-ms: 60000
+      worker-version: 1.0
+      worker-capabilities: dag-v2,conditional-edge-v1
       event-store:
-        type: ${CHATCHAT_AGENT_EVENT_STORE_TYPE:database}
+        type: database
   tool-runtime:
-    default-max-calls-per-second: ${CHATCHAT_TOOL_DEFAULT_QPS:10}
+    default-max-calls-per-second: 10
     default-tool-timeout-ms: 1800000
     max-batch-calls: 32
     max-batch-payload-bytes: 262144
-    max-output-bytes: ${CHATCHAT_TOOL_MAX_OUTPUT_BYTES:262144}
-    max-output-preview-chars: ${CHATCHAT_TOOL_MAX_OUTPUT_PREVIEW_CHARS:16000}
+    max-output-bytes: 262144
+    max-output-preview-chars: 16000
   agent-runtime:
-    workflow-engine: ${CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE:local}
-    native-tool-calling-enabled: ${CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED:true}
+    workflow-engine: local
+    native-tool-calling-enabled: true
     temporal:
-      target: ${CHATCHAT_TEMPORAL_TARGET:127.0.0.1:7233}
-      namespace: ${CHATCHAT_TEMPORAL_NAMESPACE:default}
-      task-queue: ${CHATCHAT_TEMPORAL_TASK_QUEUE:chatchat-agent-runtime}
-      activity-start-to-close-seconds: ${CHATCHAT_TEMPORAL_ACTIVITY_TIMEOUT_SECONDS:86400}
-      activity-heartbeat-seconds: ${CHATCHAT_TEMPORAL_HEARTBEAT_SECONDS:5}
-      activity-maximum-attempts: ${CHATCHAT_TEMPORAL_ACTIVITY_MAX_ATTEMPTS:1}
-    store-type: ${CHATCHAT_AGENT_RUNTIME_STORE_TYPE:database}
-    model-token-budget: ${CHATCHAT_AGENT_MODEL_TOKEN_BUDGET:0}
-    model-cost-budget: ${CHATCHAT_AGENT_MODEL_COST_BUDGET:0}
-    model-input-cost-per-thousand-tokens: ${CHATCHAT_AGENT_MODEL_INPUT_COST_PER_1K:0}
-    model-output-cost-per-thousand-tokens: ${CHATCHAT_AGENT_MODEL_OUTPUT_COST_PER_1K:0}
-    budget-alert-ratio: ${CHATCHAT_AGENT_BUDGET_ALERT_RATIO:0.8}
-    max-concurrent-per-tenant: ${CHATCHAT_AGENT_MAX_CONCURRENT_PER_TENANT:4}
-    max-queued-per-tenant: ${CHATCHAT_AGENT_MAX_QUEUED_PER_TENANT:50}
+      target: 127.0.0.1:7233
+      namespace: default
+      task-queue: chatchat-agent-runtime
+      activity-start-to-close-seconds: 86400
+      activity-heartbeat-seconds: 5
+      activity-maximum-attempts: 1
+    store-type: database
+    model-token-budget: 0
+    model-cost-budget: 0
+    model-input-cost-per-thousand-tokens: 0
+    model-output-cost-per-thousand-tokens: 0
+    budget-alert-ratio: 0.8
+    max-concurrent-per-tenant: 4
+    max-queued-per-tenant: 50
     tenant-fair-scheduling-enabled: true
-    lease-recovery-scan-ms: ${CHATCHAT_AGENT_LEASE_RECOVERY_SCAN_MS:5000}
+    lease-recovery-scan-ms: 5000
     final-summary-web-search-enabled: true
     final-summary-web-search-max-keywords: 2
     final-summary-web-search-result-limit: 6
@@ -193,23 +193,23 @@ chatchat:
     answer-repair-enabled: true
     answer-critic-timeout-ms: 45000
     # Lossless processing boundaries; these values never truncate returned evidence.
-    record-analysis-chunk-max-chars: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_CHARS:12000}
-    record-analysis-chunk-max-rows: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_ROWS:50}
-    analysis-summary-worker-count: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_COUNT:4}
-    analysis-summary-worker-max-retries: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_MAX_RETRIES:3}
+    record-analysis-chunk-max-chars: 12000
+    record-analysis-chunk-max-rows: 50
+    analysis-summary-worker-count: 4
+    analysis-summary-worker-max-retries: 3
     # Worker completion has no independent wall-clock timeout. Model calls use the configured
     # system model/request timeout; these values govern Worker liveness only.
-    analysis-summary-worker-heartbeat-interval-ms: ${CHATCHAT_AGENT_ANALYSIS_WORKER_HEARTBEAT_INTERVAL_MS:10000}
-    analysis-summary-worker-heartbeat-timeout-ms: ${CHATCHAT_AGENT_ANALYSIS_WORKER_HEARTBEAT_TIMEOUT_MS:30000}
-    analysis-spill-enabled: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ENABLED:true}
-    analysis-spill-rocks-db-path: ${CHATCHAT_AGENT_ANALYSIS_SPILL_ROCKSDB_PATH:./data/agent-analysis-spill-rocksdb}
+    analysis-summary-worker-heartbeat-interval-ms: 10000
+    analysis-summary-worker-heartbeat-timeout-ms: 30000
+    analysis-spill-enabled: true
+    analysis-spill-rocks-db-path: ./data/agent-analysis-spill-rocksdb
     analysis-spill-rocks-db-create-if-missing: true
-    analysis-spill-threshold-bytes: ${CHATCHAT_AGENT_ANALYSIS_SPILL_THRESHOLD_BYTES:65536}
-    analysis-spill-ttl-ms: ${CHATCHAT_AGENT_ANALYSIS_SPILL_TTL_MS:604800000}
+    analysis-spill-threshold-bytes: 65536
+    analysis-spill-ttl-ms: 604800000
   search:
     engine: opensearch
-    max-upload-bytes: ${CHATCHAT_SEARCH_MAX_UPLOAD_BYTES:57671680}
-    upload-chunk-bytes: ${CHATCHAT_SEARCH_UPLOAD_CHUNK_BYTES:5242880}
+    max-upload-bytes: 57671680
+    upload-chunk-bytes: 5242880
     store-path: ./data/search-rocksdb
     file-path: ./data/search-files
     rebuild-on-startup: false

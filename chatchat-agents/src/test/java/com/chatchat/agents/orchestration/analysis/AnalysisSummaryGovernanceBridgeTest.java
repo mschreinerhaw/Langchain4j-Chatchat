@@ -82,6 +82,9 @@ class AnalysisSummaryGovernanceBridgeTest {
             .contains("analysis_summary_bridge.v1", "summary_governance.v1", "第 2 分块总结");
         verify(model).chat(argThat((String prompt) -> prompt.contains("Missing semantic sections remain unknown")
             && prompt.contains("Lead with findings, not row counts or metadata")
+            && prompt.contains("supported-first invariant")
+            && prompt.contains("missing historical series limits trend or stability claims")
+            && prompt.contains("a gap list is not a substitute")
             && prompt.contains("observed fact; quoting it is OBSERVE, not AGGREGATE or DERIVE")
             && prompt.contains("agent_role_analysis_context")
             && prompt.contains("Analyze service quality")
@@ -197,7 +200,7 @@ class AnalysisSummaryGovernanceBridgeTest {
     }
 
     @Test
-    void removesUnsupportedDerivedClaimFromEvidenceAndSummaryContent() {
+    void retainsEvidenceBoundUnsupportedDerivedClaimForHumanReview() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
             {
@@ -207,7 +210,7 @@ class AnalysisSummaryGovernanceBridgeTest {
                 "claim":"The chunk represents 15.11 percent of the total",
                 "significance":"Purports to measure concentration",
                 "recordRefs":["scale.records[1]"],"supportingValues":["10","100"],
-                "method":"10 / 100 * 100","confidence":"MEDIUM",
+                "operation":"DERIVE","method":"10 / 100 * 100","confidence":"MEDIUM",
                 "semanticBasis":["current_scale"],"alternativeExplanations":[],"caveats":[]}],
               "facts":[{"claim":"Returned values are 10 and 100",
                 "recordRefs":["scale.records[1]"],"exactValues":["10","100"]}],
@@ -220,23 +223,26 @@ class AnalysisSummaryGovernanceBridgeTest {
             bridge.position("scale", 1, 1, 1, 1, 1),
             bridge.govern("scale", Map.of(), records), records, "Observe direction");
 
-        assertThat(result.content())
-            .isEqualTo("当前数据未产生通过语义授权校验的分析洞察。")
-            .doesNotContain("15.11");
+        assertThat(result.content()).contains("15.11 percent");
         assertThat(result.evidence())
             .containsEntry("rejectedInsightCount", 1)
             .containsEntry("claimContractVersion", "capability_evidence_claim.v1")
             .containsEntry("rawReplayRecommended", true);
         assertThat(result.evidence().get("claimAdmissionDecisions").toString())
-            .contains("CAPABILITY_UNDECLARED", "OPERATION_NOT_AUTHORIZED", "admitted=false");
+            .contains("CAPABILITY_UNDECLARED", "OPERATION_NOT_AUTHORIZED", "admitted=false",
+                "reviewRequired=true", "governanceStatus=REVIEW_REQUIRED");
         assertThat(result.evidence().get("semanticGaps").toString())
             .contains("semantic_evidence_gap.v1", "route=REPLAN", "requiredCapabilityId=scale");
         assertThat(result.evidence().get("semanticGapRequests").toString())
-            .contains("Resolve the rejected claim", "requiredCapabilities=[scale]");
+            .contains("Resolve the rejected claim", "requiredCapabilities=[scale, DERIVE]");
         assertThat(result.evidence().get("claimLifecycle").toString())
             .contains("semantic_claim_lifecycle.v1", "revision=1", "state=GAP_CREATED",
                 "PROPOSED", "VALIDATING", "REJECTED", "GAP_CREATED", "evidenceVersion");
-        assertThat(result.evidence().get("insights")).isEqualTo(List.of());
+        assertThat(result.evidence().get("insights").toString())
+            .contains("15.11 percent", "governanceStatus=REVIEW_REQUIRED", "reviewReasons");
+        assertThat(result.evidence())
+            .containsEntry("reviewRequiredInsightCount", 1L)
+            .containsEntry("analysisNarrativeStatus", "PRESERVED_WITH_REVIEW_NOTES");
     }
 
     @Test
@@ -337,9 +343,10 @@ class AnalysisSummaryGovernanceBridgeTest {
         AnalysisSummaryResult result = bridge.summarize(model::chat, isolationScope,
             bridge.position("metrics", 1, 1, 1, 1, 1), context, records, "Calculate ratio");
 
-        assertThat(result.evidence().get("insights")).isEqualTo(List.of());
+        assertThat(result.evidence().get("insights").toString())
+            .contains("A ratio was derived", "governanceStatus=REVIEW_REQUIRED");
         assertThat(result.evidence().get("claimAdmissionDecisions").toString())
-            .contains("SEMANTIC_BASIS_MISMATCH", "admitted=false");
+            .contains("SEMANTIC_BASIS_MISMATCH", "admitted=false", "reviewRequired=true");
     }
 
     @Test

@@ -16,7 +16,7 @@ class AnalysisReducerSupervisorTest {
         GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation");
 
     @Test
-    void admitsTraceableReducerReportAndProducesEvidenceRepairRequest() {
+    void admitsTraceableReducerReportAndKeepsEvidenceGapAdvisory() {
         AnalysisSummaryResult worker = AnalysisSummaryResult.chunk(
             scope, Map.of("datasetReference", "dataset", "chunkIndex", 1), Map.of(),
             "worker analysis", "MODEL_SUMMARY", Map.of("evidenceId", "evidence-1"));
@@ -41,8 +41,9 @@ class AnalysisReducerSupervisorTest {
             assertThat(result.evidence().get("analysisReportAdmission").toString())
                 .contains("ADMITTED", "REDUCER_REPORT", "observed-fact:asset");
         });
-        assertThat(review.repairRequests()).singleElement().satisfies(repair ->
-            assertThat(repair.toString()).contains("REPLAN_EVIDENCE", "WORKER_REPORT"));
+        assertThat(review.repairRequests()).isEmpty();
+        assertThat(review.admittedInputs().get(0).evidence().get("missingEvidence"))
+            .isEqualTo(List.of("comparison baseline missing"));
         assertThat(review.rejectedCount()).isZero();
     }
 

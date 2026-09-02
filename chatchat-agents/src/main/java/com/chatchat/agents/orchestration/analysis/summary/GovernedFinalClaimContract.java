@@ -47,7 +47,7 @@ final class GovernedFinalClaimContract {
                     || !maps(summary.evidence().get("observedFactClaims")).isEmpty();
                 boolean admissionDecisionsDeclared =
                     !maps(summary.evidence().get("claimAdmissionDecisions")).isEmpty();
-                Set<String> explicitlyAdmitted = admittedClaimIds(summary.evidence());
+                Set<String> explicitlyAdmitted = publishableClaimIds(summary.evidence());
                 for (Map<String, Object> insight : maps(summary.evidence().get("insights"))) {
                     String claimId = text(insight.get("claimId"));
                     String claim = text(insight.get("claim"));
@@ -64,6 +64,8 @@ final class GovernedFinalClaimContract {
                         text(insight.get("confidence")),
                         text(insight.get("significance")),
                         strings(insight.get("caveats")),
+                        text(insight.get("governanceStatus")),
+                        strings(insight.get("reviewReasons")),
                         claimSource(summary, insight), recordRefs, supportingValues);
                     claims.putIfAbsent(claimId, admitted);
                     if ("OBSERVED_RETURNED_FACT".equals(claimClass)) {
@@ -85,7 +87,8 @@ final class GovernedFinalClaimContract {
                     claims.putIfAbsent(claimId, new Claim(
                         claimId, claim, "OBSERVED_RETURNED_FACT",
                         text(factClaim.get("confidence")), text(factClaim.get("significance")),
-                        strings(factClaim.get("caveats")), source, recordRefs, supportingValues));
+                        strings(factClaim.get("caveats")), "SUPPORTED", List.of(),
+                        source, recordRefs, supportingValues));
                 }
             }
         }
@@ -286,6 +289,9 @@ final class GovernedFinalClaimContract {
             .filter(id -> !id.isBlank())
             .collect(java.util.stream.Collectors.toSet());
 
+        findings = ensureSourceFindingCoverage(findings, compilation, rejectedByDriver);
+        findings.forEach(finding -> selected.addAll(finding.basisClaimIds()));
+
         boolean unknownBasis = selected.stream().anyMatch(id -> !compilation.claims().containsKey(id));
         boolean rejectedClaimPublished = selected.stream().anyMatch(rejectedByDriver::contains);
         boolean invalidFindingBasis = findings.stream().anyMatch(finding ->
@@ -323,6 +329,39 @@ final class GovernedFinalClaimContract {
         }
         return renderNarrative(compilation, findings, selected, demandAnalysis,
             metricAssociations, managementReview);
+    }
+
+    private List<NarrativeFinding> ensureSourceFindingCoverage(
+        List<NarrativeFinding> findings, Compilation compilation, Set<String> rejectedClaimIds
+    ) {
+        List<NarrativeFinding> result = new ArrayList<>(findings);
+        Set<String> coveredSources = result.stream()
+            .flatMap(finding -> finding.basisClaimIds().stream())
+            .map(compilation.claims()::get)
+            .filter(java.util.Objects::nonNull)
+            .map(Claim::sourceScope)
+            .filter(source -> source != null && !source.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Map<String, List<Claim>> bySource = new LinkedHashMap<>();
+        for (Claim claim : compilation.claims().values()) {
+            if (claim.sourceScope() == null || claim.sourceScope().isBlank()
+                || rejectedClaimIds.contains(claim.claimId())) continue;
+            bySource.computeIfAbsent(claim.sourceScope(), ignored -> new ArrayList<>()).add(claim);
+        }
+        for (Map.Entry<String, List<Claim>> entry : bySource.entrySet()) {
+            if (coveredSources.contains(entry.getKey())) continue;
+            Claim representative = entry.getValue().stream()
+                .sorted(java.util.Comparator
+                    .comparing(Claim::observedFact)
+                    .thenComparing(claim -> claim.significance() == null
+                        || claim.significance().isBlank()))
+                .findFirst().orElse(null);
+            if (representative != null) {
+                result.add(new NarrativeFinding("EVIDENCE", representative.text(),
+                    List.of(representative.claimId())));
+            }
+        }
+        return List.copyOf(result);
     }
 
     private NarrativeFinding narrativeFinding(Map<String, Object> source) {
@@ -375,10 +414,23 @@ final class GovernedFinalClaimContract {
             + "not the final report and must not be copied as a row inventory. Act as the management-level Driver: "
             + "combine related findings, explain their business meaning, identify tensions and evaluate the quality "
             + "of the completed analysis. Every synthesized finding must cite the admitted claim IDs that support it. "
+            + "A ledger Claim marked REVIEW_REQUIRED is an evidence-bound analytical interpretation retained for "
+            + "human judgment, not a rejected payload. You may use it when useful, but explicitly qualify it as an "
+            + "interpretation, preserve its reviewReasons/caveats, and never present it as a verified fact. Claims "
+            + "marked SUPPORTED may be stated at their recorded confidence. "
             + "You may paraphrase and combine supported claims into a more useful management conclusion, but may not "
             + "invent a value, entity state, comparison, threshold, relationship or cause absent from those claims. "
             + "Never report a requested dimension as missing or unavailable when the ledger contains a claim that "
             + "answers it. Do not omit a supported dimension merely because its evidence is a direct observation. "
+            + "Use a supported-first reporting order. Missing history limits only trend, change, stability and causal "
+            + "extensions; it never invalidates current-period values, composition, ranking, outcome or transaction "
+            + "findings already present in the ledger. Every objective-relevant sourceScope with admitted Claims must "
+            + "contribute at least one substantive finding. Marking all of its Claims as SUPPORTING_CONTEXT or "
+            + "NOT_MATERIAL while discussing its gaps is not an answer. When multiple compatible Claims jointly answer "
+            + "one question, synthesize them into a multi-Claim finding and explain the business meaning. "
+            + "Evidence gaps are advisory review context, never a publication veto. Publish every supported finding "
+            + "and use a gap only to qualify the specific unsupported extension; do not reject the whole analysis or "
+            + "request repair merely because gaps exist or are numerous. "
             + "Prefer a small number of decision-useful findings over repeated factual restatements. Complete the "
             + "coverage matrix for every OBSERVED_RETURNED_FACT, including facts used in a finding, retained only as "
             + "supporting context, or consciously excluded as not material. Coverage does not require publishing "
@@ -414,6 +466,8 @@ final class GovernedFinalClaimContract {
             + "Act as the manager reviewing completed Worker analysis reports: managementReview must synthesize "
             + "what the analyses collectively established, detect evidence/coverage/method gaps, and provide "
             + "specific improvements and prioritized next work. Do not repeat the ledger as a row inventory. Every "
+            + "managementReview section is secondary to business findings and must never become a gap-only substitute "
+            + "for the requested analysis. Consolidate repeated gaps into a short limitation instead of enumerating them. "
             + "non-empty review item must cite selected basisClaimIds; it is an evaluation of the admitted analysis, "
             + "not permission to create a new business fact. "
             + "Unknown IDs, missing finding bases, invented numeric values, or an incomplete observed-fact coverage "
@@ -423,8 +477,12 @@ final class GovernedFinalClaimContract {
             + "reports sharing the same lineage is not independent confirmation. DRIVER_REASONING may create derived "
             + "Claims only from admitted basisClaimIds, with alternatives and caveats. DRIVER_DECISION writes findings "
             + "only after review. You may downgrade or reject lower-layer Claims. A material error must set review "
-            + "status CHALLENGE, identify the target report and Claims, and request a concrete correction; challenged "
-            + "Claims must not enter the final decision. Assess every ledger Claim exactly once. "
+            + "status CHALLENGE, identify the target report and Claims, and request a concrete correction. Claims with "
+            + "a REJECT verdict must not enter findings; DOWNGRADE or REVIEW_REQUIRED Claims may enter only with their "
+            + "uncertainty made explicit. A CHALLENGE is a management review note, not a publication "
+            + "veto: still return all supported findings and expose disputed items for human judgment. Runtime "
+            + "governance organizes evidence and labels uncertainty; it does not replace the human reviewer. Assess "
+            + "every ledger Claim exactly once. "
             + "Do not return Markdown. Admitted claim ledger: " + ModelProtocolJson.compact(ledger);
     }
 
@@ -682,10 +740,11 @@ final class GovernedFinalClaimContract {
         return result.length() <= maximumChars ? result : result.substring(0, maximumChars);
     }
 
-    private Set<String> admittedClaimIds(Map<String, Object> evidence) {
+    private Set<String> publishableClaimIds(Map<String, Object> evidence) {
         LinkedHashSet<String> result = new LinkedHashSet<>();
         for (Map<String, Object> decision : maps(evidence.get("claimAdmissionDecisions"))) {
-            if (Boolean.TRUE.equals(decision.get("admitted"))) {
+            if (Boolean.TRUE.equals(decision.get("admitted"))
+                || Boolean.TRUE.equals(decision.get("reviewRequired"))) {
                 String claimId = text(decision.get("claimId"));
                 if (!claimId.isBlank()) result.add(claimId);
             }
@@ -903,11 +962,13 @@ final class GovernedFinalClaimContract {
 
     private record Claim(String claimId, String text, String claimClass,
                          String confidence, String significance, List<String> caveats,
+                         String governanceStatus, List<String> reviewReasons,
                          String sourceScope, List<String> recordRefs,
                          List<String> supportingValues) {
         private Claim {
             recordRefs = recordRefs == null ? List.of() : List.copyOf(recordRefs);
             supportingValues = supportingValues == null ? List.of() : List.copyOf(supportingValues);
+            reviewReasons = reviewReasons == null ? List.of() : List.copyOf(reviewReasons);
         }
 
         private boolean observedFact() {
@@ -922,6 +983,10 @@ final class GovernedFinalClaimContract {
             if (confidence != null && !confidence.isBlank()) result.put("confidence", confidence);
             if (significance != null && !significance.isBlank()) result.put("significance", significance);
             if (caveats != null && !caveats.isEmpty()) result.put("caveats", caveats);
+            if (governanceStatus != null && !governanceStatus.isBlank()) {
+                result.put("governanceStatus", governanceStatus);
+            }
+            if (!reviewReasons.isEmpty()) result.put("reviewReasons", reviewReasons);
             if (sourceScope != null && !sourceScope.isBlank()) result.put("sourceScope", sourceScope);
             if (!recordRefs.isEmpty()) result.put("recordRefs", recordRefs);
             if (!supportingValues.isEmpty()) result.put("supportingValues", supportingValues);

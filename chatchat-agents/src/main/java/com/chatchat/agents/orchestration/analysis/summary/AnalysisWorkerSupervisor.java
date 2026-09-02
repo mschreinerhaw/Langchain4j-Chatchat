@@ -86,7 +86,7 @@ final class AnalysisWorkerSupervisor {
             return false;
         }
         if (number(result.evidence().get("rejectedFactCount")) > 0
-            || number(result.evidence().get("rejectedInsightCount")) > 0) {
+            || number(result.evidence().get("invalidInsightCount")) > 0) {
             return false;
         }
         return nonEmpty(result.evidence().get("insights"))

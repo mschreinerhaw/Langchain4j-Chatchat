@@ -34,7 +34,7 @@ final class AnalysisDriverPipelineContext {
                 "assignments", reports(workers)),
             "supervisor", Map.of(
                 "role", "WORK_QUALITY_CONTROLLER",
-                "responsibility", "Admit, reject or request repair of Worker products.",
+                "responsibility", "Annotate Worker product quality and technical validity without replacing human analytical judgment.",
                 "decisions", value(metadata, "analysisWorkerSupervision", Map.of())),
             "reducer", Map.of(
                 "role", "ANALYSIS_MANAGER",
@@ -45,10 +45,16 @@ final class AnalysisDriverPipelineContext {
                 "role", "CHIEF_DECISION_MAKER",
                 "responsibility", "Review, challenge, synthesize and decide without reading raw records."),
             "governance", Map.of(
-                "role", "EVIDENCE_AND_PUBLICATION_AUTHORITY",
-                "responsibility", "Enforce Claim evidence, lineage and publication boundaries.")));
+                "role", "EVIDENCE_ANNOTATOR",
+                "responsibility", "Attach lineage, evidence strength and uncertainty for human review; do not replace human judgment.")));
         result.put("conflictSet", collect(reducers, "conflicts"));
-        result.put("evidenceGaps", gaps(reducers, metadata));
+        List<Object> advisoryGaps = gaps(reducers, metadata);
+        result.put("evidenceGapCount", advisoryGaps.size());
+        result.put("evidenceGaps", advisoryGaps.stream().limit(8).toList());
+        result.put("evidenceGapPolicy", Map.of(
+            "mode", "ADVISORY_ONLY",
+            "publicationEffect", "NONE",
+            "instruction", "Use gaps only after supported findings, group repeated gaps, do not enumerate the full gap inventory, and never treat their count as a publication veto."));
         result.put("claimLineage", value(metadata, "analysisLineageGraph", Map.of()));
         List<Object> activeRepairs = new ArrayList<>();
         activeRepairs.addAll(iterable(value(metadata, "analysisActiveRepairRequests", List.of())));

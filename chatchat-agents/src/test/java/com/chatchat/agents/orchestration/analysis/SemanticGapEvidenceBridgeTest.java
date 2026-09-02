@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 class SemanticGapEvidenceBridgeTest {
 
     @Test
-    void actionableSemanticGapJoinsExistingEvidenceLoopWithoutDuplicates() {
+    void semanticGapRemainsAdvisoryWithoutChangingEvidenceSufficiency() {
         AgentRunResultAdapter adapter = mock(AgentRunResultAdapter.class);
         SemanticClaimCoordinator bridge = new SemanticClaimCoordinator(adapter, "agentRunId");
         Map<String, Object> gap = Map.of("gapId", "gap-1", "route", "RETRIEVE_MORE");
@@ -41,7 +41,8 @@ class SemanticGapEvidenceBridgeTest {
             Map.of("sufficient", true, "gapRequests", List.of()),
             List.of(summary), 2, Map.of("agentRunId", "run"), metadata);
 
-        assertThat(merged.get("sufficient")).isEqualTo(false);
+        assertThat(merged).containsEntry("sufficient", true)
+            .containsEntry("analysisGapsAdvisoryOnly", true);
         assertThat((List<?>) merged.get("semanticGaps")).hasSize(1);
         assertThat((List<?>) merged.get("gapRequests")).hasSize(1);
         assertThat(metadata).containsEntry("semanticClaimGapCount", 1)
@@ -97,7 +98,7 @@ class SemanticGapEvidenceBridgeTest {
     }
 
     @Test
-    void analyticalDepthGapJoinsEvidenceLoopAndStopsWithoutNewEvidence() {
+    void analyticalDepthGapIsRetainedForReviewWithoutBlockingAnalysis() {
         SemanticClaimCoordinator bridge = new SemanticClaimCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId");
         Map<String, Object> metadata = new java.util.LinkedHashMap<>();
@@ -117,7 +118,8 @@ class SemanticGapEvidenceBridgeTest {
             Map.of("sufficient", true, "gapRequests", List.of()), List.of(summary), 1,
             Map.of("agentRunId", "run"), metadata);
 
-        assertThat(first).containsEntry("sufficient", false);
+        assertThat(first).containsEntry("sufficient", true)
+            .containsEntry("analysisGapsAdvisoryOnly", true);
         assertThat(asMapList(first.get("analysisDepthGapRequests"))).singleElement()
             .satisfies(gap -> assertThat(gap)
                 .containsEntry("gapSource", "ANALYSIS_DEPTH")

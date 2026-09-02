@@ -281,6 +281,34 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
+    void restoresSupportedSourceFindingWhenDriverWritesOnlyItsGap() {
+        AnalysisSummaryResult account = factSummary(
+            "account-overview", "fact:account",
+            "Current total assets are 847174.25", "847174.25");
+        AnalysisSummaryResult trades = factSummary(
+            "trade-history", "fact:trades", "There are 20 current-day trades", "20");
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(
+            List.of(account, trades));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v2",
+             "findings":[{"section":"CORE","text":"There are 20 current-day trades",
+               "basisClaimIds":["fact:trades"]}],
+             "coverage":[
+               {"claimId":"fact:account","disposition":"SUPPORTING_CONTEXT","reason":"no history"},
+               {"claimId":"fact:trades","disposition":"USED","reason":"current activity"}],
+             "managementReview":{"identifiedProblems":[{"text":"Historical asset series is unavailable",
+               "basisClaimIds":["fact:account"]}]}}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.markdown())
+            .contains("20 current-day trades", "Current total assets are 847174.25")
+            .contains("Historical asset series is unavailable");
+        assertThat(projection.selectedClaimIds()).contains("fact:account", "fact:trades");
+    }
+
+    @Test
     void rejectsManagementSynthesisWithInventedValue() {
         AnalysisSummaryResult account = factSummary(
             "account-overview", "fact:account", "Total assets are 847174.25", "847174.25");

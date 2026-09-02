@@ -96,9 +96,10 @@ final class SemanticGapEvidenceBridge {
         missing.addAll(semanticGaps);
         missing.addAll(analyticalGapRequests);
         merged.put("remainingMissing", List.copyOf(missing));
-        if (!semanticGapRequests.isEmpty() || !analyticalGapRequests.isEmpty()) {
-            merged.put("sufficient", false);
-        }
+        // Gap requests are advisory analysis context, not an execution verdict. The Driver may
+        // publish supported findings with explicit limitations; only an actual lack of usable
+        // evidence or a failed report contract may block publication.
+        merged.put("analysisGapsAdvisoryOnly", true);
         mergeClaimLifecycle(summaries, merged, metadata);
         record(semanticGaps,
             mergeRequests(semanticGapRequests, analyticalGapRequests),

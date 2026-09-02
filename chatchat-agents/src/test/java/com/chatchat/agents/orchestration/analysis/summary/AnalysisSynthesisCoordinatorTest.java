@@ -73,7 +73,7 @@ class AnalysisSynthesisCoordinatorTest {
             new HierarchicalAnalysisReducer());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel model = mock(ChatModel.class);
-        when(model.chat("prompt")).thenReturn("model answer");
+        when(model.chat(any(String.class))).thenReturn("model answer");
 
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> "guarded answer", () -> "fallback", true));
@@ -105,7 +105,7 @@ class AnalysisSynthesisCoordinatorTest {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
         ChatModel driver = mock(ChatModel.class);
-        when(driver.chat("prompt")).thenReturn(
+        when(driver.chat(any(String.class))).thenReturn(
             "## Core conclusion\n\nThe returned snapshot is almost fully invested, with only 912.05 cash available.");
 
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
@@ -123,7 +123,7 @@ class AnalysisSynthesisCoordinatorTest {
             .containsEntry("finalClaimPublicationContractObserved", false)
             .containsEntry("analysisOutputAdmitted", true)
             .doesNotContainEntry("analysisDriverModelSkipReason", "NO_ADMITTED_SEMANTIC_CLAIMS");
-        verify(driver).chat("prompt");
+        verify(driver).chat(any(String.class));
     }
 
     @Test
@@ -138,7 +138,7 @@ class AnalysisSynthesisCoordinatorTest {
             new HierarchicalAnalysisReducer());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel failing = mock(ChatModel.class);
-        when(failing.chat("prompt")).thenThrow(new IllegalStateException("model unavailable"));
+        when(failing.chat(any(String.class))).thenThrow(new IllegalStateException("model unavailable"));
 
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(failing, metadata, candidate -> candidate, () -> "fallback", true));
@@ -165,7 +165,7 @@ class AnalysisSynthesisCoordinatorTest {
             new HierarchicalAnalysisReducer());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel failing = mock(ChatModel.class);
-        when(failing.chat("prompt")).thenThrow(new IllegalStateException("model unavailable"));
+        when(failing.chat(any(String.class))).thenThrow(new IllegalStateException("model unavailable"));
         String rawFallback = "## 可用执行结果\n\n- 返回内容：`{\"_aggregation\":\"STRUCTURED_MAP\","
             + "\"_fieldCount\":8,\"_assessmentCapability\":\"LIMITED\","
             + "\"schemaVersion\":\"tool_execution_result.v1\",\"toolName\":\"query\","
@@ -202,7 +202,7 @@ class AnalysisSynthesisCoordinatorTest {
             new HierarchicalAnalysisReducer());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel model = mock(ChatModel.class);
-        when(model.chat("prompt")).thenReturn(
+        when(model.chat(any(String.class))).thenReturn(
             "## 可用执行结果\n- 返回内容：`{\"_aggregation\":\"STRUCTURED_MAP\","
                 + "\"_fieldCount\":8,\"_assessmentCapability\":\"LIMITED\","
                 + "\"schemaVersion\":\"result.v1\",\"toolName\":\"query\","
@@ -251,7 +251,7 @@ class AnalysisSynthesisCoordinatorTest {
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
             new HierarchicalAnalysisReducer());
         ChatModel timedOut = mock(ChatModel.class);
-        when(timedOut.chat("prompt"))
+        when(timedOut.chat(any(String.class)))
             .thenThrow(new AgentDeadlineExceededException("deadline exhausted"));
 
         assertThatThrownBy(() -> coordinator.synthesizeFinal(
@@ -457,12 +457,15 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
-    void driverFailsClosedWhenClaimContractProducesNoAdmittedClaims() {
+    void driverStillProducesHumanReviewableAnalysisWhenClaimsAreNotAdmitted() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
             new HierarchicalAnalysisReducer());
         ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
+            prompt.contains("Binding Driver role pipeline context"))))
+            .thenReturn("## 管理分析\n\n下层报告存在未通过证据绑定的推断，现有内容可供人工复核，但不应视为已验证事实。");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
         AnalysisSummaryResult rejected = claimSummary().withEvidence(Map.of(
@@ -476,21 +479,17 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, rejected, true));
 
-        assertThat(result.generated()).isFalse();
-        assertThat(result.content()).contains("分析未完成", "发布治理", "复用已获取的数据");
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("管理分析", "人工复核");
         assertThat(metadata)
             .containsEntry("finalClaimPublicationContractObserved", true)
             .containsEntry("finalAdmittedClaimCount", 0)
-            .containsEntry("analysisDriverModelInvoked", false)
-            .containsEntry("analysisDriverModelSkipReason", "NO_ADMITTED_SEMANTIC_CLAIMS")
-            .containsEntry("analysisOutputAdmissionReason", "NO_ADMITTED_SEMANTIC_CLAIMS")
-            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
-            .containsEntry("finalPayloadType", "FAILURE_REPORT")
+            .containsEntry("analysisDriverModelInvoked", true)
+            .containsEntry("finalPayloadType", "DRIVER_REPORT")
             .containsKey("analysisReportContract");
         assertThat((Map<String, Object>) metadata.get("analysisReportContract"))
-            .containsEntry("reportType", "FAILURE_REPORT")
-            .containsEntry("publishability", "PUBLISHABLE_FAILURE_REPORT");
-        org.mockito.Mockito.verifyNoInteractions(model);
+            .containsEntry("reportType", "DRIVER_REPORT")
+            .containsEntry("publishability", "PUBLISHABLE_REPORT");
     }
 
     @Test
@@ -509,7 +508,9 @@ class AnalysisSynthesisCoordinatorTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("Worker: assets are concentrated")
-                && prompt.contains("fact:assets") && prompt.contains("coverage"))))
+                && prompt.contains("fact:assets") && prompt.contains("coverage")
+                && prompt.contains("ADVISORY_ONLY")
+                && prompt.contains("never treat their count as a publication veto"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
                  "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
@@ -533,6 +534,11 @@ class AnalysisSynthesisCoordinatorTest {
                 """);
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
+        metadata.put("analysisGapRequests", java.util.stream.IntStream.range(0, 36)
+            .mapToObj(index -> Map.<String, Object>of(
+                "questionId", "gap-" + index,
+                "goal", "optional follow-up " + index))
+            .toList());
         AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request =
             new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
                 model, "Completed reports:\n" + assets.content() + "\n" + trades.content(),
@@ -548,6 +554,9 @@ class AnalysisSynthesisCoordinatorTest {
         assertThat(metadata)
             .containsEntry("finalClaimSelectionAccepted", true)
             .containsEntry("finalClaimSelectionReason", "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
+        Map<?, ?> driverContext = (Map<?, ?>) metadata.get("analysisDriverPipelineContext");
+        assertThat(driverContext.get("evidenceGapCount")).isEqualTo(36);
+        assertThat((List<?>) driverContext.get("evidenceGaps")).hasSize(8);
     }
 
     @Test
@@ -574,7 +583,7 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void driverChallengesLowerLayerClaimAndRoutesRepairWithoutRawDataRequery() {
+    void driverChallengeBecomesHumanReviewNoteWithoutBlockingPublication() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -592,13 +601,16 @@ class AnalysisSynthesisCoordinatorTest {
                    "claimConsistency":[],"evidenceSufficiency":{},"crossWorkerConflicts":[],
                    "duplicateEvidence":[],"unsupportedInferences":["missing comparison basis"],
                    "missingCriticalDimensions":["historical baseline"],
-                   "claimAssessments":[{"claimId":"claim-1","verdict":"REJECT",
+                   "claimAssessments":[{"claimId":"claim-1","verdict":"DOWNGRADE",
                      "reason":"No comparison basis"}],
                    "challenges":[{"targetLayer":"WORKER_REPORT",
                      "targetReportId":"tenant-a:run-a:dataset-a#chunk-1",
                      "claimIds":["claim-1"],"reason":"No comparison basis",
                      "requiredCorrection":"Reanalyze as a current observation only"}]},
-                 "driverReasoning":{"derivedClaims":[]},"findings":[],"coverage":[]}
+                 "driverReasoning":{"derivedClaims":[]},
+                 "findings":[{"section":"CORE","text":"The returned observation is 42, but no comparison basis supports a trend judgment.",
+                   "basisClaimIds":["claim-1"]}],
+                 "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"current observation"}]}
                 """);
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
@@ -614,22 +626,19 @@ class AnalysisSynthesisCoordinatorTest {
                 1, 1, true, true, true, 1, 0,
                 List.of(report), List.of(report), runtime, metadata));
 
-        assertThat(result.generated()).isFalse();
-        assertThat(result.content()).contains("分析未完成", "WORKER_ANALYSIS")
-            .doesNotContain("返回记录显示数值为 42");
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("returned observation is 42", "no comparison basis");
         assertThat(metadata)
             .containsEntry("analysisDriverReviewStatus", "CHALLENGE")
-            .containsEntry("analysisDriverDecisionAction", "DRIVER_CHALLENGE")
-            .containsEntry("analysisRepairRequired", true)
-            .containsEntry("analysisReuseExistingDataset", true)
-            .containsEntry("analysisDataRequeryAllowed", false)
+            .containsEntry("analysisDriverDecisionAction", "APPROVE_WITH_REVIEW_NOTES")
+            .containsEntry("analysisRepairRequired", false)
+            .containsEntry("analysisHumanReviewRequired", true)
+            .containsEntry("analysisSynthesisBarrierReady", true)
             .containsKey("analysisDriverPipelineContext")
-            .containsKey("analysisDriverRepairRequests");
-        Map<String, Object> outcome = (Map<String, Object>) metadata.get("analysisExecutionOutcome");
-        assertThat((Map<String, Object>) outcome.get("retryDirective"))
-            .containsEntry("resumeFrom", "WORKER_ANALYSIS")
-            .containsEntry("reuseExistingDataset", true)
-            .containsEntry("dataAcquisitionAllowed", false);
+            .containsKey("analysisDriverSuggestedRepairRequests");
+        assertThat(metadata).extracting("analysisDriverDecisionStages").asString()
+            .contains("READY_WITH_REVIEW_NOTES");
+        assertThat(metadata).containsEntry("analysisExecutionStatus", "COMPLETED");
     }
 
     private AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request(

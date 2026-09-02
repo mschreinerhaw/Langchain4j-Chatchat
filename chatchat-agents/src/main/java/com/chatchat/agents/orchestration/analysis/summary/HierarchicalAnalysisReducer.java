@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -300,6 +301,11 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "summaries as completed Worker analysis reports, not as raw data descriptions. Consolidate their work, "
             + "preserve each report's analytical contribution and detect disagreements, evidence gaps and weakly "
             + "supported areas for the final management-level Driver. Do not simply concatenate Worker narratives. "
+            + "Apply a supported-first invariant: first consolidate what the returned evidence establishes for each "
+            + "objective dimension, including current-period levels, composition, rankings, transactions and outcomes; "
+            + "only then summarize limitations. Missing longitudinal evidence limits trend or stable-preference claims "
+            + "but does not invalidate a supported current-state observation. Never replace an available finding with "
+            + "a statement that more data is needed. Evidence gaps are advisory and must remain subordinate to findings. "
             + "agent_role_analysis_context as maintained orientation for relevance, analytical emphasis and vocabulary, never "
             + "as returned evidence, semantic authorization or a replacement for the original question. Treat upstream "
             + "objectiveAlignment as a coverage contract: merge addressed aspects, retain unsupported aspects, and "
@@ -315,7 +321,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "quality signals and conflicts; combine the highest-materiality upstream insights; preserve the distinction "
             + "between observed facts, authorized derived measures and calibrated inferences; retain formulas, supporting "
             + "values, validated semanticBasis, confidence and alternative explanations. Treat evidence.insights as "
-            + "the only admitted analytical claims: never recreate a calculation or inference omitted by validation, "
+            + "the evidence-bound analytical claims. Claims marked REVIEW_REQUIRED remain available for synthesis but "
+            + "must retain their review reasons and qualified language; never silently promote them to verified facts. "
+            + "Never recreate a calculation or inference omitted by validation, "
             + "and never recover rejected claims from free-text content. evidence.observedFactClaims contains facts "
             + "that already passed exact returned-value validation; preserve them as OBSERVED_RETURNED_FACT claims "
             + "without recalculation, aggregation or inference. Resolve contradictory claims when evidence permits, "
@@ -473,10 +481,38 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                     .append(" position=").append(ModelProtocolJson.compact(input.position()))
                     .append(" analysisContext=")
                     .append(ModelProtocolJson.compact(contextProjection(input.analysisContext())))
-                    .append(" lineage=").append(ModelProtocolJson.compact(input.evidence()))
+                    .append(" analysisProduct=")
+                    .append(ModelProtocolJson.compact(evidenceProjection(input.evidence())))
                     .append(": ").append(input.content()).append("\n");
             }
             return prompt.toString();
+        }
+
+        private Map<String, Object> evidenceProjection(Map<String, Object> evidence) {
+            Map<String, Object> projection = new LinkedHashMap<>();
+            if (evidence == null) return projection;
+            for (String key : List.of("analysisObjectiveContract", "objectiveAlignment",
+                "demandAnalysis", "observedFactClaims", "insights", "datasetFindings",
+                "metrics", "rankings", "analyzedRelationships", "businessConclusions",
+                "conflicts", "limitations", "analysisQuality", "analysisDepth",
+                "metricAssociations", "claimAdmissionDecisions")) {
+                Object value = evidence.get(key);
+                if (value != null && (!(value instanceof Map<?, ?> map) || !map.isEmpty())
+                    && (!(value instanceof Collection<?> items) || !items.isEmpty())) {
+                    projection.put(key, value);
+                }
+            }
+            appendAdvisorySample(projection, evidence, "missingEvidence");
+            appendAdvisorySample(projection, evidence, "semanticGapRequests");
+            return projection;
+        }
+
+        private void appendAdvisorySample(Map<String, Object> projection,
+                                          Map<String, Object> evidence, String key) {
+            Object value = evidence.get(key);
+            if (!(value instanceof Collection<?> items) || items.isEmpty()) return;
+            projection.put(key + "Count", items.size());
+            projection.put(key + "Sample", items.stream().limit(5).toList());
         }
 
         private Map<String, Object> contextProjection(Map<String, Object> context) {

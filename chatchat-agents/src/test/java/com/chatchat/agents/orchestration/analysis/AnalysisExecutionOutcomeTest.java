@@ -38,25 +38,4 @@ class AnalysisExecutionOutcomeTest {
             .doesNotContain("请稍后重试", "查询结果明细");
     }
 
-    @Test
-    void evidenceGapRoutesToGapPlannerInsteadOfWorkerOnlyRetry() {
-        AnalysisExecutionOutcome outcome = new AnalysisExecutionOutcome(
-            AnalysisExecutionOutcome.SCHEMA_VERSION,
-            AnalysisExecutionOutcome.ExecutionStatus.NEEDS_MORE_EVIDENCE,
-            AnalysisExecutionOutcome.FailureCategory.EVIDENCE_GAP,
-            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
-            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
-            AnalysisExecutionOutcome.PhaseStatus.COMPLETED,
-            AnalysisExecutionOutcome.PhaseStatus.BLOCKED,
-            AnalysisExecutionOutcome.PhaseStatus.REJECTED,
-            List.of(Map.of("requestId", "gap-1", "goal", "obtain comparison baseline")),
-            new AnalysisExecutionOutcome.RetryDirective(
-                "PLAN_GAP_RETRIEVAL", "GAP_PLANNER", true, true, 1),
-            AnalysisExecutionOutcome.Publishability.GOVERNED_FAILURE_REPORT_ONLY,
-            "SEMANTIC_EVIDENCE_GAP");
-
-        assertThat(outcome.failureReport())
-            .contains("1 个机器可处理的证据或分析缺口", "Gap Planner");
-        assertThat(outcome.retryDirective().resumeFrom()).isEqualTo("GAP_PLANNER");
-    }
 }

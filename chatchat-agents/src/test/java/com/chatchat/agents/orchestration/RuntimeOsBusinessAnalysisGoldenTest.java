@@ -157,7 +157,7 @@ class RuntimeOsBusinessAnalysisGoldenTest {
     }
 
     @Test
-    void etfFlowClaimIsRejectedAndConvertedToGapWithoutProducerSemantics() {
+    void etfFlowClaimIsRetainedForHumanReviewWithoutProducerSemantics() {
         InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
         ChatModel model = new ChatModel() {
             @Override
@@ -208,13 +208,15 @@ class RuntimeOsBusinessAnalysisGoldenTest {
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.summaryResults()).singleElement().satisfies(summary -> {
             assertThat(summary.content())
-                .doesNotContain("资金净流入 120")
-                .contains("未产生通过语义授权校验的分析洞察");
+                .contains("资金净流入 120");
             assertThat(summary.evidence())
                 .containsEntry("rejectedInsightCount", 1)
+                .containsEntry("reviewRequiredInsightCount", 1L)
+                .containsEntry("analysisNarrativeStatus", "PRESERVED_WITH_REVIEW_NOTES")
                 .containsEntry("rawReplayRecommended", true);
             assertThat(summary.evidence().get("claimAdmissionDecisions")).asString()
-                .contains("OPERATION_NOT_AUTHORIZED", "SEMANTIC_BASIS_MISMATCH", "admitted=false");
+                .contains("OPERATION_NOT_AUTHORIZED", "SEMANTIC_BASIS_MISMATCH", "admitted=false",
+                    "reviewRequired=true", "governanceStatus=REVIEW_REQUIRED");
             assertThat(summary.evidence().get("semanticGapRequests")).asString()
                 .contains("requiredCapabilities=[etf_scale, DERIVE]", "Resolve the rejected claim");
         });

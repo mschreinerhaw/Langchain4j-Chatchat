@@ -90,7 +90,10 @@ final class AnalysisReducerSupervisor {
                 DataAnalysisLayerGovernanceContract.Relation.DERIVED_FROM,
                 DataAnalysisLayerGovernanceContract.Layer.REDUCER_REPORT))
             .toList();
-        List<DataAnalysisLayerGovernanceContract.RepairRequest> repairs = evidenceRepairs(candidate);
+        // Evidence gaps belong to the report's advisory context. They inform the Driver and
+        // human reviewer, but they are not proof that an otherwise valid Reducer report is
+        // defective and must never be promoted into an automatic repair/publication barrier.
+        List<DataAnalysisLayerGovernanceContract.RepairRequest> repairs = List.of();
         boolean accepted = reasons.isEmpty();
         DataAnalysisLayerGovernanceContract.Admission admission =
             new DataAnalysisLayerGovernanceContract.Admission(
@@ -119,19 +122,6 @@ final class AnalysisReducerSupervisor {
             "Rebuild the management input from admitted Worker reports with complete lineage.",
             reasons, List.of(), List.of(), "", "",
             DataAnalysisLayerGovernanceContract.Layer.REDUCER_REPORT);
-    }
-
-    private List<DataAnalysisLayerGovernanceContract.RepairRequest> evidenceRepairs(
-        AnalysisSummaryResult candidate) {
-        List<String> missing = strings(candidate.evidence().get("missingEvidence"));
-        missing.addAll(strings(candidate.evidence().get("unsupportedQuestions")));
-        if (missing.isEmpty()) return List.of();
-        return List.of(new DataAnalysisLayerGovernanceContract.RepairRequest(
-            "", candidate.resultId(), DataAnalysisLayerGovernanceContract.Layer.WORKER_REPORT,
-            DataAnalysisLayerGovernanceContract.RepairRoute.REPLAN_EVIDENCE,
-            "Acquire or analyze the evidence required by unresolved Worker findings.",
-            missing, List.of(), List.of(), "", "",
-            DataAnalysisLayerGovernanceContract.Layer.WORKER_REPORT));
     }
 
     private List<String> claimIds(Object value) {

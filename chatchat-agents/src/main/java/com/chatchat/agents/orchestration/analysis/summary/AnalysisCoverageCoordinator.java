@@ -391,6 +391,8 @@ public final class AnalysisCoverageCoordinator {
         List<Map<String, Object>> gapRequests = toGapRequests(governanceState.activeRepairRequests());
         metadata.put("analysisGapRequests", gapRequests);
         metadata.put("gapRequests", gapRequests);
+        metadata.put("analysisGapsAdvisoryOnly", true);
+        metadata.put("analysisAdvisoryGapCount", gapRequests.size());
         if (review.admittedInputs().isEmpty()) {
             metadata.put("analysisSynthesisBarrierReady", false);
             metadata.put("analysisSynthesisBarrierStatus", "REDUCER_ADMISSION_BLOCKED");

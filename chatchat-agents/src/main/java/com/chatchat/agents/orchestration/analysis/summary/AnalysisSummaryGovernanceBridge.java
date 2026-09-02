@@ -366,7 +366,13 @@ public final class AnalysisSummaryGovernanceBridge
             + "Lead with findings, not row counts or metadata. Complete the dataset-level reasoning now; do not "
             + "defer it to the Driver. Establish scope and grain, answer every supported objective aspect, connect "
             + "related returned metrics, identify material patterns and exceptions, explain why they matter, and "
-            + "state precise evidence gaps. A value already returned by the producer at its declared grain is an "
+            + "state precise evidence gaps. Apply a supported-first invariant: exhaust the objective-relevant facts "
+            + "and responsible analysis available in the returned records before discussing missing evidence. A "
+            + "missing historical series limits trend or stability claims, but never makes a returned current-period "
+            + "value, current composition, current ranking or current transaction observation unavailable. Explicitly "
+            + "answer the supported current-state part and attach the limitation only to the unsupported extension. "
+            + "Do not let openQuestions, limitations, missingEvidence or follow-up requests occupy more analytical "
+            + "attention than the supported findings. A value already returned by the producer at its declared grain is an "
             + "observed fact; quoting it is OBSERVE, not AGGREGATE or DERIVE. Derived values require an explicit "
             + "formula and semantic authorization. Calibrated inferences require caveats. Never infer undeclared "
             + "joins, aggregation, causality, completeness or long-term behavior.\n"
@@ -377,7 +383,9 @@ public final class AnalysisSummaryGovernanceBridge
             + "(OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE), claim, significance, "
             + "operation, recordRefs, supportingValues, confidence and caveats. Include method, inputFields, unit, "
             + "scope, semanticBasis and alternatives when applicable. Preserve a complete, decision-useful summary "
-            + "even when some candidate analysis remains pending validation.\n"
+            + "even when some candidate analysis remains pending validation. Every objective-relevant returned "
+            + "dataset must contribute its material current-state facts to summary/facts/insights; a gap list is not "
+            + "a substitute for analyzing the supplied records.\n"
             + "Original user question (authoritative analysis intent): " + safeObjective(userObjective) + "\n"
             + "Analysis objective contract: " + ModelProtocolJson.compact(objectiveContract) + "\n"
             + "Producer semantic contract: " + ModelProtocolJson.compact(semanticContract) + "\n"
@@ -540,7 +548,12 @@ public final class AnalysisSummaryGovernanceBridge
         InsightValidation insightValidation = validatedInsights(
             position, records, proposedInsights, semanticContract);
         List<Map<String, Object>> validatedInsights = insightValidation.admitted();
-        int rejectedInsights = proposedInsights.size() - validatedInsights.size();
+        long reviewRequiredInsights = insightValidation.decisions().stream()
+            .filter(decision -> Boolean.TRUE.equals(decision.get("reviewRequired"))).count();
+        int rejectedInsights = (int) insightValidation.decisions().stream()
+            .filter(decision -> !Boolean.TRUE.equals(decision.get("admitted"))).count();
+        long invalidInsights = insightValidation.decisions().stream()
+            .filter(decision -> "INVALID".equals(decision.get("governanceStatus"))).count();
         evidence.put("insights", validatedInsights);
         evidence.put("claimContractVersion", CapabilityEvidenceClaimContract.SCHEMA_VERSION);
         evidence.put("claimAdmissionDecisions", insightValidation.decisions());
@@ -551,16 +564,12 @@ public final class AnalysisSummaryGovernanceBridge
             .map(com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract.GapRequest::toMap)
             .toList());
         evidence.put("rejectedInsightCount", rejectedInsights);
-        // Claims anchor the Worker's report; they must not replace an otherwise fully admitted
-        // professional analysis. Quarantine free text only when at least one claim was rejected.
-        if (rejectedInsights > 0) {
-            content = validatedInsights.isEmpty()
-                ? "当前数据未产生通过语义授权校验的分析洞察。"
-                : validatedInsights.stream().map(insight -> insight.get("claim") + "（"
-                    + insight.get("significance") + "）").collect(java.util.stream.Collectors.joining("；"));
-        }
-        evidence.put("analysisNarrativeStatus", rejectedInsights > 0
-            ? "QUARANTINED_REJECTED_CLAIMS" : "PRESERVED_GOVERNED_WORKER_REPORT");
+        evidence.put("invalidInsightCount", invalidInsights);
+        evidence.put("reviewRequiredInsightCount", reviewRequiredInsights);
+        // Governance annotates analytical uncertainty. It does not erase an evidence-bound
+        // Worker report or replace the human reviewer.
+        evidence.put("analysisNarrativeStatus", reviewRequiredInsights > 0
+            ? "PRESERVED_WITH_REVIEW_NOTES" : "PRESERVED_GOVERNED_WORKER_REPORT");
         evidence.put("rejectedFactCount", rejectedFacts);
         LinkedHashSet<Integer> citedRecords = citedRecordIndexes(position, facts);
         boolean factRecordCoverageComplete = records == null || records.isEmpty()
@@ -569,7 +578,7 @@ public final class AnalysisSummaryGovernanceBridge
         evidence.put("factRecordCoverageComplete", factRecordCoverageComplete);
         evidence.put("rawReplayRecommended",
             truthy(payload.get("rawReplayRecommended")) || rejectedFacts > 0
-                || rejectedInsights > 0 || !structured);
+                || reviewRequiredInsights > 0 || !structured);
         return new EvidenceCapsule(content, Collections.unmodifiableMap(evidence));
     }
 
@@ -761,7 +770,11 @@ public final class AnalysisSummaryGovernanceBridge
             CapabilityEvidenceClaimContract.Admission admission = semanticClaimAdmissionPolicy.evaluate(
                 capability, boundEvidence, proposedClaim);
             List<String> rejectionCodes = new ArrayList<>(admission.rejectionCodes());
-            if (!allowedClasses.contains(claimClass) || claim == null || claim.isBlank()
+            boolean shapeValid = allowedClasses.contains(claimClass) && claim != null && !claim.isBlank()
+                && significance != null && !significance.isBlank()
+                && confidence != null && Set.of("HIGH", "MEDIUM", "LOW").contains(confidence)
+                && !references.isEmpty() && !values.isEmpty() && operation != null;
+            if (!shapeValid
                 || significance == null || significance.isBlank()
                 || confidence == null || !Set.of("HIGH", "MEDIUM", "LOW").contains(confidence)
                 || references.isEmpty() || values.isEmpty()) rejectionCodes.add("CLAIM_SHAPE_INVALID");
@@ -770,6 +783,9 @@ public final class AnalysisSummaryGovernanceBridge
             decision.put("candidateIndex", candidateIndex);
             decision.put("claimClass", claimClass == null ? "" : claimClass);
             decision.put("admitted", rejectionCodes.isEmpty());
+            decision.put("reviewRequired", shapeValid && !rejectionCodes.isEmpty());
+            decision.put("governanceStatus", rejectionCodes.isEmpty()
+                ? "SUPPORTED" : (shapeValid ? "REVIEW_REQUIRED" : "INVALID"));
             decision.put("rejectionCodes", rejectionCodes);
             String semanticGapId = "";
             if (!rejectionCodes.isEmpty()) {
@@ -805,7 +821,7 @@ public final class AnalysisSummaryGovernanceBridge
             decision.put("claimState", lifecycle.state().name());
             claimLifecycle.add(lifecycle.toMap());
             decisions.add(Collections.unmodifiableMap(decision));
-            if (!rejectionCodes.isEmpty()) continue;
+            if (!shapeValid) continue;
             Map<String, Object> insight = new LinkedHashMap<>();
             insight.put("claimClass", claimClass);
             insight.put("claim", claim);
@@ -826,6 +842,9 @@ public final class AnalysisSummaryGovernanceBridge
             insight.put("claimId", lifecycle.claimId());
             insight.put("claimFingerprint", lifecycle.claimFingerprint());
             insight.put("claimRevision", lifecycle.revision());
+            insight.put("governanceStatus", rejectionCodes.isEmpty()
+                ? "SUPPORTED" : "REVIEW_REQUIRED");
+            insight.put("reviewReasons", rejectionCodes);
             result.add(Collections.unmodifiableMap(insight));
         }
         return new InsightValidation(List.copyOf(result), List.copyOf(decisions), List.copyOf(gaps),

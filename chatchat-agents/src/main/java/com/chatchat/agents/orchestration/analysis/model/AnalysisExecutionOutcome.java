@@ -74,10 +74,6 @@ public record AnalysisExecutionOutcome(
             .append("- 支撑数据：已保留为证据附件，不作为失败结果正文\n\n")
             .append("## 未完成原因\n\n")
             .append("- ").append(reasonText()).append('\n');
-        if (!unresolvedGaps.isEmpty()) {
-            report.append("- 当前存在 ").append(unresolvedGaps.size())
-                .append(" 个机器可处理的证据或分析缺口。\n");
-        }
         report.append("\n## 下一步\n\n- ").append(nextStep()).append('\n');
         return report.toString();
     }
@@ -88,7 +84,6 @@ public record AnalysisExecutionOutcome(
             case DATA_FAILURE -> "数据获取未形成可供分析的完整证据。";
             case ANALYSIS_FAILURE -> "已有数据未形成可准入的 Worker 或 Reducer 分析报告。";
             case GOVERNANCE_REJECTION -> "分析报告未满足证据治理与可审计发布要求。";
-            case EVIDENCE_GAP -> "当前证据不足以支持请求中的关键判断。";
         };
     }
 
@@ -97,7 +92,6 @@ public record AnalysisExecutionOutcome(
             case NEEDS_REANALYSIS -> "复用已获取的数据，从 "
                 + (retryDirective.resumeFrom().isBlank() ? "分析检查点" : retryDirective.resumeFrom())
                 + " 重新执行；禁止重新查询相同数据。";
-            case NEEDS_MORE_EVIDENCE -> "保留现有数据，由 Gap Planner 根据未解决缺口补充必要证据后继续分析。";
             case INSUFFICIENT_EVIDENCE -> "当前已达到执行边界，保留证据并明确限制，不生成业务判断。";
             case PARTIALLY_COMPLETED -> "基于已通过准入的报告继续处理，其余缺口进入补证或重分析队列。";
             case COMPLETED -> "分析已完成。";
@@ -120,7 +114,6 @@ public record AnalysisExecutionOutcome(
         COMPLETED,
         PARTIALLY_COMPLETED,
         NEEDS_REANALYSIS,
-        NEEDS_MORE_EVIDENCE,
         INSUFFICIENT_EVIDENCE,
         EXECUTION_FAILED
     }
@@ -129,8 +122,7 @@ public record AnalysisExecutionOutcome(
         NONE,
         DATA_FAILURE,
         ANALYSIS_FAILURE,
-        GOVERNANCE_REJECTION,
-        EVIDENCE_GAP
+        GOVERNANCE_REJECTION
     }
 
     public enum PhaseStatus {

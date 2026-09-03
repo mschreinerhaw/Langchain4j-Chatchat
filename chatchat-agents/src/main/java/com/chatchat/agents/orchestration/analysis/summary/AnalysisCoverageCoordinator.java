@@ -108,35 +108,10 @@ public final class AnalysisCoverageCoordinator {
                 metadataOf("type", "analysis_summary_dispatched", "taskCount", dispatched.taskCount(),
                     "workerCount", dispatched.workerCount(), "dispatchMode", dispatched.mode()));
         }
-        CoverageBundle firstPass;
         try {
-            firstPass = reconcile(request, datasets, relationshipPlan, lifecycle, dispatched);
+            return reconcile(request, datasets, relationshipPlan, lifecycle, dispatched);
         } finally {
             dispatched.close();
-        }
-        if (!automaticReanalysisRequired(request, firstPass)) return firstPass;
-
-        request.metadata().put("analysisAutomaticReanalysisTriggered", true);
-        request.metadata().put("analysisAutomaticReanalysisRound", 1);
-        request.metadata().put("analysisReuseExistingDataset", true);
-        request.metadata().put("analysisDataRequeryAllowed", false);
-        observe(request,
-            "已保留现有数据并从 Worker 分析阶段自动重试，无需重新获取数据。",
-            "analysis_summary_governance", metadataOf(
-                "type", "analysis_reanalysis_started", "round", 1,
-                "resumeFrom", "WORKER_ANALYSIS", "reuseExistingDataset", true,
-                "dataAcquisitionAllowed", false));
-        AnalysisDispatchCoordinator.DispatchBatch retryBatch = dispatchCoordinator.dispatch(
-            dispatchRequest(request, datasets, true));
-        try {
-            CoverageBundle retry = reconcile(request, datasets, relationshipPlan,
-                lifecycle, retryBatch);
-            request.metadata().put("analysisAutomaticReanalysisCompleted", true);
-            request.metadata().put("analysisAutomaticReanalysisRecovered",
-                !retry.synthesisInputs().isEmpty());
-            return retry;
-        } finally {
-            retryBatch.close();
         }
     }
 
@@ -170,16 +145,6 @@ public final class AnalysisCoverageCoordinator {
             "repairRequests", metadata == null
                 ? List.of() : metadata.getOrDefault("analysisRepairRequests", List.of())));
         return Map.copyOf(context);
-    }
-
-    private boolean automaticReanalysisRequired(Request request, CoverageBundle firstPass) {
-        if (request.metadata() == null || firstPass == null
-            || firstPass.returnedRecordCount() == 0
-            || !firstPass.synthesisInputs().isEmpty()) return false;
-        if (Boolean.TRUE.equals(request.metadata().get("analysisAutomaticReanalysisTriggered"))) {
-            return false;
-        }
-        return Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"));
     }
 
     private CoverageBundle reconcile(
@@ -349,8 +314,9 @@ public final class AnalysisCoverageCoordinator {
                 == governedSummaries.size();
         if (hierarchy.finalInputs().isEmpty()) {
             traceComplete = false;
-            prompt.append("Driver synthesis barrier is blocked: no Reducer report passed layered governance. "
-                + "Use the generated analysis repair requests instead of reconstructing conclusions from raw evidence.\n");
+            prompt.append("No Reducer report satisfied every governance check. This is an advisory "
+                + "review condition, not a publication barrier. Driver must assess any available "
+                + "Worker analysis, state the limitations, and leave acceptance to the human.\n");
         }
         appendCoverage(prompt, hierarchy, failures, counters, coverageComplete, traceComplete);
         if (!rawReplay.isEmpty()) {
@@ -384,23 +350,23 @@ public final class AnalysisCoverageCoordinator {
         Map<String, Object> metadata = request.metadata();
         if (metadata == null) return;
         metadata.put("analysisReducerAdmissionDecisions", review.admissionDecisions());
-        metadata.put("analysisReducerAdmittedReportCount", review.admittedInputs().size());
+        long admittedCount = review.admissionDecisions().stream()
+            .filter(decision -> Boolean.TRUE.equals(decision.get("admitted"))).count();
+        metadata.put("analysisReducerAdmittedReportCount", admittedCount);
+        metadata.put("analysisReducerReviewableReportCount", review.admittedInputs().size());
         metadata.put("analysisReducerRejectedReportCount", review.rejectedCount());
-        metadata.put("analysisRepairRequests", review.repairRequests());
-        metadata.put("analysisRepairRequired", !governanceState.activeRepairRequests().isEmpty());
+        metadata.put("analysisSuggestedRepairRequests", review.repairRequests());
+        metadata.put("analysisRepairRequests", List.of());
+        metadata.put("analysisRepairRequired", false);
         List<Map<String, Object>> gapRequests = toGapRequests(governanceState.activeRepairRequests());
         metadata.put("analysisGapRequests", gapRequests);
         metadata.put("gapRequests", gapRequests);
         metadata.put("analysisGapsAdvisoryOnly", true);
         metadata.put("analysisAdvisoryGapCount", gapRequests.size());
-        if (review.admittedInputs().isEmpty()) {
-            metadata.put("analysisSynthesisBarrierReady", false);
-            metadata.put("analysisSynthesisBarrierStatus", "REDUCER_ADMISSION_BLOCKED");
-        } else {
-            metadata.put("analysisSynthesisBarrierReady", true);
-            metadata.put("analysisSynthesisBarrierStatus",
-                review.rejectedCount() == 0 ? "READY" : "READY_WITH_REDUCER_LIMITATIONS");
-        }
+        metadata.put("analysisSynthesisBarrierReady", true);
+        metadata.put("analysisSynthesisBarrierStatus", review.admittedInputs().isEmpty()
+            ? "READY_WITHOUT_REDUCER_REPORT"
+            : review.rejectedCount() == 0 ? "READY" : "READY_WITH_REDUCER_REVIEW_NOTES");
     }
 
     private List<Map<String, Object>> toGapRequests(List<Map<String, Object>> repairs) {
@@ -482,9 +448,15 @@ public final class AnalysisCoverageCoordinator {
             request.metadata().put("analysisWorkerSupervision", supervision.toMap());
             request.metadata().put("analysisWorkerSupervisionSchemaVersion",
                 DataAnalysisWorkerSupervision.SCHEMA_VERSION);
-            request.metadata().put("analysisSynthesisBarrierReady", supervision.synthesisReady());
+            // Supervision describes product quality. It must not acquire publication veto
+            // authority: the Driver still runs and the human sees the available analysis or
+            // an explicit technical limitation.
+            request.metadata().put("analysisSynthesisBarrierReady", true);
             request.metadata().put("analysisSynthesisBarrierStatus",
-                supervision.barrierStatus().name());
+                supervision.synthesisReady()
+                    ? supervision.barrierStatus().name()
+                    : "READY_WITHOUT_REVIEWABLE_WORKER_REPORT");
+            request.metadata().put("analysisRepairRequired", false);
             request.metadata().put("analysisAcceptedWorkerCount",
                 supervision.acceptedWorkerCount());
             request.metadata().put("analysisRejectedWorkerCount",
@@ -493,11 +465,11 @@ public final class AnalysisCoverageCoordinator {
         observe(request,
             supervision.synthesisReady()
                 ? "数据分析任务已完成对账，可以开始综合结论。"
-                : "数据分析任务已完成对账，但没有通过质量验收的分析结果，暂不生成综合结论。",
+                : "数据分析任务已完成对账；当前 Worker 结果需人工复核，Driver 继续形成可见说明。",
             "business_analysis_progress", metadataOf(
                 "type", "analysis_driver_barrier",
                 "stage", supervision.synthesisReady()
-                    ? "SYNTHESIS_READY" : "SYNTHESIS_BLOCKED",
+                    ? "SYNTHESIS_READY" : "SYNTHESIS_READY_WITH_REVIEW_NOTES",
                 "workReference", supervision.expectedWorkerCount() == 1
                     ? supervision.workers().get(0).datasetReference() : "all-datasets",
                 "workIndex", supervision.terminalWorkerCount(),

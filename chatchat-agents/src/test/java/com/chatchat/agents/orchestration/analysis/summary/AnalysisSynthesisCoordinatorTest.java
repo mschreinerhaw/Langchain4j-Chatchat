@@ -262,13 +262,15 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
-    void driverBarrierPreventsFinalModelInvocationWithoutAcceptedWorkerAnalysis() {
+    void governanceBarrierBecomesReviewAdvisoryAndDoesNotSkipDriver() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId",
-            mock(AnalysisSummaryGovernanceCoordinator.class),
+            passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
             new HierarchicalAnalysisReducer());
         ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn(
+            "## 分析结论\n\n当前已有分析产品需要人工复核，但不应被机器治理阻断。");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", false);
         metadata.put("analysisSynthesisBarrierStatus", "BLOCKED");
@@ -278,19 +280,21 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> candidate, () -> "unused", true));
 
-        assertThat(result.generated()).isFalse();
-        assertThat(result.content()).contains("分析未完成", "Worker 分析", "禁止重新查询相同数据");
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("需要人工复核", "不应被机器治理阻断")
+            .doesNotContain("分析未完成");
         assertThat(metadata)
-            .containsEntry("analysisSynthesisBlocked", true)
-            .containsEntry("analysisDriverModelInvoked", false)
-            .containsEntry("analysisDriverModelSkipReason", "DRIVER_SYNTHESIS_BARRIER_BLOCKED")
-            .containsEntry("analysisOutputAdmissionReason", "DRIVER_SYNTHESIS_BARRIER_BLOCKED")
-            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
-        org.mockito.Mockito.verifyNoInteractions(model);
+            .containsEntry("analysisSynthesisBarrierWasAdvisory", true)
+            .containsEntry("analysisSynthesisBarrierReady", true)
+            .containsEntry("analysisHumanReviewRequired", true)
+            .containsEntry("analysisRepairRequired", false)
+            .containsEntry("analysisDriverModelInvoked", true)
+            .containsEntry("analysisExecutionStatus", "COMPLETED");
+        verify(model).chat(any(String.class));
     }
 
     @Test
-    void driverRejectsFreeTextThatSkippedMandatoryReviewProtocol() {
+    void missingDriverReviewProtocolPublishesDeterministicEvidenceForHumanReview() {
         AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
@@ -304,17 +308,23 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), true));
 
-        assertThat(result.content()).contains("分析未完成", "DRIVER_REVIEW")
-            .doesNotContain("稳定交易风格");
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("返回记录显示数值为 42")
+            .doesNotContain("分析未完成", "稳定交易风格");
         assertThat(metadata)
             .containsEntry("finalClaimPublicationContractActive", true)
             .containsEntry("analysisDriverReviewCompleted", false)
             .containsEntry("analysisDriverReviewStatus", "INVALID")
-            .containsEntry("analysisExecutionStatus", "NEEDS_REANALYSIS");
+            .containsEntry("analysisHumanReviewRequired", true)
+            .containsEntry("analysisRepairRequired", false)
+            .containsEntry("analysisDriverDecisionAction", "PUBLISH_WITH_REVIEW_NOTES")
+            .containsEntry("analysisExecutionStatus", "COMPLETED");
+        assertThat(metadata).doesNotContainKeys(
+            "analysisRetryDirective", "analysisReuseExistingDataset");
     }
 
     @Test
-    void finalModelFailureRequiresDriverReviewRetryInsteadOfSilentClaimPublication() {
+    void finalModelFailurePublishesDeterministicEvidenceInsteadOfBlockingForDriverReview() {
         AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -327,13 +337,17 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), false));
 
-        assertThat(result.content()).contains("分析未完成", "DRIVER_REVIEW")
-            .doesNotContain("返回记录显示数值为 42");
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("返回记录显示数值为 42")
+            .doesNotContain("分析未完成");
         assertThat(metadata)
             .containsEntry("interpretationPlanDeterministicClaimFallback", true)
             .containsEntry("analysisDriverReviewCompleted", false)
-            .containsEntry("analysisReuseExistingDataset", true)
-            .containsEntry("analysisDataRequeryAllowed", false);
+            .containsEntry("analysisHumanReviewRequired", true)
+            .containsEntry("analysisRepairRequired", false)
+            .containsEntry("analysisExecutionStatus", "COMPLETED");
+        assertThat(metadata).doesNotContainKeys(
+            "analysisRetryDirective", "analysisReuseExistingDataset");
     }
 
     @Test

@@ -25,7 +25,15 @@ final class AnalysisReducerSupervisor {
             decisions.add(inspection.admission().toMap());
             repairs.addAll(inspection.repairs().stream()
                 .map(DataAnalysisLayerGovernanceContract.RepairRequest::toMap).toList());
-            if (inspection.admission().admitted()) {
+            // Governance grades the Reducer product; it does not decide on behalf of the
+            // human whether a readable analysis may be reviewed by the Driver. Preserve
+            // non-empty analysis products with their admission status and review notes.
+            boolean reviewable = candidate != null
+                && candidate.content() != null
+                && !candidate.content().isBlank()
+                && AnalysisOutputAdmissionPolicy.admitWorkerNarrative(
+                    candidate.content()).admitted();
+            if (reviewable) {
                 List<Map<String, Object>> claimTransitions = inspection.admission()
                     .admittedClaimIds().stream()
                     .map(claimId -> new DataAnalysisLayerGovernanceContract.ClaimTransition(
@@ -40,6 +48,8 @@ final class AnalysisReducerSupervisor {
                     "analysisEvidenceLineage", inspection.lineage().stream()
                         .map(DataAnalysisLayerGovernanceContract.LineageEdge::toMap).toList(),
                     "analysisClaimLifecycle", claimTransitions,
+                    "analysisGovernanceAdvisoryOnly", true,
+                    "analysisHumanReviewRequired", !inspection.admission().admitted(),
                     "analysisRepairRequests", inspection.repairs().stream()
                         .map(DataAnalysisLayerGovernanceContract.RepairRequest::toMap).toList())));
             }
@@ -47,8 +57,10 @@ final class AnalysisReducerSupervisor {
                 candidate == null ? "missing" : candidate.resultId(), inspection.admission().admitted(),
                 inspection.admission().state(), inspection.admission().reasons(), inspection.repairs().size());
         }
+        long flagged = decisions.stream()
+            .filter(decision -> !Boolean.TRUE.equals(decision.get("admitted"))).count();
         return new Review(List.copyOf(admitted), List.copyOf(decisions), List.copyOf(repairs),
-            candidates == null ? 0 : candidates.size() - admitted.size());
+            Math.toIntExact(flagged));
     }
 
     private Inspection inspect(AnalysisSummaryResult candidate) {

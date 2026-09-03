@@ -27,16 +27,14 @@ import static org.mockito.Mockito.mock;
 class RuntimeOsBusinessAnalysisGoldenTest {
 
     @Test
-    void rejectedWorkerAnalysisIsRetriedFromExistingDatasetWithoutRequery() {
+    void rejectedWorkerAnalysisIsReportedForReviewWithoutAutomaticGovernanceRetry() {
         InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
         AtomicInteger modelCalls = new AtomicInteger();
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
-                if (modelCalls.incrementAndGet() == 1) return "MCP_TOOL_ERROR: analysis protocol unavailable";
-                assertThat(prompt).contains("analysisRepair", "reuseExistingDataset", "customer_assets");
-                return "The retained account snapshot shows total assets of 847174.25, securities "
-                    + "of 846262.20 and cash of 912.05, indicating very limited cash flexibility.";
+                modelCalls.incrementAndGet();
+                return "MCP_TOOL_ERROR: analysis protocol unavailable";
             }
         };
         AgentOrchestrator orchestrator = orchestrator(model, runStore, 1);
@@ -51,14 +49,15 @@ class RuntimeOsBusinessAnalysisGoldenTest {
             model, "Analyze the customer's asset structure", result,
             Map.of("__agentRunId", "automatic-reanalysis-golden"), metadata, () -> false);
 
-        assertThat(modelCalls.get()).isEqualTo(2);
-        assertThat(coverage.synthesisInputs()).isNotEmpty();
+        assertThat(modelCalls.get()).isEqualTo(1);
+        assertThat(coverage.synthesisInputs()).isEmpty();
         assertThat(metadata)
-            .containsEntry("analysisAutomaticReanalysisTriggered", true)
-            .containsEntry("analysisAutomaticReanalysisCompleted", true)
-            .containsEntry("analysisAutomaticReanalysisRecovered", true)
-            .containsEntry("analysisReuseExistingDataset", true)
-            .containsEntry("analysisDataRequeryAllowed", false);
+            .containsEntry("analysisSynthesisBarrierReady", true)
+            .containsEntry("analysisSynthesisBarrierStatus",
+                "READY_WITHOUT_REVIEWABLE_WORKER_REPORT")
+            .containsEntry("analysisRepairRequired", false)
+            .doesNotContainKeys("analysisAutomaticReanalysisTriggered",
+                "analysisReuseExistingDataset", "analysisDataRequeryAllowed");
     }
 
     @Test

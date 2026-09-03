@@ -107,28 +107,16 @@ public final class AnalysisSynthesisCoordinator {
     /** Executes the single final model call, its deterministic fallback and final governance. */
     public FinalSynthesisResult synthesizeFinal(FinalModelSynthesisRequest request) {
         if (Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"))) {
-            request.metadata().put("analysisDriverModelInvoked", false);
-            request.metadata().put("analysisDriverModelSkipReason",
-                "DRIVER_SYNTHESIS_BARRIER_BLOCKED");
-            log.warn("analysisDriverModelSkipped runId={} stage={} reason={}",
-                request.runId(), request.stage(), "DRIVER_SYNTHESIS_BARRIER_BLOCKED");
-            log.warn("analysisSynthesisBlocked runId={} stage={} barrierStatus={} "
+            recordHumanReviewAdvisory(request, "SYNTHESIS_INPUT_REVIEW",
+                String.valueOf(request.metadata().getOrDefault(
+                    "analysisSynthesisBarrierStatus", "ANALYSIS_PRODUCTS_REQUIRE_REVIEW")));
+            request.metadata().put("analysisSynthesisBarrierWasAdvisory", true);
+            log.warn("analysisSynthesisReviewAdvisory runId={} stage={} status={} "
                     + "acceptedWorkerCount={} rejectedWorkerCount={}",
                 request.runId(), request.stage(),
                 request.metadata().get("analysisSynthesisBarrierStatus"),
                 request.metadata().get("analysisAcceptedWorkerCount"),
                 request.metadata().get("analysisRejectedWorkerCount"));
-            request.metadata().put("analysisSynthesisBlocked", true);
-            request.metadata().put("analysisOutputAdmitted", false);
-            request.metadata().put("analysisOutputAdmissionReason",
-                "DRIVER_SYNTHESIS_BARRIER_BLOCKED");
-            request.metadata().put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
-            request.metadata().put("interpretationPlanSummaryGenerated", false);
-            request.metadata().put("interpretationPlanFinalResultProduced", false);
-            AnalysisExecutionOutcome executionOutcome = blockedOutcome(
-                request, "DRIVER_SYNTHESIS_BARRIER_BLOCKED", false);
-            return new FinalSynthesisResult(
-                executionOutcome.failureReport(), null, false);
         }
         long startedAt = System.currentTimeMillis();
         // The Driver consumes the final Worker/Reducer reports. Chunk-level products remain
@@ -228,13 +216,13 @@ public final class AnalysisSynthesisCoordinator {
             if (driverAudit == null || !driverAudit.valid()) {
                 String reason = driverAudit == null
                     ? "DRIVER_REVIEW_NOT_COMPLETED" : driverAudit.reason();
-                AnalysisExecutionOutcome executionOutcome = blockedOutcome(request, reason, true);
-                return new FinalSynthesisResult(executionOutcome.failureReport(), null, false);
-            }
-            if (!driverAudit.challenges().isEmpty()) {
+                recordHumanReviewAdvisory(request, "DRIVER_REVIEW", reason);
+            } else if (!driverAudit.challenges().isEmpty()) {
                 recordDriverChallenges(request, driverAudit);
             }
-            recordDriverDerivedClaims(request, driverAudit);
+            if (driverAudit != null && driverAudit.valid()) {
+                recordDriverDerivedClaims(request, driverAudit);
+            }
         }
 
         if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
@@ -242,16 +230,12 @@ public final class AnalysisSynthesisCoordinator {
                 GovernedFinalClaimContract.Projection projection =
                     finalClaimContract.project(answer, claimCompilation);
                 if (!projection.modelSelectionAccepted()) {
-                    request.metadata().put("finalClaimSelectionAccepted", false);
-                    request.metadata().put("finalClaimSelectionReason", projection.reason());
-                    request.metadata().put("finalPublishedClaimIds", List.of());
-                    AnalysisExecutionOutcome executionOutcome = blockedOutcome(
-                        request, "DRIVER_DECISION_REJECTED_" + projection.reason(), true);
-                    return new FinalSynthesisResult(
-                        executionOutcome.failureReport(), null, false);
+                    recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
                 }
                 answer = projection.markdown();
-                outcome = "CLAIM_BOUND_FINAL_SUMMARY";
+                outcome = projection.modelSelectionAccepted()
+                    ? "CLAIM_BOUND_FINAL_SUMMARY"
+                    : "DETERMINISTIC_CLAIM_SUMMARY_WITH_REVIEW_NOTES";
                 request.metadata().put("finalClaimSelectionAccepted",
                     projection.modelSelectionAccepted());
                 request.metadata().put("finalClaimSelectionReason", projection.reason());
@@ -512,17 +496,34 @@ public final class AnalysisSynthesisCoordinator {
             audit == null ? "INVALID" : audit.status());
         request.metadata().put("analysisDriverReviewCompleted", audit != null && audit.valid());
         request.metadata().put("analysisDriverDecisionStages", Map.of(
-            "DRIVER_REVIEW", audit != null && audit.valid() ? "COMPLETED" : "REJECTED",
-            "DRIVER_REASONING", audit != null && audit.valid() ? "COMPLETED" : "BLOCKED",
+            "DRIVER_REVIEW", audit != null && audit.valid() ? "COMPLETED" : "REVIEW_REQUIRED",
+            "DRIVER_REASONING", audit != null && audit.valid() ? "COMPLETED" : "PRESERVED",
             "DRIVER_DECISION", audit != null && audit.valid()
                 ? (audit.challenges().isEmpty() ? "READY" : "READY_WITH_REVIEW_NOTES")
-                : "BLOCKED"));
+                : "READY_WITH_REVIEW_NOTES"));
         log.info("analysisDriverReview runId={} status={} valid={} challengeCount={} "
                 + "derivedClaimCount={} reason={}", request.runId(),
             audit == null ? "INVALID" : audit.status(), audit != null && audit.valid(),
             audit == null ? 0 : audit.challenges().size(),
             audit == null ? 0 : audit.derivedClaims().size(),
             audit == null ? "DRIVER_REVIEW_NOT_COMPLETED" : audit.reason());
+    }
+
+    private void recordHumanReviewAdvisory(FinalModelSynthesisRequest request,
+                                           String stage, String reason) {
+        List<Map<String, Object>> notes = new ArrayList<>(
+            maps(request.metadata().get("analysisHumanReviewNotes")));
+        notes.add(Map.of(
+            "stage", stage == null ? "ANALYSIS" : stage,
+            "reason", reason == null ? "REVIEW_RECOMMENDED" : reason,
+            "effect", "ADVISORY_ONLY"));
+        request.metadata().put("analysisHumanReviewRequired", true);
+        request.metadata().put("analysisHumanReviewNotes", List.copyOf(notes));
+        request.metadata().put("analysisRepairRequired", false);
+        request.metadata().remove("analysisDriverRepairRequests");
+        request.metadata().put("analysisDriverDecisionAction", "PUBLISH_WITH_REVIEW_NOTES");
+        request.metadata().put("analysisSynthesisBarrierReady", true);
+        request.metadata().put("analysisSynthesisBarrierStatus", "READY_WITH_HUMAN_REVIEW_NOTES");
     }
 
     private void recordDriverChallenges(FinalModelSynthesisRequest request,

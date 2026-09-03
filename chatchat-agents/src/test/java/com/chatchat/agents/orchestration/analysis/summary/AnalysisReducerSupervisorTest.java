@@ -48,7 +48,7 @@ class AnalysisReducerSupervisorTest {
     }
 
     @Test
-    void rejectsReducerReportWithoutLayerContractAndKeepsItAwayFromDriver() {
+    void flagsReducerReportWithoutLayerContractButKeepsItReviewableByDriver() {
         AnalysisSummaryResult worker = AnalysisSummaryResult.chunk(
             scope, Map.of("datasetReference", "dataset", "chunkIndex", 1), Map.of(),
             "worker analysis", "MODEL_SUMMARY", Map.of("evidenceId", "evidence-1"));
@@ -59,7 +59,12 @@ class AnalysisReducerSupervisorTest {
         AnalysisReducerSupervisor.Review review =
             new AnalysisReducerSupervisor().inspect(List.of(invalid));
 
-        assertThat(review.admittedInputs()).isEmpty();
+        assertThat(review.admittedInputs()).singleElement().satisfies(result -> {
+            assertThat(result.content()).isEqualTo("unmarked reducer output");
+            assertThat(result.evidence())
+                .containsEntry("analysisGovernanceAdvisoryOnly", true)
+                .containsEntry("analysisHumanReviewRequired", true);
+        });
         assertThat(review.rejectedCount()).isEqualTo(1);
         assertThat(review.admissionDecisions()).singleElement().satisfies(decision -> {
             assertThat(decision).containsEntry("admitted", false)

@@ -38,6 +38,31 @@ final class GovernedFinalClaimContract {
         if (summaries != null) {
             for (AnalysisSummaryResult summary : summaries) {
                 if (summary == null || summary.evidence() == null) continue;
+                List<Map<String, Object>> artifacts = AnalysisArtifactProtocol.normalize(summary);
+                if (!artifacts.isEmpty()) {
+                    claimContractObserved = true;
+                    for (Map<String, Object> artifact : artifacts) {
+                        String claimId = text(artifact.get("artifactId"));
+                        String claim = text(artifact.get("text"));
+                        String claimClass = text(artifact.get("claimClass"));
+                        List<String> recordRefs = strings(artifact.get("recordRefs"));
+                        List<String> supportingValues = strings(artifact.get("supportingValues"));
+                        if (claimId.isBlank() || claim.isBlank() || recordRefs.isEmpty()
+                            || supportingValues.isEmpty()) continue;
+                        Claim admitted = new Claim(
+                            claimId, claim, claimClass, text(artifact.get("confidence")),
+                            text(artifact.get("significance")), strings(artifact.get("caveats")),
+                            text(artifact.get("status")), strings(artifact.get("reviewReasons")),
+                            text(artifact.get("sourceScope")), recordRefs, supportingValues,
+                            strings(artifact.get("basisClaimIds")));
+                        claims.putIfAbsent(claimId, admitted);
+                        if (admitted.observedFact()) {
+                            observedEvidenceSignatures.add(evidenceSignature(
+                                admitted.sourceScope(), recordRefs, supportingValues));
+                        }
+                    }
+                    continue;
+                }
                 // Reducers retain empty protocol fields for backward-compatible summaries. An
                 // actual decision is the activation signal: it proves that candidate Claims were
                 // evaluated, while an empty list must not turn ordinary document/workflow answers
@@ -67,7 +92,7 @@ final class GovernedFinalClaimContract {
                         strings(insight.get("caveats")),
                         text(insight.get("governanceStatus")),
                         strings(insight.get("reviewReasons")),
-                        claimSource(summary, insight), recordRefs, supportingValues);
+                        claimSource(summary, insight), recordRefs, supportingValues, List.of());
                     claims.putIfAbsent(claimId, admitted);
                     if ("OBSERVED_RETURNED_FACT".equals(claimClass)) {
                         observedEvidenceSignatures.add(evidenceSignature(
@@ -89,7 +114,7 @@ final class GovernedFinalClaimContract {
                         claimId, claim, "OBSERVED_RETURNED_FACT",
                         text(factClaim.get("confidence")), text(factClaim.get("significance")),
                         strings(factClaim.get("caveats")), "SUPPORTED", List.of(),
-                        source, recordRefs, supportingValues));
+                        source, recordRefs, supportingValues, List.of()));
                 }
                 // Dynamic analysis agenda items are the Worker's principal analytical work
                 // product. They already passed record-reference and exact-value validation in
@@ -121,7 +146,7 @@ final class GovernedFinalClaimContract {
                         claimId, finding, "GOVERNED_ANALYSIS_ITEM",
                         text(item.get("confidence")), text(item.get("businessMeaning")),
                         limitations, status, reviewReasons, source,
-                        recordRefs, supportingValues));
+                        recordRefs, supportingValues, List.of()));
                 }
             }
         }
@@ -263,6 +288,27 @@ final class GovernedFinalClaimContract {
         reviewSummary.put("claimAssessments", assessments.stream().map(ClaimAssessment::toMap).toList());
         return new DriverAudit(true, "DRIVER_REVIEW_ADMITTED", reviewStatus,
             Map.copyOf(reviewSummary), challenges, derivedClaims);
+    }
+
+    Compilation includeDriverDerivedClaims(Compilation compilation, DriverAudit audit) {
+        if (compilation == null || audit == null || !audit.valid()
+            || audit.derivedClaims().isEmpty()) return compilation;
+        Map<String, Claim> claims = new LinkedHashMap<>(compilation.claims());
+        for (DerivedClaim derived : audit.derivedClaims()) {
+            List<Claim> basis = derived.basisClaimIds().stream().map(claims::get)
+                .filter(java.util.Objects::nonNull).toList();
+            if (basis.size() != derived.basisClaimIds().size()) continue;
+            List<String> recordRefs = basis.stream().flatMap(item -> item.recordRefs().stream())
+                .distinct().toList();
+            List<String> values = basis.stream().flatMap(item -> item.supportingValues().stream())
+                .distinct().toList();
+            claims.putIfAbsent(derived.derivedClaimId(), new Claim(
+                derived.derivedClaimId(), derived.text(), "DRIVER_DERIVED_CLAIM", "MEDIUM",
+                "Management-level synthesis derived from admitted lower-layer Claims.",
+                derived.caveats(), "REVIEW_REQUIRED", derived.caveats(), "DRIVER",
+                recordRefs, values, derived.basisClaimIds()));
+        }
+        return new Compilation(claims, compilation.claimContractObserved());
     }
 
     private ClaimAssessment claimAssessment(Map<String, Object> source) {
@@ -856,6 +902,12 @@ final class GovernedFinalClaimContract {
         boolean active() {
             return !claims.isEmpty();
         }
+
+        List<Map<String, Object>> artifacts(Collection<String> claimIds) {
+            if (claimIds == null) return List.of();
+            return claimIds.stream().map(claims::get).filter(java.util.Objects::nonNull)
+                .map(Claim::toArtifactMap).toList();
+        }
     }
 
     record Projection(boolean modelSelectionAccepted, String reason, String markdown,
@@ -1004,11 +1056,12 @@ final class GovernedFinalClaimContract {
                          String confidence, String significance, List<String> caveats,
                          String governanceStatus, List<String> reviewReasons,
                          String sourceScope, List<String> recordRefs,
-                         List<String> supportingValues) {
+                         List<String> supportingValues, List<String> basisClaimIds) {
         private Claim {
             recordRefs = recordRefs == null ? List.of() : List.copyOf(recordRefs);
             supportingValues = supportingValues == null ? List.of() : List.copyOf(supportingValues);
             reviewReasons = reviewReasons == null ? List.of() : List.copyOf(reviewReasons);
+            basisClaimIds = basisClaimIds == null ? List.of() : List.copyOf(basisClaimIds);
         }
 
         private boolean observedFact() {
@@ -1030,6 +1083,29 @@ final class GovernedFinalClaimContract {
             if (sourceScope != null && !sourceScope.isBlank()) result.put("sourceScope", sourceScope);
             if (!recordRefs.isEmpty()) result.put("recordRefs", recordRefs);
             if (!supportingValues.isEmpty()) result.put("supportingValues", supportingValues);
+            if (!basisClaimIds.isEmpty()) result.put("basisClaimIds", basisClaimIds);
+            return Map.copyOf(result);
+        }
+
+        private Map<String, Object> toArtifactMap() {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("schemaVersion", AnalysisArtifactProtocol.SCHEMA_VERSION);
+            result.put("artifactId", claimId);
+            result.put("artifactType", "BUSINESS_CLAIM");
+            result.put("sourceStage", claimClass.startsWith("DRIVER_") ? "DRIVER"
+                : claimClass.startsWith("REDUCER_") ? "REDUCER" : "WORKER");
+            result.put("sourceScope", sourceScope == null ? "" : sourceScope);
+            result.put("claimClass", claimClass);
+            result.put("text", text);
+            result.put("status", governanceStatus == null || governanceStatus.isBlank()
+                ? "SUPPORTED" : governanceStatus);
+            result.put("confidence", confidence == null ? "" : confidence);
+            result.put("significance", significance == null ? "" : significance);
+            result.put("recordRefs", recordRefs);
+            result.put("supportingValues", supportingValues);
+            result.put("basisClaimIds", basisClaimIds);
+            result.put("caveats", caveats == null ? List.of() : caveats);
+            result.put("reviewReasons", reviewReasons);
             return Map.copyOf(result);
         }
     }

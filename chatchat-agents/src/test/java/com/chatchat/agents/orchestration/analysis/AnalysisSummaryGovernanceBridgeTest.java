@@ -190,6 +190,10 @@ class AnalysisSummaryGovernanceBridgeTest {
         assertThat(result.evidence().get("analysisItems").toString())
             .contains("analysis-item-current", "status=SUPPORTED", "Current level is 42",
                 "metrics.records[1]", "supportingValues=[42]");
+        assertThat(result.evidence().get("analysisArtifacts").toString())
+            .contains("analysis_artifact.v1", "artifactType=BUSINESS_CLAIM",
+                "GOVERNED_ANALYSIS_ITEM", "Current level is 42")
+            .doesNotContain("gateway", "transport");
     }
 
     @Test

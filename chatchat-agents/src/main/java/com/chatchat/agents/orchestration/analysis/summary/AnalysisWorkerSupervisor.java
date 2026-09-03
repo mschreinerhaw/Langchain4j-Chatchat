@@ -92,6 +92,7 @@ final class AnalysisWorkerSupervisor {
         return nonEmpty(result.evidence().get("insights"))
             || nonEmpty(result.evidence().get("observedFactClaims"))
             || nonEmpty(result.evidence().get("analysisItems"))
+            || nonEmpty(result.evidence().get(AnalysisArtifactProtocol.EVIDENCE_KEY))
             || nonEmpty(result.evidence().get("unsupportedQuestions"))
             || nonEmpty(result.evidence().get("missingEvidence"));
     }

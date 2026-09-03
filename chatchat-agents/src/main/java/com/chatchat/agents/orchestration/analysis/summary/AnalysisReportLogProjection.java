@@ -49,6 +49,7 @@ public final class AnalysisReportLogProjection {
         value.put("insightCount", size(evidence.get("insights")));
         value.put("observedFactClaimCount", size(evidence.get("observedFactClaims")));
         value.put("analysisItemCount", size(evidence.get("analysisItems")));
+        value.put("analysisArtifactCount", size(evidence.get(AnalysisArtifactProtocol.EVIDENCE_KEY)));
         value.put("conflictCount", size(evidence.get("conflicts")));
         value.put("unsupportedQuestionCount", size(evidence.get("unsupportedQuestions")));
         value.put("publishedClaimIds", strings(evidence.get("analysisPublishedClaimIds")));

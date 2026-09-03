@@ -568,6 +568,11 @@ class AnalysisSynthesisCoordinatorTest {
         assertThat(metadata)
             .containsEntry("finalClaimSelectionAccepted", true)
             .containsEntry("finalClaimSelectionReason", "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
+        assertThat(metadata.get("finalPublishedClaimIds").toString())
+            .contains("driver-derived:portfolio-activity");
+        assertThat(result.governedResult().evidence().get("analysisArtifacts").toString())
+            .contains("analysis_artifact.v1", "fact:assets", "fact:trades",
+                "driver-derived:portfolio-activity", "basisClaimIds=[fact:assets, fact:trades]");
         Map<?, ?> driverContext = (Map<?, ?>) metadata.get("analysisDriverPipelineContext");
         assertThat(driverContext.get("evidenceGapCount")).isEqualTo(36);
         assertThat((List<?>) driverContext.get("evidenceGaps")).hasSize(8);

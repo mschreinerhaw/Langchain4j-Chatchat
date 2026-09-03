@@ -583,6 +583,9 @@ public final class AnalysisSummaryGovernanceBridge
         // Worker report or replace the human reviewer.
         evidence.put("analysisNarrativeStatus", reviewRequiredInsights > 0
             ? "PRESERVED_WITH_REVIEW_NOTES" : "PRESERVED_GOVERNED_WORKER_REPORT");
+        evidence.put(AnalysisArtifactProtocol.EVIDENCE_KEY,
+            AnalysisArtifactProtocol.fromEvidence("WORKER", position.datasetReference(), evidence));
+        evidence.put("analysisArtifactSchemaVersion", AnalysisArtifactProtocol.SCHEMA_VERSION);
         evidence.put("rejectedFactCount", rejectedFacts);
         LinkedHashSet<Integer> citedRecords = citedRecordIndexes(position, facts);
         boolean factRecordCoverageComplete = records == null || records.isEmpty()

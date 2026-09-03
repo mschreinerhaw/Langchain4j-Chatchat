@@ -262,6 +262,55 @@ class HierarchicalAnalysisReducerTest {
             .contains("Do not concatenate chunk summaries", "complete record inventories");
     }
 
+    @Test
+    void reducerPublishesOnlyLineageBoundDerivedArtifacts() {
+        AnalysisSummaryResult first = artifactChunk(
+            "metrics", "claim:waits", "Allocation waits are 0", "0");
+        AnalysisSummaryResult second = artifactChunk(
+            "metrics", "claim:pending", "Pending writes are 0", "0");
+
+        AnalysisSummaryResult result = new HierarchicalAnalysisReducer().reduceDataset(prompt -> """
+            {"schemaVersion":"analysis_reducer_report.v1",
+             "summary":"No current allocation or pending-write pressure is visible.",
+             "derivedClaims":[
+               {"claimId":"reducer:buffer-pressure",
+                "text":"No current allocation or pending-write pressure is visible.",
+                "basisClaimIds":["claim:waits","claim:pending"],
+                "status":"SUPPORTED","confidence":"HIGH",
+                "significance":"Combines related current-state signals","caveats":[]},
+               {"claimId":"reducer:unbound","text":"Unbound conclusion",
+                "basisClaimIds":["claim:missing"],"status":"SUPPORTED",
+                "confidence":"HIGH","significance":"invalid","caveats":[]}]}
+            """, scope, "metrics", List.of(first, second), "analyze current engine health");
+
+        assertThat(result.content()).isEqualTo(
+            "No current allocation or pending-write pressure is visible.");
+        assertThat(result.evidence().get("analysisArtifacts").toString())
+            .contains("claim:waits", "claim:pending", "reducer:buffer-pressure",
+                "basisClaimIds=[claim:waits, claim:pending]", "sourceStage=REDUCER")
+            .doesNotContain("reducer:unbound");
+    }
+
+    private AnalysisSummaryResult artifactChunk(String dataset, String claimId,
+                                                String claim, String value) {
+        return AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", dataset, "chunkIndex", 1), Map.of(), claim,
+            "MODEL_SUMMARY", Map.of("analysisArtifacts", List.of(Map.ofEntries(
+                Map.entry("schemaVersion", "analysis_artifact.v1"),
+                Map.entry("artifactId", claimId),
+                Map.entry("artifactType", "BUSINESS_CLAIM"),
+                Map.entry("sourceStage", "WORKER"),
+                Map.entry("sourceScope", dataset),
+                Map.entry("claimClass", "OBSERVED_RETURNED_FACT"),
+                Map.entry("text", claim),
+                Map.entry("status", "SUPPORTED"),
+                Map.entry("recordRefs", List.of(dataset + ".records[1]")),
+                Map.entry("supportingValues", List.of(value)),
+                Map.entry("basisClaimIds", List.of()),
+                Map.entry("caveats", List.of()),
+                Map.entry("reviewReasons", List.of())))));
+    }
+
     private DatasetRelationshipPlan.Dataset dataset(String reference, Object relationships) {
         return new DatasetRelationshipPlan.Dataset(reference, Map.of(
             "source", Map.of("toolName", reference),

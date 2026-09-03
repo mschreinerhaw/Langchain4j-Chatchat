@@ -222,6 +222,9 @@ public final class AnalysisSynthesisCoordinator {
             }
             if (driverAudit != null && driverAudit.valid()) {
                 recordDriverDerivedClaims(request, driverAudit);
+                claimCompilation = finalClaimContract.includeDriverDerivedClaims(
+                    claimCompilation, driverAudit);
+                request.metadata().put("finalAdmittedClaimCount", claimCompilation.claims().size());
             }
         }
 
@@ -302,7 +305,10 @@ public final class AnalysisSynthesisCoordinator {
             "analysisReportAdmission", driverAdmission.toMap(),
             "analysisEvidenceLineage", List.copyOf(driverLineage),
             "analysisClaimLifecycle", publishedClaimLifecycle,
-            "analysisPublishedClaimIds", publishedClaimIds));
+            "analysisPublishedClaimIds", publishedClaimIds,
+            AnalysisArtifactProtocol.EVIDENCE_KEY,
+                claimCompilation.artifacts(publishedClaimIds),
+            "analysisArtifactSchemaVersion", AnalysisArtifactProtocol.SCHEMA_VERSION));
         request.metadata().put("analysisDriverAdmission", driverAdmission.toMap());
         request.metadata().put("analysisEvidenceLineage", List.copyOf(driverLineage));
         request.metadata().put("analysisClaimLifecycle", publishedClaimLifecycle);

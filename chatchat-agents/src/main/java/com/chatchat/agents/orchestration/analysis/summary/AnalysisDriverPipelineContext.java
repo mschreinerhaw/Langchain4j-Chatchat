@@ -85,6 +85,8 @@ final class AnalysisDriverPipelineContext {
                 "analysisObjectiveContract", Map.of()));
             item.put("demandAnalysis", report.evidence().getOrDefault("demandAnalysis", Map.of()));
             item.put("analysisItems", report.evidence().getOrDefault("analysisItems", List.of()));
+            item.put(AnalysisArtifactProtocol.EVIDENCE_KEY,
+                AnalysisArtifactProtocol.normalize(report));
             item.put("admission", report.governance());
             result.add(Map.copyOf(item));
         }

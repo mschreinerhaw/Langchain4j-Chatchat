@@ -1820,6 +1820,10 @@ public class ToolRuntimeService {
         List<ToolCallRequest> parsedCalls = new ArrayList<>();
         boolean runtimeOwnedPreflight = request.getAttributes() != null
             && Boolean.TRUE.equals(request.getAttributes().get("runtimeOwnedTemplatePreflight"));
+        boolean diagnosticBatch = batchAttributeInt(request, "diagnosticDeclaredCheckCount", 0) > 0;
+        boolean templateAssetAuthorizationRequired = batchAttributeBoolean(
+            request, "diagnosticTemplateAssetAuthorizationRequired");
+        Map<String, String> authorizedTemplateAssets = batchAuthorizedTemplateAssets(request);
         int index = 0;
         for (Object item : calls) {
             index++;
@@ -1836,6 +1840,10 @@ public class ToolRuntimeService {
             Map<String, Object> arguments = asMap(firstPresent(
                 call.get("arguments"), call.get("input"), call.get("parameters")
             ));
+            if (diagnosticBatch) {
+                arguments = canonicalDiagnosticChildArguments(parameters, arguments,
+                    templateAssetAuthorizationRequired, authorizedTemplateAssets);
+            }
             Boolean emptyResultIsSuccess = booleanValue(firstPresent(
                 call.get("emptyResultIsSuccess"), call.get("empty_result_is_success")
             ));
@@ -1973,7 +1981,11 @@ public class ToolRuntimeService {
             }
             if (diagnosticBatch) {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> childArguments = new LinkedHashMap<>((Map<String, Object>) arguments);
+                Map<String, Object> childArguments = canonicalDiagnosticChildArguments(
+                    parameters,
+                    new LinkedHashMap<>((Map<String, Object>) arguments),
+                    templateAssetAuthorizationRequired,
+                    authorizedTemplateAssets);
                 String childAssetId = assetId(childArguments);
                 if (childAssetId == null || childAssetId.isBlank()) {
                     return BatchValidation.invalid("BATCH_ASSET_ID_REQUIRED",
@@ -1996,6 +2008,50 @@ public class ToolRuntimeService {
             }
         }
         return BatchValidation.accepted();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> canonicalDiagnosticChildArguments(
+        Map<String, Object> batchParameters,
+        Map<String, Object> childArguments,
+        boolean templateAssetAuthorizationRequired,
+        Map<String, String> authorizedTemplateAssets
+    ) {
+        Map<String, Object> arguments = new LinkedHashMap<>(
+            childArguments == null ? Map.of() : childArguments);
+        Object rawChildContext = firstPresent(
+            arguments.get("executionContext"), arguments.get("mcpExecutionContext"));
+        Map<String, Object> childContext = rawChildContext instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Object rawBatchContext = batchParameters == null ? null : firstPresent(
+            batchParameters.get("executionContext"), batchParameters.get("mcpExecutionContext"));
+        if (rawBatchContext instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    childContext.putIfAbsent(String.valueOf(key), value);
+                }
+            });
+        }
+        String childAssetId = assetId(arguments);
+        String inheritedAssetId = null;
+        if (templateAssetAuthorizationRequired) {
+            String childTemplateId = templateId(arguments);
+            inheritedAssetId = childTemplateId == null || authorizedTemplateAssets == null
+                ? null : authorizedTemplateAssets.get(childTemplateId);
+        }
+        if (inheritedAssetId == null || inheritedAssetId.isBlank()) {
+            inheritedAssetId = assetId(batchParameters);
+        }
+        if ((childAssetId == null || childAssetId.isBlank())
+            && inheritedAssetId != null && !inheritedAssetId.isBlank()) {
+            childContext.put("assetId", inheritedAssetId);
+        }
+        if (!childContext.isEmpty()) {
+            arguments.put("executionContext", childContext);
+            arguments.remove("mcpExecutionContext");
+        }
+        return arguments;
     }
 
     private BatchValidation validateBatchObject(ToolCallBatch batch, ToolRuntimeRequest context) {

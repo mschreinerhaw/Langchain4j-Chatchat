@@ -2289,6 +2289,54 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void diagnosticBatchChildrenInheritCanonicalAssetFromOuterExecutionContext() {
+        String toolName = "sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+        when(toolRegistry.executeEnhancedTool(any(), any()))
+            .thenReturn(ToolOutput.success(Map.of("status", "ok")));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        List<Map<String, Object>> calls = List.of(
+            Map.of("callId", "innodb_status", "toolName", toolName,
+                "arguments", Map.of("templateCode", "MYSQL_INNODB_STATUS")),
+            Map.of("callId", "global_status", "toolName", toolName,
+                "arguments", Map.of("templateCode", "MYSQL_GLOBAL_STATUS"))
+        );
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("batchId", "mysql-innodb-health");
+        parameters.put("executionMode", "SEQUENTIAL");
+        parameters.put("stopOnFailure", false);
+        parameters.put("executionContext", Map.of(
+            "assetId", "asset-livedata-223",
+            "assetDisplayName", "LiveData测试库_223"));
+        parameters.put("calls", calls);
+        ToolRuntimeRequest request = ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-innodb-batch")
+            .conversationId("conv-innodb-batch")
+            .tenantId("tenant-1")
+            .userId("user-batch")
+            .allowedTools(List.of(toolName))
+            .toolInput(ToolInput.builder().userId("user-batch").parameters(parameters).build())
+            .attributes(Map.of("diagnosticDeclaredCheckCount", 2))
+            .build();
+
+        ToolRuntimeExecution execution = service.execute(request);
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        ToolCallBatchResult result = (ToolCallBatchResult) execution.output().getData();
+        assertThat(result.results()).extracting(ToolCallResult::assetId)
+            .containsOnly("asset-livedata-223");
+        assertThat(result.results()).extracting(ToolCallResult::assetDisplayName)
+            .containsOnly("LiveData测试库_223");
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void diagnosticBatchAllowsMultipleEndpointAssetsOnlyThroughDiscoveryTemplateAuthorization() {
         String toolName = "http_request_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

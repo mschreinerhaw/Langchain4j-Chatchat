@@ -5284,6 +5284,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         });
         Map<String, Object> batchInput = new LinkedHashMap<>(input == null ? Map.of() : input);
         mergeReviewedTemplateExecutionInputChanges(completed, step.toolName(), batchInput);
+        // Reviewed-template expansion is a second diagnostic batch compiler and must apply
+        // the same canonical asset hydration as the ordinary diagnostic path. Without this,
+        // templates that publish an executor but omit a per-template executionContext lose
+        // the asset selected by discovery (for example the innodb_status child call).
+        hydrateDiagnosticBatchAssetContext(completed, batchInput);
         List<Map<String, Object>> calls = new ArrayList<>();
         String outerTool = null;
         for (int templateIndex = 0; templateIndex < selectedIds.size(); templateIndex++) {

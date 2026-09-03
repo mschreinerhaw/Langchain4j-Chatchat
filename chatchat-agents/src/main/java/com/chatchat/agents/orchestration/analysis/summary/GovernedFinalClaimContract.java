@@ -44,7 +44,8 @@ final class GovernedFinalClaimContract {
                 // into a governed data-analysis publication.
                 claimContractObserved = claimContractObserved
                     || !maps(summary.evidence().get("claimAdmissionDecisions")).isEmpty()
-                    || !maps(summary.evidence().get("observedFactClaims")).isEmpty();
+                    || !maps(summary.evidence().get("observedFactClaims")).isEmpty()
+                    || !maps(summary.evidence().get("analysisItems")).isEmpty();
                 boolean admissionDecisionsDeclared =
                     !maps(summary.evidence().get("claimAdmissionDecisions")).isEmpty();
                 Set<String> explicitlyAdmitted = publishableClaimIds(summary.evidence());
@@ -89,6 +90,38 @@ final class GovernedFinalClaimContract {
                         text(factClaim.get("confidence")), text(factClaim.get("significance")),
                         strings(factClaim.get("caveats")), "SUPPORTED", List.of(),
                         source, recordRefs, supportingValues));
+                }
+                // Dynamic analysis agenda items are the Worker's principal analytical work
+                // product. They already passed record-reference and exact-value validation in
+                // AnalysisSummaryGovernanceBridge, so retain them as governed Driver inputs even
+                // when the model did not duplicate the same reasoning in its optional insights
+                // array. Dropping this channel reduces the Driver to execution-metadata claims.
+                for (Map<String, Object> item : maps(summary.evidence().get("analysisItems"))) {
+                    String status = text(item.get("status")).toUpperCase(java.util.Locale.ROOT);
+                    String finding = text(item.get("finding"));
+                    List<String> recordRefs = strings(item.get("basisRecordRefs"));
+                    List<String> supportingValues = strings(item.get("supportingValues"));
+                    if ("NOT_APPLICABLE".equals(status) || finding.isBlank()
+                        || recordRefs.isEmpty() || supportingValues.isEmpty()) {
+                        continue;
+                    }
+                    String source = claimSource(summary, Map.of("recordRefs", recordRefs));
+                    String itemId = text(item.get("itemId"));
+                    String claimId = "analysis-item:" + DataAnalysisLayerGovernanceContract
+                        .fingerprint(List.of(source, itemId, finding,
+                            recordRefs.stream().sorted().toList(),
+                            supportingValues.stream().sorted().toList()));
+                    List<String> limitations = strings(item.get("limitations"));
+                    List<String> reviewReasons = "REVIEW_REQUIRED".equals(status)
+                        ? (limitations.isEmpty()
+                            ? List.of("Worker marked this evidence-bound analysis item for human review.")
+                            : limitations)
+                        : List.of();
+                    claims.putIfAbsent(claimId, new Claim(
+                        claimId, finding, "GOVERNED_ANALYSIS_ITEM",
+                        text(item.get("confidence")), text(item.get("businessMeaning")),
+                        limitations, status, reviewReasons, source,
+                        recordRefs, supportingValues));
                 }
             }
         }
@@ -417,7 +450,8 @@ final class GovernedFinalClaimContract {
             + "A ledger Claim marked REVIEW_REQUIRED is an evidence-bound analytical interpretation retained for "
             + "human judgment, not a rejected payload. You may use it when useful, but explicitly qualify it as an "
             + "interpretation, preserve its reviewReasons/caveats, and never present it as a verified fact. Claims "
-            + "marked SUPPORTED may be stated at their recorded confidence. "
+            + "marked PARTIAL must retain their scope limitation; Claims marked SUPPORTED may be stated at their "
+            + "recorded confidence. "
             + "You may paraphrase and combine supported claims into a more useful management conclusion, but may not "
             + "invent a value, entity state, comparison, threshold, relationship or cause absent from those claims. "
             + "Never report a requested dimension as missing or unavailable when the ledger contains a claim that "

@@ -194,6 +194,37 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
+    void preservesEvidenceBoundDynamicAnalysisAsDriverClaimWithoutDuplicatedInsight() {
+        AnalysisSummaryResult analysisOnly = AnalysisSummaryResult.chunk(
+            GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
+            Map.of("datasetReference", "engine-metrics", "chunkIndex", 1), Map.of(),
+            "Worker analyzed the metric catalog.", "MODEL_SUMMARY", Map.of(
+                "analysisItems", List.of(Map.of(
+                    "itemId", "buffer-health",
+                    "analysisType", "CURRENT_STATE",
+                    "status", "SUPPORTED",
+                    "finding", "Buffer allocation has no recorded wait",
+                    "businessMeaning", "Current allocation pressure is not evident",
+                    "basisRecordRefs", List.of("engine-metrics.records[8]"),
+                    "supportingValues", List.of("Innodb_buffer_pool_wait_free", "0"),
+                    "method", "OBSERVE",
+                    "confidence", "HIGH",
+                    "limitations", List.of()))));
+
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(analysisOnly));
+        GovernedFinalClaimContract.Projection projection = contract.project("", compilation);
+
+        assertThat(compilation.active()).isTrue();
+        assertThat(compilation.claimContractObserved()).isTrue();
+        assertThat(compilation.claims().values().toString())
+            .contains("GOVERNED_ANALYSIS_ITEM", "Buffer allocation has no recorded wait",
+                "Innodb_buffer_pool_wait_free");
+        assertThat(projection.markdown())
+            .contains("Buffer allocation has no recorded wait")
+            .doesNotContain("NO_ADMITTED_CLAIMS");
+    }
+
+    @Test
     void rejectsDriverSelectionThatOmitsAnAnalyzedSourceAndFallsBackToFullCoverage() {
         AnalysisSummaryResult account = factSummary(
             "account-overview", "observed-fact:account", "Total assets are 847174.25", "847174.25");

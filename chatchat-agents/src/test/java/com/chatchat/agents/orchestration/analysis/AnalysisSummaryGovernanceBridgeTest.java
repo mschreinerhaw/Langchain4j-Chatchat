@@ -82,6 +82,8 @@ class AnalysisSummaryGovernanceBridgeTest {
             .contains("analysis_summary_bridge.v1", "summary_governance.v1", "第 2 分块总结");
         verify(model).chat(argThat((String prompt) -> prompt.contains("Missing semantic sections remain unknown")
             && prompt.contains("Lead with findings, not row counts or metadata")
+            && prompt.contains("returned records form a metric catalog")
+            && prompt.contains("execution diagnostics, not substantive business findings")
             && prompt.contains("supported-first invariant")
             && prompt.contains("missing historical series limits trend or stability claims")
             && prompt.contains("a gap list is not a substitute")

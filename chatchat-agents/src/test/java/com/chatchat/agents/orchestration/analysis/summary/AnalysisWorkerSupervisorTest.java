@@ -68,6 +68,33 @@ class AnalysisWorkerSupervisorTest {
     }
 
     @Test
+    void acceptsEvidenceBoundDynamicAnalysisWithoutDuplicatedInsight() {
+        AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "Metric catalog was analyzed", Map.of(
+            "structured", true,
+            "evidenceId", "evidence-1",
+            "analysisDecisionOperatingModelVersion", "data_analysis_decision_operating_model.v1",
+            "analysisParticipantRole", "WORKER",
+            "workerAnalysisReportSchemaVersion", "worker_analysis_report.v1",
+            "workerDemandAnalysisComplete", true,
+            "workerMetricAssociationAssessmentDeclared", true,
+            "rejectedFactCount", 0,
+            "invalidInsightCount", 0,
+            "analysisItems", List.of(Map.of(
+                "itemId", "buffer-health",
+                "status", "SUPPORTED",
+                "finding", "No allocation wait was returned",
+                "basisRecordRefs", List.of("dataset-a.records[1]"),
+                "supportingValues", List.of("0")))));
+
+        DataAnalysisWorkerSupervision.WorkerReport report = supervisor.inspect(
+            "dataset-a", 1, outcome(dataset(chunk, "SUCCESS")), ignored -> true);
+
+        assertThat(report.productStatus())
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+        assertThat(report.acceptedForSynthesis()).isTrue();
+    }
+
+    @Test
     void acceptsEvidenceBoundWorkerProductWithHumanReviewNotes() {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,

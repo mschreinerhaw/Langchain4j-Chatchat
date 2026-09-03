@@ -6,7 +6,8 @@ export const TYPE_LABELS = {
   sql_datasource: '数据库运维 SQL 模板',
   http_endpoint: 'HTTP 请求模板',
   database_query: '业务数据库查询模板',
-  api_service: 'API 服务模板'
+  api_service: 'API 服务模板',
+  python_runtime: 'Python 分析模板'
 };
 
 export default {

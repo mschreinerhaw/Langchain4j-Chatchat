@@ -9,6 +9,8 @@ import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
+import com.chatchat.mcpserver.python.PythonMcpToolPublisher;
+import com.chatchat.mcpserver.python.PythonTemplateCatalog;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -34,12 +36,14 @@ public class TemplateAssetCatalogService {
     public static final String HTTP = "http_endpoint";
     public static final String DATABASE_QUERY = "database_query";
     public static final String API = "api_service";
+    public static final String PYTHON = "python_runtime";
 
     private final CommandTemplateService commandTemplateService;
     private final SqlTemplateService sqlTemplateService;
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final ApiServiceConfigService apiServiceConfigService;
+    private final PythonTemplateCatalog pythonTemplateCatalog;
     private final BusinessCategoryService businessCategoryService;
     private final SshHostConfigService sshHostConfigService;
     private final SqlDatasourceConfigService sqlDatasourceConfigService;
@@ -56,6 +60,7 @@ public class TemplateAssetCatalogService {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleId));
         return entries().stream()
+            .filter(entry -> entry.tenantId() == null || entry.tenantId().equals(role.tenantId()))
             .filter(entry -> entry.authorizationRefs().stream().anyMatch(ref ->
                 authorizationService.roleAllows(role.id(), role.tenantId(), ref.toolName(), ref.scope(role.tenantId()))))
             .map(CatalogEntry::asset)
@@ -105,6 +110,11 @@ public class TemplateAssetCatalogService {
             category(categoriesById, categoriesByCode, item.getCategoryId(),
                 item.getBusinessGroup(), item.getBusinessGroupName())),
             List.of(new AuthorizationRef(item.getToolName(), null, null, null, null)))));
+        pythonTemplateCatalog.listPublished().forEach(item -> result.add(entry(asset(
+            PYTHON, item.getId(), item.getTemplateName(), item.getDescription(), item.getDomain(),
+            category(categoriesById, categoriesByCode, item.getCategoryId(), item.getDomain(), item.getDomain())),
+            List.of(new AuthorizationRef(PythonMcpToolPublisher.ANALYSIS_RUN_TOOL, null, null, null, null)),
+            item.getTenantId())));
         return result.stream()
             .sorted(Comparator.comparing((CatalogEntry item) -> item.asset().assetType())
                 .thenComparing(item -> item.asset().title()))
@@ -147,7 +157,11 @@ public class TemplateAssetCatalogService {
     }
 
     private CatalogEntry entry(TemplateAsset asset, List<AuthorizationRef> refs) {
-        return new CatalogEntry(asset, refs);
+        return entry(asset, refs, null);
+    }
+
+    private CatalogEntry entry(TemplateAsset asset, List<AuthorizationRef> refs, String tenantId) {
+        return new CatalogEntry(asset, refs, tenantId);
     }
 
     private TemplateAsset asset(String assetType, String templateId, String title,
@@ -185,7 +199,8 @@ public class TemplateAssetCatalogService {
 
     private record CategoryRef(String code, String name) { }
 
-    private record CatalogEntry(TemplateAsset asset, List<AuthorizationRef> authorizationRefs) { }
+    private record CatalogEntry(TemplateAsset asset, List<AuthorizationRef> authorizationRefs,
+                                String tenantId) { }
 
     private record AuthorizationRef(String toolName, String assetType, String capability,
                                     String action, String domain) {

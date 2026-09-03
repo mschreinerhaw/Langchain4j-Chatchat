@@ -226,6 +226,31 @@ class PythonAnalysisBridgeTest {
             .containsEntry("candidateCount", 1);
     }
 
+    @Test
+    void authorizedQueryNeverReturnsPythonTemplatesOutsidePublicationScope() {
+        PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);
+        @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);
+        PythonTemplate allowed = template("template-allowed", "asset-1", "env-1", "analysis.py");
+        PythonTemplate hidden = template("template-hidden", "asset-2", "env-2", "analysis.py");
+        when(templates.findByTenantIdAndStatus("tenant-a", "PUBLISHED"))
+            .thenReturn(List.of(allowed, hidden));
+        ObjectMapper mapper = new ObjectMapper();
+        PythonAnalysisBridge bridge = new PythonAnalysisBridge(templates, services,
+            new PythonTemplateArgumentResolver(mapper), mock(PythonDataFileService.class), mapper);
+
+        PythonAnalysisBridge.Result result = bridge.queryAuthorized(
+            Map.of("tenantId", "tenant-a"), java.util.Set.of("template-allowed"));
+
+        assertThat(result.body()).containsEntry("candidateCount", 1);
+        assertThat(result.body().get("candidates").toString())
+            .contains("template-allowed")
+            .doesNotContain("template-hidden");
+
+        PythonAnalysisBridge.Result emptyScope = bridge.queryAuthorized(
+            Map.of("tenantId", "tenant-a"), java.util.Set.of());
+        assertThat(emptyScope.body()).containsEntry("candidateCount", 0);
+    }
+
     private PythonTemplate template(String id, String assetId, String environmentId, String script) {
         PythonTemplate template = new PythonTemplate();
         template.setId(id);

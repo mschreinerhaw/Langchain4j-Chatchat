@@ -13,6 +13,8 @@ import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublish
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.python.PythonAnalysisBridge;
+import com.chatchat.mcpserver.python.PythonMcpToolPublisher;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
@@ -46,6 +48,7 @@ public class TemplateQueryMcpToolPublisher {
     private final TemplateQueryBindingService bindingService;
     private final CommandTemplateDiscoveryService discoveryService;
     private final ApiTemplateDiscoveryMcpToolPublisher apiDiscoveryPublisher;
+    private final PythonAnalysisBridge pythonAnalysisBridge;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final Set<String> publishedToolNames = new LinkedHashSet<>();
@@ -150,7 +153,7 @@ public class TemplateQueryMcpToolPublisher {
             assetTypes = requestedType.isBlank()
                 ? List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
                     TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
-                    TemplateAssetCatalogService.API)
+                    TemplateAssetCatalogService.API, TemplateAssetCatalogService.PYTHON)
                 : List.of(requestedType);
         }
 
@@ -172,10 +175,18 @@ public class TemplateQueryMcpToolPublisher {
                 scopedArguments.put("_authorizedTemplateIds", List.copyOf(templateIds));
             }
             scopedArguments.put("limit", limit);
-            Map<String, Object> result = TemplateAssetCatalogService.API.equals(assetType)
-                ? apiDiscoveryPublisher.queryAuthorized(scopedArguments, templateIds)
-                : discoveryService.query(forceTarget(scopedArguments, assetType));
-            Object values = result.get("templates");
+            Map<String, Object> result;
+            Object values;
+            if (TemplateAssetCatalogService.API.equals(assetType)) {
+                result = apiDiscoveryPublisher.queryAuthorized(scopedArguments, templateIds);
+                values = result.get("templates");
+            } else if (TemplateAssetCatalogService.PYTHON.equals(assetType)) {
+                result = pythonAnalysisBridge.queryAuthorized(scopedArguments, templateIds).body();
+                values = result.get("candidates");
+            } else {
+                result = discoveryService.query(forceTarget(scopedArguments, assetType));
+                values = result.get("templates");
+            }
             if (values instanceof Iterable<?> iterable) {
                 for (Object value : iterable) {
                     if (value instanceof Map<?, ?> map && templates.size() < limit) {
@@ -244,6 +255,7 @@ public class TemplateQueryMcpToolPublisher {
             case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME ->
                 TemplateAssetCatalogService.DATABASE_QUERY;
             case ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME -> TemplateAssetCatalogService.API;
+            case PythonMcpToolPublisher.ANALYSIS_RUN_TOOL -> TemplateAssetCatalogService.PYTHON;
             default -> throw new IllegalArgumentException("Unsupported parent template query tool: " + parentToolName);
         };
     }
@@ -270,7 +282,7 @@ public class TemplateQueryMcpToolPublisher {
                 "type", "string",
                 "enum", List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
                     TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
-                    TemplateAssetCatalogService.API),
+                    TemplateAssetCatalogService.API, TemplateAssetCatalogService.PYTHON),
                 "description", "Optional template asset family. Omit to search every family authorized by the fixed publication binding."
             ),
             "filters", Map.of(

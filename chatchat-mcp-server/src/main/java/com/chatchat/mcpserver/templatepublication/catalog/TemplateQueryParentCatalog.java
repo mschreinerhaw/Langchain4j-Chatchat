@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.templatepublication.catalog;
 
 import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher;
+import com.chatchat.mcpserver.python.PythonMcpToolPublisher;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -28,7 +29,10 @@ public class TemplateQueryParentCatalog {
             "业务数据库查询模板检索", TemplateAssetCatalogService.DATABASE_QUERY),
         new ParentTool(SERVICE_ID, SERVICE_NAME,
             ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME,
-            "API 服务模板检索", TemplateAssetCatalogService.API)
+            "API 服务模板检索", TemplateAssetCatalogService.API),
+        new ParentTool(SERVICE_ID, SERVICE_NAME,
+            PythonMcpToolPublisher.ANALYSIS_RUN_TOOL,
+            "Python 分析模板检索", TemplateAssetCatalogService.PYTHON)
     );
 
     public List<ParentTool> list() {

@@ -51,6 +51,39 @@ public class PythonAnalysisBridge {
         return new Result(Map.copyOf(body), false);
     }
 
+    public Result queryAuthorized(Map<String, Object> rawArguments, Set<String> authorizedTemplateIds) {
+        Map<String, Object> arguments = new LinkedHashMap<>(rawArguments == null ? Map.of() : rawArguments);
+        arguments.remove("_templateQueryChildToolName");
+        arguments.put("_authorizedTemplateIds", List.copyOf(authorizedTemplateIds == null
+            ? Set.of() : authorizedTemplateIds));
+        if (text(arguments.get("query")) == null) {
+            String query = authorizedQueryText(arguments);
+            if (query != null) arguments.put("query", query);
+        }
+        return run(Map.copyOf(arguments));
+    }
+
+    private String authorizedQueryText(Map<String, Object> arguments) {
+        List<String> parts = new java.util.ArrayList<>();
+        addQueryValue(parts, arguments.get("intentZh"));
+        addQueryValue(parts, arguments.get("intentEn"));
+        addQueryValue(parts, arguments.get("bilingualIntent"));
+        addQueryValue(parts, arguments.get("filters"));
+        String query = String.join(" ", parts).trim();
+        return query.isBlank() ? null : query;
+    }
+
+    private void addQueryValue(List<String> parts, Object value) {
+        if (value instanceof Map<?, ?> map) {
+            map.values().forEach(item -> addQueryValue(parts, item));
+        } else if (value instanceof Iterable<?> iterable) {
+            iterable.forEach(item -> addQueryValue(parts, item));
+        } else {
+            String normalized = text(value);
+            if (normalized != null) parts.add(normalized);
+        }
+    }
+
     public Result execute(Map<String, Object> rawArguments) {
         Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
         String tenantId = tenantId(arguments);
@@ -90,7 +123,10 @@ public class PythonAnalysisBridge {
         String environmentId = text(arguments.get("environmentId"));
         String script = firstText(text(arguments.get("script")), text(arguments.get("scriptFileName")));
         String query = firstText(text(arguments.get("query")), text(arguments.get("intent")));
+        boolean authorizationScopeProvided = arguments.containsKey("_authorizedTemplateIds");
+        Set<String> authorizedTemplateIds = stringSet(arguments.get("_authorizedTemplateIds"));
         List<ScoredTemplate> ranked = templates.findByTenantIdAndStatus(tenantId, "PUBLISHED").stream()
+            .filter(value -> !authorizationScopeProvided || authorizedTemplateIds.contains(value.getId()))
             .filter(value -> assetId == null || assetId.equals(value.getAssetId()))
             .filter(value -> environmentId == null || environmentId.equals(value.getEnvironmentId()))
             .map(value -> new ScoredTemplate(value, score(value, script, query)))
@@ -118,7 +154,10 @@ public class PythonAnalysisBridge {
         String environmentId = text(arguments.get("environmentId"));
         String script = firstText(text(arguments.get("script")), text(arguments.get("scriptFileName")));
         String query = firstText(text(arguments.get("query")), text(arguments.get("intent")));
+        boolean authorizationScopeProvided = arguments.containsKey("_authorizedTemplateIds");
+        Set<String> authorizedTemplateIds = stringSet(arguments.get("_authorizedTemplateIds"));
         List<PythonTemplate> candidates = templates.findByTenantIdAndStatus(tenantId, "PUBLISHED").stream()
+                .filter(value -> !authorizationScopeProvided || authorizedTemplateIds.contains(value.getId()))
                 .filter(value -> templateId == null || templateId.equals(value.getId()))
                 .filter(value -> assetId == null || assetId.equals(value.getAssetId()))
                 .filter(value -> environmentId == null || environmentId.equals(value.getEnvironmentId()))
@@ -407,6 +446,16 @@ public class PythonAnalysisBridge {
 
     private String nullable(String value) {
         return value == null ? "" : value;
+    }
+
+    private Set<String> stringSet(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) return Set.of();
+        Set<String> result = new LinkedHashSet<>();
+        for (Object item : iterable) {
+            String normalized = text(item);
+            if (normalized != null) result.add(normalized);
+        }
+        return Set.copyOf(result);
     }
 
     @SuppressWarnings("unchecked")

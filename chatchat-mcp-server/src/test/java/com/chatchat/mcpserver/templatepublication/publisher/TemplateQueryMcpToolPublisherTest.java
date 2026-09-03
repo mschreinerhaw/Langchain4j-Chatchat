@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingSe
 import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.python.PythonAnalysisBridge;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +37,7 @@ class TemplateQueryMcpToolPublisherTest {
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
             server, bindings, mock(CommandTemplateDiscoveryService.class),
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
+            mock(PythonAnalysisBridge.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()),
             mock(McpToolConcurrencyManager.class));
         when(bindings.publishedToolNames()).thenReturn(Set.of());
@@ -58,6 +60,7 @@ class TemplateQueryMcpToolPublisherTest {
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
             server, bindings, mock(CommandTemplateDiscoveryService.class),
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
+            mock(PythonAnalysisBridge.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()),
             concurrencyManager);
         when(bindings.publishedToolNames()).thenReturn(Set.of("customer_template_query"));
@@ -161,11 +164,50 @@ class TemplateQueryMcpToolPublisherTest {
         verify(bindings).resolvePolicy(null, "customer_template_query", arguments);
     }
 
+    @Test
+    void delegatesPythonParentAndKeepsOnlyBoundTemplates() {
+        TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
+        PythonAnalysisBridge python = mock(PythonAnalysisBridge.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(
+            bindings, mock(CommandTemplateDiscoveryService.class),
+            mock(ApiTemplateDiscoveryMcpToolPublisher.class), python);
+        McpInvocationContext.Context context = context("service-1", "role-1");
+        Set<String> allowed = Set.of("python-template-1");
+        when(bindings.parentToolName("analytics_template_query")).thenReturn("python_analysis_query");
+        when(bindings.resolvePolicy(context, "analytics_template_query"))
+            .thenReturn(new TemplateQueryBindingService.PolicyResolution(
+                Map.of("python_runtime", allowed), Set.of("python_analysis_query"),
+                "policy-v1", false, 1, Instant.parse("2026-08-07T00:00:00Z")));
+        when(python.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
+            .thenReturn(new PythonAnalysisBridge.Result(Map.of("candidates", List.of(
+                Map.of("templateId", "python-template-1", "templateName", "Sales analysis"),
+                Map.of("templateId", "unbound-template", "templateName", "Hidden")
+            )), false));
+
+        Map<String, Object> result;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            result = publisher.queryFromParent("analytics_template_query", "python_analysis_query",
+                Map.of("assetType", "python_runtime", "limit", 20));
+        }
+
+        assertThat(result.get("templates").toString()).contains("python-template-1")
+            .doesNotContain("unbound-template");
+        verify(python).queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed));
+    }
+
     private TemplateQueryMcpToolPublisher publisher(TemplateQueryBindingService bindings,
                                                      CommandTemplateDiscoveryService discovery,
                                                      ApiTemplateDiscoveryMcpToolPublisher apiDiscovery) {
+        return publisher(bindings, discovery, apiDiscovery, mock(PythonAnalysisBridge.class));
+    }
+
+    private TemplateQueryMcpToolPublisher publisher(TemplateQueryBindingService bindings,
+                                                     CommandTemplateDiscoveryService discovery,
+                                                     ApiTemplateDiscoveryMcpToolPublisher apiDiscovery,
+                                                     PythonAnalysisBridge pythonAnalysisBridge) {
         return new TemplateQueryMcpToolPublisher(
             mock(McpSyncServer.class), bindings, discovery, apiDiscovery,
+            pythonAnalysisBridge,
             mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class));
     }
 

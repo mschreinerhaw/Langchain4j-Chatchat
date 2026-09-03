@@ -8,6 +8,8 @@ import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
+import com.chatchat.mcpserver.python.PythonTemplateCatalog;
+import com.chatchat.mcpserver.python.PythonTemplate;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
@@ -29,6 +31,7 @@ class TemplateAssetCatalogServiceTest {
         HttpEndpointConfigService http = mock(HttpEndpointConfigService.class);
         DatabaseQueryConfigService databaseQueries = mock(DatabaseQueryConfigService.class);
         ApiServiceConfigService apis = mock(ApiServiceConfigService.class);
+        PythonTemplateCatalog pythonTemplates = mock(PythonTemplateCatalog.class);
         BusinessCategoryService categories = mock(BusinessCategoryService.class);
         SshHostConfigService sshHosts = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasources = mock(SqlDatasourceConfigService.class);
@@ -37,6 +40,7 @@ class TemplateAssetCatalogServiceTest {
         when(sql.listEnabled()).thenReturn(List.of());
         when(http.listEnabled()).thenReturn(List.of());
         when(databaseQueries.listEnabled()).thenReturn(List.of());
+        when(pythonTemplates.listPublished()).thenReturn(List.of());
         when(sshHosts.listEnabled()).thenReturn(List.of());
         when(datasources.listEnabled()).thenReturn(List.of());
 
@@ -55,7 +59,7 @@ class TemplateAssetCatalogServiceTest {
         when(apis.listEnabled()).thenReturn(List.of(api));
 
         TemplateAssetCatalogService service = new TemplateAssetCatalogService(
-            commands, sql, http, databaseQueries, apis, categories, sshHosts, datasources,
+            commands, sql, http, databaseQueries, apis, pythonTemplates, categories, sshHosts, datasources,
             authorization, new ObjectMapper());
 
         assertThat(service.listEnabled()).singleElement().satisfies(asset -> {
@@ -70,5 +74,25 @@ class TemplateAssetCatalogServiceTest {
         assertThat(service.listAuthorizedForRole("role-1"))
             .extracting(TemplateAssetCatalogService.TemplateAsset::templateId)
             .containsExactly("customer_profile_query");
+
+        PythonTemplate ownTemplate = pythonTemplate("python-1", "tenant-1", "Sales analysis");
+        PythonTemplate otherTenantTemplate = pythonTemplate("python-2", "tenant-2", "Hidden analysis");
+        when(pythonTemplates.listPublished()).thenReturn(List.of(ownTemplate, otherTenantTemplate));
+        when(authorization.roleAllows("role-1", "tenant-1", "python_analysis_query", null))
+            .thenReturn(true);
+
+        assertThat(service.listAuthorizedForRoleAndType("role-1", TemplateAssetCatalogService.PYTHON))
+            .extracting(TemplateAssetCatalogService.TemplateAsset::templateId)
+            .containsExactly("python-1");
+    }
+
+    private PythonTemplate pythonTemplate(String id, String tenantId, String name) {
+        PythonTemplate template = new PythonTemplate();
+        template.setId(id);
+        template.setTenantId(tenantId);
+        template.setTemplateName(name);
+        template.setDescription(name);
+        template.setDomain("analytics");
+        return template;
     }
 }

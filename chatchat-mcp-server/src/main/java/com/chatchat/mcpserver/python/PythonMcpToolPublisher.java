@@ -5,6 +5,7 @@ import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
+import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -39,6 +40,7 @@ public class PythonMcpToolPublisher {
     private final PythonAnalysisBridge bridge;
     private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
+    private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
     private final Set<String> managed = ConcurrentHashMap.newKeySet();
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -82,6 +84,9 @@ public class PythonMcpToolPublisher {
         properties.put("environmentId", Map.of("type", "string", "description", "Optional exact environment selection"));
         properties.put("parameters", Map.of("type", "object", "additionalProperties", true,
             "description", "Business parameters; supplied values override defaults"));
+        properties.put(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
+            "type", "string",
+            "description", "Internal dynamic template-query routing identity"));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(ANALYSIS_RUN_TOOL)
             .title("Python analysis capability query")
@@ -90,8 +95,13 @@ public class PythonMcpToolPublisher {
             .meta(meta()).build();
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
             Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-            return concurrencyManager.execute(ANALYSIS_RUN_TOOL, "python", arguments,
-                () -> callResult(bridge.run(arguments)));
+            return concurrencyManager.execute(ANALYSIS_RUN_TOOL, "python", arguments, () -> {
+                String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
+                return childToolName.isBlank()
+                    ? callResult(bridge.run(arguments))
+                    : callResult(dynamicQueryPublisher.getObject().queryFromParent(
+                        childToolName, ANALYSIS_RUN_TOOL, arguments), false);
+            });
         }).build();
     }
 
@@ -156,11 +166,14 @@ public class PythonMcpToolPublisher {
     }
 
     private McpSchema.CallToolResult callResult(PythonAnalysisBridge.Result result) {
-        Map<String, Object> structured = result.body();
+        return callResult(result.body(), result.error());
+    }
+
+    private McpSchema.CallToolResult callResult(Map<String, Object> structured, boolean error) {
         String text;
         try { text = objectMapper.writeValueAsString(structured); }
         catch (Exception ex) { text = String.valueOf(structured); }
         return McpSchema.CallToolResult.builder().addTextContent(text).structuredContent(structured)
-            .isError(result.error()).build();
+            .isError(error).build();
     }
 }

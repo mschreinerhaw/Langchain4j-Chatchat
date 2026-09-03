@@ -257,6 +257,19 @@ public final class AnalysisSynthesisCoordinator {
         }
         AnalysisOutputAdmissionPolicy.Admission admission =
             AnalysisOutputAdmissionPolicy.admit(answer);
+        if (!admission.admitted()) {
+            AnalysisRecovery recovery = recoverAnalysisNarrative(
+                request, modelPrompt, admission.reason());
+            if (recovery.recovered()) {
+                answer = recovery.content();
+                outcome = recovery.outcome();
+                admission = AnalysisOutputAdmissionPolicy.admit(answer);
+                request.metadata().put("analysisRecoveryApplied", true);
+                request.metadata().put("analysisRecoverySource", recovery.source());
+                request.metadata().put("analysisHumanReviewRequired", true);
+                recordHumanReviewAdvisory(request, "ANALYSIS_RECOVERY", recovery.reason());
+            }
+        }
         request.metadata().put("analysisOutputAdmissionReason", admission.reason());
         request.metadata().put("analysisOutputAdmitted", admission.admitted());
         if (!admission.admitted()) {
@@ -370,6 +383,58 @@ public final class AnalysisSynthesisCoordinator {
             "interpretation_plan_summary", observation);
         return new FinalSynthesisResult(answer, governed,
             !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
+    }
+
+    /**
+     * Recovers a business analysis from the already acquired evidence. Governance findings are
+     * annotations for the human reviewer; they must not turn an otherwise useful lower-layer
+     * analysis into a publication veto. Raw runtime envelopes and internal instructions remain
+     * ineligible because they are not analysis products at all.
+     */
+    private AnalysisRecovery recoverAnalysisNarrative(FinalModelSynthesisRequest request,
+                                                       String originalPrompt,
+                                                       String rejectionReason) {
+        request.metadata().put("analysisDriverRepairAttemptCount", 1);
+        request.metadata().put("analysisDriverRepairReusedExistingData", true);
+        request.metadata().put("analysisDriverRepairDataRequeryAllowed", false);
+        String repairPrompt = originalPrompt
+            + "\n\nDriver repair request: the previous response was classified as "
+            + rejectionReason + ". Reuse the Worker/Reducer reports and existing evidence above. "
+            + "Produce the professional business analysis now: lead with supported findings, quantify "
+            + "material observations, explain their meaning, review lower-layer mistakes, and give "
+            + "prioritized recommendations. Evidence gaps and REVIEW_REQUIRED items are advisory labels "
+            + "for human judgment, never a reason to suppress the report. Return only the analysis; do "
+            + "not repeat prompts, runtime instructions, tool envelopes or publication-governance status.";
+        try {
+            String repaired = request.model().chat(repairPrompt);
+            repaired = request.postProcessor().apply(repaired);
+            AnalysisOutputAdmissionPolicy.Admission repairedAdmission =
+                AnalysisOutputAdmissionPolicy.admit(repaired);
+            if (repairedAdmission.admitted()) {
+                return new AnalysisRecovery(true, repaired,
+                    "MODEL_DRIVER_REPAIR_WITH_HUMAN_REVIEW", "DRIVER_MODEL_REPAIR",
+                    rejectionReason);
+            }
+        } catch (RuntimeException ex) {
+            if (ex instanceof AgentDeadlineExceededException) throw ex;
+            log.warn("analysisDriverRepairFailure runId={} stage={} errorType={} error={}",
+                request.runId(), request.stage(), ex.getClass().getName(), safeMessage(ex));
+        }
+
+        List<AnalysisSummaryResult> candidates = request.synthesisInputs().isEmpty()
+            ? request.summaryResults() : request.synthesisInputs();
+        List<String> reports = candidates.stream()
+            .map(AnalysisSummaryResult::content)
+            .filter(content -> content != null && !content.isBlank())
+            .filter(content -> AnalysisOutputAdmissionPolicy.admitWorkerNarrative(content).admitted())
+            .distinct().limit(8).toList();
+        if (reports.isEmpty()) return AnalysisRecovery.none(rejectionReason);
+        String content = "# 数据分析结论\n\n" + String.join("\n\n", reports)
+            + "\n\n> 分析审阅提示：以上内容来自已完成的 Worker/Reducer 分析，Driver 输出异常，"
+            + "证据强弱与未确定项已保留供人工复核；该提示不构成发布阻断。";
+        return new AnalysisRecovery(true, content,
+            "LOWER_LAYER_ANALYSIS_WITH_HUMAN_REVIEW", "GOVERNED_LOWER_LAYER_REPORTS",
+            rejectionReason);
     }
 
     /** Applies the governed Worker narrative and lossless coverage fallback before publication. */
@@ -932,6 +997,13 @@ public final class AnalysisSynthesisCoordinator {
         AnalysisSummaryResult governedResult,
         boolean generated
     ) {}
+
+    private record AnalysisRecovery(boolean recovered, String content, String outcome,
+                                    String source, String reason) {
+        private static AnalysisRecovery none(String reason) {
+            return new AnalysisRecovery(false, "", "", "", reason);
+        }
+    }
 
     public record PresentationRequest(
         String appendix,

@@ -127,6 +127,44 @@ class AnalysisSynthesisCoordinatorTest {
     }
 
     @Test
+    void internalDriverScaffoldTriggersSameDataRepairInsteadOfGovernanceFailureReport() {
+        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+            mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
+            new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new HierarchicalAnalysisReducer());
+        AnalysisSummaryResult worker = AnalysisSummaryResult.chunk(
+            scope, Map.of("datasetReference", "innodb_metrics", "chunkIndex", 1), Map.of(),
+            "The buffer pool has 262112 pages, 8192 free pages and no pending writes.",
+            "MODEL_SUMMARY", Map.of("structured", false));
+        ChatModel driver = mock(ChatModel.class);
+        when(driver.chat(any(String.class))).thenReturn(
+            "You must analyze the existing data. The following tool result is the factual basis.",
+            "## Core conclusion\n\nThe current snapshot shows no pending-write pressure; "
+                + "8192 of 262112 buffer-pool pages remain free, so capacity should be monitored "
+                + "as workload grows.");
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                driver, "prompt", "completed", "run-a", 1, 1, 0,
+                true, () -> "fallback", candidate -> candidate, "empty",
+                1, 1, true, true, true, 1, 0,
+                List.of(worker), List.of(worker), Map.of("agentRunId", "run-a"), metadata));
+
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content())
+            .contains("no pending-write pressure", "8192", "262112")
+            .doesNotContain("分析未完成", "未通过发布准入", "You must analyze");
+        assertThat(metadata)
+            .containsEntry("analysisRecoveryApplied", true)
+            .containsEntry("analysisRecoverySource", "DRIVER_MODEL_REPAIR")
+            .containsEntry("analysisDriverRepairReusedExistingData", true)
+            .containsEntry("analysisDriverRepairDataRequeryAllowed", false)
+            .containsEntry("analysisHumanReviewRequired", true)
+            .containsEntry("analysisOutputAdmitted", true);
+    }
+
+    @Test
     void modelFailureUsesGovernedDeterministicFallbackWhenPolicyAllowsIt() {
         AnalysisSummaryGovernanceCoordinator governance = mock(AnalysisSummaryGovernanceCoordinator.class);
         AnalysisSummaryResult governed = AnalysisSummaryResult.finalSummary(

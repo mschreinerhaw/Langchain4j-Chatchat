@@ -226,7 +226,18 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             values.put("evidenceRefusalBlockedReason",
                 "non_empty_mcp_result_with_empty_answer");
         }
-        Map<String, Object> visualizationSpec = userFacingPolicy.toolResultVisualizationSpec(traces);
+        Map<String, Object> visualizationSpec;
+        try {
+            visualizationSpec = userFacingPolicy.toolResultVisualizationSpec(traces);
+        } catch (RuntimeException ex) {
+            // Visualization is an optional presentation enrichment. Once a substantive answer has
+            // been selected, malformed attachment metadata must never erase that answer.
+            visualizationSpec = Map.of();
+            values.put("toolResultVisualizationProjectionFailed", true);
+            values.put("toolResultVisualizationProjectionErrorType", ex.getClass().getSimpleName());
+            log.warn("toolResultVisualizationProjectionFailed answerPreserved=true errorType={}",
+                ex.getClass().getName());
+        }
         if (!visualizationSpec.isEmpty()
             && Boolean.FALSE.equals(values.get("supportingDatasetPrimaryDisplayAllowed"))) {
             visualizationSpec = supportingDatasetSpec(visualizationSpec,
@@ -255,7 +266,18 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                 }
             }
         }
-        List<Map<String, Object>> toolEvidence = userFacingPolicy.toolResultEvidence(traces);
+        List<Map<String, Object>> toolEvidence;
+        try {
+            toolEvidence = userFacingPolicy.toolResultEvidence(traces);
+        } catch (RuntimeException ex) {
+            // Evidence attachments are secondary to the governed analysis report. Preserve the
+            // report and expose a machine-readable diagnostic instead of failing the entire run.
+            toolEvidence = List.of();
+            values.put("toolResultEvidenceProjectionFailed", true);
+            values.put("toolResultEvidenceProjectionErrorType", ex.getClass().getSimpleName());
+            log.warn("toolResultEvidenceProjectionFailed answerPreserved=true errorType={}",
+                ex.getClass().getName());
+        }
         if (!toolEvidence.isEmpty()) {
             values.put("toolResultEvidence", toolEvidence);
             values.put("toolResultEvidenceCount", toolEvidence.size());

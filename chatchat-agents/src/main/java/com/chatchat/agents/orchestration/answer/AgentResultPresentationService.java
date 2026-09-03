@@ -368,7 +368,7 @@ public final class AgentResultPresentationService {
             Map<String, Object> result = copyMap(rawResult);
             String templateId = firstNonBlank(
                 stringValue(result.get("templateId")), stringValue(result.get("templateCode")));
-            if (!templateId.isBlank()) {
+            if (templateId != null && !templateId.isBlank()) {
                 templateIds.add(templateId);
             }
             if (Boolean.TRUE.equals(result.get("evidenceUsable"))) {

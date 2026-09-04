@@ -5,7 +5,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
 
 
 import com.chatchat.agents.runtime.governance.McpEvidenceGovernanceBridge;

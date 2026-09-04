@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration.protocol;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
 
 
 import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;

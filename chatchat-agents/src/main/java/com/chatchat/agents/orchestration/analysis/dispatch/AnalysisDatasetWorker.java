@@ -4,9 +4,9 @@ import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordChunkPla
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryCheckpointService;
-import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisReportLogProjection;
+import com.chatchat.agents.orchestration.analysis.checkpoint.AnalysisSummaryCheckpointService;
+import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProjection;
 
 
 import com.chatchat.agents.protocol.ModelProtocolJson;

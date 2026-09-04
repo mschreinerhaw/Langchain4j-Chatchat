@@ -5,7 +5,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
 
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;

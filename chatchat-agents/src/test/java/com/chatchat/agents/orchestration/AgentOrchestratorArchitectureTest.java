@@ -4,7 +4,7 @@ import com.chatchat.agents.orchestration.analysis.contract.AnalysisObjectiveCont
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisSemanticContractCompiler;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordScopeProfiler;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
+import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -60,7 +60,10 @@ class AgentOrchestratorArchitectureTest {
                 .map(path -> path.getFileName().toString())
                 .sorted()
                 .toList())
-                .containsExactly("context", "contract", "dataset", "dispatch", "insight", "model", "summary");
+                .containsExactly(
+                    "checkpoint", "context", "contract", "dataset", "dispatch", "driver",
+                    "governance", "insight", "logging", "loop", "model", "prompt", "protocol",
+                    "reducer", "semantic", "worker");
         }
     }
 
@@ -171,19 +174,19 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Returned-record structural profiling must remain deterministic and semantics-free");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisSummaryGovernanceCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisSummaryGovernanceCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Final analysis governance must remain independent from Driver scheduling");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisSynthesisCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/driver/AnalysisSynthesisCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Dataset, cross-dataset and final synthesis must remain outside the orchestration engine");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisCoverageCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Worker reconciliation and synthesis-input coverage must remain outside the orchestration engine");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisRefinementCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/loop/AnalysisRefinementCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Evidence refinement routing and reusable execution state must remain outside the orchestration engine");
         assertSourceLineCount(

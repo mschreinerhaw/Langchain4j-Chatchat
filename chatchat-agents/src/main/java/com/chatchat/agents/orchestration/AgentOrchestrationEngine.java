@@ -18,15 +18,15 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryCheckpointService;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceCoordinator;
-import com.chatchat.agents.orchestration.analysis.summary.HierarchicalAnalysisReducer;
-import com.chatchat.agents.orchestration.analysis.summary.SemanticClaimCoordinator;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisLoopCoordinator;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisRefinementCoordinator;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSynthesisCoordinator;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisCoverageCoordinator;
+import com.chatchat.agents.orchestration.analysis.checkpoint.AnalysisSummaryCheckpointService;
+import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
+import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.semantic.SemanticClaimCoordinator;
+import com.chatchat.agents.orchestration.analysis.loop.AnalysisLoopCoordinator;
+import com.chatchat.agents.orchestration.analysis.loop.AnalysisRefinementCoordinator;
+import com.chatchat.agents.orchestration.analysis.driver.AnalysisSynthesisCoordinator;
+import com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator;
 import com.chatchat.agents.orchestration.presentation.AgentLifecyclePresentationPolicy;
 import com.chatchat.agents.evidence.normalization.EvidenceSource;
 import com.chatchat.agents.evidence.graph.EvidenceGraph;
@@ -3077,7 +3077,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (!recordCoverage.promptEvidence().isBlank()
             && cumulativeEvidenceResult.steps().stream().anyMatch(step -> step.metadata() != null
                 && step.metadata().containsKey(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY))) prompt =
-            com.chatchat.agents.orchestration.analysis.summary.GovernedRecordFinalPromptBuilder.build(
+            com.chatchat.agents.orchestration.analysis.prompt.GovernedRecordFinalPromptBuilder.build(
                 query, systemPrompt, recordCoverage.promptEvidence());
         String reviewEvidenceContext = interpretationPlanReviewEvidenceContext(prompt);
         if (metadata != null && !reviewEvidenceContext.isBlank()) {
@@ -3125,7 +3125,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             RecordCoverageBundle repairedCoverage = buildRecordCoverageBundle(
                 activeChatModel, query, cumulativeEvidenceResult,
                 runtimeAttributes, metadata, cancellationCheck);
-            String repairedPrompt = com.chatchat.agents.orchestration.analysis.summary
+            String repairedPrompt = com.chatchat.agents.orchestration.analysis.prompt
                 .GovernedRecordFinalPromptBuilder.build(
                     query, systemPrompt, repairedCoverage.promptEvidence());
             synthesis = analysisSynthesisCoordinator.synthesizeFinal(

@@ -1,8 +1,8 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.summary.SemanticClaimCoordinator;
+import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.semantic.SemanticClaimCoordinator;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
 import dev.langchain4j.model.chat.ChatModel;

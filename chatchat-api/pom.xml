@@ -16,7 +16,9 @@
     <description>REST API, WebSocket support, and conversation engine</description>
 
     <properties>
+        <!-- Package fresh frontend assets by default, but reuse installed dependencies. -->
         <frontend.skip>false</frontend.skip>
+        <frontend.install.skip>true</frontend.install.skip>
     </properties>
 
     <dependencies>
@@ -182,11 +184,14 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <skip>${frontend.skip}</skip>
+                            <skip>${frontend.install.skip}</skip>
                             <workingDirectory>${project.basedir}/web-app</workingDirectory>
                             <executable>npm.cmd</executable>
                             <arguments>
-                                <argument>install</argument>
+                                <argument>ci</argument>
+                                <argument>--no-audit</argument>
+                                <argument>--no-fund</argument>
+                                <argument>--prefer-offline</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -269,5 +274,25 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Pure backend build: reuse the versioned static assets without running Vite. -->
+        <profile>
+            <id>backend-only</id>
+            <properties>
+                <frontend.skip>true</frontend.skip>
+                <frontend.install.skip>true</frontend.install.skip>
+            </properties>
+        </profile>
+
+        <!-- Reproducible release/CI build: install from package-lock.json, then run Vite. -->
+        <profile>
+            <id>frontend-ci</id>
+            <properties>
+                <frontend.skip>false</frontend.skip>
+                <frontend.install.skip>false</frontend.install.skip>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

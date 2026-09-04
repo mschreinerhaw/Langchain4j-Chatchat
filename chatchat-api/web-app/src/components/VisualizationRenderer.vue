@@ -8,17 +8,27 @@
     </header>
 
     <div class="visualization-panel-grid">
-      <article
-        v-for="block in panelSpec.blocks"
-        :key="block.id"
-        class="visualization-panel-block"
-      >
-        <VisualizationRenderer
-          :spec="block.spec"
-          compact
-          @drill-down="forwardDrillDown(block, $event)"
-        />
-      </article>
+      <template v-for="block in panelSpec.blocks" :key="block.id">
+        <details
+          v-if="isRawDataPanelBlock(block)"
+          class="visualization-panel-block visualization-raw-data"
+          :open="block.spec?.ui?.defaultCollapsed === false || panelSpec.rawDataDefaultCollapsed === false"
+        >
+          <summary>{{ block.title || "原始数据" }}</summary>
+          <VisualizationRenderer
+            :spec="block.spec"
+            compact
+            @drill-down="forwardDrillDown(block, $event)"
+          />
+        </details>
+        <article v-else class="visualization-panel-block">
+          <VisualizationRenderer
+            :spec="block.spec"
+            compact
+            @drill-down="forwardDrillDown(block, $event)"
+          />
+        </article>
+      </template>
     </div>
 
     <div v-if="hasPanelInsight" class="visualization-insight">

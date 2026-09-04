@@ -184,6 +184,19 @@ export default {
         || spec?.ui?.channel === "supporting_dataset"
         || spec?.ui?.role === "evidence_attachment";
     },
+    isCollapsibleRawDataVisualization(spec = {}) {
+      if (this.isSupportingDatasetVisualization(spec)) {
+        return true;
+      }
+      const type = String(spec?.type || "").toLowerCase();
+      return spec?.ui?.role === "raw_data"
+        || (type === "table" && spec?.ui?.defaultCollapsed !== false);
+    },
+    rawDataVisualizationTitle(spec = {}) {
+      return this.isSupportingDatasetVisualization(spec)
+        ? "支撑数据（证据附件）"
+        : "原始数据";
+    },
     toolCallMessageKey(message = {}) {
       return String(message.id || message.taskId || message.runId || "");
     },

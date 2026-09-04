@@ -234,11 +234,11 @@
           </section>
         </div>
         <details
-          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && isSupportingDatasetVisualization(message.visualizationSpec)"
+          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && isCollapsibleRawDataVisualization(message.visualizationSpec)"
           class="supporting-dataset-attachment"
           :open="message.visualizationSpec?.ui?.defaultCollapsed === false"
         >
-          <summary>支撑数据（证据附件）</summary>
+          <summary>{{ rawDataVisualizationTitle(message.visualizationSpec) }}</summary>
           <VisualizationRenderer
             :spec="message.visualizationSpec"
             @drill-down="handleVisualizationDrillDown(message, $event)"

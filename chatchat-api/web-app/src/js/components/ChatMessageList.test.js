@@ -28,6 +28,21 @@ describe("tool execution evidence", () => {
     })).toBe(false);
   });
 
+  it("collapses raw tabular data by default without collapsing charts", () => {
+    expect(methods.isCollapsibleRawDataVisualization.call(context, {
+      type: "table",
+      ui: { role: "raw_data", defaultCollapsed: true }
+    })).toBe(true);
+    expect(methods.rawDataVisualizationTitle.call(context, {
+      type: "table",
+      ui: { role: "raw_data", defaultCollapsed: true }
+    })).toBe("原始数据");
+    expect(methods.isCollapsibleRawDataVisualization.call(context, {
+      type: "chart",
+      ui: { defaultCollapsed: true }
+    })).toBe(false);
+  });
+
   it("hides numbered web citation markers in dynamic report answers", () => {
     const markdownHtml = renderArtifactMarkdownHtml(
       "关注行业数据 [网页7][网页8]。\n\n风险提示 [网页3]。"

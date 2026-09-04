@@ -4285,6 +4285,37 @@
   min-width: 0;
 }
 
+.visualization-raw-data,
+.supporting-dataset-attachment {
+  margin-top: 10px;
+  border: 1px solid #dfe6f2;
+  border-radius: 8px;
+  background: #f8fafd;
+  overflow: hidden;
+}
+
+.visualization-raw-data > summary,
+.supporting-dataset-attachment > summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 750;
+  user-select: none;
+}
+
+.visualization-raw-data[open] > summary,
+.supporting-dataset-attachment[open] > summary {
+  border-bottom: 1px solid #dfe6f2;
+}
+
+.visualization-raw-data > .visualization-renderer,
+.supporting-dataset-attachment > .visualization-renderer {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
 .visualization-panel-block .visualization-graph {
   min-height: 180px;
 }

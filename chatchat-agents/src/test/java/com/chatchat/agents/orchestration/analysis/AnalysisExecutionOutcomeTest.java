@@ -34,8 +34,8 @@ class AnalysisExecutionOutcomeTest {
             .containsEntry("reuseExistingDataset", true)
             .containsEntry("dataAcquisitionAllowed", false);
         assertThat(outcome.failureReport())
-            .contains("分析未完成", "支撑数据", "禁止重新查询相同数据")
-            .doesNotContain("请稍后重试", "查询结果明细");
+            .contains("数据分析暂时不可用", "不作为报告发布闸门", "禁止重新查询相同数据")
+            .doesNotContain("未通过发布准入", "发布治理", "查询结果明细");
     }
 
 }

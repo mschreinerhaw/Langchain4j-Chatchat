@@ -167,8 +167,9 @@ class AgentAnswerFinalizerTaskAssessmentTest {
         );
 
         assertThat(result.answer())
-            .contains("# 分析未完成")
-            .contains("分析报告：未通过发布准入")
+            .contains("# 数据分析暂时不可用")
+            .contains("不作为系统阻断条件")
+            .doesNotContain("未通过发布准入", "发布治理")
             .doesNotContain("可以并且必须", "事实基础", "USERS", "102400");
         assertThat(result.metadata())
             .containsEntry("mcpResultEvidenceAvailability", "AVAILABLE")

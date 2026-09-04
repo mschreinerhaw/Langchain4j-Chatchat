@@ -7,9 +7,9 @@ import java.util.Map;
 /**
  * Domain-neutral terminal state of the governed analysis pipeline.
  *
- * <p>This contract keeps final response rendering independent from raw tool results. A failed
- * analysis can therefore describe its state, recovery route and unresolved gaps without turning
- * the supporting dataset into the primary answer.</p>
+ * <p>This contract records runtime state and recovery information. Evidence gaps and review
+ * observations are advisory metadata for people; they do not grant the runtime authority to
+ * accept or reject a business conclusion.</p>
  */
 public record AnalysisExecutionOutcome(
     String schemaVersion,
@@ -62,19 +62,13 @@ public record AnalysisExecutionOutcome(
     }
 
     public String failureReport() {
-        StringBuilder report = new StringBuilder("# 分析未完成\n\n")
-            .append("本轮数据获取已完成，但分析结果未达到发布条件。系统未发布未经证据支持的判断；")
-            .append("已有数据已保留，可继续用于后续分析。\n\n")
-            .append("## 当前状态\n\n")
-            .append("- 数据获取：").append(label(dataStatus)).append('\n')
-            .append("- Worker 分析：").append(label(workerStatus)).append('\n')
-            .append("- 汇总分析：").append(label(reductionStatus)).append('\n')
-            .append("- 管理结论：").append(label(synthesisStatus)).append('\n')
-            .append("- 发布治理：").append(label(governanceStatus)).append('\n')
-            .append("- 支撑数据：已保留为证据附件，不作为失败结果正文\n\n")
-            .append("## 未完成原因\n\n")
-            .append("- ").append(reasonText()).append('\n');
-        report.append("\n## 下一步\n\n- ").append(nextStep()).append('\n');
+        StringBuilder report = new StringBuilder("# 数据分析暂时不可用\n\n")
+            .append("本轮数据已经保留，但分析模型没有生成可解析的业务分析正文。")
+            .append("这属于分析执行异常，不代表系统否定已有分析或替代人工判断。\n\n")
+            .append("## 执行说明\n\n")
+            .append("- ").append(reasonText()).append('\n')
+            .append("- 证据缺口和不确定性将作为人工复核提示保留，不作为报告发布闸门。\n\n")
+            .append("## 后续处理\n\n- ").append(nextStep()).append('\n');
         return report.toString();
     }
 
@@ -82,8 +76,8 @@ public record AnalysisExecutionOutcome(
         return switch (failureCategory) {
             case NONE -> "分析链路已完成。";
             case DATA_FAILURE -> "数据获取未形成可供分析的完整证据。";
-            case ANALYSIS_FAILURE -> "已有数据未形成可准入的 Worker 或 Reducer 分析报告。";
-            case GOVERNANCE_REJECTION -> "分析报告未满足证据治理与可审计发布要求。";
+            case ANALYSIS_FAILURE -> "Worker 或 Reducer 没有返回可解析的分析正文。";
+            case GOVERNANCE_REJECTION -> "分析输出包含内部协议或无法解析的技术内容，需要重新生成正文。";
         };
     }
 
@@ -92,8 +86,8 @@ public record AnalysisExecutionOutcome(
             case NEEDS_REANALYSIS -> "复用已获取的数据，从 "
                 + (retryDirective.resumeFrom().isBlank() ? "分析检查点" : retryDirective.resumeFrom())
                 + " 重新执行；禁止重新查询相同数据。";
-            case INSUFFICIENT_EVIDENCE -> "当前已达到执行边界，保留证据并明确限制，不生成业务判断。";
-            case PARTIALLY_COMPLETED -> "基于已通过准入的报告继续处理，其余缺口进入补证或重分析队列。";
+            case INSUFFICIENT_EVIDENCE -> "基于现有证据继续分析，并在正文中标注限制供人工判断。";
+            case PARTIALLY_COMPLETED -> "基于已有报告继续处理，其余缺口作为补证建议保留。";
             case COMPLETED -> "分析已完成。";
             case EXECUTION_FAILED -> "保留当前检查点，由运行时根据失败阶段决定恢复位置。";
         };
@@ -105,8 +99,8 @@ public record AnalysisExecutionOutcome(
             case COMPLETED -> "完成";
             case PARTIAL -> "部分完成";
             case FAILED -> "失败";
-            case REJECTED -> "未通过准入";
-            case BLOCKED -> "阻断";
+            case REJECTED -> "需要人工复核";
+            case BLOCKED -> "未生成";
         };
     }
 

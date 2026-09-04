@@ -5,11 +5,11 @@ import java.util.Map;
 import java.util.Locale;
 
 /**
- * Typed publication envelope for the final analysis payload.
+ * Typed provenance envelope for the final analysis payload.
  *
  * <p>Prompts, analysis context and repair instructions deliberately have no publishable state.
- * Rendering text is payload data; it is never the signal used to decide whether publication is
- * allowed.</p>
+ * Rendering text is payload data. Evidence counts and governance observations describe the
+ * report for human review; they never authorize the runtime to suppress a business analysis.</p>
  */
 public record AnalysisReportContract(
     String schemaVersion,
@@ -37,11 +37,11 @@ public record AnalysisReportContract(
 
     public static AnalysisReportContract driverReport(String text, int facts,
                                                        int insights, int conclusions) {
-        boolean hasGovernedAnalysis = facts + insights + conclusions > 0
-            && !isInternalInstruction(text);
+        boolean hasAnalysisNarrative = text != null && !text.isBlank()
+            && !isInternalOrTechnicalPayload(text);
         return new AnalysisReportContract(SCHEMA_VERSION, ReportType.DRIVER_REPORT,
             AnalysisStage.DRIVER, facts, insights, conclusions,
-            hasGovernedAnalysis ? Publishability.PUBLISHABLE_REPORT
+            hasAnalysisNarrative ? Publishability.PUBLISHABLE_REPORT
                 : Publishability.NON_PUBLISHABLE, text);
     }
 
@@ -52,10 +52,9 @@ public record AnalysisReportContract(
     }
 
     public boolean mayEnterFinalPayload() {
-        if (renderedText.isBlank() || isInternalInstruction(renderedText)) return false;
+        if (renderedText.isBlank() || isInternalOrTechnicalPayload(renderedText)) return false;
         return (reportType == ReportType.DRIVER_REPORT
-                && publishability == Publishability.PUBLISHABLE_REPORT
-                && admittedFactCount + admittedInsightCount + admittedConclusionCount > 0)
+                && publishability == Publishability.PUBLISHABLE_REPORT)
             || (reportType == ReportType.FAILURE_REPORT
                 && publishability == Publishability.PUBLISHABLE_FAILURE_REPORT);
     }
@@ -67,6 +66,23 @@ public record AnalysisReportContract(
             || normalized.contains("缺失内容将在限制说明中单独列出")
             || normalized.contains("you must analyze the existing data")
             || normalized.contains("the following tool result is the factual basis");
+    }
+
+    public static boolean isInternalOrTechnicalPayload(String text) {
+        String normalized = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
+        if (isInternalInstruction(normalized)) return true;
+        boolean reviewProtocol = normalized.startsWith("{")
+            && normalized.contains("\"accepted\"")
+            && normalized.contains("\"feedback\"")
+            && normalized.contains("\"revisedanswer\"");
+        boolean executionManifest = normalized.contains("## 可用执行结果")
+            && normalized.contains("成功子项：")
+            && normalized.contains("返回内容：");
+        long envelopeMarkers = java.util.stream.Stream.of(
+                "\"schemaversion\"", "\"runtimemetadata\"", "\"toolname\"",
+                "\"datacompleteness\"", "\"payloadtype\"", "\"executionsource\"")
+            .filter(normalized::contains).count();
+        return reviewProtocol || executionManifest || envelopeMarkers >= 4;
     }
 
     public Map<String, Object> toMap() {

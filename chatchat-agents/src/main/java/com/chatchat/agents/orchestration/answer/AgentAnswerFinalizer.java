@@ -1095,58 +1095,68 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         String candidate = candidateAnswer == null ? "" : candidateAnswer.trim();
         String renderedText = stringValue(contract.get("renderedText")).trim();
         String reportType = stringValue(contract.get("reportType"));
-        String publishability = stringValue(contract.get("publishability"));
         boolean supportedSchema = AnalysisReportContract.SCHEMA_VERSION.equals(
             stringValue(contract.get("schemaVersion")));
-        boolean internalInstruction = AnalysisReportContract.isInternalInstruction(candidate);
-        int semanticUnitCount = intValue(contract.get("admittedFactCount"))
-            + intValue(contract.get("admittedInsightCount"))
-            + intValue(contract.get("admittedConclusionCount"));
-        boolean driverReport = "DRIVER_REPORT".equals(reportType)
-            && "PUBLISHABLE_REPORT".equals(publishability)
-            && semanticUnitCount > 0
-            && !internalInstruction;
-        boolean failureReport = "FAILURE_REPORT".equals(reportType)
-            && "PUBLISHABLE_FAILURE_REPORT".equals(publishability)
-            && !internalInstruction;
-        boolean exactPayload = !candidate.isBlank() && candidate.equals(renderedText);
-        if (supportedSchema && (driverReport || failureReport) && exactPayload) {
-            metadata.put("finalPayloadContractAdmitted", true);
-            metadata.put("finalPayloadType", reportType);
-            log.info("analysisFinalPayloadAdmission reportType={} publishability={} "
-                    + "semanticUnitCount={} admitted=true",
-                reportType, publishability, semanticUnitCount);
+        boolean candidateIsNarrative = !candidate.isBlank()
+            && !AnalysisReportContract.isInternalOrTechnicalPayload(candidate);
+        boolean renderedTextIsNarrative = !renderedText.isBlank()
+            && !AnalysisReportContract.isInternalOrTechnicalPayload(renderedText);
+        if (candidateIsNarrative) {
+            recordPresentableAnalysis(metadata, reportType);
+            log.info("analysisFinalPayloadClassification reportType={} schemaSupported={} "
+                    + "candidateChars={} action=preserve_for_human_review",
+                reportType, supportedSchema, candidate.length());
             return candidate;
         }
+        if (renderedTextIsNarrative) {
+            recordPresentableAnalysis(metadata, reportType);
+            metadata.put("finalPayloadRecoveredFromContract", true);
+            return renderedText;
+        }
         metadata.put("finalPayloadContractAdmitted", false);
-        metadata.put("finalPayloadContractRejectionReason",
-            !supportedSchema ? "UNSUPPORTED_REPORT_CONTRACT_SCHEMA"
-                : !driverReport && !failureReport ? "NON_PUBLISHABLE_REPORT_TYPE_OR_SEMANTICS"
-                : "RENDERED_TEXT_CONTRACT_MISMATCH");
+        metadata.put("finalPayloadContractRejectionReason", "INTERNAL_OR_EMPTY_PAYLOAD");
         metadata.put("rejectedFinalPayloadType", reportType);
-        log.warn("analysisFinalPayloadAdmission reportType={} publishability={} "
-                + "semanticUnitCount={} admitted=false reason={}",
-            reportType, publishability, semanticUnitCount,
-            metadata.get("finalPayloadContractRejectionReason"));
-        return analysisFailureReport(metadata, "FINAL_PAYLOAD_CONTRACT_REJECTED");
+        log.warn("analysisFinalPayloadClassification reportType={} schemaSupported={} "
+                + "action=discard_internal_or_empty_payload",
+            reportType, supportedSchema);
+        return analysisFailureReport(metadata, "FINAL_PAYLOAD_NOT_ANALYSIS");
+    }
+
+    /**
+     * A later Driver/reviewer narrative supersedes an earlier synthesis fallback. Clear the
+     * fail-closed markers here so stale intermediate state cannot turn a presentable,
+     * human-reviewable report into a FAILED public outcome.
+     */
+    private void recordPresentableAnalysis(Map<String, Object> metadata, String reportType) {
+        metadata.put("finalPayloadContractAdmitted", true);
+        metadata.put("finalPayloadType", reportType);
+        metadata.put("finalPayloadHumanReviewRequired", true);
+        metadata.put("finalPayloadContractMode", "PROVENANCE_ONLY");
+        if ("FAILURE_REPORT".equals(reportType)) {
+            return;
+        }
+        metadata.put("analysisOutputAdmitted", true);
+        metadata.put("rawAnalysisOutputWithheld", false);
+        metadata.put("analysisSynthesisBlocked", false);
+        metadata.put("evidenceRefusalBlocked", false);
+        metadata.put("interpretationPlanSummaryGenerated", true);
+        metadata.put("interpretationPlanFinalResultProduced", true);
+        metadata.put("executionStatus", "PARTIAL_RESULT_PRESENTED");
+        metadata.put("analysisExecutionStatus", "COMPLETED_WITH_HUMAN_REVIEW");
+        metadata.remove("finalPayloadContractRejectionReason");
+        metadata.remove("evidenceRefusalBlockedReason");
     }
 
     private String analysisFailureReport(Map<String, Object> metadata, String reason) {
         String report = """
-            # 分析未完成
+            # 数据分析暂时不可用
 
-            本轮数据获取已完成，但分析阶段未形成满足发布要求的有效报告。系统没有把分析指令、上下文说明或未经治理的中间文本作为分析结论发布。
+            本轮数据获取已完成，但分析模型没有生成可解析的业务分析正文。系统已保留数据和分析轨迹，未将内部指令或工具协议展示为分析内容。
 
-            ## 当前状态
+            ## 后续处理
 
-            - 数据获取：完成
-            - 分析报告：未通过发布准入
-            - 管理结论：未生成
-            - 已获取数据：保留，可用于重新分析
-
-            ## 恢复动作
-
-            - 复用现有数据重新执行分析，不重新查询相同数据。
+            - 复用现有数据重新执行分析模型，不重新查询相同数据。
+            - 证据强弱和分析缺口仅作为人工复核提示，不作为系统阻断条件。
             """.trim();
         if (metadata != null) {
             AnalysisReportContract contract = AnalysisReportContract.failureReport(report);
@@ -1161,15 +1171,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             metadata.put("supportingDatasetDefaultCollapsed", true);
         }
         return report;
-    }
-
-    private int intValue(Object value) {
-        if (value instanceof Number number) return number.intValue();
-        try {
-            return value == null ? 0 : Integer.parseInt(String.valueOf(value));
-        } catch (NumberFormatException ignored) {
-            return 0;
-        }
     }
 
     private boolean refusesAnalysis(String answer) {

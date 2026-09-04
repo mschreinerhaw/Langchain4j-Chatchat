@@ -644,7 +644,8 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .containsEntry("toolResultDataMarkdownSuppressed", true)
             .containsEntry("toolResultPresentationMode", "structured_visualization")
             .containsEntry("finalPayloadContractAdmitted", true)
-            .containsEntry("finalPayloadType", "FAILURE_REPORT");
+            .containsEntry("finalPayloadType", "FAILURE_REPORT")
+            .containsEntry("rawAnalysisOutputWithheld", true);
         Map<String, Object> visualization =
             (Map<String, Object>) result.metadata().get("visualizationSpec");
         assertThat(visualization)
@@ -679,12 +680,55 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             instruction, List.of(), metadata, List.of());
 
         assertThat(result.answer())
-            .contains("# 分析未完成", "分析报告：未通过发布准入")
+            .contains("# 数据分析暂时不可用", "不作为系统阻断条件")
+            .doesNotContain("未通过发布准入", "发布治理")
             .doesNotContain("可以并且必须", "以下工具结果是本次分析的事实基础");
         assertThat(result.metadata())
             .containsEntry("finalPayloadContractAdmitted", true)
             .containsEntry("finalPayloadType", "FAILURE_REPORT")
             .containsEntry("rejectedFinalPayloadType", "ANALYSIS_CONTEXT");
+    }
+
+    @Test
+    void evidenceCountsAndPublishabilityCannotBlockDriverAnalysisForHumanReview() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            null,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String analysis = "## 核心结论\n\n当前数据表明账户仓位较高；证据缺口保留供人工复核。";
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("rawAnalysisOutputWithheld", true);
+        metadata.put("analysisSynthesisBlocked", true);
+        metadata.put("evidenceRefusalBlocked", true);
+        metadata.put("evidenceRefusalBlockedReason", "stale_intermediate_rejection");
+        metadata.put("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+        metadata.put("analysisReportContract", Map.of(
+            "schemaVersion", AnalysisReportContract.SCHEMA_VERSION,
+            "reportType", "DRIVER_REPORT",
+            "sourceStage", "DRIVER",
+            "admittedFactCount", 0,
+            "admittedInsightCount", 0,
+            "admittedConclusionCount", 0,
+            "publishability", "NON_PUBLISHABLE",
+            "renderedText", analysis));
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            analysis, List.of(), metadata, List.of());
+
+        assertThat(result.answer())
+            .contains("核心结论", "账户仓位较高", "人工复核")
+            .doesNotContain("分析未完成", "未通过发布准入", "发布治理");
+        assertThat(result.metadata())
+            .containsEntry("finalPayloadContractMode", "PROVENANCE_ONLY")
+            .containsEntry("finalPayloadHumanReviewRequired", true)
+            .containsEntry("finalPayloadType", "DRIVER_REPORT")
+            .containsEntry("rawAnalysisOutputWithheld", false)
+            .containsEntry("analysisSynthesisBlocked", false)
+            .containsEntry("evidenceRefusalBlocked", false)
+            .containsEntry("analysisOutputAdmitted", true)
+            .containsEntry("executionStatus", "PARTIAL_RESULT_PRESENTED")
+            .containsEntry("analysisExecutionStatus", "COMPLETED_WITH_HUMAN_REVIEW")
+            .doesNotContainKey("evidenceRefusalBlockedReason");
     }
 
     @Test

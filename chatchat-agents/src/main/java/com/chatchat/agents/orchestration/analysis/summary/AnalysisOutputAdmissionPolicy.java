@@ -4,17 +4,16 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Fail-closed publication policy for analysis answers.
+ * Technical payload classifier for analysis answers.
  *
- * <p>The policy is deliberately domain neutral. It recognizes Runtime/tool protocol envelopes,
- * not business fields, and prevents an execution manifest or a serialized evidence payload from
- * being mistaken for a completed analysis.</p>
+ * <p>This classifier only distinguishes analysis prose from Runtime/tool protocol envelopes. It
+ * never evaluates whether a business conclusion is acceptable; evidence strength and uncertainty
+ * remain annotations for human review.</p>
  */
 final class AnalysisOutputAdmissionPolicy {
 
     static final String WITHHELD_MESSAGE =
-        "本轮数据获取已完成，但分析结果未达到发布条件。系统未发布未经证据支持的判断；"
-            + "已有数据已保留，可继续用于后续分析。";
+        "分析模型没有生成可解析的业务分析正文；已有数据和执行轨迹已保留，可直接复用数据重新生成分析。";
 
     private static final List<String> ENVELOPE_MARKERS = List.of(
         "\"_aggregation\"", "\"_fieldcount\"", "\"_assessmentcapability\"",

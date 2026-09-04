@@ -215,7 +215,8 @@ class AnalysisSynthesisCoordinatorTest {
             request(failing, metadata, candidate -> candidate, () -> rawFallback, true));
 
         assertThat(result.content())
-            .contains("分析未完成", "支撑数据", "复用已获取的数据")
+            .contains("数据分析暂时不可用", "人工复核提示", "复用已获取的数据")
+            .doesNotContain("未通过发布准入", "发布治理")
             .doesNotContain("_aggregation", "可用执行结果", "toolName");
         assertThat(result.generated()).isFalse();
         assertThat(metadata)
@@ -251,7 +252,9 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> candidate, () -> "unused", true));
 
-        assertThat(result.content()).contains("分析未完成", "复用已获取的数据");
+        assertThat(result.content())
+            .contains("数据分析暂时不可用", "复用已获取的数据")
+            .doesNotContain("未通过发布准入", "发布治理");
         assertThat(result.generated()).isFalse();
         assertThat(metadata)
             .containsEntry("analysisOutputAdmitted", false)

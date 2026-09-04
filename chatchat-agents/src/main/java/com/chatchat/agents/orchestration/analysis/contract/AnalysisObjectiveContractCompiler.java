@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.contract;
 
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.AnalysisMethodologyContract;
 import com.chatchat.common.runtime.summary.analysis.ProfessionalAnalysisDepthContract;
 import com.chatchat.common.runtime.summary.analysis.ProfessionalDataAnalysisContract;
 
@@ -59,6 +60,10 @@ public final class AnalysisObjectiveContractCompiler {
             ProfessionalDataAnalysisContract.enterpriseDefault().toMap());
         contract.put("professionalAnalysisDepthContract",
             ProfessionalAnalysisDepthContract.enterpriseDefault().toMap());
+        contract.put("analysisMethodologyContract",
+            AnalysisMethodologyContract.enterpriseDefault().toMap());
+        contract.put("analysisTree", analysisTree(originalQuestion, businessQuestions,
+            strings(intent.get("dimensions"))));
         contract.put("workerObligations", List.of(
             "ANSWER_ONLY_OBJECTIVE_RELEVANT_ASPECTS",
             "PRESERVE_PRODUCER_DECLARED_FIELD_SEMANTICS",
@@ -72,8 +77,35 @@ public final class AnalysisObjectiveContractCompiler {
             "SEPARATE_OBSERVATION_DERIVATION_AND_INFERENCE",
             "COMPLETE_DYNAMIC_ANALYSIS_AGENDA_BEFORE_REPORTING_GAPS",
             "BIND_EACH_SUPPORTED_ANALYSIS_ITEM_TO_FACTS_OR_CLAIMS",
+            "EXECUTE_THE_ANALYSIS_TREE_USING_TOTAL_TO_COMPONENT_TO_DRIVER_REASONING",
+            "DECLARE_THE_BASELINE_OR_LIMIT_ONLY_BASELINE_DEPENDENT_CLAIMS",
+            "RANK_FINDINGS_BY_RELEVANCE_MATERIALITY_AND_CONFIDENCE",
             "CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE"));
         return Collections.unmodifiableMap(contract);
+    }
+
+    private Map<String, Object> analysisTree(String originalQuestion,
+                                             List<String> businessQuestions,
+                                             List<String> dimensions) {
+        List<Map<String, Object>> children = new ArrayList<>();
+        List<String> questions = businessQuestions.isEmpty()
+            ? List.of("Establish the overall state", "Identify material components and contributors",
+                "Explain supported drivers and business impact")
+            : businessQuestions;
+        int index = 1;
+        for (String question : questions.stream().distinct().limit(12).toList()) {
+            children.add(Map.of(
+                "questionId", "Q" + index++,
+                "question", question,
+                "candidateDimensions", dimensions,
+                "requiredAnswer", "FINDING_WITH_EVIDENCE_OR_SCOPED_LIMITATION"));
+        }
+        return Map.of(
+            "schemaVersion", "analysis_tree.v1",
+            "root", Map.of("questionId", "Q0", "question", originalQuestion.trim()),
+            "children", List.copyOf(children),
+            "decompositionPolicy", "MECE_WHERE_POSSIBLE",
+            "reasoningOrder", List.of("TOTAL", "COMPONENT", "CONTRIBUTION", "DRIVER", "IMPACT"));
     }
 
     private Map<String, Object> analysisAgenda(String originalQuestion,

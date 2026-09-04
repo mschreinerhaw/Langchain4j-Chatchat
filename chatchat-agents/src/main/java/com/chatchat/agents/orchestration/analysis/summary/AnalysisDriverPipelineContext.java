@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.AnalysisMethodologyContract;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -24,7 +25,19 @@ final class AnalysisDriverPipelineContext {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("schemaVersion", SCHEMA_VERSION);
         result.put("operatingModelVersion", DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
-        result.put("analysisObjective", analysisObjective(workers, reducers));
+        Map<String, Object> objective = analysisObjective(workers, reducers);
+        result.put("analysisObjective", objective);
+        result.put("analysisMethodology", objective.getOrDefault("analysisMethodologyContract",
+            AnalysisMethodologyContract.enterpriseDefault().toMap()));
+        result.put("analysisTree", objective.getOrDefault("analysisTree", Map.of()));
+        result.put("methodologyExecutionPolicy", Map.of(
+            "driverOwnsMethodSelection", true,
+            "workerExecutesAssignedQuestions", true,
+            "reducerReconcilesMethodResults", true,
+            "requiredReasoningOrder", List.of(
+                "QUESTION", "BASELINE", "OVERALL", "DECOMPOSITION", "CONTRIBUTION",
+                "EXPLANATION", "VALIDATION", "IMPACT", "CONCLUSION", "ACTION"),
+            "missingBaselineEffect", "QUALIFY_DEPENDENT_CLAIMS_DO_NOT_SUPPRESS_SUPPORTED_FINDINGS"));
         result.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
             AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes));
         result.put("rolePipeline", Map.of(
@@ -85,6 +98,8 @@ final class AnalysisDriverPipelineContext {
                 "analysisObjectiveContract", Map.of()));
             item.put("demandAnalysis", report.evidence().getOrDefault("demandAnalysis", Map.of()));
             item.put("analysisItems", report.evidence().getOrDefault("analysisItems", List.of()));
+            item.put("analysisMethodExecution",
+                report.evidence().getOrDefault("analysisMethodExecution", Map.of()));
             item.put(AnalysisArtifactProtocol.EVIDENCE_KEY,
                 AnalysisArtifactProtocol.normalize(report));
             item.put("admission", report.governance());

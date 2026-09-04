@@ -436,7 +436,7 @@ final class GovernedFinalClaimContract {
                         || claim.significance().isBlank()))
                 .findFirst().orElse(null);
             if (representative != null) {
-                result.add(new NarrativeFinding("EVIDENCE", representative.text(),
+                result.add(new NarrativeFinding("DEEP_DIVE", representative.text(),
                     List.of(representative.claimId())));
             }
         }
@@ -448,9 +448,10 @@ final class GovernedFinalClaimContract {
         List<String> basis = strings(source.get("basisClaimIds"));
         if (text.isBlank() || basis.isEmpty()) return null;
         String section = text(source.get("section")).toUpperCase(java.util.Locale.ROOT);
-        if (!Set.of("CORE", "EVIDENCE", "EXCEPTION", "ACTION").contains(section)) {
-            section = "EVIDENCE";
-        }
+        if ("EVIDENCE".equals(section)) section = "DEEP_DIVE";
+        if ("EXCEPTION".equals(section)) section = "RISK_OPPORTUNITY";
+        if (!Set.of("CORE", "OVERALL", "KEY_DRIVER", "DEEP_DIVE",
+            "RISK_OPPORTUNITY", "LIMITATION", "ACTION").contains(section)) section = "DEEP_DIVE";
         return new NarrativeFinding(section, text, basis);
     }
 
@@ -511,6 +512,10 @@ final class GovernedFinalClaimContract {
             + "Evidence gaps are advisory review context, never a publication veto. Publish every supported finding "
             + "and use a gap only to qualify the specific unsupported extension; do not reject the whole analysis or "
             + "request repair merely because gaps exist or are numerous. "
+            + "Execute the analysisMethodologyContract and analysisTree carried in the Driver pipeline context. "
+            + "Build the reasoning chain from question and baseline through overall result, decomposition, contribution, "
+            + "explanation, validation, impact and action. Missing baseline limits only dependent comparisons. Rank "
+            + "findings by objective relevance, materiality and confidence; rank anomalies by degree and business impact. "
             + "Prefer a small number of decision-useful findings over repeated factual restatements. Complete the "
             + "analysisItemCoverage matrix for the dynamic analysisAgenda carried by Worker/Reducer reports. Every "
             + "ANSWERED or PARTIAL item must point to findings and basis Claims; REVIEW_REQUIRED must retain its "
@@ -529,7 +534,7 @@ final class GovernedFinalClaimContract {
             + "\"requiredCorrection\":\"\"}]},"
             + "\"driverReasoning\":{\"derivedClaims\":[{\"derivedClaimId\":\"\","
             + "\"text\":\"\",\"basisClaimIds\":[],\"caveats\":[]}]},"
-            + "\"findings\":[{\"section\":\"CORE|EVIDENCE|EXCEPTION|ACTION\","
+            + "\"findings\":[{\"section\":\"CORE|OVERALL|KEY_DRIVER|DEEP_DIVE|RISK_OPPORTUNITY|LIMITATION|ACTION\","
             + "\"text\":\"management-level synthesized conclusion\",\"basisClaimIds\":[]}],"
             + "\"coverage\":[{\"claimId\":\"\","
             + "\"disposition\":\"USED|SUPPORTING_CONTEXT|NOT_MATERIAL\",\"reason\":\"\"}],"
@@ -544,7 +549,9 @@ final class GovernedFinalClaimContract {
             + "\"identifiedProblems\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
             + "\"improvementSuggestions\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
             + "\"nextWorkDirections\":[{\"text\":\"\",\"basisClaimIds\":[]}]}}. "
-            + "Put at most three decisive conclusions in CORE. A finding's numbers must already occur in its cited "
+            + "Put three to five decisive conclusions in CORE. Use OVERALL for scale/trend/baseline, KEY_DRIVER for "
+            + "decomposition and contribution, DEEP_DIVE for the most material questions, RISK_OPPORTUNITY for supported "
+            + "impact, and LIMITATION only after findings. A finding's numbers must already occur in its cited "
             + "claims or supporting values. demandAnalysis explains the decision goal and open questions without adding facts. "
             + "metricAssociations are optional, explicitly unverified follow-up directions grounded in selected "
             + "admitted claims. Each must cite selected basisClaimIds and state candidate metrics, method and "
@@ -599,9 +606,12 @@ final class GovernedFinalClaimContract {
                                        ManagementReview managementReview) {
         StringBuilder answer = new StringBuilder("# 数据分析结论\n");
         appendNarrativeSection(answer, "核心结论", findings, "CORE");
-        appendNarrativeSection(answer, "关键依据", findings, "EVIDENCE");
-        appendNarrativeSection(answer, "异常与风险", findings, "EXCEPTION");
+        appendNarrativeSection(answer, "整体表现", findings, "OVERALL");
+        appendNarrativeSection(answer, "关键驱动因素", findings, "KEY_DRIVER");
+        appendNarrativeSection(answer, "重点问题深析", findings, "DEEP_DIVE");
+        appendNarrativeSection(answer, "风险与机会", findings, "RISK_OPPORTUNITY");
         appendNarrativeSection(answer, "建议动作", findings, "ACTION");
+        appendNarrativeSection(answer, "分析限制", findings, "LIMITATION");
         if (demandAnalysis != null && !demandAnalysis.emptyValue()) {
             answer.append("\n## 需求理解与未决问题\n\n");
             if (!demandAnalysis.decisionGoal().isBlank()) {

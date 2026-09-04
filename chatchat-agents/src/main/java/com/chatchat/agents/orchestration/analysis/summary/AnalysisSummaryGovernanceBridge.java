@@ -215,6 +215,12 @@ public final class AnalysisSummaryGovernanceBridge
             + "distributions, concentration or ratios only when semantics authorize them; identify material patterns "
             + "and exceptions; test plausible alternative explanations; then calibrate conclusion strength to the "
             + "observed time range, sample size and completeness. Explicitly distinguish returned observations, "
+            + "Execute analysisMethodologyContract and the assigned analysisTree in order. Establish an explicit "
+            + "baseline before comparison, trend or abnormality claims. Then reason from total to component, "
+            + "contribution, driver and impact. If no declared baseline exists, preserve current-state findings and "
+            + "limit only baseline-dependent claims. Keep decomposition dimensions non-overlapping where possible. "
+            + "Assess anomalies through magnitude, velocity, persistence, concentration, deviation and contribution "
+            + "when supported, then rank findings by objective relevance, materiality and confidence. "
             + "authorized derived measures and calibrated inferences. A derived measure must state its formula, "
             + "inputs, unit and scope. An inference must state its evidence scope and at least one material caveat "
             + "or alternative explanation. Do not promote a one-period observation or small sample into a stable "
@@ -265,6 +271,10 @@ public final class AnalysisSummaryGovernanceBridge
             + "\"addressedDimensions\":[],\"unsupportedDimensions\":[],"
             + "\"comparisonBasis\":[],\"materialDeviations\":[],\"impacts\":[],"
             + "\"hypotheses\":[],\"verificationNeeds\":[],\"prioritizedActions\":[]},"
+            + "\"analysisMethodExecution\":{\"baseline\":{\"type\":\"\",\"reference\":\"\","
+            + "\"status\":\"AVAILABLE|MISSING|NOT_REQUIRED\"},\"overallFinding\":\"\","
+            + "\"decompositions\":[],\"contributions\":[],\"explanations\":[],"
+            + "\"crossValidation\":[],\"businessImpacts\":[],\"findingPriorities\":[]},"
             + "\"insights\":[{\"claimClass\":\"OBSERVED_RETURNED_FACT|AUTHORIZED_DERIVED_MEASURE|CALIBRATED_INFERENCE\","
             + "\"claim\":\"material finding\",\"significance\":\"why it matters to the objective\","
             + "\"recordRefs\":[\"dataset.records[n]\"],\"supportingValues\":[\"verbatim returned value\"],"
@@ -366,6 +376,11 @@ public final class AnalysisSummaryGovernanceBridge
             + "Lead with findings, not row counts or metadata. Complete the dataset-level reasoning now; do not "
             + "defer it to the Driver. Establish scope and grain, answer every supported objective aspect, connect "
             + "related returned metrics, identify material patterns and exceptions, explain why they matter, and "
+            + "execute analysisMethodologyContract and the assigned analysisTree. Establish an explicit baseline "
+            + "before comparison, trend or abnormality claims, then reason from total to component, contribution, "
+            + "driver, validation and business impact. If baseline evidence is missing, retain the supported current "
+            + "state and qualify only baseline-dependent extensions. Keep decomposition dimensions non-overlapping "
+            + "where possible and rank findings by objective relevance, materiality and confidence. "
             + "state precise evidence gaps. When the returned records form a metric catalog (one field identifies "
             + "a metric or state and another carries its returned value), select and analyze the material metrics "
             + "across every objective-relevant dimension instead of describing the catalog or its row count. Tool "
@@ -384,7 +399,9 @@ public final class AnalysisSummaryGovernanceBridge
             + "Return one JSON object. Required fields: summary; demandAnalysis with decisionGoal, "
             + "answeredQuestions and openQuestions; metricAssociations (empty when none); objectiveAlignment; "
             + "analysisItems (one disposition for every analysisAgenda item applicable to this dataset); "
-            + "insights; facts; conflicts; limitations; missingEvidence; recommendedFollowupRequests; "
+            + "analysisMethodExecution (baseline, overallFinding, decompositions, contributions, explanations, "
+            + "crossValidation, businessImpacts and findingPriorities); insights; facts; conflicts; limitations; "
+            + "missingEvidence; recommendedFollowupRequests; "
             + "rawReplayRecommended. Each fact cites recordRefs and exactValues. Each insight contains claimClass "
             + "(OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE), claim, significance, "
             + "operation, recordRefs, supportingValues, confidence and caveats. Include method, inputFields, unit, "
@@ -556,6 +573,7 @@ public final class AnalysisSummaryGovernanceBridge
             ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(semanticContract)));
         evidence.put("analysisQuality", copy(payload.get("analysisQuality")));
         evidence.put("analysisDepth", analysisDepth(payload.get("analysisDepth")));
+        evidence.put("analysisMethodExecution", copy(payload.get("analysisMethodExecution")));
         evidence.put("analysisDepthContractVersion", "professional_analysis_depth.v1");
         List<Map<String, Object>> proposedInsights = maps(payload.get("insights"));
         InsightValidation insightValidation = validatedInsights(

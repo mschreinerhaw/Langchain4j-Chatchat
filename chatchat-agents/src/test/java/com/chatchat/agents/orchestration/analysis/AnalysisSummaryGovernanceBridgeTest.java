@@ -104,6 +104,9 @@ class AnalysisSummaryGovernanceBridgeTest {
                 && prompt.contains("analysis_objective_contract.v1")
                 && prompt.contains("professional_data_analysis.v1")
                 && prompt.contains("professional_analysis_depth.v1")
+                && prompt.contains("analysis_methodology.v1")
+                && prompt.contains("analysis_tree.v1")
+                && prompt.contains("reason from total to component")
                 && prompt.contains("CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE")
                 && prompt.contains("analysis_semantic_contract.v1")
                 && prompt.contains("analysis_record_scope_profile.v1")
@@ -121,6 +124,10 @@ class AnalysisSummaryGovernanceBridgeTest {
                 "status":"SUPPORTED","basisRecordRefs":[],
                 "candidateMetrics":["规模变化","净申购额"],"analysisMethod":"同周期对照",
                 "validationNeeded":["净申购明细"]}],
+                "analysisMethodExecution":{"baseline":{"type":"相邻交易日","reference":"前日规模",
+                "status":"AVAILABLE"},"overallFinding":"规模上升",
+                "decompositions":[],"contributions":[],"explanations":[],
+                "crossValidation":[],"businessImpacts":[],"findingPriorities":["PRIMARY"]},
                 "facts":[{"claim":"规模上升391519.6",
                 "recordRefs":["etf.records[1]"],"exactValues":["391519.6"]}],
                 "entities":[],"crossChunkKeys":[],"conflicts":[],"limitations":[],
@@ -148,7 +155,10 @@ class AnalysisSummaryGovernanceBridgeTest {
             .contains("addressedAspects=[规模]", "unsupportedAspects=[精确净资金流]")
             .contains("规模变化仅作为代理指标");
         assertThat(result.evidence().get("analysisObjectiveContract").toString())
-            .contains("professional_data_analysis.v1", "CALIBRATED_INFERENCE");
+            .contains("professional_data_analysis.v1", "CALIBRATED_INFERENCE",
+                "analysis_methodology.v1", "analysis_tree.v1");
+        assertThat(result.evidence().get("analysisMethodExecution").toString())
+            .contains("相邻交易日", "规模上升", "PRIMARY");
         assertThat(result.evidence().get("demandAnalysis").toString())
             .contains("判断资金流向", "answeredQuestions=[规模变化]", "openQuestions=[净申购来源]");
         assertThat(result.evidence().get("metricAssociations").toString())

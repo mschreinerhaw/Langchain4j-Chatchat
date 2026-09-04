@@ -306,7 +306,8 @@ class GovernedFinalClaimContractTest {
         assertThat(projection.modelSelectionAccepted()).isTrue();
         assertThat(projection.reason()).isEqualTo("GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
         assertThat(projection.markdown())
-            .contains("overwhelmingly invested in securities", "847174.25", "20 trades");
+            .contains("overwhelmingly invested in securities", "847174.25", "20 trades")
+            .contains("重点问题深析");
         assertThat(projection.selectedClaimIds())
             .containsExactly("fact:assets", "fact:cash", "fact:trades");
     }

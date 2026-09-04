@@ -35,6 +35,15 @@ class AnalysisObjectiveContractCompilerTest {
             .contains("CROSS_METRIC_OR_DATASET_RELATIONSHIP")
             .contains("资产规模", "交易行为与偏好", "资产结构与交易行为关联");
         assertThat(contract.get("workerObligations").toString())
-            .contains("COMPLETE_DYNAMIC_ANALYSIS_AGENDA_BEFORE_REPORTING_GAPS");
+            .contains("COMPLETE_DYNAMIC_ANALYSIS_AGENDA_BEFORE_REPORTING_GAPS")
+            .contains("EXECUTE_THE_ANALYSIS_TREE_USING_TOTAL_TO_COMPONENT_TO_DRIVER_REASONING")
+            .contains("DECLARE_THE_BASELINE_OR_LIMIT_ONLY_BASELINE_DEPENDENT_CLAIMS");
+        assertThat(contract.get("analysisMethodologyContract").toString())
+            .contains("analysis_methodology.v1", "ESTABLISH_BASELINE", "ATTRIBUTE_CONTRIBUTION")
+            .contains("OBJECTIVE_RELEVANCE_X_MATERIALITY_X_CONFIDENCE")
+            .contains("EXECUTIVE_SUMMARY", "KEY_DRIVERS", "LIMITATIONS");
+        assertThat(contract.get("analysisTree").toString())
+            .contains("analysis_tree.v1", "Q0", "MECE_WHERE_POSSIBLE")
+            .contains("TOTAL", "COMPONENT", "CONTRIBUTION", "DRIVER", "IMPACT");
     }
 }

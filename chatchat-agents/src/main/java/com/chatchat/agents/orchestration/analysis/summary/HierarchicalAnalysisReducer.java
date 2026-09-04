@@ -270,7 +270,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             "semanticGapRequests",
             "entities", "crossChunkKeys",
             "conflicts", "limitations", "analysisQuality", "analysisObjectiveContract",
-            "analysisDepth", "analysisDepthContractVersion",
+            "analysisDepth", "analysisDepthContractVersion", "analysisMethodExecution",
             "demandAnalysis", "metricAssociations",
             "analysisItems",
             "datasetFindings", "metrics", "rankings", "analyzedRelationships", "businessConclusions",
@@ -332,6 +332,11 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             + "Do not promote chunk-local extrema, rankings, trends, one-period behavior or a small sample to "
             + "dataset/global, stable, causal or longitudinal conclusions unless scope and completeness support it. "
             + "Apply the professional analysis stages carried in analysisObjectiveContract: reconcile scope and grain, "
+            + "Reconcile analysisMethodologyContract and analysisTree execution across Workers. Preserve the chain "
+            + "from overall state to decomposition, contribution, explanation, validation and impact. Identify "
+            + "unanswered tree questions without allowing them to erase supported branches. Deduplicate overlapping "
+            + "dimensions, compare only against declared baselines, and rank combined findings by relevance, "
+            + "materiality and confidence rather than by narrative frequency. "
             + "quality signals and conflicts; combine the highest-materiality upstream insights; preserve the distinction "
             + "between observed facts, authorized derived measures and calibrated inferences; retain formulas, supporting "
             + "values, validated semanticBasis, confidence and alternative explanations. Treat evidence.insights as "
@@ -510,6 +515,8 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             summary.evidence().getOrDefault("semanticGapRequests", List.of()));
         result.put("analysisQuality", summary.evidence().getOrDefault("analysisQuality", Map.of()));
         result.put("analysisDepth", summary.evidence().getOrDefault("analysisDepth", Map.of()));
+        result.put("analysisMethodExecution",
+            summary.evidence().getOrDefault("analysisMethodExecution", Map.of()));
         result.put("demandAnalysis", summary.evidence().getOrDefault("demandAnalysis", Map.of()));
         result.put("metricAssociations",
             summary.evidence().getOrDefault("metricAssociations", List.of()));
@@ -626,7 +633,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                 "demandAnalysis", "observedFactClaims", "insights", "datasetFindings",
                 "metrics", "rankings", "analyzedRelationships", "businessConclusions",
                 "conflicts", "limitations", "analysisQuality", "analysisDepth",
-                "metricAssociations", "analysisItems", "claimAdmissionDecisions",
+                "analysisMethodExecution", "metricAssociations", "analysisItems", "claimAdmissionDecisions",
                 AnalysisArtifactProtocol.EVIDENCE_KEY)) {
                 Object value = evidence.get(key);
                 if (value != null && (!(value instanceof Map<?, ?> map) || !map.isEmpty())

@@ -617,6 +617,10 @@ class AnalysisSynthesisCoordinatorTest {
         Map<?, ?> driverContext = (Map<?, ?>) metadata.get("analysisDriverPipelineContext");
         assertThat(driverContext.get("evidenceGapCount")).isEqualTo(36);
         assertThat((List<?>) driverContext.get("evidenceGaps")).hasSize(8);
+        assertThat(driverContext.get("analysisMethodology").toString())
+            .contains("analysis_methodology.v1", "ESTABLISH_BASELINE", "KEY_DRIVERS");
+        assertThat(driverContext.get("methodologyExecutionPolicy").toString())
+            .contains("driverOwnsMethodSelection=true", "QUALIFY_DEPENDENT_CLAIMS");
     }
 
     @Test

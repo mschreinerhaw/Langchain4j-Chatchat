@@ -192,10 +192,13 @@ export default {
       return spec?.ui?.role === "raw_data"
         || (type === "table" && spec?.ui?.defaultCollapsed !== false);
     },
-    rawDataVisualizationTitle(spec = {}) {
-      return this.isSupportingDatasetVisualization(spec)
-        ? "支撑数据（证据附件）"
-        : "原始数据";
+    rawDataVisualizationToggleLabel(spec = {}) {
+      const title = this.isSupportingDatasetVisualization(spec) ? "查看支撑数据" : "查看原始数据";
+      const declared = Number(spec?.dataset?.rowCount);
+      const count = Number.isFinite(declared) && declared >= 0
+        ? declared
+        : (Array.isArray(spec?.dataset?.rows) ? spec.dataset.rows.length : 0);
+      return count > 0 ? `${title}（${count} 行）` : title;
     },
     toolCallMessageKey(message = {}) {
       return String(message.id || message.taskId || message.runId || "");

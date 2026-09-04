@@ -14,7 +14,7 @@
           class="visualization-panel-block visualization-raw-data"
           :open="block.spec?.ui?.defaultCollapsed === false || panelSpec.rawDataDefaultCollapsed === false"
         >
-          <summary>{{ block.title || "原始数据" }}</summary>
+          <summary>{{ rawDataBlockToggleLabel(block) }}</summary>
           <VisualizationRenderer
             :spec="block.spec"
             compact

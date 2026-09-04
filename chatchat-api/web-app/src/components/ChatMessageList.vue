@@ -238,7 +238,7 @@
           class="supporting-dataset-attachment"
           :open="message.visualizationSpec?.ui?.defaultCollapsed === false"
         >
-          <summary>{{ rawDataVisualizationTitle(message.visualizationSpec) }}</summary>
+          <summary>{{ rawDataVisualizationToggleLabel(message.visualizationSpec) }}</summary>
           <VisualizationRenderer
             :spec="message.visualizationSpec"
             @drill-down="handleVisualizationDrillDown(message, $event)"

@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   isRawDataBlock,
   matchesConfiguredVisualizationKeyword,
-  selectConfiguredVisualizationDimensions
+  selectConfiguredVisualizationDimensions,
+  visualizationRowCount
 } from "./VisualizationRenderer.js";
 import { configureTrendSemantics } from "../utils/trendSemantics.js";
 
@@ -75,5 +76,6 @@ describe("automatic visualization semantics", () => {
   it("identifies table blocks as collapsible raw data", () => {
     expect(isRawDataBlock({ type: "table", spec: { type: "table" } })).toBe(true);
     expect(isRawDataBlock({ type: "chart", spec: { type: "chart" } })).toBe(false);
+    expect(visualizationRowCount({ dataset: { rowCount: 360, rows: [{ id: 1 }] } })).toBe(360);
   });
 });

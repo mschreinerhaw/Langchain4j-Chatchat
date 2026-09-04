@@ -4287,33 +4287,60 @@
 
 .visualization-raw-data,
 .supporting-dataset-attachment {
-  margin-top: 10px;
-  border: 1px solid #dfe6f2;
-  border-radius: 8px;
-  background: #f8fafd;
-  overflow: hidden;
+  margin-top: 6px;
+  border: 0;
+  background: transparent;
 }
 
 .visualization-raw-data > summary,
 .supporting-dataset-attachment > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   cursor: pointer;
-  padding: 10px 12px;
-  color: #475467;
-  font-size: 13px;
-  font-weight: 750;
+  padding: 2px 0;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
   user-select: none;
+  list-style: none;
+  transition: color 0.16s ease;
+}
+
+.visualization-raw-data > summary::-webkit-details-marker,
+.supporting-dataset-attachment > summary::-webkit-details-marker {
+  display: none;
+}
+
+.visualization-raw-data > summary::before,
+.supporting-dataset-attachment > summary::before {
+  content: "›";
+  font-size: 15px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 0.16s ease;
+}
+
+.visualization-raw-data > summary:hover,
+.supporting-dataset-attachment > summary:hover {
+  color: #2563eb;
 }
 
 .visualization-raw-data[open] > summary,
 .supporting-dataset-attachment[open] > summary {
-  border-bottom: 1px solid #dfe6f2;
+  margin-bottom: 6px;
+  color: #475467;
+}
+
+.visualization-raw-data[open] > summary::before,
+.supporting-dataset-attachment[open] > summary::before {
+  transform: rotate(90deg);
 }
 
 .visualization-raw-data > .visualization-renderer,
 .supporting-dataset-attachment > .visualization-renderer {
   margin: 0;
-  border: 0;
-  border-radius: 0;
 }
 
 .visualization-panel-block .visualization-graph {

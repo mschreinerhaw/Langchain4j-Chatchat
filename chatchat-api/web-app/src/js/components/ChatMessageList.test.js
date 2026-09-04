@@ -33,10 +33,11 @@ describe("tool execution evidence", () => {
       type: "table",
       ui: { role: "raw_data", defaultCollapsed: true }
     })).toBe(true);
-    expect(methods.rawDataVisualizationTitle.call(context, {
+    expect(methods.rawDataVisualizationToggleLabel.call(context, {
       type: "table",
+      dataset: { rowCount: 84, rows: [{ id: 1 }] },
       ui: { role: "raw_data", defaultCollapsed: true }
-    })).toBe("原始数据");
+    })).toBe("查看原始数据（84 行）");
     expect(methods.isCollapsibleRawDataVisualization.call(context, {
       type: "chart",
       ui: { defaultCollapsed: true }

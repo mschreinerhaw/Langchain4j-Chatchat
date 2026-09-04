@@ -377,6 +377,14 @@ export function isRawDataBlock(block = {}) {
     || spec?.ui?.role === "raw_data";
 }
 
+export function visualizationRowCount(spec = {}) {
+  const declared = Number(spec?.dataset?.rowCount);
+  if (Number.isFinite(declared) && declared >= 0) {
+    return declared;
+  }
+  return Array.isArray(spec?.dataset?.rows) ? spec.dataset.rows.length : 0;
+}
+
 export default {
   name: "VisualizationRenderer",
   props: {
@@ -917,6 +925,10 @@ export default {
   methods: {
     isRawDataPanelBlock(block = {}) {
       return isRawDataBlock(block);
+    },
+    rawDataBlockToggleLabel(block = {}) {
+      const count = visualizationRowCount(block?.spec || {});
+      return count > 0 ? `查看原始数据（${count} 行）` : "查看原始数据";
     },
     handleTrendSemanticsUpdated() {
       this.trendSemanticsRevision += 1;

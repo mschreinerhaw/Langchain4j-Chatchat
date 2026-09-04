@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration.lifecycle;
 
-import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;

@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration;
 
-import com.chatchat.agents.orchestration.planning.AgentDecision;
-import com.chatchat.agents.orchestration.planning.RuntimeDesignatedFunctionCall;
+import com.chatchat.agents.orchestration.planning.model.AgentDecision;
+import com.chatchat.agents.orchestration.planning.model.RuntimeDesignatedFunctionCall;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;

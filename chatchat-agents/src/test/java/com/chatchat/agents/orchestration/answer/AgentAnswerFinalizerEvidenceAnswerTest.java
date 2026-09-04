@@ -19,7 +19,7 @@ import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.AnswerDecisionEngine;
 import com.chatchat.agents.orchestration.answer.AnswerQualityEvaluator;
-import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 
 import com.chatchat.agents.runtime.answer.AgentAnswerReview;
 import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;

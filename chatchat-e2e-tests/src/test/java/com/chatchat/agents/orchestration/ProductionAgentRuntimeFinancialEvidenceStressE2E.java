@@ -2,7 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.AnswerDecisionEngine;
-import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeProperties;

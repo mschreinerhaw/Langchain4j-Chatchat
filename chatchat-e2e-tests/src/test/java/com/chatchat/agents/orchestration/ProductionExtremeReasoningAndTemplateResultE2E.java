@@ -3,7 +3,7 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.evidence.EvidenceTrustEvaluator;
 import com.chatchat.agents.orchestration.AgentPlanner;
-import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 import com.chatchat.agents.orchestration.tool.ToolObservationBuilder;
 
 import com.chatchat.agents.runtime.answer.AgentAnswerReview;

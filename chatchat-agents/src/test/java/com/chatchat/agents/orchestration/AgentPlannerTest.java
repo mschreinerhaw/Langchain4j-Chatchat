@@ -1,8 +1,8 @@
 package com.chatchat.agents.orchestration;
 
-import com.chatchat.agents.orchestration.planning.AgentDecision;
-import com.chatchat.agents.orchestration.planning.PlanCandidate;
-import com.chatchat.agents.orchestration.planning.PlannerValidationContext;
+import com.chatchat.agents.orchestration.planning.model.AgentDecision;
+import com.chatchat.agents.orchestration.planning.model.PlanCandidate;
+import com.chatchat.agents.orchestration.planning.model.PlannerValidationContext;
 
 import com.chatchat.agents.orchestration.AgentPlanner;
 

@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
-import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 
 import com.chatchat.common.interaction.InteractionToolTrace;
 import org.junit.jupiter.api.Test;

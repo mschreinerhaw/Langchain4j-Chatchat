@@ -4,7 +4,7 @@ import com.chatchat.agents.orchestration.AgentOrchestrator;
 
 import com.chatchat.agents.orchestration.answer.AgentAnswerFinalizer;
 import com.chatchat.agents.orchestration.answer.FinalSummaryWebSearchEnhancer;
-import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 

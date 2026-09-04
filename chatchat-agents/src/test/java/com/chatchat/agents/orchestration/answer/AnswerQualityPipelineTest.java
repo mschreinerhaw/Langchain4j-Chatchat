@@ -9,7 +9,7 @@ import com.chatchat.agents.protocol.AnswerContract;
 import com.chatchat.agents.orchestration.answer.AnswerContractCompiler;
 import com.chatchat.agents.orchestration.answer.AnswerCriticRepairer;
 import com.chatchat.agents.orchestration.evidence.EvidenceSufficiencyGate;
-import com.chatchat.agents.orchestration.planning.AgentRuntimeGuard;
+import com.chatchat.agents.orchestration.planning.validation.AgentRuntimeGuard;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 

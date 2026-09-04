@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration.presentation;
 
-import com.chatchat.agents.orchestration.planning.AgentDecision;
+import com.chatchat.agents.orchestration.planning.model.AgentDecision;
 
 /** Produces stable, non-technical lifecycle descriptions for business-facing progress. */
 public final class AgentLifecyclePresentationPolicy {

@@ -68,6 +68,30 @@ class AgentOrchestratorArchitectureTest {
     }
 
     @Test
+    void planningImplementationsRemainInLifecycleSubpackages() throws IOException {
+        Path planningRoot = Path.of(System.getProperty("basedir", ".")).resolve(
+            "src/main/java/com/chatchat/agents/orchestration/planning");
+
+        try (var files = Files.list(planningRoot)) {
+            assertThat(files
+                .filter(path -> path.getFileName().toString().endsWith(".java"))
+                .map(path -> path.getFileName().toString())
+                .toList())
+                .as("The planning root package is a boundary; implementations belong in child packages")
+                .containsExactly("package-info.java");
+        }
+        try (var directories = Files.list(planningRoot)) {
+            assertThat(directories
+                .filter(Files::isDirectory)
+                .map(path -> path.getFileName().toString())
+                .sorted()
+                .toList())
+                .containsExactly("evolution", "execution", "generation", "model", "selection",
+                    "snapshot", "validation");
+        }
+    }
+
+    @Test
     void extractedWorkflowComponentsRemainFocused() throws IOException {
         assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/workflow/MandatoryWorkflowRecoveryCoordinator.java",
@@ -86,15 +110,15 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Workflow conditions must remain independent from scheduling state");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/AgentPlannerPromptBuilder.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/generation/AgentPlannerPromptBuilder.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Planner prompt compilation must remain independent from model invocation and repair");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/InterpretationPlanPayloadNormalizer.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/generation/InterpretationPlanPayloadNormalizer.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Planner wire compatibility must remain independent from validation and candidate selection");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/AgentPlanCandidateScorer.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/selection/AgentPlanCandidateScorer.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Plan candidate scoring must remain deterministic and independent from model invocation");
         assertSourceLineCount(
@@ -102,7 +126,7 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "InterpretationPlan evidence analysis must remain independent from scheduling");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/AgentPlanEvolutionAuditor.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/evolution/AgentPlanEvolutionAuditor.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Plan evolution audit must remain independent from plan execution");
         assertSourceLineCount(
@@ -118,7 +142,7 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Run limits and DAG contract pinning must remain independent from orchestration");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/InterpretationPlanSnapshotService.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/snapshot/InterpretationPlanSnapshotService.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "InterpretationPlan persistence must remain independent from workflow scheduling");
         assertSourceLineCount(
@@ -146,7 +170,7 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Template discovery-to-execution admission must remain a focused Runtime OS boundary");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/AgentPlanAttributionPolicy.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/selection/AgentPlanAttributionPolicy.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Guard repair and candidate attribution must remain independent from planner model invocation");
         assertSourceLineCount(
@@ -190,11 +214,11 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Evidence refinement routing and reusable execution state must remain outside the orchestration engine");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/PlanExecutionResultCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/execution/PlanExecutionResultCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Plan result review and workflow completion barriers must remain outside the orchestration engine");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/planning/PlanExecutionObservationCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/planning/execution/PlanExecutionObservationCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Plan result traces, observations and audit metadata must remain outside the orchestration engine");
         assertSourceLineCount(

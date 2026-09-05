@@ -1,10 +1,13 @@
 package com.chatchat.agents.orchestration.analysis.driver;
 
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
+import com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock;
+import com.chatchat.agents.orchestration.analysis.report.ReportComposer;
+import com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatalog;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.protocol.ModelProtocolJson;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -27,7 +30,8 @@ import java.util.Set;
  */
 final class GovernedFinalClaimContract {
 
-    static final String SCHEMA_VERSION = "governed_management_synthesis.v3";
+    static final String SCHEMA_VERSION = "governed_management_synthesis.v4";
+    private static final String LEGACY_SCHEMA_VERSION_V3 = "governed_management_synthesis.v3";
     private static final String LEGACY_SCHEMA_VERSION_V2 = "governed_management_synthesis.v2";
     private static final String LEGACY_SCHEMA_VERSION = "governed_final_claim_selection.v1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -156,12 +160,17 @@ final class GovernedFinalClaimContract {
     }
 
     Projection project(String modelOutput, Compilation compilation) {
+        return project(modelOutput, compilation, VerifiedReportDataCatalog.empty());
+    }
+
+    Projection project(String modelOutput, Compilation compilation, VerifiedReportDataCatalog dataCatalog) {
         if (compilation == null || compilation.claims().isEmpty()) {
             return new Projection(false, "NO_ADMITTED_CLAIMS", "", List.of());
         }
         Map<String, Object> payload = parseObject(modelOutput);
         String schemaVersion = text(payload.get("schemaVersion"));
         if (payload.isEmpty() || (!SCHEMA_VERSION.equals(schemaVersion)
+            && !LEGACY_SCHEMA_VERSION_V3.equals(schemaVersion)
             && !LEGACY_SCHEMA_VERSION_V2.equals(schemaVersion)
             && !LEGACY_SCHEMA_VERSION.equals(schemaVersion))) {
             return deterministic(compilation, "FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
@@ -170,7 +179,7 @@ final class GovernedFinalClaimContract {
             .map(this::narrativeFinding).filter(java.util.Objects::nonNull).limit(20).toList();
         if (SCHEMA_VERSION.equals(schemaVersion) || !narrativeFindings.isEmpty()
             || payload.containsKey("coverage")) {
-            return projectNarrative(payload, compilation, narrativeFindings);
+            return projectNarrative(payload, compilation, narrativeFindings, dataCatalog);
         }
         List<String> headlineClaimIds = strings(payload.get("headlineClaimIds"));
         List<Section> sections = maps(payload.get("sections")).stream()
@@ -232,7 +241,8 @@ final class GovernedFinalClaimContract {
     DriverAudit inspectDriverAudit(String modelOutput, Compilation compilation,
                                    Collection<String> reportIds) {
         Map<String, Object> payload = parseObject(modelOutput);
-        if (!SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))) {
+        if (!SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))
+            && !LEGACY_SCHEMA_VERSION_V3.equals(text(payload.get("schemaVersion")))) {
             return DriverAudit.invalid("DRIVER_REVIEW_PROTOCOL_MISSING");
         }
         Map<String, Object> review = object(payload.get("driverReview"));
@@ -344,7 +354,7 @@ final class GovernedFinalClaimContract {
     }
 
     private Projection projectNarrative(Map<String, Object> payload, Compilation compilation,
-                                         List<NarrativeFinding> findings) {
+                                         List<NarrativeFinding> findings, VerifiedReportDataCatalog dataCatalog) {
         if (findings.isEmpty()) {
             return deterministic(compilation, "EMPTY_MANAGEMENT_FINDINGS");
         }
@@ -379,7 +389,7 @@ final class GovernedFinalClaimContract {
             finding.basisClaimIds().isEmpty()
                 || finding.basisClaimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id)));
         boolean ungroundedNumbers = findings.stream().anyMatch(finding ->
-            !numbersGrounded(finding.text(), finding.basisClaimIds(), compilation))
+            !numbersGrounded(finding.groundedText(), finding.basisClaimIds(), compilation))
             || managementReview.items().stream().anyMatch(item ->
                 !numbersGrounded(item.text(), item.basisClaimIds(), compilation));
 
@@ -409,7 +419,9 @@ final class GovernedFinalClaimContract {
             return deterministic(compilation, "UNGROUNDED_MANAGEMENT_FINDING_VALUE");
         }
         return renderNarrative(compilation, findings, selected, demandAnalysis,
-            metricAssociations, managementReview);
+            metricAssociations, managementReview, dataCatalog,
+            SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))
+                || findings.stream().anyMatch(finding -> !finding.dataRef().isBlank()));
     }
 
     private List<NarrativeFinding> ensureSourceFindingCoverage(
@@ -454,7 +466,11 @@ final class GovernedFinalClaimContract {
         if ("EXCEPTION".equals(section)) section = "RISK_OPPORTUNITY";
         if (!Set.of("CORE", "OVERALL", "KEY_DRIVER", "DEEP_DIVE",
             "RISK_OPPORTUNITY", "LIMITATION", "ACTION").contains(section)) section = "DEEP_DIVE";
-        return new NarrativeFinding(section, text, basis);
+        return new NarrativeFinding(section, text, basis,
+            boundedText(source.get("question"), 300), boundedText(source.get("baseline"), 600),
+            boundedText(source.get("comparison"), 600), boundedText(source.get("driver"), 600),
+            boundedText(source.get("implication"), 600), boundedText(source.get("confidence"), 200),
+            boundedText(source.get("dataRef"), 200), boundedText(source.get("visualizationIntent"), 40));
     }
 
     private ClaimCoverage claimCoverage(Map<String, Object> source) {
@@ -537,7 +553,9 @@ final class GovernedFinalClaimContract {
             + "\"driverReasoning\":{\"derivedClaims\":[{\"derivedClaimId\":\"\","
             + "\"text\":\"\",\"basisClaimIds\":[],\"caveats\":[]}]},"
             + "\"findings\":[{\"section\":\"CORE|OVERALL|KEY_DRIVER|DEEP_DIVE|RISK_OPPORTUNITY|LIMITATION|ACTION\","
-            + "\"text\":\"management-level synthesized conclusion\",\"basisClaimIds\":[]}],"
+            + "\"text\":\"management-level synthesized conclusion\",\"basisClaimIds\":[],"
+            + "\"question\":\"\",\"baseline\":\"\",\"comparison\":\"\",\"driver\":\"\","
+            + "\"implication\":\"\",\"confidence\":\"\",\"dataRef\":\"\",\"visualizationIntent\":\"\"}],"
             + "\"coverage\":[{\"claimId\":\"\","
             + "\"disposition\":\"USED|SUPPORTING_CONTEXT|NOT_MATERIAL\",\"reason\":\"\"}],"
             + "\"analysisItemCoverage\":[{\"itemId\":\"\","
@@ -551,7 +569,8 @@ final class GovernedFinalClaimContract {
             + "\"identifiedProblems\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
             + "\"improvementSuggestions\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
             + "\"nextWorkDirections\":[{\"text\":\"\",\"basisClaimIds\":[]}]}}. "
-            + "Put three to five decisive conclusions in CORE. Use OVERALL for scale/trend/baseline, KEY_DRIVER for "
+            + AnalysisSynthesisContract.instruction()
+            + "Put one to three decisive answers to the decision question in CORE. Use OVERALL for scale/trend/baseline, KEY_DRIVER for "
             + "decomposition and contribution, DEEP_DIVE for the most material questions, RISK_OPPORTUNITY for supported "
             + "impact, and LIMITATION only after findings. A finding's numbers must already occur in its cited "
             + "claims or supporting values. demandAnalysis explains the decision goal and open questions without adding facts. "
@@ -605,20 +624,21 @@ final class GovernedFinalClaimContract {
                                        Collection<String> selected,
                                        DemandAnalysis demandAnalysis,
                                        List<MetricAssociation> metricAssociations,
-                                       ManagementReview managementReview) {
-        StringBuilder answer = new StringBuilder("# 数据分析结论\n");
-        appendNarrativeSection(answer, "核心结论", findings, "CORE");
-        appendNarrativeSection(answer, "整体表现", findings, "OVERALL");
-        appendNarrativeSection(answer, "关键驱动因素", findings, "KEY_DRIVER");
-        appendNarrativeSection(answer, "重点问题深析", findings, "DEEP_DIVE");
-        appendNarrativeSection(answer, "风险与机会", findings, "RISK_OPPORTUNITY");
-        appendNarrativeSection(answer, "建议动作", findings, "ACTION");
-        appendNarrativeSection(answer, "分析限制", findings, "LIMITATION");
+                                       ManagementReview managementReview, VerifiedReportDataCatalog dataCatalog,
+                                       boolean structuredComposition) {
+        StringBuilder answer = new StringBuilder("# 数据分析报告\n");
+        if (demandAnalysis != null && !demandAnalysis.decisionGoal().isBlank()) {
+            answer.append("\n分析问题：").append(demandAnalysis.decisionGoal()).append('\n');
+        }
+        appendNarrativeSection(answer, "一、分析结论", findings, "CORE");
+        appendNarrativeSection(answer, "二、关键发现", findings, "DEEP_DIVE");
+        appendNarrativeSection(answer, "三、结构性拆解", findings, "OVERALL");
+        appendNarrativeSection(answer, "四、驱动因素", findings, "KEY_DRIVER");
+        appendNarrativeSection(answer, "五、业务含义", findings, "RISK_OPPORTUNITY");
+        appendNarrativeSection(answer, "六、数据边界", findings, "LIMITATION");
+        appendNarrativeSection(answer, "七、下一步行动与补充数据", findings, "ACTION");
         if (demandAnalysis != null && !demandAnalysis.emptyValue()) {
-            answer.append("\n## 需求理解与未决问题\n\n");
-            if (!demandAnalysis.decisionGoal().isBlank()) {
-                answer.append("- 决策目标：").append(demandAnalysis.decisionGoal()).append('\n');
-            }
+            if (!demandAnalysis.priorityQuestions().isEmpty()) answer.append("\n### 待验证问题\n\n");
             demandAnalysis.priorityQuestions().forEach(question ->
                 answer.append("- 未决问题：").append(question).append('\n'));
         }
@@ -653,18 +673,56 @@ final class GovernedFinalClaimContract {
             managementReview.nextWorkDirections().forEach(item ->
                 answer.append("- 下一步：").append(item.text()).append('\n'));
         }
-        return new Projection(true, "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED",
+        if (!structuredComposition) return new Projection(true, "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED",
             answer.toString().trim(), List.copyOf(selected));
+        ReportComposer composer = new ReportComposer();
+        List<AnalyticalInsightBlock> blocks = new ArrayList<>();
+        List<String> sectionOrder = List.of("CORE", "DEEP_DIVE", "OVERALL", "KEY_DRIVER", "RISK_OPPORTUNITY", "LIMITATION", "ACTION");
+        for (NarrativeFinding finding : findings.stream().distinct()
+            .sorted(java.util.Comparator.comparingInt(item -> sectionOrder.indexOf(item.section()))).toList()) {
+            List<Claim> basis = finding.basisClaimIds().stream().map(compilation.claims()::get).toList();
+            String interpretation = (finding.baseline().isBlank() ? "" : "比较基准：" + finding.baseline() + "\n")
+                + (finding.comparison().isBlank() ? "" : "比较结果：" + finding.comparison() + "\n") + finding.driver();
+            blocks.add(composer.compose("F" + (blocks.size() + 1), finding.section(), finding.question(),
+                finding.text(), interpretation, finding.implication(), finding.confidence(),
+                basis.stream().flatMap(claim -> claim.caveats().stream()).distinct().toList(),
+                basis.stream().map(Claim::toArtifactMap).toList(), finding.dataRef(),
+                finding.visualizationIntent(), dataCatalog));
+        }
+        Map<String, Object> report = Map.of("schemaVersion", ReportComposer.VERSION,
+            "decisionQuestion", demandAnalysis == null ? "" : demandAnalysis.decisionGoal(),
+            "blocks", List.copyOf(blocks), "executiveSummaryIds", blocks.stream()
+                .filter(block -> block.presentation().primaryConclusion()).map(AnalyticalInsightBlock::id).limit(5).toList());
+        return new Projection(true, "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED",
+            composer.markdown(demandAnalysis == null ? "" : demandAnalysis.decisionGoal(), blocks), List.copyOf(selected), report);
     }
 
     private void appendNarrativeSection(StringBuilder answer, String title,
                                         List<NarrativeFinding> findings, String section) {
         List<NarrativeFinding> sectionFindings = findings.stream()
-            .filter(finding -> section.equals(finding.section())).toList();
+            .filter(finding -> section.equals(finding.section())).distinct().toList();
         if (sectionFindings.isEmpty()) return;
         answer.append("\n## ").append(title).append("\n\n");
-        sectionFindings.forEach(finding ->
-            answer.append("- ").append(finding.text()).append('\n'));
+        int index = 0;
+        for (NarrativeFinding finding : sectionFindings) {
+            if ("DEEP_DIVE".equals(section)) {
+                answer.append("### ").append(finding.question().isBlank()
+                    ? "发现 " + (++index) : finding.question()).append("\n\n");
+                answer.append(finding.text()).append("\n\n");
+            } else {
+                answer.append("- ").append(finding.text()).append("\n\n");
+            }
+            appendFindingDetail(answer, "比较基准", finding.baseline());
+            appendFindingDetail(answer, "比较结果", finding.comparison());
+            appendFindingDetail(answer, "驱动解释", finding.driver());
+            appendFindingDetail(answer, "业务影响", finding.implication());
+            appendFindingDetail(answer, "判断可信度", finding.confidence());
+        }
+    }
+
+    private void appendFindingDetail(StringBuilder answer, String label, String value) {
+        if (!value.isBlank()) answer.append("**").append(label).append("**：")
+            .append(value).append("\n\n");
     }
 
     private boolean evidenceCovers(Claim candidate, Claim observed) {
@@ -923,7 +981,10 @@ final class GovernedFinalClaimContract {
     }
 
     record Projection(boolean modelSelectionAccepted, String reason, String markdown,
-                      List<String> selectedClaimIds) {
+                      List<String> selectedClaimIds, Map<String, Object> analyticalReport) {
+        Projection(boolean accepted, String reason, String markdown, List<String> ids) {
+            this(accepted, reason, markdown, ids, Map.of());
+        }
     }
 
     record DriverAudit(boolean valid, String reason, String status,
@@ -1055,7 +1116,17 @@ final class GovernedFinalClaimContract {
     }
 
     private record NarrativeFinding(String section, String text,
-                                    List<String> basisClaimIds) {
+                                    List<String> basisClaimIds, String question, String baseline,
+                                    String comparison, String driver, String implication, String confidence,
+                                    String dataRef, String visualizationIntent) {
+        private NarrativeFinding(String section, String text, List<String> basisClaimIds) {
+            this(section, text, basisClaimIds, "", "", "", "", "", "", "", "");
+        }
+
+        String groundedText() {
+            return String.join(" ", text, question, baseline, comparison, driver, implication, confidence);
+        }
+
         private NarrativeFinding {
             basisClaimIds = basisClaimIds == null ? List.of() : List.copyOf(basisClaimIds);
         }

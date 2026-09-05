@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime.governance;
 
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisIsolationScope;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisIsolationScope;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

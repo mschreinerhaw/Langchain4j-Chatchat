@@ -14,7 +14,7 @@ import com.chatchat.agents.runtime.protocol.RuntimeEvidenceProtocol;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;

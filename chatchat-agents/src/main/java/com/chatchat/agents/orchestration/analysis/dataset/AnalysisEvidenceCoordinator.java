@@ -15,7 +15,7 @@ import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
 import com.chatchat.common.knowledge.template.TemplateWorkerAnalysisContext;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolMetadata;
 

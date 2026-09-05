@@ -206,6 +206,7 @@ public final class DeterministicInsightEngine {
             ? topTotal.divide(denominator, 8, RoundingMode.HALF_UP) : topTotal;
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("topN", limit);
+        details.put("valueUnit", valueField.unit() == null ? "" : valueField.unit());
         details.put("items", top.stream().map(item -> Map.of(
             "entity", item.entity(), "value", item.rawValue(),
             "ratio", denominator.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO

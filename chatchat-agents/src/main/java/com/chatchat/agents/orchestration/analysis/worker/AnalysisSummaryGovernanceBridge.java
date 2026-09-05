@@ -13,17 +13,17 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
-import com.chatchat.common.runtime.summary.analysis.semantic.CapabilityEvidenceClaimContract;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimAdmissionPolicy;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimGapPolicy;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimLifecycleContract;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticEvidenceGapContract;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticGapAnalysisLoopAdapter;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticOperation;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.CapabilityEvidenceClaimContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimAdmissionPolicy;
+import com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimGapPolicy;
+import com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimLifecycleContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.SemanticEvidenceGapContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.adapter.SemanticGapAnalysisLoopAdapter;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.SemanticOperation;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -594,7 +594,7 @@ public final class AnalysisSummaryGovernanceBridge
         evidence.put("semanticGaps", insightValidation.gaps());
         evidence.put("semanticGapRequests", semanticGapAnalysisLoopAdapter
             .toGapRequests(insightValidation.gapContracts()).stream()
-            .map(com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract.GapRequest::toMap)
+            .map(com.chatchat.common.runtime.summary.analysis.contract.AnalysisLoopContract.GapRequest::toMap)
             .toList());
         evidence.put("rejectedInsightCount", rejectedInsights);
         evidence.put("invalidInsightCount", invalidInsights);

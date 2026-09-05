@@ -2,10 +2,10 @@ package com.chatchat.agents.orchestration.analysis.semantic;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimLifecycleContract;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticEvidenceGapContract;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticGapResolutionPolicy;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticOperation;
+import com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimLifecycleContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.SemanticEvidenceGapContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticGapResolutionPolicy;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.SemanticOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

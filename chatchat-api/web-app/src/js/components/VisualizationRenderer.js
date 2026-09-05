@@ -555,6 +555,9 @@ export default {
         return "";
       }
       const seriesNames = this.seriesMeta.map((item) => item.name).join("、");
+      if (this.chartType === "bar" && this.normalizedSpec?.orientation === "horizontal") {
+        return `横轴：${this.yAxisLabel || seriesNames}；纵轴：${this.xAxisLabel}`;
+      }
       return `X 轴：${this.xAxisLabel}；Y 轴：${this.yAxisLabel || seriesNames}；图例/线条：${seriesNames}`;
     },
     chartOption() {
@@ -643,10 +646,12 @@ export default {
           }))
         };
       }
+      const horizontal = this.chartType === "bar" && this.normalizedSpec?.orientation === "horizontal";
       return {
         ...common,
         grid: { left: 68, right: 18, top: 54, bottom: this.xAxisLayout.gridBottom, containLabel: true },
-        xAxis: {
+        xAxis: horizontal ? { type: "value", name: this.yAxisLabel, nameLocation: "middle", nameGap: 32,
+          axisLabel: this.yAxisLayout.axisLabel } : {
           type: "category",
           name: this.xAxisLabel,
           nameLocation: "middle",
@@ -654,7 +659,9 @@ export default {
           data: this.rows.map((row, index) => compact(row[this.xKey] ?? `Row ${index + 1}`)),
           axisLabel: this.xAxisLayout.axisLabel
         },
-        yAxis: {
+        yAxis: horizontal ? { type: "category", inverse: true,
+          data: this.rows.map((row) => compact(row[this.xKey])),
+          axisLabel: { width: 130, overflow: "truncate" } } : {
           type: "value",
           name: this.yAxisLabel,
           nameLocation: "middle",
@@ -662,7 +669,9 @@ export default {
           nameRotate: 90,
           axisLabel: this.yAxisLayout.axisLabel
         },
-        dataZoom: this.rows.length > 20 ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
+        dataZoom: this.rows.length > 20 ? (horizontal
+          ? [{ type: "inside", yAxisIndex: 0 }, { type: "slider", yAxisIndex: 0, width: 14, right: 0 }]
+          : [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }]) : [],
         series: this.yKeys.map((key, seriesIndex) => {
           const directional = this.directionalKeys.includes(key);
           const values = this.rows.map((row) => numeric(row[key]) ?? 0);
@@ -704,7 +713,7 @@ export default {
             symbol: "none",
             label: { show: true, formatter: "零轴", color: "#667085", fontSize: 11 },
             lineStyle: { color: "#98a2b3", width: 1, type: "dashed" },
-            data: [{ yAxis: 0 }]
+            data: [horizontal ? { xAxis: 0 } : { yAxis: 0 }]
           } : undefined,
           markArea: directional && this.chartType === "line" ? {
             silent: true,

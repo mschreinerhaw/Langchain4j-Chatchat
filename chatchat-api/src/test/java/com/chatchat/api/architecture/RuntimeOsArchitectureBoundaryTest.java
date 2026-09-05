@@ -93,12 +93,12 @@ class RuntimeOsArchitectureBoundaryTest {
     @Test
     void dataAnalysisSummaryModelAndModelPortLiveInCommon() {
         assertThat(source(
-            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/analysis/DataAnalysisSummary.java"))
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/analysis/model/DataAnalysisSummary.java"))
             .contains("interface DataAnalysisSummary extends ModelSummary",
                 "DataAnalysisIsolationScope isolationScope()")
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");
         assertThat(source(
-            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/analysis/DataAnalysisSummaryProtocol.java"))
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/summary/analysis/spi/DataAnalysisSummaryProtocol.java"))
             .contains("interface DataAnalysisSummaryProtocol", "extends RuntimeProtocolPort",
                 "ModelSummaryModel model", "DataAnalysisPosition position")
             .doesNotContain("com.chatchat.agents", "dev.langchain4j", "org.springframework");

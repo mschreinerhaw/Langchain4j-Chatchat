@@ -112,6 +112,25 @@ class UiArtifactServiceTest {
     }
 
     @Test
+    void structuredReportOwnsBodyAndRetainsTextFallbackWithoutDuplicateCharts() {
+        Fixture fixture = fixture(64);
+        Map<String, Object> analytical = Map.of("schemaVersion", "analytical_report.v1", "blocks",
+            List.of(Map.of("id", "F1", "question", "Scope", "observation", "Verified observation")));
+        var presentation = fixture.service().externalizeIfNeeded("tenant-a", "report-blocks", Map.of(
+            "answer", "Legacy text fallback", "analyticalReport", analytical,
+            "visualizationSpec", Map.of("type", "chart")));
+        String id = presentation.reference().get("artifactId").toString();
+        Map<?, ?> manifest = fixture.service().manifest("tenant-a", id).orElseThrow();
+        Map<?, ?> spec = (Map<?, ?>) manifest.get("spec");
+        Map<?, ?> elements = (Map<?, ?>) spec.get("elements");
+        assertThat(((Map<?, ?>) elements.get("report")).get("children")).isEqualTo(List.of("analytical-report"));
+        assertThat(fixture.service().resource("tenant-a", id, "analytical-report")).contains(analytical);
+        assertThat(fixture.service().resource("tenant-a", id, "answer")).contains("Legacy text fallback");
+        assertThat(presentation.uiResponse()).doesNotContainKey("visualizationSpec");
+        assertThat(fixture.service().resource("tenant-b", id, "analytical-report")).isEmpty();
+    }
+
+    @Test
     void removesInternalEvidenceMarkersFromStoredDynamicReport() {
         Fixture fixture = fixture(64);
         String answer = "客户总资产为 847,174.25 元 "

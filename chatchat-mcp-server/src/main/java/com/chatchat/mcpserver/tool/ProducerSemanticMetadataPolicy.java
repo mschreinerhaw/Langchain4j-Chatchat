@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.tool;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
-import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclarationProtocol;
+import com.chatchat.common.runtime.summary.analysis.semantic.adapter.ProducerSemanticDeclarationProtocol;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

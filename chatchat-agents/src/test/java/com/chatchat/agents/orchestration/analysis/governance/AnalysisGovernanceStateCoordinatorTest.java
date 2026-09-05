@@ -2,8 +2,8 @@ package com.chatchat.agents.orchestration.analysis.governance;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLineageGraph;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLineageGraph;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;

@@ -5,6 +5,7 @@ import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEn
 import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProjection;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisExecutionOutcome;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
+import com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatalog;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
@@ -17,10 +18,10 @@ import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLineageGraph;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycle;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLineageGraph;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import dev.langchain4j.model.chat.ChatModel;
@@ -168,6 +169,12 @@ public final class AnalysisSynthesisCoordinator {
         String modelPrompt = claimBoundPublication
             ? finalClaimContract.appendSelectionInstruction(driverPrompt, claimCompilation)
             : driverPrompt;
+        VerifiedReportDataCatalog reportData = VerifiedReportDataCatalog.fromRuntime(request.metadata());
+        request.metadata().remove("analyticalReport");
+        if (claimBoundPublication) {
+            modelPrompt += "\nRuntime-owned report data catalog (choose dataRef; never return chart values): "
+                + ModelProtocolJson.compact(reportData.promptView());
+        }
         request.metadata().put("analysisDriverModelInvoked", true);
         request.metadata().put("analysisDriverModelPromptChars", modelPrompt.length());
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={} claimBoundPublication={} admittedClaimCount={}",
@@ -240,7 +247,7 @@ public final class AnalysisSynthesisCoordinator {
         if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
             if (claimBoundPublication) {
                 GovernedFinalClaimContract.Projection projection =
-                    finalClaimContract.project(answer, claimCompilation);
+                    finalClaimContract.project(answer, claimCompilation, reportData);
                 if (!projection.modelSelectionAccepted()) {
                     recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
                 }
@@ -252,6 +259,9 @@ public final class AnalysisSynthesisCoordinator {
                     projection.modelSelectionAccepted());
                 request.metadata().put("finalClaimSelectionReason", projection.reason());
                 request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
+                if (projection.modelSelectionAccepted() && !projection.analyticalReport().isEmpty()) {
+                    request.metadata().put("analyticalReport", projection.analyticalReport());
+                }
                 log.info("analysisDriverGovernance runId={} stage={} admitted={} reason={} "
                         + "publishedClaimCount={}",
                     request.runId(), request.stage(), projection.modelSelectionAccepted(),
@@ -270,6 +280,7 @@ public final class AnalysisSynthesisCoordinator {
             AnalysisRecovery recovery = recoverAnalysisNarrative(
                 request, modelPrompt, admission.reason());
             if (recovery.recovered()) {
+                request.metadata().remove("analyticalReport");
                 answer = recovery.content();
                 outcome = recovery.outcome();
                 admission = AnalysisOutputAdmissionPolicy.admit(answer);
@@ -282,6 +293,7 @@ public final class AnalysisSynthesisCoordinator {
         request.metadata().put("analysisOutputAdmissionReason", admission.reason());
         request.metadata().put("analysisOutputAdmitted", admission.admitted());
         if (!admission.admitted()) {
+            request.metadata().remove("analyticalReport");
             AnalysisExecutionOutcome executionOutcome = blockedOutcome(
                 request, admission.reason(), true);
             answer = executionOutcome.failureReport();

@@ -5,7 +5,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 
 import java.util.ArrayList;

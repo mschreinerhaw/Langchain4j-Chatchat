@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.contract;
 
-import com.chatchat.common.runtime.summary.analysis.semantic.CapabilityEvidenceClaimContract;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticOperation;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.CapabilityEvidenceClaimContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.SemanticOperation;
 
 import java.util.LinkedHashSet;
 import java.util.List;

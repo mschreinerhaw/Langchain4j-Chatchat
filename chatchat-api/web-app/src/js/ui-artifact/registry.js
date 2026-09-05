@@ -3,6 +3,7 @@ import { defineComponent, h, inject, onMounted, ref, watch } from "vue";
 import { defineRegistry } from "@json-render/vue";
 import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
 import { enterpriseUiCatalog } from "./catalog.js";
+import AnalyticalReport from "../../components/AnalyticalReport.vue";
 import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
@@ -93,10 +94,12 @@ export function renderArtifactHtml(value = "") {
 }
 
 const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
-  h("section", {
-    class: "artifact-markdown message-markdown",
-    innerHTML: renderArtifactMarkdownHtml(value)
-  })
+  h("section", { class: "artifact-markdown message-markdown", innerHTML: renderArtifactMarkdownHtml(value) })
+);
+
+const AnalyticalReportResource = resourceComponent("ArtifactAnalyticalReport", (value, props, dispatchArtifactEvent) =>
+  h(AnalyticalReport, { report: value,
+    onDrillDown: (event) => dispatchArtifactEvent?.("drill-down", event, { resourceId: props.resourceId }) })
 );
 
 const HtmlResource = resourceComponent("ArtifactHtml", (value) =>
@@ -195,6 +198,7 @@ export const { registry: enterpriseUiRegistry } = defineRegistry(enterpriseUiCat
     }, children),
     Html: ({ props }) => h(HtmlResource, props),
     Markdown: ({ props }) => h(MarkdownResource, props),
+    AnalyticalReport: ({ props }) => h(AnalyticalReportResource, props),
     Notice: ({ props }) => h(NoticeResource, props),
     Visualization: ({ props }) => h(VisualizationResource, props),
     // Evidence resources remain retrievable from the artifact manifest for provenance and

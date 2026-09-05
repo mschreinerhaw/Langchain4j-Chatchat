@@ -1,7 +1,7 @@
 package com.chatchat.common.runtime.summary;
 
 import com.chatchat.common.runtime.protocol.RuntimeProtocolPort;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisParticipant;
 import com.chatchat.common.runtime.summary.model.ModelSummaryProgress;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;

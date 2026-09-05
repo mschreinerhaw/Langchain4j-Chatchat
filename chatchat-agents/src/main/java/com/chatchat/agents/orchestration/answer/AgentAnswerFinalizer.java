@@ -37,7 +37,7 @@ import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.answer.DraftArtifactRuntimePolicy;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.orchestration.protocol.RuntimeProtocolDefaults;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.tool.ToolRegistry;

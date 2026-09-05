@@ -13,7 +13,7 @@ class CommonRuntimeOsContractBoundaryTest {
     @Test
     void bridgeAndMcpContractsDoNotDependOnImplementationModulesOrFrameworks() throws IOException {
         List<String> violations = List.of(bridgeRoot(), mcpContractRoot(), mcpServiceRoot(), mcpAuditRoot(),
-                knowledgeRoot(), analysisSemanticContractRoot()).stream()
+                knowledgeRoot(), analysisContractRoot()).stream()
             .flatMap(root -> sourceFiles(root).stream())
             .flatMap(path -> read(path).lines()
                 .filter(line -> line.startsWith("import "))
@@ -40,7 +40,25 @@ class CommonRuntimeOsContractBoundaryTest {
     private Path mcpServiceRoot() { return sourceRoot("mcp/service"); }
     private Path mcpAuditRoot() { return sourceRoot("mcp/audit"); }
     private Path knowledgeRoot() { return sourceRoot("knowledge"); }
-    private Path analysisSemanticContractRoot() { return sourceRoot("runtime/summary/analysis/semantic"); }
+    private Path analysisContractRoot() { return sourceRoot("runtime/summary/analysis"); }
+
+    @Test
+    void analysisModelsDoNotDependOnExtensionPorts() {
+        List<String> violations = sourceFiles(sourceRoot("runtime/summary/analysis/model")).stream()
+            .filter(path -> read(path).contains("com.chatchat.common.runtime.summary.analysis.spi"))
+            .map(Path::toString).toList();
+        assertThat(violations).as("Analysis models must remain independent of participant ports").isEmpty();
+    }
+
+    @Test
+    void semanticModelsDoNotDependOnGovernanceOrAdapters() {
+        String semanticPackage = "com.chatchat.common.runtime.summary.analysis.semantic.";
+        List<String> violations = sourceFiles(sourceRoot("runtime/summary/analysis/semantic/model")).stream()
+            .filter(path -> read(path).contains(semanticPackage + "governance.")
+                || read(path).contains(semanticPackage + "adapter."))
+            .map(Path::toString).toList();
+        assertThat(violations).as("Semantic data models must remain independent of policies and adapters").isEmpty();
+    }
 
     private Path sourceRoot(String relative) {
         Path local = Path.of("src/main/java/com/chatchat/common").resolve(relative);

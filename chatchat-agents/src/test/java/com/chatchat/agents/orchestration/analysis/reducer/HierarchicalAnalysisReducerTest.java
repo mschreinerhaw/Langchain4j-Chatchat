@@ -9,8 +9,8 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker
 
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisParticipant;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisScope;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 

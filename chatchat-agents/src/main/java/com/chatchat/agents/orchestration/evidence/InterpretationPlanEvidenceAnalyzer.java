@@ -8,7 +8,7 @@ import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
-import com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract;
+import com.chatchat.common.runtime.summary.analysis.contract.AnalysisLoopContract;
 import dev.langchain4j.model.chat.ChatModel;
 
 import java.util.ArrayList;

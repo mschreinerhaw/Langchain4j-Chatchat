@@ -6,8 +6,8 @@ import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmis
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisWorkerSupervision;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisWorkerSupervision;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
 
 import java.util.ArrayList;
 import java.util.List;

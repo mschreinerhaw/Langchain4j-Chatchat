@@ -2,8 +2,8 @@ package com.chatchat.agents.orchestration.analysis.reducer;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

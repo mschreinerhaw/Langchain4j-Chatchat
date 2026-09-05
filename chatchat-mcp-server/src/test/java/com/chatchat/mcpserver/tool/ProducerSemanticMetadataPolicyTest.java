@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.tool;
 
-import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclarationProtocol;
+import com.chatchat.common.runtime.summary.analysis.semantic.adapter.ProducerSemanticDeclarationProtocol;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

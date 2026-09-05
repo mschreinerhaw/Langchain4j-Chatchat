@@ -1,7 +1,7 @@
 package com.chatchat.common.knowledge.template;
 
-import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclaration;
-import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclarationProtocol;
+import com.chatchat.common.runtime.summary.analysis.semantic.model.ProducerSemanticDeclaration;
+import com.chatchat.common.runtime.summary.analysis.semantic.adapter.ProducerSemanticDeclarationProtocol;
 import com.chatchat.common.knowledge.SearchHit;
 import com.chatchat.common.knowledge.SearchStatus;
 import com.chatchat.common.knowledge.StandardSearchResult;

@@ -307,7 +307,7 @@ class GovernedFinalClaimContractTest {
         assertThat(projection.reason()).isEqualTo("GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
         assertThat(projection.markdown())
             .contains("overwhelmingly invested in securities", "847174.25", "20 trades")
-            .contains("重点问题深析");
+            .contains("二、关键发现");
         assertThat(projection.selectedClaimIds())
             .containsExactly("fact:assets", "fact:cash", "fact:trades");
     }
@@ -359,6 +359,35 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
+    void rendersStructuredReasoningAndChecksItsNumericGrounding() {
+        var compilation = contract.compile(List.of(factSummary(
+            "trades", "fact:trades", "There are 20 trades", "20")));
+        String payload = """
+            {"schemaVersion":"governed_management_synthesis.v3",
+             "demandAnalysis":{"decisionGoal":"How active is trading?"},
+             "findings":[
+               {"section":"LIMITATION","text":"No historical baseline", "basisClaimIds":["fact:trades"]},
+               {"section":"DEEP_DIVE","text":"There are 20 trades", "question":"Trading activity",
+                "comparison":"No trend can be established", "implication":"Monitor activity",
+                "confidence":"Observed count only", "basisClaimIds":["fact:trades"]},
+               {"section":"CORE","text":"Current activity is observable", "basisClaimIds":["fact:trades"]}],
+             "coverage":[{"claimId":"fact:trades","disposition":"USED","reason":"activity"}]}
+            """;
+        var projection = contract.project(payload, compilation);
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.markdown()).contains("分析问题：How active is trading?",
+            "### Trading activity", "**业务影响**：Monitor activity", "**判断可信度**：Observed count only");
+        assertThat(projection.markdown().indexOf("一、分析结论"))
+            .isLessThan(projection.markdown().indexOf("二、关键发现"));
+        assertThat(projection.markdown().indexOf("二、关键发现"))
+            .isLessThan(projection.markdown().indexOf("六、数据边界"));
+        var invalid = contract.project(payload.replace("Monitor activity", "Expect 99.5% growth"), compilation);
+        assertThat(invalid.modelSelectionAccepted()).isFalse();
+        assertThat(invalid.reason()).isEqualTo("UNGROUNDED_MANAGEMENT_FINDING_VALUE");
+        assertThat(invalid.markdown()).doesNotContain("99.5%");
+    }
+
+    @Test
     void driverRejectedClaimCannotReenterThePublishedDecision() {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
 
@@ -387,6 +416,41 @@ class GovernedFinalClaimContractTest {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(duplicate));
 
         assertThat(compilation.claims()).hasSize(1).containsKey("claim-1");
+    }
+
+    @Test
+    void composesDataBoundBlockAndIgnoresModelSuppliedChartValues() {
+        var finding = new com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine.Finding(
+            "sum", "aggregate", "Returned total", new java.math.BigDecimal("42"), "units", "sum(value)",
+            List.of("dataset.records[1].value"), Map.of());
+        var catalog = com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatalog.fromRuntime(
+            Map.of("deterministicInsightResults", List.of(Map.of("status", "executed", "findings", List.of(finding)))));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v3",
+             "findings":[{"section":"CORE","question":"What is the total?", "text":"Returned value is 42",
+               "dataRef":"computed:0:sum", "visualizationIntent":"KPI", "chartData":[99999],
+               "basisClaimIds":["claim-1"]}],
+             "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"total"}]}
+            """, contract.compile(List.of(summary())), catalog);
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.analyticalReport()).containsEntry("executiveSummaryIds", List.of("F1"));
+        var blocks = (List<?>) projection.analyticalReport().get("blocks");
+        var block = (com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock) blocks.get(0);
+        assertThat(block.data()).containsEntry("metric", "42");
+        assertThat(block.data().toString()).doesNotContain("99999");
+    }
+
+    @Test
+    void v4UsesSameMissingDataDecisionInStructuredAndTextReports() {
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","question":"当前情况", "text":"Returned value is 42",
+               "basisClaimIds":["claim-1"]}],
+             "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"current result"}]}
+            """, contract.compile(List.of(summary())));
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.analyticalReport()).containsEntry("executiveSummaryIds", List.of());
+        assertThat(projection.markdown()).contains("暂无同时绑定计算数据与证据的核心结论", "数据状态：待补充可验证数据");
     }
 
     private AnalysisSummaryResult factSummary(String dataset, String claimId,

@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.model;
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummary;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisSummary;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
 
 import java.util.Collections;

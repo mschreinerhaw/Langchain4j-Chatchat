@@ -6,7 +6,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressListener;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryWorker;

@@ -12,10 +12,10 @@ import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProje
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisParticipant;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;

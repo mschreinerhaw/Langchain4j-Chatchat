@@ -12,8 +12,8 @@ import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLineageGraph;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycle;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLineageGraph;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 
@@ -437,7 +437,7 @@ class AnalysisSynthesisCoordinatorTest {
             claimBoundRequest(model, metadata, claimSummary(), true));
 
         assertThat(result.content()).contains(
-            "## 需求理解与未决问题", "定位增长来源与风险",
+            "分析问题：定位增长来源与风险",
             "## 指标联想与待验证方向", "收益贡献率",
             "## 管理复盘与下一步", "缺少比较基准", "优先完成趋势验证");
         assertThat(metadata)
@@ -739,6 +739,30 @@ class AnalysisSynthesisCoordinatorTest {
             fallbackAllowed, () -> "unsafe raw fallback", candidate -> candidate, "empty fallback",
             1, 1, true, true, true, 1, 0,
             List.of(summary), List.of(summary), Map.of("agentRunId", "run-a"), metadata);
+    }
+
+    @Test
+    void publishesV4BlocksFromRuntimeCatalogAndClearsStaleBlocksOnFailure() {
+        var coordinator = new AnalysisSynthesisCoordinator(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new HierarchicalAnalysisReducer());
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","text":"返回记录显示数值为 42", "question":"返回数值是多少？",
+               "dataRef":"computed:0:total", "visualizationIntent":"KPI", "basisClaimIds":["claim-1"]}],
+             "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"current value"}]}
+            """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        metadata.put("deterministicInsightResults", List.of(Map.of("status", "executed", "findings", List.of(
+            new DeterministicInsightEngine.Finding("total", "aggregate", "返回值", new java.math.BigDecimal("42"), "单位",
+                "sum(value)", List.of("dataset.records[1].value"), Map.of())))));
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(result.content()).contains("关键数据：返回值 = 42 单位");
+        assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("blocks")).isInstanceOf(List.class);
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenThrow(new IllegalStateException("unavailable"));
+        coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(metadata).doesNotContainKey("analyticalReport");
     }
 
     private AnalysisSummaryResult claimSummary() {

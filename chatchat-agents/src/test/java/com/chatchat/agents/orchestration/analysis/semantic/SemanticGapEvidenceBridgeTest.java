@@ -3,7 +3,7 @@ package com.chatchat.agents.orchestration.analysis.semantic;
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.semantic.SemanticClaimLifecycleContract;
+import com.chatchat.common.runtime.summary.analysis.semantic.governance.SemanticClaimLifecycleContract;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

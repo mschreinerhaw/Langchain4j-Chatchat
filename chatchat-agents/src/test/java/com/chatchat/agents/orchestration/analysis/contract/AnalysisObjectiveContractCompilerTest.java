@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration.analysis.contract;
 
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisPosition;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

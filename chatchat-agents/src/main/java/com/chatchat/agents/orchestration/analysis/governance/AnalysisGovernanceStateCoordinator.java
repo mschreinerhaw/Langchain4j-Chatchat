@@ -1,9 +1,9 @@
 package com.chatchat.agents.orchestration.analysis.governance;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLayerGovernanceContract;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLineageGraph;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisRepairExecutionPolicy;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLineageGraph;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisRepairExecutionPolicy;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

@@ -2,7 +2,7 @@ package com.chatchat.agents.orchestration.tool;
 
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.common.tool.DataAnalysisContextProtocol;
-import com.chatchat.common.runtime.summary.analysis.semantic.ProducerSemanticDeclarationProtocol;
+import com.chatchat.common.runtime.summary.analysis.semantic.adapter.ProducerSemanticDeclarationProtocol;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;

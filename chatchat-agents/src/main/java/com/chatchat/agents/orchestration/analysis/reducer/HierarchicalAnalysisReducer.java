@@ -10,11 +10,11 @@ import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisAssignment;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisParticipant;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisWork;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisAssignment;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisParticipant;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisWork;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;

@@ -24,6 +24,7 @@ const markdown = new MarkdownIt({
   breaks: true
 });
 const EnterpriseUiArtifactRenderer = defineAsyncComponent(() => import("../../components/EnterpriseUiArtifactRenderer.vue"));
+const AnalyticalReport = defineAsyncComponent(() => import("../../components/AnalyticalReport.vue"));
 const FENCE_RE = /^(\s*)(`{3,}|~{3,})(\s*)([A-Za-z0-9_-]*)\s*$/;
 const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|DROP|TRUNCATE|SET)\b/i;
 const SQL_CONTINUATION_RE = /^\s*(USING|OPTIONS\s*\(|PARTITIONED\s+BY|TBLPROPERTIES\s*\(|LOCATION\b|COMMENT\b|AS\b|FROM\b|WHERE\b|JOIN\b|LEFT\b|RIGHT\b|INNER\b|OUTER\b|ON\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|VALUES\b|URL\b|DBTABLE\b|USER\b|PASSWORD\b|DRIVER\b|PARTITIONCOLUMN\b|LOWERBOUND\b|UPPERBOUND\b|NUMPARTITIONS\b|FETCHSIZE\b|SESSIONINITSTATEMENT\b|\)|;|,)/i;
@@ -101,6 +102,7 @@ export default {
   name: "ChatMessageList",
   mixins: [chartAnalysisMixin],
   components: {
+    AnalyticalReport,
     Check,
     ChevronDown,
     ChevronRight,
@@ -643,6 +645,14 @@ export default {
       return collapseRecordCoverageEvidenceHtml(
         this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered))
       );
+    },
+    messageAnalyticalReport(message = {}) {
+      const report = this.extractUiResponse(message)?.analyticalReport || message.metadata?.analyticalReport
+        || message.metadata?.agent?.analyticalReport;
+      return report?.schemaVersion === 'analytical_report.v1' && report.blocks?.length ? report : null;
+    },
+    hasComposedAnalysisReport(message = {}) {
+      return !!this.messageAnalyticalReport(message) || this.messageUiArtifact(message)?.renderMode === 'analytical';
     },
     enhanceResultTables(html = "") {
       return enhanceSharedResultTables(html);

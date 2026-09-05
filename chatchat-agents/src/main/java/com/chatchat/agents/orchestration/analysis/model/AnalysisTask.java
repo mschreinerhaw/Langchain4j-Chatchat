@@ -1,9 +1,9 @@
 package com.chatchat.agents.orchestration.analysis.model;
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisAssignment;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisWork;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisAssignment;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisScope;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisWork;
 import com.chatchat.common.runtime.summary.model.ModelSummaryTask;
 
 import java.util.Collections;

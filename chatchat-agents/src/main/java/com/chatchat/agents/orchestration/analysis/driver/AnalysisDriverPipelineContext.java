@@ -4,8 +4,8 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.AnalysisMethodologyContract;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

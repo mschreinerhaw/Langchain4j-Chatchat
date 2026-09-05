@@ -18,11 +18,11 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisLifecycle;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.AnalysisLoopContract;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisWorkerSupervision;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycle;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.contract.AnalysisLoopContract;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisWorkerSupervision;
 import dev.langchain4j.model.chat.ChatModel;
 
 import java.nio.charset.StandardCharsets;

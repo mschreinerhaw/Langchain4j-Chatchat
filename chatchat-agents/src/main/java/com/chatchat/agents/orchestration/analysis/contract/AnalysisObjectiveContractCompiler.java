@@ -1,9 +1,9 @@
 package com.chatchat.agents.orchestration.analysis.contract;
 
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisPosition;
-import com.chatchat.common.runtime.summary.analysis.AnalysisMethodologyContract;
-import com.chatchat.common.runtime.summary.analysis.ProfessionalAnalysisDepthContract;
-import com.chatchat.common.runtime.summary.analysis.ProfessionalDataAnalysisContract;
+import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisPosition;
+import com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract;
+import com.chatchat.common.runtime.summary.analysis.contract.ProfessionalAnalysisDepthContract;
+import com.chatchat.common.runtime.summary.analysis.contract.ProfessionalDataAnalysisContract;
 
 import java.util.ArrayList;
 import java.util.Collections;

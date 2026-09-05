@@ -2,7 +2,7 @@ package com.chatchat.agents.orchestration.analysis.reducer;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisDecisionOperatingModel;
+import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

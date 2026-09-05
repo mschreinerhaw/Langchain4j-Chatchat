@@ -102,7 +102,7 @@ import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
 import com.chatchat.common.runtime.protocol.RuntimeProtocolRegistry;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryDispatcher;

@@ -2624,6 +2624,7 @@ public class AgentTaskService {
             null,
             "",
             Map.of("type", "none"),
+            null,
             null
         );
         Map<String, Object> debug = new LinkedHashMap<>();
@@ -2683,7 +2684,9 @@ public class AgentTaskService {
             confidence,
             evidenceSummary == null ? "" : evidenceSummary,
             visualization,
-            visualizationSpec
+            visualizationSpec,
+            responseMetadata.get("analyticalReport") != null ? responseMetadata.get("analyticalReport")
+                : asStringMap(responseMetadata.get("agent")).get("analyticalReport")
         );
     }
 
@@ -4022,7 +4025,8 @@ public class AgentTaskService {
         Double confidence,
         String evidenceSummary,
         Map<String, Object> visualization,
-        Object visualizationSpec
+        Object visualizationSpec,
+        Object analyticalReport
     ) {
 
         private Map<String, Object> asMap() {
@@ -4040,6 +4044,10 @@ public class AgentTaskService {
             values.put("visualization", visualization == null ? Map.of("type", "none") : visualization);
             if (visualizationSpec != null) {
                 values.put("visualizationSpec", visualizationSpec);
+            }
+            if (analyticalReport instanceof Map<?, ?> report
+                && "analytical_report.v1".equals(report.get("schemaVersion"))) {
+                values.put("analyticalReport", report);
             }
             return values;
         }

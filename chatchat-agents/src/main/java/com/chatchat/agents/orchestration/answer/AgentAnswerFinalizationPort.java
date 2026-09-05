@@ -5,7 +5,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
-import com.chatchat.common.runtime.summary.analysis.DataAnalysisSummaryProtocol;
+import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import dev.langchain4j.model.chat.ChatModel;
 

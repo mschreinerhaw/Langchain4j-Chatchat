@@ -138,6 +138,11 @@
           @drill-down="handleVisualizationDrillDown(message, $event)"
           @table-chart="openChartAnalysisModal"
         />
+        <AnalyticalReport
+          v-else-if="message.role === 'assistant' && !message.streaming && messageAnalyticalReport(message)"
+          :report="messageAnalyticalReport(message)"
+          @drill-down="handleVisualizationDrillDown(message, $event)"
+        />
         <div
           v-else-if="messageHasRenderableContent(message)"
           class="message-markdown"
@@ -234,7 +239,7 @@
           </section>
         </div>
         <details
-          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && isCollapsibleRawDataVisualization(message.visualizationSpec)"
+          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && !hasComposedAnalysisReport(message) && isCollapsibleRawDataVisualization(message.visualizationSpec)"
           class="supporting-dataset-attachment"
           :open="message.visualizationSpec?.ui?.defaultCollapsed === false"
         >
@@ -245,7 +250,7 @@
           />
         </details>
         <VisualizationRenderer
-          v-else-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming"
+          v-else-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && !hasComposedAnalysisReport(message)"
           :spec="message.visualizationSpec"
           @drill-down="handleVisualizationDrillDown(message, $event)"
         />

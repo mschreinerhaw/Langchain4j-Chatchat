@@ -7509,7 +7509,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             if (runtimeOwnsDiagnosticTemplateTransport(
                 plan, binding.from(), binding.to(),
                 firstText(binding.outputPath(), "") + " " + firstText(binding.inputField(), ""), completed
-            ) && (!bindingTargetsBatchChild(binding)
+            ) && runtimeOwnedTemplateBatch(step, plan, completed) && (!bindingTargetsBatchChild(binding)
                 || bindingSource == null || !bindingSource.success())) {
                 log.info("InterpretationPlan ignored model template transport binding because Runtime "
                         + "will compile the authorized template batch: fromStep={}, toStep={}, outputPath={}, inputField={}",
@@ -8252,10 +8252,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                                            Integer toStepId,
                                                            String field,
                                                            Map<Integer, StepExecution> completed) {
-        if (plan == null || plan.plan() == null || fromStepId == null || toStepId == null
-            || field == null) {
-            return false;
-        }
+        if (plan == null || plan.plan() == null || fromStepId == null || toStepId == null || field == null) return false;
         InterpretationPlan.Step sourceStep = plan.steps().stream()
             .filter(candidate -> candidate != null && fromStepId.equals(candidate.id()))
             .findFirst()
@@ -8269,6 +8266,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return false;
         }
         String normalizedField = field.toLowerCase(Locale.ROOT);
+        if (sourceStep != null && isTemplateDiscoveryTool(sourceStep.toolName())
+            && normalizedField.contains("template") && completed != null) {
+            StepExecution discovery = completed.get(fromStepId);
+            if (com.chatchat.agents.runtime.plan.selection.ReviewedTemplateTransport.owns(discovery, output -> templateCandidates(output).stream()
+                .map(this::canonicalTemplateId).filter(Objects::nonNull).collect(Collectors.toSet()))) return true;
+        }
         if (runtimeOwnedReviewedTemplateBatch(targetStep, completed)
             && (normalizedField.contains("template") || normalizedField.contains("call"))) {
             return true;

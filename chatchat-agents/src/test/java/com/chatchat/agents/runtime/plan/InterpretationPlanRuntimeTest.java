@@ -1576,6 +1576,119 @@ class InterpretationPlanRuntimeTest {
         assertThat(executionInput.get().toString()).doesNotContain("UNRELATED_FIRST");
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void reviewedSingleCandidateBypassesStaleTemplateTransportPaths(boolean envelope) {
+        String discoveryTool = "mcp_chatchat_mcp_server_data_query_query";
+        String executionTool = "mcp_chatchat_mcp_server_sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        java.util.concurrent.atomic.AtomicReference<Map<String, Object>> executionInput =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            Object data;
+            if (discoveryTool.equals(request.getToolName())) {
+                data = Map.of(
+                    "schemaVersion", "data_query_bridge_result.v2",
+                    "returnedCount", 2,
+                    "candidates", List.of(
+                        Map.of(
+                            "templateId", "UNRELATED_FIRST",
+                            "mcpToolName", executionTool,
+                            "parameterSchema", Map.of("type", "object")
+                        ),
+                        Map.of(
+                            "templateId", "MARGIN_BALANCE_SELECTED",
+                            "mcpToolName", executionTool,
+                            "parameterSchema", Map.of("type", "object")
+                        )
+                    )
+                );
+            } else {
+                executionInput.set(request.getToolInput().getParameters());
+                data = Map.of("rows", List.of(Map.of("marginBalance", 100)));
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(envelope && discoveryTool.equals(request.getToolName())
+                    ? Map.of("schemaVersion", "mcp_analysis_payload.v1", "data", data) : data),
+                ToolMetadata.builder().id(request.getToolName()).riskLevel("low").build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "融资融券余额", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1, "mcp_tool", discoveryTool,
+                        Map.of("filters", Map.of("intent", "融资融券余额")),
+                        List.of(), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        2, "mcp_tool", executionTool,
+                        Map.of("parameters", Map.of()),
+                        List.of(1), null, null
+                    ),
+                    new InterpretationPlan.Step(
+                        3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null
+                    )
+                ),
+                List.of(new InterpretationPlan.EdgeContract(1, 2, "templates", "array", true),
+                    new InterpretationPlan.EdgeContract(1, 2, "$.templates[0].templateId", "string", true)),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true
+                )),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(discoveryTool, executionTool), List.of(), 30_000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> discoveryTool.equals(request.execution().toolName())
+                ? InterpretationPlanRuntime.StepReview.accepted(
+                    "margin balance template is the semantic match",
+                    Map.of(
+                        "selectedTemplateIds", List.of("MARGIN_BALANCE_SELECTED"),
+                        "rejectedTemplateIds", List.of("UNRELATED_FIRST")
+                    )
+                )
+                : InterpretationPlanRuntime.StepReview.accepted("execution evidence accepted", Map.of()),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                toolRegistry,
+                List.of(discoveryTool, executionTool),
+                "tenant-1",
+                "req-runtime-template-selection",
+                "conv-runtime-template-selection",
+                "user-1",
+                Map.of()
+            )
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(executionInput.get())
+            .containsEntry("templateId", "MARGIN_BALANCE_SELECTED")
+            .containsEntry("template", "MARGIN_BALANCE_SELECTED");
+        assertThat(executionInput.get().toString()).doesNotContain("UNRELATED_FIRST");
+    }
+
     @Test
     void bindsPythonCandidateWhenPlannerUsesLegacyTemplatesPath() {
         String discoveryTool = "mcp_chatchat_mcp_server_python_analysis_query";

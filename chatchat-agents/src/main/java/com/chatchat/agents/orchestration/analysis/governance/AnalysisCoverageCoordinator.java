@@ -396,7 +396,8 @@ public final class AnalysisCoverageCoordinator {
             : accepted ? "ANALYSIS_DEGRADED" : "ANALYSIS_REJECTED";
         observe(request,
             "第 " + index + "/" + count + " 组数据分析"
-                + (accepted ? "已通过质量验收。" : "未通过质量验收，不会进入综合结论。"),
+                + (report.fullyCompliant() ? "已通过质量验收。"
+                    : accepted ? "已完成受限分析，保留可用结果及未决问题。" : "未通过质量验收，不会进入综合结论。"),
             "business_analysis_progress", metadataOf(
                 "type", "analysis_worker_supervision",
                 "stage", stage,

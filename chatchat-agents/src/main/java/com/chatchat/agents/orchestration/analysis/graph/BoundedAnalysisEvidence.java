@@ -36,6 +36,8 @@ final class BoundedAnalysisEvidence {
             guard.run();
             Map<String, Object> view = Map.of("datasetReference", source.getKey(),
                 "recordReferenceFormat", source.getKey() + ".records[1] (one-based)",
+                "recordCount", source.getValue().records().size(),
+                "nestedCollections", NestedRecordReader.catalog(source.getValue().records()),
                 "context", source.getValue().analysisContext(), "records", source.getValue().records());
             hashes.add(ModelProtocolJson.sha256Hex(view));
             // Do not construct a giant combined JSON string just to measure the prompt.
@@ -96,6 +98,7 @@ final class BoundedAnalysisEvidence {
                 Map<String, Object> view = new LinkedHashMap<>();
                 view.put("datasetReference", ref);
                 view.put("recordCount", dataset.records().size());
+                view.put("nestedCollections", fit(NestedRecordReader.catalog(dataset.records()), perDataset / 5));
                 view.put("evidenceMode", "FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS");
                 view.put("profile", fit(profile, perDataset / 3));
                 view.put("context", fit(dataset.analysisContext(), perDataset / 3));
@@ -182,6 +185,12 @@ final class BoundedAnalysisEvidence {
             String ref = String.valueOf(request.get("datasetReference"));
             Dataset dataset = prepared.sources().get(ref);
             if (dataset == null) throw new IllegalArgumentException("Evidence request cites an unbound dataset");
+            if ("READ_NESTED_RECORDS".equals(request.get("operation"))) {
+                results.add(Map.of("datasetReference", ref,
+                    "parentRecordRef", ref + ".records[" + request.get("record") + "]",
+                    "nestedPage", fit(NestedRecordReader.read(dataset.records(), request), 9000)));
+                continue;
+            }
             if ("CALCULATE".equals(request.get("operation"))) {
                 var result = new SupplementaryFormulaExecutor().execute(dataset.analysisContext(), request);
                 results.add(Map.of("datasetReference", ref, "calculation", fit(result, 9000)));

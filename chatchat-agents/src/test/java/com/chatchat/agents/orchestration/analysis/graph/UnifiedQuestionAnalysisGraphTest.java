@@ -12,6 +12,26 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class UnifiedQuestionAnalysisGraphTest {
+    @Test void supplementaryModelBudgetPreservesEarlierFindingsForValidation() throws Exception {
+        var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        @SuppressWarnings("unchecked") Map<String, Object> response = mapper.readValue(product("dataset1"), Map.class);
+        response.put("evidenceRequests", List.of(Map.of("operation", "READ_RECORDS", "datasetReference", "dataset1", "fromRecord", 1, "limit", 1)));
+        var calls = new AtomicInteger();
+        var model = org.mockito.Mockito.mock(ChatModel.class);
+        org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
+            if (calls.incrementAndGet() == 1) return mapper.writeValueAsString(response);
+            return com.chatchat.agents.orchestration.model.BoundedModelCall.call(() -> "unused", 0, () -> {});
+        });
+        var metadata = new LinkedHashMap<String, Object>();
+        var outcomes = new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+        assertThat(outcomes.get("dataset1").summary().content()).contains("Returned value is 1");
+        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 2)
+            .containsEntry("unifiedAnalysisModelLimit", "ANALYSIS_MODEL_TIME_BUDGET_EXHAUSTED")
+            .containsEntry("unifiedAnalysisStatus", "COMPLETED_WITH_LIMITATIONS");
+    }
+
     @Test void rejectedOptionalReadPreservesFindingsFromFortyOneReturnedRows() throws Exception {
         var rows = java.util.stream.IntStream.rangeClosed(1, 41).mapToObj(i -> Map.<String, Object>of("VALUE", i)).toList();
         var datasets = List.of(new Dataset("dataset1", Map.of(), rows));

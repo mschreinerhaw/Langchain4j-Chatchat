@@ -77,6 +77,8 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "For projected data, selectedRecords carry original recordRef values. Never treat scan coverage as semantic review of every row. "
                         + "You may request more original evidence with evidenceRequests:[{operation:'READ_RECORDS',datasetReference,fromRecord:1,limit:20,fields:['field']}]. "
                         + "Ranges are one-based, maximum 100 rows and four requests per round. No SQL, implicit joins or arbitrary execution. "
+                        + "recordCount counts top-level records, not business rows embedded in search results. Never use a nested sample count as a top-level offset. "
+                        + "For nestedCollections use {operation:'READ_NESTED_RECORDS',datasetReference,record:1,path:['data','rows'],fromItem:0,limit:20}. Copy the catalog locator exactly; nested indexes are zero-based. The catalog is bounded and not an exhaustive inventory. Cite the parent original recordRef. "
                         + "For omitted semantic contracts or existing calculation results request {operation:'READ_CONTEXT',datasetReference,path:['runtimeAnalysisInputs','verifiedCalculations'],fromItem:0,limit:5}. Context list pages are zero-based, at most 20 items. "
                         + "Use full-scan structural profiles to navigate; only authorized verifiedCalculations support business aggregates. "
                         + "Request new arithmetic with {operation:'CALCULATE',datasetReference,expression:'(a-b)/b',inputs:{a:'runtimeFindingId1',b:'runtimeFindingId2'}}. Inputs must reference existing verified calculations. New formulas require semantic review and cannot be promoted to authorized metrics. "
@@ -101,9 +103,23 @@ public final class UnifiedQuestionAnalysisGraph {
                     if (!cached) {
                         if (model == null) throw new IllegalStateException("Unified analysis model is unavailable");
                         guard.run();
-                        product = parse(model.chat(prompt));
                         modelCalls++;
                         allRestored = false;
+                        try {
+                            product = parse(com.chatchat.agents.orchestration.model.BoundedModelCall.call(
+                                () -> model.chat(prompt), 60000, guard));
+                        } catch (com.chatchat.agents.orchestration.model.BoundedModelCall.LimitExceeded exhausted) {
+                            metadata.put("unifiedAnalysisModelCalls", modelCalls);
+                            metadata.put("unifiedAnalysisRestored", false);
+                            metadata.put("unifiedAnalysisModelLimit", exhausted.getMessage());
+                            if (maps(generated.get("findings")).isEmpty()) throw exhausted;
+                            var limitations = new ArrayList<Object>();
+                            if (generated.get("limitations") instanceof List<?> prior) limitations.addAll(prior);
+                            limitations.add("Supplementary analysis exceeded its model budget. Prior candidate findings remain subject to evidence validation; additional evidence has not been fully interpreted.");
+                            generated.put("limitations", limitations);
+                            metadata.put("unifiedAnalysisFindingCount", maps(generated.get("findings")).size());
+                            break;
+                        }
                         if (!valid(product)) throw new IllegalStateException("Unified analysis returned an invalid finding contract");
                         if (!boundFindings(product, known)) throw new IllegalStateException("Finding cites an unbound dataset");
                     }
@@ -119,7 +135,7 @@ public final class UnifiedQuestionAnalysisGraph {
                             guard.run();
                             Map<String, Object> audit = new LinkedHashMap<>();
                             audit.put("round", round);
-                            for (String auditKey : List.of("operation", "datasetReference", "fromRecord", "limit", "record", "fromChar", "fromItem")) {
+                            for (String auditKey : List.of("operation", "datasetReference", "fromRecord", "limit", "record", "fromChar", "fromItem", "path")) {
                                 if (evidenceRequest.containsKey(auditKey)) audit.put(auditKey, boundedAuditValue(evidenceRequest.get(auditKey)));
                             }
                             try {
@@ -144,7 +160,11 @@ public final class UnifiedQuestionAnalysisGraph {
                             }
                         }
                         if (!cached) checkpoints.checkpoint(scope, key, hash, ModelProtocolJson.compact(product));
-                        if (accepted > 0 || maps(product.get("findings")).isEmpty()) continue;
+                        if (accepted > 0 || maps(product.get("findings")).isEmpty()) {
+                            generated.clear();
+                            generated.putAll(product);
+                            continue;
+                        }
                         // Retain usable candidates when every optional read was rejected; validate them normally.
                     }
                     if (!cached) checkpoints.checkpoint(scope, key, hash, ModelProtocolJson.compact(product));

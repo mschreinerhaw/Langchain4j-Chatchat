@@ -14,6 +14,18 @@ import static org.mockito.Mockito.*;
 class BoundedAnalysisEvidenceTest {
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime("t", "u", "r", "q", "c");
 
+    @Test void nestedReadPreservesParentEvidenceIdentity() {
+        var datasets = List.of(new Dataset("search", Map.of(), List.of(Map.of("data",
+            Map.of("rows", List.of(Map.of("value", 42), Map.of("value", 17)))))));
+        var engine = new BoundedAnalysisEvidence();
+        var prepared = engine.prepare(datasets, AnalysisEvidenceSpillStore.disabled(), scope, new LinkedHashMap<>(), () -> {});
+        assertThat(prepared.views().toString()).contains("nestedCollections", "itemCount=2");
+        var read = engine.read(prepared, List.of(Map.of("operation", "READ_NESTED_RECORDS",
+            "datasetReference", "search", "record", 1, "path", List.of("data", "rows"), "fromItem", 1, "limit", 1)), () -> {});
+        assertThat(read.toString()).contains("search.records[1]", "value=17", "availableItemCount=2")
+            .doesNotContain("value=42");
+    }
+
     @Test void finalFindingCheckpointAlsoDependsOnRecordsOutsideTheModelView() {
         var rows = rows();
         var store = store(new ConcurrentHashMap<>());

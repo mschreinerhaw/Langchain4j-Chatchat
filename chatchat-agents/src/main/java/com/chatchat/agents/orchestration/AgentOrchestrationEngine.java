@@ -3303,8 +3303,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             request.attempt(),
             request.maxAttempts(),
             activeChatModel.getClass().getName());
-        String raw = activeChatModel.chat(buildToolResultReviewPrompt(
-            query, systemPrompt, request, runtimeAttributes));
+        String reviewPrompt = buildToolResultReviewPrompt(query, systemPrompt, request, runtimeAttributes);
+        String raw;
+        try {
+            raw = com.chatchat.agents.orchestration.model.BoundedModelCall.call(
+                () -> activeChatModel.chat(reviewPrompt), 45000, () -> runtimeGuard.checkCancelled(cancellationCheck));
+        } catch (com.chatchat.agents.orchestration.model.BoundedModelCall.LimitExceeded exhausted) {
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "Tool evidence retained; semantic selection did not complete within its budget.",
+                Map.of("toolResultReviewUnavailable", true, "toolResultReviewFailure", exhausted.getMessage()));
+        }
         log.info("agentModelResponse phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),

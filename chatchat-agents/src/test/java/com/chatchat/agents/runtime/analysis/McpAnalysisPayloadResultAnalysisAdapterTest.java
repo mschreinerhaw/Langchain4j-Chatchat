@@ -13,6 +13,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpAnalysisPayloadResultAnalysisAdapterTest {
 
     @Test
+    void projectsPythonJsonAsRecordsInsteadOfSlicingTransportText() {
+        var payload = Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "data", Map.of("schemaVersion", "python_analysis_bridge_result.v1",
+                "stdout", "{\"result\":{\"total\":248,\"errors\":[{\"line\":1},{\"line\":2}]}}"));
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("logs", payload, 1000));
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.analysisContext()).containsEntry("projectionMode", "PYTHON_JSON_STDOUT_RECORDS");
+            assertThat(dataset.records()).hasSize(3);
+            assertThat(dataset.records()).allSatisfy(row ->
+                assertThat(row).containsKeys("sourcePath", "values").doesNotContainKeys("content", "fromChar"));
+        });
+    }
+
+    @Test
     void preservesSqlNullValuesInCanonicalRows() {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("fundCode", "510300");

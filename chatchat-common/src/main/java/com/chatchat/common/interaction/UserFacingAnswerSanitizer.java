@@ -32,6 +32,7 @@ public final class UserFacingAnswerSanitizer {
             + "`?[ \\t]*\\\\?");
     private static final Pattern INTERNAL_REFERENCE_PATTERN = Pattern.compile(
         "(?i)(?<![a-z0-9_-])`?" + INTERNAL_REFERENCE + "`?(?![a-z0-9_-])");
+    private static final Pattern INLINE_CODE = Pattern.compile("(?<!`)`([^`\\r\\n]+)`(?!`)");
     private static final Pattern INLINE_ALIAS = Pattern.compile(
         "(?i)[ \\t]*(?:\\[[ \\t]*|\\([ \\t]*|（[ \\t]*)" + RECONCILIATION_ALIAS
             + "(?:[ \\t]*]|[ \\t]*\\)|[ \\t]*）)[ \\t]*");
@@ -55,6 +56,11 @@ public final class UserFacingAnswerSanitizer {
         String sanitized = removeInternalPayloadSections(answer);
         sanitized = BACKTICK_MAPPING.matcher(sanitized).replaceAll("");
         sanitized = INTERNAL_MAPPING.matcher(sanitized).replaceAll("");
+        // Remove an internal reference as a complete code span. Partial removal used to leave
+        // dangling backticks and path suffixes for att-N run IDs and #payload.records paths.
+        sanitized = INLINE_CODE.matcher(sanitized).replaceAll(match ->
+            INTERNAL_REFERENCE_PATTERN.matcher(match.group(1)).find() ? ""
+                : java.util.regex.Matcher.quoteReplacement(match.group()));
         sanitized = INTERNAL_REFERENCE_PATTERN.matcher(sanitized).replaceAll("");
         sanitized = INLINE_ALIAS.matcher(sanitized).replaceAll(" ");
         sanitized = sanitized

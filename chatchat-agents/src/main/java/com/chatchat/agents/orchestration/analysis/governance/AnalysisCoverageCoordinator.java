@@ -169,6 +169,8 @@ public final class AnalysisCoverageCoordinator {
         List<AnalysisSummaryResult> datasetSummaries = new ArrayList<>();
         List<DeterministicInsightEngine.DatasetInput> insightDatasets = new ArrayList<>();
         List<Map<String, Object>> insightResults = new ArrayList<>();
+        List<com.chatchat.agents.orchestration.analysis.report.ObservedReportData> observedData = new ArrayList<>();
+        request.metadata().put("runtimeObservedReportData", List.of());
         List<Map<String, Object>> insightDecisions = new ArrayList<>();
         List<Map<String, Object>> presentationViews = new ArrayList<>();
         List<Map<String, Object>> failures = new ArrayList<>();
@@ -212,6 +214,11 @@ public final class AnalysisCoverageCoordinator {
             AnalysisDatasetSummary summary = outcome.summary();
             counters.analyzed++;
             request.isolationScope().requireSamePartition(summary.datasetSummary().isolationScope());
+            if ("PYTHON_JSON_STDOUT_RECORDS".equals(dataset.analysisContext().get("projectionMode"))) {
+                observedData.addAll(com.chatchat.agents.orchestration.analysis.report.ObservedReportData.capture(
+                    reference, dataset.records()));
+                request.metadata().put("runtimeObservedReportData", List.copyOf(observedData));
+            }
             datasetSummaries.add(summary.datasetSummary());
             counters.iterative |= summary.oversized();
             if (!summary.oversized()) {

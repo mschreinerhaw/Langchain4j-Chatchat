@@ -31,7 +31,7 @@ public final class VerifiedReportDataCatalog {
 
     public static VerifiedReportDataCatalog fromRuntime(Map<String, Object> metadata) {
         Map<String, Data> entries = new LinkedHashMap<>();
-        if (!(metadata.get("deterministicInsightResults") instanceof List<?> results)) return empty();
+        List<?> results = metadata.get("deterministicInsightResults") instanceof List<?> list ? list : List.of();
         int resultIndex = 0;
         for (Object raw : results) {
             int index = resultIndex++;
@@ -57,6 +57,17 @@ public final class VerifiedReportDataCatalog {
                 entries.put(id, new Data(id, safe(finding.label()), safe(finding.type()), unit,
                     finding.value(), safe(finding.unit()), safe(finding.calculation()),
                     List.copyOf(finding.evidenceRefs()), List.copyOf(rows)));
+            }
+        }
+        if (metadata.get("runtimeObservedReportData") instanceof List<?> observations) {
+            int ordinal = 0;
+            for (Object raw : observations) {
+                if (!(raw instanceof ObservedReportData observed) || observed.value() == null
+                    || observed.recordRef() == null || observed.recordRef().isBlank()) continue;
+                if (entries.size() >= 60) break;
+                String id = "observed:" + ordinal++;
+                entries.put(id, new Data(id, observed.label(), "observe", "", observed.value(), "",
+                    "Exact returned value; no computation or inferred unit", List.of(observed.recordRef()), List.of()));
             }
         }
         return new VerifiedReportDataCatalog(entries);

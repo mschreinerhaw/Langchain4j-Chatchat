@@ -7,6 +7,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class UserFacingAnswerSanitizerTest {
 
     @Test
+    void removesCompleteAttemptPayloadReferenceWithoutDamagingBusinessCode() {
+        String answer = "错误数为237（证据：`9001fee4-482b-4851-9eb9-df269765291f:att-1-"
+            + "f6fe71fe-ed7b-4ac1-af59-5b03878e592a:mcp_chatchat_mcp_server_python_template_execute#payload.records[1]`）。"
+            + "检查 `nginx -t` 和 `curl -v https://example.com`。";
+        assertThat(UserFacingAnswerSanitizer.sanitize(answer))
+            .isEqualTo("错误数为237。检查 `nginx -t` 和 `curl -v https://example.com`。");
+    }
+
+    @Test
     void removesReconciliationIndexInternalIdsAndInlineAliases() {
         String answer = """
             证据索引

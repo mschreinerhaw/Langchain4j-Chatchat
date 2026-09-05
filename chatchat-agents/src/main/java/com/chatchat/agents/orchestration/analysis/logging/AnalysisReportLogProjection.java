@@ -48,6 +48,9 @@ public final class AnalysisReportLogProjection {
             value.put("analysisNarrativeStatus", String.valueOf(narrativeStatus));
         }
         value.put("insightCount", size(evidence.get("insights")));
+        for (String counter : List.of("proposedInsightCount", "rejectedInsightCount", "invalidInsightCount", "reviewRequiredInsightCount")) {
+            if (evidence.get(counter) instanceof Number count) value.put(counter, count);
+        }
         value.put("observedFactClaimCount", size(evidence.get("observedFactClaims")));
         value.put("analysisItemCount", size(evidence.get("analysisItems")));
         value.put("analysisArtifactCount", size(evidence.get(AnalysisArtifactProtocol.EVIDENCE_KEY)));

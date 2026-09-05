@@ -50,6 +50,10 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
     public AnalysisResult adapt(AnalysisRequest request) {
         Map<String, Object> envelope = map(request.payload());
         Object governedData = envelope.get("data");
+        List<AnalysisDataset> stdoutDatasets = new PythonStdoutRecordProjector().project(
+            request.datasetReference(), governedData);
+        if (!stdoutDatasets.isEmpty()) return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
+            "MCP_CANONICAL_BUSINESS_DATA", stdoutDatasets);
         boolean governedBodyPresent = hasCanonicalBody(governedData);
         List<Candidate> candidates = canonicalCandidates(governedData, "$.data");
         String source = "governed_data";

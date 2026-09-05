@@ -370,13 +370,18 @@ public final class AnalysisSummaryGovernanceBridge
                                        List<Map<String, Object>> records) {
         return "You are the Worker in a governed business-analysis pipeline ("
             + BRIDGE_SCHEMA_VERSION + "). Analyze the returned records in Chinese and deliver a professional "
-            + "work report, not a row inventory. Use the original question and agent_role_analysis_context to "
+            + "structured finding product, not a final report or row inventory. Use the original question and agent_role_analysis_context to "
             + "understand the decision goal, business scenario and relevant vocabulary. Context guides analysis "
             + "but is not returned evidence. When analysisRepair is present, revise the prior rejected analysis "
             + "against its supervision reasons and repair requests while reusing the supplied records; do not "
             + "request or assume a new data query. Missing semantic sections remain unknown.\n"
-            + "Lead with findings, not row counts or metadata. Complete the dataset-level reasoning now; do not "
-            + "defer it to the Driver. Establish scope and grain, answer every supported objective aspect, connect "
+            + "Lead with findings, not row counts or metadata. Complete reasoning for the supplied record range only. "
+            + "When chunkCount > 1, do not claim coverage of other chunks or repeat a full report in each chunk. "
+            + "Other scheduled chunks are pending Runtime work, not requests for external evidence. "
+            + "Use a short summary (at most 3 sentences); place distinct findings in insights and exact values in facts. "
+            + "Do not repeat the same narrative in summary, analysisItems and insights. Do not include a report title, "
+            + "executive summary, risk chapter or full troubleshooting procedure; the Driver composes those after reduction. "
+            + "Establish scope and grain, answer every supported objective aspect, connect "
             + "related returned metrics, identify material patterns and exceptions, explain why they matter, and "
             + "execute analysisMethodologyContract and the assigned analysisTree. Establish an explicit baseline "
             + "before comparison, trend or abnormality claims, then reason from total to component, contribution, "
@@ -420,6 +425,12 @@ public final class AnalysisSummaryGovernanceBridge
             + "Producer semantic contract: " + ModelProtocolJson.compact(semanticContract) + "\n"
             + "Returned-record scope: " + ModelProtocolJson.compact(recordScopeProfile) + "\n"
             + "Analysis position: " + ModelProtocolJson.compact(position.toMap()) + "\n"
+            + "Evidence reference contract: recordRefs and basisRecordRefs must use "
+            + ModelProtocolJson.compact(position.datasetReference() + ".records[" + position.recordFrom() + "]")
+            + " for the first supplied record; subsequent indexes are absolute indexes through "
+            + position.recordTo() + ". Do not cite run IDs, chunk IDs, sourcePath or field paths instead. "
+            + "sourcePath identifies the original JSON location; supportingValues/exactValues must quote "
+            + "values in the cited record. Put derived computations in separately authorized claims.\n"
             + "Governed context (includes agent_role_analysis_context when configured): "
             + ModelProtocolJson.compact(governedContext) + "\n"
             + "Returned records: " + ModelProtocolJson.compact(records);
@@ -588,6 +599,7 @@ public final class AnalysisSummaryGovernanceBridge
         long invalidInsights = insightValidation.decisions().stream()
             .filter(decision -> "INVALID".equals(decision.get("governanceStatus"))).count();
         evidence.put("insights", validatedInsights);
+        evidence.put("proposedInsightCount", proposedInsights.size());
         evidence.put("claimContractVersion", CapabilityEvidenceClaimContract.SCHEMA_VERSION);
         evidence.put("claimAdmissionDecisions", insightValidation.decisions());
         evidence.put("claimLifecycle", insightValidation.claimLifecycle());

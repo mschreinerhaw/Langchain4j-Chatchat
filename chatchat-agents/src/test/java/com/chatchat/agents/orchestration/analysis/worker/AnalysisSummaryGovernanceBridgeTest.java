@@ -55,7 +55,7 @@ class AnalysisSummaryGovernanceBridgeTest {
             && prompt.contains("recordFrom\":51")
             && prompt.contains("recordTo\":75")
             && prompt.contains("Identify position concentration risk")
-            && prompt.contains("professional work report"))))
+            && prompt.contains("structured finding product"))))
             .thenReturn("第 2 分块总结");
         Map<String, Object> context = bridge.govern("positions", Map.of(
                 AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, AgentRoleAnalysisContext.create(
@@ -113,7 +113,7 @@ class AnalysisSummaryGovernanceBridgeTest {
                 && prompt.contains("STRUCTURAL_STATISTICS_ONLY_NO_SEMANTIC_INFERENCE")
                 && prompt.contains("demandAnalysis")
                 && prompt.contains("metricAssociations")
-                && prompt.contains("Complete the dataset-level reasoning now"))))
+                && prompt.contains("Complete reasoning for the supplied record range only"))))
             .thenReturn("""
                 {"summary":"规模上升","objectiveAlignment":{"addressedAspects":["规模"],
                 "unsupportedAspects":["精确净资金流"],"contribution":"规模变化仅作为代理指标"},

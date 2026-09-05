@@ -223,6 +223,16 @@ public final class AnalysisNodeProtocol
         return fallback(isolationScope, position, governedContext, records);
     }
 
+    @Override
+    public AnalysisSummaryResult validateProduct(GovernanceIsolationScope scope, DataAnalysisPosition position,
+        Map<String, Object> context, List<Map<String, Object>> records, String objective, String productJson) {
+        var capsule = evidenceCapsule(scope, position, context, records, productJson,
+            objectiveContractCompiler.compile(safeObjective(objective), position, context),
+            semanticContractCompiler.compile(context));
+        return AnalysisSummaryResult.chunk(scope, position.toMap(), context, capsule.content(),
+            "UNIFIED_FINDING_VALIDATION", capsule.evidence());
+    }
+
     private String safeError(RuntimeException failure) {
         String message = failure == null ? "" : failure.getMessage();
         if (message == null || message.isBlank()) {

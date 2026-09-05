@@ -56,6 +56,17 @@ public class SqlQueryExecuteService {
     private final DatabaseToolProperties databaseToolProperties;
 
     public SqlQueryResult execute(Map<String, Object> arguments) {
+        return executeInternal(arguments, null);
+    }
+
+    /** Pages are masked before delivery; the callback provides synchronous backpressure. */
+    public SqlQueryResult executeStreaming(Map<String, Object> arguments,
+        java.util.function.Consumer<List<Map<String, Object>>> pageConsumer) {
+        return executeInternal(arguments, java.util.Objects.requireNonNull(pageConsumer));
+    }
+
+    private SqlQueryResult executeInternal(Map<String, Object> arguments,
+        java.util.function.Consumer<List<Map<String, Object>>> pageConsumer) {
         long startedAt = System.currentTimeMillis();
         Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         SqlDatasourceConfig datasource = null;
@@ -83,8 +94,9 @@ public class SqlQueryExecuteService {
                 requestedTemplate(request), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
                 truncateSql(normalizedSql));
             result = query(datasource, executableSql, normalizedSql, timeoutSeconds, maxRows,
-                text(request, "purpose"), text(request, "sourceTaskId"), startedAt, diagnostics);
-            result = attemptSelfHealingIfNeeded(datasource, request, result, timeoutSeconds, maxRows,
+                text(request, "purpose"), text(request, "sourceTaskId"), startedAt, diagnostics, pageConsumer);
+            // A delivered stream cannot be transparently replayed without duplicating records.
+            if (pageConsumer == null) result = attemptSelfHealingIfNeeded(datasource, request, result, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
         } catch (StackOverflowError ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
@@ -406,9 +418,25 @@ public class SqlQueryExecuteService {
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,
                                  int timeoutSeconds, int maxRows, String purpose,
                                  String sourceTaskId, long startedAt, Map<String, Object> diagnostics) throws Exception {
+        return query(datasource, originalSql, sql, timeoutSeconds, maxRows, purpose, sourceTaskId, startedAt, diagnostics, null);
+    }
+
+    private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,
+                                 int timeoutSeconds, int maxRows, String purpose,
+                                 String sourceTaskId, long startedAt, Map<String, Object> diagnostics,
+                                 java.util.function.Consumer<List<Map<String, Object>>> pageConsumer) throws Exception {
         try (Connection connection = openConnection(datasource);
-             Statement statement = connection.createStatement()) {
+             Statement statement = pageConsumer == null ? connection.createStatement()
+                 : connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
             connection.setReadOnly(true);
+            if (pageConsumer != null) {
+                connection.setAutoCommit(false);
+                statement.setFetchSize(500);
+                diagnostics.put("rowDeliveryMode", "STREAMED_PAGES");
+                diagnostics.put("rowsArePreviewOnly", true);
+                diagnostics.put("streamedRows", 0);
+                diagnostics.put("streamCompleted", false);
+            }
             applyDefaultCatalog(connection, datasource, diagnostics);
             statement.setQueryTimeout(timeoutSeconds);
             statement.setMaxRows(maxRows);
@@ -425,19 +453,36 @@ public class SqlQueryExecuteService {
                 diagnostics.put("columnCommentResolution", resolveColumnComments ? "enabled" : "skipped_for_system_metadata_query");
                 List<Map<String, Object>> columnMetadata = columnMetadata(connection, metaData, columns, sensitiveFields, maskAll, resolveColumnComments);
                 List<Map<String, Object>> rows = new ArrayList<>();
-                while (resultSet.next() && rows.size() < maxRows) {
+                List<Map<String, Object>> page = new ArrayList<>(500);
+                int fetched = 0;
+                while (fetched < maxRows && resultSet.next()) {
+                    if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException("SQL stream cancelled");
                     Map<String, Object> row = new LinkedHashMap<>();
                     for (int index = 1; index <= metaData.getColumnCount(); index++) {
                         String column = columns.get(index - 1);
                         Object value = resultSet.getObject(index);
                         row.put(column, maskAll || shouldMask(column, sensitiveFields) ? "***" : value);
                     }
-                    rows.add(row);
+                    fetched++;
+                    if (pageConsumer == null || rows.size() < 20) rows.add(row);
+                    if (pageConsumer != null) {
+                        page.add(java.util.Collections.unmodifiableMap(new LinkedHashMap<>(row)));
+                        if (page.size() == 500) {
+                            pageConsumer.accept(List.copyOf(page));
+                            diagnostics.put("streamedRows", fetched);
+                            page.clear();
+                        }
+                    }
                 }
+                if (pageConsumer != null && !page.isEmpty()) {
+                    pageConsumer.accept(List.copyOf(page));
+                    diagnostics.put("streamedRows", fetched);
+                }
+                if (pageConsumer != null) diagnostics.put("streamCompleted", true);
                 long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
-                diagnostics.put("rowCount", rows.size());
-                diagnostics.put("possiblyTruncated", rows.size() >= maxRows);
-                addZeroRowDiagnostics(diagnostics, datasource, sql, rows.size());
+                diagnostics.put("rowCount", fetched);
+                diagnostics.put("possiblyTruncated", fetched >= maxRows);
+                addZeroRowDiagnostics(diagnostics, datasource, sql, fetched);
                 return new SqlQueryResult(
                     true,
                     datasource.getId(),
@@ -451,8 +496,8 @@ public class SqlQueryExecuteService {
                     columns,
                     columnMetadata,
                     rows,
-                    rows.size(),
-                    rows.size() >= maxRows,
+                    fetched,
+                    fetched >= maxRows,
                     durationMs,
                     purpose,
                     sourceTaskId,

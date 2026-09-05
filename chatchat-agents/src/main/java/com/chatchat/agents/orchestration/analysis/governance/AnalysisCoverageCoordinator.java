@@ -40,7 +40,6 @@ public final class AnalysisCoverageCoordinator {
     private final AgentRunResultAdapter resultAdapter;
     private final String runIdAttribute;
     private final AnalysisEvidenceCoordinator evidenceCoordinator;
-    private final AnalysisDispatchCoordinator dispatchCoordinator;
     private final DeterministicInsightEngine insightEngine;
     private final FinalSynthesisNode synthesisCoordinator;
     private final MergedFindingValidator reducerSupervisor = new MergedFindingValidator();
@@ -53,7 +52,6 @@ public final class AnalysisCoverageCoordinator {
         AgentRunResultAdapter resultAdapter,
         String runIdAttribute,
         AnalysisEvidenceCoordinator evidenceCoordinator,
-        AnalysisDispatchCoordinator dispatchCoordinator,
         DeterministicInsightEngine insightEngine,
         FinalSynthesisNode synthesisCoordinator,
         AnalysisEvidenceSpillStore spillStore,
@@ -62,7 +60,6 @@ public final class AnalysisCoverageCoordinator {
         this.resultAdapter = resultAdapter;
         this.runIdAttribute = runIdAttribute;
         this.evidenceCoordinator = evidenceCoordinator;
-        this.dispatchCoordinator = dispatchCoordinator;
         this.insightEngine = insightEngine;
         this.synthesisCoordinator = synthesisCoordinator;
         this.spillStore = spillStore == null ? AnalysisEvidenceSpillStore.disabled() : spillStore;
@@ -95,82 +92,39 @@ public final class AnalysisCoverageCoordinator {
 
         Map<String, PreparedCalculation> prepared = new LinkedHashMap<>();
         Map<String, Integer> calculationOccurrences = new LinkedHashMap<>();
-        List<AnalysisEvidenceCoordinator.Dataset> preparedDatasets = new ArrayList<>();
         List<String> availableDatasets = datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList();
-        for (var dataset : datasets) {
-            request.cancellationGuard().run();
-            int occurrence = calculationOccurrences.merge(dataset.reference(), 1, Integer::sum);
-            String reference = occurrence == 1 ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
-            var inputs = new ArrayList<DeterministicInsightEngine.DatasetInput>();
-            var results = new ArrayList<Map<String, Object>>();
-            var decisions = new ArrayList<Map<String, Object>>();
-            var calculationPrompt = new StringBuilder();
-            Map<String, Object> context = new LinkedHashMap<>(dataset.analysisContext());
-            collectInsights(request, dataset, reference, request.summaryProtocol().govern(
-                reference, context, dataset.records()), calculationPrompt, inputs, results, decisions);
-            prepared.put(reference, new PreparedCalculation(inputs, results, decisions, calculationPrompt.toString()));
-            context.put("runtimeAnalysisInputs", Map.of("availableDatasetReferences", availableDatasets,
-                "verifiedCalculations", results, "calculationDecisions", decisions,
-                "instruction", "Interpret verified calculations; do not recalculate. Other listed datasets are available to the coordinator, not missing external evidence. Do not infer joins."));
-            preparedDatasets.add(new AnalysisEvidenceCoordinator.Dataset(dataset.reference(), context, dataset.records()));
-        }
-        datasets = List.copyOf(preparedDatasets);
-        Object driverRepairs = request.metadata() == null ? null
-            : request.metadata().get("analysisDriverRepairRequests");
-        boolean resumedDriverRepair = request.metadata() != null
-            && request.metadata().containsKey("analysisDriverRepairRound")
-            && driverRepairs instanceof java.util.Collection<?> repairs && !repairs.isEmpty();
-        AnalysisDispatchCoordinator.DispatchBatch dispatched = dispatchCoordinator.dispatch(
-            dispatchRequest(request, datasets, resumedDriverRepair));
-        if (resumedDriverRepair) {
-            request.metadata().put("analysisDriverRepairDatasetReused", true);
-            request.metadata().put("analysisDataRequeryAllowed", false);
-        }
-        lifecycle = lifecycle.datasetsDispatched(dispatched.taskCount());
-        writeDispatchMetadata(request.metadata(), dispatched);
-        if (dispatched.taskCount() > 0) {
-            observe(request, "已启动 " + dispatched.taskCount() + " 个数据集分析任务，并行度为 "
-                    + dispatched.workerCount() + "。", "analysis_summary_governance",
-                metadataOf("type", "analysis_summary_dispatched", "taskCount", dispatched.taskCount(),
-                    "workerCount", dispatched.workerCount(), "dispatchMode", dispatched.mode()));
-        }
-        try {
-            return reconcile(request, datasets, relationshipPlan, lifecycle, dispatched, prepared);
-        } finally {
-            dispatched.close();
-        }
-    }
-
-    private AnalysisDispatchCoordinator.DispatchRequest dispatchRequest(
-        Request request,
-        List<AnalysisEvidenceCoordinator.Dataset> datasets,
-        boolean reanalysis
-    ) {
-        List<AnalysisDispatchCoordinator.DatasetInput> inputs = datasets.stream()
-            .map(dataset -> new AnalysisDispatchCoordinator.DatasetInput(
-                dataset.reference(), reanalysis
-                    ? reanalysisContext(dataset.analysisContext(), request.metadata())
-                    : dataset.analysisContext(), dataset.records()))
-            .toList();
-        return new AnalysisDispatchCoordinator.DispatchRequest(
-            request.model(), request.query(),
-            stringValue(request.metadata() == null ? null : request.metadata().get("modelName")),
-            inputs, request.isolationScope(), request.runtimeAttributes(), request.cancellationCheck());
-    }
-
-    private Map<String, Object> reanalysisContext(Map<String, Object> source,
-                                                   Map<String, Object> metadata) {
-        Map<String, Object> context = new LinkedHashMap<>(source == null ? Map.of() : source);
-        context.put("analysisRepair", Map.of(
-            "round", 1,
-            "resumeFrom", "WORKER_ANALYSIS",
-            "reuseExistingDataset", true,
-            "dataAcquisitionAllowed", false,
-            "workerSupervision", metadata == null
-                ? Map.of() : metadata.getOrDefault("analysisWorkerSupervision", Map.of()),
-            "repairRequests", metadata == null
-                ? List.of() : metadata.getOrDefault("analysisRepairRequests", List.of())));
-        return Map.copyOf(context);
+        java.util.function.Supplier<List<AnalysisEvidenceCoordinator.Dataset>> computation = () -> {
+            List<AnalysisEvidenceCoordinator.Dataset> preparedDatasets = new ArrayList<>();
+            for (var dataset : datasets) {
+                request.cancellationGuard().run();
+                int occurrence = calculationOccurrences.merge(dataset.reference(), 1, Integer::sum);
+                String reference = occurrence == 1 ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+                var inputs = new ArrayList<DeterministicInsightEngine.DatasetInput>();
+                var results = new ArrayList<Map<String, Object>>();
+                var decisions = new ArrayList<Map<String, Object>>();
+                var calculationPrompt = new StringBuilder();
+                Map<String, Object> context = new LinkedHashMap<>(dataset.analysisContext());
+                collectInsights(request, dataset, reference, request.summaryProtocol().govern(
+                    reference, context, dataset.records()), calculationPrompt, inputs, results, decisions);
+                prepared.put(reference, new PreparedCalculation(inputs, results, decisions, calculationPrompt.toString()));
+                context.put("runtimeAnalysisInputs", Map.of("availableDatasetReferences", availableDatasets,
+                    "verifiedCalculations", results, "calculationDecisions", decisions,
+                    "instruction", "Interpret verified calculations; do not recalculate. Other listed datasets are available to the coordinator, not missing external evidence. Do not infer joins."));
+                preparedDatasets.add(new AnalysisEvidenceCoordinator.Dataset(dataset.reference(), context, dataset.records()));
+            }
+            return List.copyOf(preparedDatasets);
+        };
+        request.metadata().put("recordAnalysisSummaryParallel", false);
+        request.metadata().put("recordAnalysisSummaryScheduledTaskCount", 1);
+        request.metadata().put("recordAnalysisSummaryWorkerCount", 0);
+        request.metadata().put("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
+        observe(request, "已启动统一问题分析图，全部 " + datasets.size() + " 个数据集共同参与规划、计算和结论生成。",
+            "analysis_graph", metadataOf("type", "unified_question_analysis_started", "datasetCount", datasets.size(), "modelTaskCount", 1));
+        var outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph().execute(
+            request.query(), datasets, computation, request.model(), request.isolationScope(),
+            request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
+        lifecycle = lifecycle.datasetsDispatched(datasets.size());
+        return reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared);
     }
 
     private CoverageBundle reconcile(
@@ -178,7 +132,7 @@ public final class AnalysisCoverageCoordinator {
         List<AnalysisEvidenceCoordinator.Dataset> datasets,
         DatasetRelationshipPlan relationshipPlan,
         DataAnalysisLifecycle initialLifecycle,
-        AnalysisDispatchCoordinator.DispatchBatch dispatched,
+        Map<String, AnalysisDispatchCoordinator.Outcome> outcomes,
         Map<String, PreparedCalculation> prepared
     ) {
         StringBuilder prompt = new StringBuilder(
@@ -212,7 +166,7 @@ public final class AnalysisCoverageCoordinator {
             counters.returned += dataset.records().size();
             counters.sourceComplete &= dataset.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
-            AnalysisDispatchCoordinator.Outcome outcome = dispatched.await(reference);
+            AnalysisDispatchCoordinator.Outcome outcome = outcomes.get(reference);
             DataAnalysisWorkerSupervision.WorkerReport workerReport = workerSupervisor.inspect(
                 reference, dataset.records().size(), outcome,
                 evidenceCoordinator::hasTraceableEvidence);
@@ -627,20 +581,6 @@ public final class AnalysisCoverageCoordinator {
         if (metadata == null) return;
         metadata.put("recordAnalysisExcludedDatasets", excluded);
         metadata.put("recordAnalysisExcludedDatasetCount", excluded.size());
-    }
-
-    private void writeDispatchMetadata(Map<String, Object> metadata,
-                                       AnalysisDispatchCoordinator.DispatchBatch batch) {
-        if (metadata == null) return;
-        metadata.put("recordAnalysisSummaryParallel", batch.isParallel());
-        metadata.put("recordAnalysisSummaryScheduledTaskCount", batch.taskCount());
-        metadata.put("recordAnalysisSummaryWorkerCount", batch.workerCount());
-        metadata.put("recordAnalysisSummaryDispatchMode", batch.mode());
-        metadata.put("recordAnalysisSummaryWorkerHeartbeatIntervalMs", configuration.heartbeatIntervalMs());
-        metadata.put("recordAnalysisSummaryWorkerHeartbeatTimeoutMs", configuration.heartbeatTimeoutMs());
-        metadata.put("recordAnalysisWorkerModelTimeoutPolicy", "SYSTEM_MODEL_REQUEST_TIMEOUT");
-        metadata.put("recordAnalysisSummaryWorkerMaxRetries", configuration.maximumRetries());
-        metadata.put("recordAnalysisSummaryWorkerMaxAttempts", configuration.maximumRetries() + 1);
     }
 
     private void writeResultMetadata(Request request, int datasetCount,

@@ -45,19 +45,10 @@ class RuntimeOsBusinessAnalysisGoldenTest {
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
             "agentRunId", "automatic-reanalysis-golden"));
 
-        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> orchestrator.buildRecordCoverageBundle(
             model, "Analyze the customer's asset structure", result,
-            Map.of("__agentRunId", "automatic-reanalysis-golden"), metadata, () -> false);
-
-        assertThat(modelCalls.get()).isEqualTo(1);
-        assertThat(coverage.synthesisInputs()).isEmpty();
-        assertThat(metadata)
-            .containsEntry("analysisSynthesisBarrierReady", true)
-            .containsEntry("analysisSynthesisBarrierStatus",
-                "READY_WITHOUT_REVIEWABLE_WORKER_REPORT")
-            .containsEntry("analysisRepairRequired", false)
-            .doesNotContainKeys("analysisAutomaticReanalysisTriggered",
-                "analysisReuseExistingDataset", "analysisDataRequeryAllowed");
+            Map.of("__agentRunId", "automatic-reanalysis-golden"), metadata, () -> false))
+            .hasMessageContaining("invalid finding contract");
     }
 
     @Test
@@ -78,18 +69,10 @@ class RuntimeOsBusinessAnalysisGoldenTest {
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
             "agentRunId", "degraded-analysis-golden"));
 
-        AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> orchestrator.buildRecordCoverageBundle(
             model, "Analyze the customer's asset structure", result,
-            Map.of("__agentRunId", "degraded-analysis-golden"), metadata, () -> false);
-
-        assertThat(coverage.processedRecordCount()).isEqualTo(1);
-        assertThat(coverage.summaryResults()).isNotEmpty();
-        assertThat(coverage.synthesisInputs()).isNotEmpty();
-        assertThat(metadata)
-            .containsEntry("analysisSynthesisBarrierReady", true)
-            .containsEntry("analysisSynthesisBarrierStatus", "READY");
-        assertThat(metadata.get("analysisWorkerSupervision").toString())
-            .contains("ANALYSIS_DEGRADED", "acceptedForSynthesis=true");
+            Map.of("__agentRunId", "degraded-analysis-golden"), metadata, () -> false))
+            .hasMessageContaining("invalid finding contract");
     }
 
     @Test
@@ -135,10 +118,10 @@ class RuntimeOsBusinessAnalysisGoldenTest {
                 "customer_positions", "customer_realized_results");
         assertThat(coverage.summaryResults()).allSatisfy(summary -> {
             assertThat(summary.content()).doesNotContain("没有业务数据", "未进入分析");
-            assertThat(summary.evidence().get("facts")).asList().isNotEmpty();
+            assertThat(summary.evidence().get("insights")).asList().isNotEmpty();
         });
         assertThat(metadata)
-            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 4)
+            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
             .containsEntry("recordAnalysisReturnedRecordCount", 4)
             .containsEntry("recordAnalysisProcessedRecordCount", 4)
             .containsEntry("recordAnalysisCoverageComplete", true);
@@ -167,7 +150,9 @@ class RuntimeOsBusinessAnalysisGoldenTest {
               "demandAnalysis":{"decisionGoal":"Analyze ETF scale and flow","answeredQuestions":[],
                 "openQuestions":["Flow semantics require producer authorization"]},
               "metricAssociations":[],
-              "insights":[{
+              "schemaVersion":"unified_question_analysis.v1",
+              "findings":[{
+                "datasetReference":"etf_scale",
                 "claimClass":"AUTHORIZED_DERIVED_MEASURE",
                 "operation":"DERIVE",
                 "claim":"ETF 资金净流入 120 万份",
@@ -255,28 +240,18 @@ class RuntimeOsBusinessAnalysisGoldenTest {
     }
 
     private String customerSummary(String prompt) {
-        assertThat(prompt).contains("runtimeAnalysisInputs", "verifiedCalculations", "calculationDecisions",
-            "availableDatasetReferences", "customer_assets", "customer_orders", "customer_positions", "customer_realized_results");
-        String reference = List.of("customer_assets", "customer_orders", "customer_positions",
-                "customer_realized_results").stream()
-            .filter(candidate -> prompt.contains("\"datasetReference\":\"" + candidate + "\"" )).findFirst().orElse("customer_dataset");
-        String value = switch (reference) {
-            case "customer_assets" -> "847174.25";
-            case "customer_orders" -> "20";
-            case "customer_positions" -> "20";
-            case "customer_realized_results" -> "2";
-            default -> "1";
-        };
-        String report = """
-            {"summary":"%s 已完成业务分析。",
-             "facts":[{"claim":"%s 返回关键值 %s",
-               "recordRefs":["%s.records[1]"],"exactValues":["%s"]}],
-             "insights":[],"conflicts":[],"limitations":[],"rawReplayRecommended":false}
-            """.formatted(reference, reference, value, reference, value);
-        return report.replaceFirst("\\{", "{\"demandAnalysis\":{"
-            + "\"decisionGoal\":\"Analyze the returned customer dataset\","
-            + "\"answeredQuestions\":[\"The returned dataset was analyzed\"],"
-            + "\"openQuestions\":[]},\"metricAssociations\":[],");
+        assertThat(prompt).contains("customer_assets", "customer_orders", "customer_positions", "customer_realized_results");
+        var findings = new java.util.ArrayList<Map<String, Object>>();
+        for (String reference : List.of("customer_assets", "customer_orders", "customer_positions", "customer_realized_results")) {
+            String value = switch (reference) { case "customer_assets" -> "847174.25"; case "customer_realized_results" -> "2"; default -> "20"; };
+            var finding = new LinkedHashMap<String, Object>();
+            finding.put("datasetReference", reference); finding.put("claimClass", "OBSERVED_RETURNED_FACT");
+            finding.put("operation", "OBSERVE"); finding.put("claim", reference + " returned " + value);
+            finding.put("significance", "Current observation"); finding.put("confidence", "HIGH");
+            finding.put("recordRefs", List.of(reference + ".records[1]")); finding.put("supportingValues", List.of(value));
+            findings.add(finding);
+        }
+        return com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of("schemaVersion", "unified_question_analysis.v1", "findings", findings, "limitations", List.of()));
     }
 
     private ToolRuntimeProperties toolRuntimeProperties() {

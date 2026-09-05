@@ -33,6 +33,35 @@ import static org.mockito.Mockito.when;
 
 class SqlQueryExecuteServiceTest {
 
+    @Test
+    void streamingDeliversMaskedBoundedPagesAndOnlyRetainsPreview() throws Exception {
+        String url = "jdbc:h2:mem:streamed_sql;DB_CLOSE_DELAY=-1";
+        try (var connection = DriverManager.getConnection(url, "sa", ""); var statement = connection.createStatement()) {
+            statement.execute("create table stream_rows as select x as id, 'private' as phone from system_range(1, 1201)");
+        }
+        var datasource = new SqlDatasourceConfig();
+        datasource.setId("stream"); datasource.setName("stream-db"); datasource.setToolName("sql");
+        datasource.setJdbcUrl(url); datasource.setUsername("sa"); datasource.setPassword("");
+        datasource.setDefaultTimeoutSeconds(5); datasource.setDefaultMaxRows(2000);
+        databaseToolProperties.setMaxRows(2000);
+        when(datasourceConfigService.getEnabled("stream")).thenReturn(datasource);
+        var pageSizes = new java.util.ArrayList<Integer>();
+        var result = service.executeStreaming(Map.of("datasourceId", "stream", "sql", "select * from stream_rows order by id", "maxRows", 2000), page -> {
+            pageSizes.add(page.size());
+            assertThat(page).allSatisfy(row -> assertThat(row).containsEntry("PHONE", "***"));
+        });
+        assertThat(result.success()).isTrue();
+        assertThat(pageSizes).containsExactly(500, 500, 201);
+        assertThat(result.rowCount()).isEqualTo(1201);
+        assertThat(result.rows()).hasSize(20);
+        assertThat(result.diagnostics()).containsEntry("rowsArePreviewOnly", true).containsEntry("streamedRows", 1201);
+        var failed = service.executeStreaming(Map.of("datasourceId", "stream", "sql", "select * from stream_rows", "maxRows", 2000), page -> {
+            throw new IllegalStateException("consumer failed");
+        });
+        assertThat(failed.success()).isFalse();
+        verify(auditService, org.mockito.Mockito.times(2)).recordSqlQueryCall(any(), anyMap(), any());
+    }
+
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
     private final SqlTemplateService templateService = mock(SqlTemplateService.class);
     private final MetadataResolverService metadataResolverService = mock(MetadataResolverService.class);

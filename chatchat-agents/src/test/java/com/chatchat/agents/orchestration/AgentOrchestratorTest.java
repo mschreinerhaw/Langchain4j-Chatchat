@@ -265,7 +265,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void summarizesIndependentDatasetsWithBoundedParallelWorkersAndPreservesDriverOrder()
+    void analyzesIndependentDatasetsTogetherWithoutWorkerFanOut()
         throws Exception {
         CountDownLatch workersStarted = new CountDownLatch(2);
         AtomicInteger activeWorkers = new AtomicInteger();
@@ -273,6 +273,7 @@ class AgentOrchestratorTest {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
+                if (prompt.contains("unified_question_analysis.v1")) return unifiedFixture(prompt);
                 int active = activeWorkers.incrementAndGet();
                 maximumActiveWorkers.accumulateAndGet(active, Math::max);
                 workersStarted.countDown();
@@ -306,18 +307,19 @@ class AgentOrchestratorTest {
             new DefaultAgentAnswerReviewer(mapper), null, properties);
 
         Map<String, Object> metadata = new LinkedHashMap<>();
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "analyze both datasets", result, Map.of(), metadata, () -> false);
 
-        assertThat(maximumActiveWorkers.get()).isEqualTo(2);
+        assertThat(maximumActiveWorkers.get()).isZero();
         assertThat(coverage.summaryResults()).extracting(summary ->
             String.valueOf(summary.position().get("datasetReference")))
             .containsExactly("dataset_a", "dataset_b");
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(metadata)
-            .containsEntry("recordAnalysisSummaryDispatchMode", "LOCAL")
-            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 2)
-            .containsEntry("recordAnalysisSummaryWorkerCount", 2);
+            .containsEntry("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH")
+            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
+            .containsEntry("recordAnalysisSummaryWorkerCount", 0);
     }
 
     @Test
@@ -325,6 +327,7 @@ class AgentOrchestratorTest {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
+                if (prompt.contains("unified_question_analysis.v1")) return unifiedFixture(prompt);
                 return structuredWorkerAnalysis("worker summary");
             }
         };
@@ -356,13 +359,7 @@ class AgentOrchestratorTest {
             .filter(observation -> "business_analysis_progress".equals(observation.source()))
             .toList();
         assertThat(progress).extracting(observation -> observation.metadata().get("stage"))
-            .containsSubsequence(
-                "DATA_PREPARATION_STARTED",
-                "DATA_BATCH_STARTED",
-                "DATA_BATCH_COMPLETED",
-                "RESULT_AGGREGATING",
-                "DATA_PROCESSING_COMPLETED",
-                "BUSINESS_RESULT_READY");
+            .containsSubsequence("ANALYSIS_ACCEPTED", "BUSINESS_RESULT_READY", "SYNTHESIS_READY");
         assertThat(progress)
             .allSatisfy(observation -> assertThat(observation.metadata())
                 .containsEntry("workReference", "visible_dataset")
@@ -370,14 +367,9 @@ class AgentOrchestratorTest {
                 .doesNotContainKeys("workerId", "taskId"));
         assertThat(progress).allSatisfy(observation -> assertThat(observation.content())
             .doesNotContain("Driver", "Worker", "driver", "worker"));
-        assertThat(progress).anySatisfy(observation -> assertThat(observation.metadata())
-            .containsEntry("stage", "DATA_BATCH_STARTED")
-            .containsKeys("chunkIndex", "chunkCount", "recordFrom", "recordTo"));
-        assertThat(metadata)
-            .containsEntry("recordAnalysisWorkerModelTimeoutPolicy",
-                "SYSTEM_MODEL_REQUEST_TIMEOUT")
-            .containsKeys("recordAnalysisSummaryWorkerHeartbeatIntervalMs",
-                "recordAnalysisSummaryWorkerHeartbeatTimeoutMs");
+        assertThat(metadata).containsEntry("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH")
+            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
+            .containsEntry("recordAnalysisSummaryWorkerCount", 0);
     }
 
     @Test
@@ -402,6 +394,7 @@ class AgentOrchestratorTest {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
+                if (prompt.contains("unified_question_analysis.v1")) return unifiedFixture(prompt);
                 return structuredWorkerAnalysis(
                     "资产分析：客户总资产 847174.25，当日盈亏 42263.81。");
             }
@@ -415,6 +408,7 @@ class AgentOrchestratorTest {
             null, new AgentRuntimeProperties());
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of("agentRunId", "recovered-run"));
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "分析客户资产", cumulative, Map.of("__agentRunId", "recovered-run"),
             metadata, () -> false);
@@ -427,10 +421,11 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void isolatesOneWorkerFailureAndSummarizesEverySuccessfulDataset() {
+    void unifiedAnalysisHasNoPerDatasetModelFailureBoundary() {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
+                if (prompt.contains("unified_question_analysis.v1")) return unifiedFixture(prompt);
                 return structuredWorkerAnalysis("successful dataset summary");
             }
         };
@@ -478,37 +473,26 @@ class AgentOrchestratorTest {
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
             "agentRunId", "partial-worker-run"));
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage =
             orchestrator.buildRecordCoverageBundle(
                 model, "analyze all available datasets", result,
                 Map.of("__agentRunId", "partial-worker-run"), metadata, () -> false);
 
         assertThat(coverage.returnedRecordCount()).isEqualTo(2);
-        assertThat(coverage.processedRecordCount()).isEqualTo(1);
-        assertThat(coverage.coverageComplete()).isFalse();
-        assertThat(coverage.synthesisInputs()).extracting(summary ->
-            summary.position().get("datasetReference"))
-            .containsExactly("successful_dataset");
-        assertThat(coverage.promptEvidence())
-            .contains("failedDatasetCount=1", "successful dataset summary")
-            .contains("Final conclusions must be limited to successful datasets");
-        assertThat(metadata)
-            .containsEntry("recordAnalysisSuccessfulDatasetCount", 1)
-            .containsEntry("recordAnalysisFailedDatasetCount", 1)
-            .containsEntry("recordAnalysisPartialWorkerFailure", true)
-            .containsEntry("recordAnalysisAllWorkersFailed", false);
-        assertThat(runStore.observations("partial-worker-run"))
-            .anySatisfy(observation -> assertThat(observation.metadata())
-                .containsEntry("stage", "PARTIAL_DATA_UNAVAILABLE")
-                .doesNotContainKeys("workerId", "taskId"));
+        assertThat(coverage.processedRecordCount()).isEqualTo(2);
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1)
+            .containsEntry("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
     }
 
     @Test
-    void retriesOnlyTheFailedChunkInsideItsOwningWorkerThreeTimes() {
+    void unifiedAnalysisDoesNotInvokeLegacyChunkRetries() {
         AtomicInteger modelCalls = new AtomicInteger();
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
+                if (prompt.contains("unified_question_analysis.v1")) return unifiedFixture(prompt);
                 if (modelCalls.incrementAndGet() < 4) {
                     throw new IllegalStateException("transient analysis failure");
                 }
@@ -521,25 +505,14 @@ class AgentOrchestratorTest {
                 List.of(datasetStep(1, "retry_dataset", "A")), Map.of(), 10L);
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(
                 model, "analyze retry dataset", result, Map.of(), metadata, () -> false);
 
-        assertThat(modelCalls.get()).isEqualTo(4);
-        assertThat(coverage.summaryResults()).singleElement().satisfies(summary -> {
-            assertThat(summary.outcome()).isEqualTo("MODEL_SUMMARY");
-            assertThat(summary.evidence())
-                .containsEntry("workerAttemptCount", 4)
-                .containsEntry("workerRetryCount", 3)
-                .containsEntry("workerMaximumRetries", 3)
-                .containsEntry("workerMaximumAttempts", 4);
-        });
-        assertThat(metadata)
-            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
-            .containsEntry("recordAnalysisSummaryWorkerMaxRetries", 3)
-            .containsEntry("recordAnalysisSummaryWorkerMaxAttempts", 4)
-            .containsEntry("recordAnalysisRetriedChunkCount", 1)
-            .containsEntry("recordAnalysisRetryCount", 3);
+        assertThat(coverage.coverageComplete()).isTrue();
+        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1)
+            .containsEntry("recordAnalysisSummaryWorkerCount", 0);
     }
 
     @Test
@@ -548,6 +521,7 @@ class AgentOrchestratorTest {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
+                if (prompt.contains("unified_question_analysis.v1")) return unifiedFixture(prompt);
                 modelRequests.incrementAndGet();
                 return structuredWorkerAnalysis("canonical dataset summary");
             }
@@ -563,6 +537,7 @@ class AgentOrchestratorTest {
                 "success", true, false, null, null, List.of(step), Map.of(), 10L);
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(
                 model, "analyze customer assets", result, Map.of(), metadata, () -> false);
@@ -1516,6 +1491,7 @@ class AgentOrchestratorTest {
             repairedAttempt, List.of(firstAttempt, repairedAttempt));
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "query customer 070200046604 assets", cumulative, Map.of(), metadata, () -> false);
         String answer = orchestrator.ensureConcreteBatchEvidencePresented(
@@ -1556,6 +1532,7 @@ class AgentOrchestratorTest {
         AgentOrchestrator orchestrator = newOrchestrator(
             model, new DefaultToolRegistry());
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "analyze returned data", result, Map.of(),
             new LinkedHashMap<>(), () -> false);
@@ -1614,6 +1591,7 @@ class AgentOrchestratorTest {
             "conversationId", "conversation-summary"
         ));
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "analyze returned records", result, Map.of("__agentRunId", "run-summary"), metadata, () -> false);
         String answer = orchestrator.ensureCompleteRecordCoveragePresented(
@@ -1623,46 +1601,11 @@ class AgentOrchestratorTest {
         assertThat(coverage.processedRecordCount()).isEqualTo(60);
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.evidenceTraceComplete()).isTrue();
-        assertThat(coverage.iterative()).isTrue();
-        assertThat(coverage.iterations()).isGreaterThan(1);
-        assertThat(coverage.rawReplayChunkCount()).isEqualTo(coverage.iterations());
-        assertThat(coverage.promptEvidence())
-            .contains("business semantic view", "analysis_context_presentation.v1")
-            .contains("Position detail API", "Returns account positions", "Position value");
-        assertThat(coverage.summaryResults()).hasSize(coverage.iterations())
-            .allSatisfy(entry -> assertThat(entry.toMap().toString())
-                .contains("schemaVersion=analysis_summary_result.v1", "scope=DATASET_CHUNK")
-                .contains("datasetReference=records", "recordFrom=", "recordTo=", "totalRecords=60")
-                .contains("tenantId=tenant-summary", "runId=run-summary",
-                    "authority=RUNTIME_REQUEST_CONTEXT"));
-        assertThat(answer)
-            .isEqualTo("all templates succeeded")
-            .doesNotContain("60/60", "证据覆盖", "受治理证据摘要")
-            .doesNotContain("\u5168\u91cf\u8bb0\u5f55\u8986\u76d6\u5206\u6790", "value-59-");
-        assertThat(metadata)
-            .containsEntry("recordAnalysisCoverageComplete", true)
-            .containsEntry("recordAnalysisReturnedRecordCount", 60)
-            .containsEntry("recordAnalysisProcessedRecordCount", 60)
-            .containsEntry("recordAnalysisEvidenceTraceComplete", true)
-            .containsEntry("recordAnalysisRawReplayChunkCount", coverage.iterations())
-            .containsEntry("analysisContextPresentationVersion", "analysis_context_presentation.v1")
-            .containsEntry("recordAnalysisCoverageAppendixApplied", false)
-            .containsEntry("recordAnalysisNarrativeCoverageApplied", true);
-        assertThat(metadata.get("analysisContextPresentationViews").toString())
-            .contains("Position detail API", "Position value");
-        assertThat(metadata.get("analysisSummaryGovernanceBridge").toString())
-            .contains("analysis_summary_bridge.v1", "summary_governance.v1")
-            .contains("analysis_summary_result.v1", "scope=DATASET_CHUNK")
-            .contains("datasetReference=records", "chunkIndex=1", "content=chunk evidence summary");
-        verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
-            prompt.contains("analysis_summary_bridge.v1")
-                && prompt.contains("summary_governance.v1")
-                && prompt.contains("data_analysis_context.v1")
-                && prompt.contains("Position detail API")
-                && prompt.contains("Returns account positions")
-                && prompt.contains("Position value")
-                && prompt.contains("Execute the data analysis node in a governed analysis graph")
-                && prompt.contains("Original user question (authoritative analysis intent): analyze returned records")));
+        assertThat(coverage.iterative()).isFalse();
+        assertThat(coverage.iterations()).isEqualTo(1);
+        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1);
+        verify(model, times(1)).chat(argThat((String prompt) -> prompt.contains("unified_question_analysis.v1")
+            && prompt.contains("row-0") && prompt.contains("row-59") && prompt.contains("Position value")));
     }
 
     @Test
@@ -1697,45 +1640,33 @@ class AgentOrchestratorTest {
         Map<String, Object> firstMetadata = new LinkedHashMap<>(Map.of(
             "tenantId", "tenant-spill", "agentRunId", "spill-run"));
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle first = orchestrator.buildRecordCoverageBundle(
             model, "analyze generic dataset", result, runtime, firstMetadata, () -> false);
         int callsAfterFirst = modelCalls.get();
         Map<String, Object> secondMetadata = new LinkedHashMap<>(Map.of(
             "tenantId", "tenant-spill", "agentRunId", "spill-run"));
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle restored = orchestrator.buildRecordCoverageBundle(
             model, "analyze generic dataset", result, runtime, secondMetadata, () -> false);
 
         assertThat(first.coverageComplete()).isTrue();
         assertThat(restored.coverageComplete()).isTrue();
-        assertThat(callsAfterFirst).isEqualTo(first.iterations()).isGreaterThan(1);
-        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst);
-        assertThat(spillStore.spillCount.get()).isEqualTo(first.iterations() * 2);
-        assertThat(spillStore.readCount.get()).isEqualTo(first.rawReplayChunkCount() * 2);
-        assertThat(firstMetadata)
-            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
-            .containsEntry("recordAnalysisSummaryWorkerCount", 1)
-            .containsEntry("recordAnalysisSpilledChunkCount", first.iterations())
-            .containsEntry("recordAnalysisRestoredCheckpointCount", 0)
-            .containsEntry("recordAnalysisRestoredDatasetReductionCount", 0);
-        assertThat(secondMetadata)
-            .containsEntry("recordAnalysisSpilledChunkCount", restored.iterations())
-            .containsEntry("recordAnalysisRestoredCheckpointCount", restored.iterations())
-            .containsEntry("recordAnalysisRestoredDatasetReductionCount", 1);
-        assertThat(restored.summaryResults()).allSatisfy(summary ->
-            assertThat(summary.evidence().get("rawReplayLocator").toString())
-                .contains("ROCKSDB_ANALYSIS_SPILL", "contentSha256", "byteLength"));
-        assertThat(restored.promptEvidence()).contains("v11-").doesNotContain("externalized-preview");
+        assertThat(firstMetadata).containsEntry("unifiedAnalysisModelCalls", 1)
+            .containsEntry("unifiedAnalysisRestored", false);
+        assertThat(secondMetadata).containsEntry("unifiedAnalysisModelCalls", 0)
+            .containsEntry("unifiedAnalysisRestored", true);
+        assertThat(restored.processedRecordCount()).isEqualTo(first.returnedRecordCount());
 
         spillStore.checkpoints.replaceAll((key, value) -> "{corrupt-checkpoint");
         Map<String, Object> recoveryMetadata = new LinkedHashMap<>(Map.of(
             "tenantId", "tenant-spill", "agentRunId", "spill-run"));
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle recomputed = orchestrator.buildRecordCoverageBundle(
             model, "analyze generic dataset", result, runtime, recoveryMetadata, () -> false);
-        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst + recomputed.iterations());
         assertThat(recomputed.coverageComplete()).isTrue();
-        assertThat(recoveryMetadata)
-            .containsEntry("recordAnalysisRestoredCheckpointCount", 0)
-            .containsEntry("recordAnalysisRestoredDatasetReductionCount", 0);
+        assertThat(recoveryMetadata).containsEntry("unifiedAnalysisModelCalls", 1)
+            .containsEntry("unifiedAnalysisRestored", false);
     }
 
     @Test
@@ -1754,6 +1685,7 @@ class AgentOrchestratorTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(
             structuredWorkerAnalysis("The orders and assets rows were analyzed."));
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze metadata", result, Map.of(),
                 new LinkedHashMap<>(), () -> false);
@@ -1785,6 +1717,7 @@ class AgentOrchestratorTest {
                 : "consolidated metadata analysis";
         });
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze metadata", result, Map.of(),
                 new LinkedHashMap<>(), () -> false);
@@ -1799,10 +1732,10 @@ class AgentOrchestratorTest {
             .satisfies(summary -> {
                 assertThat(summary.scope()).isEqualTo("RELATIONSHIP_GROUP_SYNTHESIS");
                 assertThat(summary.inputSummaryResultIds()).hasSize(2);
-                assertThat(summary.content()).isEqualTo("consolidated metadata analysis");
+                assertThat(summary.content()).contains("orders", "assets");
             });
         assertThat(coverage.promptEvidence())
-            .contains("sql_metadata_search#occurrence-2", "consolidated metadata analysis")
+            .contains("sql_metadata_search#occurrence-2", "orders", "assets")
             .doesNotContain("Raw evidence replay");
     }
 
@@ -1829,13 +1762,14 @@ class AgentOrchestratorTest {
         AgentOrchestrator orchestrator = newOrchestrator(model);
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "分析客户资产", result, Map.of(), metadata, () -> false);
         String answer = orchestrator.ensureCompleteRecordCoveragePresented(
             "## 资产与盈亏概览\n\n数据来源：`livedata_asset_summary`", coverage, metadata);
 
         assertThat(answer)
-            .contains("数据分析总结", "资产与盈亏概览", "总资产为 847174.25", "当日盈亏为 42263.81");
+            .contains("资产与盈亏概览", "847174.25", "42263.81");
         assertThat(metadata)
             .containsEntry("governedNarrativeAnalysisAppended", true)
             .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true)
@@ -1983,6 +1917,7 @@ class AgentOrchestratorTest {
             "持仓市值为 100 元，口径为账户-证券-业务日。"));
         AgentOrchestrator orchestrator = newOrchestrator(model, registry);
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "分析客户资产", result, Map.of(), new LinkedHashMap<>(), () -> false);
 
@@ -2035,34 +1970,17 @@ class AgentOrchestratorTest {
             structuredWorkerAnalysis("linux output chunk summary: LINUX_HEAD through LINUX_TAIL"));
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze linux output", result, Map.of(), metadata, () -> false);
 
-        assertThat(coverage.iterative()).isTrue();
+        assertThat(coverage.iterative()).isFalse();
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.evidenceTraceComplete()).isTrue();
-        assertThat(coverage.rawReplayChunkCount()).isEqualTo(coverage.iterations());
-        assertThat(coverage.returnedRecordCount()).isGreaterThan(1);
         assertThat(coverage.processedRecordCount()).isEqualTo(coverage.returnedRecordCount());
-        assertThat(coverage.promptEvidence())
-            .contains("linux_command_execute#stdout", "linux output chunk summary")
-            .contains("hierarchical_analysis_reduce.v1", "LINUX_HEAD", "LINUX_TAIL")
-            .doesNotContain("Raw evidence replay")
-            .contains("Runtime metrics", "Collect runtime metric values", "$.data.stdout");
-        assertThat(coverage.summaryResults()).allSatisfy(summary ->
-            assertThat(summary.evidence()).containsEntry("schemaVersion", "traceable_chunk_evidence.v1"));
-        assertThat(metadata).containsEntry("recordAnalysisIterative", true);
-        assertThat(metadata).containsEntry("recordAnalysisSourceContentComplete", true);
-        assertThat(metadata)
-            .containsEntry("recordAnalysisEvidenceTraceComplete", true)
-            .containsEntry("recordAnalysisRawReplayChunkCount", coverage.iterations());
-        // Every chunk call plus the Worker-owned dataset reduction must carry the same
-        // authoritative user question and semantic context.
-        verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
-            prompt.contains("Original user question (authoritative analysis intent): analyze linux output")
-                && prompt.contains("Assess current runtime metrics")
-                && prompt.contains("Collect runtime metric values")
-                && prompt.contains("$.data.stdout")));
+        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1);
+        verify(model, times(1)).chat(argThat((String prompt) -> prompt.contains("LINUX_HEAD")
+            && prompt.contains("LINUX_TAIL") && prompt.contains("$.data.stdout")));
     }
 
     @Test
@@ -2137,6 +2055,7 @@ class AgentOrchestratorTest {
         when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis(
             "CHECK_DOCKER_CONTAINERS found abc123 postgres:16 Up 3 days."));
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze docker containers", result,
                 Map.of(), new LinkedHashMap<>(), () -> false);
@@ -2178,6 +2097,7 @@ class AgentOrchestratorTest {
                     + "the conclusion is limited to the returned preview."));
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze returned process evidence", result,
                 Map.of(), metadata, () -> false);
@@ -2248,13 +2168,13 @@ class AgentOrchestratorTest {
             AgentOrchestrator orchestrator = new AgentOrchestrator(
                 model, registry, runtime, new ObjectMapper(), new ModelsConfig());
 
-            AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
-                model, "analyze docker containers", result, Map.of(), new LinkedHashMap<>(), () -> false);
-
-            assertThat(coverage.sourceContentComplete()).isTrue();
-            assertThat(coverage.promptEvidence())
-                .contains("CHECK_DOCKER_CONTAINERS#stdout", "transwarp/quark")
-                .doesNotContain("externalized-preview");
+            stubUnified(model);
+            Map<String, Object> analysisMetadata = new LinkedHashMap<>();
+            var coverage = orchestrator.buildRecordCoverageBundle(
+                model, "analyze docker containers", result, Map.of(), analysisMetadata, () -> false);
+            assertThat(coverage.coverageComplete()).isTrue();
+            assertThat(analysisMetadata).containsEntry("unifiedEvidenceMode", "BOUNDED_PROJECTION");
+            verify(model).chat(argThat((String prompt) -> prompt.length() <= 160_000));
         } finally {
             runtime.shutdown();
         }
@@ -2299,20 +2219,21 @@ class AgentOrchestratorTest {
             structuredWorkerAnalysis("SQL 分块业务分析"));
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze sql script", result, Map.of(), metadata, () -> false);
 
         assertThat(coverage.returnedRecordCount()).isEqualTo(3);
         assertThat(coverage.processedRecordCount()).isEqualTo(3);
         assertThat(coverage.promptEvidence())
-            .contains("#statement-1", "#statement-2", "SID", "SQL 分块业务分析")
+            .contains("#statement-1", "#statement-2", "SID")
             .contains("sourceContentComplete=false");
         assertThat(metadata)
             .containsEntry("recordAnalysisCoverageComplete", true)
             .containsEntry("recordAnalysisSourceContentComplete", false)
             .containsEntry("recordAnalysisEvidenceTraceComplete", true)
-            .containsEntry("recordAnalysisRawReplayChunkCount", 2);
-        verify(model, times(2)).chat(argThat((String prompt) ->
+            .containsEntry("recordAnalysisRawReplayChunkCount", 1);
+        verify(model, times(1)).chat(argThat((String prompt) ->
             prompt.contains("数据库运行指标")
                 && prompt.contains("分析活动会话与锁等待")
                 && prompt.contains("会话编号")));
@@ -2341,13 +2262,14 @@ class AgentOrchestratorTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis("SQL null value analysis"));
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(
                 model, "analyze sql result", result, Map.of(), new LinkedHashMap<>(), () -> false);
 
         assertThat(coverage.returnedRecordCount()).isEqualTo(1);
         assertThat(coverage.processedRecordCount()).isEqualTo(1);
-        assertThat(coverage.promptEvidence()).contains("LOCK_OWNER", "null");
+        verify(model).chat(argThat((String prompt) -> prompt.contains("\"LOCK_OWNER\":null")));
     }
 
     @Test
@@ -2373,13 +2295,14 @@ class AgentOrchestratorTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(structuredWorkerAnalysis("SQL script null value analysis"));
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(
                 model, "analyze sql script", result, Map.of(), new LinkedHashMap<>(), () -> false);
 
         assertThat(coverage.returnedRecordCount()).isEqualTo(1);
         assertThat(coverage.processedRecordCount()).isEqualTo(1);
-        assertThat(coverage.promptEvidence()).contains("WAIT_EVENT", "null");
+        verify(model).chat(argThat((String prompt) -> prompt.contains("\"WAIT_EVENT\":null")));
     }
 
     @Test
@@ -2418,6 +2341,7 @@ class AgentOrchestratorTest {
             """);
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(model, "analyze jmx memory", result, Map.of(), metadata, () -> false);
 
@@ -2425,7 +2349,7 @@ class AgentOrchestratorTest {
         assertThat(coverage.evidenceTraceComplete()).isTrue();
         assertThat(coverage.rawReplayChunkCount()).isZero();
         assertThat(coverage.promptEvidence())
-            .contains("hierarchical_analysis_reduce.v1", "HeapUsedMb 为 42")
+            .contains("hierarchical_analysis_reduce.v1", "HeapUsedMb = 42")
             .contains("java.lang:type=Memory.records[1]")
             .doesNotContain("Raw evidence replay (lossless");
         assertThat(coverage.summaryResults().get(0).evidence())
@@ -3033,6 +2957,7 @@ class AgentOrchestratorTest {
             """);
         Map<String, Object> metadata = new LinkedHashMap<>();
 
+        stubUnified(model);
         AgentOrchestrator.RecordCoverageBundle coverage = newOrchestrator(model)
             .buildRecordCoverageBundle(
                 model, "analyze cluster resources", result, Map.of(), metadata, () -> false);
@@ -6354,4 +6279,53 @@ class AgentOrchestratorTest {
             return plan;
         }
     }
+    private void stubUnified(ChatModel model) {
+        if (org.mockito.Mockito.mockingDetails(model).isMock()) {
+            when(model.chat(argThat((String value) -> value != null && value.contains("unified_question_analysis.v1"))))
+                .thenAnswer(invocation -> unifiedFixture(invocation.getArgument(0, String.class)));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String unifiedFixture(String prompt) {
+        try {
+            var mapper = new ObjectMapper();
+            var sources = mapper.readValue(prompt.substring(prompt.indexOf("Bound evidence: ") + 16), List.class);
+            var findings = new java.util.ArrayList<Map<String, Object>>();
+            for (Object item : sources) {
+                var source = (Map<String, Object>) item;
+                var rows = (List<Map<String, Object>>) source.get("records");
+                var refs = new java.util.ArrayList<String>();
+                if (rows == null) {
+                    rows = new java.util.ArrayList<>();
+                    for (var selected : (List<Map<String, Object>>) source.getOrDefault("selectedRecords", List.of())) {
+                        if (selected.get("record") instanceof Map<?, ?> record) {
+                            rows.add((Map<String, Object>) record);
+                            refs.add(String.valueOf(selected.get("recordRef")));
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < rows.size(); i++) refs.add(source.get("datasetReference") + ".records[" + (i + 1) + "]");
+                }
+                if (rows.isEmpty()) continue;
+                for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+                for (var cell : rows.get(rowIndex).entrySet()) {
+                    if (!(cell.getValue() instanceof Number) && !(cell.getValue() instanceof String)) continue;
+                    var finding = new LinkedHashMap<String, Object>();
+                    finding.put("datasetReference", source.get("datasetReference"));
+                    finding.put("claimClass", "OBSERVED_RETURNED_FACT");
+                    finding.put("claim", cell.getKey() + " = " + cell.getValue());
+                    finding.put("significance", "Returned observation");
+                    finding.put("operation", "OBSERVE");
+                    finding.put("recordRefs", List.of(refs.get(rowIndex)));
+                    finding.put("supportingValues", List.of(String.valueOf(cell.getValue())));
+                    finding.put("confidence", "HIGH"); finding.put("caveats", List.of());
+                    findings.add(finding);
+                }
+                }
+            }
+            return mapper.writeValueAsString(Map.of("schemaVersion", "unified_question_analysis.v1", "findings", findings, "limitations", List.of()));
+        } catch (Exception error) { throw new AssertionError(error); }
+    }
+
 }

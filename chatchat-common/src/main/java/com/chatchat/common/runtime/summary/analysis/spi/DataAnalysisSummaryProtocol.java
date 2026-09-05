@@ -43,6 +43,11 @@ public interface DataAnalysisSummaryProtocol<
     S preserve(I isolationScope, DataAnalysisPosition position,
                Map<String, Object> governedContext, List<Map<String, Object>> records);
 
+    /** Validate an already generated product without invoking any model. */
+    S validateProduct(I isolationScope, DataAnalysisPosition position,
+                      Map<String, Object> governedContext, List<Map<String, Object>> records,
+                      String userObjective, String productJson);
+
     S fallback(I isolationScope, DataAnalysisPosition position,
                Map<String, Object> governedContext, List<Map<String, Object>> records);
 

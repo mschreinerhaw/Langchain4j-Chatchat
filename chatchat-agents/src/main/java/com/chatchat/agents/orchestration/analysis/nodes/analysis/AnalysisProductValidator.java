@@ -81,7 +81,7 @@ public final class AnalysisProductValidator {
         AnalysisSummaryResult result,
         Predicate<AnalysisSummaryResult> traceable
     ) {
-        if (result == null || !"MODEL_SUMMARY".equals(result.outcome())
+        if (result == null || !java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(result.outcome())
             || result.content() == null || result.content().isBlank()
             || !Boolean.TRUE.equals(result.evidence().get("structured"))
             || !completeWorkerAnalysisReport(result)
@@ -105,7 +105,7 @@ public final class AnalysisProductValidator {
         if (result.outcome().contains("FALLBACK") || result.outcome().contains("DIRECT")) {
             return "RAW_RECORD_PRODUCT_IS_NOT_ANALYSIS";
         }
-        if (!"MODEL_SUMMARY".equals(result.outcome())) return "MODEL_ANALYSIS_NOT_PRODUCED";
+        if (!java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(result.outcome())) return "MODEL_ANALYSIS_NOT_PRODUCED";
         if (!Boolean.TRUE.equals(result.evidence().get("structured"))) {
             return "ANALYSIS_PROTOCOL_NOT_SATISFIED";
         }
@@ -119,7 +119,7 @@ public final class AnalysisProductValidator {
         AnalysisSummaryResult result,
         Predicate<AnalysisSummaryResult> traceable
     ) {
-        if (result == null || !"MODEL_SUMMARY".equals(result.outcome())
+        if (result == null || !java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(result.outcome())
             || result.content() == null || result.content().isBlank()
             || traceable == null || !traceable.test(result)) {
             return false;

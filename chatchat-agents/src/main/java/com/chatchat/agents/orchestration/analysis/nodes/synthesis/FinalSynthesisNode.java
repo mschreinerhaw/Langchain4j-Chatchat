@@ -494,7 +494,7 @@ public final class FinalSynthesisNode {
             return governedAnswer;
         }
         long governedSummaryCount = request.summaryResults().stream()
-            .filter(summary -> "MODEL_SUMMARY".equals(summary.outcome()))
+            .filter(summary -> java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(summary.outcome()))
             .filter(summary -> summary.content() != null && !summary.content().isBlank())
             .count();
         if (request.coverageComplete() && request.evidenceTraceComplete()
@@ -523,11 +523,11 @@ public final class FinalSynthesisNode {
         List<AnalysisSummaryResult> preferred = request.synthesisInputs().isEmpty()
             ? request.summaryResults() : request.synthesisInputs();
         Set<String> modelSummaryIds = request.summaryResults().stream()
-            .filter(summary -> "MODEL_SUMMARY".equals(summary.outcome()))
+            .filter(summary -> java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(summary.outcome()))
             .map(AnalysisSummaryResult::resultId).collect(java.util.stream.Collectors.toSet());
         List<AnalysisSummaryResult> modelSummaries = preferred.stream()
             .filter(summary -> summary.outcome().startsWith("MODEL_")
-                || "MODEL_SUMMARY".equals(summary.outcome())
+                || java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(summary.outcome())
                 || summary.inputSummaryResultIds().stream().anyMatch(modelSummaryIds::contains))
             .filter(summary -> summary.content() != null && !summary.content().isBlank())
             .collect(java.util.stream.Collectors.toMap(

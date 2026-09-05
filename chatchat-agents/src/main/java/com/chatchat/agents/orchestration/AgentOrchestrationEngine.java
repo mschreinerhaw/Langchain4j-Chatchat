@@ -13,7 +13,6 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecut
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetActivityExecutor;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisWorkerRetryPolicy;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisProgressRecorder;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
 import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
@@ -272,7 +271,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final DatasetAnalysisNode analysisDatasetWorker;
     private final AnalysisDatasetActivityExecutor analysisDatasetActivityExecutor;
     private final AnalysisProgressRecorder analysisProgressRecorder;
-    private final AnalysisDispatchCoordinator analysisDispatchCoordinator;
     private final AnalysisEvidenceCoordinator analysisEvidenceCoordinator;
     private final ContextEvidenceAggregator contextEvidenceAggregator = new ContextEvidenceAggregator();
     private final AgentToolResultFactExtractor toolResultFactExtractor;
@@ -501,17 +499,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.recordChunkPlanner, this.recordAnalysisChunkMaxChars,
             this.mcpAnalysisContextAdapter, this.evidenceGovernanceBridge,
             this.semanticInsightContractProvider);
-        this.analysisDispatchCoordinator = new AnalysisDispatchCoordinator(
-            this.analysisDatasetWorker, this.analysisProgressRecorder,
-            new AnalysisDispatchCoordinator.Configuration(
-                this.recordAnalysisChunkMaxRows, this.recordAnalysisChunkMaxChars,
-                this.analysisSpillThresholdBytes, this.analysisSummaryWorkerMaxRetries,
-                this.analysisSummaryWorkerHeartbeatIntervalMs,
-                this.analysisSummaryWorkerHeartbeatTimeoutMs),
-            this.analysisSummaryGovernanceBridge, this.analysisTaskDispatcher);
         this.analysisCoverageCoordinator = new AnalysisCoverageCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE, this.analysisEvidenceCoordinator,
-            this.analysisDispatchCoordinator, this.deterministicInsightEngine,
+            this.deterministicInsightEngine,
             this.analysisSynthesisCoordinator, this.analysisEvidenceSpillStore,
             new AnalysisCoverageCoordinator.Configuration(
                 this.analysisSummaryWorkerMaxRetries,
@@ -582,7 +572,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.analysisSummaryGovernanceBridge = protocol;
             this.summaryGovernanceCoordinator.setProtocol(protocol);
             this.analysisDatasetWorker.setSummaryProtocol(protocol);
-            this.analysisDispatchCoordinator.setSummaryProtocol(protocol);
             this.answerFinalizer.setAnalysisSummaryProtocol(protocol);
         }
     }
@@ -594,7 +583,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     ) {
         if (dispatcher != null) {
             this.analysisTaskDispatcher = dispatcher;
-            this.analysisDispatchCoordinator.setDispatcher(dispatcher);
         }
     }
 
@@ -713,8 +701,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.analysisTaskDispatcher =
             (ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>)
                 (ModelSummaryDispatcher<?, ?, ?>) registry.require(ModelSummaryDispatcher.class);
-        this.analysisDispatchCoordinator.setSummaryProtocol(this.analysisSummaryGovernanceBridge);
-        this.analysisDispatchCoordinator.setDispatcher(this.analysisTaskDispatcher);
         this.hierarchicalAnalysisReducer =
             (ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
                 StructuredFindingMerger.Result>) (ModelSummaryReducer<?, ?, ?>)

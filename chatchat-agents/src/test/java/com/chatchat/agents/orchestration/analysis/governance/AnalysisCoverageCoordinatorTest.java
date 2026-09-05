@@ -4,7 +4,6 @@ import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesis
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
@@ -19,8 +18,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
@@ -29,11 +26,10 @@ class AnalysisCoverageCoordinatorTest {
     @SuppressWarnings("unchecked")
     void returnsCompleteEmptyCoverageWithoutDispatchWhenNoEvidenceDatasetsExist() {
         AnalysisEvidenceCoordinator evidence = mock(AnalysisEvidenceCoordinator.class);
-        AnalysisDispatchCoordinator dispatch = mock(AnalysisDispatchCoordinator.class);
         when(evidence.project(any(), any())).thenReturn(
             new AnalysisEvidenceCoordinator.Projection(List.of(), List.of()));
         AnalysisCoverageCoordinator coordinator = new AnalysisCoverageCoordinator(
-            mock(AgentRunResultAdapter.class), "agentRunId", evidence, dispatch,
+            mock(AgentRunResultAdapter.class), "agentRunId", evidence,
             mock(DeterministicInsightEngine.class), mock(FinalSynthesisNode.class),
             AnalysisEvidenceSpillStore.disabled(),
             new AnalysisCoverageCoordinator.Configuration(1, 1_000, 5_000));
@@ -49,6 +45,5 @@ class AnalysisCoverageCoordinatorTest {
         assertThat(coverage.returnedRecordCount()).isZero();
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(coverage.evidenceTraceComplete()).isTrue();
-        verify(dispatch, never()).dispatch(any());
     }
 }

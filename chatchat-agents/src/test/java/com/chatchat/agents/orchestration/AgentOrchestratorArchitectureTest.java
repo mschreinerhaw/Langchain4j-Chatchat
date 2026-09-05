@@ -15,6 +15,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentOrchestratorArchitectureTest {
 
+    @Test
+    void outerAnalysisEntryCannotDispatchDatasetModelTasks() throws IOException {
+        Path root = Path.of(System.getProperty("basedir", ".")).resolve(
+            "src/main/java/com/chatchat/agents/orchestration");
+        assertThat(Files.readString(root.resolve("analysis/governance/AnalysisCoverageCoordinator.java")))
+            .contains("UnifiedQuestionAnalysisGraph().execute(")
+            .doesNotContain(".dispatch(", "dispatchCoordinator", "summarizeChunk(", "summarizeWithModel(");
+        assertThat(Files.readString(root.resolve("AgentOrchestrationEngine.java")))
+            .doesNotContain("new AnalysisDispatchCoordinator(", "analysisDispatchCoordinator");
+    }
+
     private static final int MAX_FACADE_LINES = 1_000;
     private static final int ENGINE_MIGRATION_RATCHET_LINES = 4_602;
     private static final int MAX_DOMAIN_COMPONENT_LINES = 1_000;

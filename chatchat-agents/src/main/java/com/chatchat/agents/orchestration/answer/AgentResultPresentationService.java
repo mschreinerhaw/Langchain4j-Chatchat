@@ -32,7 +32,7 @@ public final class AgentResultPresentationService {
                 continue;
             }
             Map<String, Object> data = firstTabularData(output);
-            if (data.isEmpty()) {
+            if (data.isEmpty() || Boolean.TRUE.equals(data.get("hideFromReport"))) {
                 continue;
             }
             List<Map<String, Object>> rows = rowMaps(data.get("rows"), data.get("columns"));
@@ -564,6 +564,7 @@ public final class AgentResultPresentationService {
         }
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("title", "批量诊断结果明细");
+        data.put("hideFromReport", true);
         data.put("columns", new ArrayList<>(combinedColumns));
         data.put("rows", combinedRows);
         data.put("rowCount", totalRows);

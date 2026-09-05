@@ -119,7 +119,7 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSummaryScheduledTaskCount", 1);
         request.metadata().put("recordAnalysisSummaryWorkerCount", 0);
         request.metadata().put("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
-        observe(request, "已启动统一问题分析图，全部 " + datasets.size() + " 个数据集共同参与规划、计算和结论生成。",
+        observe(request, "已启动数据分析图，全部 " + datasets.size() + " 个数据集共同参与规划、计算和结论生成。",
             "analysis_graph", metadataOf("type", "unified_question_analysis_started", "datasetCount", datasets.size(), "modelTaskCount", 1));
         var outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph().execute(
             request.query(), datasets, computation, request.model(), request.isolationScope(),
@@ -281,8 +281,8 @@ public final class AnalysisCoverageCoordinator {
         writeReducerGovernanceMetadata(request, reducerReview, governanceState);
         observe(request,
             reducerReview.rejectedCount() == 0
-                ? "分析主管报告已通过治理准入，可进入综合决策。"
-                : "部分分析主管报告未通过治理准入，已生成补证或重算请求。",
+                ? "报告已通过治理准入，可进入综合决策。"
+                : "部分分析报告未通过治理准入，已生成补证或重算请求。",
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_reducer_admission",
                 "admittedCount", reducerReview.admittedInputs().size(),

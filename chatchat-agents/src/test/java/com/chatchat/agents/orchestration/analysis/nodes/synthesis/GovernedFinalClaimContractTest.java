@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.driver;
+package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;

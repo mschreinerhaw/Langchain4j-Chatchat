@@ -3,7 +3,7 @@ package com.chatchat.agents.orchestration;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisObjectiveContractCompiler;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisSemanticContractCompiler;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordScopeProfiler;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
+import com.chatchat.agents.orchestration.analysis.dispatch.DatasetAnalysisNode;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
 import org.junit.jupiter.api.Test;
 
@@ -71,9 +71,9 @@ class AgentOrchestratorArchitectureTest {
                 .sorted()
                 .toList())
                 .containsExactly(
-                    "checkpoint", "context", "contract", "dataset", "dispatch", "driver",
-                    "governance", "graph", "insight", "logging", "loop", "model", "prompt", "protocol",
-                    "reducer", "report", "semantic", "worker");
+                    "checkpoint", "context", "contract", "dataset", "dispatch",
+                    "governance", "graph", "insight", "logging", "loop", "model", "nodes", "prompt", "protocol",
+                    "report", "semantic");
         }
     }
 
@@ -192,7 +192,7 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Evidence audit must remain independent from answer candidate selection");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/AnalysisDatasetWorker.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/DatasetAnalysisNode.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Dataset chunking, retry, checkpoint and reduction must remain worker-owned");
         assertSourceLineCount(
@@ -212,7 +212,7 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "Final analysis governance must remain independent from Driver scheduling");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/analysis/driver/AnalysisSynthesisCoordinator.java",
+            "src/main/java/com/chatchat/agents/orchestration/analysis/nodes/synthesis/FinalSynthesisNode.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Dataset, cross-dataset and final synthesis must remain outside the orchestration engine");
         assertSourceLineCount(

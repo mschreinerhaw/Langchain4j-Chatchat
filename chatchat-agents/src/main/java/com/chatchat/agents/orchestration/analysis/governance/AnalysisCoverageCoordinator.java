@@ -6,10 +6,10 @@ import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContra
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
-import com.chatchat.agents.orchestration.analysis.driver.AnalysisSynthesisCoordinator;
-import com.chatchat.agents.orchestration.analysis.reducer.AnalysisReducerSupervisor;
-import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
-import com.chatchat.agents.orchestration.analysis.worker.AnalysisWorkerSupervisor;
+import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode;
+import com.chatchat.agents.orchestration.analysis.nodes.merge.MergedFindingValidator;
+import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisProductValidator;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
@@ -42,8 +42,8 @@ public final class AnalysisCoverageCoordinator {
     private final AnalysisEvidenceCoordinator evidenceCoordinator;
     private final AnalysisDispatchCoordinator dispatchCoordinator;
     private final DeterministicInsightEngine insightEngine;
-    private final AnalysisSynthesisCoordinator synthesisCoordinator;
-    private final AnalysisReducerSupervisor reducerSupervisor = new AnalysisReducerSupervisor();
+    private final FinalSynthesisNode synthesisCoordinator;
+    private final MergedFindingValidator reducerSupervisor = new MergedFindingValidator();
     private final AnalysisGovernanceStateCoordinator governanceStateCoordinator =
         new AnalysisGovernanceStateCoordinator();
     private final Configuration configuration;
@@ -55,7 +55,7 @@ public final class AnalysisCoverageCoordinator {
         AnalysisEvidenceCoordinator evidenceCoordinator,
         AnalysisDispatchCoordinator dispatchCoordinator,
         DeterministicInsightEngine insightEngine,
-        AnalysisSynthesisCoordinator synthesisCoordinator,
+        FinalSynthesisNode synthesisCoordinator,
         AnalysisEvidenceSpillStore spillStore,
         Configuration configuration
     ) {
@@ -93,6 +93,28 @@ public final class AnalysisCoverageCoordinator {
             "analysis_summary_governance", metadataOf(
                 "type", "dataset_relationship_plan", "relationshipPlan", relationshipPlan.toMap()));
 
+        Map<String, PreparedCalculation> prepared = new LinkedHashMap<>();
+        Map<String, Integer> calculationOccurrences = new LinkedHashMap<>();
+        List<AnalysisEvidenceCoordinator.Dataset> preparedDatasets = new ArrayList<>();
+        List<String> availableDatasets = datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList();
+        for (var dataset : datasets) {
+            request.cancellationGuard().run();
+            int occurrence = calculationOccurrences.merge(dataset.reference(), 1, Integer::sum);
+            String reference = occurrence == 1 ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+            var inputs = new ArrayList<DeterministicInsightEngine.DatasetInput>();
+            var results = new ArrayList<Map<String, Object>>();
+            var decisions = new ArrayList<Map<String, Object>>();
+            var calculationPrompt = new StringBuilder();
+            Map<String, Object> context = new LinkedHashMap<>(dataset.analysisContext());
+            collectInsights(request, dataset, reference, request.summaryProtocol().govern(
+                reference, context, dataset.records()), calculationPrompt, inputs, results, decisions);
+            prepared.put(reference, new PreparedCalculation(inputs, results, decisions, calculationPrompt.toString()));
+            context.put("runtimeAnalysisInputs", Map.of("availableDatasetReferences", availableDatasets,
+                "verifiedCalculations", results, "calculationDecisions", decisions,
+                "instruction", "Interpret verified calculations; do not recalculate. Other listed datasets are available to the coordinator, not missing external evidence. Do not infer joins."));
+            preparedDatasets.add(new AnalysisEvidenceCoordinator.Dataset(dataset.reference(), context, dataset.records()));
+        }
+        datasets = List.copyOf(preparedDatasets);
         Object driverRepairs = request.metadata() == null ? null
             : request.metadata().get("analysisDriverRepairRequests");
         boolean resumedDriverRepair = request.metadata() != null
@@ -113,7 +135,7 @@ public final class AnalysisCoverageCoordinator {
                     "workerCount", dispatched.workerCount(), "dispatchMode", dispatched.mode()));
         }
         try {
-            return reconcile(request, datasets, relationshipPlan, lifecycle, dispatched);
+            return reconcile(request, datasets, relationshipPlan, lifecycle, dispatched, prepared);
         } finally {
             dispatched.close();
         }
@@ -156,7 +178,8 @@ public final class AnalysisCoverageCoordinator {
         List<AnalysisEvidenceCoordinator.Dataset> datasets,
         DatasetRelationshipPlan relationshipPlan,
         DataAnalysisLifecycle initialLifecycle,
-        AnalysisDispatchCoordinator.DispatchBatch dispatched
+        AnalysisDispatchCoordinator.DispatchBatch dispatched,
+        Map<String, PreparedCalculation> prepared
     ) {
         StringBuilder prompt = new StringBuilder(
             "Returned-record evidence (record_grounded_analysis.v1). "
@@ -175,7 +198,7 @@ public final class AnalysisCoverageCoordinator {
         List<Map<String, Object>> presentationViews = new ArrayList<>();
         List<Map<String, Object>> failures = new ArrayList<>();
         List<DataAnalysisWorkerSupervision.WorkerReport> workerReports = new ArrayList<>();
-        AnalysisWorkerSupervisor workerSupervisor = new AnalysisWorkerSupervisor();
+        AnalysisProductValidator workerSupervisor = new AnalysisProductValidator();
         Map<String, Integer> occurrences = new LinkedHashMap<>();
         Counters counters = new Counters();
 
@@ -238,8 +261,11 @@ public final class AnalysisCoverageCoordinator {
             presentationViews.add(presentation);
             prompt.append("- ").append(reference).append(" business semantic view: ")
                 .append(ModelProtocolJson.compact(presentation)).append("\n");
-            collectInsights(request, dataset, reference, governedContext, prompt,
-                insightDatasets, insightResults, insightDecisions);
+            PreparedCalculation calculation = prepared.get(reference);
+            insightDatasets.addAll(calculation.inputs());
+            insightResults.addAll(calculation.results());
+            insightDecisions.addAll(calculation.decisions());
+            prompt.append(calculation.prompt());
             appendChunks(request, dataset, reference, summary, appendix, rawReplay,
                 governedSummaries, counters);
             observe(request, "数据集 " + datasetIndex + "/" + datasets.size() + " 分析完成，共 "
@@ -266,7 +292,7 @@ public final class AnalysisCoverageCoordinator {
         if (!supervision.synthesisReady()) {
             prompt.append("Driver synthesis barrier is blocked: no Worker produced an admitted "
                 + "business-analysis product. Raw returned records must not be summarized or published.\n");
-            HierarchicalAnalysisReducer.Result hierarchy = new HierarchicalAnalysisReducer.Result(
+            StructuredFindingMerger.Result hierarchy = new StructuredFindingMerger.Result(
                 relationshipPlan, List.of(), List.of(), List.of(),
                 datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList());
             boolean coverageComplete = false;
@@ -280,20 +306,20 @@ public final class AnalysisCoverageCoordinator {
                 false, counters.sourceComplete, false, counters.rawReplay,
                 List.of(), List.of());
         }
-        AnalysisSynthesisCoordinator.HierarchicalSynthesisResult synthesis =
+        FinalSynthesisNode.HierarchicalSynthesisResult synthesis =
             synthesisCoordinator.synthesizeHierarchy(
-                new AnalysisSynthesisCoordinator.HierarchicalSynthesisRequest(
+                new FinalSynthesisNode.HierarchicalSynthesisRequest(
                     request.model()::chat, request.isolationScope(), relationshipPlan, request.query(),
                     datasetSummaries, insightDatasets, lifecycle, request.runtimeAttributes()));
         lifecycle = synthesis.lifecycle();
         DeterministicInsightEngine.Result bundleInsights = synthesis.crossDatasetInsights();
-        HierarchicalAnalysisReducer.Result hierarchy = synthesis.hierarchy();
-        AnalysisReducerSupervisor.Review reducerReview =
+        StructuredFindingMerger.Result hierarchy = synthesis.hierarchy();
+        MergedFindingValidator.Review reducerReview =
             reducerSupervisor.inspect(hierarchy.finalInputs());
         AnalysisGovernanceStateCoordinator.State governanceState =
             governanceStateCoordinator.reconcile(reducerReview.admittedInputs(),
                 reducerReview.repairRequests(), request.metadata());
-        hierarchy = new HierarchicalAnalysisReducer.Result(
+        hierarchy = new StructuredFindingMerger.Result(
             hierarchy.relationshipPlan(), hierarchy.datasetSummaries(),
             hierarchy.relationshipGroupSummaries(), reducerReview.admittedInputs(),
             hierarchy.uncoveredDatasets());
@@ -355,7 +381,7 @@ public final class AnalysisCoverageCoordinator {
 
     private void writeReducerGovernanceMetadata(
         Request request,
-        AnalysisReducerSupervisor.Review review,
+        MergedFindingValidator.Review review,
         AnalysisGovernanceStateCoordinator.State governanceState
     ) {
         Map<String, Object> metadata = request.metadata();
@@ -488,6 +514,9 @@ public final class AnalysisCoverageCoordinator {
                 "supervision", supervision.toMap()));
     }
 
+    private record PreparedCalculation(List<DeterministicInsightEngine.DatasetInput> inputs,
+        List<Map<String, Object>> results, List<Map<String, Object>> decisions, String prompt) {}
+
     private void collectInsights(Request request, AnalysisEvidenceCoordinator.Dataset dataset,
         String reference, Map<String, Object> context, StringBuilder prompt,
         List<DeterministicInsightEngine.DatasetInput> inputs, List<Map<String, Object>> results,
@@ -572,7 +601,7 @@ public final class AnalysisCoverageCoordinator {
                 "stage", "PARTIAL_DATA_UNAVAILABLE", "failure", failure));
     }
 
-    private void appendCoverage(StringBuilder prompt, HierarchicalAnalysisReducer.Result hierarchy,
+    private void appendCoverage(StringBuilder prompt, StructuredFindingMerger.Result hierarchy,
         List<Map<String, Object>> failures, Counters counters, boolean complete, boolean traceComplete) {
         prompt.append("Coverage: returnedRecordCount=").append(counters.returned)
             .append(", processedRecordCount=").append(counters.processed)
@@ -616,7 +645,7 @@ public final class AnalysisCoverageCoordinator {
 
     private void writeResultMetadata(Request request, int datasetCount,
         DatasetRelationshipPlan relationships, DataAnalysisLifecycle lifecycle,
-        HierarchicalAnalysisReducer.Result hierarchy, List<AnalysisSummaryResult> summaries,
+        StructuredFindingMerger.Result hierarchy, List<AnalysisSummaryResult> summaries,
         List<Map<String, Object>> failures, List<Map<String, Object>> insightResults,
         List<Map<String, Object>> insightDecisions, List<Map<String, Object>> presentations,
         Counters counters, boolean complete, boolean traceComplete) {
@@ -659,7 +688,7 @@ public final class AnalysisCoverageCoordinator {
         metadata.put("hierarchicalUncoveredDatasets", hierarchy.uncoveredDatasets());
         metadata.put("dataAnalysisLifecycle", lifecycle.toMap());
         metadata.put("hierarchicalAnalysisReduce", metadataOf(
-            "schemaVersion", HierarchicalAnalysisReducer.SCHEMA_VERSION,
+            "schemaVersion", StructuredFindingMerger.SCHEMA_VERSION,
             "relationshipPlan", relationships.toMap(),
             "datasetSummaries", hierarchy.datasetSummaries().stream().map(AnalysisSummaryResult::toMap).toList(),
             "relationshipGroupSummaries", hierarchy.relationshipGroupSummaries().stream()

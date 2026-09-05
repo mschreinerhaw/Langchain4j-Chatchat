@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.reducer;
+package com.chatchat.agents.orchestration.analysis.nodes.merge;
 
 import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProjection;
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
@@ -18,8 +18,6 @@ import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisWork;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryReducer;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryModel;
 import com.chatchat.common.runtime.summary.spi.ModelSummaryProgressReporter;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,15 +31,14 @@ import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 /** Reduces chunk evidence into dataset summaries and explicitly-related dataset groups. */
-public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
-    AnalysisSummaryResult, HierarchicalAnalysisReducer.Context, HierarchicalAnalysisReducer.Result>,
-    DataAnalysisParticipant<ModelSummaryModel, HierarchicalAnalysisReducer.Request,
-        HierarchicalAnalysisReducer.Result> {
+public final class StructuredFindingMerger implements ModelSummaryReducer<
+    AnalysisSummaryResult, StructuredFindingMerger.Context, StructuredFindingMerger.Result>,
+    DataAnalysisParticipant<ModelSummaryModel, StructuredFindingMerger.Request,
+        StructuredFindingMerger.Result> {
 
     public static final String SCHEMA_VERSION = "hierarchical_analysis_reduce.v1";
     private static final int MAX_SUMMARY_INPUT_CHARS = 24_000;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final Logger log = LoggerFactory.getLogger(HierarchicalAnalysisReducer.class);
+    private static final Logger log = LoggerFactory.getLogger(StructuredFindingMerger.class);
 
     public Result reduce(ModelSummaryModel model,
                          GovernanceIsolationScope isolationScope,
@@ -173,27 +170,15 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         if (chunks == null || chunks.isEmpty()) {
             throw new IllegalArgumentException("dataset chunks are required");
         }
-        String originalUserQuestion = requiredQuestion(objective);
+        requiredQuestion(objective);
         AnalysisSummaryResult first = chunks.get(0);
-        boolean requiresModelReduce = chunks.size() > 1;
-        ReductionSynthesis synthesis = requiresModelReduce
-            ? synthesize(model, "DATASET_SYNTHESIS", originalUserQuestion, chunks, Map.of(
-                "datasetReference", dataset,
-                "analysisContext", first.analysisContext(),
-                "rule", "Merge only chunks of this dataset; preserve conflicts and limitations."))
-            : ReductionSynthesis.empty();
-        String content = requiresModelReduce
-            ? synthesis.content() : chunks.size() == 1 ? first.content() : deterministicMerge(chunks);
-        boolean fallback = content == null || content.isBlank();
-        if (fallback) content = deterministicMerge(chunks);
+        String content = chunks.size() == 1 ? first.content() : deterministicMerge(chunks);
         AnalysisSummaryResult result = AnalysisSummaryResult.intermediateSummary(
             scope,
             "DATASET_SYNTHESIS",
             "dataset-summary#" + dataset,
             content,
-            requiresModelReduce
-                ? fallback ? "DETERMINISTIC_DATASET_REDUCE_FALLBACK" : "MODEL_DATASET_REDUCE"
-                : chunks.size() == 1 ? "SINGLE_CHUNK_DATASET_REDUCE" : "DETERMINISTIC_DATASET_REDUCE",
+            chunks.size() == 1 ? "SINGLE_CHUNK_DATASET_REDUCE" : "DETERMINISTIC_DATASET_REDUCE",
             Map.of("datasetReference", dataset, "chunkCount", chunks.size()),
             first.analysisContext(),
             Map.of("inputChunkCount", chunks.size(), "complete", true),
@@ -204,7 +189,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                     DataAnalysisDecisionOperatingModel.SCHEMA_VERSION,
                 "analysisParticipantRole",
                     DataAnalysisDecisionOperatingModel.ParticipantRole.REDUCER.name(),
-                "managementReviewInput", true), synthesis.artifacts())
+                "managementReviewInput", true), List.of())
         );
         log.info("analysisReducerReport layer=REDUCER scope=DATASET dataset={} report={}",
             dataset, ModelProtocolJson.compact(AnalysisReportLogProjection.project("REDUCER", result)));
@@ -223,25 +208,13 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
             .map(DatasetRelationshipPlan.Edge::toMap)
             .toList();
         Map<String, Object> commonRoleContext = commonAgentRoleContext(inputs);
-        Map<String, Object> reduceContext = new LinkedHashMap<>();
-        reduceContext.put("groupId", group.groupId());
-        reduceContext.put("datasetReferences", group.datasetReferences());
-        reduceContext.put("authorizedRelationships", groupEdges);
-        reduceContext.put("rule", "Correlate only through the authorized relationships; do not invent joins or recalculate values.");
-        if (!commonRoleContext.isEmpty()) {
-            reduceContext.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, commonRoleContext);
-        }
-        ReductionSynthesis synthesis = synthesize(model, "RELATIONSHIP_GROUP_SYNTHESIS", objective, inputs,
-            Collections.unmodifiableMap(reduceContext));
-        String content = synthesis.content();
-        boolean fallback = content == null || content.isBlank();
-        if (fallback) content = deterministicMerge(inputs);
+        String content = deterministicMerge(inputs);
         AnalysisSummaryResult result = AnalysisSummaryResult.intermediateSummary(
             scope,
             "RELATIONSHIP_GROUP_SYNTHESIS",
             "relationship-summary#" + group.groupId(),
             content,
-            fallback ? "DETERMINISTIC_RELATIONSHIP_REDUCE_FALLBACK" : "MODEL_RELATIONSHIP_REDUCE",
+            "DETERMINISTIC_RELATIONSHIP_REDUCE",
             Map.of("groupId", group.groupId(), "datasetReferences", group.datasetReferences()),
             groupAnalysisContext(groupEdges, commonRoleContext),
             Map.of("inputDatasetCount", inputs.size(), "complete", true),
@@ -253,7 +226,7 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
                 "analysisParticipantRole",
                     DataAnalysisDecisionOperatingModel.ParticipantRole.REDUCER.name(),
                 "managementReviewInput", true,
-                "authorizedRelationships", groupEdges), synthesis.artifacts())
+                "authorizedRelationships", groupEdges), List.of())
         );
         log.info("analysisReducerReport layer=REDUCER scope=RELATIONSHIP_GROUP groupId={} report={}",
             group.groupId(), ModelProtocolJson.compact(
@@ -298,160 +271,6 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
         return Collections.unmodifiableMap(evidence);
     }
 
-    private ReductionSynthesis synthesize(ModelSummaryModel model,
-                              String scope,
-                              String objective,
-                              List<AnalysisSummaryResult> inputs,
-                              Map<String, Object> reduceContext) {
-        if (model == null) return ReductionSynthesis.empty();
-        List<Map<String, Object>> projections = inputs.stream().map(this::projection).toList();
-        String prompt = "You are performing a governed hierarchical analysis reduction ("
-            + SCHEMA_VERSION + ").\n"
-            + "Reduction scope: " + scope + "\n"
-            + "Original user question (authoritative analysis intent): "
-            + requiredQuestion(objective) + "\n"
-            + "Reduction context: " + ModelProtocolJson.compact(reduceContext) + "\n"
-            + "Upstream summaries: " + ModelProtocolJson.compact(projections) + "\n"
-            + "Produce a concise business analysis that directly answers the original question. Treat upstream "
-            + "summaries as completed Worker analysis reports, not as raw data descriptions. Consolidate their work, "
-            + "preserve each report's analytical contribution and detect disagreements, evidence gaps and weakly "
-            + "supported areas for the final management-level Driver. Do not simply concatenate Worker narratives. "
-            + "Reconcile the dynamic analysisAgenda and analysisItems: preserve each item's disposition, combine "
-            + "compatible findings, surface conflicts, and ensure supported items remain visible to the Driver. "
-            + "Apply a supported-first invariant: first consolidate what the returned evidence establishes for each "
-            + "objective dimension, including current-period levels, composition, rankings, transactions and outcomes; "
-            + "only then summarize limitations. Missing longitudinal evidence limits trend or stable-preference claims "
-            + "but does not invalidate a supported current-state observation. Never replace an available finding with "
-            + "a statement that more data is needed. Evidence gaps are advisory and must remain subordinate to findings. "
-            + "agent_role_analysis_context as maintained orientation for relevance, analytical emphasis and vocabulary, never "
-            + "as returned evidence, semantic authorization or a replacement for the original question. Treat upstream "
-            + "objectiveAlignment as a coverage contract: merge addressed aspects, retain unsupported aspects, and "
-            + "do not replace an unsupported requested metric. Field meaning, aggregation, additivity, proxy "
-            + "relationships, population scope, and completeness are valid only when explicitly producer-declared "
-            + "in upstream analysisContext. Never infer them from field names, repeated values, chunk shape, or "
-            + "correlation. Without a declaration, preserve the observation, mark the semantic operation unknown, "
-            + "and do not aggregate, deduplicate, substitute, or generalize it. Distinguish returned-detail-row "
-            + "coverage from explicitly declared comparison/population coverage and source completeness. "
-            + "Do not promote chunk-local extrema, rankings, trends, one-period behavior or a small sample to "
-            + "dataset/global, stable, causal or longitudinal conclusions unless scope and completeness support it. "
-            + "Apply the professional analysis stages carried in analysisObjectiveContract: reconcile scope and grain, "
-            + "Reconcile analysisMethodologyContract and analysisTree execution across Workers. Preserve the chain "
-            + "from overall state to decomposition, contribution, explanation, validation and impact. Identify "
-            + "unanswered tree questions without allowing them to erase supported branches. Deduplicate overlapping "
-            + "dimensions, compare only against declared baselines, and rank combined findings by relevance, "
-            + "materiality and confidence rather than by narrative frequency. "
-            + "quality signals and conflicts; combine the highest-materiality upstream insights; preserve the distinction "
-            + "between observed facts, authorized derived measures and calibrated inferences; retain formulas, supporting "
-            + "values, validated semanticBasis, confidence and alternative explanations. Treat evidence.insights as "
-            + "the evidence-bound analytical claims. Claims marked REVIEW_REQUIRED remain available for synthesis but "
-            + "must retain their review reasons and qualified language; never silently promote them to verified facts. "
-            + "Never recreate a calculation or inference omitted by validation, "
-            + "and never recover rejected claims from free-text content. evidence.observedFactClaims contains facts "
-            + "that already passed exact returned-value validation; preserve them as OBSERVED_RETURNED_FACT claims "
-            + "without recalculation, aggregation or inference. Resolve contradictory claims when evidence permits, "
-            + "otherwise surface the conflict once. Reconcile upstream analysisDepth coverage against the objective mode. "
-            + "Do not accept a data inventory, generic risk list or generic recommendation as a diagnosis. A diagnostic "
-            + "or decision conclusion must connect an admitted observation to an authorized baseline or comparison, a "
-            + "material deviation, its supported impact, competing explanations, discriminating verification and a "
-            + "prioritized action. Preserve unsupported depth dimensions and their follow-up requests instead of filling "
-            + "them with common knowledge. "
-            + "Merge upstream demandAnalysis into a question-directed decision goal, distinguishing answered from "
-            + "open questions. Preserve upstream metricAssociations as analysis candidates. Only an association "
-            + "already admitted as an insight may be stated as a finding; otherwise label it pending validation and "
-            + "retain the proposed metrics, method and missing evidence without inventing correlation or causality. "
-            + "Preserve material exact values and limitations. Keep dataset and "
-            + "result identity in the structured lineage only: never print resultId values, runtime ids, template ids, "
-            + "tool names, schema keys, or technical evidence references in the business narrative. Do not infer "
-            + "relationships beyond the reduction context. Rank by relevance and materiality. Do not concatenate chunk "
-            + "summaries, output raw rows or complete record inventories, or discuss execution metadata. Return either "
-            + "the legacy narrative during migration, or preferably one JSON object: {\"schemaVersion\":"
-            + "\"analysis_reducer_report.v1\",\"summary\":\"\",\"derivedClaims\":[{\"claimId\":\"\","
-            + "\"text\":\"\",\"basisClaimIds\":[],\"status\":\"SUPPORTED|PARTIAL|REVIEW_REQUIRED\","
-            + "\"confidence\":\"HIGH|MEDIUM|LOW\",\"significance\":\"\",\"caveats\":[]}]}. "
-            + "Every derived Claim must cite admitted upstream Claim IDs. Do not place execution diagnostics in "
-            + "derivedClaims.";
-        try {
-            String result = model.generate(prompt);
-            if (result == null || result.isBlank()) return ReductionSynthesis.empty();
-            return reductionSynthesis(result.trim(), reductionArtifactScope(scope, reduceContext), inputs);
-        } catch (RuntimeException ignored) {
-            return ReductionSynthesis.empty();
-        }
-    }
-
-    private String reductionArtifactScope(String fallbackScope, Map<String, Object> reduceContext) {
-        for (String key : List.of("datasetReference", "groupId")) {
-            String value = text(reduceContext == null ? null : reduceContext.get(key));
-            if (!value.isBlank()) return value;
-        }
-        return fallbackScope;
-    }
-
-    private ReductionSynthesis reductionSynthesis(String modelOutput, String scope,
-                                                   List<AnalysisSummaryResult> inputs) {
-        Map<String, Object> payload = parseObject(modelOutput);
-        if (!"analysis_reducer_report.v1".equals(text(payload.get("schemaVersion")))) {
-            return new ReductionSynthesis(modelOutput, List.of());
-        }
-        String summary = text(payload.get("summary"));
-        Map<String, Map<String, Object>> upstream = new LinkedHashMap<>();
-        AnalysisArtifactProtocol.collect(inputs).forEach(item ->
-            upstream.put(text(item.get("artifactId")), item));
-        List<Map<String, Object>> derived = new ArrayList<>();
-        for (Map<String, Object> candidate : maps(payload.get("derivedClaims"))) {
-            String narrative = text(candidate.get("text"));
-            List<String> basisIds = strings(candidate.get("basisClaimIds"));
-            if (narrative.isBlank() || basisIds.isEmpty()
-                || basisIds.stream().anyMatch(id -> !upstream.containsKey(id))) continue;
-            List<String> refs = basisIds.stream().map(upstream::get)
-                .flatMap(item -> strings(item.get("recordRefs")).stream()).distinct().toList();
-            List<String> values = basisIds.stream().map(upstream::get)
-                .flatMap(item -> strings(item.get("supportingValues")).stream()).distinct().toList();
-            if (!numbersGrounded(narrative, values)) continue;
-            String status = text(candidate.get("status")).toUpperCase(java.util.Locale.ROOT);
-            if (basisIds.stream().map(upstream::get)
-                .anyMatch(item -> "REVIEW_REQUIRED".equals(text(item.get("status"))))) {
-                status = "REVIEW_REQUIRED";
-            } else if ("SUPPORTED".equals(status) && basisIds.stream().map(upstream::get)
-                .anyMatch(item -> "PARTIAL".equals(text(item.get("status"))))) {
-                status = "PARTIAL";
-            }
-            Map<String, Object> artifact = AnalysisArtifactProtocol.derived(
-                "REDUCER", scope, text(candidate.get("claimId")), narrative,
-                status, text(candidate.get("confidence")),
-                text(candidate.get("significance")), basisIds, refs, values,
-                strings(candidate.get("caveats")));
-            if (!artifact.isEmpty()) derived.add(artifact);
-        }
-        return new ReductionSynthesis(summary.isBlank() ? modelOutput : summary, List.copyOf(derived));
-    }
-
-    private boolean numbersGrounded(String narrative, List<String> supportingValues) {
-        Set<String> allowed = new java.util.LinkedHashSet<>();
-        supportingValues.forEach(value -> allowed.addAll(numberTokens(value)));
-        return allowed.containsAll(numberTokens(narrative));
-    }
-
-    private Set<String> numberTokens(String value) {
-        if (value == null || value.isBlank()) return Set.of();
-        java.util.regex.Matcher matcher = java.util.regex.Pattern
-            .compile("[-+]?\\d+(?:[.,]\\d+)*%?").matcher(value);
-        Set<String> result = new java.util.LinkedHashSet<>();
-        while (matcher.find()) result.add(matcher.group().replace(",", ""));
-        return result;
-    }
-
-    private Map<String, Object> parseObject(String value) {
-        int start = value == null ? -1 : value.indexOf('{');
-        int end = value == null ? -1 : value.lastIndexOf('}');
-        if (start < 0 || end <= start) return Map.of();
-        try {
-            return OBJECT_MAPPER.readValue(value.substring(start, end + 1), new TypeReference<>() { });
-        } catch (RuntimeException | java.io.IOException ignored) {
-            return Map.of();
-        }
-    }
-
     private List<Map<String, Object>> maps(Object value) {
         if (!(value instanceof Collection<?> collection)) return List.of();
         List<Map<String, Object>> result = new ArrayList<>();
@@ -474,17 +293,6 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
 
     private String text(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
-    }
-
-    private record ReductionSynthesis(String content, List<Map<String, Object>> artifacts) {
-        private ReductionSynthesis {
-            content = content == null ? "" : content;
-            artifacts = artifacts == null ? List.of() : List.copyOf(artifacts);
-        }
-
-        private static ReductionSynthesis empty() {
-            return new ReductionSynthesis("", List.of());
-        }
     }
 
     private Map<String, Object> projection(AnalysisSummaryResult summary) {
@@ -569,7 +377,9 @@ public final class HierarchicalAnalysisReducer implements ModelSummaryReducer<
 
     private String deterministicMerge(List<AnalysisSummaryResult> inputs) {
         StringBuilder merged = new StringBuilder();
+        Set<String> seen = new java.util.LinkedHashSet<>();
         for (AnalysisSummaryResult input : inputs) {
+            if (!seen.add(input.content())) continue;
             if (!merged.isEmpty()) merged.append("\n\n");
             merged.append(abbreviate(input.content()));
         }

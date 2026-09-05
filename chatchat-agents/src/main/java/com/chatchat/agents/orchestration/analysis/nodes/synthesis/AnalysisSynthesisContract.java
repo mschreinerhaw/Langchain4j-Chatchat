@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.driver;
+package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 /** Semantic instructions supplementing the runtime finding structure and numeric admission checks. */
 final class AnalysisSynthesisContract {

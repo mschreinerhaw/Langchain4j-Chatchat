@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
 import com.chatchat.agents.orchestration.analysis.semantic.SemanticClaimCoordinator;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisPosition;
@@ -20,7 +20,7 @@ class RuntimeOsAnalysisDepthGoldenTest {
 
     @Test
     void operationalDiagnosisRetainsDepthGapsAlongsideUsableObservedFacts() {
-        AnalysisSummaryGovernanceBridge governance = new AnalysisSummaryGovernanceBridge();
+        AnalysisNodeProtocol governance = new AnalysisNodeProtocol();
         GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
             "tenant", "user", "run", "request", "conversation");
         List<Map<String, Object>> records = List.of(Map.of(

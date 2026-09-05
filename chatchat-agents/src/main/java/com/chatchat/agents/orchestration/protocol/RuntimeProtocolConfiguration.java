@@ -5,7 +5,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 
 
 import com.chatchat.agents.runtime.governance.McpEvidenceGovernanceBridge;
@@ -36,8 +36,8 @@ public class RuntimeProtocolConfiguration {
         List<RuntimeResultAnalysisAdapter> resultAdapters,
         ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
             summaryDispatcher,
-        ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
-            HierarchicalAnalysisReducer.Result> summaryReducer
+        ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
+            StructuredFindingMerger.Result> summaryReducer
     ) {
         RuntimeEvidenceProtocol<?> evidenceBridge = new McpEvidenceGovernanceBridge();
         RuntimeResultAnalysisProtocol resultAnalysisBridge =
@@ -60,7 +60,7 @@ public class RuntimeProtocolConfiguration {
         List<RuntimeResultAnalysisAdapter> resultAdapters
     ) {
         return runtimeProtocolRegistry(objectMapper, resultAdapters,
-            new LocalAnalysisTaskDispatcher(4), new HierarchicalAnalysisReducer());
+            new LocalAnalysisTaskDispatcher(4), new StructuredFindingMerger());
     }
 
     @Bean
@@ -73,8 +73,8 @@ public class RuntimeProtocolConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(ModelSummaryReducer.class)
-    public ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
-        HierarchicalAnalysisReducer.Result> hierarchicalAnalysisReducer() {
-        return new HierarchicalAnalysisReducer();
+    public ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
+        StructuredFindingMerger.Result> hierarchicalAnalysisReducer() {
+        return new StructuredFindingMerger();
     }
 }

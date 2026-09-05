@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.driver;
+package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
 import com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock;
@@ -124,7 +124,7 @@ final class GovernedFinalClaimContract {
                 }
                 // Dynamic analysis agenda items are the Worker's principal analytical work
                 // product. They already passed record-reference and exact-value validation in
-                // AnalysisSummaryGovernanceBridge, so retain them as governed Driver inputs even
+                // AnalysisNodeProtocol, so retain them as governed Driver inputs even
                 // when the model did not duplicate the same reasoning in its optional insights
                 // array. Dropping this channel reduces the Driver to execution-metadata claims.
                 for (Map<String, Object> item : maps(summary.evidence().get("analysisItems"))) {

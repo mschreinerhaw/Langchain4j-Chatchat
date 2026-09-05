@@ -1,8 +1,8 @@
-package com.chatchat.agents.orchestration.analysis.driver;
+package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy;
-import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
@@ -28,7 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class AnalysisSynthesisCoordinatorTest {
+class FinalSynthesisNodeTest {
 
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
         "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
@@ -41,18 +41,18 @@ class AnalysisSynthesisCoordinatorTest {
             DeterministicInsightEngine.RESULT_VERSION, "executed", "bundle", "1",
             scope.toMap(), List.of(), List.of());
         when(insightEngine.analyzeBundle(any(), any())).thenReturn(bundleResult);
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             adapter, "agentRunId", mock(AnalysisSummaryGovernanceCoordinator.class),
-            insightEngine, new AnswerCandidateCollector(), new HierarchicalAnalysisReducer());
+            insightEngine, new AnswerCandidateCollector(), new StructuredFindingMerger());
         AnalysisSummaryResult datasetSummary = datasetSummary("dataset-a", "governed result");
         DatasetRelationshipPlan plan = DatasetRelationshipPlan.create(List.of(
             new DatasetRelationshipPlan.Dataset("dataset-a", Map.of())));
         DataAnalysisLifecycle lifecycle = DataAnalysisLifecycle.begin("analysis-a", 1)
             .relationshipsEstablished(1, 0).datasetsDispatched(1).workersReconciled(1, 0);
 
-        AnalysisSynthesisCoordinator.HierarchicalSynthesisResult result =
+        FinalSynthesisNode.HierarchicalSynthesisResult result =
             coordinator.synthesizeHierarchy(
-                new AnalysisSynthesisCoordinator.HierarchicalSynthesisRequest(
+                new FinalSynthesisNode.HierarchicalSynthesisRequest(
                     prompt -> "unused", scope, plan, "analyze returned data",
                     List.of(datasetSummary), List.of(), lifecycle,
                     Map.of("agentRunId", "run-a")));
@@ -72,14 +72,14 @@ class AnalysisSynthesisCoordinatorTest {
             scope, "completed", "guarded answer", "MODEL_FINAL_SUMMARY", Map.of(), List.of());
         when(governance.finalizeSummary(any())).thenReturn(governed);
         AnswerCandidateCollector candidates = new AnswerCandidateCollector();
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             adapter, "agentRunId", governance, new DeterministicInsightEngine(), candidates,
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn("model answer");
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> "guarded answer", () -> "fallback", true));
 
         assertThat(result.generated()).isTrue();
@@ -93,10 +93,10 @@ class AnalysisSynthesisCoordinatorTest {
     @Test
     void degradedTraceableWorkerNarrativeStillReachesTheDriver() {
         AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         AnalysisSummaryResult degradedWorkerReport = AnalysisSummaryResult.chunk(
             scope,
             Map.of("datasetReference", "customer_assets", "chunkIndex", 1),
@@ -112,8 +112,8 @@ class AnalysisSynthesisCoordinatorTest {
         when(driver.chat(any(String.class))).thenReturn(
             "## Core conclusion\n\nThe returned snapshot is almost fully invested, with only 912.05 cash available.");
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
-            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            new FinalSynthesisNode.FinalModelSynthesisRequest(
                 driver, "prompt", "completed", "run-a", 1, 1, 0,
                 true, () -> "fallback", candidate -> candidate, "empty fallback",
                 1, 1, true, true, true, 1, 0,
@@ -132,10 +132,10 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void internalDriverScaffoldTriggersSameDataRepairInsteadOfGovernanceFailureReport() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         AnalysisSummaryResult worker = AnalysisSummaryResult.chunk(
             scope, Map.of("datasetReference", "innodb_metrics", "chunkIndex", 1), Map.of(),
             "The buffer pool has 262112 pages, 8192 free pages and no pending writes.",
@@ -148,8 +148,8 @@ class AnalysisSynthesisCoordinatorTest {
                 + "as workload grows.");
         Map<String, Object> metadata = new LinkedHashMap<>();
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
-            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            new FinalSynthesisNode.FinalModelSynthesisRequest(
                 driver, "prompt", "completed", "run-a", 1, 1, 0,
                 true, () -> "fallback", candidate -> candidate, "empty",
                 1, 1, true, true, true, 1, 0,
@@ -174,15 +174,15 @@ class AnalysisSynthesisCoordinatorTest {
         AnalysisSummaryResult governed = AnalysisSummaryResult.finalSummary(
             scope, "completed", "fallback", "DETERMINISTIC_FINAL_FALLBACK", Map.of(), List.of());
         when(governance.finalizeSummary(any())).thenReturn(governed);
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel failing = mock(ChatModel.class);
         when(failing.chat(any(String.class))).thenThrow(new IllegalStateException("model unavailable"));
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(failing, metadata, candidate -> candidate, () -> "fallback", true));
 
         assertThat(result.content()).isEqualTo("fallback");
@@ -201,10 +201,10 @@ class AnalysisSynthesisCoordinatorTest {
             return AnalysisSummaryResult.finalSummary(
                 scope, "completed", request.content(), request.outcome(), Map.of(), List.of());
         });
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel failing = mock(ChatModel.class);
         when(failing.chat(any(String.class))).thenThrow(new IllegalStateException("model unavailable"));
@@ -215,7 +215,7 @@ class AnalysisSynthesisCoordinatorTest {
             + "\"payloadType\":\"structured\",\"padding\":\"" + "x".repeat(1_000)
             + "\"}`\n成功子项：1；未成功子项：0";
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(failing, metadata, candidate -> candidate, () -> rawFallback, true));
 
         assertThat(result.content())
@@ -239,10 +239,10 @@ class AnalysisSynthesisCoordinatorTest {
             return AnalysisSummaryResult.finalSummary(
                 scope, "completed", request.content(), request.outcome(), Map.of(), List.of());
         });
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(
@@ -253,7 +253,7 @@ class AnalysisSynthesisCoordinatorTest {
                 + "\"payloadType\":\"structured\",\"padding\":\"" + "x".repeat(1_000)
                 + "\"}`\n成功子项：1；未成功子项：0");
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> candidate, () -> "unused", true));
 
         assertThat(result.content())
@@ -268,16 +268,16 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void presentationFailsClosedWhenReturnedDataHasNoGovernedWorkerAnalysis() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId",
             mock(AnalysisSummaryGovernanceCoordinator.class),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         Map<String, Object> metadata = new LinkedHashMap<>();
 
         String answer = coordinator.presentGovernedAnalysis(
             "## 可用执行结果\n\n- 返回内容：`raw rows`\n成功子项：1；未成功子项：0",
-            new AnalysisSynthesisCoordinator.PresentationRequest(
+            new FinalSynthesisNode.PresentationRequest(
                 "raw appendix", List.of(List.of("raw")), 1, false,
                 true, true, true, List.of(), List.of(), metadata));
 
@@ -290,11 +290,11 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void deadlineCancellationIsNotConvertedIntoAContentFallback() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId",
             mock(AnalysisSummaryGovernanceCoordinator.class),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         ChatModel timedOut = mock(ChatModel.class);
         when(timedOut.chat(any(String.class)))
             .thenThrow(new AgentDeadlineExceededException("deadline exhausted"));
@@ -308,11 +308,11 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void governanceBarrierBecomesReviewAdvisoryAndDoesNotSkipDriver() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn(
             "## 分析结论\n\n当前已有分析产品需要人工复核，但不应被机器治理阻断。");
@@ -322,7 +322,7 @@ class AnalysisSynthesisCoordinatorTest {
         metadata.put("analysisAcceptedWorkerCount", 0);
         metadata.put("analysisRejectedWorkerCount", 2);
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> candidate, () -> "unused", true));
 
         assertThat(result.generated()).isTrue();
@@ -341,16 +341,16 @@ class AnalysisSynthesisCoordinatorTest {
     @Test
     void missingDriverReviewProtocolPublishesDeterministicEvidenceForHumanReview() {
         AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenReturn("客户具有模型擅自推断出的稳定交易风格");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), true));
 
         assertThat(result.generated()).isTrue();
@@ -370,16 +370,16 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void finalModelFailurePublishesDeterministicEvidenceInsteadOfBlockingForDriverReview() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenThrow(new IllegalStateException("model unavailable"));
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), false));
 
         assertThat(result.generated()).isTrue();
@@ -397,10 +397,10 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void driverReceivesDemandAndMetricAssociationTaskAndPublishesSafeDirections() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("demandAnalysis")
@@ -433,7 +433,7 @@ class AnalysisSynthesisCoordinatorTest {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), true));
 
         assertThat(result.content()).contains(
@@ -447,10 +447,10 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void driverUsesReducerReportsInsteadOfBypassingThemWithChunkClaims() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         AnalysisSummaryResult chunk = claimSummary();
         Map<String, Object> reducerInsight = Map.of(
             "claimId", "claim-reducer",
@@ -484,14 +484,14 @@ class AnalysisSynthesisCoordinatorTest {
                 """);
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
-        AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request =
-            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+        FinalSynthesisNode.FinalModelSynthesisRequest request =
+            new FinalSynthesisNode.FinalModelSynthesisRequest(
                 model, "prompt", "completed", "run-a", 2, 1, 3,
                 true, () -> "unsafe fallback", candidate -> candidate, "empty fallback",
                 1, 1, true, true, true, 1, 0,
                 List.of(chunk), List.of(reducer), Map.of("agentRunId", "run-a"), metadata);
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(request);
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(request);
 
         assertThat(result.content()).contains("Reducer归并后的管理分析结论")
             .doesNotContain("返回记录显示数值为 42");
@@ -517,10 +517,10 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void driverStillProducesHumanReviewableAnalysisWhenClaimsAreNotAdmitted() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("Binding Driver role pipeline context"))))
@@ -535,7 +535,7 @@ class AnalysisSynthesisCoordinatorTest {
             "claimAdmissionDecisions", List.of(Map.of(
                 "claimId", "claim-1", "admitted", false))));
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, rejected, true));
 
         assertThat(result.generated()).isTrue();
@@ -553,10 +553,10 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void driverPublishesGroundedManagementSynthesisInsteadOfClaimInventory() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         AnalysisSummaryResult assets = factReport("assets", "fact:assets",
             "Worker: assets are concentrated in securities and cash is limited.",
             "Total assets 847174.25, security value 846262.20, cash 912.05",
@@ -598,15 +598,15 @@ class AnalysisSynthesisCoordinatorTest {
                 "questionId", "gap-" + index,
                 "goal", "optional follow-up " + index))
             .toList());
-        AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request =
-            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+        FinalSynthesisNode.FinalModelSynthesisRequest request =
+            new FinalSynthesisNode.FinalModelSynthesisRequest(
                 model, "Completed reports:\n" + assets.content() + "\n" + trades.content(),
                 "completed", "run-a", 2, 2, 4, true, () -> "unsafe fallback",
                 candidate -> candidate, "empty fallback", 2, 2,
                 true, true, true, 2, 0, List.of(assets, trades), List.of(assets, trades),
                 Map.of("agentRunId", "run-a"), metadata);
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(request);
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(request);
 
         assertThat(result.content()).contains(
             "almost entirely invested in securities", "847174.25", "11 buys and 9 sells");
@@ -624,21 +624,21 @@ class AnalysisSynthesisCoordinatorTest {
         assertThat(driverContext.get("analysisMethodology").toString())
             .contains("analysis_methodology.v1", "ESTABLISH_BASELINE", "KEY_DRIVERS");
         assertThat(driverContext.get("methodologyExecutionPolicy").toString())
-            .contains("driverOwnsMethodSelection=true", "QUALIFY_DEPENDENT_CLAIMS");
+            .contains("planningSelectsMethods=true", "QUALIFY_DEPENDENT_CLAIMS");
     }
 
     @Test
     void presentationReplacesUngovernedDraftWithDriverSynthesis() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId",
             mock(AnalysisSummaryGovernanceCoordinator.class),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         AnalysisSummaryResult summary = datasetSummary("dataset-a", "完整的业务分析结论");
         Map<String, Object> metadata = new LinkedHashMap<>();
 
         String answer = coordinator.presentGovernedAnalysis("operational draft",
-            new AnalysisSynthesisCoordinator.PresentationRequest(
+            new FinalSynthesisNode.PresentationRequest(
                 "raw appendix", List.of(List.of("完整")), 1, false,
                 true, true, true, List.of(summary), List.of(summary), metadata));
 
@@ -652,15 +652,15 @@ class AnalysisSynthesisCoordinatorTest {
     @Test
     @SuppressWarnings("unchecked")
     void driverChallengeBecomesHumanReviewNoteWithoutBlockingPublication() {
-        AnalysisSynthesisCoordinator coordinator = new AnalysisSynthesisCoordinator(
+        FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
-            new HierarchicalAnalysisReducer());
+            new StructuredFindingMerger());
         AnalysisSummaryResult report = claimSummary();
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("DRIVER_REVIEW")
-                && prompt.contains("CHIEF_DECISION_MAKER")
+                && prompt.contains("nodeInputs")
                 && prompt.contains("客户经营分析决策者")
                 && prompt.contains("claim-1"))))
             .thenReturn("""
@@ -687,8 +687,8 @@ class AnalysisSynthesisCoordinatorTest {
             AgentRoleAnalysisContext.create("客户经营分析决策者",
                 "审查客户经营分析并形成管理决策", List.of("客户分析"), List.of("决策")));
 
-        AnalysisSynthesisCoordinator.FinalSynthesisResult result = coordinator.synthesizeFinal(
-            new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+        FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
+            new FinalSynthesisNode.FinalModelSynthesisRequest(
                 model, "prompt", "completed", "run-a", 2, 1, 3,
                 true, () -> "unsafe", candidate -> candidate, "empty",
                 1, 1, true, true, true, 1, 0,
@@ -711,8 +711,8 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void clarificationTerminatesBeforeModelOrFallbackAndClearsStaleReport() {
-        var coordinator = new AnalysisSynthesisCoordinator(mock(AgentRunResultAdapter.class), "agentRunId",
-            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new HierarchicalAnalysisReducer());
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("executionStatus", "NEEDS_CLARIFICATION");
@@ -727,8 +727,8 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void pendingRetrievalAndMissingRequiredEvidenceCannotInvokeFinalModel() {
-        var coordinator = new AnalysisSynthesisCoordinator(mock(AgentRunResultAdapter.class), "agentRunId",
-            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new HierarchicalAnalysisReducer());
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
         for (var decision : List.of(
             com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE,
             com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.NO_EVIDENCE,
@@ -747,14 +747,14 @@ class AnalysisSynthesisCoordinatorTest {
         }
     }
 
-    private AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request(
+    private FinalSynthesisNode.FinalModelSynthesisRequest request(
         ChatModel model,
         Map<String, Object> metadata,
         java.util.function.UnaryOperator<String> guard,
         java.util.function.Supplier<String> fallback,
         boolean fallbackAllowed
     ) {
-        return new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+        return new FinalSynthesisNode.FinalModelSynthesisRequest(
             model, "prompt", "completed", "run-a", 2, 1, 3,
             fallbackAllowed, fallback, guard, "empty fallback",
             1, 1, true, true, true, 1, 0,
@@ -768,11 +768,11 @@ class AnalysisSynthesisCoordinatorTest {
             Map.of("complete", true), List.of(), Map.of());
     }
 
-    private AnalysisSynthesisCoordinator.FinalModelSynthesisRequest claimBoundRequest(
+    private FinalSynthesisNode.FinalModelSynthesisRequest claimBoundRequest(
         ChatModel model, Map<String, Object> metadata, AnalysisSummaryResult summary,
         boolean fallbackAllowed
     ) {
-        return new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+        return new FinalSynthesisNode.FinalModelSynthesisRequest(
             model, "prompt", "completed", "run-a", 2, 1, 3,
             fallbackAllowed, () -> "unsafe raw fallback", candidate -> candidate, "empty fallback",
             1, 1, true, true, true, 1, 0,
@@ -781,8 +781,8 @@ class AnalysisSynthesisCoordinatorTest {
 
     @Test
     void publishesV4BlocksFromRuntimeCatalogAndClearsStaleBlocksOnFailure() {
-        var coordinator = new AnalysisSynthesisCoordinator(mock(AgentRunResultAdapter.class), "agentRunId",
-            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new HierarchicalAnalysisReducer());
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
             {"schemaVersion":"governed_management_synthesis.v4",

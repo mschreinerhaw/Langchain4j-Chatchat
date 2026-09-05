@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.worker;
+package com.chatchat.agents.orchestration.analysis.nodes.analysis;
 
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy;
@@ -17,9 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver-side admission of Worker products; execution completion alone is never sufficient. */
-public final class AnalysisWorkerSupervisor {
+public final class AnalysisProductValidator {
 
-    private static final Logger log = LoggerFactory.getLogger(AnalysisWorkerSupervisor.class);
+    private static final Logger log = LoggerFactory.getLogger(AnalysisProductValidator.class);
 
     public DataAnalysisWorkerSupervision.WorkerReport inspect(
         String datasetReference,

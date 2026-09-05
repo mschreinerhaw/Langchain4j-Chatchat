@@ -29,9 +29,9 @@ class AnswerQualityBusinessNeutralityTest {
         "orchestration/analysis/contract/AnalysisContextPresentationContract.java",
         "runtime/context/AgentRoleAnalysisContext.java",
         "orchestration/analysis/insight/SemanticInsightRecipeCatalog.java",
-        "orchestration/analysis/worker/AnalysisSummaryGovernanceBridge.java",
+        "orchestration/analysis/nodes/analysis/AnalysisNodeProtocol.java",
         "orchestration/analysis/prompt/GovernedRecordFinalPromptBuilder.java",
-        "orchestration/analysis/driver/GovernedFinalClaimContract.java"
+        "orchestration/analysis/nodes/synthesis/GovernedFinalClaimContract.java"
     );
 
     private static final List<String> FORBIDDEN_BUSINESS_LITERALS = List.of(

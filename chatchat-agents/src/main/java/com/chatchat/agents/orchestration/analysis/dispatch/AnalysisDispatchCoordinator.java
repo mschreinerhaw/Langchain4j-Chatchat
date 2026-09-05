@@ -25,14 +25,14 @@ public final class AnalysisDispatchCoordinator {
 
     private static final Logger log = LoggerFactory.getLogger(AnalysisDispatchCoordinator.class);
 
-    private final AnalysisDatasetWorker worker;
+    private final DatasetAnalysisNode worker;
     private final AnalysisProgressRecorder progressRecorder;
     private final Configuration configuration;
     private DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> summaryProtocol;
     private ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult> dispatcher;
 
     public AnalysisDispatchCoordinator(
-        AnalysisDatasetWorker worker,
+        DatasetAnalysisNode worker,
         AnalysisProgressRecorder progressRecorder,
         Configuration configuration,
         DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> summaryProtocol,

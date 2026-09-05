@@ -8,7 +8,7 @@ import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContra
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordChunkPlanner;
 import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
+import com.chatchat.agents.orchestration.analysis.dispatch.DatasetAnalysisNode;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecutionPort;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetActivityExecutor;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisWorkerRetryPolicy;
@@ -21,13 +21,13 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 import com.chatchat.agents.orchestration.analysis.checkpoint.AnalysisSummaryCheckpointService;
-import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
-import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 import com.chatchat.agents.orchestration.analysis.semantic.SemanticClaimCoordinator;
 import com.chatchat.agents.orchestration.analysis.loop.AnalysisLoopCoordinator;
 import com.chatchat.agents.orchestration.analysis.loop.AnalysisRefinementCoordinator;
-import com.chatchat.agents.orchestration.analysis.driver.AnalysisSynthesisCoordinator;
+import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator;
 import com.chatchat.agents.orchestration.presentation.AgentLifecyclePresentationPolicy;
 import com.chatchat.agents.evidence.normalization.EvidenceSource;
@@ -267,9 +267,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final AnalysisRecordChunkPlanner recordChunkPlanner;
     private final AnalysisSummaryCheckpointService summaryCheckpointService;
     private final AnalysisSummaryGovernanceCoordinator summaryGovernanceCoordinator;
-    private final AnalysisSynthesisCoordinator analysisSynthesisCoordinator;
+    private final FinalSynthesisNode analysisSynthesisCoordinator;
     private final AnalysisCoverageCoordinator analysisCoverageCoordinator;
-    private final AnalysisDatasetWorker analysisDatasetWorker;
+    private final DatasetAnalysisNode analysisDatasetWorker;
     private final AnalysisDatasetActivityExecutor analysisDatasetActivityExecutor;
     private final AnalysisProgressRecorder analysisProgressRecorder;
     private final AnalysisDispatchCoordinator analysisDispatchCoordinator;
@@ -281,16 +281,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         RuntimeProtocolDefaults.analysisSummary();
     private RuntimeResultAnalysisProtocol evidenceGovernanceBridge =
         RuntimeProtocolDefaults.resultAnalysis();
-    private ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
-        HierarchicalAnalysisReducer.Result> hierarchicalAnalysisReducer =
-        new HierarchicalAnalysisReducer();
+    private ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
+        StructuredFindingMerger.Result> hierarchicalAnalysisReducer =
+        new StructuredFindingMerger();
     private final DeterministicInsightEngine deterministicInsightEngine =
         new DeterministicInsightEngine();
     private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
     private final AnalysisWorkerRetryPolicy analysisWorkerRetryPolicy =
         new AnalysisWorkerRetryPolicy();
-    private final HierarchicalAnalysisReducer workerDatasetReducer =
-        new HierarchicalAnalysisReducer();
+    private final StructuredFindingMerger workerDatasetReducer =
+        new StructuredFindingMerger();
     private RuntimeAnalysisContextProtocol mcpAnalysisContextAdapter;
     private DagGovernanceContractProvider dagGovernanceContractProvider =
         DagGovernanceContractProvider.builtInFallback();
@@ -415,11 +415,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.summaryGovernanceCoordinator = new AnalysisSummaryGovernanceCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
-        this.analysisSynthesisCoordinator = new AnalysisSynthesisCoordinator(
+        this.analysisSynthesisCoordinator = new FinalSynthesisNode(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE, this.summaryGovernanceCoordinator,
             this.deterministicInsightEngine, this.answerCandidateCollector,
             this.hierarchicalAnalysisReducer);
-        this.analysisDatasetWorker = new AnalysisDatasetWorker(
+        this.analysisDatasetWorker = new DatasetAnalysisNode(
             this.recordChunkPlanner, this.summaryCheckpointService,
             this.analysisWorkerRetryPolicy, this.workerDatasetReducer,
             this.analysisSummaryGovernanceBridge, this.analysisEvidenceSpillStore);
@@ -716,8 +716,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.analysisDispatchCoordinator.setSummaryProtocol(this.analysisSummaryGovernanceBridge);
         this.analysisDispatchCoordinator.setDispatcher(this.analysisTaskDispatcher);
         this.hierarchicalAnalysisReducer =
-            (ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
-                HierarchicalAnalysisReducer.Result>) (ModelSummaryReducer<?, ?, ?>)
+            (ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
+                StructuredFindingMerger.Result>) (ModelSummaryReducer<?, ?, ?>)
                     registry.require(ModelSummaryReducer.class);
         this.analysisSynthesisCoordinator.setHierarchicalReducer(this.hierarchicalAnalysisReducer);
         this.analysisEvidenceCoordinator.setProtocols(
@@ -2129,9 +2129,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
         String finalPrompt = prompt;
-        AnalysisSynthesisCoordinator.FinalSynthesisResult synthesis =
+        FinalSynthesisNode.FinalSynthesisResult synthesis =
             analysisSynthesisCoordinator.synthesizeFinal(
-                new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                new FinalSynthesisNode.FinalModelSynthesisRequest(
                     activeChatModel, finalPrompt, stage, firstNonBlank(runId, ""),
                     result == null || result.steps() == null ? 0 : result.steps().size(),
                     attemptResults == null ? 0 : attemptResults.size(), storedObservations.size(),
@@ -2172,7 +2172,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 .GovernedRecordFinalPromptBuilder.build(
                     query, systemPrompt, repairedCoverage.promptEvidence());
             synthesis = analysisSynthesisCoordinator.synthesizeFinal(
-                new AnalysisSynthesisCoordinator.FinalModelSynthesisRequest(
+                new FinalSynthesisNode.FinalModelSynthesisRequest(
                     activeChatModel, repairedPrompt, stage, firstNonBlank(runId, ""),
                     result == null || result.steps() == null ? 0 : result.steps().size(),
                     attemptResults == null ? 0 : attemptResults.size(), storedObservations.size(),
@@ -2890,7 +2890,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> metadata
     ) {
         return analysisSynthesisCoordinator.presentGovernedAnalysis(answer,
-            new AnalysisSynthesisCoordinator.PresentationRequest(
+            new FinalSynthesisNode.PresentationRequest(
                 coverage.appendix(), coverage.recordValueGroups(), coverage.returnedRecordCount(),
                 coverage.iterative(), coverage.coverageComplete(), coverage.sourceContentComplete(),
                 coverage.evidenceTraceComplete(), coverage.summaryResults(), coverage.synthesisInputs(),

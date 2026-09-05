@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.reducer;
+package com.chatchat.agents.orchestration.analysis.nodes.merge;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy;
@@ -13,9 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Admits Reducer reports before the management-level Driver can consume them. */
-public final class AnalysisReducerSupervisor {
+public final class MergedFindingValidator {
 
-    private static final Logger log = LoggerFactory.getLogger(AnalysisReducerSupervisor.class);
+    private static final Logger log = LoggerFactory.getLogger(MergedFindingValidator.class);
 
     public Review inspect(List<AnalysisSummaryResult> candidates) {
         List<AnalysisSummaryResult> admitted = new ArrayList<>();

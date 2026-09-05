@@ -15,11 +15,11 @@ import java.util.function.BooleanSupplier;
 public final class AnalysisDatasetActivityExecutor implements AnalysisDatasetExecutionPort {
 
     private final AgentChatModelResolver modelResolver;
-    private final AnalysisDatasetWorker datasetWorker;
+    private final DatasetAnalysisNode datasetWorker;
 
     public AnalysisDatasetActivityExecutor(
         AgentChatModelResolver modelResolver,
-        AnalysisDatasetWorker datasetWorker
+        DatasetAnalysisNode datasetWorker
     ) {
         this.modelResolver = modelResolver;
         this.datasetWorker = datasetWorker;

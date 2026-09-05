@@ -255,9 +255,11 @@ class RuntimeOsBusinessAnalysisGoldenTest {
     }
 
     private String customerSummary(String prompt) {
+        assertThat(prompt).contains("runtimeAnalysisInputs", "verifiedCalculations", "calculationDecisions",
+            "availableDatasetReferences", "customer_assets", "customer_orders", "customer_positions", "customer_realized_results");
         String reference = List.of("customer_assets", "customer_orders", "customer_positions",
                 "customer_realized_results").stream()
-            .filter(prompt::contains).findFirst().orElse("customer_dataset");
+            .filter(candidate -> prompt.contains("\"datasetReference\":\"" + candidate + "\"" )).findFirst().orElse("customer_dataset");
         String value = switch (reference) {
             case "customer_assets" -> "847174.25";
             case "customer_orders" -> "20";

@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.worker;
+package com.chatchat.agents.orchestration.analysis.nodes.analysis;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
@@ -19,9 +19,40 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class AnalysisSummaryGovernanceBridgeTest {
+class AnalysisNodeProtocolTest {
 
-    private final AnalysisSummaryGovernanceBridge bridge = new AnalysisSummaryGovernanceBridge();
+    @Test
+    void repairsInvalidProductOnceUsingAdmissionDecisionsAndOriginalRecords() {
+        var calls = new java.util.ArrayList<String>();
+        var rows = List.<Map<String, Object>>of(Map.of("VALUE", 17));
+        var result = bridge.summarize(prompt -> {
+            calls.add(prompt);
+            return calls.size() == 1
+                ? "{\"summary\":\"initial\",\"insights\":[{\"claim\":\"unsupported\"}]}"
+                : "{\"summary\":\"repaired with explicit limitation\",\"insights\":[],\"limitations\":[\"claim cannot be verified\"]}";
+        }, isolationScope, bridge.position("sample", 1, 1, 1, 1, 1),
+            bridge.govern("sample", Map.of(), rows), rows, "Inspect returned value");
+        assertThat(calls).hasSize(2);
+        assertThat(calls.get(1)).contains("CLAIM_SHAPE_INVALID", "sample.records[1]", "\"VALUE\":17",
+            "confidence (HIGH|MEDIUM|LOW)", "outputUnit", "alternativeExplanations");
+        assertThat(result.content()).contains("repaired with explicit limitation");
+    }
+
+    @Test
+    void repairFailurePreservesOriginalProductInsteadOfFallingBackToRawRecords() {
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var rows = List.<Map<String, Object>>of(Map.of("VALUE", 17));
+        var result = bridge.summarize(prompt -> {
+            if (calls.incrementAndGet() > 1) throw new IllegalStateException("unavailable");
+            return "{\"summary\":\"preserved analysis\",\"insights\":[{\"claim\":\"unsupported\"}]}";
+        }, isolationScope, bridge.position("sample", 1, 1, 1, 1, 1),
+            bridge.govern("sample", Map.of(), rows), rows, "Inspect returned value");
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(result.content()).contains("preserved analysis");
+        assertThat(result.outcome()).isEqualTo("MODEL_SUMMARY");
+    }
+
+    private final AnalysisNodeProtocol bridge = new AnalysisNodeProtocol();
     private final GovernanceIsolationScope isolationScope = GovernanceIsolationScope.runtime(
         "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
 

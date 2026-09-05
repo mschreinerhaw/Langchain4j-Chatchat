@@ -37,6 +37,7 @@ public final class AnalysisReportLogProjection {
         value.put("outcome", report.outcome());
         value.put("summary", report.content());
         value.put("inputReportCount", Math.max(0, inputReportCount));
+        putIfPresent(value, "analysisNodeTransitions", evidence.get("analysisNodeTransitions"));
         putIfPresent(value, "demandAnalysis", evidence.get("demandAnalysis"));
         putIfPresent(value, "metricAssociations", evidence.get("metricAssociations"));
         putIfPresent(value, "businessConclusions", evidence.get("businessConclusions"));
@@ -48,6 +49,17 @@ public final class AnalysisReportLogProjection {
             value.put("analysisNarrativeStatus", String.valueOf(narrativeStatus));
         }
         value.put("insightCount", size(evidence.get("insights")));
+        Map<String, Integer> rejectionCounts = new LinkedHashMap<>();
+        if (evidence.get("claimAdmissionDecisions") instanceof List<?> decisions) {
+            for (Object decision : decisions) {
+                if (decision instanceof Map<?, ?> admission) {
+                    for (String code : strings(admission.get("rejectionCodes"))) {
+                        if (code.matches("[A-Z_]{1,80}")) rejectionCounts.merge(code, 1, Integer::sum);
+                    }
+                }
+            }
+        }
+        value.put("claimRejectionReasons", Map.copyOf(rejectionCounts));
         for (String counter : List.of("proposedInsightCount", "rejectedInsightCount", "invalidInsightCount", "reviewRequiredInsightCount")) {
             if (evidence.get(counter) instanceof Number count) value.put(counter, count);
         }

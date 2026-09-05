@@ -7,7 +7,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
-import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
 
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
@@ -1661,7 +1661,7 @@ class AgentOrchestratorTest {
                 && prompt.contains("Position detail API")
                 && prompt.contains("Returns account positions")
                 && prompt.contains("Position value")
-                && prompt.contains("You are the Worker in a governed business-analysis pipeline")
+                && prompt.contains("Execute the data analysis node in a governed analysis graph")
                 && prompt.contains("Original user question (authoritative analysis intent): analyze returned records")));
     }
 
@@ -1707,7 +1707,7 @@ class AgentOrchestratorTest {
 
         assertThat(first.coverageComplete()).isTrue();
         assertThat(restored.coverageComplete()).isTrue();
-        assertThat(callsAfterFirst).isEqualTo(first.iterations() + 1).isGreaterThan(1);
+        assertThat(callsAfterFirst).isEqualTo(first.iterations()).isGreaterThan(1);
         assertThat(modelCalls.get()).isEqualTo(callsAfterFirst);
         assertThat(spillStore.spillCount.get()).isEqualTo(first.iterations() * 2);
         assertThat(spillStore.readCount.get()).isEqualTo(first.rawReplayChunkCount() * 2);
@@ -1731,7 +1731,7 @@ class AgentOrchestratorTest {
             "tenantId", "tenant-spill", "agentRunId", "spill-run"));
         AgentOrchestrator.RecordCoverageBundle recomputed = orchestrator.buildRecordCoverageBundle(
             model, "analyze generic dataset", result, runtime, recoveryMetadata, () -> false);
-        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst + recomputed.iterations() + 1);
+        assertThat(modelCalls.get()).isEqualTo(callsAfterFirst + recomputed.iterations());
         assertThat(recomputed.coverageComplete()).isTrue();
         assertThat(recoveryMetadata)
             .containsEntry("recordAnalysisRestoredCheckpointCount", 0)
@@ -2058,7 +2058,7 @@ class AgentOrchestratorTest {
             .containsEntry("recordAnalysisRawReplayChunkCount", coverage.iterations());
         // Every chunk call plus the Worker-owned dataset reduction must carry the same
         // authoritative user question and semantic context.
-        verify(model, times(coverage.iterations() + 1)).chat(argThat((String prompt) ->
+        verify(model, times(coverage.iterations())).chat(argThat((String prompt) ->
             prompt.contains("Original user question (authoritative analysis intent): analyze linux output")
                 && prompt.contains("Assess current runtime metrics")
                 && prompt.contains("Collect runtime metric values")

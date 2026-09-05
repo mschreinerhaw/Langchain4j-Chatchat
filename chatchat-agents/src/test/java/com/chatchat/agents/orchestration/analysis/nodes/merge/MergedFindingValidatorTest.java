@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.reducer;
+package com.chatchat.agents.orchestration.analysis.nodes.merge;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -10,7 +10,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class AnalysisReducerSupervisorTest {
+class MergedFindingValidatorTest {
 
     private final GovernanceIsolationScope scope =
         GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation");
@@ -32,8 +32,8 @@ class AnalysisReducerSupervisorTest {
                     "claimId", "observed-fact:asset", "claim", "Observed account value")),
                 "missingEvidence", List.of("comparison baseline missing")));
 
-        AnalysisReducerSupervisor.Review review =
-            new AnalysisReducerSupervisor().inspect(List.of(reducer));
+        MergedFindingValidator.Review review =
+            new MergedFindingValidator().inspect(List.of(reducer));
 
         assertThat(review.admittedInputs()).singleElement().satisfies(result -> {
             assertThat(result.evidence()).containsKeys(
@@ -56,8 +56,8 @@ class AnalysisReducerSupervisorTest {
             scope, "DATASET_SYNTHESIS", "invalid-reducer", "unmarked reducer output",
             "MODEL_DATASET_REDUCE", Map.of(), Map.of(), Map.of(), List.of(worker), Map.of());
 
-        AnalysisReducerSupervisor.Review review =
-            new AnalysisReducerSupervisor().inspect(List.of(invalid));
+        MergedFindingValidator.Review review =
+            new MergedFindingValidator().inspect(List.of(invalid));
 
         assertThat(review.admittedInputs()).singleElement().satisfies(result -> {
             assertThat(result.content()).isEqualTo("unmarked reducer output");

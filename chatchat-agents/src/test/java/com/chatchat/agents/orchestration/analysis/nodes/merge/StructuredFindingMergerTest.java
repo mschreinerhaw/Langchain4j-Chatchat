@@ -1,10 +1,10 @@
-package com.chatchat.agents.orchestration.analysis.reducer;
+package com.chatchat.agents.orchestration.analysis.nodes.merge;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
-import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
-import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetWorker;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
+import com.chatchat.agents.orchestration.analysis.dispatch.DatasetAnalysisNode;
 
 
 
@@ -25,22 +25,22 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class HierarchicalAnalysisReducerTest {
+class StructuredFindingMergerTest {
 
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
         "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
-    private final AnalysisSummaryGovernanceBridge bridge = new AnalysisSummaryGovernanceBridge();
+    private final AnalysisNodeProtocol bridge = new AnalysisNodeProtocol();
 
     @Test
     void workerAndDriverImplementTheSameRoleNeutralAnalysisParticipant() {
-        assertThat(DataAnalysisParticipant.class).isAssignableFrom(AnalysisDatasetWorker.class);
-        assertThat(DataAnalysisParticipant.class).isAssignableFrom(HierarchicalAnalysisReducer.class);
+        assertThat(DataAnalysisParticipant.class).isAssignableFrom(DatasetAnalysisNode.class);
+        assertThat(DataAnalysisParticipant.class).isAssignableFrom(StructuredFindingMerger.class);
 
         DatasetRelationshipPlan plan = DatasetRelationshipPlan.create(List.of(
             dataset("orders", Map.of())));
-        HierarchicalAnalysisReducer.Context context = new HierarchicalAnalysisReducer.Context(
+        StructuredFindingMerger.Context context = new StructuredFindingMerger.Context(
             prompt -> "unused", scope, plan, "analyze trading preference");
-        HierarchicalAnalysisReducer.Request request = HierarchicalAnalysisReducer.Request.create(
+        StructuredFindingMerger.Request request = StructuredFindingMerger.Request.create(
             context, List.of(chunk("orders", "orders evidence")));
 
         assertThat(request.assignment().scope())
@@ -125,7 +125,7 @@ class HierarchicalAnalysisReducerTest {
             && !prompt.contains("orders evidence"))))
             .thenReturn("assets and positions combined analysis");
 
-        HierarchicalAnalysisReducer.Result result = new HierarchicalAnalysisReducer().reduce(
+        StructuredFindingMerger.Result result = new StructuredFindingMerger().reduce(
             model::chat, scope, plan, chunks, "analyze portfolio activity");
 
         assertThat(result.datasetSummaries()).hasSize(3)
@@ -139,7 +139,7 @@ class HierarchicalAnalysisReducerTest {
             });
         assertThat(result.relationshipGroupSummaries()).singleElement().satisfies(summary -> {
             assertThat(summary.scope()).isEqualTo("RELATIONSHIP_GROUP_SYNTHESIS");
-            assertThat(summary.content()).isEqualTo("assets and positions combined analysis");
+            assertThat(summary.content()).contains("assets evidence", "positions evidence").doesNotContain("orders evidence");
             assertThat(summary.inputSummaryResultIds()).hasSize(2);
             assertThat(summary.evidence())
                 .containsEntry("analysisDecisionOperatingModelVersion",
@@ -152,20 +152,20 @@ class HierarchicalAnalysisReducerTest {
             .containsExactly("RELATIONSHIP_GROUP_SYNTHESIS", "DATASET_SYNTHESIS");
         assertThat(result.promptEvidence())
             .contains("dataset_relationship_plan.v1", "hierarchical_analysis_reduce.v1")
-            .contains("assets and positions combined analysis", "orders evidence");
-        verify(model).chat(argThat((String prompt) -> prompt.contains("authorizedRelationships")));
+            .contains("assets evidence", "positions evidence", "orders evidence");
+        org.mockito.Mockito.verifyNoInteractions(model);
     }
 
     @Test
     void acceptsWorkerReducedDatasetWithoutReducingItsChunksAgain() {
-        HierarchicalAnalysisReducer reducer = new HierarchicalAnalysisReducer();
+        StructuredFindingMerger reducer = new StructuredFindingMerger();
         AnalysisSummaryResult workerResult = reducer.reduceDataset(prompt -> {
             throw new AssertionError("single chunk does not require model reduction");
         }, scope, "assets", List.of(chunk("assets", "worker dataset result")),
             "analyze portfolio activity");
         AtomicInteger driverModelCalls = new AtomicInteger();
 
-        HierarchicalAnalysisReducer.Result result = reducer.reduce(prompt -> {
+        StructuredFindingMerger.Result result = reducer.reduce(prompt -> {
             driverModelCalls.incrementAndGet();
             return "unexpected duplicate reduction";
         }, scope, DatasetRelationshipPlan.create(List.of(dataset("assets", Map.of()))),
@@ -191,7 +191,7 @@ class HierarchicalAnalysisReducerTest {
             Map.of("datasetReference", "orders", "chunkIndex", 1), context,
             "orders analysis", "MODEL_SUMMARY");
 
-        HierarchicalAnalysisReducer.Result result = new HierarchicalAnalysisReducer().reduce(
+        StructuredFindingMerger.Result result = new StructuredFindingMerger().reduce(
             prompt -> "unused", scope,
             DatasetRelationshipPlan.create(List.of(new DatasetRelationshipPlan.Dataset("orders", context))),
             List.of(workerResult), "analyze trading preference");
@@ -221,7 +221,7 @@ class HierarchicalAnalysisReducerTest {
                 List.of(Map.of("VALUE", 2))));
         AtomicReference<String> prompt = new AtomicReference<>();
 
-        HierarchicalAnalysisReducer.Result result = new HierarchicalAnalysisReducer().reduce(value -> {
+        StructuredFindingMerger.Result result = new StructuredFindingMerger().reduce(value -> {
             prompt.set(value);
             return "combined analysis";
         }, scope, DatasetRelationshipPlan.create(List.of(
@@ -229,9 +229,7 @@ class HierarchicalAnalysisReducerTest {
             new DatasetRelationshipPlan.Dataset("right", rightContext))), inputs,
             "analyze returned service data");
 
-        assertThat(prompt.get()).contains(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
-            "Analyze service reliability",
-            "Incident review", "orientation");
+        assertThat(prompt.get()).isNull();
         assertThat(result.relationshipGroupSummaries()).singleElement().satisfies(summary ->
             assertThat(summary.analysisContext())
                 .containsEntry(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY, role));
@@ -246,19 +244,15 @@ class HierarchicalAnalysisReducerTest {
         AnalysisSummaryResult first = chunk("assets", "first partition");
         AnalysisSummaryResult second = chunk("assets", "second partition");
 
-        AnalysisSummaryResult result = new HierarchicalAnalysisReducer().reduceDataset(prompt -> {
+        AnalysisSummaryResult result = new StructuredFindingMerger().reduceDataset(prompt -> {
             reductionPrompt.set(prompt);
             return "dataset result grounded in both partitions";
         }, scope, "assets", List.of(first, second), originalQuestion);
 
         assertThat(result.scope()).isEqualTo("DATASET_SYNTHESIS");
-        assertThat(reductionPrompt.get())
-            .contains("Original user question (authoritative analysis intent): " + originalQuestion)
-            .contains("analysisContext", "assets", "first partition", "second partition")
-            .contains("objectiveAlignment", "Never infer them from field names")
-            .contains("professional analysis stages", "calibrated inferences")
-            .contains("do not aggregate, deduplicate, substitute, or generalize")
-            .contains("Do not concatenate chunk summaries", "complete record inventories");
+        assertThat(reductionPrompt.get()).isNull();
+        assertThat(result.content()).contains("first partition", "second partition");
+        assertThat(result.inputSummaryResultIds()).isNotEmpty();
     }
 
     @Test
@@ -268,7 +262,7 @@ class HierarchicalAnalysisReducerTest {
         AnalysisSummaryResult second = artifactChunk(
             "metrics", "claim:pending", "Pending writes are 0", "0");
 
-        AnalysisSummaryResult result = new HierarchicalAnalysisReducer().reduceDataset(prompt -> """
+        AnalysisSummaryResult result = new StructuredFindingMerger().reduceDataset(prompt -> """
             {"schemaVersion":"analysis_reducer_report.v1",
              "summary":"No current allocation or pending-write pressure is visible.",
              "derivedClaims":[
@@ -282,12 +276,9 @@ class HierarchicalAnalysisReducerTest {
                 "confidence":"HIGH","significance":"invalid","caveats":[]}]}
             """, scope, "metrics", List.of(first, second), "analyze current engine health");
 
-        assertThat(result.content()).isEqualTo(
-            "No current allocation or pending-write pressure is visible.");
+        assertThat(result.content()).contains("Allocation waits are 0", "Pending writes are 0");
         assertThat(result.evidence().get("analysisArtifacts").toString())
-            .contains("claim:waits", "claim:pending", "reducer:buffer-pressure",
-                "basisClaimIds=[claim:waits, claim:pending]", "sourceStage=REDUCER")
-            .doesNotContain("reducer:unbound");
+            .contains("claim:waits", "claim:pending").doesNotContain("reducer:buffer-pressure", "reducer:unbound");
     }
 
     private AnalysisSummaryResult artifactChunk(String dataset, String claimId,

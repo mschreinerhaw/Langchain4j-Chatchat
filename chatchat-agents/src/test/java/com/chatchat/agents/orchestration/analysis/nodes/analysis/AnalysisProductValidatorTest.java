@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.worker;
+package com.chatchat.agents.orchestration.analysis.nodes.analysis;
 
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
@@ -12,11 +12,11 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class AnalysisWorkerSupervisorTest {
+class AnalysisProductValidatorTest {
 
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
         "tenant", "user", "run", "request", "conversation");
-    private final AnalysisWorkerSupervisor supervisor = new AnalysisWorkerSupervisor();
+    private final AnalysisProductValidator supervisor = new AnalysisProductValidator();
 
     @Test
     void acceptsOnlyStructuredTraceableWorkerAnalysis() {

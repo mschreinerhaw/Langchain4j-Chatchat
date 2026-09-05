@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.driver;
+package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Builds the source-neutral management context consumed by the Driver model. */
-final class AnalysisDriverPipelineContext {
+final class AnalysisSynthesisContext {
 
     static final String SCHEMA_VERSION = "analysis_driver_pipeline_context.v1";
 
@@ -32,35 +32,20 @@ final class AnalysisDriverPipelineContext {
             AnalysisMethodologyContract.enterpriseDefault().toMap()));
         result.put("analysisTree", objective.getOrDefault("analysisTree", Map.of()));
         result.put("methodologyExecutionPolicy", Map.of(
-            "driverOwnsMethodSelection", true,
-            "workerExecutesAssignedQuestions", true,
-            "reducerReconcilesMethodResults", true,
+            "planningSelectsMethods", true,
+            "analysisInterpretsVerifiedResults", true,
+            "mergePreservesEvidence", true,
             "requiredReasoningOrder", List.of(
                 "QUESTION", "BASELINE", "OVERALL", "DECOMPOSITION", "CONTRIBUTION",
                 "EXPLANATION", "VALIDATION", "IMPACT", "CONCLUSION", "ACTION"),
             "missingBaselineEffect", "QUALIFY_DEPENDENT_CLAIMS_DO_NOT_SUPPRESS_SUPPORTED_FINDINGS"));
         result.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
             AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes));
-        result.put("rolePipeline", Map.of(
-            "worker", Map.of(
-                "role", "ANALYST",
-                "responsibility", "Analyze assigned governed evidence and produce traceable facts, insights and gaps.",
-                "assignments", reducers.isEmpty() ? reports(workers) : workerReferences(workers)),
-            "supervisor", Map.of(
-                "role", "WORK_QUALITY_CONTROLLER",
-                "responsibility", "Annotate Worker product quality and technical validity without replacing human analytical judgment.",
-                "decisions", value(metadata, "analysisWorkerSupervision", Map.of())),
-            "reducer", Map.of(
-                "role", "ANALYSIS_MANAGER",
-                "responsibility", "Reconcile Worker reports, conflicts, overlap and open evidence gaps.",
-                "reports", reports(reducers),
-                "admissionDecisions", value(metadata, "analysisReducerAdmissionDecisions", List.of())),
-            "driver", Map.of(
-                "role", "CHIEF_DECISION_MAKER",
-                "responsibility", "Review, challenge, synthesize and decide without reading raw records."),
-            "governance", Map.of(
-                "role", "EVIDENCE_ANNOTATOR",
-                "responsibility", "Attach lineage, evidence strength and uncertainty for human review; do not replace human judgment.")));
+        result.put("nodeInputs", Map.of(
+            "analysisProducts", reducers.isEmpty() ? reports(workers) : workerReferences(workers),
+            "validation", value(metadata, "analysisWorkerSupervision", Map.of()),
+            "mergedFindings", reports(reducers),
+            "mergeValidation", value(metadata, "analysisReducerAdmissionDecisions", List.of())));
         result.put("conflictSet", collect(reducers, "conflicts"));
         List<Object> advisoryGaps = gaps(reducers, metadata);
         result.put("evidenceGapCount", advisoryGaps.size());

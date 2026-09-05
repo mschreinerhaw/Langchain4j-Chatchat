@@ -1,4 +1,4 @@
-package com.chatchat.agents.orchestration.analysis.driver;
+package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraph;
@@ -14,7 +14,7 @@ import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmis
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisExecutionOutcomeRecorder;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
 import com.chatchat.agents.orchestration.analysis.governance.GovernedGlobalSynthesisPolicy;
-import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
@@ -40,9 +40,9 @@ import java.util.function.UnaryOperator;
 /**
  * Coordinates dataset, cross-dataset and final governed synthesis without domain knowledge.
  */
-public final class AnalysisSynthesisCoordinator {
+public final class FinalSynthesisNode {
 
-    private static final Logger log = LoggerFactory.getLogger(AnalysisSynthesisCoordinator.class);
+    private static final Logger log = LoggerFactory.getLogger(FinalSynthesisNode.class);
 
     private final AgentRunResultAdapter resultAdapter;
     private final String runIdAttribute;
@@ -52,19 +52,19 @@ public final class AnalysisSynthesisCoordinator {
     private final GovernedFinalClaimContract finalClaimContract = new GovernedFinalClaimContract();
     private final AnalysisExecutionOutcomeRecorder outcomeRecorder =
         new AnalysisExecutionOutcomeRecorder();
-    private final AnalysisDriverPipelineContext driverPipelineContext =
-        new AnalysisDriverPipelineContext();
-    private ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
-        HierarchicalAnalysisReducer.Result> hierarchicalReducer;
+    private final AnalysisSynthesisContext driverPipelineContext =
+        new AnalysisSynthesisContext();
+    private ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
+        StructuredFindingMerger.Result> hierarchicalReducer;
 
-    public AnalysisSynthesisCoordinator(
+    public FinalSynthesisNode(
         AgentRunResultAdapter resultAdapter,
         String runIdAttribute,
         AnalysisSummaryGovernanceCoordinator governanceCoordinator,
         DeterministicInsightEngine deterministicInsightEngine,
         AnswerCandidateCollector answerCandidateCollector,
-        ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
-            HierarchicalAnalysisReducer.Result> hierarchicalReducer
+        ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
+            StructuredFindingMerger.Result> hierarchicalReducer
     ) {
         this.resultAdapter = resultAdapter;
         this.runIdAttribute = runIdAttribute;
@@ -75,8 +75,8 @@ public final class AnalysisSynthesisCoordinator {
     }
 
     public void setHierarchicalReducer(
-        ModelSummaryReducer<AnalysisSummaryResult, HierarchicalAnalysisReducer.Context,
-            HierarchicalAnalysisReducer.Result> reducer
+        ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
+            StructuredFindingMerger.Result> reducer
     ) {
         if (reducer != null) this.hierarchicalReducer = reducer;
     }
@@ -84,8 +84,8 @@ public final class AnalysisSynthesisCoordinator {
     public HierarchicalSynthesisResult synthesizeHierarchy(HierarchicalSynthesisRequest request) {
         DeterministicInsightEngine.Result crossDataset = deterministicInsightEngine.analyzeBundle(
             request.isolationScope(), request.deterministicDatasets());
-        HierarchicalAnalysisReducer.Result hierarchy = hierarchicalReducer.reduce(
-            new HierarchicalAnalysisReducer.Context(
+        StructuredFindingMerger.Result hierarchy = hierarchicalReducer.reduce(
+            new StructuredFindingMerger.Context(
                 request.model(), request.isolationScope(), request.relationshipPlan(), request.userQuestion()),
             request.workerDatasetSummaries());
         DataAnalysisLifecycle lifecycle = request.lifecycle()
@@ -118,7 +118,7 @@ public final class AnalysisSynthesisCoordinator {
     /** Executes the single final model call, its deterministic fallback and final governance. */
     public FinalSynthesisResult synthesizeFinal(FinalModelSynthesisRequest request) {
         try {
-            return new FinalAnalysisGraph().execute(request, this::synthesizeFinalAdmitted);
+            return new ReportPublicationGraph().execute(request, this::synthesizeFinalAdmitted);
         } catch (RuntimeException ex) {
             request.metadata().put("analysisGraphStatus", ex instanceof java.util.concurrent.CancellationException
                 ? "CANCELLED" : "FAILED");
@@ -175,7 +175,7 @@ public final class AnalysisSynthesisCoordinator {
             request.summaryResults(), claimSources, request.runtimeAttributes(), request.metadata());
         request.metadata().put("analysisDriverPipelineContext", pipelineContext);
         request.metadata().put("analysisDriverPipelineContextSchemaVersion",
-            AnalysisDriverPipelineContext.SCHEMA_VERSION);
+            AnalysisSynthesisContext.SCHEMA_VERSION);
         String driverPrompt = request.prompt()
             + "\n\nBinding Driver role pipeline context (not evidence): "
             + ModelProtocolJson.compact(pipelineContext);
@@ -853,7 +853,7 @@ public final class AnalysisSynthesisCoordinator {
 
     public record HierarchicalSynthesisResult(
         DeterministicInsightEngine.Result crossDatasetInsights,
-        HierarchicalAnalysisReducer.Result hierarchy,
+        StructuredFindingMerger.Result hierarchy,
         DataAnalysisLifecycle lifecycle
     ) {}
 

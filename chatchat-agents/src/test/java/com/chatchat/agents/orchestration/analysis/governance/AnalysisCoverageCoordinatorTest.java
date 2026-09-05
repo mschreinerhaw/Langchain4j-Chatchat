@@ -1,6 +1,6 @@
 package com.chatchat.agents.orchestration.analysis.governance;
 
-import com.chatchat.agents.orchestration.analysis.driver.AnalysisSynthesisCoordinator;
+import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
@@ -34,7 +34,7 @@ class AnalysisCoverageCoordinatorTest {
             new AnalysisEvidenceCoordinator.Projection(List.of(), List.of()));
         AnalysisCoverageCoordinator coordinator = new AnalysisCoverageCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId", evidence, dispatch,
-            mock(DeterministicInsightEngine.class), mock(AnalysisSynthesisCoordinator.class),
+            mock(DeterministicInsightEngine.class), mock(FinalSynthesisNode.class),
             AnalysisEvidenceSpillStore.disabled(),
             new AnalysisCoverageCoordinator.Configuration(1, 1_000, 5_000));
         InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(

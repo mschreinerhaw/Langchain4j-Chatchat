@@ -90,7 +90,7 @@ class AnalysisDispatchCoordinatorTest {
         when(protocol.govern(org.mockito.ArgumentMatchers.anyString(),
             org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.anyList()))
             .thenAnswer(invocation -> invocation.getArgument(1));
-        return new AnalysisDispatchCoordinator(mock(AnalysisDatasetWorker.class),
+        return new AnalysisDispatchCoordinator(mock(DatasetAnalysisNode.class),
             mock(AnalysisProgressRecorder.class),
             new AnalysisDispatchCoordinator.Configuration(100, 20_000, 100_000, 1, 1_000, 5_000),
             protocol, dispatcher);

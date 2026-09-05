@@ -7,7 +7,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.checkpoint.AnalysisSummaryCheckpointService;
-import com.chatchat.agents.orchestration.analysis.reducer.HierarchicalAnalysisReducer;
+import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProjection;
 
 
@@ -37,21 +37,21 @@ import java.util.function.BooleanSupplier;
  * remains outside this worker.
  */
 @Slf4j
-public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
+public final class DatasetAnalysisNode implements DataAnalysisParticipant<
     ChatModel, AnalysisTask, AnalysisDatasetSummary> {
 
     private final AnalysisRecordChunkPlanner chunkPlanner;
     private final AnalysisSummaryCheckpointService checkpointService;
     private final AnalysisWorkerRetryPolicy retryPolicy;
-    private final HierarchicalAnalysisReducer datasetReducer;
+    private final StructuredFindingMerger datasetReducer;
     private DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> summaryProtocol;
     private AnalysisEvidenceSpillStore spillStore;
 
-    public AnalysisDatasetWorker(
+    public DatasetAnalysisNode(
         AnalysisRecordChunkPlanner chunkPlanner,
         AnalysisSummaryCheckpointService checkpointService,
         AnalysisWorkerRetryPolicy retryPolicy,
-        HierarchicalAnalysisReducer datasetReducer,
+        StructuredFindingMerger datasetReducer,
         DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> summaryProtocol,
         AnalysisEvidenceSpillStore spillStore
     ) {
@@ -281,7 +281,7 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
             .map(AnalysisDatasetSummary.ChunkResult::summary).toList();
         String checkpointKey = task.datasetReference() + "#dataset-reduce";
         String inputSha256 = ModelProtocolJson.sha256Hex(Map.of(
-            "schemaVersion", HierarchicalAnalysisReducer.SCHEMA_VERSION,
+            "schemaVersion", StructuredFindingMerger.SCHEMA_VERSION,
             "datasetReference", task.datasetReference(),
             "analysisContext", task.analysisContext(),
             "originalUserQuestion", task.originalUserQuestion(),

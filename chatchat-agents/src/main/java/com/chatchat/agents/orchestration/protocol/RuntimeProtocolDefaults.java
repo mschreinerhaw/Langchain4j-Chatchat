@@ -1,7 +1,7 @@
 package com.chatchat.agents.orchestration.protocol;
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.worker.AnalysisSummaryGovernanceBridge;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
 
 
 import com.chatchat.agents.orchestration.tool.McpAnalysisContextAdapter;
@@ -36,6 +36,6 @@ public final class RuntimeProtocolDefaults {
     }
 
     public static DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> analysisSummary() {
-        return new AnalysisSummaryGovernanceBridge();
+        return new AnalysisNodeProtocol();
     }
 }

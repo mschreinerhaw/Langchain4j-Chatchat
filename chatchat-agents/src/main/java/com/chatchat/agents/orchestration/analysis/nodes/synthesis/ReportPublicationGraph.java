@@ -1,13 +1,13 @@
-package com.chatchat.agents.orchestration.analysis.driver;
+package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraph;
 import com.chatchat.agents.orchestration.analysis.graph.AnalysisFlowState;
-import com.chatchat.agents.orchestration.analysis.driver.AnalysisSynthesisCoordinator.FinalModelSynthesisRequest;
-import com.chatchat.agents.orchestration.analysis.driver.AnalysisSynthesisCoordinator.FinalSynthesisResult;
+import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode.FinalModelSynthesisRequest;
+import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode.FinalSynthesisResult;
 import java.util.List;
 
 /** Admission and publication graph; the Driver supplies governed synthesis. */
-final class FinalAnalysisGraph {
+final class ReportPublicationGraph {
     FinalSynthesisResult execute(FinalModelSynthesisRequest request,
         java.util.function.Function<FinalModelSynthesisRequest, FinalSynthesisResult> synthesis) {
         request.metadata().remove("analysisFinalAdmissionBlocked");

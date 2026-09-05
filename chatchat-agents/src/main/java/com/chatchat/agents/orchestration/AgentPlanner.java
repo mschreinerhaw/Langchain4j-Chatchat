@@ -164,10 +164,6 @@ public class AgentPlanner implements AgentPlanningPort {
                                              String documentSearchTool,
                                              String verificationWebSearchTool,
                                              Map<String, Object> runtimeAttributes) {
-        var nativeDecision = RuntimeDesignatedFunctionCallingAdapter.decide(nativeToolCallingPlanner, toolRegistry, activeChatModel, query, systemPrompt, availableTools, observations, requireDocumentWebVerification, runtimeAttributes);
-        if (nativeDecision.isPresent()) {
-            return nativeDecision.get();
-        }
         String prompt = buildPlannerPrompt(
             query,
             systemPrompt,
@@ -194,6 +190,33 @@ public class AgentPlanner implements AgentPlanningPort {
             AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
             authoritativeWorkflowDagForPlanning(runtimeAttributes)
         );
+        var nativeDecision = RuntimeDesignatedFunctionCallingAdapter.decide(nativeToolCallingPlanner,
+            toolRegistry, activeChatModel, query, systemPrompt, availableTools, observations,
+            requireDocumentWebVerification, runtimeAttributes);
+        if (nativeDecision.isPresent()) {
+            AgentDecision call = nativeDecision.get();
+            Map<String, Object> payload = Map.of(
+                "version", "1.0",
+                "intent", Map.of("type", "tool_execution", "goal", query, "risk_level", "low"),
+                "context", Map.of("key_facts", List.of(), "assumptions", List.of(),
+                    "missing_info", List.of(), "constraints", List.of()),
+                "plan", Map.of("steps", List.of(
+                    Map.of("id", 1, "action_type", "mcp_tool", "tool_name", call.toolName(),
+                        "input", call.arguments(), "depends_on", List.of()),
+                    Map.of("id", 2, "action_type", "final_answer", "tool_name", "",
+                        "input", Map.of(), "depends_on", List.of(1)))),
+                "execution_policy", Map.of("max_steps", 2, "allow_parallel", false,
+                    "allow_tool", List.of(call.toolName()), "deny_tool", List.of(), "timeout_ms", 30000),
+                "review", Map.of("self_check", Map.of("tool_sufficiency", false,
+                    "missing_steps", List.of()), "fallback_plan", List.of()));
+            AgentDecision compiled = parseInterpretationPlanDecision(payload, validationContext);
+            if (compiled != null) {
+                Map<String, Object> provenance = new LinkedHashMap<>(compiled.executionPlan());
+                provenance.putAll(call.executionPlan());
+                return new AgentDecision(compiled.action(), compiled.toolName(), compiled.arguments(),
+                    compiled.answer(), compiled.reason(), provenance, compiled.sufficient(), compiled.interpretationPlan());
+            }
+        }
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentRunId"));
         int maxAttempts = plannerRepairAttempts(runtimeAttributes);
         String currentPrompt = prompt;
@@ -233,20 +256,6 @@ public class AgentPlanner implements AgentPlanningPort {
                 lastDecision = decision;
             }
             candidates.add(candidateScorer.score(attempt, raw, lastDecision, validationContext));
-            if (shouldDeferInvalidPlanToAuthoritativeRuntime(lastDecision, validationContext)) {
-                log.info("agentPlannerAuthoritativeFallback phase=planner_parse runId={} attempt={}/{} "
-                        + "reason=invalid_plan_with_authoritative_workflow mandatoryToolCount={}",
-                    logRunId, attempt, maxAttempts,
-                    normalizeList(validationContext.mandatoryTools()).size());
-                break;
-            }
-            if (hasPresentableRecoveredAnswer(lastDecision)
-                && normalizeList(validationContext.mandatoryTools()).isEmpty()) {
-                log.info("agentPlannerAcceptedPresentableAnswer phase=planner_parse runId={} attempt={}/{} "
-                        + "reason=non_json_report mandatoryToolsPending=0",
-                    logRunId, attempt, maxAttempts);
-                break;
-            }
             if (decision != null && !plannerPlanInvalid(decision)) {
                 PlanCandidate currentCandidate = candidates.get(candidates.size() - 1);
                 if (!experienceOptimizationRequested
@@ -324,14 +333,8 @@ public class AgentPlanner implements AgentPlanningPort {
 
         String answer = candidateAnswer(decision);
         RuntimeAnswerCandidate candidate = null;
-        boolean explicitlyPreserved = Boolean.TRUE.equals(
-            executionPlan.get("plannerCandidateAnswerPreserved"));
-        boolean legacyBusinessAnswer = decision != null
-            && FINAL.equals(decision.action())
-            && !"non_json_response".equals(decision.reason())
-            && !"invalid_interpretation_plan".equals(decision.reason());
         if (answer != null && !answer.isBlank()
-            && (planValid || explicitlyPreserved || legacyBusinessAnswer)) {
+            && planValid) {
             candidate = new RuntimeAnswerCandidate(
                 RuntimeAnswerCandidate.CONTRACT_VERSION,
                 answer,
@@ -435,49 +438,8 @@ public class AgentPlanner implements AgentPlanningPort {
             if (interpretationPlanDecision != null) {
                 return attachCandidateAnswer(interpretationPlanDecision, envelope.candidateAnswer());
             }
-            if (requiresStrictInterpretationPlan(validationContext)) {
-                return invalidPlannerDecision(
-                    raw,
-                    "legacy_action_not_allowed",
-                    "MCP workflow requires an InterpretationPlan; legacy action JSON is not allowed.",
-                    validationContext
-                );
-            }
-            String action = stringValue(payload.get("action"));
-            if (action == null) {
-                return null;
-            }
-            action = action.toLowerCase(Locale.ROOT);
-            Map<String, Object> executionPlan = asMap(payload.get("executionPlan"));
-            if (FINAL.equals(action)) {
-                Boolean sufficient = booleanObject(firstObject(payload, "sufficient", "isSufficient"));
-                if (sufficient == null) {
-                    sufficient = booleanObject(firstObject(executionPlan, "sufficient", "isSufficient"));
-                }
-                return new AgentDecision(
-                    FINAL,
-                    null,
-                    Map.of(),
-                    stringValue(payload.get("answer")),
-                    stringValue(payload.get("reason")),
-                    executionPlan,
-                    sufficient
-                );
-            }
-            if (!TOOL.equals(action)) {
-                return null;
-            }
-            Object argsObj = payload.get("arguments");
-            Map<String, Object> arguments = argsObj instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
-            return new AgentDecision(
-                TOOL,
-                stringValue(payload.get("toolName")),
-                arguments,
-                null,
-                stringValue(payload.get("reason")),
-                executionPlan,
-                null
-            );
+            return invalidPlannerDecision(raw, "legacy_action_not_allowed",
+                "Runtime requires an InterpretationPlan; legacy action JSON is not allowed.", validationContext);
         } catch (Exception ex) {
             log.debug("Failed to parse planner decision: {}", raw, ex);
             return null;
@@ -1059,33 +1021,13 @@ public class AgentPlanner implements AgentPlanningPort {
         return false;
     }
 
-    private boolean requiresStrictInterpretationPlan(PlannerValidationContext context) {
-        return context != null
-            && (context.requireToolBeforeFinal()
-            || context.requireDocumentWebVerification()
-            || !normalizeList(context.mandatoryTools()).isEmpty());
-    }
-
     private boolean plannerPlanInvalid(AgentDecision decision) {
-        return decision != null
-            && "invalid_interpretation_plan".equals(decision.reason())
-            && decision.executionPlan() != null
-            && "interpretation_plan".equals(decision.executionPlan().get("plannerProtocol"));
+        return decision == null || decision.interpretationPlan() == null
+            || !Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"));
     }
 
     private boolean shouldRepairPlan(AgentDecision decision, PlannerValidationContext context) {
-        return decision != null
-            && ("non_json_response".equals(decision.reason())
-            || plannerPlanInvalid(decision) || (requiresStrictInterpretationPlan(context)
-            && "legacy_action_not_allowed".equals(decision.reason())));
-    }
-
-    private boolean shouldDeferInvalidPlanToAuthoritativeRuntime(AgentDecision decision,
-                                                                  PlannerValidationContext context) {
-        return plannerPlanInvalid(decision)
-            && context != null
-            && !normalizeList(context.mandatoryTools()).isEmpty()
-            && !authoritativeWorkflowNodes(context.authoritativeWorkflowDag()).isEmpty();
+        return plannerPlanInvalid(decision);
     }
 
     private void logPlannerRawOutput(String runId, int attempt, int maxAttempts, String raw) {
@@ -1720,22 +1662,7 @@ public class AgentPlanner implements AgentPlanningPort {
         return hasMarkdownHeading && (hasMarkdownTable || hasStructuredList) ? candidate : null;
     }
 
-    private boolean hasPresentableRecoveredAnswer(AgentDecision decision) {
-        return decision != null
-            && FINAL.equals(decision.action())
-            && decision.answer() != null
-            && !decision.answer().isBlank()
-            && decision.executionPlan() != null
-            && Boolean.TRUE.equals(decision.executionPlan().get("plannerCandidateAnswerPreserved"));
-    }
-}
 
-record PlannerExecutionResult(
-    PlannerPlanProduct plan,
-    RuntimeAnswerCandidate candidateAnswer,
-    TaskContract taskContract,
-    AgentDecision decision
-) {
 }
 
 record PlannerPlanProduct(

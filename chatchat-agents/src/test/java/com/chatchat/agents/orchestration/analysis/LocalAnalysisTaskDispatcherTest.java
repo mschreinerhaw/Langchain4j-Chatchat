@@ -64,6 +64,12 @@ class LocalAnalysisTaskDispatcherTest {
             AnalysisTaskResult slowResult = batch.await(slow.taskId());
             AnalysisTaskResult fastResult = batch.await(fast.taskId());
 
+            assertThat(progress.stream().filter(event -> "WORKER_EXECUTION_METRIC".equals(event.stage())))
+                .hasSize(2).allSatisfy(event -> {
+                    assertThat(((Number) event.details().get("queueTimeMs")).longValue()).isNotNegative();
+                    assertThat(((Number) event.details().get("executionTimeMs")).longValue()).isNotNegative();
+                    assertThat(event.details()).containsEntry("configuredParallelism", 2);
+                });
             assertThat(slowResult.status()).isEqualTo("SUCCESS");
             assertThat(fastResult.status()).isEqualTo("SUCCESS");
             assertThat(fastResult.summary()).isSameAs(fastSummary);

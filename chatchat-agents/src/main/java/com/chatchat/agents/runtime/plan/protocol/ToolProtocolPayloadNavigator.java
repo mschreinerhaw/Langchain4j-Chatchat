@@ -18,6 +18,19 @@ public final class ToolProtocolPayloadNavigator {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    public Object firstPresent(Map<String, Object> values, String... keys) {
+        if (values == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
     public Object firstValue(Object output, String... paths) {
         if (paths == null) {
             return null;

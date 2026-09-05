@@ -45,7 +45,7 @@ final class AnalysisDriverPipelineContext {
             "worker", Map.of(
                 "role", "ANALYST",
                 "responsibility", "Analyze assigned governed evidence and produce traceable facts, insights and gaps.",
-                "assignments", reports(workers)),
+                "assignments", reducers.isEmpty() ? reports(workers) : workerReferences(workers)),
             "supervisor", Map.of(
                 "role", "WORK_QUALITY_CONTROLLER",
                 "responsibility", "Annotate Worker product quality and technical validity without replacing human analytical judgment.",
@@ -86,6 +86,14 @@ final class AnalysisDriverPipelineContext {
             if (!contract.isEmpty()) return contract;
         }
         return Map.of();
+    }
+
+    // Consolidated reports already carry analytical content. Keep upstream identities for audit
+    // instead of replaying all Worker contracts and artifacts into the same Driver prompt.
+    private List<Map<String, Object>> workerReferences(List<AnalysisSummaryResult> workers) {
+        return workers.stream().filter(java.util.Objects::nonNull)
+            .map(report -> Map.<String, Object>of("reportId", report.resultId(), "scope", report.scope()))
+            .toList();
     }
 
     private List<Map<String, Object>> reports(List<AnalysisSummaryResult> reports) {

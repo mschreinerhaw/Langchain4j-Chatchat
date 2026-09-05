@@ -4,6 +4,7 @@ import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.assessment.EvidenceExplorationPolicy;
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.assessment.TaskContract;
+import com.chatchat.agents.orchestration.analysis.graph.AnalysisFlowState;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -72,10 +73,7 @@ public final class AnalysisLoopCoordinator {
             "decision", outcome.decision().name(), "answerAllowed", outcome.answerAllowed(),
             "continueLoop", outcome.continueLoop(), "reason", outcome.reason());
         history(metadata, "evidenceAugmentationHistory").add(decision);
-        metadata.put("evidenceAugmentationDecision", outcome.decision().name());
-        metadata.put("evidenceAugmentationAnswerAllowed", outcome.answerAllowed());
-        metadata.put("evidenceAugmentationContinueLoop", outcome.continueLoop());
-        metadata.put("evidenceAugmentationContractVersion", outcome.contractVersion());
+        storeDecision(metadata, outcome, iteration, false, "");
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, runIdAttribute,
             "Evidence augmentation decision for iteration " + iteration + ": "
                 + outcome.decision().name() + ".", "evidence_augmentation_decision",
@@ -83,11 +81,36 @@ public final class AnalysisLoopCoordinator {
                 "lifecyclePhase", "loop_decision", "decision", decision));
     }
 
+    private void storeDecision(Map<String, Object> metadata, EvidenceAugmentationPolicy.Outcome outcome,
+                               int iteration, boolean closed, String reason) {
+        metadata.put(AnalysisFlowState.KEY, new AnalysisFlowState(outcome.decision(),
+            Math.max(0, iteration), closed, reason).toMap());
+        metadata.put("evidenceAugmentationDecision", outcome.decision().name());
+        metadata.put("evidenceAugmentationAnswerAllowed", outcome.answerAllowed());
+        metadata.put("evidenceAugmentationContinueLoop", outcome.continueLoop());
+        metadata.put("evidenceAugmentationContractVersion", outcome.contractVersion());
+    }
+
     public void recordStop(Map<String, Object> metadata,
                            Map<String, Object> snapshot,
                            String stopReason,
                            int iterations) {
         if (metadata == null) return;
+        AnalysisFlowState current = AnalysisFlowState.read(metadata);
+        if (current != null) {
+            if (current.decision() == EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE) {
+                // The execution owner closed the loop: no silent budget reset at synthesis.
+                var terminal = decide(snapshot, true, false, false, metadata);
+                storeDecision(metadata, terminal, iterations, true, stopReason);
+                history(metadata, "evidenceAugmentationHistory").add(Map.of(
+                    "iteration", iterations, "decision", terminal.decision().name(),
+                    "answerAllowed", terminal.answerAllowed(), "continueLoop", false,
+                    "reason", stopReason, "loopClosed", true));
+            } else {
+                metadata.put(AnalysisFlowState.KEY, new AnalysisFlowState(current.decision(),
+                    Math.max(0, iterations), true, stopReason).toMap());
+            }
+        }
         Object remaining = snapshot == null ? List.of()
             : snapshot.getOrDefault("remainingMissing", snapshot.getOrDefault("missingEvidence", List.of()));
         if (remaining == null) remaining = List.of();

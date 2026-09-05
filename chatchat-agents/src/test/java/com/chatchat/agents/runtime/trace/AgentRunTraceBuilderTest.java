@@ -31,6 +31,7 @@ public class AgentRunTraceBuilderTest {
         assertThat(trace.modelCallId()).isEqualTo("model-call-1");
         assertThat(trace.latencyMs()).isEqualTo(1L);
         assertThat(trace.tokenUsage()).containsEntry("totalTokens", 42);
+        assertThat(trace.modelUsage()).containsEntry("invocations", 3L);
         assertThat(trace.question()).isEqualTo("config restart?");
         assertThat(trace.toolCalls()).hasSize(1);
         assertThat(trace.toolCalls().get(0).success()).isTrue();
@@ -65,6 +66,7 @@ public class AgentRunTraceBuilderTest {
             "groundingStatus", "grounded",
             "traceId", "trace-1",
             "modelCallId", "model-call-1",
+            "modelUsage", Map.of("invocations", 3L, "largestInputTokensEstimated", 200L),
             "tokenUsage", Map.of("promptTokens", 30, "completionTokens", 12, "totalTokens", 42)
         );
         return AgentRun.builder()

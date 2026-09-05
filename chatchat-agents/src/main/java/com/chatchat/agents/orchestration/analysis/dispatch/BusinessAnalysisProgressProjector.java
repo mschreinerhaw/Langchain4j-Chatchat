@@ -16,6 +16,8 @@ public final class BusinessAnalysisProgressProjector {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("type", "business_analysis_progress");
         metadata.put("stage", stage(progress.stage()));
+        metadata.put("progressId", java.util.UUID.nameUUIDFromBytes(
+            progress.taskId().getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString());
         metadata.put("workReference", progress.workReference());
         metadata.put("workIndex", progress.workIndex());
         metadata.put("workCount", progress.workCount());

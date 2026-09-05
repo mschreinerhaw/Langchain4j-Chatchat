@@ -1,5 +1,9 @@
 # Runtime OS Workflow Execution Architecture
 
+Analytical workflow design and migration priorities are defined in
+[Runtime OS 分析流程设计决策](runtime-os-analytical-flow-design.md). It separates deterministic
+Flow control from model judgment and preserves this document's execution-truth guarantees.
+
 ## 1. Objective
 
 ChatChat Runtime OS must make MCP workflow execution deterministic, recoverable, auditable, and

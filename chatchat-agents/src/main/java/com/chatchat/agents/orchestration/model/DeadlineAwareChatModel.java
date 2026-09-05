@@ -42,8 +42,10 @@ public final class DeadlineAwareChatModel implements ChatModel {
 
     @Override
     public String chat(String message) {
+        MeteredChatModel.CallTiming timing = MeteredChatModel.currentTiming();
         long remaining = remainingTimeMs.getAsLong();
         if (remaining < 0L) {
+            if (timing != null) timing.started();
             return delegate.chat(message);
         }
         if (remaining == 0L) {
@@ -51,7 +53,10 @@ public final class DeadlineAwareChatModel implements ChatModel {
         }
         Future<String> future;
         try {
-            future = EXECUTOR.submit(() -> delegate.chat(message));
+            future = EXECUTOR.submit(() -> {
+                if (timing != null) timing.started();
+                return delegate.chat(message);
+            });
         } catch (RejectedExecutionException ex) {
             throw new AgentDeadlineExceededException(
                 "Agent model deadline executor is saturated");
@@ -81,8 +86,10 @@ public final class DeadlineAwareChatModel implements ChatModel {
 
     @Override
     public ChatResponse doChat(ChatRequest request) {
+        MeteredChatModel.CallTiming timing = MeteredChatModel.currentTiming();
         long remaining = remainingTimeMs.getAsLong();
         if (remaining < 0L) {
+            if (timing != null) timing.started();
             return delegate.chat(request);
         }
         if (remaining == 0L) {
@@ -90,7 +97,10 @@ public final class DeadlineAwareChatModel implements ChatModel {
         }
         Future<ChatResponse> future;
         try {
-            future = EXECUTOR.submit(() -> delegate.chat(request));
+            future = EXECUTOR.submit(() -> {
+                if (timing != null) timing.started();
+                return delegate.chat(request);
+            });
         } catch (RejectedExecutionException ex) {
             throw new AgentDeadlineExceededException("Agent model deadline executor is saturated");
         }

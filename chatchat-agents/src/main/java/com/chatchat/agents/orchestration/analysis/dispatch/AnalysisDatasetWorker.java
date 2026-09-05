@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.dispatch;
 
+import com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraph;
+
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordChunkPlanner;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
@@ -84,12 +86,12 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
         BooleanSupplier cancellationCheck
     ) {
         Runnable cancellationGuard = () -> {
-            if (cancellationCheck.getAsBoolean()) {
+            if (cancellationCheck != null && cancellationCheck.getAsBoolean()) {
                 throw new java.util.concurrent.CancellationException(
                     "Dataset analysis was cancelled");
             }
         };
-        return executeAssigned(model, task, reporter, cancellationCheck, cancellationGuard);
+        return execute(model, task, reporter, cancellationCheck, cancellationGuard);
     }
 
     @Override
@@ -108,23 +110,44 @@ public final class AnalysisDatasetWorker implements DataAnalysisParticipant<
                                           ModelSummaryProgressReporter reporter,
                                           BooleanSupplier cancellationCheck,
                                           Runnable cancellationGuard) {
-        validateAssignment(task);
-        AnalysisDatasetSummary result = executeAssigned(
-            model, task, reporter, cancellationCheck, cancellationGuard);
-        reconcile(task, result);
-        return result;
+        var plan = new java.util.concurrent.atomic.AtomicReference<AnalysisRecordChunkPlanner.ChunkPlan>();
+        var result = new java.util.concurrent.atomic.AtomicReference<AnalysisDatasetSummary>();
+        var graph = new AnalysisExecutionGraph();
+        var execution = graph.execute(List.of(
+            new AnalysisExecutionGraph.Step("preflight", () -> {
+                validateAssignment(task);
+                return AnalysisExecutionGraph.Status.READY;
+            }),
+            new AnalysisExecutionGraph.Step("chunk_plan", () -> {
+                plan.set(chunkPlanner.plan(task.records(), task.maximumChunkRows(), task.maximumChunkChars()));
+                return AnalysisExecutionGraph.Status.READY;
+            }),
+            new AnalysisExecutionGraph.Step("worker_analysis", () -> {
+                result.set(executeAssigned(model, task, reporter, cancellationCheck, cancellationGuard, plan.get()));
+                return AnalysisExecutionGraph.Status.READY;
+            }),
+            new AnalysisExecutionGraph.Step("reconcile", () -> {
+                reconcile(task, result.get());
+                return AnalysisExecutionGraph.Status.COMPLETED;
+            })), () -> {
+                if (Thread.currentThread().isInterrupted() || (cancellationCheck != null && cancellationCheck.getAsBoolean()))
+                    throw new java.util.concurrent.CancellationException("Analysis cancelled");
+                if (cancellationGuard != null) cancellationGuard.run();
+            });
+        if (reporter != null) reporter.report("WORKER_EXECUTION_METRIC", Map.of(
+            "graphStatus", execution.status().name(), "graphNodes", execution.nodes()));
+        return result.get();
     }
 
     private AnalysisDatasetSummary executeAssigned(ChatModel model,
                                                     AnalysisTask task,
                                                     ModelSummaryProgressReporter reporter,
                                                     BooleanSupplier cancellationCheck,
-                                                    Runnable cancellationGuard) {
+                                                    Runnable cancellationGuard,
+                                                    AnalysisRecordChunkPlanner.ChunkPlan plan) {
         ModelSummaryProgressReporter progress = reporter == null
             ? ModelSummaryProgressReporter.NOOP : reporter;
         Runnable guard = cancellationGuard == null ? () -> { } : cancellationGuard;
-        AnalysisRecordChunkPlanner.ChunkPlan plan = chunkPlanner.plan(
-            task.records(), task.maximumChunkRows(), task.maximumChunkChars());
         boolean modelSummaryRequired = summaryProtocol.requiresModelSummary(
             task.analysisContext(), plan.oversized());
         List<AnalysisDatasetSummary.ChunkResult> chunks = new ArrayList<>();

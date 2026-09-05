@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.driver;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
+import com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraph;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProjection;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisExecutionOutcome;
@@ -116,6 +117,18 @@ public final class AnalysisSynthesisCoordinator {
 
     /** Executes the single final model call, its deterministic fallback and final governance. */
     public FinalSynthesisResult synthesizeFinal(FinalModelSynthesisRequest request) {
+        try {
+            return new FinalAnalysisGraph().execute(request, this::synthesizeFinalAdmitted);
+        } catch (RuntimeException ex) {
+            request.metadata().put("analysisGraphStatus", ex instanceof java.util.concurrent.CancellationException
+                ? "CANCELLED" : "FAILED");
+            request.metadata().put("interpretationPlanFinalResultProduced", false);
+            request.metadata().remove("analyticalReport");
+            throw ex;
+        }
+    }
+
+    private FinalSynthesisResult synthesizeFinalAdmitted(FinalModelSynthesisRequest request) {
         if (Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"))) {
             recordHumanReviewAdvisory(request, "SYNTHESIS_INPUT_REVIEW",
                 String.valueOf(request.metadata().getOrDefault(
@@ -400,7 +413,7 @@ public final class AnalysisSynthesisCoordinator {
         observation.put("tenantId", governed.isolationScope().tenantId());
         observation.put("runId", governed.isolationScope().runId());
         resultAdapter.recordRuntimeObservation(request.runtimeAttributes(), runIdAttribute,
-            "InterpretationPlan " + request.stage() + " final stepwise summary generated.",
+            "InterpretationPlan " + request.stage() + " final analytical report composed.",
             "interpretation_plan_summary", observation);
         return new FinalSynthesisResult(answer, governed,
             !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));

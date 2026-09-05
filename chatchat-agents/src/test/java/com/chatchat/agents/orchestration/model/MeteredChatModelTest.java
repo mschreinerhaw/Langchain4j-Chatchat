@@ -62,6 +62,78 @@ class MeteredChatModelTest {
         assertThat(((Number) usage.get("invocations")).longValue()).isEqualTo(1L);
     }
 
+    @Test
+    void recordsFailureWithoutLosingOriginalExceptionOrInventingOutputTokens() {
+        Map<String, Object> usage = new LinkedHashMap<>();
+        IllegalStateException failure = new IllegalStateException("transport failure");
+        ChatModel delegate = new ChatModel() {
+            @Override public String chat(String message) { throw failure; }
+        };
+        MeteredChatModel model = new MeteredChatModel(delegate, usage, 0, 0, 0, 0, 0.8);
+        assertThatThrownBy(() -> model.chat("private prompt")).isSameAs(failure);
+        assertThat(usage.get("invocations")).isEqualTo(1L);
+        assertThat(usage.get("failedInvocations")).isEqualTo(1L);
+        assertThat(usage.get("activeInvocations")).isEqualTo(0);
+        Map<?, ?> call = (Map<?, ?>) ((List<?>) usage.get("calls")).get(0);
+        assertThat(call.get("status")).isEqualTo("FAILED");
+        assertThat(call.get("outputTokensEstimated")).isNull();
+        assertThat(call.get("inputTokens")).isNull();
+        assertThat(call.toString()).doesNotContain("private prompt", "transport failure");
+    }
+
+    @Test
+    void recordsActualUsageSeparatelyAndMeasuresDeadlineQueue() {
+        Map<String, Object> usage = new LinkedHashMap<>();
+        ChatModel delegate = new ChatModel() {
+            @Override public ChatResponse doChat(ChatRequest request) {
+                return ChatResponse.builder().aiMessage(AiMessage.from("done"))
+                    .tokenUsage(new dev.langchain4j.model.output.TokenUsage(123, 17)).build();
+            }
+        };
+        MeteredChatModel model = new MeteredChatModel(
+            new DeadlineAwareChatModel(delegate, () -> 10_000L), usage, 0, 0, 0, 0, 0.8);
+        model.chat(ChatRequest.builder().messages(UserMessage.from("hello")).build());
+        Map<?, ?> call = (Map<?, ?>) ((List<?>) usage.get("calls")).get(0);
+        assertThat(call.get("inputTokens")).isEqualTo(123);
+        assertThat(call.get("outputTokens")).isEqualTo(17);
+        assertThat(((Number) call.get("queueTimeMs")).longValue()).isNotNegative();
+        assertThat(((Number) call.get("executionTimeMs")).longValue()
+            + ((Number) call.get("queueTimeMs")).longValue()).isEqualTo(call.get("elapsedMs"));
+        assertThat(call.get("nodeName").toString()).contains("recordsActualUsageSeparately");
+        assertThat(usage.get("criticalPathLlmCalls")).isNull();
+    }
+
+    @Test
+    void concurrentCallsReserveInputAndPublishIndependentSnapshots() throws Exception {
+        Map<String, Object> usage = java.util.Collections.synchronizedMap(new LinkedHashMap<>());
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        String prompt = "some meaningful input to reserve against the budget";
+        long tokens = new com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator()
+            .estimate(prompt).tokens();
+        ChatModel delegate = new ChatModel() {
+            @Override public String chat(String message) {
+                entered.countDown();
+                try { release.await(); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
+                return "";
+            }
+        };
+        MeteredChatModel model = new MeteredChatModel(delegate, usage, tokens, 0, 0, 0, 0.8);
+        var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var first = executor.submit(() -> model.chat(prompt));
+            try {
+                assertThat(entered.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                List<?> snapshot = (List<?>) usage.get("calls");
+                assertThatThrownBy(() -> model.chat(prompt)).isInstanceOf(AgentBudgetExceededException.class);
+                release.countDown();
+                first.get(5, java.util.concurrent.TimeUnit.SECONDS);
+                assertThat(((Map<?, ?>) snapshot.get(0)).get("status")).isEqualTo("RUNNING");
+                assertThat(usage.get("invocations")).isEqualTo(1L);
+            } finally { release.countDown(); }
+        } finally { executor.shutdownNow(); }
+    }
+
     private ChatModel modelReturning(String value) {
         return new ChatModel() {
             @Override

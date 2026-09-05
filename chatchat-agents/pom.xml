@@ -16,6 +16,11 @@
     <description>AI Agent orchestration, tool integration, and ReAct pattern implementation</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.bsc.langgraph4j</groupId>
+            <artifactId>langgraph4j-core</artifactId>
+            <version>${langgraph4j.version}</version>
+        </dependency>
         <!-- Internal -->
         <dependency>
             <groupId>com.chatchat</groupId>

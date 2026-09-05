@@ -75,7 +75,8 @@ public class AgentRunTraceBuilder {
                 unsupported
             ),
             failureReasons(run, metadata, unsupported),
-            run.events()
+            run.events(),
+            asMap(metadata.get("modelUsage"))
         );
     }
 

@@ -8378,16 +8378,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private Object firstPresent(Map<String, Object> values, String... keys) {
-        if (values == null || keys == null) {
-            return null;
-        }
-        for (String key : keys) {
-            Object value = values.get(key);
-            if (value != null) {
-                return value;
-            }
-        }
-        return null;
+        return new ToolProtocolPayloadNavigator().firstPresent(values, keys);
     }
 
     private String stringValue(Object value) {

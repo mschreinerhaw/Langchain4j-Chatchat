@@ -16,10 +16,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentOrchestratorArchitectureTest {
 
     private static final int MAX_FACADE_LINES = 1_000;
-    private static final int ENGINE_MIGRATION_RATCHET_LINES = 5_554;
+    private static final int ENGINE_MIGRATION_RATCHET_LINES = 4_602;
     private static final int MAX_DOMAIN_COMPONENT_LINES = 1_000;
     private static final int PLANNER_MIGRATION_RATCHET_LINES = 1_750;
     private static final int ANSWER_FINALIZER_MIGRATION_RATCHET_LINES = 1_700;
+
+    @Test
+    void legacyConversationExecutionCannotReturnAlongsideTheGraph() throws IOException {
+        Path source = Path.of(System.getProperty("basedir", ".")).resolve(
+            "src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java");
+        assertThat(Files.readString(source))
+            .contains("INTERPRETATION_GRAPH_ONLY")
+            .doesNotContain("for (int step = 1; step <= maxSteps; step++)",
+                "max_steps_or_fallback", "runMissingDocumentWebVerification(");
+    }
 
     @Test
     void publicOrchestratorRemainsABoundedFacade() throws IOException {
@@ -62,8 +72,8 @@ class AgentOrchestratorArchitectureTest {
                 .toList())
                 .containsExactly(
                     "checkpoint", "context", "contract", "dataset", "dispatch", "driver",
-                    "governance", "insight", "logging", "loop", "model", "prompt", "protocol",
-                    "reducer", "semantic", "worker");
+                    "governance", "graph", "insight", "logging", "loop", "model", "prompt", "protocol",
+                    "reducer", "report", "semantic", "worker");
         }
     }
 

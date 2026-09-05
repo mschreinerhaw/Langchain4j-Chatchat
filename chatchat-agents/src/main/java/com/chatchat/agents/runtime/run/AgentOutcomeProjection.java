@@ -22,6 +22,9 @@ public final class AgentOutcomeProjection {
             return new Outcome("WAITING_CONFIRMATION", "PENDING", "WAITING_CONFIRMATION",
                 "WAITING_CONFIRMATION", CONTRACT_VERSION);
         }
+        if (booleanValue(values.get("planningAdmissionFailed"))) {
+            return new Outcome("FAILED", "FAILED", "PLANNING_FAILED", "FAILED", CONTRACT_VERSION);
+        }
         if (stopReason.contains("CANCEL")) {
             return new Outcome("CANCELLED", hasAnswer ? "PARTIAL" : "EMPTY", "CANCELLED",
                 "CANCELLED", CONTRACT_VERSION);

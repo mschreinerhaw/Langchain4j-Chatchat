@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraph;
+
 import com.chatchat.agents.orchestration.analysis.context.ContextCompressionEnvelope;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
@@ -184,7 +186,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     PlanExecutionPhaseHandler {
 
     private static final int DEFAULT_MAX_STEPS = 3;
-    private static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
+    static final int MAX_INTERPRETATION_PLAN_ATTEMPTS = 3;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final int DAG_DECISION_OUTPUT_SUMMARY_CHARS = 64_000;
     private static final int DAG_DECISION_EVIDENCE_TOKEN_BUDGET = 12_000;
@@ -203,18 +205,18 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
     private static final String WORKFLOW_PROBLEM_SOLVING = "agent_problem_solving";
-    private final AgentPlanExecutionBridge planExecutionBridge;
+    final AgentPlanExecutionBridge planExecutionBridge;
     private final AgentPlanPhaseActivityCoordinator planPhaseActivities;
-    private final ToolRegistry toolRegistry;
-    private final ToolRuntimeService toolRuntimeService;
-    private PlanToolExecutionPort planToolExecutionPort;
-    private PlanDagControlPort planDagControlPort;
-    private final ObjectMapper objectMapper;
+    final ToolRegistry toolRegistry;
+    final ToolRuntimeService toolRuntimeService;
+    PlanToolExecutionPort planToolExecutionPort;
+    PlanDagControlPort planDagControlPort;
+    final ObjectMapper objectMapper;
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
-    private final AgentRunStore runStore;
+    final AgentRunStore runStore;
     private final AgentObservationPipeline observationPipeline;
     private final AgentWorkflowDecisionPort workflowDecisionEngine;
-    private final AgentRuntimeGuard runtimeGuard = new AgentRuntimeGuard(
+    final AgentRuntimeGuard runtimeGuard = new AgentRuntimeGuard(
         DEFAULT_MAX_STEPS,
         AGENT_CANCELLATION_ATTRIBUTE,
         AGENT_MAX_STEPS_ATTRIBUTE,
@@ -225,16 +227,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final AgentRuntimeAttributeCompiler runtimeAttributeCompiler;
     private final AgentPlanningPort planner;
     private final AgentRunResultAdapter runResultAdapter;
-    private final SemanticClaimCoordinator semanticClaimCoordinator;
+    final SemanticClaimCoordinator semanticClaimCoordinator;
     private final AnalysisLoopCoordinator analysisLoopCoordinator;
-    private final AnalysisRefinementCoordinator analysisRefinementCoordinator;
+    final AnalysisRefinementCoordinator analysisRefinementCoordinator;
     private final PlanExecutionResultCoordinator planExecutionResultCoordinator;
     private final PlanExecutionObservationCoordinator planExecutionObservationCoordinator;
     private final AgentRunScopeBinder runScopeBinder;
     private final AgentRunLifecycleCoordinator runLifecycle;
-    private final AgentPlanEvolutionAuditor planEvolutionAuditor;
+    final AgentPlanEvolutionAuditor planEvolutionAuditor;
     private final InterpretationPlanEvidenceAnalyzer planEvidenceAnalyzer;
-    private final InterpretationPlanSnapshotService planSnapshotService;
+    final InterpretationPlanSnapshotService planSnapshotService;
     private ToolObservationBuilder toolObservationBuilder;
     private final AgentChatModelResolver chatModelResolver;
     private final AgentToolNameResolver toolNames;
@@ -242,16 +244,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final AgentToolExecutor toolExecutor;
     private final AgentToolCallCoordinator toolCallCoordinator;
     private final MandatoryWorkflowResultReviewer mandatoryWorkflowResultReviewer;
-    private final AgentWorkflowToolResolver workflowTools;
+    final AgentWorkflowToolResolver workflowTools;
     private final MandatoryWorkflowTopology mandatoryWorkflowTopology;
     private final MandatoryWorkflowRecoveryPolicy mandatoryWorkflowRecoveryPolicy;
     private final MandatoryWorkflowRecoveryCoordinator mandatoryWorkflowRecoveryCoordinator;
-    private final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
-    private final ModelAssistedContextParameterBridge modelAssistedContextParameterBridge;
+    final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
+    final ModelAssistedContextParameterBridge modelAssistedContextParameterBridge;
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
-    private final AgentWorkflowStatePort workflowStateTracker;
-    private final AgentAnswerFinalizationPort answerFinalizer;
-    private final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
+    final AgentWorkflowStatePort workflowStateTracker;
+    final AgentAnswerFinalizationPort answerFinalizer;
+    final EvidenceAugmentationPolicy evidenceAugmentationPolicy = new EvidenceAugmentationPolicy();
     private final AgentContextBudget contextBudget;
     private final int recordAnalysisChunkMaxChars;
     private final int recordAnalysisChunkMaxRows;
@@ -294,7 +296,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         DagGovernanceContractProvider.builtInFallback();
     private SemanticInsightContractProvider semanticInsightContractProvider =
         SemanticInsightContractProvider.disabled();
-    private NodeAttemptStore nodeAttemptStore;
+    NodeAttemptStore nodeAttemptStore;
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
     private ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
         analysisTaskDispatcher;
@@ -403,7 +405,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.runStore = runStore == null ? new InMemoryAgentRunStore() : runStore;
         this.observationPipeline = observationPipeline == null ? new DefaultAgentObservationPipeline() : observationPipeline;
         AgentAnswerReviewer resolvedAnswerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
-        this.planner = new AgentPlanner(toolRegistry, objectMapper, agentRuntimeProperties);
+        this.planner = new GraphPlanningPort(new AgentPlanner(toolRegistry, objectMapper, agentRuntimeProperties));
         this.runResultAdapter = new AgentRunResultAdapter(this.runStore, this.observationPipeline);
         this.semanticClaimCoordinator = new SemanticClaimCoordinator(
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
@@ -890,6 +892,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             () -> runtimeGuard.remainingTimeMs(requestRuntimeAttributes)
         );
         Map<String, Object> modelUsage = Collections.synchronizedMap(new LinkedHashMap<>());
+        modelUsage.put("runId", stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
         activeChatModel = new MeteredChatModel(
             activeChatModel,
             modelUsage,
@@ -1038,443 +1041,110 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("mandatoryWorkflowPending", true);
         }
 
-        for (int step = 1; step <= maxSteps; step++) {
-            runtimeGuard.checkCancelled(cancellationCheck);
-            long plannedAt = System.currentTimeMillis();
-            Set<String> plannerCompletedTools = completedWorkflowToolsFromEvents(
-                requestRuntimeAttributes,
-                completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
-            );
-            List<String> plannerMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, plannerCompletedTools);
-            boolean plannerRequiresToolBeforeFinal = !plannerMandatoryTools.isEmpty();
-            PlannerExecutionResult plannerResult = planner.plan(new AgentPlanningRequest(
-                activeChatModel, query, systemPrompt, plannerVisibleTools, observations, documentIds,
-                documentTags, plannerMandatoryTools, plannerRequiresToolBeforeFinal,
-                requireDocumentWebVerification, documentSearchTool,
-                verificationWebSearchTool, RuntimeFunctionCallingPolicy.planningAttributes(requestRuntimeAttributes, plannerVisibleTools, mandatoryTools, plannerCompletedTools, authoritativeWorkflowDag, requireDocumentWebVerification, workflowTools, toolRegistry)));
-            AgentDecision decision = plannerResult.decision();
-            if (decision.interpretationPlan() != null
-                && decision.interpretationPlan().executionPolicy() != null) {
-                metadata.put("modelDeclaredLatencyBudgetMs",
-                    decision.interpretationPlan().executionPolicy().latencyBudgetMs());
-                metadata.put("modelDeclaredLatencyBudgetAdvisory", true);
-                metadata.put("remainingTimeMs", runtimeGuard.remainingTimeMs(requestRuntimeAttributes));
-            }
-            metadata.put("taskContract", plannerResult.taskContract());
-            metadata.put("taskContractVersion", plannerResult.taskContract().contractVersion());
-            metadata.put("taskType", plannerResult.taskContract().taskType());
-            metadata.put("evidenceRequirement",
-                plannerResult.taskContract().evidenceRequirement().name());
-            if (decision.executionPlan() != null
-                && decision.executionPlan().get("artifactContract") instanceof Map<?, ?> artifactContract) {
-                metadata.put("artifactContract", new LinkedHashMap<>(artifactContract));
-            }
-            RuntimeAnswerCandidate plannerCandidate = plannerResult.candidateAnswer();
-            if (plannerCandidate != null) {
-                plannerCandidate = plannerCandidate.transition(
-                    RuntimeAnswerCandidate.Status.VALIDATED,
-                    metadataOf(
-                        "contentPresent", !plannerCandidate.content().isBlank(),
-                        "planValidityIndependent", true
-                    )
-                );
-                metadata.put("answerCandidate", plannerCandidate);
-                metadata.put("answerCandidateContractVersion", plannerCandidate.contractVersion());
-                metadata.put("answerOrigin", plannerCandidate.source());
-                metadata.put("answerGenerationType", plannerCandidate.type());
-                metadata.put("answerLifecycleStatus", plannerCandidate.status().name());
-                metadata.put("protectedCandidateAnswer", true);
-                metadata.put("plannerCandidateAnswerPreserved", true);
-            }
-            boolean protectedPlannerReport = plannerCandidate != null
-                && decision.executionPlan() != null
-                && Boolean.TRUE.equals(decision.executionPlan().get("plannerCandidateAnswerPreserved"));
-            try {
-                runtimeGuard.checkCancelled(cancellationCheck);
-            } catch (CancellationException cancellation) {
-                boolean mandatoryEvidenceComplete = plannerMandatoryTools.isEmpty();
-                boolean verificationComplete = !requireDocumentWebVerification
-                    || !workflowTools.missingDocumentWebVerification(
-                        plannerCompletedTools, documentSearchTool, verificationWebSearchTool);
-                if (FINAL.equals(decision.action())
-                    && protectedPlannerReport
-                    && mandatoryEvidenceComplete
-                    && verificationComplete) {
-                    RuntimeAnswerCandidate selectedCandidate = plannerCandidate.transition(
-                        RuntimeAnswerCandidate.Status.SELECTED,
-                        metadataOf("selectionReason", "displayable_report_completed_at_deadline")
-                    );
-                    metadata.put("answerCandidate", selectedCandidate);
-                    metadata.put("answerLifecycleStatus", selectedCandidate.status().name());
-                    return answerFinalizer.finishProducedAnswerAfterCancellation(
-                        query,
-                        traces,
-                        metadata,
-                        observations,
-                        plannerCandidate.content(),
-                        cancellation.getMessage()
-                    );
-                }
-                throw cancellation;
-            }
-            String plannedToolName = toolNames.normalizeToolName(decision.toolName(), decision.arguments(), tools);
-            metadata.put("steps", step);
-            Map<String, Object> plannerStep = new LinkedHashMap<>();
-            plannerStep.put("step", step);
-            plannerStep.put("action", decision.action());
-            plannerStep.put("toolName", stringValue(decision.toolName()));
-            plannerStep.put("resolvedToolName", plannedToolName);
-            plannerStep.put("reason", stringValue(decision.reason()));
-            plannerStep.put("executionPlan", decision.executionPlan());
-            plannerStep.put("answerPreview", preview(decision.answer()));
-            plannerStep.put("plannedAt", plannedAt);
-            plannerStep.put("observationCount", observations.size());
-            plannerSteps.add(plannerStep);
-            runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
-            planEvolutionAuditor.recordPlannerRepair(
-                requestRuntimeAttributes, metadata,
-                decision.executionPlan() == null ? null : decision.executionPlan().get("repairEvent"));
-            recordLifecyclePhase(
-                requestRuntimeAttributes,
-                metadata,
-                "plan_generation",
-                AgentLifecyclePresentationPolicy.planGenerationContent(decision),
-                metadataOf(
-                    "step", step,
-                    "action", decision.action(),
-                    "toolName", stringValue(decision.toolName()),
-                    "resolvedToolName", plannedToolName,
-                    "plannerProtocol", decision.executionPlan() == null ? null : decision.executionPlan().get("plannerProtocol"),
-                    "eventKind", decision.interpretationPlan() == null ? null : "DAG_VALIDATION",
-                    "eventState", decision.interpretationPlan() == null ? null
-                        : (decision.executionPlan() != null
-                            && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid")) ? "PASSED" : "FAILED")
-                )
-            );
-
-            boolean authoritativeRuntimeFallback = decision.interpretationPlan() != null
-                && "invalid_interpretation_plan".equals(decision.reason())
-                && !authoritativeWorkflowDag.isEmpty()
-                && !plannerMandatoryTools.isEmpty();
-            if (authoritativeRuntimeFallback) {
-                metadata.put("authoritativeRuntimeFallbackAfterInvalidPlan", true);
-                metadata.put("authoritativeRuntimeFallbackStep", step);
-                metadata.put("authoritativeRuntimeFallbackPendingTools", List.copyOf(plannerMandatoryTools));
-                Map<String, Map<String, Object>> candidateInputs =
-                    authoritativeWorkflowCandidateInputs(decision.interpretationPlan(), authoritativeWorkflowDag);
-                if (!candidateInputs.isEmpty()) {
-                    requestRuntimeAttributes.put("authoritativeWorkflowCandidateInputs", candidateInputs);
-                    metadata.put("authoritativeWorkflowCandidateInputTools", List.copyOf(candidateInputs.keySet()));
-                }
-                observations.add("Planner candidate remained invalid after authoritative DAG topology repair. "
-                    + "Runtime stopped model replanning and delegated the pending Ready workflow tools to the "
-                    + "deterministic Java scheduler: " + plannerMandatoryTools + ".");
-                break;
-            }
-
-            if (decision.interpretationPlan() != null
-                && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"))) {
-                Map<String, Map<String, Object>> candidateInputs =
-                    authoritativeWorkflowCandidateInputs(decision.interpretationPlan(), authoritativeWorkflowDag);
-                if (!candidateInputs.isEmpty()) {
-                    requestRuntimeAttributes.put("authoritativeWorkflowCandidateInputs", candidateInputs);
-                    metadata.put("authoritativeWorkflowCandidateInputTools", List.copyOf(candidateInputs.keySet()));
-                }
-                Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
-                    requestRuntimeAttributes,
-                    completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
-                );
-                String nextMandatoryTool = workflowTools.nextMandatoryTool(mandatoryTools, eventCompletedTools);
-                if (requireToolBeforeFinal
-                    && nextMandatoryTool != null
-                    && !toolNames.sameToolName(nextMandatoryTool, plannedToolName)) {
-                    observations.add("Planner produced an InterpretationPlan starting with " + plannedToolName
-                        + " but MCP workflow requires " + nextMandatoryTool
-                        + " next. Runtime will follow the Agent tool orchestration.");
-                    workflowTools.recordWorkflowOverride(metadata, plannedToolName, nextMandatoryTool, decision.reason());
-                } else {
-                    return executeInterpretationPlanPipeline(
-                        decision.interpretationPlan(),
-                        activeChatModel,
-                        query,
-                        systemPrompt,
-                        tenantId,
-                        requestId,
-                        conversationId,
-                        userId,
-                        tools,
-                        workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
-                        traces,
-                        observations,
-                        metadata,
-                        documentIds,
-                        documentTags,
-                        webSearchResultLimit,
-                        maxToolCalls,
-                        cancellationCheck
-                    );
-                }
-            }
-
-            if (FINAL.equals(decision.action())) {
-                runtimeGuard.checkCancelled(cancellationCheck);
-                Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
-                    requestRuntimeAttributes,
-                    completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
-                );
-                List<String> eventMissingMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, eventCompletedTools);
-                FinalExecutionDecision finalDecision = eventMissingMandatoryTools.isEmpty()
-                    ? new FinalExecutionDecision(true, "REQUIRED_TOOLS_COMPLETED_BY_EVENTS", eventMissingMandatoryTools)
-                    : new FinalExecutionDecision(
-                        false,
-                        "MISSING_REQUIRED_TOOLS_BY_EVENTS",
-                        eventMissingMandatoryTools
-                    );
-                metadata.put("finalDecisionReason", finalDecision.reason());
-                metadata.put("plannerSufficient", Boolean.TRUE.equals(decision.sufficient()));
-                metadata.put("policyAllowsEarlyFinal", workflowDecisionEngine.policyAllowsEarlyFinal(requestRuntimeAttributes));
-                if (requireToolBeforeFinal && !finalDecision.allowed()) {
-                    observations.add("Planner final answer rejected: this MCP-bound agent must observe all mandatory workflow tools before final answer. Missing: "
-                        + finalDecision.missingMandatoryTools());
-                    metadata.put("rejectedFinalBeforeTool", true);
-                    metadata.put("missingMandatoryTools", finalDecision.missingMandatoryTools());
-                    continue;
-                }
-                if (requireDocumentWebVerification
-                    && workflowTools.missingDocumentWebVerification(eventCompletedTools, documentSearchTool, verificationWebSearchTool)) {
-                    observations.add("Planner final answer rejected: document-web verification requires both document_search and "
-                        + verificationWebSearchTool + " observations before final answer.");
-                    metadata.put("rejectedFinalBeforeVerification", true);
-                    continue;
-                }
-                if (plannerCandidate != null) {
-                    RuntimeAnswerCandidate selectedCandidate = plannerCandidate.transition(
-                        RuntimeAnswerCandidate.Status.SELECTED,
-                        metadataOf("selectionReason", "planner_business_result_retained")
-                    );
-                    metadata.put("answerCandidate", selectedCandidate);
-                    metadata.put("answerLifecycleStatus", selectedCandidate.status().name());
-                }
-                return answerFinalizer.finishReviewedAnswer(
-                    activeChatModel,
-                    query,
-                    systemPrompt,
-                    traces,
-                    metadata,
-                    observations,
-                    decision.answer(),
-                    cancellationCheck,
-                    "final_answer"
-                );
-            }
-
-            if (!TOOL.equals(decision.action())) {
-                observations.add("Planner returned unsupported action, fallback to final answer.");
-                break;
-            }
-
-            if (plannedToolName == null || plannedToolName.isBlank()) {
-                observations.add("Planner requested tool action without toolName.");
-                break;
-            }
-            ToolExecutionDecision toolDecision = workflowDecisionEngine.resolveToolExecution(
-                plannedToolName,
-                false,
-                null,
-                Map.of(),
-                tools,
-                traces
-            );
-            if (toolDecision.outcome() == ToolExecutionOutcome.SKIP_POLICY) {
-                observations.add("Planner requested unavailable tool: " + decision.toolName());
-                workflowDecisionEngine.recordWorkflowDecision(metadata, toolDecision);
-                continue;
-            }
-            if (toolDecision.outcome() == ToolExecutionOutcome.SKIP_DUPLICATE) {
-                observations.add("Planner requested already completed tool " + plannedToolName
-                    + "; runtime skipped the redundant tool call.");
-                metadata.put("skippedRedundantTool", plannedToolName);
-                workflowDecisionEngine.recordWorkflowDecision(metadata, toolDecision);
-                continue;
-            }
-            Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
-                requestRuntimeAttributes,
-                completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
-            );
-            String nextMandatoryTool = workflowTools.nextMandatoryTool(mandatoryTools, eventCompletedTools);
-            boolean plannerFollowedWorkflow = nextMandatoryTool == null || toolNames.sameToolName(nextMandatoryTool, plannedToolName);
-            if (requireToolBeforeFinal && !plannerFollowedWorkflow) {
-                observations.add("Planner requested " + plannedToolName
-                    + " but MCP workflow requires " + nextMandatoryTool + " next. Runtime will follow the Agent tool orchestration.");
-                workflowTools.recordWorkflowOverride(metadata, plannedToolName, nextMandatoryTool, decision.reason());
-                plannedToolName = nextMandatoryTool;
-            }
-            if (requireDocumentWebVerification
-                && !eventCompletedTools.stream().anyMatch(tool -> toolNames.sameToolName(documentSearchTool, tool))
-                && !toolNames.sameToolName(documentSearchTool, plannedToolName)) {
-                observations.add("Planner requested " + plannedToolName
-                    + " before " + documentSearchTool + "; document-web verification must start with " + documentSearchTool + ".");
-                continue;
-            }
-
-            Map<String, Object> arguments = toolArguments.applyToolDefaults(
-                plannedToolName,
-                plannerFollowedWorkflow ? decision.arguments() : toolArguments.defaultToolArguments(plannedToolName, query, webSearchResultLimit),
-                documentIds,
-                documentTags,
-                query,
-                webSearchResultLimit
-            );
-            if (answerFinalizer.markToolBudgetExceeded(plannedToolName, maxToolCalls, traces, metadata, observations)) {
-                return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
-            }
-            runtimeGuard.checkCancelled(cancellationCheck);
-            AgentOrchestrator.ToolCallExecution execution = executeToolCall(
-                plannedToolName,
-                arguments,
-                conversationId,
-                requestId,
-                userId,
-                tenantId,
-                tools,
-                decision.executionPlan(),
-                traces,
-                attributesWithWorkflowStep(
-                    workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
-                    step,
-                    plannedToolName
-                )
-            );
-            traces.add(execution.trace());
-            observations.add(execution.observation());
-            if (workflowStateTracker.isConfirmationRequired(execution)) {
-                metadata.put("stopReason", "confirmation_required");
-                metadata.put("confirmationRequired", true);
-                return answerFinalizer.finishExecution("", traces, metadata, observations);
-            }
-            workflowStateTracker.rememberCompletedWorkflowTool(completedWorkflowTools, execution);
-            runtimeGuard.checkCancelled(cancellationCheck);
-        }
-
-        if (requireToolBeforeFinal && traces.isEmpty() && authoritativeWorkflowDag.isEmpty()) {
-            runtimeGuard.checkCancelled(cancellationCheck);
-            String fallbackTool = mandatoryTools.get(0);
-            Map<String, Object> fallbackArguments = toolArguments.applyToolDefaults(
-                fallbackTool,
-                toolArguments.defaultToolArguments(fallbackTool, query, webSearchResultLimit),
-                documentIds,
-                documentTags,
-                query,
-                webSearchResultLimit
-            );
-            if (answerFinalizer.markToolBudgetExceeded(fallbackTool, maxToolCalls, traces, metadata, observations)) {
-                return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
-            }
-            AgentOrchestrator.ToolCallExecution execution = executeToolCall(
-                fallbackTool,
-                fallbackArguments,
-                conversationId,
-                requestId,
-                userId,
-                tenantId,
-                tools,
-                Map.of(),
-                traces,
-                workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools)
-            );
-            traces.add(execution.trace());
-            observations.add("Mandatory fallback " + execution.observation());
-            metadata.put("mandatoryToolFallback", fallbackTool);
-            if (workflowStateTracker.isConfirmationRequired(execution)) {
-                metadata.put("stopReason", "confirmation_required");
-                metadata.put("confirmationRequired", true);
-                return answerFinalizer.finishExecution("", traces, metadata, observations);
-            }
-            workflowStateTracker.rememberCompletedWorkflowTool(completedWorkflowTools, execution);
-        }
-        if (requireToolBeforeFinal) {
-            runtimeGuard.checkCancelled(cancellationCheck);
-            runMissingMandatoryWorkflowTools(
-                activeChatModel,
-                traces,
-                observations,
-                query,
-                conversationId,
-                requestId,
-                userId,
-                tenantId,
-                tools,
-                mandatoryTools,
-                documentIds,
-                documentTags,
-                webSearchResultLimit,
-                metadata,
-                requestRuntimeAttributes,
-                maxToolCalls,
-                systemPrompt,
-                cancellationCheck
-            );
-            if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
-                return answerFinalizer.finishExecution("", traces, metadata, observations);
-            }
-            if (Boolean.TRUE.equals(metadata.get("toolBudgetExceeded"))) {
-                return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
-            }
-        }
-        if (requireDocumentWebVerification) {
-            runtimeGuard.checkCancelled(cancellationCheck);
-            runMissingDocumentWebVerification(
-                traces,
-                observations,
-                query,
-                conversationId,
-                requestId,
-                userId,
-                tenantId,
-                tools,
-                documentSearchTool,
-                documentIds,
-                documentTags,
-                webSearchResultLimit,
-                verificationWebSearchTool,
-                metadata,
-                requestRuntimeAttributes,
-                maxToolCalls
-            );
-            if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
-                return answerFinalizer.finishExecution("", traces, metadata, observations);
-            }
-            if (Boolean.TRUE.equals(metadata.get("toolBudgetExceeded"))) {
-                return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
-            }
-        }
-
-        AgentOrchestrator.AgentExecutionResult blockedResult = finishMandatoryWorkflowBlockedIfPending(
-            activeChatModel,
-            query,
-            systemPrompt,
-            traces,
-            metadata,
-            observations,
+        int step = 1;
+        runtimeGuard.checkCancelled(cancellationCheck);
+        long plannedAt = System.currentTimeMillis();
+        Set<String> plannerCompletedTools = completedWorkflowToolsFromEvents(
             requestRuntimeAttributes,
-            cancellationCheck,
-            "mandatory_workflow_incomplete",
-            "Agent run stopped before final answer because mandatory workflow tools did not complete."
+            completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
         );
-        if (blockedResult != null) {
-            return blockedResult;
+        List<String> plannerMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, plannerCompletedTools);
+        boolean plannerRequiresToolBeforeFinal = !plannerMandatoryTools.isEmpty();
+        PlannerExecutionResult plannerResult = planner.plan(new AgentPlanningRequest(
+            activeChatModel, query, systemPrompt, plannerVisibleTools, observations, documentIds,
+            documentTags, plannerMandatoryTools, plannerRequiresToolBeforeFinal,
+            requireDocumentWebVerification, documentSearchTool,
+            verificationWebSearchTool, RuntimeFunctionCallingPolicy.planningAttributes(requestRuntimeAttributes, plannerVisibleTools, mandatoryTools, plannerCompletedTools, authoritativeWorkflowDag, requireDocumentWebVerification, workflowTools, toolRegistry)));
+        metadata.put("analysisPlanningNodes", plannerResult.graphNodes());
+        AgentDecision decision = plannerResult.decision();
+        if (decision.interpretationPlan() != null
+            && decision.interpretationPlan().executionPolicy() != null) {
+            metadata.put("modelDeclaredLatencyBudgetMs",
+                decision.interpretationPlan().executionPolicy().latencyBudgetMs());
+            metadata.put("modelDeclaredLatencyBudgetAdvisory", true);
+            metadata.put("remainingTimeMs", runtimeGuard.remainingTimeMs(requestRuntimeAttributes));
         }
-
-        return answerFinalizer.finishReviewedSummary(
-            activeChatModel,
-            query,
-            systemPrompt,
-            traces,
+        metadata.put("taskContract", plannerResult.taskContract());
+        metadata.put("taskContractVersion", plannerResult.taskContract().contractVersion());
+        metadata.put("taskType", plannerResult.taskContract().taskType());
+        metadata.put("evidenceRequirement",
+            plannerResult.taskContract().evidenceRequirement().name());
+        if (decision.executionPlan() != null
+            && decision.executionPlan().get("artifactContract") instanceof Map<?, ?> artifactContract) {
+            metadata.put("artifactContract", new LinkedHashMap<>(artifactContract));
+        }
+        RuntimeAnswerCandidate plannerCandidate = plannerResult.candidateAnswer();
+        if (plannerCandidate != null) {
+            plannerCandidate = plannerCandidate.transition(
+                RuntimeAnswerCandidate.Status.VALIDATED,
+                metadataOf(
+                    "contentPresent", !plannerCandidate.content().isBlank(),
+                    "planValidityIndependent", true
+                )
+            );
+            metadata.put("answerCandidate", plannerCandidate);
+            metadata.put("answerCandidateContractVersion", plannerCandidate.contractVersion());
+            metadata.put("answerOrigin", plannerCandidate.source());
+            metadata.put("answerGenerationType", plannerCandidate.type());
+            metadata.put("answerLifecycleStatus", plannerCandidate.status().name());
+            metadata.put("protectedCandidateAnswer", true);
+            metadata.put("plannerCandidateAnswerPreserved", true);
+        }
+        runtimeGuard.checkCancelled(cancellationCheck);
+        String plannedToolName = toolNames.normalizeToolName(decision.toolName(), decision.arguments(), tools);
+        metadata.put("steps", step);
+        Map<String, Object> plannerStep = new LinkedHashMap<>();
+        plannerStep.put("step", step);
+        plannerStep.put("action", decision.action());
+        plannerStep.put("toolName", stringValue(decision.toolName()));
+        plannerStep.put("resolvedToolName", plannedToolName);
+        plannerStep.put("reason", stringValue(decision.reason()));
+        plannerStep.put("executionPlan", decision.executionPlan());
+        plannerStep.put("answerPreview", preview(decision.answer()));
+        plannerStep.put("plannedAt", plannedAt);
+        plannerStep.put("observationCount", observations.size());
+        plannerSteps.add(plannerStep);
+        runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
+        planEvolutionAuditor.recordPlannerRepair(
+            requestRuntimeAttributes, metadata,
+            decision.executionPlan() == null ? null : decision.executionPlan().get("repairEvent"));
+        recordLifecyclePhase(
+            requestRuntimeAttributes,
             metadata,
-            observations,
-            cancellationCheck,
-            "max_steps_or_fallback"
+            "plan_generation",
+            AgentLifecyclePresentationPolicy.planGenerationContent(decision),
+            metadataOf(
+                "step", step,
+                "action", decision.action(),
+                "toolName", stringValue(decision.toolName()),
+                "resolvedToolName", plannedToolName,
+                "plannerProtocol", decision.executionPlan() == null ? null : decision.executionPlan().get("plannerProtocol"),
+                "eventKind", decision.interpretationPlan() == null ? null : "DAG_VALIDATION",
+                "eventState", decision.interpretationPlan() == null ? null
+                    : (decision.executionPlan() != null
+                        && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid")) ? "PASSED" : "FAILED")
+            )
         );
+
+        metadata.put("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY");
+        if (decision.interpretationPlan() == null
+            || !Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"))) {
+            metadata.put("executionStatus", "FAILED");
+            metadata.put("planningAdmissionFailed", true);
+            metadata.put("analysisGraphStatus", "FAILED");
+            metadata.put("stopReason", "invalid_interpretation_plan");
+            metadata.put("interpretationPlanFinalResultProduced", false);
+            metadata.remove("analyticalReport");
+            return answerFinalizer.finishExecution(
+                "未能生成通过校验的执行计划，本次运行已停止。请检查计划校验信息后重试。",
+                traces, metadata, observations);
+        }
+        return executeInterpretationPlanPipeline(
+            decision.interpretationPlan(), activeChatModel, query, systemPrompt,
+            tenantId, requestId, conversationId, userId, tools,
+            workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
+            traces, observations, metadata, documentIds, documentTags,
+            webSearchResultLimit, maxToolCalls, cancellationCheck);
     }
 
     private AgentOrchestrator.AgentExecutionResult executeInterpretationPlanPipeline(InterpretationPlan plan,
@@ -1495,677 +1165,41 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                                                                    int webSearchResultLimit,
                                                                    int maxToolCalls,
                                                                    BooleanSupplier cancellationCheck) {
-        runtimeGuard.checkCancelled(cancellationCheck);
-        runtimeAttributes = interpretationPlanInitialAttributes(runtimeAttributes, traces);
-        AgentPlanBudgetPolicy.BudgetCaps budgetCaps = AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes);
-        AgentPlanBudgetPolicy.ApplyResult budgetResult = AgentPlanBudgetPolicy.apply(plan, budgetCaps);
-        plan = budgetResult.plan();
-        metadata.put("runtimePlanLatencyBudgetMs", budgetCaps.latencyBudgetMs());
-        metadata.put("effectivePlanLatencyBudgetMs",
-            plan.executionPolicy() == null ? null : plan.executionPolicy().latencyBudgetMs());
-        metadata.put("modelPlanLatencyBudgetEnforced", false);
-        Object authoritativeWorkflowDag = runtimeAttributes == null
-            ? null : runtimeAttributes.get("authoritativeWorkflowDag");
-        String authoritativeWorkflowTaskId = runtimeAttributes == null
-            ? null : stringValue(runtimeAttributes.get("authoritativeWorkflowTaskId"));
-        boolean hasAuthoritativeWorkflowDag = authoritativeWorkflowDag instanceof Collection<?> collection
-            && !collection.isEmpty();
-        List<String> authoritativeWorkflowDagPasses = List.of();
-        Map<String, Object> authoritativeWorkflowDagRepair = Map.of();
-        if (hasAuthoritativeWorkflowDag) {
-            InterpretationPlanOptimizer.OptimizationResult workflowDagOptimization =
-                new InterpretationPlanOptimizer(toolRegistry).optimize(plan, authoritativeWorkflowDag);
-            plan = workflowDagOptimization.plan() == null ? plan : workflowDagOptimization.plan();
-            authoritativeWorkflowDagPasses = workflowDagOptimization.appliedPasses();
-            authoritativeWorkflowDagRepair = workflowDagOptimization.repairResult().auditMetadata();
-        }
-        metadata.put("interpretationPlanPipeline", true);
-        metadata.put("interpretationPlanVersion", plan.version());
-        metadata.put("authoritativeWorkflowDagPasses", authoritativeWorkflowDagPasses);
-        if (!authoritativeWorkflowDagRepair.isEmpty()) {
-            metadata.put("authoritativeWorkflowDagRepair", authoritativeWorkflowDagRepair);
-        }
-        if (budgetCaps.configured()) {
-            metadata.put("agentBudgetCaps", budgetCaps.metadata());
-            metadata.put("agentBudgetAdjusted", budgetResult.adjusted());
-        }
-        planSnapshotService.saveGenerated(
-            "initial", plan, tenantId, requestId, runtimeAttributes, metadata);
-        planEvolutionAuditor.recordEvolution(
-            null, plan, 1, "INITIAL", List.of(), runtimeAttributes, metadata);
-
-        InterpretationPlanValidator validator = new InterpretationPlanValidator();
-        Map<String, Object> pipelineRuntimeAttributes = runtimeAttributes;
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            toolRuntimeService,
-            validator,
-            new InterpretationPlanOptimizer(toolRegistry),
-            runStore,
-            request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt,
-                cancellationCheck, request, pipelineRuntimeAttributes),
-            request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt,
-                cancellationCheck, request, pipelineRuntimeAttributes),
-            request -> {
-                String stepTool = request.step() == null ? null : request.step().toolName();
-                ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidenceContext =
-                    templateRetrievalEvidenceContext(query, request.completed());
-                Map<String, Object> contextual = modelAssistedContextParameterBridge.propose(
-                    activeChatModel, stepTool, request.input(), evidenceContext);
-                return modelAssistedRetrievalBridge.enrichWithGate(
-                    activeChatModel, stepTool, contextual, evidenceContext).argumentsWithGateMarker();
-            },
-            planToolExecutionPort,
-            planDagControlPort
-        );
-        runtime.setNodeAttemptStore(nodeAttemptStore);
-        AgentPlanPipelineContinuation resumedPipeline = planExecutionBridge.resumedPipeline();
-        InterpretationPlan initialPipelinePlan = resumedPipeline == null
-            ? plan : resumedPipeline.initialPlan();
-        int resumedRewriteCount = resumedPipeline == null ? 0 : resumedPipeline.rewriteCount();
-        List<InterpretationPlanRuntime.ExecutionResult> planAttemptResults = new ArrayList<>(
-            resumedPipeline == null ? List.of() : resumedPipeline.attemptResults());
-        List<Map<String, Object>> evidenceHistory = new ArrayList<>(
-            resumedPipeline == null ? List.of() : resumedPipeline.evidenceHistory());
-        InterpretationPlanValidator.ValidationResult initialEvaluation = validator.validate(
-            plan,
-            toolRegistry,
-            new LinkedHashSet<>(tools == null ? List.of() : tools),
-            authoritativeWorkflowDag,
-            authoritativeWorkflowTaskId
-        );
-        recordInterpretationPlanEvaluation("initial", initialEvaluation, runtimeAttributes, metadata);
-        InterpretationPlanRuntime.ExecutionResult firstResult;
-        if (initialEvaluation.valid()) {
-            recordInterpretationPlanExecutionStarted("initial", plan, runtimeAttributes, metadata);
-            InterpretationPlanRuntime.ExecutionRequest executionRequest = planExecutionRequest(
-                plan,
-                tenantId,
-                requestId,
-                conversationId,
-                userId,
-                tools,
-                workflowAttemptAttributes(runtimeAttributes, 0)
-            );
-            InterpretationPlanRuntime.ExecutionResult resumedResult = planExecutionBridge.consume(
-                plan, ToolCallFingerprint.forPlan(plan));
-            if (resumedResult != null) {
-                firstResult = resumedResult;
-            } else {
-                suspendForDurablePlanExecution(
-                    initialPipelinePlan, plan, executionRequest,
-                    resumedRewriteCount, maxRewriteTimes(initialPipelinePlan),
-                    planAttemptResults, evidenceHistory,
-                    runtimeAttributes, traces, observations, metadata);
-                firstResult = runtime.execute(executionRequest,
-                    planKernelScope(tenantId, userId, requestId, conversationId, runtimeAttributes));
-            }
-        } else {
-            firstResult = planEvaluationFailure("initial", initialEvaluation);
-        }
-        recordPlanRuntimeResult("initial", firstResult, traces, observations, metadata);
-        planSnapshotService.saveExecution(
-            "initial_result", plan, tenantId, requestId, runtimeAttributes, metadata, firstResult);
-        checkCancelledUnlessBatchEvidence(cancellationCheck, firstResult, metadata);
-
-        if (firstResult.approvalRequired()) {
-            metadata.put("stopReason", "confirmation_required");
-            metadata.put("confirmationRequired", true);
-            return answerFinalizer.finishExecution("", traces, metadata, observations);
-        }
-        firstResult = consumePlanExecutionResult(
-            "initial", plan, firstResult, runtimeAttributes, observations, metadata);
-        planAttemptResults.add(firstResult);
-        Map<String, Object> firstEvidence = analyzeInterpretationPlanEvidence(
-            activeChatModel, query, systemPrompt, plan, firstResult, 1, evidenceHistory,
-            runtimeAttributes, metadata, cancellationCheck
-        );
-        RecordCoverageBundle latestRecordCoverage = analyzeClaimAdmissionCoverage(
-            activeChatModel, query, firstResult, planAttemptResults, runtimeAttributes, metadata,
-            cancellationCheck);
-        firstEvidence = semanticClaimCoordinator.evaluate(firstEvidence,
-            latestRecordCoverage.summaryResults(), 1, runtimeAttributes, metadata);
-        evidenceHistory.add(firstEvidence);
-        int configuredMaxRewriteTimes = maxRewriteTimes(initialPipelinePlan);
-        boolean firstEvidenceAvailable = usableEvidenceAvailable(firstEvidence);
-        boolean actionableEvidenceRefinementAvailable =
-            !evidenceRefinementRequiredTools(evidenceHistory, tools).isEmpty();
-        boolean augmentationOverrideAvailable = configuredMaxRewriteTimes == 0
-            && (firstEvidenceAvailable || actionableEvidenceRefinementAvailable)
-            && MAX_INTERPRETATION_PLAN_ATTEMPTS > 1;
-        EvidenceAugmentationPolicy.Outcome latestAugmentationDecision = decideEvidenceAugmentation(
-            firstEvidence,
-            firstResult,
-            evidenceExplorationAvailable(
-                firstEvidence,
-                firstResult,
-                tools,
-                configuredMaxRewriteTimes > 0 || augmentationOverrideAvailable
-            ),
-            false,
-            metadata
-        );
-        recordEvidenceAugmentationDecision(
-            latestAugmentationDecision, 1, runtimeAttributes, metadata);
-        if (latestAugmentationDecision.decision() == EvidenceAugmentationPolicy.Decision.COMPLETE) {
-            recordEvidenceStopState(metadata, firstEvidence, "evidence_sufficient", 1);
-            recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
-            String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
-                activeChatModel,
-                query,
-                systemPrompt,
-                firstResult,
-                planAttemptResults,
-                runtimeAttributes,
-                observations,
-                metadata,
-                cancellationCheck,
-                "initial",
-                latestRecordCoverage
-            );
-            return finishSynthesizedInterpretationPlanAnswer(
-                activeChatModel,
-                query,
-                systemPrompt,
-                traces,
-                metadata,
-                observations,
-                synthesizedAnswer,
-                cancellationCheck,
-                "evidence_sufficient"
-            );
-        }
-
-        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(activeChatModel, objectMapper, validator);
-        InterpretationPlan currentPlan = plan;
-        InterpretationPlanRuntime.ExecutionResult currentResult = firstResult;
-        Map<Integer, InterpretationPlanRuntime.ReusableStep> reusablePlanSteps =
-            analysisRefinementCoordinator.reusableSteps(Map.of(), currentPlan, currentResult);
-        boolean executionRecoveryRequired = !firstResult.success();
-        boolean templateExecutionRetryRequested = templateExecutionRetryRequested(firstResult);
-        int maxRewriteTimes = initialRewriteLimit(
-            configuredMaxRewriteTimes,
-            latestAugmentationDecision,
-            augmentationOverrideAvailable,
-            executionRecoveryRequired,
-            templateExecutionRetryRequested,
-            tools != null && !tools.isEmpty()
-        );
-        int evidenceDrivenRewriteLimit = evidenceDrivenRewriteLimit(
-            configuredMaxRewriteTimes,
-            latestAugmentationDecision,
-            evidenceHistory,
-            tools
-        );
-        if (evidenceDrivenRewriteLimit > maxRewriteTimes) {
-            maxRewriteTimes = evidenceDrivenRewriteLimit;
-            metadata.put("evidenceDrivenRewriteBudgetApplied", true);
-            metadata.put("evidenceDrivenRewriteBudgetReason",
-                "The evidence chain contains an available-tool next action, so refinement remains enabled within the runtime attempt ceiling.");
-        }
-        if (templateExecutionRetryRequested
-            && latestAugmentationDecision.continueLoop()
-            && tools != null && !tools.isEmpty()) {
-            metadata.put("templateExecutionRetryBounded", true);
-            metadata.put("templateExecutionRetryLimit", 1);
-            metadata.put("templateExecutionRetryStrategy",
-                "EVIDENCE_BASED_PARAMETER_REPAIR_OR_TEMPLATE_RESELECTION");
-        }
-        boolean duplicateToolPlanSuppressed = false;
-        boolean usablePartialAnalysis = latestAugmentationDecision.decision()
-            == EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS
-            && firstEvidenceAvailable;
-        metadata.put("interpretationPlanConfiguredMaxRewriteTimes", configuredMaxRewriteTimes);
-        metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
-        if (maxRewriteTimes > configuredMaxRewriteTimes) {
-            metadata.put("evidenceAugmentationOverrideApplied", true);
-            metadata.put("evidenceAugmentationOverrideReason",
-                "A non-empty MCP result had an actionable evidence gap; one bounded refinement round was preserved.");
-        }
-        for (int rewriteCount = resumedRewriteCount + 1;
-             rewriteCount <= maxRewriteTimes; rewriteCount++) {
-            String rewriteSummary = planEvolutionAuditor.rewriteSummary(
-                rewriteCount,
-                currentPlan,
-                currentResult,
-                evidenceHistory
-            );
-            observations.add(rewriteSummary);
-            InterpretationPlan.Step failedStep = analysisRefinementCoordinator.repairRootStep(
-                currentPlan, currentResult);
-            String repairReason = analysisRefinementCoordinator.rewriteReason(
-                currentResult, evidenceHistory);
-            Map<String, Object> repairEvidenceContext = planEvolutionAuditor.repairContext(evidenceHistory);
-            metadata.put("latestDagRepairEvidenceContext", repairEvidenceContext);
-            boolean dagRepairAttempt = !currentResult.success() || failedStep != null;
-            if (dagRepairAttempt) {
-                planEvolutionAuditor.recordDagRepair(
-                    runtimeAttributes,
-                    metadata,
-                    "STARTED",
-                    rewriteCount,
-                    repairReason,
-                    failedStep,
-                    List.of(),
-                    null
-                );
-            }
-            Set<String> completedTools = completedWorkflowToolsFromEvents(
-                runtimeAttributes,
-                workflowStateTracker.completedToolsFromTraces(traces)
-            );
-            List<String> pendingRequiredTools = workflowTools.missingMandatoryTools(
-                metadataStringList(metadata, "mandatoryTools"),
-                completedTools
-            );
-            List<InterpretationPlanRewriter.RequiredToolExecution> rewriteRequirements = new ArrayList<>(
-                requiredToolExecutions(
-                    pendingRequiredTools,
-                    metadataStringList(metadata, "requiredToolNames"),
-                    metadataStringList(metadata, "workflowMandatoryTools")
-                )
-            );
-            rewriteRequirements.addAll(evidenceRefinementRequiredTools(evidenceHistory, tools));
-            InterpretationPlanRewriter.RewriteResult rewrite = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
-                currentPlan,
-                failedStep,
-                repairReason,
-                observations,
-                tools,
-                toolRegistry,
-                rewriteRequirements,
-                evidenceHistory,
-                budgetCaps.configured()
-                    ? new InterpretationPlan.ExecutionPolicy(
-                        budgetCaps.maxSteps(),
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        budgetCaps.costBudget(),
-                        budgetCaps.latencyBudgetMs(),
-                        null
-                    )
-                    : null,
-                AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes)
-            ));
-            InterpretationPlan rewrittenPlan = rewrite.rewrittenPlan();
-            InterpretationPlanValidator.ValidationResult rewrittenValidation = rewrite.validation();
-            List<String> authoritativeRewritePasses = List.of();
-            Map<String, Object> authoritativeRewriteRepair = Map.of();
-            Object rewriteWorkflowDag = authoritativeWorkflowDagForContinuation(
-                authoritativeWorkflowDag,
-                rewrittenPlan,
-                completedTools
-            );
-            if (rewrittenPlan != null && hasAuthoritativeWorkflowDag) {
-                InterpretationPlanOptimizer.OptimizationResult authoritativeRewrite =
-                    new InterpretationPlanOptimizer(toolRegistry).optimize(rewrittenPlan, rewriteWorkflowDag);
-                rewrittenPlan = authoritativeRewrite.plan() == null ? rewrittenPlan : authoritativeRewrite.plan();
-                authoritativeRewritePasses = authoritativeRewrite.appliedPasses();
-                authoritativeRewriteRepair = authoritativeRewrite.repairResult().auditMetadata();
-                rewrittenValidation = validator.validate(
-                    rewrittenPlan,
-                    toolRegistry,
-                    new LinkedHashSet<>(tools == null ? List.of() : tools),
-                    rewriteWorkflowDag,
-                    authoritativeWorkflowTaskId
-                );
-            }
-            boolean rewrittenValid = rewrittenPlan != null
-                && rewrittenValidation != null && rewrittenValidation.valid();
-            metadata.put("interpretationPlanRewriteAttempted", true);
-            metadata.put("interpretationPlanRewriteCount", rewriteCount);
-            metadata.put("interpretationPlanRewriteValid", rewrittenValid);
-            metadata.put("interpretationPlanRewriteExecutable",
-                rewrittenValidation != null && rewrittenValidation.executable());
-            metadata.put("authoritativeWorkflowRewritePasses", authoritativeRewritePasses);
-            if (!authoritativeRewriteRepair.isEmpty()) {
-                metadata.put("authoritativeWorkflowRewriteRepair", authoritativeRewriteRepair);
-            }
-            if (!rewrittenValid && rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
-                metadata.put("interpretationPlanRewriteError", rewrite.errorMessage());
-            }
-            planEvolutionAuditor.recordEvolution(
-                currentPlan,
-                rewrittenPlan,
-                rewriteCount + 1,
-                rewrittenValid ? "ACCEPTED" : "REJECTED",
-                evidenceHistory,
-                runtimeAttributes,
-                metadata
-            );
-            List<Map<String, Object>> repairChanges = rewrittenPlan == null
-                ? List.of()
-                : planEvolutionAuditor.changes(currentPlan, rewrittenPlan);
-            if (dagRepairAttempt) {
-                planEvolutionAuditor.recordDagRepair(
-                    runtimeAttributes,
-                    metadata,
-                    rewrittenValid ? "APPLIED" : "REJECTED",
-                    rewriteCount,
-                    repairReason,
-                    failedStep,
-                    repairChanges,
-                    rewrittenValidation
-                );
-            }
-            runtimeGuard.checkCancelled(cancellationCheck);
-
-            String rewriteStage = rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount;
-            recordInterpretationPlanEvaluation(
-                rewriteStage,
-                rewrittenValidation,
-                runtimeAttributes,
-                metadata
-            );
-            if (!rewrittenValid) {
-                String evaluationError = firstNonBlank(
-                    rewrite.errorMessage(),
-                    "rewriter did not return a valid plan"
-                );
-                observations.add("InterpretationPlan " + rewriteStage
-                    + " failed plan evaluation and was not executed: " + evaluationError);
-                currentResult = planEvaluationFailure(
-                    rewriteStage,
-                    rewrittenValidation,
-                    evaluationError
-                );
-                planAttemptResults.add(currentResult);
-                continue;
-            }
-
-            if (ToolCallFingerprint.materiallyEquivalent(currentPlan, rewrittenPlan)) {
-                duplicateToolPlanSuppressed = true;
-                metadata.put("duplicateToolPlanSuppressed", true);
-                metadata.put("duplicateToolPlanStage", rewriteStage);
-                metadata.put("duplicateToolPlanFingerprints", ToolCallFingerprint.forPlan(rewrittenPlan));
-                observations.add("InterpretationPlan " + rewriteStage
-                    + " was not executed because its tool calls have no material input change from the previous evidence round.");
-                break;
-            }
-
-            currentPlan = rewrittenPlan;
-            planSnapshotService.saveGenerated(
-                rewriteStage,
-                currentPlan,
-                tenantId,
-                requestId,
-                runtimeAttributes,
-                metadata
-            );
-            recordInterpretationPlanExecutionStarted(rewriteStage, currentPlan, runtimeAttributes, metadata);
-            Map<String, Object> rewriteExecutionAttributes = workflowAttemptAttributes(
-                workflowStateTracker.attributesWithCompletedWorkflowState(
-                    runtimeAttributes, completedTools, traces),
-                rewriteCount,
-                rewriteWorkflowDag
-            );
-            rewriteExecutionAttributes.put("reusablePlanSteps", List.copyOf(reusablePlanSteps.values()));
-            InterpretationPlanRuntime.ExecutionRequest rewriteRequest = planExecutionRequest(
-                currentPlan,
-                tenantId,
-                requestId,
-                conversationId,
-                userId,
-                tools,
-                rewriteExecutionAttributes
-            );
-            suspendForDurablePlanExecution(
-                initialPipelinePlan, currentPlan, rewriteRequest,
-                rewriteCount, maxRewriteTimes, planAttemptResults, evidenceHistory,
-                runtimeAttributes, traces, observations, metadata);
-            currentResult = runtime.execute(rewriteRequest,
-                planKernelScope(tenantId, userId, requestId, conversationId, rewriteExecutionAttributes));
-            reusablePlanSteps = analysisRefinementCoordinator.reusableSteps(
-                reusablePlanSteps, currentPlan, currentResult);
-            recordPlanRuntimeResult(rewriteStage, currentResult, traces, observations, metadata);
-            planSnapshotService.saveExecution(
-                rewriteStage + "_result",
-                currentPlan,
-                tenantId,
-                requestId,
-                runtimeAttributes,
-                metadata,
-                currentResult
-            );
-            checkCancelledUnlessBatchEvidence(cancellationCheck, currentResult, metadata);
-
-            if (currentResult.approvalRequired()) {
-                metadata.put("stopReason", "confirmation_required");
-                metadata.put("confirmationRequired", true);
-                return answerFinalizer.finishExecution("", traces, metadata, observations);
-            }
-            currentResult = consumePlanExecutionResult(
-                rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
-                currentPlan,
-                currentResult,
-                runtimeAttributes,
-                observations,
-                metadata
-            );
-            planAttemptResults.add(currentResult);
-            Map<String, Object> currentEvidence = analyzeInterpretationPlanEvidence(
-                activeChatModel, query, systemPrompt, currentPlan, currentResult, rewriteCount + 1,
-                evidenceHistory, runtimeAttributes, metadata, cancellationCheck
-            );
-            latestRecordCoverage = analyzeClaimAdmissionCoverage(
-                activeChatModel, query, currentResult, planAttemptResults, runtimeAttributes, metadata,
-                cancellationCheck);
-            currentEvidence = semanticClaimCoordinator.evaluate(currentEvidence,
-                latestRecordCoverage.summaryResults(), rewriteCount + 1, runtimeAttributes, metadata);
-            evidenceHistory.add(currentEvidence);
-            latestAugmentationDecision = decideEvidenceAugmentation(
-                currentEvidence,
-                currentResult,
-                evidenceExplorationAvailable(
-                    currentEvidence,
-                    currentResult,
-                    tools,
-                    rewriteCount < maxRewriteTimes
-                ),
-                false,
-                metadata
-            );
-            recordEvidenceAugmentationDecision(
-                latestAugmentationDecision, rewriteCount + 1, runtimeAttributes, metadata);
-            int revisedEvidenceLimit = evidenceDrivenRewriteLimit(
-                configuredMaxRewriteTimes,
-                latestAugmentationDecision,
-                evidenceHistory,
-                tools
-            );
-            if (revisedEvidenceLimit > maxRewriteTimes) {
-                maxRewriteTimes = revisedEvidenceLimit;
-                metadata.put("evidenceDrivenRewriteBudgetApplied", true);
-                metadata.put("evidenceDrivenRewriteBudgetExpandedAfterDiscovery", true);
-                metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
-                metadata.put("evidenceDrivenRewriteBudgetReason",
-                    "A completed discovery step exposed an available execution tool for the remaining evidence gap.");
-                observations.add("InterpretationPlan retained another bounded evidence round because discovery "
-                    + "returned an actionable tool that is present in the pinned runtime registry.");
-            }
-            if ("DAG_NO_PROGRESS".equals(currentResult.status())) {
-                usablePartialAnalysis = evidenceHistory.stream().anyMatch(this::usableEvidenceAvailable);
-                metadata.put("interpretationPlanNoProgressStopped", true);
-                metadata.put("interpretationPlanNoProgressStage",
-                    rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount);
-                observations.add("InterpretationPlan stopped after a rewritten DAG made no execution progress; "
-                    + "the persisted evidence chain will be synthesized without another unchanged rewrite.");
-                break;
-            }
-            if (latestAugmentationDecision.decision() == EvidenceAugmentationPolicy.Decision.COMPLETE) {
-                recordEvidenceStopState(metadata, currentEvidence, "evidence_sufficient", rewriteCount + 1);
-                recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
-                String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
-                    activeChatModel,
-                    query,
-                    systemPrompt,
-                    currentResult,
-                    planAttemptResults,
-                    runtimeAttributes,
-                    observations,
-                    metadata,
-                    cancellationCheck,
-                    rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
-                    latestRecordCoverage
-                );
-                return finishSynthesizedInterpretationPlanAnswer(
-                    activeChatModel,
-                    query,
-                    systemPrompt,
-                    traces,
-                    metadata,
-                    observations,
-                    synthesizedAnswer,
-                    cancellationCheck,
-                    "evidence_sufficient"
-                );
-            }
-            if (latestAugmentationDecision.decision()
-                == EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS) {
-                usablePartialAnalysis = usableEvidenceAvailable(currentEvidence);
-                break;
-            }
-        }
-
-        if (!usablePartialAnalysis && evidenceHistory.stream().anyMatch(this::usableEvidenceAvailable)) {
-            usablePartialAnalysis = true;
-            latestAugmentationDecision = evidenceAugmentationPolicy.decide(
-                new EvidenceAugmentationPolicy.Context(
-                    true,
-                    false,
-                    true,
-                    false,
-                    false,
-                    taskEvidenceRequirement(metadata)
-                )
-            );
-            recordEvidenceAugmentationDecision(
-                latestAugmentationDecision, evidenceHistory.size(), runtimeAttributes, metadata);
-        }
-        metadata.put("interpretationPlanRewriteBudgetExceeded", !usablePartialAnalysis
-            && !duplicateToolPlanSuppressed
-            && (maxRewriteTimes <= 0
-                || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes));
-        metadata.put("interpretationPlanFallbackMode",
-            planEvolutionAuditor.fallbackMode(initialPipelinePlan));
-        String evidenceCompletionReason = usablePartialAnalysis
-            ? "evidence_partial_analysis"
-            : duplicateToolPlanSuppressed
-                ? "duplicate_tool_plan_suppressed"
-                : "evidence_iteration_limit";
-        metadata.put("stopReason", evidenceCompletionReason);
-        metadata.put("interpretationPlanEvidenceIterationCount", evidenceHistory.size());
-        if (!evidenceHistory.isEmpty()) {
-            recordEvidenceStopState(
-                metadata,
-                evidenceHistory.get(evidenceHistory.size() - 1),
-                evidenceCompletionReason,
-                evidenceHistory.size()
-            );
-        }
-        observations.add(usablePartialAnalysis
-            ? "InterpretationPlan has usable evidence and will produce a stage analysis with explicit limitations."
-            : duplicateToolPlanSuppressed
-            ? "InterpretationPlan stopped before a duplicate tool call; final answer will use the persisted evidence chain."
-            : "InterpretationPlan completed its evidence revision budget; final answer will reconcile all persisted evidence and unresolved gaps.");
-        runMissingMandatoryWorkflowTools(
-            activeChatModel,
-            traces,
-            observations,
-            query,
-            conversationId,
-            requestId,
-            userId,
-            tenantId,
-            tools,
-            metadataStringList(metadata, "mandatoryTools"),
-            documentIds,
-            documentTags,
-            webSearchResultLimit,
-            metadata,
-            runtimeAttributes,
-            maxToolCalls,
-            systemPrompt,
-            cancellationCheck
-        );
-        if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
-            return answerFinalizer.finishExecution("", traces, metadata, observations);
-        }
-        if (Boolean.TRUE.equals(metadata.get("toolBudgetExceeded"))) {
-            return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
-        }
-        AgentOrchestrator.AgentExecutionResult blockedResult = finishMandatoryWorkflowBlockedIfPending(
-            activeChatModel,
-            query,
-            systemPrompt,
-            traces,
-            metadata,
-            observations,
-            runtimeAttributes,
-            cancellationCheck,
-            "mandatory_workflow_incomplete",
-            "InterpretationPlan failed and mandatory workflow tools are still incomplete."
-        );
-        if (blockedResult != null) {
-            return blockedResult;
-        }
-        AgentOrchestrator.AgentExecutionResult planWorkflowBlockedResult = finishInterpretationPlanWorkflowBlockedIfPending(
-            traces,
-            metadata,
-            observations,
-            "interpretation_plan_workflow_incomplete",
-            "InterpretationPlan workflow guard blocked final_answer before all required DAG steps completed."
-        );
-        if (planWorkflowBlockedResult != null) {
-            return planWorkflowBlockedResult;
-        }
-        if (!planAttemptResults.isEmpty()) {
-            planAttemptResults.addAll(RecoveredBatchEvidenceBridge.project(traces, objectMapper));
-            String synthesisStage = Boolean.TRUE.equals(metadata.get("mandatoryWorkflowRecoveredAfterPlan"))
-                ? "mandatory_workflow_completed"
-                : "attempts_exhausted";
-            String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
-                activeChatModel,
-                query,
-                systemPrompt,
-                planAttemptResults.get(planAttemptResults.size() - 1),
-                planAttemptResults,
-                runtimeAttributes,
-                observations,
-                metadata,
-                cancellationCheck,
-                synthesisStage,
-                latestRecordCoverage
-            );
-            return finishSynthesizedInterpretationPlanAnswer(
-                activeChatModel,
-                query,
-                systemPrompt,
-                traces,
-                metadata,
-                observations,
-                synthesizedAnswer,
-                cancellationCheck,
-                evidenceCompletionReason
-            );
-        }
-        return answerFinalizer.finishReviewedSummary(
-            activeChatModel,
-            query,
-            systemPrompt,
-            traces,
-            metadata,
-            observations,
-            cancellationCheck,
-            "interpretation_plan_failed"
-        );
+        metadata.put("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY");
+        InterpretationAnalysisSession session = new InterpretationAnalysisSession(this,
+            plan, activeChatModel, query, systemPrompt, tenantId, requestId, conversationId, userId, tools, runtimeAttributes, traces, observations, metadata, documentIds, documentTags, webSearchResultLimit, maxToolCalls, cancellationCheck);
+        new InterpretationAnalysisGraph().execute(session::execute, metadata);
+        return java.util.Objects.requireNonNull(session.completion, "Analysis graph did not produce a terminal result");
     }
 
-    protected AgentOrchestrator.AgentExecutionResult finishInterpretationPlanWorkflowBlockedIfPending(
+    AgentOrchestrator.AgentExecutionResult rejectPlanExceedingRequestBudget(
+        InterpretationPlan plan, Map<String, Object> attributes, List<InteractionToolTrace> traces,
+        Map<String, Object> metadata, List<String> observations) {
+        long tools = plan.steps().stream().filter(InterpretationPlan.Step::mcpToolAction).count();
+        boolean toolLimit = tools > Math.max(0, runtimeGuard.maxToolCalls(attributes) - traces.size());
+        boolean stepLimit = attributes.containsKey(AGENT_MAX_STEPS_ATTRIBUTE)
+            && plan.steps().size() > runtimeGuard.maxSteps(attributes);
+        if (!toolLimit && !stepLimit) return null;
+        metadata.put("planningAdmissionFailed", true);
+        metadata.put("analysisGraphStatus", "FAILED");
+        metadata.put("toolBudgetExceeded", toolLimit);
+        metadata.put("stepBudgetExceeded", stepLimit);
+        metadata.put("stopReason", toolLimit ? "tool_budget_exceeded" : "step_budget_exceeded");
+        metadata.put("interpretationPlanFinalResultProduced", false);
+        metadata.remove("analyticalReport");
+        return answerFinalizer.finishExecution("执行计划超过本次请求的步骤或工具调用预算，已停止执行。",
+            traces, metadata, observations);
+    }
+
+    String terminalSynthesisStage(boolean usablePartialAnalysis, boolean duplicateSuppressed,
+                                  boolean mandatoryWorkflowRecovered) {
+        if (usablePartialAnalysis) return "completed_with_limitations";
+        if (mandatoryWorkflowRecovered) return "mandatory_workflow_completed";
+        if (duplicateSuppressed) return "duplicate_tool_plan_suppressed";
+        return "attempts_exhausted";
+    }
+
+    AgentOrchestrator.AgentExecutionResult finishInterpretationPlanWorkflowBlockedIfPending(
         List<InteractionToolTrace> traces,
         Map<String, Object> metadata,
         List<String> observations,
@@ -2221,7 +1255,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return answerFinalizer.finishExecution(deterministicFailure, traces, metadata, observations);
     }
 
-    private AgentOrchestrator.AgentExecutionResult finishSynthesizedInterpretationPlanAnswer(
+    AgentOrchestrator.AgentExecutionResult finishSynthesizedInterpretationPlanAnswer(
         ChatModel activeChatModel,
         String query,
         String systemPrompt,
@@ -2232,6 +1266,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         BooleanSupplier cancellationCheck,
         String stopReason
     ) {
+        String directPublication = com.chatchat.agents.orchestration.analysis.graph.AnalysisFinalizationPolicy
+            .directPublicationReason(metadata);
+        if (!directPublication.isBlank()) {
+            metadata.put("stopReason", stopReason);
+            metadata.put("answerReviewSkipped", true);
+            metadata.put("answerReviewSkipReason", directPublication);
+            return answerFinalizer.finishExecution(synthesizedAnswer, traces, metadata, observations);
+        }
         if (hasBatchExecutionTrace(traces)
             || Boolean.TRUE.equals(metadata.get("cumulativeBatchEvidencePresent"))) {
             metadata.put("stopReason", stopReason);
@@ -2315,7 +1357,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 && Boolean.TRUE.equals(trace.getRuntimeMetadata().get("batchExecution")));
     }
 
-    private void checkCancelledUnlessBatchEvidence(
+    void checkCancelledUnlessBatchEvidence(
         BooleanSupplier cancellationCheck,
         InterpretationPlanRuntime.ExecutionResult result,
         Map<String, Object> metadata
@@ -2337,7 +1379,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
     @SuppressWarnings("unchecked")
-    private void recordMandatoryWorkflowCompletion(List<InteractionToolTrace> traces,
+    void recordMandatoryWorkflowCompletion(List<InteractionToolTrace> traces,
                                                    Map<String, Object> metadata,
                                                    Map<String, Object> runtimeAttributes) {
         if (metadata == null || !Boolean.TRUE.equals(metadata.get("runtimeEnforcedMcpWorkflow"))) {
@@ -2363,7 +1405,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         metadata.put("mandatoryWorkflowPending", !missingMandatoryTools.isEmpty());
     }
 
-    private AgentOrchestrator.AgentExecutionResult finishMandatoryWorkflowBlockedIfPending(ChatModel activeChatModel,
+    AgentOrchestrator.AgentExecutionResult finishMandatoryWorkflowBlockedIfPending(ChatModel activeChatModel,
                                                                          String query,
                                                                          String systemPrompt,
                                                                          List<InteractionToolTrace> traces,
@@ -2460,7 +1502,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return answerFinalizer.finishExecution(deterministicFailure, traces, metadata, observations);
     }
 
-    private ModelAssistedRetrievalBridge.RetrievalEvidenceContext templateRetrievalEvidenceContext(
+    ModelAssistedRetrievalBridge.RetrievalEvidenceContext templateRetrievalEvidenceContext(
         String userQuery,
         Map<Integer, InterpretationPlanRuntime.StepExecution> completed
     ) {
@@ -2475,7 +1517,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(userQuery, outputs);
     }
 
-    private KernelDataScope planKernelScope(String tenantId, String userId, String requestId,
+    KernelDataScope planKernelScope(String tenantId, String userId, String requestId,
                                             String conversationId, Map<String, Object> attributes) {
         Map<String, Object> values = attributes == null ? Map.of() : attributes;
         String runId = stringValue(values.get(AGENT_RUN_ID_ATTRIBUTE));
@@ -2483,7 +1525,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return new KernelDataScope(tenantId, userId, requestId, conversationId, runId, environment, values);
     }
 
-    private InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,
+    InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,
                                                                             String tenantId,
                                                                             String requestId,
                                                                             String conversationId,
@@ -2505,7 +1547,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
     }
 
-    private void suspendForDurablePlanExecution(
+    void suspendForDurablePlanExecution(
         InterpretationPlan initialPlan,
         InterpretationPlan currentPlan,
         InterpretationPlanRuntime.ExecutionRequest executionRequest,
@@ -2524,14 +1566,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             ToolCallFingerprint.forPlan(currentPlan));
     }
 
-    protected Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes, int attempt) {
+    Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes, int attempt) {
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         attributes.put("workflowExecutionAttempt", Math.max(0, attempt));
         attributes.put("toolResultReviewMaxAttempts", 1);
         return attributes;
     }
 
-    private Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes,
+    Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes,
                                                           int attempt,
                                                           Object authoritativeWorkflowDag) {
         Map<String, Object> attributes = workflowAttemptAttributes(runtimeAttributes, attempt);
@@ -2581,7 +1623,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return contracts;
     }
 
-    private List<InterpretationPlanRewriter.RequiredToolExecution> requiredToolExecutions(List<String> tools,
+    List<InterpretationPlanRewriter.RequiredToolExecution> requiredToolExecutions(List<String> tools,
                                                                                           List<String> userSelectedTools,
                                                                                           List<String> workflowMandatoryTools) {
         List<InterpretationPlanRewriter.RequiredToolExecution> executions = new ArrayList<>();
@@ -2619,7 +1661,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return false;
     }
 
-    private InterpretationPlanRuntime.DagDecision decideInterpretationPlanDagStep(
+    InterpretationPlanRuntime.DagDecision decideInterpretationPlanDagStep(
         ChatModel activeChatModel,
         String query,
         String systemPrompt,
@@ -2630,7 +1672,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             activeChatModel, query, systemPrompt, cancellationCheck, request, Map.of());
     }
 
-    private InterpretationPlanRuntime.DagDecision decideInterpretationPlanDagStep(
+    InterpretationPlanRuntime.DagDecision decideInterpretationPlanDagStep(
         ChatModel activeChatModel,
         String query,
         String systemPrompt,
@@ -2978,7 +2020,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
     }
 
-    private RecordCoverageBundle analyzeClaimAdmissionCoverage(ChatModel activeChatModel, String query,
+    RecordCoverageBundle analyzeClaimAdmissionCoverage(ChatModel activeChatModel, String query,
         InterpretationPlanRuntime.ExecutionResult latest, List<InterpretationPlanRuntime.ExecutionResult> attempts,
         Map<String, Object> runtimeAttributes, Map<String, Object> metadata, BooleanSupplier cancellationCheck) {
         if (activeChatModel == null || latest == null) return RecordCoverageBundle.empty();
@@ -3002,7 +2044,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return List.copyOf(records);
     }
 
-    private String synthesizeInterpretationPlanAnswer(ChatModel activeChatModel, String query, String systemPrompt,
+    String synthesizeInterpretationPlanAnswer(ChatModel activeChatModel, String query, String systemPrompt,
         InterpretationPlanRuntime.ExecutionResult result, List<InterpretationPlanRuntime.ExecutionResult> attemptResults,
         Map<String, Object> runtimeAttributes, List<String> observations, Map<String, Object> metadata,
         BooleanSupplier cancellationCheck, String stage, RecordCoverageBundle precomputedRecordCoverage) {
@@ -3110,6 +2152,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     recordCoverage.sourceContentComplete(), recordCoverage.iterations(),
                     recordCoverage.rawReplayChunkCount(), recordCoverage.summaryResults(),
                     recordCoverage.synthesisInputs(), runtimeAttributes, metadata));
+        if (Boolean.TRUE.equals(metadata.get("analysisFinalAdmissionBlocked"))) return synthesis.content();
         if (driverChallengeRepairRequired(metadata)) {
             metadata.put("analysisDriverRepairRound", 1);
             metadata.put("analysisDriverRepairStarted", true);
@@ -4239,7 +3282,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .toList();
     }
 
-    private InterpretationPlanRuntime.StepReview reviewInterpretationPlanToolResult(
+    InterpretationPlanRuntime.StepReview reviewInterpretationPlanToolResult(
         ChatModel activeChatModel,
         String query,
         String systemPrompt,
@@ -4250,7 +3293,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             activeChatModel, query, systemPrompt, cancellationCheck, request, Map.of());
     }
 
-    private InterpretationPlanRuntime.StepReview reviewInterpretationPlanToolResult(
+    InterpretationPlanRuntime.StepReview reviewInterpretationPlanToolResult(
         ChatModel activeChatModel,
         String query,
         String systemPrompt,
@@ -4733,7 +3776,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return planExecutionResultCoordinator.review(stage, result, observations, metadata);
     }
 
-    private InterpretationPlanRuntime.ExecutionResult consumePlanExecutionResult(
+    InterpretationPlanRuntime.ExecutionResult consumePlanExecutionResult(
         String stage,
         InterpretationPlan plan,
         InterpretationPlanRuntime.ExecutionResult result,
@@ -4752,7 +3795,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         )).result();
     }
 
-    protected int maxRewriteTimes(InterpretationPlan plan) {
+    int maxRewriteTimes(InterpretationPlan plan) {
         int runtimeMaximum = MAX_INTERPRETATION_PLAN_ATTEMPTS - 1;
         if (plan == null || plan.executionPolicy() == null
             || plan.executionPolicy().maxRewriteTimes() == null) {
@@ -4761,7 +3804,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return Math.max(0, Math.min(runtimeMaximum, plan.executionPolicy().maxRewriteTimes()));
     }
 
-    protected Object authoritativeWorkflowDagForContinuation(Object rawDag,
+    Object authoritativeWorkflowDagForContinuation(Object rawDag,
                                                             InterpretationPlan rewrittenPlan,
                                                             Set<String> completedTools) {
         if (!(rawDag instanceof Collection<?> nodes) || nodes.isEmpty()
@@ -4833,7 +3876,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return continuationDag;
     }
 
-    private void recordInterpretationPlanEvaluation(
+    void recordInterpretationPlanEvaluation(
         String stage,
         InterpretationPlanValidator.ValidationResult evaluation,
         Map<String, Object> runtimeAttributes,
@@ -4868,7 +3911,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
     }
 
-    private void recordInterpretationPlanExecutionStarted(
+    void recordInterpretationPlanExecutionStarted(
         String stage,
         InterpretationPlan plan,
         Map<String, Object> runtimeAttributes,
@@ -4887,14 +3930,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
     }
 
-    private InterpretationPlanRuntime.ExecutionResult planEvaluationFailure(
+    InterpretationPlanRuntime.ExecutionResult planEvaluationFailure(
         String stage,
         InterpretationPlanValidator.ValidationResult evaluation
     ) {
         return planEvaluationFailure(stage, evaluation, null);
     }
 
-    private InterpretationPlanRuntime.ExecutionResult planEvaluationFailure(
+    InterpretationPlanRuntime.ExecutionResult planEvaluationFailure(
         String stage,
         InterpretationPlanValidator.ValidationResult evaluation,
         String explicitError
@@ -4924,7 +3967,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
     }
 
-    protected Map<String, Object> analyzeInterpretationPlanEvidence(
+    Map<String, Object> analyzeInterpretationPlanEvidence(
         ChatModel activeChatModel,
         String query,
         String systemPrompt,
@@ -4967,7 +4010,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return analysisLoopCoordinator.sufficient(snapshot);
     }
 
-    private EvidenceAugmentationPolicy.Outcome decideEvidenceAugmentation(
+    EvidenceAugmentationPolicy.Outcome decideEvidenceAugmentation(
         Map<String, Object> snapshot,
         InterpretationPlanRuntime.ExecutionResult result,
         boolean explorationAvailable,
@@ -4988,15 +4031,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
 
-    private TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {
+    TaskContract.EvidenceRequirement taskEvidenceRequirement(Map<String, Object> metadata) {
         return analysisLoopCoordinator.evidenceRequirement(metadata);
     }
 
-    private boolean usableEvidenceAvailable(Map<String, Object> snapshot) {
+    boolean usableEvidenceAvailable(Map<String, Object> snapshot) {
         return analysisLoopCoordinator.usableEvidence(snapshot);
     }
 
-    private void recordEvidenceAugmentationDecision(
+    void recordEvidenceAugmentationDecision(
         EvidenceAugmentationPolicy.Outcome outcome,
         int iteration,
         Map<String, Object> runtimeAttributes,
@@ -5005,7 +4048,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         analysisLoopCoordinator.recordDecision(outcome, iteration, runtimeAttributes, metadata);
     }
 
-    private void recordEvidenceStopState(
+    void recordEvidenceStopState(
         Map<String, Object> metadata,
         Map<String, Object> snapshot,
         String stopReason,
@@ -5014,7 +4057,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         analysisLoopCoordinator.recordStop(metadata, snapshot, stopReason, iterations);
     }
 
-    private List<InterpretationPlanRewriter.RequiredToolExecution> evidenceRefinementRequiredTools(
+    List<InterpretationPlanRewriter.RequiredToolExecution> evidenceRefinementRequiredTools(
         List<Map<String, Object>> evidenceHistory,
         List<String> availableTools
     ) {
@@ -5036,7 +4079,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return values;
     }
 
-    private void recordPlanRuntimeResult(String stage,
+    void recordPlanRuntimeResult(String stage,
                                          InterpretationPlanRuntime.ExecutionResult result,
                                          List<InteractionToolTrace> traces,
                                          List<String> observations,
@@ -5056,7 +4099,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return values;
     }
 
-    private List<String> metadataStringList(Map<String, Object> metadata, String key) {
+    List<String> metadataStringList(Map<String, Object> metadata, String key) {
         if (metadata == null || key == null || key.isBlank()) {
             return List.of();
         }
@@ -5207,7 +4250,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return attributes;
     }
 
-    private Set<String> completedWorkflowToolsFromEvents(Map<String, Object> runtimeAttributes,
+    Set<String> completedWorkflowToolsFromEvents(Map<String, Object> runtimeAttributes,
                                                          Set<String> fallbackCompletedTools) {
         Set<String> completed = new LinkedHashSet<>(fallbackCompletedTools == null ? Set.of() : fallbackCompletedTools);
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
@@ -5234,7 +4277,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
      * @param plannerExecutionPlan the planner execution plan value
      * @return the built runtime execution plan
      */
-    private void runMissingMandatoryWorkflowTools(ChatModel activeChatModel,
+    void runMissingMandatoryWorkflowTools(ChatModel activeChatModel,
                                                    List<InteractionToolTrace> traces,
                                                    List<String> observations,
                                                    String query,
@@ -5425,7 +4468,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     protected Map<String, Object> mandatoryWorkflowResultReview(String toolName, ToolOutput output) {
         return mandatoryWorkflowResultReviewer.review(toolName, output);
     }
-    private boolean templateExecutionRetryRequested(InterpretationPlanRuntime.ExecutionResult result) {
+    boolean templateExecutionRetryRequested(InterpretationPlanRuntime.ExecutionResult result) {
         return result != null && result.steps() != null && result.steps().stream()
             .filter(Objects::nonNull)
             .map(InterpretationPlanRuntime.StepExecution::metadata)
@@ -5439,34 +4482,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     ) {
         return mandatoryWorkflowResultReviewer.reviewPredecessors(fallbackTool, predecessorTraces);
     }
-    private Map<String, Map<String, Object>> authoritativeWorkflowCandidateInputs(
-        InterpretationPlan plan,
-        List<Map<String, Object>> authoritativeWorkflowDag
-    ) {
-        if (plan == null || plan.plan() == null || plan.plan().steps() == null
-            || authoritativeWorkflowDag == null || authoritativeWorkflowDag.isEmpty()) {
-            return Map.of();
-        }
-        List<String> configuredTools = authoritativeWorkflowDag.stream()
-            .map(node -> firstNonBlank(stringValue(node.get("tool")), stringValue(node.get("toolName"))))
-            .filter(Objects::nonNull)
-            .toList();
-        Map<String, Map<String, Object>> inputs = new LinkedHashMap<>();
-        for (InterpretationPlan.Step step : plan.plan().steps()) {
-            if (step == null || !step.mcpToolAction() || step.toolName() == null || step.input() == null) {
-                continue;
-            }
-            String configuredTool = configuredTools.stream()
-                .filter(tool -> toolNames.sameToolName(tool, step.toolName()))
-                .findFirst()
-                .orElse(null);
-            if (configuredTool != null) {
-                inputs.putIfAbsent(configuredTool, new LinkedHashMap<>(step.input()));
-            }
-        }
-        return inputs.isEmpty() ? Map.of() : Map.copyOf(inputs);
-    }
-
     private Map<String, Object> authoritativeWorkflowCandidateInput(
         Map<String, Object> runtimeAttributes,
         String toolName
@@ -5483,78 +4498,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return new LinkedHashMap<>(asStringObjectMap(rawInput));
         }
         return Map.of();
-    }
-
-    @SuppressWarnings("unchecked")
-    private void runMissingDocumentWebVerification(List<InteractionToolTrace> traces,
-                                                   List<String> observations,
-                                                   String query,
-                                                   String conversationId,
-                                                   String requestId,
-                                                   String userId,
-                                                   String tenantId,
-                                                   List<String> tools,
-                                                   String documentSearchTool,
-                                                   List<String> documentIds,
-                                                   List<String> documentTags,
-                                                   int webSearchResultLimit,
-                                                   String verificationWebSearchTool,
-                                                   Map<String, Object> metadata,
-                                                   Map<String, Object> runtimeAttributes,
-                                                   int maxToolCalls) {
-        List<String> fallbackTools = new ArrayList<>();
-        Set<String> completedTools = completedWorkflowToolsFromEvents(
-            runtimeAttributes,
-            workflowStateTracker.completedToolsFromTraces(traces)
-        );
-        if (!completedTools.stream().anyMatch(tool -> toolNames.sameToolName(documentSearchTool, tool))) {
-            fallbackTools.add(documentSearchTool);
-        }
-        if (!completedTools.stream().anyMatch(tool -> toolNames.sameToolName(verificationWebSearchTool, tool))) {
-            fallbackTools.add(verificationWebSearchTool);
-        }
-        if (fallbackTools.isEmpty()) {
-            return;
-        }
-
-        metadata.put("documentWebVerificationFallbackTools", fallbackTools);
-        for (String fallbackTool : fallbackTools) {
-            if (fallbackTool == null || !tools.contains(fallbackTool)) {
-                continue;
-            }
-            if (answerFinalizer.markToolBudgetExceeded(fallbackTool, maxToolCalls, traces, metadata, observations)) {
-                return;
-            }
-            Map<String, Object> fallbackArguments = toolArguments.applyToolDefaults(
-                fallbackTool,
-                toolArguments.defaultToolArguments(fallbackTool, query, webSearchResultLimit),
-                documentIds,
-                documentTags,
-                query,
-                webSearchResultLimit
-            );
-            AgentOrchestrator.ToolCallExecution execution = executeToolCall(
-                fallbackTool,
-                fallbackArguments,
-                conversationId,
-                requestId,
-                userId,
-                tenantId,
-                tools,
-                Map.of(),
-                traces,
-                workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
-            );
-            traces.add(execution.trace());
-            observations.add("Document-web verification fallback " + execution.observation());
-            completedTools = completedWorkflowToolsFromEvents(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces));
-            runtimeAttributes = workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools);
-            if (workflowStateTracker.isConfirmationRequired(execution)) {
-                metadata.put("stopReason", "confirmation_required");
-                metadata.put("confirmationRequired", true);
-                return;
-            }
-        }
     }
 
     /**

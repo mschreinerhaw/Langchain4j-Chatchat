@@ -709,6 +709,44 @@ class AnalysisSynthesisCoordinatorTest {
         assertThat(metadata).containsEntry("analysisExecutionStatus", "COMPLETED");
     }
 
+    @Test
+    void clarificationTerminatesBeforeModelOrFallbackAndClearsStaleReport() {
+        var coordinator = new AnalysisSynthesisCoordinator(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new HierarchicalAnalysisReducer());
+        ChatModel model = mock(ChatModel.class);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("executionStatus", "NEEDS_CLARIFICATION");
+        metadata.put("analyticalReport", Map.of("stale", true));
+        var result = coordinator.synthesizeFinal(request(model, metadata, candidate -> candidate,
+            () -> { throw new AssertionError("No fallback after clarification"); }, true));
+        assertThat(result.generated()).isFalse();
+        assertThat(metadata).containsEntry("analysisGraphStatus", "NEEDS_CLARIFICATION")
+            .containsEntry("analysisDriverModelInvoked", false).doesNotContainKey("analyticalReport");
+        org.mockito.Mockito.verifyNoInteractions(model);
+    }
+
+    @Test
+    void pendingRetrievalAndMissingRequiredEvidenceCannotInvokeFinalModel() {
+        var coordinator = new AnalysisSynthesisCoordinator(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new HierarchicalAnalysisReducer());
+        for (var decision : List.of(
+            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE,
+            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.NO_EVIDENCE,
+            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.EXACT_RESULT_UNAVAILABLE,
+            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.BLOCKED_AUTHORIZATION)) {
+            ChatModel model = mock(ChatModel.class);
+            Map<String,Object> metadata = new LinkedHashMap<>();
+            metadata.put(com.chatchat.agents.orchestration.analysis.graph.AnalysisFlowState.KEY,
+                new com.chatchat.agents.orchestration.analysis.graph.AnalysisFlowState(decision, 1, false, "").toMap());
+            var result = coordinator.synthesizeFinal(request(model, metadata, candidate -> candidate,
+                () -> { throw new AssertionError("No fallback for inadmissible input"); }, true));
+            assertThat(result.generated()).isFalse();
+            assertThat(result.content()).isNotBlank();
+            assertThat(metadata).containsEntry("analysisFinalAdmissionBlocked", true);
+            org.mockito.Mockito.verifyNoInteractions(model);
+        }
+    }
+
     private AnalysisSynthesisCoordinator.FinalModelSynthesisRequest request(
         ChatModel model,
         Map<String, Object> metadata,

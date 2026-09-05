@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when;
 class RuntimeOsAnalysisDepthGoldenTest {
 
     @Test
-    void operationalDiagnosisCannotFinishAsMetricInventoryWhenBaselineAndTrendAreMissing() {
+    void operationalDiagnosisRetainsDepthGapsAlongsideUsableObservedFacts() {
         AnalysisSummaryGovernanceBridge governance = new AnalysisSummaryGovernanceBridge();
         GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
             "tenant", "user", "run", "request", "conversation");
@@ -72,7 +72,10 @@ class RuntimeOsAnalysisDepthGoldenTest {
         assertThat(worker.evidence().get("insights").toString())
             .contains("Current level is 37")
             .doesNotContain("healthy", "abnormal", "root cause");
-        assertThat(evidence).containsEntry("sufficient", false);
+        // Sufficiency describes usable evidence. The augmentation policy decides whether
+        // to retrieve more or publish limitations; semantic gaps must survive either route.
+        assertThat(evidence).containsEntry("sufficient", true)
+            .containsEntry("analysisGapsAdvisoryOnly", true);
         assertThat(evidence.get("gapRequests").toString())
             .contains("ANALYSIS_DEPTH", "COMPARE", "TREND", "comparable baseline");
     }

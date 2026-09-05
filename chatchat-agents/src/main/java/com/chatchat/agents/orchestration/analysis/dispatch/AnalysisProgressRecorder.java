@@ -20,6 +20,15 @@ public final class AnalysisProgressRecorder {
                        GovernanceIsolationScope isolationScope,
                        ModelSummaryProgress progress) {
         if (progress == null) return;
+        if ("WORKER_EXECUTION_METRIC".equals(progress.stage())) {
+            Map<String, Object> metric = new java.util.LinkedHashMap<>(progress.toMap());
+            metric.put("type", "runtime_execution_metric");
+            metric.put("runId", isolationScope.runId());
+            metric.put("tenantId", isolationScope.tenantId());
+            resultAdapter.recordRuntimeObservation(runtimeAttributes, runIdAttribute,
+                "Analysis task execution timing recorded.", "runtime_execution_metric", metric);
+            return;
+        }
         Map<String, Object> metadata = BusinessAnalysisProgressProjector.metadata(progress);
         metadata.put("tenantId", isolationScope.tenantId());
         metadata.put("runId", isolationScope.runId());

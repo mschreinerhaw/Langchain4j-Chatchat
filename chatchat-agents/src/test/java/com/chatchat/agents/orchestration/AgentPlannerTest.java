@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
-    void preservesCompleteMarkdownReportWithoutJsonRepairLoop() {
+    void plainMarkdownCannotBecomeAnAdmittedPlanAfterBoundedRepair() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         AtomicInteger calls = new AtomicInteger();
         String report = """
@@ -59,12 +59,11 @@ class AgentPlannerTest {
             List.of(), true, false, null, null, Map.of("plannerMaxRepairAttempts", 3)
         );
 
-        assertThat(calls).hasValue(1);
+        assertThat(calls).hasValue(3);
         assertThat(result.decision().reason()).isEqualTo("non_json_response");
-        assertThat(result.candidateAnswer()).isNotNull();
-        assertThat(result.candidateAnswer().content()).contains("持仓分析报告", "600839");
-        assertThat(result.decision().executionPlan())
-            .containsEntry("plannerCandidateAnswerPreserved", true);
+        assertThat(result.candidateAnswer()).isNull();
+        assertThat(result.plan().valid()).isFalse();
+
     }
 
     @Test
@@ -437,7 +436,7 @@ class AgentPlannerTest {
     }
 
     @Test
-    void preservesFinalAnswerAsIndependentProductWhenPlanJsonIsInvalid() {
+    void invalidPlanRetainsRepairTextWithoutPublishableCandidate() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String malformedPlan = """
             {
@@ -477,12 +476,8 @@ class AgentPlannerTest {
 
         assertThat(result.plan().valid()).isFalse();
         assertThat(result.plan().executable()).isFalse();
-        assertThat(result.candidateAnswer()).isNotNull();
-        assertThat(result.candidateAnswer().content())
-            .contains("# 客户信息表设计")
-            .contains("cust_id");
-        assertThat(result.candidateAnswer().status())
-            .isEqualTo(com.chatchat.agents.assessment.RuntimeAnswerCandidate.Status.GENERATED);
+        assertThat(result.candidateAnswer()).isNull();
+        assertThat(result.decision().answer()).contains("cust_id");
         assertThat(result.taskContract().evidenceRequirement())
             .isEqualTo(com.chatchat.agents.assessment.TaskContract.EvidenceRequirement.OPTIONAL);
         assertThat(result.decision().executionPlan())
@@ -491,7 +486,7 @@ class AgentPlannerTest {
     }
 
     @Test
-    void recoversFinalStepAnswerWhenLegacyEnvelopeContainsEmptyCandidateAnswer() {
+    void malformedEnvelopeCannotPublishRecoveredAnswer() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         String malformedEnvelope = """
             {
@@ -538,9 +533,7 @@ class AgentPlannerTest {
             .contains("# Customer table")
             .contains("CREATE TABLE dim_customer")
             .doesNotContain("\"planning\"");
-        assertThat(result.candidateAnswer()).isNotNull();
-        assertThat(result.candidateAnswer().content())
-            .contains("CREATE TABLE dim_customer");
+        assertThat(result.candidateAnswer()).isNull();
     }
 
     @Test

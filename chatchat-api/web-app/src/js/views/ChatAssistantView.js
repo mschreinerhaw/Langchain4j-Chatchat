@@ -1251,7 +1251,8 @@ function mergeExecutionSteps(previousSteps = [], events = []) {
     return steps.map((step) => step.status === "active" ? { ...step, status: "done" } : step);
   }
   return steps.map((step, index) => {
-    if (step.status === "active" && index < steps.length - 1) {
+    if (step.status === "active" && index < steps.length - 1
+      && !step.id.startsWith("runtime-observation:business-analysis:")) {
       return { ...step, status: "done" };
     }
     return step;

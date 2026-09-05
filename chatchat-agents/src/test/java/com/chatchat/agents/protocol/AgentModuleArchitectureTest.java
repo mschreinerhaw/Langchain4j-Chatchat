@@ -125,6 +125,8 @@ class AgentModuleArchitectureTest {
             "AgentOrchestrationEngine.java",
             "AgentOrchestrator.java",
             "AgentPlanningPort.java",
+            "GraphPlanningPort.java",
+            "InterpretationAnalysisSession.java",
             "AgentPlanningRequest.java",
             "AgentPlanner.java",
             "AgentRunResultAdapter.java",

@@ -38,3 +38,15 @@ test("renders analysis progress with business language instead of driver and wor
     metadata: { type: "business_analysis_partial_failure", stage: "PARTIAL_DATA_UNAVAILABLE" }
   }), { title: "部分业务数据未完成", toolName: "业务分析", status: "warning" });
 });
+
+
+test("coalesces task heartbeats and terminal updates without merging different tasks", () => {
+  const payload = (taskId, stage) => ({ metadata: { type: "business_analysis_progress", progressId: taskId, stage } });
+  const started = runtimeObservationIdentity(payload("task-a", "DATA_PREPARATION_STARTED"));
+  assert.equal(runtimeObservationIdentity(payload("task-a", "DATA_PROCESSING_ACTIVE")), started);
+  assert.equal(runtimeObservationIdentity(payload("task-a", "DATA_PROCESSING_COMPLETED")), started);
+  assert.notEqual(runtimeObservationIdentity(payload("task-b", "DATA_PROCESSING_ACTIVE")), started);
+  assert.equal(runtimeObservationIdentity({ metadata: { type: "business_analysis_progress" } }), "");
+  assert.equal(runtimeObservationPresentation(payload("task-a", "DATA_PROCESSING_ACTIVE")).status, "active");
+  assert.equal(runtimeObservationPresentation(payload("task-a", "DATA_PROCESSING_COMPLETED")).status, "done");
+});

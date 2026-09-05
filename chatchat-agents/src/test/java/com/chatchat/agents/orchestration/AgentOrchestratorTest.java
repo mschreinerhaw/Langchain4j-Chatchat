@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration;
 
+import static org.mockito.ArgumentMatchers.anyString;
+
 import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
@@ -81,6 +83,36 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void legacyActionsAndPlainAnswersCannotExecuteOrPublishThroughCompatibilityRoutes() {
+        for (String response : List.of(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{}}",
+            "{\"action\":\"final\",\"answer\":\"UNVERIFIED_ANSWER\"}",
+            "UNVERIFIED_ANSWER")) {
+            ChatModel model = mock(ChatModel.class);
+            when(model.chat(anyString())).thenReturn(response);
+            ToolRegistry registry = mock(ToolRegistry.class);
+            when(registry.hasTool("document_search")).thenReturn(true);
+            InMemoryAgentRunStore store = new InMemoryAgentRunStore();
+            AgentOrchestrator orchestrator = new AgentOrchestrator(model, registry,
+                new ToolRuntimeService(registry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+                new ObjectMapper(), new ModelsConfig(), new EvidenceTrustEvaluator(), store);
+            AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+                .query("Analyze the available evidence")
+                .availableTools(List.of("document_search"))
+                .attributes(Map.of("plannerMaxRepairAttempts", 1)).build());
+            assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
+            assertThat(result.stopReason()).isEqualTo("invalid_interpretation_plan");
+            assertThat(result.answer()).doesNotContain("UNVERIFIED_ANSWER");
+            assertThat(result.toolTraces()).isEmpty();
+            assertThat(result.metadata()).containsEntry("planningAdmissionFailed", true)
+                .doesNotContainKey("analyticalReport");
+            verify(registry, never()).executeEnhancedTool(anyString(), any());
+            verify(model, org.mockito.Mockito.times(1)).chat(anyString());
+            assertThat(store.find(result.runId()).orElseThrow().status()).isEqualTo(AgentRunStatus.FAILED);
+        }
+    }
 
     @Test
     void runScopedRoleContextReachesDagControlAndTemplateSelectionPrompts() {
@@ -1030,6 +1062,21 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void terminalSynthesisDistinguishesLimitationsFromExhaustion() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        assertThat(orchestrator.terminalSynthesisStage(true, false, false))
+            .isEqualTo("completed_with_limitations");
+        assertThat(orchestrator.terminalSynthesisStage(true, false, true))
+            .isEqualTo("completed_with_limitations");
+        assertThat(orchestrator.terminalSynthesisStage(false, true, false))
+            .isEqualTo("duplicate_tool_plan_suppressed");
+        assertThat(orchestrator.terminalSynthesisStage(false, false, true))
+            .isEqualTo("mandatory_workflow_completed");
+        assertThat(orchestrator.terminalSynthesisStage(false, false, false))
+            .isEqualTo("attempts_exhausted");
+    }
+
+    @Test
     void terminalPartialEvidenceDecisionCannotBeOverriddenByRecoveryOrTemplateRetry() {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         EvidenceAugmentationPolicy.Outcome analyzeWithLimitations = new EvidenceAugmentationPolicy.Outcome(
@@ -1614,8 +1661,8 @@ class AgentOrchestratorTest {
                 && prompt.contains("Position detail API")
                 && prompt.contains("Returns account positions")
                 && prompt.contains("Position value")
-                && prompt.contains("authoritative business display metadata")
-                && prompt.contains("Analysis summary bridge position")));
+                && prompt.contains("You are the Worker in a governed business-analysis pipeline")
+                && prompt.contains("Original user question (authoritative analysis intent): analyze returned records")));
     }
 
     @Test
@@ -1999,9 +2046,11 @@ class AgentOrchestratorTest {
         assertThat(coverage.processedRecordCount()).isEqualTo(coverage.returnedRecordCount());
         assertThat(coverage.promptEvidence())
             .contains("linux_command_execute#stdout", "linux output chunk summary")
-            .contains("traceable_chunk_evidence.v1", "LINUX_HEAD", "LINUX_TAIL")
+            .contains("hierarchical_analysis_reduce.v1", "LINUX_HEAD", "LINUX_TAIL")
             .doesNotContain("Raw evidence replay")
             .contains("Runtime metrics", "Collect runtime metric values", "$.data.stdout");
+        assertThat(coverage.summaryResults()).allSatisfy(summary ->
+            assertThat(summary.evidence()).containsEntry("schemaVersion", "traceable_chunk_evidence.v1"));
         assertThat(metadata).containsEntry("recordAnalysisIterative", true);
         assertThat(metadata).containsEntry("recordAnalysisSourceContentComplete", true);
         assertThat(metadata)
@@ -2376,10 +2425,12 @@ class AgentOrchestratorTest {
         assertThat(coverage.evidenceTraceComplete()).isTrue();
         assertThat(coverage.rawReplayChunkCount()).isZero();
         assertThat(coverage.promptEvidence())
-            .contains("traceable_chunk_evidence.v1", "HeapUsedMb 为 42")
-            .contains("java.lang:type=Memory.records[1]", "crossChunkKeys")
+            .contains("hierarchical_analysis_reduce.v1", "HeapUsedMb 为 42")
+            .contains("java.lang:type=Memory.records[1]")
             .doesNotContain("Raw evidence replay (lossless");
         assertThat(coverage.summaryResults().get(0).evidence())
+            .containsEntry("schemaVersion", "traceable_chunk_evidence.v1")
+            .containsKey("crossChunkKeys")
             .containsEntry("structured", true)
             .containsEntry("rawReplayRecommended", false);
         assertThat(metadata)
@@ -4302,11 +4353,11 @@ class AgentOrchestratorTest {
     @Test
     void executeRuntimeRequestReturnsTypedRunResult() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
-            "{\"action\":\"final\",\"answer\":\"Use the internal definition handbook.\"}",
+            interpretationPlan("Use the internal definition handbook.", "document_search"),
             "{\"accepted\":true,\"feedback\":\"The answer uses document evidence.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
             .id("document_search")
             .title("Document Search")
@@ -4343,12 +4394,12 @@ class AgentOrchestratorTest {
         assertThat(result.answer())
             .contains("Use the internal definition handbook")
             .doesNotContain("tool://document_search#result=1");
-        assertThat(result.stopReason()).isEqualTo("final_answer");
+        assertThat(result.stopReason()).isEqualTo("evidence_sufficient");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.steps().stream().map(step -> step.action()).toList())
-            .containsExactly("tool", "final");
+            .containsExactly("tool");
         assertThat(result.observations().stream().map(observation -> observation.type()).toList())
             .contains("document_evidence");
         assertThat(result.metadata())
@@ -4420,11 +4471,11 @@ class AgentOrchestratorTest {
     @Test
     void runtimeRunStorePersistsRunLifecycleEvents() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
-            "{\"action\":\"final\",\"answer\":\"Use the persisted run evidence.\"}",
+            interpretationPlan("Use the persisted run evidence.", "document_search"),
             "{\"accepted\":true,\"feedback\":\"The answer uses document evidence.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
             .id("document_search")
             .title("Document Search")
@@ -4511,11 +4562,12 @@ class AgentOrchestratorTest {
     @Test
     void executeRuntimeRequestHonorsMaxStepsBudget() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
+            interpretationPlan("Observed evidence.", "document_search"),
             "Fallback answer from one observed tool.",
             "{\"accepted\":true,\"feedback\":\"The answer uses the observed tool result.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
             .id("document_search")
             .title("Document Search")
@@ -4545,25 +4597,22 @@ class AgentOrchestratorTest {
             .maxSteps(1)
             .build());
 
-        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
-        assertThat(result.answer()).contains("Fallback answer from one observed tool.");
-        assertThat(result.stopReason()).isEqualTo("max_steps_or_fallback");
-        assertThat(result.metadata())
-            .containsEntry("maxSteps", 1)
-            .containsEntry("steps", 1);
-        assertThat(result.toolTraces())
-            .extracting(InteractionToolTrace::getToolName)
-            .containsExactly("document_search");
+        assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(result.stopReason()).isEqualTo("step_budget_exceeded");
+        assertThat(result.toolTraces()).isEmpty();
+        assertThat(result.metadata()).containsEntry("planningAdmissionFailed", true);
+        verify(toolRegistry, never()).executeEnhancedTool(eq("document_search"), any());
     }
 
     @Test
     void executeRuntimeRequestHonorsMaxToolCallsBudget() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
+            interpretationPlan("Observed evidence.", "document_search"),
             "Cannot call tools under the current runtime budget.",
             "{\"accepted\":true,\"feedback\":\"The answer explains the runtime limit.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
             .id("document_search")
             .title("Document Search")
@@ -4592,14 +4641,10 @@ class AgentOrchestratorTest {
             .maxToolCalls(0)
             .build());
 
-        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
-        assertThat(result.answer()).isEqualTo("Cannot call tools under the current runtime budget.");
+        assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
         assertThat(result.stopReason()).isEqualTo("tool_budget_exceeded");
         assertThat(result.toolTraces()).isEmpty();
-        assertThat(result.metadata())
-            .containsEntry("maxToolCalls", 0)
-            .containsEntry("toolBudgetExceeded", true)
-            .containsEntry("requestedToolAfterBudget", "document_search");
+        assertThat(result.metadata()).containsEntry("planningAdmissionFailed", true);
         verify(toolRegistry, never()).executeEnhancedTool(eq("document_search"), any());
     }
 
@@ -4786,9 +4831,10 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void keepsFinalAnswerWhenReviewerSuggestsRevisionByDefault() {
+    void finalOnlyPlanUsesGraphPublicationInsteadOfLegacyAnswerSelection() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"final\",\"answer\":\"Please check the MySQL setup section in the deployment document.\"}",
+            interpretationPlan("Please check the MySQL setup section in the deployment document."),
+            "Please check the MySQL setup section in the deployment document.",
             "{\"accepted\":false,\"feedback\":\"The answer did not directly provide the initialization steps.\",\"revisedAnswer\":\"Initialize LiveData by creating the MySQL database and user, then import schema.sql, update the datasource config, and restart the service to verify connectivity.\"}",
             "{\"selectedId\":\"candidate\",\"reason\":\"The original candidate is safer because no supporting observations were available.\",\"candidates\":[{\"id\":\"candidate\",\"score\":0.7,\"accuracy\":0.7,\"grounding\":0.7,\"completeness\":0.4,\"citation\":1.0,\"usefulness\":0.4,\"issues\":[]},{\"id\":\"reviewer_suggestion\",\"score\":0.3,\"accuracy\":0.2,\"grounding\":0.2,\"completeness\":0.9,\"citation\":1.0,\"usefulness\":0.8,\"issues\":[\"unsupported concrete steps\"]}]}"
         );
@@ -4813,23 +4859,17 @@ class AgentOrchestratorTest {
 
         assertThat(result.answer()).isEqualTo("Please check the MySQL setup section in the deployment document.");
         assertThat(result.metadata())
-            .containsEntry("answerReviewStatus", "rejected")
-            .containsEntry("answerReviewFeedback", "The answer did not directly provide the initialization steps.")
-            .containsEntry("answerDecisionContractVersion", AnswerDecisionEngine.CONTRACT_VERSION)
-            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
-            .containsEntry("answerRewriteSource", "planner_candidate")
-            .containsEntry("answerReviewAuthority", "diagnostic_only")
-            .containsEntry("answerReviewRewriteApplied", false)
-            .containsEntry("answerReviewRewriteSkippedReason", "protected_business_result")
-            .containsEntry("answerLifecycleStatus", "SELECTED")
-            .containsEntry("evidenceRequirement", "OPTIONAL")
-            .doesNotContainKey("answerQualityAvailable");
+            .containsEntry("interpretationPlanPipeline", true)
+            .containsEntry("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY")
+            .containsEntry("stopReason", "evidence_sufficient");
+        assertThat(result.toolTraces()).isEmpty();
     }
 
     @Test
-    void reviewerSuggestionDoesNotBecomeACompetingBusinessAnswer() {
+    void graphPublicationDoesNotAdoptUnrelatedAlternative() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"final\",\"answer\":\"Please check the MySQL setup section in the deployment document.\"}",
+            interpretationPlan("Please check the MySQL setup section in the deployment document."),
+            "Please check the MySQL setup section in the deployment document.",
             "{\"accepted\":false,\"feedback\":\"The answer did not directly provide the initialization steps.\",\"revisedAnswer\":\"Initialize LiveData by creating the MySQL database and user, then import schema.sql, update the datasource config, and restart the service to verify connectivity.\"}",
             "{\"selectedId\":\"reviewer_suggestion\",\"reason\":\"The reviewer suggestion directly answers the requested procedure.\",\"candidates\":[{\"id\":\"candidate\",\"score\":0.35,\"accuracy\":0.7,\"grounding\":0.4,\"completeness\":0.2,\"citation\":1.0,\"usefulness\":0.2,\"issues\":[\"does not answer directly\"]},{\"id\":\"reviewer_suggestion\",\"score\":0.88,\"accuracy\":0.8,\"grounding\":0.7,\"completeness\":0.95,\"citation\":1.0,\"usefulness\":0.95,\"issues\":[]}]}"
         );
@@ -4856,19 +4896,16 @@ class AgentOrchestratorTest {
             .isEqualTo("Please check the MySQL setup section in the deployment document.")
             .doesNotContain("schema.sql");
         assertThat(result.metadata())
-            .containsEntry("answerReviewStatus", "rejected")
-            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
-            .containsEntry("answerRewriteSource", "planner_candidate")
-            .containsEntry("answerReviewAuthority", "diagnostic_only")
-            .containsEntry("answerReviewRewriteApplied", false)
-            .containsEntry("answerLifecycleStatus", "SELECTED")
-            .doesNotContainKey("answerQualityAvailable");
+            .containsEntry("interpretationPlanPipeline", true)
+            .containsEntry("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY")
+            .containsEntry("stopReason", "evidence_sufficient");
+        assertThat(result.toolTraces()).isEmpty();
     }
 
     @Test
     void keepsFinalAnswerWhenReviewerAcceptsIt() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"final\",\"answer\":\"Initialization steps: create the database, run schema.sql, configure the connection string, restart the service, and verify the health endpoint.\"}",
+            interpretationPlan("Initialization steps: create the database, run schema.sql, configure the connection string, restart the service, and verify the health endpoint."),
             "{\"accepted\":true,\"feedback\":\"The answer directly addresses the user request.\",\"revisedAnswer\":\"\"}"
         );
         AgentOrchestrator orchestrator = newOrchestrator(chatModel);
@@ -4899,11 +4936,11 @@ class AgentOrchestratorTest {
     @Test
     void includesWebCitationMapInPromptAfterWebSearch() {
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"web_search\",\"arguments\":{\"query\":\"AI citation audit\"},\"reason\":\"Need web evidence\"}",
-            "{\"action\":\"final\",\"answer\":\"客户可以通过页面引用核验来源。[网页1]\"}",
+            interpretationPlan("客户可以通过页面引用核验来源。[网页1]", "web_search"),
             "{\"accepted\":true,\"feedback\":\"The answer cites web evidence.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("web_search")).thenReturn(ToolMetadata.builder()
             .id("web_search")
             .title("Web Search")
@@ -4943,28 +4980,22 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer()).contains("[网页1]");
-        assertThat(chatModel.messages()).hasSize(4);
-        assertThat(chatModel.messages().get(1))
+        assertThat(result.metadata()).containsEntry("interpretationPlanPipeline", true)
+            .containsEntry("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY");
+        assertThat(String.join("\n", chatModel.messages()))
             .contains("Web citation map")
-            .contains("[网页1] Audit trail for AI answers - https://example.com/audit")
-            .contains("append the matching [网页N] label");
-        assertThat(chatModel.messages().get(2))
-            .contains("web citation labels such as [网页1]")
             .contains("https://example.com/audit");
-        assertThat(chatModel.messages().get(3))
-            .contains("final answer critic")
-            .contains("Answer Contract")
-            .contains("Evidence gate");
+        verify(toolRegistry).executeEnhancedTool(eq("web_search"), any());
     }
 
     @Test
     void searchAndExtractUsesUnifiedEvidenceTrustAndCitationPipeline() {
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"search_and_extract\",\"arguments\":{\"query\":\"agent evidence runtime\"},\"reason\":\"Need structured web evidence\"}",
-            "{\"action\":\"final\",\"answer\":\"Structured web evidence supports the runtime claim [网页1].\"}",
+            interpretationPlan("Structured web evidence supports the runtime claim [网页1].", "search_and_extract"),
             "{\"accepted\":true,\"feedback\":\"The answer cites trusted web evidence.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("search_and_extract")).thenReturn(true);
         when(toolRegistry.getToolMetadata("search_and_extract")).thenReturn(ToolMetadata.builder()
             .id("search_and_extract")
             .title("Search And Extract")
@@ -5004,24 +5035,12 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer()).contains("[网页1]");
-        assertThat(chatModel.messages()).hasSize(4);
-        assertThat(chatModel.messages().get(1))
-            .contains("Evidence trust policy")
-            .contains("usable=1")
-            .contains("ignoredLowScore=1")
+        assertThat(result.metadata()).containsEntry("interpretationPlanPipeline", true)
+            .containsEntry("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY");
+        assertThat(String.join("\n", chatModel.messages()))
             .contains("Web citation map")
-            .contains("Trusted runtime evidence - https://docs.example.com/evidence")
-            .doesNotContain("https://docs.example.com/low-quality");
-        assertThat(chatModel.messages().get(2))
-            .contains("Evidence trust policy")
-            .contains("https://docs.example.com/evidence")
-            .doesNotContain("https://docs.example.com/low-quality");
-        assertThat(chatModel.messages().get(3))
-            .contains("final answer critic")
-            .contains("Answer Contract")
-            .contains("Evidence gate")
-            .contains("https://docs.example.com/evidence")
-            .doesNotContain("https://docs.example.com/low-quality");
+            .contains("https://docs.example.com/evidence");
+        verify(toolRegistry).executeEnhancedTool(eq("search_and_extract"), any());
     }
 
     @Test
@@ -5093,7 +5112,7 @@ class AgentOrchestratorTest {
     @Test
     void resumesPendingToolExecutionAfterConfirmation() {
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "{\"action\":\"final\",\"answer\":\"Use the confirmed document evidence.\"}",
+            interpretationPlan("Use the confirmed document evidence."),
             "{\"accepted\":true,\"feedback\":\"The answer used the confirmed tool observation.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

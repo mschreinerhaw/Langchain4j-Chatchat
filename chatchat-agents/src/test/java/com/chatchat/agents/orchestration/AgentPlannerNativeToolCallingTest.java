@@ -81,7 +81,11 @@ class AgentPlannerNativeToolCallingTest {
         assertThat(decision.arguments()).containsEntry("query", "MCP communication");
         assertThat(decision.executionPlan())
             .containsEntry("decisionProtocol", "native_function_calling")
-            .containsEntry("nativeToolCallGoverned", true);
+            .containsEntry("nativeToolCallGoverned", true)
+            .containsEntry("interpretationPlanValid", true);
+        assertThat(decision.interpretationPlan()).isNotNull();
+        assertThat(decision.interpretationPlan().steps()).hasSize(2);
+        assertThat(decision.interpretationPlan().steps().get(1).dependsOn()).containsExactly(1);
     }
 
     @Test

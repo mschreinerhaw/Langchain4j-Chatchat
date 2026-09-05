@@ -56,6 +56,9 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
 
 export function runtimeObservationIdentity(runtimePayload = {}) {
   const metadata = objectValue(runtimePayload.metadata);
+  if (upper(metadata.type) === "BUSINESS_ANALYSIS_PROGRESS" && metadata.progressId) {
+    return `business-analysis:${metadata.progressId}`;
+  }
   if (upper(metadata.eventKind) !== "DAG_REPAIR") return "";
   const repairEvent = objectValue(metadata.repairEvent);
   const attempt = metadata.repairAttempt ?? repairEvent.repairAttempt;

@@ -23,6 +23,7 @@
         <opensearch.client.version>2.12.0</opensearch.client.version>
         <webmagic.version>1.0.3</webmagic.version>
         <rocksdb.version>10.10.1.1</rocksdb.version>
+        <langgraph4j.version>1.8.20</langgraph4j.version>
         <temporal.version>1.37.0</temporal.version>
         <lombok.version>1.18.32</lombok.version>
         <chatchat.main-class>com.chatchat.api.ChatChatApplication</chatchat.main-class>

@@ -65,8 +65,9 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
         });
         Map<String, SubmittedTask> submitted = new LinkedHashMap<>();
         for (AnalysisTask task : safeTasks) {
+            long submittedAt = System.nanoTime();
             Future<AnalysisTaskResult> future = executor.submit(() ->
-                execute(task, worker, progressListener));
+                execute(task, worker, progressListener, submittedAt, workerCount));
             submitted.put(task.taskId(), new SubmittedTask(task, future));
         }
         log.info("analysisTaskDispatcherStarted mode=LOCAL taskCount={} workerCount={}",
@@ -77,7 +78,9 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
     private AnalysisTaskResult execute(
         AnalysisTask task,
         ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker,
-        ModelSummaryProgressListener progressListener
+        ModelSummaryProgressListener progressListener,
+        long submittedAt,
+        int workerCount
     ) {
         String workerId = Thread.currentThread().getName();
         long startedAt = System.nanoTime();
@@ -96,7 +99,9 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
         log.info("analysisTaskWorkerClaimed taskId={} idempotencyKey={} dataset={}/{} worker={}",
             task.taskId(), task.idempotencyKey(), task.datasetIndex(), task.datasetCount(),
             workerId);
-        reporter.report("WORKER_CLAIMED", Map.of());
+        long queueTimeMs = Math.max(0, (startedAt - submittedAt) / 1_000_000);
+        reporter.report("WORKER_CLAIMED", Map.of(
+            "queueTimeMs", queueTimeMs, "configuredParallelism", workerCount));
         ScheduledExecutorService heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(
             runnable -> {
                 Thread thread = new Thread(runnable, workerId + "-heartbeat");
@@ -130,6 +135,12 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
                 "error", String.valueOf(failed.getMessage())));
             return AnalysisTaskResult.failed(task, workerId, durationMs, failed);
         } finally {
+            reporter.report("WORKER_EXECUTION_METRIC", Map.of(
+                "queueTimeMs", queueTimeMs,
+                "executionTimeMs", elapsedMillis(startedAt),
+                "configuredParallelism", workerCount));
+            log.info("analysisTaskExecutionMetric taskId={} queueTimeMs={} executionTimeMs={} configuredParallelism={}",
+                task.taskId(), queueTimeMs, elapsedMillis(startedAt), workerCount);
             heartbeat.cancel(false);
             heartbeatExecutor.shutdownNow();
         }

@@ -3649,7 +3649,7 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .contains("Use the internal definition handbook")
+            .contains("Internal Definition Handbook")
             .doesNotContain("tool://document_search#result=1");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
@@ -3964,7 +3964,7 @@ class AgentOrchestratorTest {
             Map.of("plannerMaxRepairAttempts", 9)
         );
 
-        assertThat(result.answer()).contains("Attribution selected the document-backed plan.");
+        assertThat(result.answer()).contains("Internal Definition Handbook");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         List<Map<String, Object>> plannerSteps = (List<Map<String, Object>>) result.metadata().get("plannerSteps");
@@ -4033,7 +4033,7 @@ class AgentOrchestratorTest {
             Map.of("plannerMaxRepairAttempts", 9)
         );
 
-        assertThat(result.answer()).contains("Coverage selected the evidence-backed plan.");
+        assertThat(result.answer()).contains("Internal Definition Handbook");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         List<Map<String, Object>> plannerSteps = (List<Map<String, Object>>) result.metadata().get("plannerSteps");
@@ -4133,7 +4133,7 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .contains("Use web evidence fallback")
+            .contains("Audit trail for AI answers")
             .doesNotContain("web://example.com/audit#result=1");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search", "web_search");
@@ -4317,7 +4317,7 @@ class AgentOrchestratorTest {
             .build());
 
         assertThat(result.answer())
-            .contains("Use the internal definition handbook")
+            .contains("Internal Definition Handbook")
             .doesNotContain("tool://document_search#result=1");
         assertThat(result.stopReason()).isEqualTo("evidence_sufficient");
         assertThat(result.toolTraces())
@@ -4381,7 +4381,7 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .contains("Use the required document evidence")
+            .contains("Internal Definition Handbook")
             .doesNotContain("doc://unknown#chunk=1");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -4904,7 +4904,7 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).contains("[网页1]");
+        assertThat(result.answer()).contains("web://example.com/audit#result=1");
         assertThat(result.metadata()).containsEntry("interpretationPlanPipeline", true)
             .containsEntry("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY");
         assertThat(String.join("\n", chatModel.messages()))
@@ -4959,7 +4959,7 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).contains("[网页1]");
+        assertThat(result.answer()).contains("web://docs.example.com/evidence#result=1");
         assertThat(result.metadata()).containsEntry("interpretationPlanPipeline", true)
             .containsEntry("orchestrationExecutionMode", "INTERPRETATION_GRAPH_ONLY");
         assertThat(String.join("\n", chatModel.messages()))
@@ -5687,7 +5687,7 @@ class AgentOrchestratorTest {
             Map.of("mcpWorkflow", workflowConfig)
         );
 
-        assertThat(result.answer()).contains("Both internal tools have been observed.");
+        assertThat(result.answer()).contains("Internal Definition Handbook");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
             .containsExactly(documentSearch, knowledgeSearch);
@@ -5994,6 +5994,7 @@ class AgentOrchestratorTest {
         @Override
         public String chat(String message) {
             assertThat(message).isNotBlank();
+            if (message.contains("unified_question_analysis.v1")) return unifiedFixture(message);
             if (message.contains("Agent Runtime DAG execution controller")) {
                 return dagDecision(message);
             }
@@ -6021,6 +6022,7 @@ class AgentOrchestratorTest {
         @Override
         public String chat(String message) {
             assertThat(message).isNotBlank();
+            if (message.contains("unified_question_analysis.v1")) return unifiedFixture(message);
             if (message.contains("Agent Runtime DAG execution controller")) {
                 return dagDecision(message);
             }
@@ -6065,6 +6067,7 @@ class AgentOrchestratorTest {
         public String chat(String message) {
             assertThat(message).isNotBlank();
             messages.add(message);
+            if (message.contains("unified_question_analysis.v1")) return unifiedFixture(message);
             if (message.contains("Agent Runtime DAG execution controller")) {
                 return dagDecision(message);
             }
@@ -6259,6 +6262,7 @@ class AgentOrchestratorTest {
         @Override
         public String chat(String message) {
             assertThat(message).isNotBlank();
+            if (message.contains("unified_question_analysis.v1")) return unifiedFixture(message);
             if (message.contains("runtime reviewer for one completed MCP tool call")) {
                 return "{\"satisfied\":true,\"reason\":\"evidence accepted\",\"confidence\":1.0}";
             }

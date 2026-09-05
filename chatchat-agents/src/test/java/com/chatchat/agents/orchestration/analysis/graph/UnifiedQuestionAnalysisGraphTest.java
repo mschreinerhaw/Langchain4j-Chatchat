@@ -12,6 +12,60 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class UnifiedQuestionAnalysisGraphTest {
+    @Test void rejectedOptionalReadPreservesFindingsFromFortyOneReturnedRows() throws Exception {
+        var rows = java.util.stream.IntStream.rangeClosed(1, 41).mapToObj(i -> Map.<String, Object>of("VALUE", i)).toList();
+        var datasets = List.of(new Dataset("dataset1", Map.of(), rows));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        @SuppressWarnings("unchecked") Map<String, Object> response = mapper.readValue(product("dataset1"), Map.class);
+        response.put("evidenceRequests", List.of(Map.of("operation", "READ_RECORDS", "datasetReference", "dataset1", "fromRecord", 0, "limit", 10000)));
+        var model = org.mockito.Mockito.mock(ChatModel.class);
+        org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn(mapper.writeValueAsString(response));
+        var metadata = new LinkedHashMap<String, Object>();
+        var results = new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+        assertThat(results.get("dataset1").summary().content()).contains("Returned value is 1");
+        assertThat(metadata).containsEntry("unifiedEvidenceRejectedRequestCount", 1)
+            .containsEntry("unifiedAnalysisStatus", "COMPLETED_WITH_LIMITATIONS");
+        assertThat(metadata.get("unifiedEvidenceReadAudit").toString())
+            .contains("fromRecord=0", "limit=10000", "availableRecordCount=41", "status=REQUEST_REJECTED");
+        org.mockito.Mockito.verify(model).chat(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test void rejectedReadWithoutFindingsIsReturnedToModelForCorrection() {
+        var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        var count = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                if (count.incrementAndGet() == 1) return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"evidenceRequests\":[{\"operation\":\"READ_RECORDS\",\"datasetReference\":\"dataset1\",\"fromRecord\":0,\"limit\":10}]}";
+                assertThat(prompt).contains("REQUEST_REJECTED", "availableRecordCount", "not an empty dataset");
+                return product("dataset1");
+            }
+        };
+        var results = new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), new LinkedHashMap<>(), () -> {});
+        assertThat(count.get()).isEqualTo(2);
+        assertThat(results.get("dataset1").summary().content()).contains("Returned value is 1");
+    }
+
+    @Test void mixedReadBatchRetainsSuccessfulEvidenceAndReportsRejectedRange() {
+        var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        var count = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                if (count.incrementAndGet() == 1) return ModelProtocolJson.compact(Map.of(
+                    "schemaVersion", "unified_question_analysis.v1", "findings", List.of(), "evidenceRequests", List.of(
+                        Map.of("operation", "READ_RECORDS", "datasetReference", "dataset1", "fromRecord", 1, "limit", 1),
+                        Map.of("operation", "READ_RECORDS", "datasetReference", "dataset1", "fromRecord", 2, "limit", 1))));
+                assertThat(prompt).contains("dataset1.records[1]", "REQUEST_REJECTED", "availableRecordCount");
+                return product("dataset1");
+            }
+        };
+        var metadata = new LinkedHashMap<String, Object>();
+        new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+        assertThat(metadata).containsEntry("unifiedAnalysisFindingCount", 1);
+        assertThat(metadata.get("unifiedEvidenceReadAudit").toString()).contains("status=ACCEPTED", "status=REQUEST_REJECTED");
+    }
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime("t", "u", "r", "q", "c");
 
     @Test void fiveDatasetsProduceOneGlobalModelCallAfterComputation() {

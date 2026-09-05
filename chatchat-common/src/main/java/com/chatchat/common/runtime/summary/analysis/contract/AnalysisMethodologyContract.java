@@ -79,6 +79,15 @@ public record AnalysisMethodologyContract(
         result.put("claimTypes", claimTypes);
         result.put("findingPriority", findingPriority);
         result.put("reportSections", reportSections);
+        result.put("partialEvidencePolicy", Map.of(
+            "disposition", "ANALYZE_AVAILABLE_EVIDENCE_FIRST",
+            "scopeRule", "State the actual returned population and period; never extrapolate a partial sample to the full business population.",
+            "missingDataRule", "Missing fields, history or datasets restrict only dependent claims, not analysis of other available evidence. Missing is not zero.",
+            "baselineRule", "Without history, analyze the current state, composition and supported cross-sectional differences; withhold unsupported trends and abnormality labels.",
+            "recommendationRule", "Tie each recommendation to a supported finding and explain the business consequence. Qualify conditional actions and their verification needs; do not invent generic advice to fill gaps.",
+            "reportOrder", List.of("SUPPORTED_FINDINGS", "BUSINESS_IMPLICATIONS", "EVIDENCE_BOUND_ACTIONS", "MATERIAL_LIMITATIONS", "TARGETED_FOLLOWUP"),
+            "completionRule", "Publish supported partial analysis with explicit limitations. Do not substitute an indicator framework or a request for more data for available analysis.",
+            "failureRule", "A runtime failure or absence of analysis products is not evidence that source data is empty."));
         result.put("insightBlockPolicy", Map.of(
             "minimumPrimaryExpressions", 2,
             "requiredDataExpression", List.of("VERIFIED_CHART", "VERIFIED_TABLE", "VERIFIED_METRIC"),

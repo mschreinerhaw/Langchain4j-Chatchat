@@ -129,6 +129,13 @@ public final class FinalSynthesisNode {
     }
 
     private FinalSynthesisResult synthesizeFinalAdmitted(FinalModelSynthesisRequest request) {
+        boolean noFindings = request.metadata().get("unifiedAnalysisFindingCount") instanceof Number findings
+            && findings.longValue() == 0;
+        if ((Boolean.TRUE.equals(request.metadata().get("semanticClaimPreflightFailed")) || noFindings)
+            && request.metadata().get("analysisObservedReturnedRecordCount") instanceof Number rows && rows.longValue() > 0) {
+            throw new IllegalStateException("Analysis failed with " + rows.longValue()
+                + " returned records present; final synthesis cannot treat missing analysis products as empty source data.");
+        }
         if (Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"))) {
             recordHumanReviewAdvisory(request, "SYNTHESIS_INPUT_REVIEW",
                 String.valueOf(request.metadata().getOrDefault(

@@ -38,7 +38,10 @@ final class SemanticGapEvidenceBridge {
                            Map<String, Object> runtimeAttributes,
                            Map<String, Object> metadata) {
         try {
-            return analysis.get();
+            T result = analysis.get();
+            metadata.remove("semanticClaimPreflightFailed");
+            metadata.remove("semanticClaimPreflightFailure");
+            return result;
         } catch (CancellationException ex) {
             throw ex;
         } catch (RuntimeException ex) {
@@ -46,7 +49,7 @@ final class SemanticGapEvidenceBridge {
             metadata.put("semanticClaimPreflightFailure",
                 ex.getMessage() == null || ex.getMessage().isBlank()
                     ? ex.getClass().getSimpleName() : ex.getMessage());
-            log.warn("Semantic claim preflight failed; returned facts and limitations are preserved. "
+            log.warn("Semantic claim preflight failed; analysis products are unavailable, not proof of empty source data. "
                     + "runId={} errorType={} error={}",
                 text(runtimeAttributes == null ? null : runtimeAttributes.get(runIdAttribute)),
                 ex.getClass().getName(), ex.getMessage());

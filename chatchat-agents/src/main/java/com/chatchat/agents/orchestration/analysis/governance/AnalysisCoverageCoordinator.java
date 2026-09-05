@@ -74,6 +74,7 @@ public final class AnalysisCoverageCoordinator {
         AnalysisEvidenceCoordinator.Projection projection = evidenceCoordinator.project(
             request.result(), request.runtimeAttributes());
         List<AnalysisEvidenceCoordinator.Dataset> datasets = projection.datasets();
+        request.metadata().put("analysisObservedReturnedRecordCount", datasets.stream().mapToLong(dataset -> dataset.records().size()).sum());
         writeExcludedMetadata(request.metadata(), projection.excludedDatasets());
         projection.excludedDatasets().forEach(excluded -> observe(request,
             "数据集未进入分析：" + excluded.get("datasetReference") + "（未返回非空结构化记录）。",

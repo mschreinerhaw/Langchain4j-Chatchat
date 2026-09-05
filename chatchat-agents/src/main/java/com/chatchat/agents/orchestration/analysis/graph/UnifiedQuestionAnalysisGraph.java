@@ -19,6 +19,7 @@ public final class UnifiedQuestionAnalysisGraph {
     private static final String VERSION = "unified_question_analysis.v1";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAX_INPUT_CHARS = 160_000;
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(UnifiedQuestionAnalysisGraph.class);
 
     public Map<String, Outcome> execute(String question, List<Dataset> sources,
         Supplier<List<Dataset>> computation, ChatModel model, GovernanceIsolationScope scope,
@@ -32,6 +33,10 @@ public final class UnifiedQuestionAnalysisGraph {
         var evidenceView = new BoundedAnalysisEvidence.Prepared[1];
         metadata.put("textExtractionModelCalls", 0);
         metadata.put("supplementaryFormulaCount", 0);
+        metadata.put("unifiedEvidenceRejectedRequestCount", 0);
+        metadata.remove("unifiedAnalysisFindingCount");
+        var readAudit = new ArrayList<Map<String, Object>>();
+        metadata.put("unifiedEvidenceReadAudit", readAudit);
         var execution = new AnalysisExecutionGraph().execute(List.of(
             new AnalysisExecutionGraph.Step("analysis_planning", () -> {
                 plan.put("objective", question);
@@ -39,6 +44,8 @@ public final class UnifiedQuestionAnalysisGraph {
                 plan.put("datasets", sources.stream().map(dataset -> Map.of(
                     "datasetReference", dataset.reference(), "recordCount", dataset.records().size())).toList());
                 plan.put("calculationPolicy", "EXECUTE_ONLY_RESOLVED_SEMANTIC_CONTRACTS");
+                plan.put("partialEvidencePolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
+                    .enterpriseDefault().toMap().get("partialEvidencePolicy"));
                 metadata.put("unifiedAnalysisPlan", plan);
                 return AnalysisExecutionGraph.Status.READY;
             }),
@@ -72,7 +79,10 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Use full-scan structural profiles to navigate; only authorized verifiedCalculations support business aggregates. "
                         + "Request new arithmetic with {operation:'CALCULATE',datasetReference,expression:'(a-b)/b',inputs:{a:'runtimeFindingId1',b:'runtimeFindingId2'}}. Inputs must reference existing verified calculations. New formulas require semantic review and cannot be promoted to authorized metrics. "
                         + "For long string fields request {operation:'EXTRACT_TEXT',datasetReference,record:1,field:'text',fromChar:0}. Runtime extracts source-quoted candidates in bounded partitions; nextChar indicates continuation. This is not exhaustive event counting. "
-                        + "Final findings must cover the question across sources. If evidence remains insufficient state explicit limitations. "
+                        + "Analyze all available question-relevant evidence even when coverage is partial. Missing history or fields block only dependent claims, never the entire analysis. "
+                        + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
+                        + "Without history, explain current state and supported composition instead of asserting trends. Do not replace available analysis with an indicator framework or only a request for more data. "
+                        + "Final findings must address the supported parts of the question across sources. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
                         + "Evidence round " + round + "/3. " + (round == 3 ? "No more requests are available; return bounded conclusions and limitations. " : "")
                         + "Requested evidence: " + ModelProtocolJson.compact(requestedEvidence) + "\n"
                         + "Question plan: " + ModelProtocolJson.compact(plan) + "\nBound evidence: " + ModelProtocolJson.compact(evidence);
@@ -102,17 +112,47 @@ public final class UnifiedQuestionAnalysisGraph {
                         ((Number) metadata.getOrDefault("unifiedAnalysisMaxPromptChars", 0)).intValue()));
                     var requests = maps(product.get("evidenceRequests"));
                     if (!requests.isEmpty() && round < 3) {
-                        requestedEvidence.addAll(evidenceAccess.read(prepared, requests, guard, model, scope, checkpoints, question, metadata));
+                        int accepted = 0;
+                        for (var evidenceRequest : requests) {
+                            guard.run();
+                            Map<String, Object> audit = new LinkedHashMap<>();
+                            audit.put("round", round);
+                            for (String auditKey : List.of("operation", "datasetReference", "fromRecord", "limit", "record", "fromChar", "fromItem")) {
+                                if (evidenceRequest.containsKey(auditKey)) audit.put(auditKey, boundedAuditValue(evidenceRequest.get(auditKey)));
+                            }
+                            try {
+                                requestedEvidence.addAll(evidenceAccess.read(prepared, List.of(evidenceRequest), guard, model, scope, checkpoints, question, metadata));
+                                accepted++;
+                                audit.put("status", "ACCEPTED");
+                            } catch (IllegalArgumentException rejected) {
+                                String reference = String.valueOf(evidenceRequest.get("datasetReference"));
+                                var source = prepared.sources().get(reference);
+                                requestedEvidence.add(Map.of("status", "REQUEST_REJECTED", "datasetReference", reference,
+                                    "reason", String.valueOf(rejected.getMessage()), "availableRecordCount", source == null ? -1 : source.records().size(),
+                                    "instruction", "Original evidence remains available. Correct the request: record indices start at 1 and limit must be 1..100. A rejected read is not an empty dataset."));
+                                metadata.put("unifiedEvidenceRejectedRequestCount", ((Number) metadata.getOrDefault("unifiedEvidenceRejectedRequestCount", 0)).intValue() + 1);
+                                audit.put("status", "REQUEST_REJECTED");
+                                audit.put("datasetBound", source != null);
+                                audit.put("availableRecordCount", source == null ? -1 : source.records().size());
+                                audit.put("reason", boundedAuditValue(rejected.getMessage()));
+                                LOG.warn("Analysis evidence read rejected partition={} audit={}", scope.partitionKey(), ModelProtocolJson.compact(audit));
+                            } finally {
+                                audit.putIfAbsent("status", "INTERRUPTED_OR_FAILED");
+                                readAudit.add(Map.copyOf(audit));
+                            }
+                        }
                         if (!cached) checkpoints.checkpoint(scope, key, hash, ModelProtocolJson.compact(product));
-                        continue;
+                        if (accepted > 0 || maps(product.get("findings")).isEmpty()) continue;
+                        // Retain usable candidates when every optional read was rejected; validate them normally.
                     }
                     if (!cached) checkpoints.checkpoint(scope, key, hash, ModelProtocolJson.compact(product));
                     generated.putAll(product);
+                    metadata.put("unifiedAnalysisFindingCount", maps(product.get("findings")).size());
                     if (prepared.projected() || !requests.isEmpty()) {
                         List<Object> limitations = new ArrayList<>();
                         if (product.get("limitations") instanceof List<?> list) limitations.addAll(list);
                         if (prepared.projected()) limitations.add("Runtime scanned every returned row; model interpretation used bounded evidence views. This does not establish semantic review of every record.");
-                        if (!requests.isEmpty()) limitations.add("Evidence request budget exhausted; unresolved requests remain unsupported.");
+                        if (!requests.isEmpty()) limitations.add("Supplementary evidence requests remain unresolved; original returned records are still available and existing findings require normal evidence validation.");
                         generated.put("limitations", limitations);
                     }
                     break;
@@ -175,6 +215,10 @@ public final class UnifiedQuestionAnalysisGraph {
     private String unique(String reference, Map<String, Integer> occurrences) {
         int count = occurrences.merge(reference, 1, Integer::sum);
         return count == 1 ? reference : reference + "#occurrence-" + count;
+    }
+    private String boundedAuditValue(Object value) {
+        String text = String.valueOf(value).replace('\n', ' ').replace('\r', ' ');
+        return text.length() <= 256 ? text : text.substring(0, 256) + "…";
     }
     private boolean valid(Map<String, Object> value) {
         return value != null && VERSION.equals(value.get("schemaVersion")) && value.get("findings") instanceof List<?> findings

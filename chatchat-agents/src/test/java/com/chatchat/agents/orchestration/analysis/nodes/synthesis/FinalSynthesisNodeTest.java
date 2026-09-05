@@ -30,8 +30,38 @@ import static org.mockito.Mockito.when;
 
 class FinalSynthesisNodeTest {
 
+    @Test
+    void failedAnalysisOfNonemptyDataCannotFallThroughToFreeFormSynthesis() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            mock(AnalysisSummaryGovernanceCoordinator.class), new DeterministicInsightEngine(),
+            new AnswerCandidateCollector(), new StructuredFindingMerger());
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("semanticClaimPreflightFailed", true);
+        metadata.put("analysisObservedReturnedRecordCount", 41L);
+        var model = mock(ChatModel.class);
+        assertThatThrownBy(() -> coordinator.synthesizeFinal(request(model, metadata, value -> value, () -> "fallback", true)))
+            .hasMessageContaining("41 returned records present");
+        org.mockito.Mockito.verifyNoInteractions(model);
+        assertThat(metadata).containsEntry("analysisGraphStatus", "FAILED");
+    }
+
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
         "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
+
+    @Test
+    void emptyFindingsFromNonemptyDataCannotPublishAnEmptyDataNarrative() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            mock(AnalysisSummaryGovernanceCoordinator.class), new DeterministicInsightEngine(),
+            new AnswerCandidateCollector(), new StructuredFindingMerger());
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("analysisObservedReturnedRecordCount", 41L);
+        metadata.put("unifiedAnalysisFindingCount", 0);
+        var model = mock(ChatModel.class);
+        assertThatThrownBy(() -> coordinator.synthesizeFinal(request(model, metadata, value -> value, () -> "fallback", true)))
+            .hasMessageContaining("41 returned records present");
+        org.mockito.Mockito.verifyNoInteractions(model);
+        assertThat(metadata).containsEntry("interpretationPlanFinalResultProduced", false);
+    }
 
     @Test
     void ownsCrossDatasetReductionAndCompletesLifecycleAfterWorkerReconciliation() {

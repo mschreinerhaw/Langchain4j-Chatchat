@@ -2115,6 +2115,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
         String finalPrompt = prompt;
+        metadata.put("analysisAcceptanceQuestion", query == null ? "" : query);
         FinalSynthesisNode.FinalSynthesisResult synthesis =
             analysisSynthesisCoordinator.synthesizeFinal(
                 new FinalSynthesisNode.FinalModelSynthesisRequest(

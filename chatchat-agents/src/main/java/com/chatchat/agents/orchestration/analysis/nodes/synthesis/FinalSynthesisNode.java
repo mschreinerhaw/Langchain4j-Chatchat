@@ -124,6 +124,8 @@ public final class FinalSynthesisNode {
                 ? "CANCELLED" : "FAILED");
             request.metadata().put("interpretationPlanFinalResultProduced", false);
             request.metadata().remove("analyticalReport");
+            request.metadata().remove("claimAcceptance");
+            request.metadata().remove("claimAcceptanceGraphNodes");
             throw ex;
         }
     }
@@ -191,6 +193,8 @@ public final class FinalSynthesisNode {
             : driverPrompt;
         VerifiedReportDataCatalog reportData = VerifiedReportDataCatalog.fromRuntime(request.metadata());
         request.metadata().remove("analyticalReport");
+        request.metadata().remove("claimAcceptance");
+        request.metadata().remove("claimAcceptanceGraphNodes");
         if (claimBoundPublication) {
             modelPrompt += "\nRuntime-owned report data catalog (choose dataRef; never return chart values): "
                 + ModelProtocolJson.compact(reportData.promptView());
@@ -266,22 +270,36 @@ public final class FinalSynthesisNode {
 
         if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
             if (claimBoundPublication) {
-                GovernedFinalClaimContract.Projection projection =
-                    finalClaimContract.project(answer, claimCompilation, reportData);
-                if (!projection.modelSelectionAccepted()) {
+                String acceptanceQuestion = String.valueOf(request.metadata().getOrDefault("analysisAcceptanceQuestion", ""));
+                long reviewTimeoutMs = request.runtimeAttributes().get("__agentDeadlineAt") instanceof Number deadline
+                    ? Math.max(0, Math.min(10000, deadline.longValue() - System.currentTimeMillis())) : 10000;
+                GovernedFinalClaimContract acceptance = acceptanceQuestion.isBlank() ? finalClaimContract
+                    : new GovernedFinalClaimContract(
+                        com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
+                        new SemanticClaimReviewer(request.model(), reviewTimeoutMs,
+                            request.runtimeAttributes().get("__agentCancellation") instanceof java.util.function.BooleanSupplier cancelled
+                                ? cancelled : () -> false), acceptanceQuestion);
+                GovernedFinalClaimContract.Projection projection = acceptance.project(answer, claimCompilation, reportData);
+                boolean partialDelivery = "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(projection.reason());
+                if (!projection.modelSelectionAccepted() && !partialDelivery) {
                     recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
                 }
                 answer = projection.markdown();
-                outcome = projection.modelSelectionAccepted()
+                outcome = partialDelivery ? "CLAIM_BOUND_PARTIAL_SUMMARY" : projection.modelSelectionAccepted()
                     ? "CLAIM_BOUND_FINAL_SUMMARY"
                     : "DETERMINISTIC_CLAIM_SUMMARY_WITH_REVIEW_NOTES";
                 request.metadata().put("finalClaimSelectionAccepted",
                     projection.modelSelectionAccepted());
                 request.metadata().put("finalClaimSelectionReason", projection.reason());
                 request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
-                if (projection.modelSelectionAccepted() && !projection.analyticalReport().isEmpty()) {
+                if ((projection.modelSelectionAccepted() || partialDelivery)
+                    && projection.analyticalReport().containsKey("blocks")) {
                     request.metadata().put("analyticalReport", projection.analyticalReport());
                 }
+                if (projection.analyticalReport().containsKey("claimAcceptance")) {
+                    request.metadata().put("claimAcceptance", projection.analyticalReport().get("claimAcceptance"));
+                }
+                request.metadata().put("claimAcceptanceGraphNodes", projection.analyticalReport().getOrDefault("acceptanceGraphNodes", List.of()));
                 log.info("analysisDriverGovernance runId={} stage={} admitted={} reason={} "
                         + "publishedClaimCount={}",
                     request.runId(), request.stage(), projection.modelSelectionAccepted(),
@@ -301,6 +319,8 @@ public final class FinalSynthesisNode {
                 request, modelPrompt, admission.reason());
             if (recovery.recovered()) {
                 request.metadata().remove("analyticalReport");
+                request.metadata().remove("claimAcceptance");
+                request.metadata().remove("claimAcceptanceGraphNodes");
                 answer = recovery.content();
                 outcome = recovery.outcome();
                 admission = AnalysisOutputAdmissionPolicy.admit(answer);
@@ -314,6 +334,8 @@ public final class FinalSynthesisNode {
         request.metadata().put("analysisOutputAdmitted", admission.admitted());
         if (!admission.admitted()) {
             request.metadata().remove("analyticalReport");
+            request.metadata().remove("claimAcceptance");
+            request.metadata().remove("claimAcceptanceGraphNodes");
             AnalysisExecutionOutcome executionOutcome = blockedOutcome(
                 request, admission.reason(), true);
             answer = executionOutcome.failureReport();

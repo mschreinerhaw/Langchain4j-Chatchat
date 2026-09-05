@@ -783,7 +783,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void appendsRowsFromEverySuccessfulDiagnosticBatchChild() {
+    void hidesDiagnosticBatchDetailsWhilePreservingChildEvidence() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->
                 new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
@@ -821,15 +821,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             "诊断已完成。", List.of(trace), new LinkedHashMap<>(), List.of());
 
         assertThat(result.answer())
-            .contains("INSTANCE_NAME", "oraclewind", "OPEN")
-            .contains("TOTAL_SESSIONS", "18")
-            .contains("instance_status", "session_overview");
-        Map<String, Object> visualization = (Map<String, Object>) result.metadata().get("visualizationSpec");
-        Map<String, Object> dataset = (Map<String, Object>) visualization.get("dataset");
-        assertThat((List<Map<String, Object>>) dataset.get("rows"))
-            .hasSize(2)
-            .extracting(row -> row.get("DIAGNOSTIC_CHECK"))
-            .containsExactly("instance_status", "session_overview");
+            .isEqualTo("诊断已完成。")
+            .doesNotContain("INSTANCE_NAME", "oraclewind", "TOTAL_SESSIONS", "批量诊断结果明细");
+        assertThat(result.metadata().get("visualizationSpec")).isNull();
         List<Map<String, Object>> toolEvidence =
             (List<Map<String, Object>>) result.metadata().get("toolResultEvidence");
         assertThat(toolEvidence).singleElement().satisfies(item -> {

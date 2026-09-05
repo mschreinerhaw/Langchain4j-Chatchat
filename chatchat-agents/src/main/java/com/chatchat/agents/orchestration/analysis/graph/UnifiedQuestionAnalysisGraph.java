@@ -44,6 +44,8 @@ public final class UnifiedQuestionAnalysisGraph {
                 plan.put("datasets", sources.stream().map(dataset -> Map.of(
                     "datasetReference", dataset.reference(), "recordCount", dataset.records().size())).toList());
                 plan.put("calculationPolicy", "EXECUTE_ONLY_RESOLVED_SEMANTIC_CONTRACTS");
+                plan.put("claimBoundaryPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
+                    .enterpriseDefault().toMap().get("claimBoundaryPolicy"));
                 plan.put("partialEvidencePolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
                     .enterpriseDefault().toMap().get("partialEvidencePolicy"));
                 metadata.put("unifiedAnalysisPlan", plan);

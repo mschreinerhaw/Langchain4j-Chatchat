@@ -11,6 +11,8 @@ final class ReportPublicationGraph {
     FinalSynthesisResult execute(FinalModelSynthesisRequest request,
         java.util.function.Function<FinalModelSynthesisRequest, FinalSynthesisResult> synthesis) {
         request.metadata().remove("analysisFinalAdmissionBlocked");
+        request.metadata().remove("claimAcceptance");
+        request.metadata().remove("claimAcceptanceGraphNodes");
         var result = new java.util.concurrent.atomic.AtomicReference<FinalSynthesisResult>();
         var execution = new AnalysisExecutionGraph().execute(List.of(
             new AnalysisExecutionGraph.Step("preflight", () -> {
@@ -25,10 +27,11 @@ final class ReportPublicationGraph {
                 result.set(synthesis.apply(request));
                 return AnalysisExecutionGraph.Status.READY;
             }),
-            new AnalysisExecutionGraph.Step("publication_result", () -> {
+            new AnalysisExecutionGraph.Step("PUBLISH", () -> {
                 if (!result.get().generated() || result.get().content() == null || result.get().content().isBlank())
                     return AnalysisExecutionGraph.Status.FAILED;
-                return "completed_with_limitations".equals(request.stage())
+                return "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(request.metadata().get("finalClaimSelectionReason"))
+                    || "completed_with_limitations".equals(request.stage())
                     || "ANALYZE_WITH_LIMITATIONS".equals(request.metadata().get("evidenceAugmentationDecision"))
                     || !request.coverageComplete() || !request.sourceContentComplete() || !request.evidenceTraceComplete()
                     ? AnalysisExecutionGraph.Status.COMPLETED_WITH_LIMITATIONS : AnalysisExecutionGraph.Status.COMPLETED;

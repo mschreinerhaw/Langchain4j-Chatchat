@@ -354,7 +354,7 @@ class GovernedFinalClaimContractTest {
             """, compilation);
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
-        assertThat(projection.reason()).isEqualTo("UNGROUNDED_MANAGEMENT_FINDING_VALUE");
+        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
         assertThat(projection.markdown()).doesNotContain("99.5%");
     }
 
@@ -383,7 +383,7 @@ class GovernedFinalClaimContractTest {
             .isLessThan(projection.markdown().indexOf("六、数据边界"));
         var invalid = contract.project(payload.replace("Monitor activity", "Expect 99.5% growth"), compilation);
         assertThat(invalid.modelSelectionAccepted()).isFalse();
-        assertThat(invalid.reason()).isEqualTo("UNGROUNDED_MANAGEMENT_FINDING_VALUE");
+        assertThat(invalid.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
         assertThat(invalid.markdown()).doesNotContain("99.5%");
     }
 
@@ -402,7 +402,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason())
-            .isEqualTo("DRIVER_REJECTED_CLAIM_SELECTED_FOR_PUBLICATION");
+            .isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
     }
 
     @Test
@@ -451,6 +451,145 @@ class GovernedFinalClaimContractTest {
         assertThat(projection.modelSelectionAccepted()).isTrue();
         assertThat(projection.analyticalReport()).containsEntry("executiveSummaryIds", List.of());
         assertThat(projection.markdown()).contains("暂无同时绑定计算数据与证据的核心结论", "数据状态：待补充可验证数据");
+    }
+
+    @Test
+    void rejectsHabitualProfileEvenWhenNumbersMatchSampleEvidence() {
+        var compilation = contract.compile(List.of(factSummary("closed", "sample",
+            "抽样清仓记录的持仓天数为2天", "2")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","text":"客户通常持仓2天，习惯快进快出。当前仅为样本。",
+               "basisClaimIds":["sample"]}],
+             "coverage":[{"claimId":"sample","disposition":"USED","reason":"sample"}]}
+            """, compilation);
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
+        assertThat(projection.markdown()).contains("抽样清仓记录").doesNotContain("客户通常", "习惯快进快出");
+    }
+
+    @Test
+    void preservesScopedSampleAnalysis() {
+        var compilation = contract.compile(List.of(factSummary("closed", "sample",
+            "抽样清仓记录的持仓天数为2天", "2")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","text":"本次抽样记录持仓2天，无法据此判断其通常持仓周期。",
+               "basisClaimIds":["sample"]}],
+             "coverage":[{"claimId":"sample","disposition":"USED","reason":"sample"}]}
+            """, compilation);
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+    }
+
+    @Test
+    void rejectsCrossChapterScopeConflictBeforeRendering() {
+        var compilation = contract.compile(List.of(factSummary("holdings", "holding-count",
+            "返回20条持仓记录", "20")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","text":"客户共持有20只证券",
+               "basisClaimIds":["holding-count"]},
+               {"section":"LIMITATION","text":"本次仅为持仓样本，不能确认全部持仓",
+               "basisClaimIds":["holding-count"]}],
+             "coverage":[{"claimId":"holding-count","disposition":"USED","reason":"observed"}]}
+            """, compilation);
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
+        assertThat(projection.markdown()).contains("返回20条持仓记录").doesNotContain("客户共持有");
+    }
+
+    @Test
+    void repairsOnlyInvalidFindingAndPreservesValidNarrativeAndBlockId() {
+        var compilation = contract.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"总资产42元，当前规模可作为后续观测基准", "basisClaimIds":["asset"]},
+             {"section":"CORE","text":"总资产增长99.5%", "basisClaimIds":["asset"]}]}
+            """, compilation);
+        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
+        assertThat(projection.markdown()).contains("当前规模可作为后续观测基准", "总资产42元").doesNotContain("99.5%");
+        var blocks = (List<com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock>)
+            projection.analyticalReport().get("blocks");
+        assertThat(blocks).extracting(com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock::id)
+            .containsExactly("F1", "F2");
+        var acceptance = (Map<String, Object>) projection.analyticalReport().get("claimAcceptance");
+        assertThat(acceptance).containsEntry("repairAttempts", 1);
+        var decisions = (List<Map<String, Object>>) acceptance.get("decisions");
+        assertThat(decisions).extracting(d -> d.get("status")).containsExactly("VALID", "LIMITED");
+    }
+
+    @Test
+    void exhaustedRepairBudgetStillPublishesOtherFindingsAndUnresolvedBlock() {
+        var bounded = new GovernedFinalClaimContract(
+            new com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract(0, 0, 0));
+        var compilation = bounded.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
+        var projection = bounded.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"总资产42元", "basisClaimIds":["asset"]},
+             {"section":"CORE","text":"总资产增长99.5%", "basisClaimIds":["asset"]}]}
+            """, compilation);
+        assertThat(projection.markdown()).contains("总资产42元", "暂不作业务判断").doesNotContain("99.5%");
+        var acceptance = (Map<String, Object>) projection.analyticalReport().get("claimAcceptance");
+        assertThat(acceptance).containsEntry("repairAttempts", 0);
+        var nodes = (List<Map<String, Object>>) projection.analyticalReport().get("acceptanceGraphNodes");
+        assertThat(nodes).extracting(n -> n.get("node")).contains("ASSEMBLE_VERIFIED_REPORT").doesNotContain("VALIDATE_ONCE");
+        var decisions = (List<Map<String, Object>>) acceptance.get("decisions");
+        assertThat(decisions).extracting(d -> d.get("status")).containsExactly("VALID", "UNRESOLVED");
+    }
+
+    @Test
+    void unknownBasisDoesNotDiscardOtherFindingsOrPublishUnknownEvidence() {
+        var compilation = contract.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"总资产42元", "basisClaimIds":["asset"]},
+             {"section":"CORE","text":"不存在的收益结论", "basisClaimIds":["missing"]}]}
+            """, compilation);
+        assertThat(projection.markdown()).contains("总资产42元").doesNotContain("不存在的收益结论");
+        assertThat(projection.selectedClaimIds()).containsExactly("asset");
+    }
+
+    @Test
+    void semanticRepairTraversesGraphOnceAndCannotIntroduceProposedNumbers() {
+        var model = org.mockito.Mockito.mock(dev.langchain4j.model.chat.ChatModel.class);
+        org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {"schemaVersion":"semantic_claim_review.v1","reviews":[{"claimId":"F1","decision":"REPAIR",
+             "issue":"资产截面不能证明交易动机","evidenceIds":["asset"],"repairAction":"REMOVE_CAUSAL_LANGUAGE",
+             "repairedClaim":"客户获利999元"}]}
+            """);
+        var reviewed = new GovernedFinalClaimContract(
+            com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
+            new SemanticClaimReviewer(model, 1000), "客户交易偏好是什么？");
+        var compilation = reviewed.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
+        var projection = reviewed.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"客户偏爱追逐热点","basisClaimIds":["asset"]}]}
+            """, compilation);
+        assertThat(projection.markdown()).contains("总资产42元").doesNotContain("追逐热点", "999");
+        var nodes = (List<Map<String, Object>>) projection.analyticalReport().get("acceptanceGraphNodes");
+        assertThat(nodes).extracting(n -> n.get("node")).containsExactly("BUILD_CLAIMS", "PROGRAMMATIC_VALIDATE",
+            "SEMANTIC_REVIEW", "REPAIR_CLAIMS", "VALIDATE_ONCE", "ASSEMBLE_VERIFIED_REPORT");
+        org.mockito.Mockito.verify(model, org.mockito.Mockito.times(1)).chat(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void cleanSemanticReviewSkipsRepairNodes() {
+        var model = org.mockito.Mockito.mock(dev.langchain4j.model.chat.ChatModel.class);
+        org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
+            {"schemaVersion":"semantic_claim_review.v1","reviews":[{"claimId":"F1","decision":"ACCEPT",
+             "evidenceIds":["asset"],"repairAction":"RETAIN"}]}
+            """);
+        var reviewed = new GovernedFinalClaimContract(
+            com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
+            new SemanticClaimReviewer(model, 1000), "资产情况？");
+        var projection = reviewed.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"当前资产规模为42元","basisClaimIds":["asset"]}]}
+            """, reviewed.compile(List.of(factSummary("account", "asset", "总资产42元", "42"))));
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        var nodes = (List<Map<String, Object>>) projection.analyticalReport().get("acceptanceGraphNodes");
+        assertThat(nodes).extracting(n -> n.get("node")).containsExactly("BUILD_CLAIMS", "PROGRAMMATIC_VALIDATE",
+            "SEMANTIC_REVIEW", "ASSEMBLE_VERIFIED_REPORT");
     }
 
     private AnalysisSummaryResult factSummary(String dataset, String claimId,

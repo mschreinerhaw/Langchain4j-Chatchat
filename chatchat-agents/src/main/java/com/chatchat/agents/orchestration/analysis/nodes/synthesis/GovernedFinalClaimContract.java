@@ -23,10 +23,9 @@ import java.util.Set;
 /**
  * Publication boundary between governed Claim admission and the final language model.
  *
- * <p>The Driver may synthesize completed Worker/Reducer reports into management-level findings,
- * while every finding remains bound to admitted evidence Claims. Governance validates lineage,
- * observed-fact coverage and numeric grounding; it does not reduce the Driver to copying a Claim
- * ledger. User-facing Markdown is rendered from the admitted grounded synthesis.</p>
+ * <p>Every finding remains bound to admitted evidence. Invalid findings are repaired locally
+ * within a bounded policy, or represented as unresolved; valid findings retain their content.
+ * Numeric provenance checks do not establish arithmetic or semantic correctness.</p>
  */
 final class GovernedFinalClaimContract {
 
@@ -36,6 +35,24 @@ final class GovernedFinalClaimContract {
     private static final String LEGACY_SCHEMA_VERSION = "governed_final_claim_selection.v1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MAX_FALLBACK_CLAIMS = 30;
+    private final com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract acceptancePolicy;
+    private final SemanticClaimReviewer semanticReviewer;
+    private final String acceptanceQuestion;
+
+    GovernedFinalClaimContract() {
+        this(com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard());
+    }
+
+    GovernedFinalClaimContract(com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract policy) {
+        this(policy, null, "");
+    }
+
+    GovernedFinalClaimContract(com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract policy,
+        SemanticClaimReviewer reviewer, String question) {
+        acceptancePolicy = java.util.Objects.requireNonNull(policy);
+        semanticReviewer = reviewer;
+        acceptanceQuestion = question == null ? "" : question;
+    }
 
     Compilation compile(List<AnalysisSummaryResult> summaries) {
         Map<String, Claim> claims = new LinkedHashMap<>();
@@ -358,19 +375,10 @@ final class GovernedFinalClaimContract {
         if (findings.isEmpty()) {
             return deterministic(compilation, "EMPTY_MANAGEMENT_FINDINGS");
         }
-        List<ClaimCoverage> coverage = maps(payload.get("coverage")).stream()
-            .map(this::claimCoverage).filter(java.util.Objects::nonNull).toList();
         DemandAnalysis demandAnalysis = demandAnalysis(payload.get("demandAnalysis"));
         List<MetricAssociation> metricAssociations = maps(payload.get("metricAssociations")).stream()
             .map(this::metricAssociation).filter(java.util.Objects::nonNull).limit(8).toList();
         ManagementReview managementReview = managementReview(payload.get("managementReview"));
-
-        LinkedHashSet<String> selected = new LinkedHashSet<>();
-        findings.forEach(finding -> selected.addAll(finding.basisClaimIds()));
-        metricAssociations.forEach(association -> selected.addAll(association.basisClaimIds()));
-        managementReview.items().forEach(item -> selected.addAll(item.basisClaimIds()));
-        coverage.stream().filter(item -> "USED".equals(item.disposition()))
-            .map(ClaimCoverage::claimId).forEach(selected::add);
 
         Set<String> rejectedByDriver = maps(object(payload.get("driverReview"))
             .get("claimAssessments")).stream()
@@ -381,47 +389,205 @@ final class GovernedFinalClaimContract {
             .collect(java.util.stream.Collectors.toSet());
 
         findings = ensureSourceFindingCoverage(findings, compilation, rejectedByDriver);
-        findings.forEach(finding -> selected.addAll(finding.basisClaimIds()));
+        return acceptClaims(payload, compilation, findings, demandAnalysis, metricAssociations,
+            managementReview, rejectedByDriver, dataCatalog);
+    }
 
-        boolean unknownBasis = selected.stream().anyMatch(id -> !compilation.claims().containsKey(id));
-        boolean rejectedClaimPublished = selected.stream().anyMatch(rejectedByDriver::contains);
-        boolean invalidFindingBasis = findings.stream().anyMatch(finding ->
-            finding.basisClaimIds().isEmpty()
-                || finding.basisClaimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id)));
-        boolean ungroundedNumbers = findings.stream().anyMatch(finding ->
-            !numbersGrounded(finding.groundedText(), finding.basisClaimIds(), compilation))
-            || managementReview.items().stream().anyMatch(item ->
-                !numbersGrounded(item.text(), item.basisClaimIds(), compilation));
-
-        Map<String, ClaimCoverage> coverageByClaim = new LinkedHashMap<>();
-        boolean invalidCoverage = false;
-        for (ClaimCoverage item : coverage) {
-            if (!compilation.claims().containsKey(item.claimId())
-                || coverageByClaim.putIfAbsent(item.claimId(), item) != null
-                || ("USED".equals(item.disposition()) && !selected.contains(item.claimId()))) {
-                invalidCoverage = true;
+    private Projection acceptClaims(Map<String, Object> payload, Compilation compilation,
+        List<NarrativeFinding> findings, DemandAnalysis demandAnalysis,
+        List<MetricAssociation> associations, ManagementReview review, Set<String> rejected,
+        VerifiedReportDataCatalog catalog) {
+        class Work implements ClaimAcceptanceGraph.Work<Projection> {
+            final com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract policy = acceptancePolicy;
+            final List<ReportConsistencyGate.Statement> statements = new ArrayList<>();
+            final Map<String, ReportConsistencyGate.Evidence> evidence = new LinkedHashMap<>();
+            List<ReportConsistencyGate.Violation> conflicts = List.of();
+            final List<List<String>> issuesByClaim = new ArrayList<>();
+            final Map<Integer, NarrativeFinding> patches = new LinkedHashMap<>();
+            final List<NarrativeFinding> accepted = new ArrayList<>();
+            final Map<NarrativeFinding, String> blockIds = new java.util.IdentityHashMap<>();
+            final List<Map<String, Object>> decisions = new ArrayList<>();
+            SemanticClaimReviewer.Result semantic = new SemanticClaimReviewer.Result("NOT_CONFIGURED", Map.of());
+            int repairs;
+            public void build() {
+                findings.forEach(f -> statements.add(new ReportConsistencyGate.Statement(
+                    f.section(), f.groundedText(), f.confidence(), f.basisClaimIds())));
+                review.items().forEach(r -> statements.add(new ReportConsistencyGate.Statement("REVIEW", r.text(), "", r.basisClaimIds())));
+                compilation.claims().forEach((id, claim) -> evidence.put(id,
+                    new ReportConsistencyGate.Evidence(claim.confidence(), claim.caveats())));
+            }
+            public void validate() {
+                conflicts = new ReportConsistencyGate().validate(statements, evidence);
+                for (int i = 0; i < findings.size(); i++) {
+                    final int index = i;
+                    var issues = new ArrayList<>(claimIssues(findings.get(i), compilation, rejected));
+                    conflicts.stream().filter(v -> v.statementIndex() == index).map(ReportConsistencyGate.Violation::code).forEach(issues::add);
+                    issuesByClaim.add(issues);
+                }
+            }
+            public void review() {
+                if (semanticReviewer == null) return;
+                List<Map<String, Object>> claims = new ArrayList<>();
+                for (int i = 0; i < findings.size(); i++) claims.add(Map.of("claimId", "F" + (i + 1),
+                    "text", findings.get(i).groundedText(), "basisClaimIds", findings.get(i).basisClaimIds()));
+                for (int i = 0; i < review.items().size(); i++) claims.add(Map.of("claimId", "R" + (i + 1),
+                    "text", review.items().get(i).text(), "basisClaimIds", review.items().get(i).basisClaimIds()));
+                Set<String> ids = new LinkedHashSet<>();
+                claims.forEach(c -> ids.add(c.get("claimId").toString()));
+                semantic = semanticReviewer.review(Map.of("question", acceptanceQuestion, "claims", claims,
+                    "evidence", compilation.claims().values().stream().map(Claim::toPromptMap).toList()), ids, compilation.claims().keySet());
+                for (int i = 0; i < findings.size(); i++) {
+                    var decision = semantic.decisions().get("F" + (i + 1));
+                    if (decision != null && !"ACCEPT".equals(decision.decision()))
+                        issuesByClaim.get(i).add("SEMANTIC_" + decision.decision() + ":" + decision.issue());
+                    else if (decision == null && !isExactEvidence(findings.get(i), compilation))
+                        issuesByClaim.get(i).add("SEMANTIC_REVIEW_UNRESOLVED");
+                }
+            }
+            public boolean needsRepair() { return issuesByClaim.stream().anyMatch(i -> !i.isEmpty()); }
+            public void repair() {
+                long started = System.nanoTime();
+                for (int i = 0; i < findings.size(); i++) {
+                    if (issuesByClaim.get(i).isEmpty()) continue;
+                    if (policy.maxRepairRounds() == 0 || repairs >= policy.maxClaimsPerRound()
+                        || (System.nanoTime() - started) / 1_000_000 >= policy.maxRepairDurationMs()) {
+                        issuesByClaim.get(i).add("REPAIR_BUDGET_EXHAUSTED"); continue;
+                    }
+                    repairs++;
+                    var original = findings.get(i);
+                    List<Claim> basis = original.basisClaimIds().stream().filter(id -> !rejected.contains(id))
+                        .map(compilation.claims()::get).filter(java.util.Objects::nonNull).toList();
+                    // Suggestions from semantic review are proposals, never new verified facts.
+                    if (!basis.isEmpty()) patches.put(i, new NarrativeFinding("DEEP_DIVE",
+                        String.join("\n", basis.stream().map(Claim::text).distinct().toList()),
+                        basis.stream().map(Claim::claimId).toList()));
+                }
+            }
+            public void revalidate() {
+                var updated = new ArrayList<>(statements);
+                patches.forEach((i, f) -> updated.set(i, new ReportConsistencyGate.Statement(f.section(), f.groundedText(), f.confidence(), f.basisClaimIds())));
+                var remaining = new ReportConsistencyGate().validate(updated, evidence);
+                patches.entrySet().removeIf(e -> !claimIssues(e.getValue(), compilation, rejected).isEmpty()
+                    || (semantic.decisions().containsKey("F" + (e.getKey() + 1))
+                        && !"ACCEPT".equals(semantic.decisions().get("F" + (e.getKey() + 1)).decision())
+                        && e.getValue().groundedText().trim().equals(findings.get(e.getKey()).groundedText().trim()))
+                    || remaining.stream().anyMatch(v -> v.statementIndex() == e.getKey())
+                    || statements.stream().filter(st -> "LIMITATION".equals(st.section())
+                        && !Collections.disjoint(st.basisIds(), e.getValue().basisClaimIds()))
+                        .anyMatch(st -> new ReportClaimBoundaryPolicy().contradicts(e.getValue().groundedText(), st.text())));
+            }
+            public boolean hasPatches() { return !patches.isEmpty(); }
+            public Projection assemble() {
+                for (int index = 0; index < findings.size(); index++) {
+                    var finding = findings.get(index);
+                    var issues = issuesByClaim.get(index);
+                    String status = issues.isEmpty() ? "VALID" : patches.containsKey(index) ? "LIMITED" : "UNRESOLVED";
+                    String action = issues.isEmpty() ? "RETAIN" : patches.containsKey(index) ? "NARROW_SCOPE" : "REMOVE_CLAIM";
+                    NarrativeFinding published = issues.isEmpty() ? finding : patches.get(index);
+                    if (published == null) published = unresolvedFinding(finding);
+                    accepted.add(published);
+                    blockIds.put(published, "F" + (index + 1));
+                    decisions.add(Map.of("claimId", "F" + (index + 1), "basisClaimIds", finding.basisClaimIds(),
+                        "status", status, "issues", List.copyOf(issues), "repairAction", action,
+                        "validationStatus", validationStatus(issues), "originalText", finding.groundedText(),
+                        "repairedClaim", "UNRESOLVED".equals(status) ? "" : published.text()));
+                }
+                // Free-form reviews are validated independently; one bad review never discards findings.
+                List<ReviewItem> retainedReviews = new ArrayList<>();
+                int reviewIndex = findings.size();
+                for (ReviewItem item : review.items()) {
+                    var candidate = new NarrativeFinding("REVIEW", item.text(), item.basisClaimIds());
+                    List<String> issues = new ArrayList<>(claimIssues(candidate, compilation, rejected));
+                    final int currentReviewIndex = reviewIndex++;
+                    if (semanticReviewer != null) {
+                        var assessment = semantic.decisions().get("R" + (currentReviewIndex - findings.size() + 1));
+                        if (assessment == null || !"ACCEPT".equals(assessment.decision())) issues.add("SEMANTIC_REVIEW_UNRESOLVED");
+                    }
+                    conflicts.stream().filter(v -> v.statementIndex() == currentReviewIndex)
+                        .map(ReportConsistencyGate.Violation::code).forEach(issues::add);
+                    if (issues.isEmpty()) retainedReviews.add(item);
+                    else decisions.add(Map.of("claimId", "review:" + (decisions.size() + 1),
+                        "basisClaimIds", item.basisClaimIds(), "status", "UNRESOLVED",
+                        "issues", issues, "repairAction", "REMOVE_CLAIM"));
+                }
+                ManagementReview safeReview = new ManagementReview(
+                    retainedReviews.contains(review.overallAssessment()) ? review.overallAssessment() : null,
+                    review.identifiedProblems().stream().filter(retainedReviews::contains).toList(),
+                    review.improvementSuggestions().stream().filter(retainedReviews::contains).toList(),
+                    review.nextWorkDirections().stream().filter(retainedReviews::contains).toList());
+                List<MetricAssociation> safeAssociations = associations.stream().filter(a -> !a.basisClaimIds().isEmpty()
+                    && a.basisClaimIds().stream().allMatch(id -> compilation.claims().containsKey(id) && !rejected.contains(id))).toList();
+                LinkedHashSet<String> selected = new LinkedHashSet<>();
+                accepted.forEach(f -> selected.addAll(f.basisClaimIds()));
+                retainedReviews.forEach(r -> selected.addAll(r.basisClaimIds()));
+                safeAssociations.forEach(a -> selected.addAll(a.basisClaimIds()));
+                Projection rendered = renderNarrative(compilation, accepted, selected, demandAnalysis,
+                    safeAssociations, safeReview, catalog, SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))
+                        || accepted.stream().anyMatch(f -> !f.dataRef().isBlank()), blockIds);
+                Map<String, Object> report = new LinkedHashMap<>(rendered.analyticalReport());
+                report.put("claimAcceptance", Map.of("contract", policy.toMap(), "decisions", List.copyOf(decisions),
+                    "repairAttempts", repairs, "semanticReviewStatus", semantic.status(), "semanticDecisions", semantic.decisions().entrySet().stream()
+                        .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toMap())), "context", Map.of(
+                        "decisionQuestion", demandAnalysis == null ? "" : demandAnalysis.decisionGoal(),
+                        "sourceScopes", compilation.claims().values().stream().map(Claim::sourceScope)
+                            .filter(java.util.Objects::nonNull).distinct().toList(),
+                        "evidenceClaimIds", List.copyOf(compilation.claims().keySet()),
+                        "runtimeDataCatalog", catalog.promptView())));
+                boolean modified = decisions.stream().anyMatch(d -> !"VALID".equals(d.get("status")));
+                String markdown = rendered.markdown();
+                if (modified) markdown += acceptanceNotes(decisions);
+                return new Projection(!modified, modified ? "CLAIM_LEVEL_PARTIAL_DELIVERY" : rendered.reason(),
+                    markdown, List.copyOf(selected), Map.copyOf(report));
             }
         }
-        Set<String> requiredObserved = compilation.claims().values().stream()
-            .filter(Claim::observedFact).map(Claim::claimId)
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        boolean incompleteCoverageMatrix = !coverageByClaim.keySet().containsAll(requiredObserved);
-        if (unknownBasis || invalidFindingBasis) {
-            return deterministic(compilation, "INVALID_MANAGEMENT_FINDING_BASIS");
+        var execution = new ClaimAcceptanceGraph().execute(new Work());
+        Projection value = execution.value();
+        Map<String, Object> report = new LinkedHashMap<>(value.analyticalReport());
+        report.put("acceptanceGraphNodes", execution.nodes());
+        return new Projection(value.modelSelectionAccepted(), value.reason(), value.markdown(), value.selectedClaimIds(), Map.copyOf(report));
+    }
+
+    private boolean isExactEvidence(NarrativeFinding finding, Compilation compilation) {
+        return finding.basisClaimIds().stream().map(compilation.claims()::get).filter(java.util.Objects::nonNull)
+            .anyMatch(c -> finding.groundedText().trim().equals(c.text().trim()));
+    }
+
+    private NarrativeFinding unresolvedFinding(NarrativeFinding finding) {
+        return new NarrativeFinding("LIMITATION", "本项分析依据不足或存在未消解冲突，暂不作业务判断。",
+            List.of(), finding.question(), "", "", "", "", "", "", "");
+    }
+
+    private List<String> claimIssues(NarrativeFinding finding, Compilation compilation, Set<String> rejected) {
+        List<String> issues = new ArrayList<>();
+        if (finding.basisClaimIds().isEmpty() || finding.basisClaimIds().stream()
+            .anyMatch(id -> !compilation.claims().containsKey(id))) issues.add("INSUFFICIENT_EVIDENCE");
+        if (finding.basisClaimIds().stream().anyMatch(rejected::contains)) issues.add("REJECTED_BASIS");
+        if (!issues.isEmpty()) return List.copyOf(issues);
+        if (!numbersGrounded(finding.groundedText(), finding.basisClaimIds(), compilation))
+            issues.add("UNVERIFIED_NUMERIC_VALUE");
+        issues.addAll(new ReportClaimBoundaryPolicy().violations(finding.groundedText(), finding.basisClaimIds().stream()
+            .map(compilation.claims()::get).map(c -> c.text() + " " + String.join(" ", c.caveats())).toList()));
+        return List.copyOf(issues);
+    }
+
+    private String validationStatus(List<String> issues) {
+        if (issues.isEmpty()) return "VALID";
+        if (issues.contains("REJECTED_BASIS")) return "REJECTED";
+        if (issues.contains("INSUFFICIENT_EVIDENCE")) return "INSUFFICIENT_EVIDENCE";
+        if (issues.contains("UNVERIFIED_NUMERIC_VALUE")) return "UNRESOLVED";
+        if (issues.stream().anyMatch(i -> i.startsWith("CONTRADICTS"))) return "CONFLICTING";
+        return "OVER_GENERALIZED";
+    }
+
+    private String acceptanceNotes(List<Map<String, Object>> decisions) {
+        StringBuilder notes = new StringBuilder("\n\n## 受限判断与未决事项\n\n");
+        for (Map<String, Object> decision : decisions) {
+            if ("LIMITED".equals(decision.get("status"))) notes.append("- 分析项 ")
+                .append(decision.get("claimId")).append("：已收敛为已有证据支持的事实，原推断不作为结论。\n");
+            if ("UNRESOLVED".equals(decision.get("status"))) notes.append("- 分析项 ")
+                .append(decision.get("claimId")).append("：当前依据不足或存在未消解冲突，暂不作判断。\n");
         }
-        if (rejectedClaimPublished) {
-            return deterministic(compilation, "DRIVER_REJECTED_CLAIM_SELECTED_FOR_PUBLICATION");
-        }
-        if (invalidCoverage || incompleteCoverageMatrix) {
-            return deterministic(compilation, "INCOMPLETE_CLAIM_COVERAGE_MATRIX");
-        }
-        if (ungroundedNumbers) {
-            return deterministic(compilation, "UNGROUNDED_MANAGEMENT_FINDING_VALUE");
-        }
-        return renderNarrative(compilation, findings, selected, demandAnalysis,
-            metricAssociations, managementReview, dataCatalog,
-            SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))
-                || findings.stream().anyMatch(finding -> !finding.dataRef().isBlank()));
+        return notes.toString();
     }
 
     private List<NarrativeFinding> ensureSourceFindingCoverage(
@@ -517,6 +683,9 @@ final class GovernedFinalClaimContract {
             + "interpretation, preserve its reviewReasons/caveats, and never present it as a verified fact. Claims "
             + "marked PARTIAL must retain their scope limitation; Claims marked SUPPORTED may be stated at their "
             + "recorded confidence. "
+            + "Preserve exact producer field semantics: daily PnL is not necessarily unrealized or realized PnL; an asset field is not cumulative return. Unknown definitions must remain unknown. "
+            + "A few sampled trades cannot establish habitual holding duration, high turnover, win rate, investment motives or a profitable long-term strategy. Returned position rows cannot establish total position count or diversification unless completeness is verified. "
+            + "Apply every sample/period limitation in the executive summary and profile too. Do not make an absolute claim first and contradict it with a caveat later. Do not rank holdings or calculate residual other-items across incompatible dates or measures. "
             + "You may paraphrase and combine supported claims into a more useful management conclusion, but may not "
             + "invent a value, entity state, comparison, threshold, relationship or cause absent from those claims. "
             + "Never report a requested dimension as missing or unavailable when the ledger contains a claim that "
@@ -625,7 +794,7 @@ final class GovernedFinalClaimContract {
                                        DemandAnalysis demandAnalysis,
                                        List<MetricAssociation> metricAssociations,
                                        ManagementReview managementReview, VerifiedReportDataCatalog dataCatalog,
-                                       boolean structuredComposition) {
+                                       boolean structuredComposition, Map<NarrativeFinding, String> blockIds) {
         StringBuilder answer = new StringBuilder("# 数据分析报告\n");
         if (demandAnalysis != null && !demandAnalysis.decisionGoal().isBlank()) {
             answer.append("\n分析问题：").append(demandAnalysis.decisionGoal()).append('\n');
@@ -678,12 +847,12 @@ final class GovernedFinalClaimContract {
         ReportComposer composer = new ReportComposer();
         List<AnalyticalInsightBlock> blocks = new ArrayList<>();
         List<String> sectionOrder = List.of("CORE", "DEEP_DIVE", "OVERALL", "KEY_DRIVER", "RISK_OPPORTUNITY", "LIMITATION", "ACTION");
-        for (NarrativeFinding finding : findings.stream().distinct()
+        for (NarrativeFinding finding : findings.stream()
             .sorted(java.util.Comparator.comparingInt(item -> sectionOrder.indexOf(item.section()))).toList()) {
             List<Claim> basis = finding.basisClaimIds().stream().map(compilation.claims()::get).toList();
             String interpretation = (finding.baseline().isBlank() ? "" : "比较基准：" + finding.baseline() + "\n")
                 + (finding.comparison().isBlank() ? "" : "比较结果：" + finding.comparison() + "\n") + finding.driver();
-            blocks.add(composer.compose("F" + (blocks.size() + 1), finding.section(), finding.question(),
+            blocks.add(composer.compose(blockIds.get(finding), finding.section(), finding.question(),
                 finding.text(), interpretation, finding.implication(), finding.confidence(),
                 basis.stream().flatMap(claim -> claim.caveats().stream()).distinct().toList(),
                 basis.stream().map(Claim::toArtifactMap).toList(), finding.dataRef(),

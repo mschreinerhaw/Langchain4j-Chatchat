@@ -828,9 +828,35 @@ class FinalSynthesisNodeTest {
         var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
         assertThat(result.content()).contains("关键数据：返回值 = 42 单位");
         assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("blocks")).isInstanceOf(List.class);
+        metadata.put("analysisAcceptanceQuestion", "本次返回值是多少？是否支持增长判断？");
+        when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
+            if (invocation.<String>getArgument(0).startsWith("Semantic claim review contract")) return """
+                {"schemaVersion":"semantic_claim_review.v1","reviews":[
+                 {"claimId":"F1","decision":"ACCEPT","evidenceIds":["claim-1"],"repairAction":"RETAIN"},
+                 {"claimId":"F2","decision":"REPAIR","issue":"未返回增长率依据",
+                  "evidenceIds":["claim-1"],"repairAction":"NARROW_SCOPE"}]}
+                """;
+            return """
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"返回记录显示数值为42", "dataRef":"computed:0:total",
+              "visualizationIntent":"KPI", "basisClaimIds":["claim-1"]},
+             {"section":"CORE","text":"增长99.5%", "basisClaimIds":["claim-1"]}]}
+            """;
+        });
+        var partial = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(partial.content()).contains("关键数据：返回值 = 42 单位").doesNotContain("99.5%");
+        assertThat(metadata).containsEntry("finalClaimSelectionReason", "CLAIM_LEVEL_PARTIAL_DELIVERY");
+        assertThat(metadata).containsEntry("analysisGraphStatus", "COMPLETED_WITH_LIMITATIONS");
+        assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("blocks")).isInstanceOf(List.class);
+        assertThat(metadata.get("claimAcceptance")).isInstanceOf(Map.class);
+        assertThat(((Map<?, ?>) metadata.get("claimAcceptance")).get("semanticReviewStatus")).isEqualTo("REVIEWED");
+        var nodes = (List<Map<String, Object>>) metadata.get("claimAcceptanceGraphNodes");
+        assertThat(nodes).extracting(n -> n.get("node")).containsExactly("BUILD_CLAIMS", "PROGRAMMATIC_VALIDATE",
+            "SEMANTIC_REVIEW", "REPAIR_CLAIMS", "VALIDATE_ONCE", "ASSEMBLE_VERIFIED_REPORT");
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenThrow(new IllegalStateException("unavailable"));
         coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
         assertThat(metadata).doesNotContainKey("analyticalReport");
+        assertThat(metadata).doesNotContainKey("claimAcceptance");
     }
 
     private AnalysisSummaryResult claimSummary() {

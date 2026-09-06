@@ -73,8 +73,9 @@ public final class AnalysisCoverageCoordinator {
     public CoverageBundle analyze(Request request) {
         AnalysisEvidenceCoordinator.Projection projection = evidenceCoordinator.project(
             request.result(), request.runtimeAttributes());
-        List<AnalysisEvidenceCoordinator.Dataset> datasets = projection.datasets();
-        request.metadata().put("analysisObservedReturnedRecordCount", datasets.stream().mapToLong(dataset -> dataset.records().size()).sum());
+        List<AnalysisEvidenceCoordinator.Dataset> datasets = externalizeLargeDatasets(
+            projection.datasets(), request);
+        request.metadata().put("analysisObservedReturnedRecordCount", datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum());
         writeExcludedMetadata(request.metadata(), projection.excludedDatasets());
         projection.excludedDatasets().forEach(excluded -> observe(request,
             "数据集未进入分析：" + excluded.get("datasetReference") + "（未返回非空结构化记录）。",
@@ -111,7 +112,7 @@ public final class AnalysisCoverageCoordinator {
                 context.put("runtimeAnalysisInputs", Map.of("availableDatasetReferences", availableDatasets,
                     "verifiedCalculations", results, "calculationDecisions", decisions,
                     "instruction", "Interpret verified calculations; do not recalculate. Other listed datasets are available to the coordinator, not missing external evidence. Do not infer joins."));
-                preparedDatasets.add(new AnalysisEvidenceCoordinator.Dataset(dataset.reference(), context, dataset.records()));
+                preparedDatasets.add(new AnalysisEvidenceCoordinator.Dataset(dataset.reference(), context, dataset.handle()));
             }
             return List.copyOf(preparedDatasets);
         };
@@ -126,6 +127,33 @@ public final class AnalysisCoverageCoordinator {
             request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
         lifecycle = lifecycle.datasetsDispatched(datasets.size());
         return reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared);
+    }
+
+    private List<AnalysisEvidenceCoordinator.Dataset> externalizeLargeDatasets(
+        List<AnalysisEvidenceCoordinator.Dataset> datasets, Request request) {
+        if (datasets == null || datasets.isEmpty() || spillStore == null || !spillStore.isEnabled())
+            return datasets == null ? List.of() : datasets;
+        int spilled = 0;
+        List<AnalysisEvidenceCoordinator.Dataset> result = new ArrayList<>(datasets.size());
+        for (AnalysisEvidenceCoordinator.Dataset dataset : datasets) {
+            if (dataset.handle() instanceof com.chatchat.agents.orchestration.analysis.dataset.InMemoryDatasetHandle
+                && dataset.handle().estimatedSizeBytes().orElse(0) >= spillStore.spillThresholdBytes()) {
+                try {
+                    var handle = com.chatchat.agents.orchestration.analysis.dataset.SpillDatasetHandle.capture(
+                        dataset.reference(), dataset.handle(), spillStore, request.isolationScope(), 1_000);
+                    result.add(new AnalysisEvidenceCoordinator.Dataset(dataset.reference(),
+                        dataset.analysisContext(), handle));
+                    spilled++;
+                } catch (RuntimeException failure) {
+                    result.add(dataset);
+                    request.metadata().put("analysisDatasetSpillFallback", true);
+                    request.metadata().put("analysisDatasetSpillFailureType", failure.getClass().getSimpleName());
+                }
+            } else result.add(dataset);
+        }
+        request.metadata().put("analysisDatasetHandleCount", result.size());
+        request.metadata().put("analysisSpillDatasetHandleCount", spilled);
+        return List.copyOf(result);
     }
 
     private CoverageBundle reconcile(
@@ -164,12 +192,12 @@ public final class AnalysisCoverageCoordinator {
             int occurrence = occurrences.merge(dataset.reference(), 1, Integer::sum);
             String reference = occurrence == 1
                 ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
-            counters.returned += dataset.records().size();
+            counters.returned += Math.toIntExact(dataset.recordCount());
             counters.sourceComplete &= dataset.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
             AnalysisDispatchCoordinator.Outcome outcome = outcomes.get(reference);
             DataAnalysisWorkerSupervision.WorkerReport workerReport = workerSupervisor.inspect(
-                reference, dataset.records().size(), outcome,
+                reference, Math.toIntExact(dataset.recordCount()), outcome,
                 evidenceCoordinator::hasTraceableEvidence);
             workerReports.add(workerReport);
             observeWorkerSupervision(request, workerReport, datasetIndex, datasets.size());
@@ -177,16 +205,16 @@ public final class AnalysisCoverageCoordinator {
                 if (workerReport.productStatus()
                     == DataAnalysisWorkerSupervision.ProductStatus.EXECUTION_FAILED) {
                     recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
-                        datasets.size(), dataset.records().size(), outcome);
+                        datasets.size(), Math.toIntExact(dataset.recordCount()), outcome);
                 } else {
                     recordRejectedWorkerProduct(request, prompt, appendix, failures, reference,
-                        datasetIndex, datasets.size(), dataset.records().size(), outcome, workerReport);
+                        datasetIndex, datasets.size(), Math.toIntExact(dataset.recordCount()), outcome, workerReport);
                 }
                 continue;
             }
             if (!outcome.success()) {
                 recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
-                    datasets.size(), dataset.records().size(), outcome);
+                    datasets.size(), Math.toIntExact(dataset.recordCount()), outcome);
                 continue;
             }
             AnalysisDatasetSummary summary = outcome.summary();
@@ -484,8 +512,8 @@ public final class AnalysisCoverageCoordinator {
             resolution.contracts().stream().map(SemanticInsightContract::contractId).toList()));
         for (SemanticInsightContract contract : resolution.contracts()) {
             DeterministicInsightEngine.Result result = insightEngine.analyze(
-                request.isolationScope(), reference, contract, dataset.records());
-            inputs.add(new DeterministicInsightEngine.DatasetInput(reference, contract, dataset.records()));
+                request.isolationScope(), reference, contract, dataset.handle());
+            inputs.add(new DeterministicInsightEngine.DatasetInput(reference, contract, dataset.handle()));
             if (!result.executed()) continue;
             results.add(result.toMap());
             prompt.append("- ").append(reference)

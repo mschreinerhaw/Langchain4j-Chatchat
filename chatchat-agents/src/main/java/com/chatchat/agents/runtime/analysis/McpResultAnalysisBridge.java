@@ -51,6 +51,15 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
         return project(datasetReference, boundedPayload, maximumRecordChars, false);
     }
 
+    @Override
+    public RuntimeResultAnalysisAdapter.AnalysisResult analysisResult(
+        String datasetReference, Object payload, int maximumRecordChars, boolean includeFallback) {
+        RuntimeResultAnalysisAdapter.AnalysisRequest request =
+            new RuntimeResultAnalysisAdapter.AnalysisRequest(datasetReference, payload, maximumRecordChars);
+        RuntimeResultAnalysisAdapter adapter = select(request, includeFallback);
+        return adapter == null ? null : adapter.adapt(request);
+    }
+
     private Map<String, Object> project(String datasetReference,
                                         Object boundedPayload,
                                         int maximumRecordChars,
@@ -58,11 +67,7 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
         RuntimeResultAnalysisAdapter.AnalysisRequest request =
             new RuntimeResultAnalysisAdapter.AnalysisRequest(
                 datasetReference, boundedPayload, maximumRecordChars);
-        RuntimeResultAnalysisAdapter adapter = analysisAdapters.stream()
-            .filter(candidate -> includeFallback || !candidate.fallback())
-            .filter(candidate -> candidate.supports(request))
-            .findFirst()
-            .orElse(null);
+        RuntimeResultAnalysisAdapter adapter = select(request, includeFallback);
         if (adapter == null) return Map.of();
         RuntimeResultAnalysisAdapter.AnalysisResult result = adapter.adapt(request);
         if (result == null || result.datasets().isEmpty()) return Map.of();
@@ -87,6 +92,15 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
         projection.put("projectionContainsBusinessDataOnly", true);
         projection.put("datasets", datasets);
         return Map.copyOf(projection);
+    }
+
+    private RuntimeResultAnalysisAdapter select(RuntimeResultAnalysisAdapter.AnalysisRequest request,
+                                                boolean includeFallback) {
+        return analysisAdapters.stream()
+            .filter(candidate -> includeFallback || !candidate.fallback())
+            .filter(candidate -> candidate.supports(request))
+            .findFirst()
+            .orElse(null);
     }
 
     private static List<RuntimeResultAnalysisAdapter> loadAnalysisAdapters() {

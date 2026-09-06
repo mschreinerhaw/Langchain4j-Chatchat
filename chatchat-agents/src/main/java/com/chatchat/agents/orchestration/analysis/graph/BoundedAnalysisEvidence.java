@@ -8,7 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CancellationException;
 
 /** Runtime-owned full-scan statistics and bounded views. Profiles are not semantic authorizations. */
 final class BoundedAnalysisEvidence {
@@ -34,13 +34,22 @@ final class BoundedAnalysisEvidence {
         List<Map<String, Object>> direct = new ArrayList<>();
         List<String> hashes = new ArrayList<>();
         int chars = 0;
+        boolean directEligible = true;
         for (var source : sources.entrySet()) {
             guard.run();
+            // A direct view is attempted only for handles that can be read cheaply. Large and
+            // cursor-backed handles go straight to the bounded full-scan path.
+            if (source.getValue().recordCount() > CHUNK_ROWS) {
+                directEligible = false;
+                break;
+            }
+            List<Map<String, Object>> records = source.getValue().handle().readPage(
+                0, Math.max(1, Math.toIntExact(source.getValue().recordCount()))).rows();
             Map<String, Object> view = Map.of("datasetReference", source.getKey(),
                 "recordReferenceFormat", source.getKey() + ".records[1] (one-based)",
-                "recordCount", source.getValue().records().size(),
-                "nestedCollections", NestedRecordReader.catalog(source.getValue().records()),
-                "context", source.getValue().analysisContext(), "records", source.getValue().records());
+                "recordCount", source.getValue().recordCount(),
+                "nestedCollections", NestedRecordReader.catalog(records),
+                "context", source.getValue().analysisContext(), "records", records);
             hashes.add(ModelProtocolJson.sha256Hex(view));
             // Do not construct a giant combined JSON string just to measure the prompt.
             if (chars <= DIRECT_RECORD_BUDGET) {
@@ -49,7 +58,7 @@ final class BoundedAnalysisEvidence {
             }
         }
         String fingerprint = ModelProtocolJson.sha256Hex(hashes);
-        if (chars <= DIRECT_RECORD_BUDGET) {
+        if (directEligible && direct.size() == sources.size() && chars <= DIRECT_RECORD_BUDGET) {
             metadata.put("unifiedEvidenceMode", "FULL_RECORDS");
             return new Prepared(List.copyOf(direct), fingerprint, sources, false);
         }
@@ -57,41 +66,28 @@ final class BoundedAnalysisEvidence {
         if (perDataset < 2_000) throw new IllegalStateException("Dataset catalog exceeds evidence budget");
         List<Map<String, Object>> views = new ArrayList<>();
         List<Map<String, Object>> coverage = new ArrayList<>();
-        ExecutorService executor = Executors.newFixedThreadPool(4);
-        try {
-            for (var source : sources.entrySet()) {
+        for (var source : sources.entrySet()) {
                 String ref = source.getKey();
                 Dataset dataset = source.getValue();
-                List<Map<String, Object>> partials = new ArrayList<>();
-                int restored = 0;
-                // Four outstanding tasks maximum; failed tasks leave successful checkpoints reusable.
-                for (int start = 0; start < dataset.records().size(); start += CHUNK_ROWS * 4) {
+                ProfileAccumulator accumulated = new ProfileAccumulator();
+                int[] restored = {0};
+                int[] chunks = {0};
+                java.security.MessageDigest chunkDigest = sha256Digest();
+                dataset.handle().scan(CHUNK_ROWS, page -> {
                     guard.run();
-                    List<Future<Map<String, Object>>> batch = new ArrayList<>();
-                    for (int offset = start; offset < Math.min(start + CHUNK_ROWS * 4, dataset.records().size()); offset += CHUNK_ROWS) {
-                        int from = offset;
-                        int to = Math.min(from + CHUNK_ROWS, dataset.records().size());
-                        batch.add(executor.submit(() -> profileChunk(ref, dataset.records().subList(from, to), from, store, scope, guard)));
-                    }
-                    try {
-                        for (Future<Map<String, Object>> task : batch) {
-                            Map<String, Object> result = task.get();
-                            partials.add(result);
-                            if (Boolean.TRUE.equals(result.get("restored"))) restored++;
-                        }
-                    } catch (InterruptedException interrupted) {
-                        Thread.currentThread().interrupt();
-                        throw new CancellationException("Evidence profiling interrupted");
-                    } catch (ExecutionException failed) {
-                        if (failed.getCause() instanceof RuntimeException cause) throw cause;
-                        throw new IllegalStateException("Evidence profiling failed", failed.getCause());
-                    } finally {
-                        batch.forEach(task -> { if (!task.isDone()) task.cancel(true); });
-                    }
-                }
-                Map<String, Object> profile = merge(partials, dataset.records().size());
+                    Map<String, Object> partial = profileChunk(
+                        ref, page.rows(), Math.toIntExact(page.offset()), store, scope, guard);
+                    accumulated.add(partial);
+                    chunks[0]++;
+                    if (Boolean.TRUE.equals(partial.get("restored"))) restored[0]++;
+                    chunkDigest.update(String.valueOf(partial.get("inputHash"))
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    chunkDigest.update((byte) '\n');
+                });
+                hashes.add(java.util.HexFormat.of().formatHex(chunkDigest.digest()));
+                Map<String, Object> profile = accumulated.finish(dataset.recordCount());
                 LinkedHashSet<Integer> selected = new LinkedHashSet<>();
-                if (!dataset.records().isEmpty()) { selected.add(1); selected.add(dataset.records().size()); }
+                if (dataset.recordCount() > 0) { selected.add(1); selected.add(Math.toIntExact(dataset.recordCount())); }
                 for (Map<String, Object> field : maps(profile.get("fields"))) {
                     if (selected.size() >= 24) break;
                     if (field.get("minRecord") instanceof Number n) selected.add(n.intValue());
@@ -99,8 +95,10 @@ final class BoundedAnalysisEvidence {
                 }
                 Map<String, Object> view = new LinkedHashMap<>();
                 view.put("datasetReference", ref);
-                view.put("recordCount", dataset.records().size());
-                view.put("nestedCollections", fit(NestedRecordReader.catalog(dataset.records()), perDataset / 5));
+                view.put("recordCount", dataset.recordCount());
+                int catalogRows = (int) Math.min(100, dataset.recordCount());
+                view.put("nestedCollections", fit(NestedRecordReader.catalog(
+                    catalogRows == 0 ? List.of() : dataset.handle().readPage(0, catalogRows).rows()), perDataset / 5));
                 view.put("evidenceMode", "FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS");
                 view.put("profile", fit(profile, perDataset / 3));
                 view.put("context", fit(dataset.analysisContext(), perDataset / 3));
@@ -109,10 +107,10 @@ final class BoundedAnalysisEvidence {
                     "Structural numeric statistics do not authorize business aggregation or causal claims.",
                     "Omitted values remain available through bounded READ_RECORDS requests; profiling is not semantic review of every row."));
                 views.add(view);
-                coverage.add(Map.of("datasetReference", ref, "scannedRecords", dataset.records().size(),
-                    "chunkCount", partials.size(), "restoredChunks", restored, "scanComplete", true));
-            }
-        } finally { executor.shutdownNow(); }
+                coverage.add(Map.of("datasetReference", ref, "scannedRecords", Math.toIntExact(dataset.recordCount()),
+                    "chunkCount", chunks[0], "restoredChunks", restored[0], "scanComplete", true));
+        }
+        fingerprint = ModelProtocolJson.sha256Hex(hashes);
         if (ModelProtocolJson.compact(views).length() > INPUT_BUDGET)
             throw new IllegalStateException("Evidence catalog exceeds bounded projection budget");
         metadata.put("unifiedEvidenceMode", "BOUNDED_PROJECTION");
@@ -156,20 +154,36 @@ final class BoundedAnalysisEvidence {
         return result;
     }
 
-    private Map<String, Object> merge(List<Map<String, Object>> partials, int rows) {
-        Map<String, Stats> fields = new LinkedHashMap<>();
-        boolean omitted = false;
-        for (var partial : partials) {
+    private java.security.MessageDigest sha256Digest() {
+        try {
+            return java.security.MessageDigest.getInstance("SHA-256");
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+    }
+
+    private final class ProfileAccumulator {
+        private final Map<String, Stats> fields = new LinkedHashMap<>();
+        private boolean omitted;
+
+        void add(Map<String, Object> partial) {
             omitted |= Boolean.TRUE.equals(partial.get("fieldsOmitted"));
             for (var field : maps(partial.get("fields"))) {
                 String name = (String) field.get("field");
-                if (!fields.containsKey(name) && fields.size() == MAX_FIELDS) { omitted = true; continue; }
+                if (!fields.containsKey(name) && fields.size() == MAX_FIELDS) {
+                    omitted = true;
+                    continue;
+                }
                 fields.computeIfAbsent(name, Stats::new).merge(field);
             }
         }
-        // If a field was excluded in any partition its global totals cannot be advertised as exact.
-        return Map.of("rowCount", rows, "fields", fields.values().stream().map(Stats::map).toList(),
-            "fieldStatisticsComplete", !omitted, "statisticsRole", "STRUCTURAL_NAVIGATION_ONLY");
+
+        Map<String, Object> finish(long rows) {
+            return Map.of("rowCount", rows,
+                "fields", fields.values().stream().map(Stats::map).toList(),
+                "fieldStatisticsComplete", !omitted,
+                "statisticsRole", "STRUCTURAL_NAVIGATION_ONLY");
+        }
     }
 
     List<Map<String, Object>> read(Prepared prepared, Object requested, Runnable guard) {
@@ -188,9 +202,13 @@ final class BoundedAnalysisEvidence {
             Dataset dataset = prepared.sources().get(ref);
             if (dataset == null) throw new IllegalArgumentException("Evidence request cites an unbound dataset");
             if ("READ_NESTED_RECORDS".equals(request.get("operation"))) {
+                int record = integer(request.get("record"));
+                if (record < 1 || record > dataset.recordCount())
+                    throw new IllegalArgumentException("Invalid nested record locator");
+                Map<String, Object> parent = dataset.handle().readPage(record - 1L, 1).rows().get(0);
                 results.add(Map.of("datasetReference", ref,
                     "parentRecordRef", ref + ".records[" + request.get("record") + "]",
-                    "nestedPage", fit(NestedRecordReader.read(dataset.records(), request), REQUEST_RESULT_BUDGET)));
+                    "nestedPage", fit(NestedRecordReader.readRecord(parent, record, request), REQUEST_RESULT_BUDGET)));
                 continue;
             }
             if ("CALCULATE".equals(request.get("operation"))) {
@@ -199,10 +217,29 @@ final class BoundedAnalysisEvidence {
                 metadata.put("supplementaryFormulaCount", ((Number) metadata.getOrDefault("supplementaryFormulaCount", 0)).intValue() + 1);
                 continue;
             }
+            if ("EXECUTE_OPERATION".equals(request.get("operation"))) {
+                String analysisOperation = String.valueOf(request.get("analysisOperation"));
+                if (!(request.get("specification") instanceof Map<?, ?> rawSpecification))
+                    throw new IllegalArgumentException("Pushdown operation requires a specification");
+                Map<String, Object> specification = new LinkedHashMap<>();
+                rawSpecification.forEach((key, value) -> specification.put(String.valueOf(key), value));
+                var executed = dataset.handle().execute(
+                    new com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle.OperationRequest(
+                        analysisOperation, specification));
+                if (executed.isEmpty())
+                    throw new IllegalArgumentException("Dataset handle does not support calculation pushdown");
+                results.add(Map.of("datasetReference", ref, "executedOperation",
+                    fit(Map.of("analysisOperation", analysisOperation,
+                        "value", executed.get().value(), "lineage", executed.get().lineage()),
+                        REQUEST_RESULT_BUDGET)));
+                continue;
+            }
             if ("EXTRACT_TEXT".equals(request.get("operation"))) {
                 int row = integer(request.get("record"));
                 String field = String.valueOf(request.get("field"));
-                if (row < 1 || row > dataset.records().size() || !(dataset.records().get(row - 1).get(field) instanceof String text))
+                Map<String, Object> original = row < 1 || row > dataset.recordCount() ? Map.of()
+                    : dataset.handle().readPage(row - 1L, 1).rows().get(0);
+                if (!(original.get(field) instanceof String text))
                     throw new IllegalArgumentException("Text extraction requires an original string field");
                 var result = new TextPartitionExtractor().extract(text, ref + ".records[" + row + "]", field,
                     question, integer(request.getOrDefault("fromChar", 0)), model, scope, store, guard,
@@ -239,11 +276,12 @@ final class BoundedAnalysisEvidence {
                 throw new IllegalArgumentException("Unsupported evidence operation");
             int from = integer(request.get("fromRecord"));
             int limit = integer(request.get("limit"));
-            if (from < 1 || from > dataset.records().size() || limit < 1 || limit > 100)
+            if (from < 1 || from > dataset.recordCount() || limit < 1 || limit > 100)
                 throw new IllegalArgumentException("Invalid bounded evidence range");
             List<String> fields = request.get("fields") instanceof List<?> list
                 ? list.stream().map(String::valueOf).toList() : List.of();
-            List<Integer> indices = java.util.stream.IntStream.range(from, Math.min(dataset.records().size() + 1, from + limit)).boxed().toList();
+            List<Integer> indices = java.util.stream.IntStream.range(from,
+                Math.toIntExact(Math.min(dataset.recordCount() + 1, (long) from + limit))).boxed().toList();
             results.add(Map.of("datasetReference", ref, "requestedFromRecord", from,
                 "requestedLimit", limit, "rows", rows(ref, dataset, indices, fields, REQUEST_RESULT_BUDGET)));
         }
@@ -265,7 +303,9 @@ final class BoundedAnalysisEvidence {
         List<Map<String, Object>> result = new ArrayList<>();
         int used = 2;
         for (int index : indices) {
-            Map<String, Object> record = new LinkedHashMap<>(dataset.records().get(index - 1));
+            List<Map<String, Object>> page = dataset.handle().readPage(index - 1L, 1).rows();
+            if (page.isEmpty()) break;
+            Map<String, Object> record = new LinkedHashMap<>(page.get(0));
             if (!fields.isEmpty()) record.keySet().retainAll(fields);
             Map<String, Object> row = Map.of("recordRef", ref + ".records[" + index + "]",
                 "record", fit(record, Math.min(2_000, budget / 2)));

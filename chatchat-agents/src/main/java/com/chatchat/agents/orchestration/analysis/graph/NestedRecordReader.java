@@ -26,7 +26,13 @@ final class NestedRecordReader {
         int record = integer(request.get("record"));
         if (record < 1 || record > records.size() || !(request.get("path") instanceof List<?> path)
             || path.isEmpty() || path.size() > 8) throw new IllegalArgumentException("Invalid nested record locator");
-        Object value = records.get(record - 1);
+        return readRecord(records.get(record - 1), record, request);
+    }
+    static Map<String, Object> readRecord(Map<String, Object> source, int record,
+                                           Map<String, Object> request) {
+        if (!(request.get("path") instanceof List<?> path)
+            || path.isEmpty() || path.size() > 8) throw new IllegalArgumentException("Invalid nested record locator");
+        Object value = source;
         for (Object part : path) {
             if (part instanceof String key && value instanceof Map<?, ?> map && map.containsKey(key)) value = map.get(key);
             else if (part instanceof Number && value instanceof List<?> list) {

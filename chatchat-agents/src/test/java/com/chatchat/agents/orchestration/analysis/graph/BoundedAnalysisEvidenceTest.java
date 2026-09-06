@@ -1,11 +1,14 @@
 package com.chatchat.agents.orchestration.analysis.graph;
 
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset;
+import com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle;
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,6 +27,40 @@ class BoundedAnalysisEvidenceTest {
             "datasetReference", "search", "record", 1, "path", List.of("data", "rows"), "fromItem", 1, "limit", 1)), () -> {});
         assertThat(read.toString()).contains("search.records[1]", "value=17", "availableItemCount=2")
             .doesNotContain("value=42");
+    }
+
+    @Test void profilesAndReadsPagedHandleWithoutWholeDatasetMaterialization() {
+        List<Map<String, Object>> source = new ArrayList<>();
+        for (int i = 0; i < 2_501; i++) source.add(Map.of("value", i));
+        AtomicInteger reads = new AtomicInteger();
+        AtomicInteger largestRequestedPage = new AtomicInteger();
+        var handle = new PagedDatasetHandle(source.size(), true, (offset, limit) -> {
+            reads.incrementAndGet();
+            largestRequestedPage.accumulateAndGet(limit, Math::max);
+            int from = Math.toIntExact(offset);
+            if (from >= source.size()) return new DatasetHandle.Page(offset, List.of(), false);
+            int to = Math.min(source.size(), from + limit);
+            return new DatasetHandle.Page(offset, source.subList(from, to), to < source.size());
+        }, request -> new DatasetHandle.OperationResult(
+            Map.of("value", 3_126_250, "operation", request.operation()),
+            Map.of("recordCount", source.size(), "scope", "all returned rows")),
+            null, Map.of("provider", "test-cursor"));
+        var engine = new BoundedAnalysisEvidence();
+        var metadata = new LinkedHashMap<String, Object>();
+        var prepared = engine.prepare(List.of(new Dataset("paged", Map.of(), handle)),
+            store(new ConcurrentHashMap<>()), scope, metadata, () -> {});
+        assertThat(prepared.projected()).isTrue();
+        assertThat(prepared.views().toString()).contains("recordCount=2501");
+        assertThat(metadata.get("unifiedEvidenceScanCoverage").toString()).contains("scanComplete=true");
+        var page = engine.read(prepared, List.of(Map.of("operation", "READ_RECORDS",
+            "datasetReference", "paged", "fromRecord", 2401, "limit", 100)), () -> {});
+        assertThat(page.toString()).contains("paged.records[2401]", "value=2400");
+        var pushedDown = engine.read(prepared, List.of(Map.of("operation", "EXECUTE_OPERATION",
+            "datasetReference", "paged", "analysisOperation", "AGGREGATE",
+            "specification", Map.of("metric", "value", "aggregation", "SUM"))), () -> {});
+        assertThat(pushedDown.toString()).contains("AGGREGATE", "3126250", "recordCount=2501");
+        assertThat(reads).hasValueGreaterThanOrEqualTo(4);
+        assertThat(largestRequestedPage).hasValueLessThanOrEqualTo(1_000);
     }
 
     @Test void finalFindingCheckpointAlsoDependsOnRecordsOutsideTheModelView() {

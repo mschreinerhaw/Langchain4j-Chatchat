@@ -112,7 +112,7 @@ public final class AnalysisEvidenceCoordinator {
         List<Dataset> scopedDatasets = datasets.stream()
             .map(dataset -> new Dataset(dataset.reference(),
                 AgentRoleAnalysisContext.attach(dataset.analysisContext(), runtimeAttributes),
-                dataset.records()))
+                dataset.handle()))
             .toList();
         return new Projection(scopedDatasets, List.copyOf(excluded));
     }
@@ -196,6 +196,8 @@ public final class AnalysisEvidenceCoordinator {
 
     private List<Dataset> outputDatasets(Object output, String reference, ToolMetadata metadata) {
         Map<String, Object> rootContext = analysisContextProtocol.adapt(reference, metadata, output);
+        List<Dataset> typed = governedHandleProjection(output, reference, rootContext, false);
+        if (!typed.isEmpty()) return typed;
         List<Dataset> sets = governedProjection(output, reference, rootContext, false);
         if (!sets.isEmpty()) return sets;
         sets = sqlDatasets(output, reference, rootContext);
@@ -209,7 +211,31 @@ public final class AnalysisEvidenceCoordinator {
         sets = structuredDataProjector.project(output).stream()
             .map(dataset -> new Dataset(reference + dataset.path(), rootContext, dataset.rows())).toList();
         if (!sets.isEmpty()) return deduplicate(sets);
-        return governedProjection(output, reference, rootContext, true);
+        typed = governedHandleProjection(output, reference, rootContext, true);
+        return !typed.isEmpty() ? typed : governedProjection(output, reference, rootContext, true);
+    }
+
+    private List<Dataset> governedHandleProjection(Object output, String reference,
+                                                   Map<String, Object> rootContext, boolean fallback) {
+        int maximumRecordChars = Math.max(1_000, maximumChunkChars - 2_000);
+        var result = resultAnalysisProtocol.analysisResult(
+            reference, output, maximumRecordChars, fallback);
+        if (result == null || result.datasets().isEmpty()) return List.of();
+        List<Dataset> sets = new ArrayList<>();
+        for (var projected : result.datasets()) {
+            if (projected == null || projected.handle().recordCount() == 0) continue;
+            Map<String, Object> context = new LinkedHashMap<>(projected.analysisContext());
+            context.put("sourcePayloadPreservation", metadataOf(
+                "sourceSchemaVersion", result.sourceSchemaVersion(),
+                "sourcePayloadPreserved", true,
+                "authoritativePayloadMutated", false,
+                "projectionContainsBusinessDataOnly", true,
+                "evidenceRole", result.evidenceRole(),
+                "datasetHandle", projected.handle().descriptor()));
+            sets.add(new Dataset(firstNonBlank(projected.datasetReference(), reference),
+                merge(rootContext, context), projected.handle()));
+        }
+        return List.copyOf(sets);
     }
 
     private List<Dataset> governedProjection(Object output, String reference,
@@ -324,8 +350,8 @@ public final class AnalysisEvidenceCoordinator {
         Map<String, Dataset> unique = new LinkedHashMap<>();
         Map<String, LinkedHashSet<String>> aliases = new LinkedHashMap<>();
         for (Dataset dataset : datasets) {
-            if (dataset == null || dataset.records().isEmpty()) continue;
-            String fingerprint = ModelProtocolJson.sha256Hex(ModelProtocolJson.compact(dataset.records()));
+            if (dataset == null || dataset.recordCount() == 0) continue;
+            String fingerprint = ModelProtocolJson.sha256Hex(dataset.handle().descriptor());
             unique.putIfAbsent(fingerprint, dataset);
             aliases.computeIfAbsent(fingerprint, ignored -> new LinkedHashSet<>()).add(dataset.reference());
         }
@@ -337,7 +363,7 @@ public final class AnalysisEvidenceCoordinator {
                 Map<String, Object> context = new LinkedHashMap<>(dataset.analysisContext());
                 context.put("sourceAliases", sourceAliases);
                 context.put("projectionDeduplicated", true);
-                result.add(new Dataset(dataset.reference(), context, dataset.records()));
+                result.add(new Dataset(dataset.reference(), context, dataset.handle()));
             }
         });
         return List.copyOf(result);
@@ -377,7 +403,7 @@ public final class AnalysisEvidenceCoordinator {
                     context.put("relationships", List.copyOf(relationships));
                 }
             }
-            return new Dataset(dataset.reference(), context, dataset.records());
+            return new Dataset(dataset.reference(), context, dataset.handle());
         }).toList();
     }
 
@@ -468,12 +494,37 @@ public final class AnalysisEvidenceCoordinator {
         return value == null ? 0 : 1;
     }
 
-    public record Dataset(String reference, Map<String, Object> analysisContext,
-                          List<Map<String, Object>> records) {
-        public Dataset {
-            analysisContext = analysisContext == null ? Map.of() : Map.copyOf(analysisContext);
-            records = records == null ? List.of() : List.copyOf(records);
+    public static final class Dataset implements AutoCloseable {
+        private final String reference;
+        private final Map<String, Object> analysisContext;
+        private final DatasetHandle handle;
+
+        public Dataset(String reference, Map<String, Object> analysisContext,
+                       List<Map<String, Object>> records) {
+            this(reference, analysisContext, new InMemoryDatasetHandle(records));
         }
+
+        public Dataset(String reference, Map<String, Object> analysisContext,
+                       DatasetHandle handle) {
+            this.reference = reference;
+            this.analysisContext = analysisContext == null ? Map.of() : Map.copyOf(analysisContext);
+            this.handle = java.util.Objects.requireNonNull(handle, "handle");
+        }
+
+        public String reference() { return reference; }
+        public Map<String, Object> analysisContext() { return analysisContext; }
+        public DatasetHandle handle() { return handle; }
+        public long recordCount() { return handle.recordCount(); }
+
+        /**
+         * Transitional compatibility accessor. New analysis code must use {@link #handle()} so a
+         * cursor-backed dataset is never accidentally materialized.
+         */
+        public List<Map<String, Object>> records() {
+            return handle.asListView();
+        }
+
+        @Override public void close() { handle.close(); }
     }
 
     public record Projection(List<Dataset> datasets, List<Map<String, Object>> excludedDatasets) {

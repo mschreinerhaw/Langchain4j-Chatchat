@@ -95,7 +95,7 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
                 semantic.put("fields", list.subList(0, MAX_FIELDS_PER_DATASET));
                 semantic.put("omittedFieldCount", list.size() - MAX_FIELDS_PER_DATASET);
             }
-            int records = dataset.records().size();
+            int records = Math.toIntExact(dataset.recordCount());
             Map<String, Object> objective = objectiveCompiler.compile(question,
                 new DataAnalysisPosition(dataset.reference(), 1, 1, records == 0 ? 0 : 1, records, records),
                 dataset.analysisContext());

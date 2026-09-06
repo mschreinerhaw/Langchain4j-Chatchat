@@ -18,4 +18,13 @@ public interface RuntimeResultAnalysisProtocol extends RuntimeProtocolPort {
     Map<String, Object> protocolAnalysisProjection(String datasetReference,
                                                    Object boundedPayload,
                                                    int maximumRecordChars);
+
+    /**
+     * Typed data-plane projection. Implementations should return handles so cursor-backed inputs do
+     * not have to cross the legacy Map/List projection boundary.
+     */
+    default RuntimeResultAnalysisAdapter.AnalysisResult analysisResult(
+        String datasetReference, Object payload, int maximumRecordChars, boolean includeFallback) {
+        return null;
+    }
 }

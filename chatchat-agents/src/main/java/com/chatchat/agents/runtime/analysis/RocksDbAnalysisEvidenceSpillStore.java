@@ -86,6 +86,11 @@ public class RocksDbAnalysisEvidenceSpillStore implements AnalysisEvidenceSpillS
     }
 
     @Override
+    public long spillThresholdBytes() {
+        return Math.max(1, properties.analysisSpillThresholdBytes());
+    }
+
+    @Override
     public SpillReference spill(GovernanceIsolationScope scope,
                                 String evidenceId,
                                 String contentSha256,

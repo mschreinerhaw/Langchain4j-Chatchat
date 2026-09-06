@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration.analysis.insight;
 
 import com.chatchat.agents.orchestration.analysis.model.SemanticInsightContract;
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle;
+import com.chatchat.agents.orchestration.analysis.dataset.InMemoryDatasetHandle;
 
 
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -18,15 +20,21 @@ import java.util.Map;
 /** Executes versioned semantic recipes without knowing any business field or entity name. */
 public final class DeterministicInsightEngine {
     public static final String RESULT_VERSION = "deterministic_insights.v1";
+    private static final int MAX_AGGREGATE_EVIDENCE_REFS = 200;
 
     public Result analyze(GovernanceIsolationScope scope, String datasetReference,
                           SemanticInsightContract contract, List<Map<String, Object>> records) {
+        return analyze(scope, datasetReference, contract, new InMemoryDatasetHandle(records));
+    }
+
+    public Result analyze(GovernanceIsolationScope scope, String datasetReference,
+                          SemanticInsightContract contract, DatasetHandle records) {
         if (contract == null) return Result.skipped("contract_not_supplied");
         if (scope == null || contract.tenantId() == null
             || !scope.tenantId().equals(contract.tenantId())) return Result.rejected("tenant_scope_mismatch");
         if (!"published".equalsIgnoreCase(contract.status())) return Result.rejected("contract_not_published");
         if (contract.fieldsBySemantic().isEmpty()) return Result.rejected("semantic_fields_missing");
-        List<Map<String, Object>> safeRecords = records == null ? List.of() : List.copyOf(records);
+        DatasetHandle safeRecords = records == null ? new InMemoryDatasetHandle(List.of()) : records;
         List<Finding> findings = new ArrayList<>();
         List<RecipeIssue> issues = new ArrayList<>();
         for (SemanticInsightContract.Recipe recipe : contract.recipes()) {
@@ -47,7 +55,7 @@ public final class DeterministicInsightEngine {
     }
 
     private List<Finding> execute(String dataset, SemanticInsightContract contract,
-                                  SemanticInsightContract.Recipe recipe, List<Map<String, Object>> records) {
+                                  SemanticInsightContract.Recipe recipe, DatasetHandle records) {
         String operator = required(recipe.operator(), "operator").toUpperCase(Locale.ROOT);
         return switch (operator) {
             case "SUM" -> List.of(sum(dataset, contract, recipe, records));
@@ -142,26 +150,34 @@ public final class DeterministicInsightEngine {
             List.copyOf(findings), List.copyOf(issues));
     }
 
-    private Aggregate aggregate(String dataset, List<Map<String, Object>> records,
+    private Aggregate aggregate(String dataset, DatasetHandle records,
                                 SemanticInsightContract.Field field) {
-        List<IndexedNumber> values = new ArrayList<>();
-        for (int index = 0; index < records.size(); index++) {
-            BigDecimal value = number(records.get(index).get(field.field()));
-            if (value != null) values.add(new IndexedNumber(index, value));
-        }
-        if (values.isEmpty()) return new Aggregate(null, List.of());
         String aggregation = field.aggregation().toUpperCase(Locale.ROOT);
+        BigDecimal[] sum = {BigDecimal.ZERO};
+        IndexedNumber[] first = {null}, last = {null}, min = {null}, max = {null};
+        List<String> sumRefs = new ArrayList<>();
+        forEach(records, (index, record) -> {
+            BigDecimal value = number(record.get(field.field()));
+            if (value == null) return;
+            IndexedNumber item = new IndexedNumber(index, value);
+            if (first[0] == null) first[0] = item;
+            last[0] = item;
+            if (min[0] == null || value.compareTo(min[0].value()) < 0) min[0] = item;
+            if (max[0] == null || value.compareTo(max[0].value()) > 0) max[0] = item;
+            sum[0] = sum[0].add(value);
+            if (sumRefs.size() < MAX_AGGREGATE_EVIDENCE_REFS)
+                sumRefs.add(ref(dataset, index, field.field()));
+        });
+        if (first[0] == null) return new Aggregate(null, List.of());
         IndexedNumber selected = switch (aggregation) {
-            case "FIRST" -> values.get(0);
-            case "LAST" -> values.get(values.size() - 1);
-            case "MAX" -> values.stream().max(Comparator.comparing(IndexedNumber::value)).orElseThrow();
-            case "MIN" -> values.stream().min(Comparator.comparing(IndexedNumber::value)).orElseThrow();
+            case "FIRST" -> first[0];
+            case "LAST" -> last[0];
+            case "MAX" -> max[0];
+            case "MIN" -> min[0];
             case "SUM" -> null;
             default -> throw new IllegalArgumentException("Unsupported aggregation: " + aggregation);
         };
-        if ("SUM".equals(aggregation)) return new Aggregate(
-            values.stream().map(IndexedNumber::value).reduce(BigDecimal.ZERO, BigDecimal::add),
-            values.stream().map(item -> ref(dataset, item.index(), field.field())).toList());
+        if ("SUM".equals(aggregation)) return new Aggregate(sum[0], List.copyOf(sumRefs));
         return new Aggregate(selected.value(), List.of(ref(dataset, selected.index(), field.field())));
     }
 
@@ -174,33 +190,47 @@ public final class DeterministicInsightEngine {
     }
 
     private Finding sum(String dataset, SemanticInsightContract contract,
-                        SemanticInsightContract.Recipe recipe, List<Map<String, Object>> records) {
+                        SemanticInsightContract.Recipe recipe, DatasetHandle records) {
         String semantic = parameter(recipe, "metric");
         SemanticInsightContract.Field field = field(contract, semantic);
-        BigDecimal total = BigDecimal.ZERO;
+        BigDecimal[] total = {BigDecimal.ZERO};
+        long[] contributingRecords = {0};
         List<String> refs = new ArrayList<>();
-        for (int index = 0; index < records.size(); index++) {
-            BigDecimal value = number(records.get(index).get(field.field()));
-            if (value == null) continue;
-            total = total.add(value);
-            refs.add(ref(dataset, index, field.field()));
-        }
-        return finding(recipe, "aggregate", total, field.unit(),
-            semantic + " = sum(" + field.field() + ")", refs, Map.of("recordCount", refs.size()));
+        forEach(records, (index, record) -> {
+            BigDecimal value = number(record.get(field.field()));
+            if (value == null) return;
+            total[0] = total[0].add(value);
+            contributingRecords[0]++;
+            if (refs.size() < MAX_AGGREGATE_EVIDENCE_REFS)
+                refs.add(ref(dataset, index, field.field()));
+        });
+        return finding(recipe, "aggregate", total[0], field.unit(),
+            semantic + " = sum(" + field.field() + ")", refs,
+            Map.of("recordCount", contributingRecords[0], "evidenceRefsTruncated",
+                contributingRecords[0] > refs.size()));
     }
 
     private Finding topN(String dataset, SemanticInsightContract contract,
-                         SemanticInsightContract.Recipe recipe, List<Map<String, Object>> records,
+                         SemanticInsightContract.Recipe recipe, DatasetHandle records,
                          boolean contribution) {
         SemanticInsightContract.Field valueField = field(contract, parameter(recipe, "valueMetric"));
         SemanticInsightContract.Field groupField = field(contract, parameter(recipe, "groupBy"));
         int limit = boundedInt(recipe.parameters().get("topN"), 3, 1, 20);
         boolean absolute = truthy(recipe.parameters().get("absoluteValues"));
-        List<RowValue> values = rowValues(records, valueField, groupField, absolute);
-        BigDecimal denominator = values.stream().map(RowValue::rankingValue)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        List<RowValue> top = values.stream().sorted(Comparator.comparing(RowValue::rankingValue).reversed())
-            .limit(limit).toList();
+        BigDecimal[] denominatorHolder = {BigDecimal.ZERO};
+        java.util.PriorityQueue<RowValue> heap = new java.util.PriorityQueue<>(
+            Comparator.comparing(RowValue::rankingValue));
+        forEach(records, (index, record) -> {
+            BigDecimal raw = number(record.get(valueField.field()));
+            if (raw == null) return;
+            RowValue item = new RowValue(index, displayValue(groupField, record.get(groupField.field())), raw,
+                absolute ? raw.abs() : raw);
+            denominatorHolder[0] = denominatorHolder[0].add(item.rankingValue());
+            heap.offer(item);
+            if (heap.size() > limit) heap.poll();
+        });
+        BigDecimal denominator = denominatorHolder[0];
+        List<RowValue> top = heap.stream().sorted(Comparator.comparing(RowValue::rankingValue).reversed()).toList();
         BigDecimal topTotal = top.stream().map(RowValue::rankingValue).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal result = contribution && denominator.compareTo(BigDecimal.ZERO) != 0
             ? topTotal.divide(denominator, 8, RoundingMode.HALF_UP) : topTotal;
@@ -220,7 +250,7 @@ public final class DeterministicInsightEngine {
     }
 
     private Finding concentration(String dataset, SemanticInsightContract contract,
-                                  SemanticInsightContract.Recipe recipe, List<Map<String, Object>> records) {
+                                  SemanticInsightContract.Recipe recipe, DatasetHandle records) {
         Map<String, Object> values = new LinkedHashMap<>(recipe.parameters());
         values.putIfAbsent("absoluteValues", true);
         SemanticInsightContract.Recipe delegated = new SemanticInsightContract.Recipe(
@@ -232,35 +262,36 @@ public final class DeterministicInsightEngine {
     }
 
     private List<Finding> reconciliation(String dataset, SemanticInsightContract contract,
-                                         SemanticInsightContract.Recipe recipe, List<Map<String, Object>> records) {
+                                         SemanticInsightContract.Recipe recipe, DatasetHandle records) {
         String leftExpression = parameter(recipe, "leftExpression");
         String rightExpression = parameter(recipe, "rightExpression");
         BigDecimal tolerance = number(recipe.parameters().get("tolerance"));
         if (tolerance == null) tolerance = new BigDecimal("0.01");
+        final BigDecimal acceptedTolerance = tolerance;
         boolean mismatchOnly = "mismatch".equalsIgnoreCase(text(recipe.parameters().get("emitWhen")));
         List<Finding> findings = new ArrayList<>();
         int maxFindings = maxFindings(recipe);
-        for (int index = 0; index < records.size(); index++) {
-            Map<String, BigDecimal> variables = variables(contract, records.get(index));
+        forEachUntil(records, (index, record) -> {
+            Map<String, BigDecimal> variables = variables(contract, record);
             BigDecimal left = SafeNumericExpression.evaluate(leftExpression, variables);
             BigDecimal right = SafeNumericExpression.evaluate(rightExpression, variables);
             BigDecimal difference = left.subtract(right);
-            boolean matched = difference.abs().compareTo(tolerance.abs()) <= 0;
-            if (mismatchOnly && matched) continue;
+            boolean matched = difference.abs().compareTo(acceptedTolerance.abs()) <= 0;
+            if (mismatchOnly && matched) return false;
             int recordIndex = index;
             List<String> refs = variables.keySet().stream().map(semantic ->
                 ref(dataset, recordIndex, field(contract, semantic).field())).distinct().toList();
             findings.add(finding(recipe, matched ? "reconciliation_match" : "reconciliation_mismatch",
                 difference, null, leftExpression + " - (" + rightExpression + ")", refs,
                 Map.of("record", index + 1, "left", left, "right", right,
-                    "difference", difference, "tolerance", tolerance, "matched", matched)));
-            if (findings.size() >= maxFindings) break;
-        }
+                    "difference", difference, "tolerance", acceptedTolerance, "matched", matched)));
+            return findings.size() >= maxFindings;
+        });
         return findings;
     }
 
     private List<Finding> outlierRatio(String dataset, SemanticInsightContract contract,
-                                       SemanticInsightContract.Recipe recipe, List<Map<String, Object>> records) {
+                                       SemanticInsightContract.Recipe recipe, DatasetHandle records) {
         SemanticInsightContract.Field numerator = field(contract, parameter(recipe, "numerator"));
         SemanticInsightContract.Field denominator = field(contract, parameter(recipe, "denominator"));
         SemanticInsightContract.Field entity = field(contract, parameter(recipe, "entity"));
@@ -269,33 +300,33 @@ public final class DeterministicInsightEngine {
         String comparator = text(recipe.parameters().getOrDefault("comparator", ">"));
         List<Finding> result = new ArrayList<>();
         int maxFindings = maxFindings(recipe);
-        for (int index = 0; index < records.size(); index++) {
-            BigDecimal top = number(records.get(index).get(numerator.field()));
-            BigDecimal bottom = number(records.get(index).get(denominator.field()));
-            if (top == null || bottom == null || bottom.compareTo(BigDecimal.ZERO) == 0) continue;
+        forEachUntil(records, (index, record) -> {
+            BigDecimal top = number(record.get(numerator.field()));
+            BigDecimal bottom = number(record.get(denominator.field()));
+            if (top == null || bottom == null || bottom.compareTo(BigDecimal.ZERO) == 0) return false;
             BigDecimal ratio = top.divide(bottom, 8, RoundingMode.HALF_UP);
             BigDecimal compared = absolute ? ratio.abs() : ratio;
-            if (!compare(compared, threshold, comparator)) continue;
+            if (!compare(compared, threshold, comparator)) return false;
             result.add(finding(recipe, "outlier", ratio, "ratio",
                 numerator.semantic() + " / " + denominator.semantic(),
                 List.of(ref(dataset, index, numerator.field()), ref(dataset, index, denominator.field())),
-                Map.of("record", index + 1, "entity", displayValue(entity, records.get(index).get(entity.field())),
+                Map.of("record", index + 1, "entity", displayValue(entity, record.get(entity.field())),
                     "threshold", threshold, "comparator", comparator)));
-            if (result.size() >= maxFindings) break;
-        }
+            return result.size() >= maxFindings;
+        });
         return result;
     }
 
     private List<Finding> tagMatch(String dataset, SemanticInsightContract contract,
-                                   SemanticInsightContract.Recipe recipe, List<Map<String, Object>> records) {
+                                   SemanticInsightContract.Recipe recipe, DatasetHandle records) {
         SemanticInsightContract.Field field = field(contract, parameter(recipe, "field"));
         String expected = parameter(recipe, "value");
         String mode = text(recipe.parameters().getOrDefault("matchMode", "equals")).toLowerCase(Locale.ROOT);
         List<Finding> result = new ArrayList<>();
         int maxFindings = maxFindings(recipe);
-        for (int index = 0; index < records.size(); index++) {
-            String actual = text(records.get(index).get(field.field()));
-            if (actual == null) continue;
+        forEachUntil(records, (index, record) -> {
+            String actual = text(record.get(field.field()));
+            if (actual == null) return false;
             boolean matched = switch (mode) {
                 case "starts_with" -> actual.startsWith(expected);
                 case "contains" -> actual.contains(expected);
@@ -306,21 +337,26 @@ public final class DeterministicInsightEngine {
                 field.semantic() + " " + mode + " configured value", List.of(ref(dataset, index, field.field())),
                 Map.of("record", index + 1, "matchedValue", displayValue(field, actual),
                     "tag", text(recipe.parameters().getOrDefault("tag", recipe.id())))));
-            if (result.size() >= maxFindings) break;
-        }
+            return result.size() >= maxFindings;
+        });
         return result;
     }
 
-    private List<RowValue> rowValues(List<Map<String, Object>> records, SemanticInsightContract.Field value,
-                                     SemanticInsightContract.Field group, boolean absolute) {
-        List<RowValue> result = new ArrayList<>();
-        for (int index = 0; index < records.size(); index++) {
-            BigDecimal raw = number(records.get(index).get(value.field()));
-            if (raw == null) continue;
-            result.add(new RowValue(index, displayValue(group, records.get(index).get(group.field())), raw,
-                absolute ? raw.abs() : raw));
-        }
-        return result;
+    private void forEach(DatasetHandle records, IndexedRecordConsumer consumer) {
+        records.scan(1_000, page -> {
+            for (int offset = 0; offset < page.rows().size(); offset++)
+                consumer.accept(Math.toIntExact(page.offset() + offset), page.rows().get(offset));
+        });
+    }
+
+    private void forEachUntil(DatasetHandle records, StoppableIndexedRecordConsumer consumer) {
+        try {
+            records.scan(1_000, page -> {
+                for (int offset = 0; offset < page.rows().size(); offset++)
+                    if (consumer.accept(Math.toIntExact(page.offset() + offset), page.rows().get(offset)))
+                        throw StopScan.INSTANCE;
+            });
+        } catch (StopScan complete) { /* bounded result obtained */ }
     }
 
     private Map<String, BigDecimal> variables(SemanticInsightContract contract, Map<String, Object> record) {
@@ -393,10 +429,24 @@ public final class DeterministicInsightEngine {
     private record RowValue(int index, String entity, BigDecimal rawValue, BigDecimal rankingValue) {}
     private record IndexedNumber(int index, BigDecimal value) {}
     private record Aggregate(BigDecimal value, List<String> evidenceRefs) {}
+    @FunctionalInterface private interface IndexedRecordConsumer {
+        void accept(int index, Map<String, Object> record);
+    }
+    @FunctionalInterface private interface StoppableIndexedRecordConsumer {
+        boolean accept(int index, Map<String, Object> record);
+    }
+    private static final class StopScan extends RuntimeException {
+        static final StopScan INSTANCE = new StopScan();
+        private StopScan() { super(null, null, false, false); }
+    }
     public record DatasetInput(String reference, SemanticInsightContract contract,
-                               List<Map<String, Object>> records) {
+                               DatasetHandle records) {
+        public DatasetInput(String reference, SemanticInsightContract contract,
+                            List<Map<String, Object>> records) {
+            this(reference, contract, new InMemoryDatasetHandle(records));
+        }
         public DatasetInput {
-            records = records == null ? List.of() : List.copyOf(records);
+            records = records == null ? new InMemoryDatasetHandle(List.of()) : records;
         }
     }
     public record Finding(String id, String type, String label, BigDecimal value, String unit,

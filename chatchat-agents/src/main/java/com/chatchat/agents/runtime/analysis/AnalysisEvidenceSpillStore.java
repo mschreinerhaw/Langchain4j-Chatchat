@@ -16,6 +16,10 @@ public interface AnalysisEvidenceSpillStore {
 
     boolean isEnabled();
 
+    default long spillThresholdBytes() {
+        return Long.MAX_VALUE;
+    }
+
     SpillReference spill(GovernanceIsolationScope scope,
                          String evidenceId,
                          String contentSha256,

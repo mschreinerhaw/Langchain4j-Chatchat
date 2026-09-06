@@ -49,7 +49,8 @@ public final class UnifiedQuestionAnalysisGraph {
                 plan.put("objective", question);
                 plan.put("scope", "ONE_QUESTION_ALL_BOUND_DATASETS");
                 plan.put("datasets", sources.stream().map(dataset -> Map.of(
-                    "datasetReference", dataset.reference(), "recordCount", dataset.records().size())).toList());
+                    "datasetReference", dataset.reference(), "recordCount", dataset.recordCount(),
+                    "dataHandle", dataset.handle().descriptor())).toList());
                 plan.put("calculationPolicy", "MODEL_SELECTS_ANALYSIS_RUNTIME_EXECUTES_ONLY_DECLARED_OR_RESOLVED_SEMANTICS");
                 plan.put("formulaInferencePolicy", "RUNTIME_NEVER_INFERS_AGGREGATION_DENOMINATOR_WEIGHTING_OR_TIME_COMPARISON");
                 plan.put("claimBoundaryPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
@@ -109,6 +110,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "For omitted semantic contracts or existing calculation results request {operation:'READ_CONTEXT',datasetReference,path:['runtimeAnalysisInputs','verifiedCalculations'],fromItem:0,limit:5}. Context list pages are zero-based, at most 20 items. "
                         + "Use full-scan structural profiles to navigate; only authorized verifiedCalculations support business aggregates. "
                         + "Request new arithmetic with {operation:'CALCULATE',datasetReference,expression:'(a-b)/b',inputs:{a:'runtimeFindingId1',b:'runtimeFindingId2'}}. Inputs must reference existing verified calculations. New formulas require semantic review and cannot be promoted to authorized metrics. "
+                        + "When a dataset descriptor declares supportsPushdown=true, you may request {operation:'EXECUTE_OPERATION',datasetReference,analysisOperation:'AGGREGATE',specification:{...}}. You must supply the complete metric, aggregation, grouping, filter, grain, unit, time and population semantics required by the provider; Runtime will execute or reject it and will never complete missing business semantics. "
                         + "For long string fields request {operation:'EXTRACT_TEXT',datasetReference,record:1,field:'text',fromChar:0}. Runtime extracts source-quoted candidates in bounded partitions; nextChar indicates continuation. This is not exhaustive event counting. "
                         + "Analyze all available question-relevant evidence even when coverage is partial. Missing history or fields block only dependent claims, never the entire analysis. "
                         + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
@@ -205,12 +207,12 @@ public final class UnifiedQuestionAnalysisGraph {
                                 String reference = String.valueOf(evidenceRequest.get("datasetReference"));
                                 var source = prepared.sources().get(reference);
                                 requestedEvidence.add(Map.of("status", "REQUEST_REJECTED", "datasetReference", reference,
-                                    "reason", String.valueOf(rejected.getMessage()), "availableRecordCount", source == null ? -1 : source.records().size(),
+                                    "reason", String.valueOf(rejected.getMessage()), "availableRecordCount", source == null ? -1 : source.recordCount(),
                                     "instruction", "Original evidence remains available. Correct the request: record indices start at 1 and limit must be 1..100. A rejected read is not an empty dataset."));
                                 metadata.put("unifiedEvidenceRejectedRequestCount", ((Number) metadata.getOrDefault("unifiedEvidenceRejectedRequestCount", 0)).intValue() + 1);
                                 audit.put("status", "REQUEST_REJECTED");
                                 audit.put("datasetBound", source != null);
-                                audit.put("availableRecordCount", source == null ? -1 : source.records().size());
+                                audit.put("availableRecordCount", source == null ? -1 : source.recordCount());
                                 audit.put("reason", boundedAuditValue(rejected.getMessage()));
                                 LOG.warn("Analysis evidence read rejected partition={} audit={}", scope.partitionKey(), ModelProtocolJson.compact(audit));
                             } finally {
@@ -275,10 +277,10 @@ public final class UnifiedQuestionAnalysisGraph {
                     var summary = protocol.validateProduct(scope, position, context, dataset.records(), question,
                         ModelProtocolJson.compact(payload));
                     var chunk = new AnalysisDatasetSummary.ChunkResult(summary, null,
-                        ModelProtocolJson.sha256Hex(dataset.records()), false, 0);
+                        dataset.handle().contentSha256(), false, 0);
                     var result = new AnalysisDatasetSummary(AnalysisDatasetSummary.SCHEMA_VERSION,
                         scope.partitionKey() + ":" + reference + "#validated", summary.content(), "SUCCESS", scope,
-                        reference, dataset.records().size(), false, ModelProtocolJson.compact(dataset.records()).length(),
+                        reference, Math.toIntExact(dataset.recordCount()), false, -1,
                         List.of(chunk), summary, 0, 0, 0, 0, 0, 0, false, List.of(summary.resultId()),
                         Map.of("analysisMode", VERSION, "modelTaskCount", 0));
                     outcomes.put(reference, new Outcome(result, "SUCCESS", "unified-validation", 0, ""));

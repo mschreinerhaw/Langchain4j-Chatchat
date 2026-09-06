@@ -1,5 +1,8 @@
 package com.chatchat.agents.runtime.analysis;
 
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle;
+import com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle;
+import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -30,5 +33,30 @@ class McpResultAnalysisBridgeTest {
                 .isNotEmpty();
             assertThat(projection.toString()).contains("records");
         }
+    }
+
+    @Test
+    void typedProjectionPreservesCursorBackedHandle() {
+        DatasetHandle handle = new PagedDatasetHandle(10_000, true,
+            (offset, limit) -> new DatasetHandle.Page(offset,
+                offset >= 10_000 ? List.of() : List.of(Map.of("offset", offset)),
+                offset + 1 < 10_000), null, null, Map.of("source", "cursor"));
+        RuntimeResultAnalysisAdapter adapter = new RuntimeResultAnalysisAdapter() {
+            @Override public String id() { return "cursor-test"; }
+            @Override public int priority() { return 10_000; }
+            @Override public boolean supports(AnalysisRequest request) { return true; }
+            @Override public AnalysisResult adapt(AnalysisRequest request) {
+                return new AnalysisResult("cursor.v1", "BUSINESS_DATA",
+                    List.of(new AnalysisDataset(request.datasetReference(), Map.of(), handle)));
+            }
+        };
+        var typedBridge = new McpResultAnalysisBridge(List.of(adapter));
+
+        var result = typedBridge.analysisResult("large", Map.of("ignored", true), 10_000, true);
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.handle()).isSameAs(handle);
+            assertThat(dataset.handle().recordCount()).isEqualTo(10_000);
+        });
     }
 }

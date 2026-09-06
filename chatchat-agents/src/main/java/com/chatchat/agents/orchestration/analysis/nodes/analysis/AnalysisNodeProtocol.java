@@ -875,7 +875,7 @@ public final class AnalysisNodeProtocol
         evidence.put("evidenceId", evidenceId);
         evidence.put("datasetReference", position.datasetReference());
         evidence.put("position", position.toMap());
-        evidence.put("contentSha256", ModelProtocolJson.sha256Hex(records));
+        evidence.put("contentSha256", recordContentSha256(records));
         evidence.put("recordCount", records == null ? 0 : records.size());
         evidence.put("sourceComplete", sourceComplete(records));
         evidence.put("structured", structured);
@@ -935,6 +935,12 @@ public final class AnalysisNodeProtocol
             }
         }
         return false;
+    }
+
+    private String recordContentSha256(List<Map<String, Object>> records) {
+        if (records instanceof com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle.HandleListView view)
+            return view.source().contentSha256();
+        return ModelProtocolJson.sha256Hex(records);
     }
 
     private List<String> supportingValues(DataAnalysisPosition position,

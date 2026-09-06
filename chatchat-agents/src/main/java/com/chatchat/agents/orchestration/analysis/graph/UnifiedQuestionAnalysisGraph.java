@@ -97,8 +97,8 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],limitations:[],evidenceRequests:[]}. "
                         + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE; confidence is HIGH, MEDIUM or LOW. "
                         + "operation must be one of OBSERVE, AGGREGATE, DERIVE, COMPARE, RANK, TREND, INFER, PROXY; do not invent operation names. "
-                        + "recordRefs, supportingValues, caveats, inputFields, semanticBasis and alternativeExplanations are JSON arrays of strings. "
-                        + "supportingValues contains exact JSON field fragments from cited records, e.g. ['\"VALUE\":17','\"previous\":null']; never field=value prose. "
+                        + "recordRefs, caveats, inputFields, semanticBasis and alternativeExplanations are JSON arrays of strings. supportingValues is an array of evidence-bound objects, e.g. [{recordRef:'dataset.records[1]',VALUE:17,previous:null}]. "
+                        + "For a model-calculated claim, supportingValues must cite every raw input value from its source records; never cite only the calculated output unless Runtime supplied it in verifiedCalculations. String supportingValues are a compatibility fallback and must be exact JSON field fragments such as '\"VALUE\":17', never field=value prose. "
                         + "Each finding must cite original dataset.records[n] and exact supporting values. A finding belongs to its evidence dataset. "
                         + "Cross-dataset implications must stay qualified unless an authorized relationship and computation supports them. "
                         + "Do not emit SQL or executable instructions. Cover material returned facts relevant to the question; explain unsupported questions in limitations.\n"
@@ -115,15 +115,19 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Analyze all available question-relevant evidence even when coverage is partial. Missing history or fields block only dependent claims, never the entire analysis. "
                         + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
                         + "Without history, explain current state and supported composition instead of asserting trends. Do not replace available analysis with an indicator framework or only a request for more data. "
-                        + "Final findings must address the supported parts of the question across sources. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
+                        + "Final findings must address the supported parts of the question across sources. Emit at least one material evidence-bound finding for every non-empty question-relevant dataset; a limitation may replace it only when those returned fields truly cannot answer any part of the question. Build a question-level conclusion from complementary source findings instead of producing one description per dataset. Use current returned transactions to characterize the observed-period behavior; reserve only long-term persistence claims for historical-data limitations. Never describe a returned transaction, holding, profit/loss or position dataset as missing. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
                         + "Make the finding set read as one report: each material finding states the answer, observation, interpretation, implication and boundary; keep one value/unit/period/population definition for each metric. "
                         + "Do not make the executive conclusion stronger than the detailed evidence, do not contradict a finding later in limitations, and do not issue an action without the finding that motivates it. Use meaningful prose, remove duplicate findings and expose no runtime IDs. "
+                        + "Do not infer intent, motive, strategy, causality or remediation behavior merely because two observations coexist. Describe the observed association and list plausible alternatives when causal evidence is absent. "
+                        + "Do not label a value extreme, healthy, excessive, normal, high or low without an explicit comparison baseline in the evidence. Do not translate order activity into a market or regulatory trading pattern unless executed trades and the required temporal sequence are present. "
+                        + "Preserve the producer-declared meaning of every field: an order is not an execution, daily P/L is not necessarily realized P/L, and cumulative P/L is not necessarily unrealized P/L. Use qualified observed-period language for samples and single dates. "
                         + "Before returning JSON, silently verify QUESTION_ANSWERED, METRIC_DEFINITION_STABLE, TIME_SCOPE_STABLE, POPULATION_SCOPE_STABLE, NO_INTERNAL_CONTRADICTION, NO_UNSUPPORTED_CAUSE, NO_SAMPLE_TO_LONG_TERM_EXPANSION, ACTION_TRACES_TO_FINDING and READABLE_WITHOUT_RUNTIME_CONTEXT. "
                         + "Evidence round " + round + "/" + MAX_EVIDENCE_ROUNDS + ". "
                         + (round == MAX_EVIDENCE_ROUNDS
                             ? "No more requests are available; return bounded conclusions and limitations. " : "")
                         + "Requested evidence: " + ModelProtocolJson.compact(boundedRequests) + "\n"
-                        + "Question plan: " + ModelProtocolJson.compact(plan) + "\nBound evidence: " + ModelProtocolJson.compact(boundedEvidence);
+                        + "Question plan: " + ModelProtocolJson.compact(evidenceAccess.fitControlContext(plan, 4_000))
+                        + "\nBound evidence: " + ModelProtocolJson.compact(boundedEvidence);
                     var promptSize = TOKENS.estimate(prompt);
                     if (promptSize.tokens() > MAX_INPUT_TOKENS) throw new IllegalStateException(
                         "Unified analysis control context exceeds token budget after bounded projection: " + promptSize.tokens());
@@ -134,8 +138,7 @@ public final class UnifiedQuestionAnalysisGraph {
                     String key = VERSION + ":findings:round-" + round;
                     Optional<String> restored = checkpoints.readCheckpoint(scope, key, hash);
                     Map<String, Object> product = restored.map(this::parse).orElse(Map.of());
-                    Set<String> known = new LinkedHashSet<>();
-                    evidence.forEach(item -> known.add((String) item.get("datasetReference")));
+                    Set<String> known = new LinkedHashSet<>(prepared.sources().keySet());
                     boolean cached = valid(product) && boundFindings(product, known);
                     if (!cached) {
                         if (model == null) throw new IllegalStateException("Unified analysis model is unavailable");

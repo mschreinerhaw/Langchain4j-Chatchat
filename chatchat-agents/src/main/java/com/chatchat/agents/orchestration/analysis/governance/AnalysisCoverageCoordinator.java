@@ -75,6 +75,10 @@ public final class AnalysisCoverageCoordinator {
             request.result(), request.runtimeAttributes());
         List<AnalysisEvidenceCoordinator.Dataset> datasets = externalizeLargeDatasets(
             projection.datasets(), request);
+        request.metadata().put("analysisEvidenceSnapshotFingerprint",
+            ModelProtocolJson.sha256Hex(datasets.stream().map(dataset -> Map.of(
+                "reference", dataset.reference(),
+                "contentSha256", dataset.handle().contentSha256())).toList()));
         request.metadata().put("analysisObservedReturnedRecordCount", datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum());
         writeExcludedMetadata(request.metadata(), projection.excludedDatasets());
         projection.excludedDatasets().forEach(excluded -> observe(request,
@@ -289,37 +293,27 @@ public final class AnalysisCoverageCoordinator {
                 false, counters.sourceComplete, false, counters.rawReplay,
                 List.of(), List.of());
         }
-        FinalSynthesisNode.HierarchicalSynthesisResult synthesis =
-            synthesisCoordinator.synthesizeHierarchy(
-                new FinalSynthesisNode.HierarchicalSynthesisRequest(
-                    request.model()::chat, request.isolationScope(), relationshipPlan, request.query(),
-                    datasetSummaries, insightDatasets, lifecycle, request.runtimeAttributes()));
-        lifecycle = synthesis.lifecycle();
-        DeterministicInsightEngine.Result bundleInsights = synthesis.crossDatasetInsights();
-        StructuredFindingMerger.Result hierarchy = synthesis.hierarchy();
-        MergedFindingValidator.Review reducerReview =
-            reducerSupervisor.inspect(hierarchy.finalInputs());
-        AnalysisGovernanceStateCoordinator.State governanceState =
-            governanceStateCoordinator.reconcile(reducerReview.admittedInputs(),
-                reducerReview.repairRequests(), request.metadata());
-        hierarchy = new StructuredFindingMerger.Result(
-            hierarchy.relationshipPlan(), hierarchy.datasetSummaries(),
-            hierarchy.relationshipGroupSummaries(), reducerReview.admittedInputs(),
-            hierarchy.uncoveredDatasets());
-        writeReducerGovernanceMetadata(request, reducerReview, governanceState);
-        observe(request,
-            reducerReview.rejectedCount() == 0
-                ? "报告已通过治理准入，可进入综合决策。"
-                : "部分分析报告未通过治理准入，已生成补证或重算请求。",
+        // The unified question graph has already analyzed all datasets together. Routing its
+        // findings back through the legacy per-dataset/relationship Reducer destroys question-level
+        // meaning and can discard model-owned calibrated inferences. Preserve the validated unified
+        // products as the final synthesis inputs; Runtime continues to audit evidence bindings.
+        DeterministicInsightEngine.Result bundleInsights = insightEngine.analyzeBundle(
+            request.isolationScope(), insightDatasets);
+        List<String> uncovered = datasetSummaries.stream()
+            .filter(summary -> summary.content() == null || summary.content().isBlank())
+            .map(AnalysisSummaryResult::scope).toList();
+        StructuredFindingMerger.Result hierarchy = new StructuredFindingMerger.Result(
+            relationshipPlan, List.copyOf(datasetSummaries), List.of(),
+            List.copyOf(datasetSummaries), uncovered);
+        lifecycle = lifecycle.finalSummaryCompleted(datasetSummaries.size());
+        request.metadata().put("analysisFinalInputMode", "UNIFIED_QUESTION_FINDINGS");
+        request.metadata().put("analysisLegacyReducerBypassed", true);
+        observe(request, "统一问题分析结果已完成证据绑定，可进入最终报告综合。",
             "analysis_summary_governance", metadataOf(
-                "type", "analysis_reducer_admission",
-                "admittedCount", reducerReview.admittedInputs().size(),
-                "rejectedCount", reducerReview.rejectedCount(),
-                "repairRequestCount", reducerReview.repairRequests().size(),
-                "activeRepairRequestCount", governanceState.activeRepairRequests().size(),
-                "terminalRepairRequestCount", reducerReview.repairRequests().size()
-                    - governanceState.activeRepairRequests().size(),
-                "gapRequests", toGapRequests(governanceState.activeRepairRequests())));
+                "type", "unified_analysis_ready_for_synthesis",
+                "analysisResultCount", datasetSummaries.size(),
+                "uncoveredDatasetCount", uncovered.size(),
+                "legacyReducerBypassed", true));
         if (bundleInsights.executed()
             && (!bundleInsights.findings().isEmpty() || !bundleInsights.issues().isEmpty())) {
             insightResults.add(bundleInsights.toMap());
@@ -334,15 +328,14 @@ public final class AnalysisCoverageCoordinator {
                 == governedSummaries.size();
         if (hierarchy.finalInputs().isEmpty()) {
             traceComplete = false;
-            prompt.append("No Reducer report satisfied every governance check. This is an advisory "
-                + "review condition, not a publication barrier. Driver must assess any available "
-                + "Worker analysis, state the limitations, and leave acceptance to the human.\n");
+            prompt.append("The unified analysis produced no evidence-bound findings. Publish the "
+                + "available-data limitation and do not claim that successfully returned datasets "
+                + "were absent.\n");
         }
         appendCoverage(prompt, hierarchy, failures, counters, coverageComplete, traceComplete);
         if (!rawReplay.isEmpty()) {
-            // Raw replay is retained for Worker repair and governance diagnostics, but never enters
-            // the management-level Driver prompt. The Driver reviews admitted analysis products;
-            // allowing it to reinterpret raw rows would collapse the Worker/Driver responsibility boundary.
+            // Raw replay is retained for local repair and diagnostics. Final synthesis consumes the
+            // evidence-bound unified analysis products instead of reinterpreting all raw rows.
             if (request.metadata() != null) {
                 request.metadata().put("analysisRawReplayAvailableForWorkerRepair", true);
                 request.metadata().put("analysisRawReplayWithheldFromDriver", true);

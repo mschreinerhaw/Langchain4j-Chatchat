@@ -44,6 +44,38 @@ class AnalysisNodeProtocolTest {
     }
 
     @Test
+    void normalizesNumericStringsAndCommonEvidenceObjectShapes() {
+        var rows = List.<Map<String, Object>>of(Map.of("ZZC", "847174.25", "ZJYE", "912.05"));
+        for (String values : List.of(
+            "[{\"recordRef\":\"sample.records[1]\",\"ZZC\":847174.25}]",
+            "[{\"recordRef\":\"sample.records[1]\",\"field\":\"ZZC\",\"value\":847174.25}]",
+            "[{\"recordRef\":\"sample.records[1]\",\"fields\":{\"ZZC\":847174.25,\"ZJYE\":912.05}}]")) {
+            var result = validateStructuredValues(rows, values);
+            assertThat(result.evidence()).containsEntry("rejectedInsightCount", 0);
+            assertThat(result.evidence().get("insights").toString()).contains("847174.25");
+        }
+    }
+
+    @Test
+    void bindsDeclaredInputFieldsWhenModelValueEnvelopeIsOnlyAFormattingMismatch() {
+        var rows = List.<Map<String, Object>>of(Map.of("ZZC", "847174.25", "ZJYE", "912.05"));
+        var result = bridge.validateProduct(isolationScope,
+            bridge.position("sample", 1, 1, 1, 1, 1), bridge.govern("sample", Map.of(), rows),
+            rows, "Observe account assets", """
+            {"summary":"Account state","insights":[{
+              "claimClass":"OBSERVED_RETURNED_FACT","operation":"OBSERVE",
+              "claim":"Returned account assets are available","significance":"Answers asset state",
+              "recordRefs":["sample.records[1]"],"inputFields":["ZZC","ZJYE"],
+              "supportingValues":["ZZC=847174.25 yuan","ZJYE=912.05 yuan"],
+              "confidence":"HIGH","caveats":[]}]}
+            """);
+
+        assertThat(result.evidence()).containsEntry("rejectedInsightCount", 0);
+        assertThat(result.evidence().get("insights").toString())
+            .contains("\"ZZC\":\"847174.25\"", "\"ZJYE\":\"912.05\"");
+    }
+
+    @Test
     void treatsReturnedTotalFieldAsObservationWhenModelMislabelsItAsSum() {
         List<Map<String, Object>> rows = List.of(Map.of(
             "total_current_scale_10k_units", new java.math.BigDecimal("2.5910696542E8"),

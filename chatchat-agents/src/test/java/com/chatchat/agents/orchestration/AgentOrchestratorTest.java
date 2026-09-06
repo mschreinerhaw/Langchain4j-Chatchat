@@ -142,7 +142,10 @@ class AgentOrchestratorTest {
         assertThat(dagPrompt).contains(
             "DAG_EXECUTION_AND_SEMANTIC_ARBITRATION", "Prioritize service reliability", "run-role");
         assertThat(templatePrompt).contains(
-            "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION", "Prioritize service reliability", "run-role");
+            "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION", "Prioritize service reliability", "run-role",
+            "literal current-turn user query as the immutable coverage contract",
+            "decompose every explicit user-requested subject and analysis facet",
+            "Selection completeness is semantic coverage, not a fixed template count");
     }
 
     @Test
@@ -3599,6 +3602,50 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void traceRecoveryDoesNotInvalidateCoverageWhenEvidenceAlreadyExists() {
+        Map<String, Object> customerAssetRows =
+            Map.of("records", List.of(Map.of("KHH", "070200046604", "ZZC", 847174.25)));
+        ToolCallResult originalChild = new ToolCallResult(
+            "assets", "api_template_execute", "customer-assets", null,
+            "SUCCESS", 12L, "live-evidence-id", customerAssetRows, Map.of());
+        ToolCallResult replayedChild = new ToolCallResult(
+            "assets", "api_template_execute", "customer-assets", null,
+            "SUCCESS", 12L, "replayed-evidence-id", customerAssetRows, Map.of());
+        ToolCallBatchResult originalBatch = new ToolCallBatchResult(
+            "live", "SEQUENTIAL", "", "", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(originalChild));
+        ToolCallBatchResult replayedBatch = new ToolCallBatchResult(
+            "replayed", "RECOVERED", "", "", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(replayedChild));
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            2, "mcp_tool", "api_template_execute", true, originalBatch,
+            null, null, null, 12L, Map.of());
+        InterpretationPlanRuntime.ExecutionResult executed = new InterpretationPlanRuntime.ExecutionResult(
+            "SUCCESS", true, false, null, null, List.of(step), Map.of(), 12L);
+        InterpretationPlanRuntime.StepExecution replayedStep = new InterpretationPlanRuntime.StepExecution(
+            -1, "mcp_tool", "api_template_execute", true, replayedBatch,
+            null, null, null, 12L, Map.of("recoveredExecutionEvidence", true));
+        InterpretationPlanRuntime.ExecutionResult replayed = new InterpretationPlanRuntime.ExecutionResult(
+            "RECOVERED_BATCH_EVIDENCE", true, false, null, null,
+            List.of(replayedStep), Map.of(), 12L);
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+
+        String analyzedFingerprint = orchestrator.evidenceSnapshotFingerprint(executed, Map.of());
+        assertThat(orchestrator.hasAdditionalRecoveredEvidence(
+            executed, List.of(executed), List.of(replayed), Map.of(), analyzedFingerprint)).isFalse();
+
+        InterpretationPlanRuntime.StepExecution additionalStep = new InterpretationPlanRuntime.StepExecution(
+            3, "mcp_tool", "api_template_execute", true,
+            Map.of("records", List.of(Map.of("KHH", "070200046604", "ZQDM", "300805"))),
+            null, null, null, 8L, Map.of());
+        InterpretationPlanRuntime.ExecutionResult additional = new InterpretationPlanRuntime.ExecutionResult(
+            "SUCCESS", true, false, null, null, List.of(additionalStep), Map.of(), 8L);
+
+        assertThat(orchestrator.hasAdditionalRecoveredEvidence(
+            executed, List.of(executed), List.of(additional), Map.of(), analyzedFingerprint)).isTrue();
+    }
+
+    @Test
     void interpretationPlanWorkflowUsesAvailableEvidenceWhenOnlyNonMandatoryStepsRemain() throws Exception {
         AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
         Method method = AgentOrchestrator.class.getDeclaredMethod(
@@ -3701,6 +3748,38 @@ class AgentOrchestratorTest {
             .containsEntry("toolResultReviewMode", "RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION")
             .containsEntry("templateExecutionSatisfied", true);
         verify(model, never()).chat(anyString());
+    }
+
+    @Test
+    void templateSelectionUsesSecondPassModelAuditToRestoreMissingQuestionFacets() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+                + "\"rejected_template_ids\":[\"trade\"],\"analysis_intent\":{"
+                + "\"analysis_focus\":[\"assets\"]}}",
+            "{\"coverage_complete\":true,\"requested_aspects\":[\"assets\",\"transactions\"],"
+                + "\"corrected_selected_template_ids\":[\"asset\",\"trade\"],"
+                + "\"missing_aspects\":[],\"reason\":\"both clauses are covered\"}"
+        );
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+                    Map.of("templateId", "trade", "title", "Transaction history"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze assets and transactions", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1));
+
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata().get("selectedTemplateIds"))
+            .isEqualTo(List.of("asset", "trade"));
+        assertThat(review.metadata()).doesNotContainKey("rejectedTemplateIds");
+        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
     }
 
     @Test

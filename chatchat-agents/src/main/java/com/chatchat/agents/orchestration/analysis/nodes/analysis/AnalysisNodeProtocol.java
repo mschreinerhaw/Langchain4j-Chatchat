@@ -718,6 +718,13 @@ public final class AnalysisNodeProtocol
             List<String> values = supportingValues(position, records, references, candidate.get("supportingValues")).stream()
                 .filter(exact -> exactValueSupported(position, records, references, exact))
                 .distinct().toList();
+            if (values.isEmpty() && candidate.containsKey("supportingValues")) {
+                // The model already selected both the source records and input fields. If its
+                // value envelope uses an unfamiliar transport shape, bind those declared fields
+                // back to the original records instead of discarding the analytical claim.
+                values = declaredFieldValues(position, records, references,
+                    strings(candidate.get("inputFields")));
+            }
             SemanticOperation operation = SemanticOperation.from(string(candidate.get("operation")));
             if ("OBSERVED_RETURNED_FACT".equals(claimClass)) {
                 // A value copied from a cited returned field is an observation even when the
@@ -972,13 +979,23 @@ public final class AnalysisNodeProtocol
         Integer index = recordIndex(position, reference);
         if (index == null || index < position.recordFrom() || index - position.recordFrom() >= records.size()) return List.of();
         Map<String, Object> record = records.get(index - position.recordFrom());
+        if (fields.get("fields") instanceof Map<?, ?> nested) fields = nested;
+        else if (fields.get("values") instanceof Map<?, ?> nested) fields = nested;
+        else if (fields.get("field") != null && fields.containsKey("value")) {
+            Map<String, Object> single = new LinkedHashMap<>();
+            single.put(String.valueOf(fields.get("field")), fields.get("value"));
+            fields = single;
+        }
         List<String> verified = new ArrayList<>();
         for (var field : fields.entrySet()) {
             String name = String.valueOf(field.getKey());
             if (name.equals("recordRef") || !record.containsKey(name)) continue;
             Object actual = record.get(name);
             boolean equal = java.util.Objects.equals(actual, field.getValue());
-            if (!equal && actual instanceof Number && field.getValue() != null) {
+            // API/database adapters frequently expose DECIMAL values as JSON strings while
+            // models cite the same value as a JSON number.  Numeric lexical representation is
+            // a transport concern; compare both sides as decimals without changing semantics.
+            if (!equal && actual != null && field.getValue() != null) {
                 try {
                     equal = new java.math.BigDecimal(actual.toString()).compareTo(
                         new java.math.BigDecimal(field.getValue().toString())) == 0;
@@ -990,6 +1007,26 @@ public final class AnalysisNodeProtocol
             }
         }
         return verified;
+    }
+
+    private List<String> declaredFieldValues(DataAnalysisPosition position,
+                                             List<Map<String, Object>> records,
+                                             List<String> references,
+                                             List<String> inputFields) {
+        if (inputFields == null || inputFields.isEmpty()) return List.of();
+        List<String> verified = new ArrayList<>();
+        for (String reference : references) {
+            Integer index = recordIndex(position, reference);
+            if (index == null || index < position.recordFrom()
+                || index - position.recordFrom() >= records.size()) continue;
+            Map<String, Object> record = records.get(index - position.recordFrom());
+            Map<String, Object> selected = new LinkedHashMap<>();
+            for (String field : inputFields) {
+                if (record.containsKey(field)) selected.put(field, record.get(field));
+            }
+            verified.addAll(verifiedFields(position, records, reference, selected));
+        }
+        return verified.stream().distinct().toList();
     }
 
     private Integer recordIndex(DataAnalysisPosition position, String reference) {

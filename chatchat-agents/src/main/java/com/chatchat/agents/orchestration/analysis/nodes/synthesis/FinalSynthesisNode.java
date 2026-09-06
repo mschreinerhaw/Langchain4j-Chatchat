@@ -472,7 +472,12 @@ public final class FinalSynthesisNode {
             + "limitations, and choose dataRef/visualizationIntent when supplied by Runtime. If no "
             + "Claim is admitted, return a useful limited analysis and explicit human-review note "
             + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
-            + "never treat their count as a publication veto.\n"
+            + "never treat their count as a publication veto. Write in the user's language. Do not expose "
+            + "DRIVER_REVIEW, DRIVER_REASONING, DRIVER_DECISION, Claim IDs, Runtime status or governance diagnostics in the user-facing report. "
+            + "During the mandatory Driver review, downgrade or omit any statement that infers intent, motive, causality or a named trading strategy from co-occurrence alone; uses high/low/extreme/healthy/normal without an evidence baseline; changes a producer field's realization basis; or expands a sample into a habitual or long-term trait. "
+            + "Preserve neutral producer labels when their realization basis is not declared: for example, 当日盈亏 must remain 当日盈亏 and must not become 当日实现盈亏. "
+            + "Do not repeat the executive-summary paragraph as a section body; each section must add evidence, comparison, interpretation, or a bounded implication. "
+            + "Keep useful observed-period conclusions after narrowing them. Ensure the executive summary and every detail section use the same scope and claim strength.\n"
             + "User question: " + question + "\n"
             + "Bounded composition context (not factual evidence): "
             + ModelProtocolJson.compact(boundedContext);

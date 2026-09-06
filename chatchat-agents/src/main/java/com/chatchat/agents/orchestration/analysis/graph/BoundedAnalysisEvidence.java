@@ -62,8 +62,10 @@ final class BoundedAnalysisEvidence {
             metadata.put("unifiedEvidenceMode", "FULL_RECORDS");
             return new Prepared(List.copyOf(direct), fingerprint, sources, false);
         }
-        int perDataset = INPUT_BUDGET / Math.max(1, sources.size()) - 100;
-        if (perDataset < 2_000) throw new IllegalStateException("Dataset catalog exceeds evidence budget");
+        // The prompt budget limits the initial projection, not the number of datasets that
+        // Runtime is allowed to bind.  A fixed 2k minimum made otherwise valid requests fail
+        // as soon as extraction produced roughly fifteen logical datasets.
+        int perDataset = Math.max(500, INPUT_BUDGET / Math.max(1, sources.size()) - 100);
         List<Map<String, Object>> views = new ArrayList<>();
         List<Map<String, Object>> coverage = new ArrayList<>();
         for (var source : sources.entrySet()) {
@@ -111,12 +113,77 @@ final class BoundedAnalysisEvidence {
                     "chunkCount", chunks[0], "restoredChunks", restored[0], "scanComplete", true));
         }
         fingerprint = ModelProtocolJson.sha256Hex(hashes);
-        if (ModelProtocolJson.compact(views).length() > INPUT_BUDGET)
-            throw new IllegalStateException("Evidence catalog exceeds bounded projection budget");
+        List<Map<String, Object>> boundedViews = boundDatasetViews(views, INPUT_BUDGET);
         metadata.put("unifiedEvidenceMode", "BOUNDED_PROJECTION");
+        metadata.put("unifiedEvidenceCatalogDatasetCount", sources.size());
+        metadata.put("unifiedEvidenceProjectionChars", ModelProtocolJson.compact(boundedViews).length());
         metadata.put("unifiedEvidenceScanCoverage", coverage);
         metadata.put("unifiedEvidenceMaxConcurrentPartitions", 4);
-        return new Prepared(List.copyOf(views), fingerprint, sources, true);
+        return new Prepared(List.copyOf(boundedViews), fingerprint, sources, true);
+    }
+
+    /**
+     * Keeps every bound dataset discoverable while adapting the optional preview to the
+     * available prompt budget.  Original records and context remain addressable through the
+     * DatasetHandle even when a preview component is omitted.
+     */
+    private List<Map<String, Object>> boundDatasetViews(List<Map<String, Object>> views, int budget) {
+        if (views.isEmpty()) return List.of();
+        int share = Math.max(180, (budget - 256) / views.size());
+        final int initialShare = share;
+        List<Map<String, Object>> bounded = views.stream()
+            .map(view -> boundDatasetView(view, initialShare)).toList();
+        while (ModelProtocolJson.compact(bounded).length() > budget && share > 180) {
+            share = Math.max(180, share * 3 / 4);
+            final int currentShare = share;
+            bounded = views.stream().map(view -> boundDatasetView(view, currentShare)).toList();
+        }
+        // With an extreme number of logical datasets, their identifiers alone can exceed one
+        // model context.  Do not fail or discard the handles: emit a paged catalog window and
+        // retain all sources in Prepared for subsequent graph partitions.
+        if (ModelProtocolJson.compact(bounded).length() > budget) {
+            List<Map<String, Object>> window = new ArrayList<>();
+            int used = 160;
+            for (Map<String, Object> view : views) {
+                Map<String, Object> identity = datasetIdentity(view, true);
+                int size = ModelProtocolJson.compact(identity).length() + 1;
+                if (used + size > budget) break;
+                window.add(identity);
+                used += size;
+            }
+            if (!window.isEmpty()) {
+                Map<String, Object> last = new LinkedHashMap<>(window.get(window.size() - 1));
+                last.put("catalogContinuation", Map.of("nextDatasetIndex", window.size(),
+                    "totalDatasets", views.size(), "requiresGraphPartition", true));
+                window.set(window.size() - 1, last);
+            }
+            return List.copyOf(window);
+        }
+        return List.copyOf(bounded);
+    }
+
+    private Map<String, Object> boundDatasetView(Map<String, Object> view, int budget) {
+        Map<String, Object> result = datasetIdentity(view, false);
+        int optionalBudget = Math.max(60, budget - ModelProtocolJson.compact(result).length() - 32);
+        for (String key : List.of("nestedCollections", "profile", "context", "selectedRecords", "limitations")) {
+            Object value = view.get(key);
+            if (value == null) continue;
+            result.put(key, fit(value, Math.max(60, optionalBudget / 5)));
+        }
+        if (ModelProtocolJson.compact(result).length() <= budget) return result;
+        return datasetIdentity(view, true);
+    }
+
+    private Map<String, Object> datasetIdentity(Map<String, Object> view, boolean previewOmitted) {
+        Map<String, Object> identity = new LinkedHashMap<>();
+        identity.put("datasetReference", view.get("datasetReference"));
+        identity.put("recordCount", view.getOrDefault("recordCount", 0));
+        identity.put("evidenceMode", view.getOrDefault("evidenceMode", "BOUNDED_HANDLE"));
+        if (previewOmitted) {
+            identity.put("previewOmitted", true);
+            identity.put("access", "Use bounded DatasetHandle reads or a graph partition");
+        }
+        return identity;
     }
 
     private Map<String, Object> profileChunk(String ref, List<Map<String, Object>> rows, int offset,
@@ -296,6 +363,10 @@ final class BoundedAnalysisEvidence {
 
     Object fitRequestedEvidence(List<Map<String, Object>> evidence, int budget) {
         return fit(evidence == null ? List.of() : evidence, budget);
+    }
+
+    Object fitControlContext(Object context, int budget) {
+        return fit(context == null ? Map.of() : context, budget);
     }
 
     private List<Map<String, Object>> rows(String ref, Dataset dataset, Collection<Integer> indices,

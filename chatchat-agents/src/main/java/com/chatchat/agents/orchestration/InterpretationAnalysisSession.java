@@ -958,14 +958,23 @@ final class InterpretationAnalysisSession {
         if (!planAttemptResults.isEmpty()) {
             List<InterpretationPlanRuntime.ExecutionResult> recoveredEvidence =
                     RecoveredBatchEvidenceBridge.project(traces, host.objectMapper);
-            planAttemptResults.addAll(recoveredEvidence);
             AgentOrchestrator.RecordCoverageBundle terminalRecordCoverage = latestRecordCoverage;
-            if (!recoveredEvidence.isEmpty()) {
+            boolean recoveredEvidenceAdded = host.hasAdditionalRecoveredEvidence(
+                    planAttemptResults.get(planAttemptResults.size() - 1),
+                    planAttemptResults,
+                    recoveredEvidence,
+                    runtimeAttributes,
+                    String.valueOf(metadata.getOrDefault("analysisEvidenceSnapshotFingerprint", "")));
+            if (recoveredEvidenceAdded) {
+                planAttemptResults.addAll(recoveredEvidence);
                 terminalRecordCoverage = null;
                 metadata.put("recoveredEvidenceCoverageRecomputed", true);
                 metadata.put("recoveredEvidenceAttemptCount", recoveredEvidence.size());
                 observations.add("Recovered completed tool evidence was merged before unified analysis"
                         + " and final synthesis coverage was recomputed.");
+            } else if (!recoveredEvidence.isEmpty()) {
+                metadata.put("duplicateRecoveredEvidenceSkipped", true);
+                metadata.put("duplicateRecoveredEvidenceAttemptCount", recoveredEvidence.size());
             }
             String synthesisStage =
                     host.terminalSynthesisStage(

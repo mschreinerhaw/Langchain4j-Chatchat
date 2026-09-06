@@ -47,7 +47,7 @@ class SemanticClaimAdmissionPolicyTest {
     }
 
     @Test
-    void rejectsProxyInferenceWhenOnlyDerivationWasAuthorized() {
+    void admitsEvidenceBoundInferenceWithoutProducerAnalysisAuthorization() {
         var capability = capability(Set.of(SemanticOperation.OBSERVE, SemanticOperation.DERIVE));
         var evidence = evidence("cap-1");
         var claim = new CapabilityEvidenceClaimContract.Claim(
@@ -56,8 +56,7 @@ class SemanticClaimAdmissionPolicyTest {
             "", "account", "2026-08-31", "returned accounts", "proxy reasoning",
             List.of("single period"), List.of("price effect"));
 
-        assertThat(policy.evaluate(capability, evidence, claim).rejectionCodes())
-            .contains("OPERATION_NOT_AUTHORIZED");
+        assertThat(policy.evaluate(capability, evidence, claim).admitted()).isTrue();
     }
 
     private CapabilityEvidenceClaimContract.Capability capability(Set<SemanticOperation> operations) {

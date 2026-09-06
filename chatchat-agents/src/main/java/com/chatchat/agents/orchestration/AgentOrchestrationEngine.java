@@ -2285,11 +2285,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 }
                 if (step.output() instanceof ToolCallBatchResult batch) {
                     for (ToolCallResult child : batch.results()) {
-                        String evidenceIdentity = firstNonBlank(child.evidenceId(), "");
                         String identity = firstNonBlank(child.templateId(),
                             firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "batch-child")))
-                            + "|" + (evidenceIdentity.isBlank()
-                                ? stringify(child.output()) : evidenceIdentity);
+                            + "|" + stringify(child.output());
                         if (seenBatchChildren.add(identity)) {
                             batchChildren.add(child);
                         }
@@ -2344,6 +2342,55 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             latest == null || latest.metadata() == null ? Map.of() : latest.metadata(),
             latest == null ? 0L : latest.durationMs()
         );
+    }
+
+    /** Returns whether trace recovery contributes evidence absent from the executed plan chain. */
+    boolean hasAdditionalRecoveredEvidence(
+        InterpretationPlanRuntime.ExecutionResult latest,
+        List<InterpretationPlanRuntime.ExecutionResult> attempts,
+        List<InterpretationPlanRuntime.ExecutionResult> recovered,
+        Map<String, Object> runtimeAttributes,
+        String analyzedSnapshotFingerprint
+    ) {
+        if (recovered == null || recovered.isEmpty()) return false;
+        List<InterpretationPlanRuntime.ExecutionResult> merged = new ArrayList<>(
+            attempts == null ? List.of() : attempts);
+        merged.addAll(recovered);
+        InterpretationPlanRuntime.ExecutionResult after = cumulativeEvidenceResult(
+            recovered.get(recovered.size() - 1), merged);
+        if (analyzedSnapshotFingerprint != null && !analyzedSnapshotFingerprint.isBlank()) {
+            return !analyzedSnapshotFingerprint.equals(evidenceSnapshotFingerprint(after, runtimeAttributes));
+        }
+        InterpretationPlanRuntime.ExecutionResult before = cumulativeEvidenceResult(latest, attempts);
+        return !evidenceIdentities(before).containsAll(evidenceIdentities(after));
+    }
+
+    String evidenceSnapshotFingerprint(InterpretationPlanRuntime.ExecutionResult result,
+                                       Map<String, Object> runtimeAttributes) {
+        var projection = analysisEvidenceCoordinator.project(result,
+            runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        return ModelProtocolJson.sha256Hex(projection.datasets().stream().map(dataset -> Map.of(
+            "reference", dataset.reference(),
+            "contentSha256", dataset.handle().contentSha256())).toList());
+    }
+
+    private Set<String> evidenceIdentities(InterpretationPlanRuntime.ExecutionResult result) {
+        Set<String> identities = new LinkedHashSet<>();
+        if (result == null || result.steps() == null) return identities;
+        for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+            if (step == null || step.output() == null) continue;
+            if (step.output() instanceof ToolCallBatchResult batch) {
+                for (ToolCallResult child : batch.results()) {
+                    identities.add(firstNonBlank(child.templateId(),
+                        firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "batch-child")))
+                        + "|" + stringify(child.output()));
+                }
+            } else {
+                identities.add(firstNonBlank(step.toolName(), step.actionType())
+                    + "|" + stringify(step.output()));
+            }
+        }
+        return identities;
     }
 
     String interpretationPlanReviewEvidenceContext(String synthesisPrompt) {
@@ -3398,6 +3445,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 )
             );
         }
+        if (toolNames.isTemplateDiscoveryToolName(request.execution().toolName())) {
+            payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
+        }
         boolean satisfied = booleanValue(firstObject(payload, "satisfied", "accepted", "sufficient"));
         String reason = firstNonBlank(
             stringValue(firstObject(payload, "reason", "feedback", "analysis")),
@@ -3529,6 +3579,70 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             : InterpretationPlanRuntime.StepReview.rejected(reason, metadata);
     }
 
+    private Map<String, Object> auditTemplateSelectionCoverage(
+        ChatModel activeChatModel,
+        String query,
+        InterpretationPlanRuntime.StepReviewRequest request,
+        Map<String, Object> provisional
+    ) {
+        Object candidateProjection = candidateSelectionEvidence(
+            request.execution().toolName(), request.execution().output());
+        List<String> selected = stringList(firstObject(
+            provisional, "selected_template_ids", "selectedTemplateIds"));
+        List<Map<String, Object>> candidates = findCandidateMaps(
+            candidateProjection, "templates", 0);
+        if (candidates.size() <= selected.size() || candidates.isEmpty()) return provisional;
+        Map<String, Object> provisionalProjection = new LinkedHashMap<>();
+        provisionalProjection.put("selectedTemplateIds", selected);
+        provisionalProjection.put("analysisIntent", firstObject(
+            provisional, "analysis_intent", "analysisIntent"));
+        provisionalProjection.put("supportsQuestionAspect", firstObject(provisional,
+            "supportsQuestionAspect", "supports_question_aspect"));
+        provisionalProjection.put("reason", firstObject(provisional, "reason", "analysis"));
+        provisionalProjection.put("templateEvaluations", firstObject(
+            provisional, "template_evaluations", "templateEvaluations"));
+        String auditPrompt = "You are the second-pass semantic coverage auditor for template selection. "
+            + "The literal current-turn query is immutable. Independently decompose every requested "
+            + "object, activity, measure, comparison and characterization, then check whether the "
+            + "provisional selected set has a returned evidence source for each facet. A role, skill, "
+            + "plan summary, aggregate or snapshot must not narrow the query or replace a complementary "
+            + "detail/history/transaction source. Select only returned IDs and do not select irrelevant "
+            + "candidates merely to increase count. If the user asks to characterize behavior, preference, "
+            + "pattern or activity, returned sources that record actions, events, transactions or history "
+            + "are material evidence candidates; a snapshot alone cannot answer that facet. Treat a "
+            + "provisional rejection as internally contradictory when its reason says a candidate contains "
+            + "the very behavior, activity or measure explicitly requested by the user. Return strict JSON only: "
+            + "{\"coverage_complete\":true,\"requested_aspects\":[],"
+            + "\"corrected_selected_template_ids\":[],\"missing_aspects\":[],\"reason\":\"\"}.\n"
+            + "Current-turn query:\n" + (query == null ? "" : query) + "\n"
+            + "Returned candidates:\n" + ModelProtocolJson.compact(candidateProjection) + "\n"
+            + "Provisional selection:\n" + ModelProtocolJson.compact(provisionalProjection);
+        String rawAudit = activeChatModel.chat(auditPrompt);
+        log.info("agentModelRawOutput phase=template_selection_coverage_audit runId={} raw=\n{}",
+            firstNonBlank(request.runId(), ""), ModelProtocolJson.prettyJsonForLog(rawAudit));
+        Map<String, Object> audit = parseJsonObject(rawAudit);
+        List<String> corrected = stringList(firstObject(
+            audit, "corrected_selected_template_ids", "correctedSelectedTemplateIds"));
+        Set<String> returned = candidates.stream()
+            .map(candidate -> stringValue(firstObject(candidate,
+                "templateId", "template_id", "id", "code", "template")))
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<String> auditedSelected = corrected.stream()
+            .filter(returned::contains).distinct().toList();
+        if (auditedSelected.isEmpty()) return provisional;
+        Map<String, Object> revised = new LinkedHashMap<>(provisional);
+        revised.put("selected_template_ids", auditedSelected);
+        revised.put("rejected_template_ids", returned.stream()
+            .filter(id -> !auditedSelected.contains(id)).toList());
+        revised.put("supportsQuestionAspect", stringList(firstObject(
+            audit, "requested_aspects", "requestedAspects")));
+        revised.put("missingAspects", stringList(firstObject(
+            audit, "missing_aspects", "missingAspects")));
+        revised.put("templateSelectionCoverageAudit", audit);
+        return Map.copyOf(revised);
+    }
+
     protected String buildToolResultReviewPrompt(String query,
                                                String systemPrompt,
                                                InterpretationPlanRuntime.StepReviewRequest request) {
@@ -3615,7 +3729,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         prompt.append("- If the user required an official source, reject evidence outside that source constraint.\n");
         prompt.append("- Do not answer the user and never emit final_answer/finalAnswer.\n");
         if (toolNames.isTemplateDiscoveryToolName(toolName)) {
+            prompt.append("- Treat the literal current-turn user query as the immutable coverage contract. Before looking at candidates, copy every explicitly requested object, activity, measure, comparison and requested characterization into analysis_intent.analysis_focus. A skill name, role perspective, plan summary or the first clause of a multi-clause query must never narrow or replace those facets.\n");
             prompt.append("- Semantically evaluate every returned template identity from title, description, capability, output schema, dependencies, and required parameters. Select only IDs present in the result and materially needed by the question.\n");
+            prompt.append("- Before selecting, decompose every explicit user-requested subject and analysis facet into supportsQuestionAspect entries. The selected complementary set must cover each facet for which a returned template declares relevant evidence; do not let a general snapshot or aggregate template displace a returned transaction, history, detail, composition, or comparison template needed for a separately requested facet.\n");
+            prompt.append("- Selection completeness is semantic coverage, not a fixed template count. Select all and only complementary candidates required for the requested facets, and state an explicit missingAspects entry for any requested facet left uncovered.\n");
             prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, rejected_template_ids, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role.\n");
             prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {

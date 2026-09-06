@@ -204,7 +204,10 @@ class UnifiedQuestionAnalysisGraphTest {
                         .doesNotContain("\"amount\":100");
                     return com.chatchat.agents.orchestration.analysis.prompt.AdaptiveBusinessAnalysisPromptSynthesizerTest.response();
                 }
-                assertThat(prompt).contains("Adaptive business analysis instruction", "客户经营分析师", "CONTRIBUTION", "\"amount\":100");
+                assertThat(prompt).contains("Adaptive business analysis instruction", "客户经营分析师", "CONTRIBUTION", "\"amount\":100",
+                    "supportingValues must cite every raw input value",
+                    "Emit at least one material evidence-bound finding for every non-empty question-relevant dataset",
+                    "Never describe a returned transaction, holding, profit/loss or position dataset as missing");
                 return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"bounded\"]}";
             }
         };

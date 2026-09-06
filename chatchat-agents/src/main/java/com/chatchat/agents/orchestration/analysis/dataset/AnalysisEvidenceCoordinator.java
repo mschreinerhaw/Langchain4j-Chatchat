@@ -114,7 +114,18 @@ public final class AnalysisEvidenceCoordinator {
                 AgentRoleAnalysisContext.attach(dataset.analysisContext(), runtimeAttributes),
                 dataset.handle()))
             .toList();
-        return new Projection(scopedDatasets, List.copyOf(excluded));
+        return new Projection(deduplicateRepeatedExecutions(scopedDatasets), List.copyOf(excluded));
+    }
+
+    /** Removes replayed copies of the same execution evidence while retaining distinct datasets. */
+    private List<Dataset> deduplicateRepeatedExecutions(List<Dataset> datasets) {
+        Map<String, Dataset> unique = new LinkedHashMap<>();
+        for (Dataset dataset : datasets) {
+            if (dataset == null || dataset.recordCount() == 0) continue;
+            String key = dataset.reference() + "\n" + dataset.handle().contentSha256();
+            unique.putIfAbsent(key, dataset);
+        }
+        return List.copyOf(unique.values());
     }
 
     public DatasetRelationshipPlan relationshipPlan(

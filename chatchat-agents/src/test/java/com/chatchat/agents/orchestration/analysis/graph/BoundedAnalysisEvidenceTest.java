@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration.analysis.graph;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset;
 import com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle;
 import com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle;
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import java.util.*;
@@ -27,6 +28,30 @@ class BoundedAnalysisEvidenceTest {
             "datasetReference", "search", "record", 1, "path", List.of("data", "rows"), "fromItem", 1, "limit", 1)), () -> {});
         assertThat(read.toString()).contains("search.records[1]", "value=17", "availableItemCount=2")
             .doesNotContain("value=42");
+    }
+
+    @Test void manyLogicalDatasetsRemainBoundAndReadableWithinOnePromptBudget() {
+        List<Dataset> datasets = new ArrayList<>();
+        for (int i = 0; i < 24; i++) {
+            datasets.add(new Dataset("dataset-" + i,
+                Map.of("schema", "x".repeat(2_000)),
+                List.of(Map.of("value", i, "description", "y".repeat(1_000)))));
+        }
+        var engine = new BoundedAnalysisEvidence();
+        var metadata = new LinkedHashMap<String, Object>();
+        var prepared = engine.prepare(datasets, AnalysisEvidenceSpillStore.disabled(), scope,
+            metadata, () -> {});
+
+        assertThat(prepared.projected()).isTrue();
+        assertThat(prepared.sources()).hasSize(24).containsKeys("dataset-0", "dataset-23");
+        assertThat(prepared.views()).extracting(view -> view.get("datasetReference"))
+            .contains("dataset-0", "dataset-23");
+        assertThat(ModelProtocolJson.compact(prepared.views()).length())
+            .isLessThanOrEqualTo(BoundedAnalysisEvidence.INPUT_BUDGET);
+        assertThat(metadata).containsEntry("unifiedEvidenceCatalogDatasetCount", 24);
+        assertThat(engine.read(prepared, List.of(Map.of("operation", "READ_RECORDS",
+            "datasetReference", "dataset-23", "fromRecord", 1, "limit", 1)), () -> {}).toString())
+            .contains("dataset-23.records[1]", "value=23");
     }
 
     @Test void profilesAndReadsPagedHandleWithoutWholeDatasetMaterialization() {

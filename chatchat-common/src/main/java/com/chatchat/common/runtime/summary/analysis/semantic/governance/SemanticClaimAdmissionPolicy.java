@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/** Deterministic fail-closed admission for Capability -> Evidence -> Claim. */
+/** Evidence-integrity admission for Capability -> Evidence -> Claim. */
 public final class SemanticClaimAdmissionPolicy {
 
     public CapabilityEvidenceClaimContract.Admission evaluate(
@@ -40,19 +40,35 @@ public final class SemanticClaimAdmissionPolicy {
             return decision(rejected);
         }
 
-        if (capability == null || !capability.producerDeclared()) rejected.add("CAPABILITY_UNDECLARED");
-
-        if (claim.operation() == null || capability == null
-            || !capability.allowedOperations().contains(claim.operation())) {
-            rejected.add("OPERATION_NOT_AUTHORIZED");
-        }
-        if (claim.semanticBasis().isEmpty()) rejected.add("SEMANTIC_BASIS_MISSING");
-        else if (capability == null
-            || !capability.declaredSemanticBasis().containsAll(claim.semanticBasis())) {
-            rejected.add("SEMANTIC_BASIS_MISMATCH");
+        if ("CALIBRATED_INFERENCE".equals(claimClass)) {
+            // Inference is model-owned reasoning over bound evidence. Producer capability metadata
+            // cannot authorize or reject that reasoning; Runtime checks its evidence and shape.
+            if (claim.operation() != SemanticOperation.INFER && claim.operation() != SemanticOperation.PROXY) {
+                rejected.add("OPERATION_CLASS_MISMATCH");
+            }
+            if (claim.caveats().isEmpty()) rejected.add("INFERENCE_CAVEAT_MISSING");
+            if (claim.alternativeExplanations().isEmpty()) rejected.add("ALTERNATIVE_EXPLANATION_MISSING");
+            if (evidence != null) {
+                matchEvidenceValue("EVIDENCE_GRAIN_MISMATCH", claim.grain(), evidence.grain(), rejected);
+                matchEvidenceValue("EVIDENCE_TIME_SCOPE_MISMATCH", claim.timeScope(), evidence.timeScope(), rejected);
+                matchEvidenceValue("EVIDENCE_POPULATION_SCOPE_MISMATCH", claim.populationScope(),
+                    evidence.populationScope(), rejected);
+            }
+            return decision(rejected);
         }
 
         if ("AUTHORIZED_DERIVED_MEASURE".equals(claimClass)) {
+            // Derived measures must be backed by an explicitly declared executable calculation.
+            if (capability == null || !capability.producerDeclared()) rejected.add("CAPABILITY_UNDECLARED");
+            if (claim.operation() == null || capability == null
+                || !capability.allowedOperations().contains(claim.operation())) {
+                rejected.add("OPERATION_NOT_AUTHORIZED");
+            }
+            if (claim.semanticBasis().isEmpty()) rejected.add("SEMANTIC_BASIS_MISSING");
+            else if (capability == null
+                || !capability.declaredSemanticBasis().containsAll(claim.semanticBasis())) {
+                rejected.add("SEMANTIC_BASIS_MISMATCH");
+            }
             if (claim.operation() == SemanticOperation.INFER || claim.operation() == SemanticOperation.PROXY
                 || claim.operation() == SemanticOperation.OBSERVE) rejected.add("OPERATION_CLASS_MISMATCH");
             if (claim.method().isBlank()) rejected.add("DERIVATION_METHOD_MISSING");
@@ -62,14 +78,6 @@ public final class SemanticClaimAdmissionPolicy {
             if (claim.timeScope().isBlank()) rejected.add("TIME_SCOPE_MISSING");
             if (claim.populationScope().isBlank()) rejected.add("POPULATION_SCOPE_MISSING");
         }
-        if ("CALIBRATED_INFERENCE".equals(claimClass)) {
-            if (claim.operation() != SemanticOperation.INFER && claim.operation() != SemanticOperation.PROXY) {
-                rejected.add("OPERATION_CLASS_MISMATCH");
-            }
-            if (claim.caveats().isEmpty()) rejected.add("INFERENCE_CAVEAT_MISSING");
-            if (claim.alternativeExplanations().isEmpty()) rejected.add("ALTERNATIVE_EXPLANATION_MISSING");
-        }
-
         matchDeclared("FIELD_NOT_AUTHORIZED", claim.inputFields(), capability == null
             ? Set.of() : capability.declaredFields(), rejected);
         matchDeclaredValue("UNIT_MISMATCH", claim.outputUnit(), capability == null

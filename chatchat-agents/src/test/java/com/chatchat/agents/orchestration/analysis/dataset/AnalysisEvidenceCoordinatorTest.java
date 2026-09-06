@@ -83,6 +83,22 @@ class AnalysisEvidenceCoordinatorTest {
         assertThat(projection.datasets()).isEmpty();
     }
 
+    @Test
+    void removesCheckpointReplayOfTheSameDatasetEvidence() {
+        AnalysisEvidenceCoordinator coordinator = coordinator();
+        Object output = Map.of("records", List.of(Map.of("trade", "buy", "quantity", 100)));
+        InterpretationPlanRuntime.ExecutionResult execution = new InterpretationPlanRuntime.ExecutionResult(
+            "completed", true, false, null, null,
+            List.of(step("trade_source", output), step("trade_source", output)), Map.of(), 1);
+
+        AnalysisEvidenceCoordinator.Projection projection = coordinator.project(execution);
+
+        assertThat(projection.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.reference()).isEqualTo("trade_source");
+            assertThat(dataset.recordCount()).isEqualTo(1);
+        });
+    }
+
     private AnalysisEvidenceCoordinator coordinator() {
         RuntimeAnalysisContextProtocol context = mock(RuntimeAnalysisContextProtocol.class);
         when(context.adapt(anyString(), any(), any())).thenReturn(Map.of());

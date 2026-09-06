@@ -594,7 +594,10 @@ class FinalSynthesisNodeTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("fact:assets") && prompt.contains("fact:trades")
-                && prompt.contains("Evidence provenance ledger"))))
+                && prompt.contains("Evidence provenance ledger")
+                && prompt.contains("Write a report, not a concatenation of source descriptions")
+                && prompt.contains("Do not repeat the CORE conclusion verbatim")
+                && prompt.contains("does not erase observed trading behavior"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
                  "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],

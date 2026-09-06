@@ -75,4 +75,20 @@ class ReportComposerTest {
             Map.of("status", "executed", "findings", List.of(Map.of("id", "forged", "value", 999))))));
         assertThat(catalog.promptView()).isEmpty();
     }
+
+    @Test
+    void returnedRecordEvidenceRemainsAPrimaryFindingWithoutChartData() {
+        var block = composer.compose("F1", "CORE", "what happened", "one returned row has value 42",
+            "this is a fact for the observed row", "use it within the observed scope", "HIGH", List.of(),
+            List.of(Map.of(
+                "status", "SUPPORTED",
+                "recordRefs", List.of("result.records[0]"),
+                "supportingValues", List.of("42")
+            )), "", "", VerifiedReportDataCatalog.fromRuntime(Map.of()));
+
+        assertThat(block.presentation().primaryConclusion()).isTrue();
+        assertThat(block.presentation().primaryPresentation()).isEqualTo("TEXT");
+        assertThat(block.presentation().validationStatus()).isEqualTo("VERIFIED_EVIDENCE_BOUND");
+        assertThat(block.caveats()).doesNotContain("未绑定可验证的计算数据；保留为待验证说明，不进入核心业务结论。");
+    }
 }

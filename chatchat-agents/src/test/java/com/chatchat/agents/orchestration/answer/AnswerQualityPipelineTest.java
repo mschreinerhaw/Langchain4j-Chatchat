@@ -15,6 +15,7 @@ import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 
 import com.chatchat.agents.runtime.answer.AgentAnswerReview;
 import com.chatchat.agents.runtime.answer.AgentAnswerReviewer;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AnswerQualityPipelineTest {
@@ -152,6 +154,76 @@ class AnswerQualityPipelineTest {
             .containsKeys("answerContract", "evidenceSufficiencyGate", "answerCritic")
             .containsEntry("answerTargetedRepairApplied", true)
             .containsEntry("businessHardcodingPolicy", "runtime_contract_only");
+    }
+
+    @Test
+    void governedAnalysisReportCannotBeRewrittenByGenericCritic() {
+        ChatModel model = mock(ChatModel.class);
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
+        properties.setFinalSummaryWebSearchEnabled(false);
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.REVISED,
+                "## No data\n\nThe query did not return usable data, so analysis is impossible.",
+                "replace with a refusal");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt"),
+            null, null, null, new ObjectMapper(), properties
+        );
+        String analysis = "## Finding\n\nThe returned row reports 42, so the observed value is 42.";
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("modelEvidenceReviewRewriteAllowed", true);
+        metadata.put("analysisReportContract", Map.of(
+            "schemaVersion", "analysis_report_contract.v1",
+            "reportType", "DRIVER_REPORT",
+            "sourceStage", "DRIVER",
+            "renderedText", analysis
+        ));
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            model, "analyze", "", List.of(), metadata, List.of("result.records[0].value=42"),
+            analysis, () -> false, "final_answer");
+
+        assertThat(result.answer()).contains("returned row reports 42");
+        assertThat(result.answer()).doesNotContain("analysis is impossible");
+        assertThat(result.metadata())
+            .containsEntry("answerReviewRewriteApplied", false)
+            .containsEntry("answerReviewRewriteSkippedReason", "governed_analysis_report")
+            .containsEntry("answerCriticAuthority", "advisory_only")
+            .containsEntry("answerCriticSkippedReason", "analysis_runtime_owns_claim_logic")
+            .containsEntry("analysisPublicationPolicy", "PUBLISH_SUPPORTED_DATA_REGARDLESS_OF_UTILITY");
+        verifyNoInteractions(model);
+    }
+
+    @Test
+    void nonEmptyRuntimeEvidenceCannotPublishAWholeReportDataRefusal() {
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            null,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        String refusal = "## Result\n\nThere is not enough data and this cannot be analyzed.";
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisReportContract", Map.of(
+            "schemaVersion", "analysis_report_contract.v1",
+            "reportType", "DRIVER_REPORT",
+            "sourceStage", "DRIVER",
+            "renderedText", refusal
+        ));
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName("data_query")
+            .success(true)
+            .output("{\"data\":{\"records\":[{\"value\":42}]}}")
+            .build();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            refusal, List.of(trace), metadata, List.of("result.records[0].value=42"));
+
+        assertThat(result.answer())
+            .contains("Runtime 已确认本次执行返回了", "存在可用数据")
+            .doesNotContain("cannot be analyzed");
+        assertThat(result.metadata())
+            .containsEntry("availableDataRefusalRejected", true)
+            .containsEntry("availableDataAnalysisFallbackApplied", true);
     }
 
     @Test

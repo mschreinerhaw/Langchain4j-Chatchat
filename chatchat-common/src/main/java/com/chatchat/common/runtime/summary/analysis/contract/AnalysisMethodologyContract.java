@@ -89,16 +89,18 @@ public record AnalysisMethodologyContract(
             "recommendationRule", "Recommend verification or monitoring supported by the observed state; do not prescribe a strategy based on an unverified customer identity or inferred motive."));
         result.put("partialEvidencePolicy", Map.of(
             "disposition", "ANALYZE_AVAILABLE_EVIDENCE_FIRST",
+            "minimumUsableDataRule", "One usable returned record requires an analysis of every conclusion that record can support.",
             "scopeRule", "State the actual returned population and period; never extrapolate a partial sample to the full business population.",
             "missingDataRule", "Missing fields, history or datasets restrict only dependent claims, not analysis of other available evidence. Missing is not zero.",
             "baselineRule", "Without history, analyze the current state, composition and supported cross-sectional differences; withhold unsupported trends and abnormality labels.",
             "recommendationRule", "Tie each recommendation to a supported finding and explain the business consequence. Qualify conditional actions and their verification needs; do not invent generic advice to fill gaps.",
             "reportOrder", List.of("SUPPORTED_FINDINGS", "BUSINESS_IMPLICATIONS", "EVIDENCE_BOUND_ACTIONS", "MATERIAL_LIMITATIONS", "TARGETED_FOLLOWUP"),
             "completionRule", "Publish supported partial analysis with explicit limitations. Do not substitute an indicator framework or a request for more data for available analysis.",
-            "failureRule", "A runtime failure or absence of analysis products is not evidence that source data is empty."));
+            "failureRule", "A runtime failure or absence of analysis products is not evidence that source data is empty.",
+            "responsibilityRule", "Runtime validates evidence, numeric, scope and cross-report logic. Humans judge whether the supported result is useful."));
         result.put("insightBlockPolicy", Map.of(
             "minimumPrimaryExpressions", 2,
-            "requiredDataExpression", List.of("VERIFIED_CHART", "VERIFIED_TABLE", "VERIFIED_METRIC"),
+            "requiredDataExpression", List.of("VERIFIED_CHART", "VERIFIED_TABLE", "VERIFIED_METRIC", "VERIFIED_RECORD_EVIDENCE"),
             "textRole", "EXPLAIN_DATA_NOT_REPLACE_DATA",
             "chartValueOwner", "RUNTIME_DATA_EXECUTOR",
             "missingDataDisposition", "DATA_STATUS_BLOCK_EXCLUDED_FROM_EXECUTIVE_CONCLUSIONS",

@@ -15,28 +15,34 @@ public final class ReportComposer {
         List<Map<String, Object>> evidence, String dataRef, String intent, VerifiedReportDataCatalog catalog) {
         var data = catalog.get(dataRef);
         List<String> refs = evidence.stream().flatMap(item -> strings(item.get("recordRefs")).stream()).toList();
-        boolean bound = data != null && data.recordRefs().stream().allMatch(ref -> refs.stream()
+        boolean dataBound = data != null && data.recordRefs().stream().allMatch(ref -> refs.stream()
             .anyMatch(claimRef -> ref.equals(claimRef) || ref.startsWith(claimRef + ".")));
         boolean reviewRequired = evidence.stream().anyMatch(item ->
             !strings(item.get("reviewReasons")).isEmpty()
                 || List.of("REVIEW_REQUIRED", "DOWNGRADE", "REJECTED").contains(String.valueOf(item.get("status"))));
+        boolean evidenceBound = evidence.stream().anyMatch(item ->
+            !strings(item.get("recordRefs")).isEmpty()
+                && !strings(item.get("supportingValues")).isEmpty());
+        boolean publishableEvidence = dataBound || evidenceBound;
         List<String> limitations = new ArrayList<>(caveats);
-        if (!bound) limitations.add("未绑定可验证的计算数据；保留为待验证说明，不进入核心业务结论。");
+        if (!publishableEvidence) limitations.add("未绑定可验证的记录证据或计算数据；保留为待验证说明，不进入核心业务结论。");
         if (reviewRequired) limitations.add("依据包含待复核判断，不进入核心业务结论。");
-        var plan = bound ? planner.plan(id, data, intent) : null;
-        if (bound && plan == null && !data.rows().isEmpty()) {
+        var plan = dataBound ? planner.plan(id, data, intent) : null;
+        if (dataBound && plan == null && !data.rows().isEmpty()) {
             limitations.add("当前数据或分析意图不满足图表条件，保留数据表供核对。");
         }
-        List<Map<String, Object>> rows = bound ? executor.execute(data, plan) : List.of();
+        List<Map<String, Object>> rows = dataBound ? executor.execute(data, plan) : List.of();
         Map<String, Object> visualization = plan == null ? Map.of() : planner.render(plan, rows);
-        Map<String, Object> blockData = new java.util.LinkedHashMap<>(bound ? data.toMap() : Map.of());
-        if (bound) blockData.put("rows", rows);
+        Map<String, Object> blockData = new java.util.LinkedHashMap<>(dataBound ? data.toMap() : Map.of());
+        if (dataBound) blockData.put("rows", rows);
         return new AnalyticalInsightBlock(id, section, question, observation, interpretation, implication,
             confidence, List.copyOf(limitations), List.copyOf(evidence), blockData, visualization,
-            new AnalyticalInsightBlock.PresentationStrategy(!bound ? "DATA_STATUS"
+            new AnalyticalInsightBlock.PresentationStrategy(!publishableEvidence ? "DATA_STATUS"
+                : !dataBound ? "TEXT"
                 : plan != null ? "CHART" : rows.isEmpty() ? "KPI" : "TABLE",
-                bound && !rows.isEmpty(), bound && data.metric() != null,
-                bound && !reviewRequired && "CORE".equals(section), bound ? "VERIFIED_DATA_BOUND" : "INSUFFICIENT_DATA"));
+                dataBound && !rows.isEmpty(), dataBound && data.metric() != null,
+                publishableEvidence && !reviewRequired && "CORE".equals(section),
+                dataBound ? "VERIFIED_DATA_BOUND" : evidenceBound ? "VERIFIED_EVIDENCE_BOUND" : "INSUFFICIENT_DATA"));
     }
 
     private List<String> strings(Object value) {

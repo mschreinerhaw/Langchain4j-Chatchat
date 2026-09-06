@@ -28,9 +28,12 @@ final class AnalysisSynthesisContract {
             to the executed operation. Never supply chart data, table rows, units, or computed metrics yourself.
             The runtime planner chooses the chart and the composer binds chart, table, metric, observation,
             interpretation, implication, confidence and evidence. Write plain prose in text; no Markdown data tables.
-            Every primary conclusion requires both an explanation and a verifiable data expression. If no matching
-            computed data exists, leave dataRef empty: the runtime will publish a data-status block, not a primary
-            evidence-backed business conclusion. Unsupported visualization intents fall back to verified data tables.
+            Every primary conclusion requires both an explanation and a verifiable data expression. An admitted claim
+            with returned-record references and supporting values is a verifiable evidence expression even when no
+            computed dataRef exists. In that case leave dataRef empty and publish a grounded text/metric finding; a
+            chart is presentation enrichment, not a publication gate. Missing dimensions limit only dependent claims.
+            If at least one usable record exists, analyze what it supports and state scope limits instead of refusing
+            the whole analysis. Unsupported visualization intents fall back to verified data tables.
             Findings must not contain embedded section headings or dangling citation brackets.
             """;
     }

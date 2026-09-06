@@ -61,6 +61,26 @@ public class AnswerDecisionEngine {
             metadata.put("answerReviewSuggestedAnswerPreview", shortText(review.answer(), 1000));
         }
 
+        if (protectedBusinessCandidate(request == null ? null : request.metadata())
+            && !candidate.isBlank()
+            && (evidence == null || !evidence.shouldReplaceWithGroundedEvidence())) {
+            boolean governedAnalysis = governedAnalysisCandidate(request == null ? null : request.metadata());
+            if (quality != null) {
+                attachQualityMetadata(metadata, quality);
+            }
+            metadata.put("answerReviewAuthority", "diagnostic_only");
+            metadata.put("answerReviewRewriteApplied", false);
+            metadata.put("answerReviewRewriteSkippedReason",
+                governedAnalysis ? "governed_analysis_report" : "protected_business_result");
+            return decision(
+                candidate,
+                NO_REWRITE,
+                governedAnalysis ? "governed_analysis_report_retained" : "protected_business_result_retained",
+                governedAnalysis ? "analysis_runtime" : "planner_candidate",
+                metadata
+            );
+        }
+
         if (modelEvidenceRepairAllowed(request == null ? null : request.metadata())
             && review != null
             && AgentAnswerReview.REVISED.equals(review.status())
@@ -74,24 +94,6 @@ public class AnswerDecisionEngine {
                 REVIEWER_REWRITE,
                 "model_reanalyzed_complete_executed_evidence",
                 "evidence_analysis_reviewer",
-                metadata
-            );
-        }
-
-        if (protectedBusinessCandidate(request == null ? null : request.metadata())
-            && !candidate.isBlank()
-            && (evidence == null || !evidence.shouldReplaceWithGroundedEvidence())) {
-            if (quality != null) {
-                attachQualityMetadata(metadata, quality);
-            }
-            metadata.put("answerReviewAuthority", "diagnostic_only");
-            metadata.put("answerReviewRewriteApplied", false);
-            metadata.put("answerReviewRewriteSkippedReason", "protected_business_result");
-            return decision(
-                candidate,
-                NO_REWRITE,
-                "protected_business_result_retained",
-                "planner_candidate",
                 metadata
             );
         }
@@ -216,8 +218,22 @@ public class AnswerDecisionEngine {
             return false;
         }
         Object value = metadata.get("protectedCandidateAnswer");
-        return Boolean.TRUE.equals(value)
-            || (value != null && Boolean.parseBoolean(String.valueOf(value)));
+        if (Boolean.TRUE.equals(value)
+            || (value != null && Boolean.parseBoolean(String.valueOf(value)))) {
+            return true;
+        }
+        return governedAnalysisCandidate(metadata);
+    }
+
+    private boolean governedAnalysisCandidate(Map<String, Object> metadata) {
+        if (metadata == null) {
+            return false;
+        }
+        Object rawContract = metadata.get("analysisReportContract");
+        if (!(rawContract instanceof Map<?, ?> contract)) {
+            return false;
+        }
+        return "DRIVER_REPORT".equals(String.valueOf(contract.get("reportType")));
     }
 
     private boolean modelEvidenceRepairAllowed(Map<String, Object> metadata) {

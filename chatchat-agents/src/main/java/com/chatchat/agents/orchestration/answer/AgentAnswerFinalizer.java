@@ -179,6 +179,25 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         String policyCompliantCandidate = values.containsKey("analysisReportContract")
             ? enforceAnalysisReportContract(candidateAnswer, values)
             : enforceMcpResultAnalysisPolicy(candidateAnswer, mcpAssessment, values);
+        boolean governedAnalysisReport = isGovernedAnalysisReport(values);
+        if (governedAnalysisReport) {
+            values.put("protectedCandidateAnswer", true);
+            values.put("analysisPublicationPolicy", "PUBLISH_SUPPORTED_DATA_REGARDLESS_OF_UTILITY");
+            if (mcpAssessment.resultAvailable() && refusesAvailableData(policyCompliantCandidate)) {
+                String contractReport = stringValue(objectMap(values.get("analysisReportContract"))
+                    .get("renderedText")).trim();
+                if (!contractReport.isBlank() && !refusesAvailableData(contractReport)) {
+                    policyCompliantCandidate = contractReport;
+                    values.put("availableDataAnalysisRecoveredFromContract", true);
+                } else {
+                    policyCompliantCandidate = minimumAvailableDataAnalysis(mcpAssessment);
+                    values.put("availableDataAnalysisFallbackApplied", true);
+                }
+                values.put("availableDataRefusalRejected", true);
+                values.put("availableDataRefusalRejectedReason",
+                    "non_empty_runtime_evidence_requires_scoped_analysis");
+            }
+        }
         AnswerQualityEvaluator.QualityReport policyCompliantQuality =
             Boolean.TRUE.equals(values.get("evidenceRefusalBlocked")) ? null : qualityReport;
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal == null
@@ -199,6 +218,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         selectedAnswer = answerQualityCoordinator.applyTargetedRepair(
             activeChatModel, query, systemPrompt, selectedAnswer, values, observations,
             this::sanitizeFinalMarkdown);
+        if (governedAnalysisReport && !policyCompliantCandidate.equals(selectedAnswer)) {
+            values.put("postAnalysisRewriteRejected", true);
+            values.put("postAnalysisRewriteRejectedReason", "governed_analysis_report_is_authoritative");
+            selectedAnswer = policyCompliantCandidate;
+        }
         String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
         if (values.containsKey("analysisReportContract")) {
             finalAnswer = enforceAnalysisReportContract(finalAnswer, values);
@@ -420,7 +444,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
             userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
-        AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
+        AgentAnswerReview review = reviewForPublication(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
@@ -458,7 +482,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
             userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
-        AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
+        AgentAnswerReview review = reviewForPublication(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
@@ -497,7 +521,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
             userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
-        AgentAnswerReview review = answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
+        AgentAnswerReview review = reviewForPublication(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
@@ -515,6 +539,22 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         );
         return finishWithDecision(activeChatModel, query, systemPrompt, finalAnswer, review, signal, quality,
             effectiveTraces, metadata, effectiveObservations);
+    }
+
+    private AgentAnswerReview reviewForPublication(ChatModel activeChatModel,
+                                                   String query,
+                                                   String systemPrompt,
+                                                   List<String> observations,
+                                                   String answer,
+                                                   Map<String, Object> metadata) {
+        if (isGovernedAnalysisReport(metadata)) {
+            metadata.put("answerReviewAuthority", "advisory_only");
+            metadata.put("answerReviewSkippedReason", "analysis_runtime_owns_claim_logic");
+            return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer,
+                "Governed analysis claims were already validated before report composition.");
+        }
+        return answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
+            observations, answer, metadata);
     }
 
     public AgentOrchestrator.AgentExecutionResult finishProducedAnswerAfterCancellation(
@@ -545,6 +585,10 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         List<InteractionToolTrace> traces,
         Map<String, Object> metadata
     ) {
+        if (isGovernedAnalysisReport(metadata)) {
+            metadata.put("finalSummaryEnhancementSkippedReason", "analysis_runtime_owns_claim_logic");
+            return FinalSummaryWebSearchEnhancer.Enhancement.skipped(observations, traces);
+        }
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
         try {
             FinalSummaryWebSearchEnhancer.Enhancement enhancement = runWithTimeout(
@@ -1122,6 +1166,29 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         return analysisFailureReport(metadata, "FINAL_PAYLOAD_NOT_ANALYSIS");
     }
 
+    private boolean isGovernedAnalysisReport(Map<String, Object> metadata) {
+        if (metadata == null) {
+            return false;
+        }
+        Map<String, Object> contract = objectMap(metadata.get("analysisReportContract"));
+        return "DRIVER_REPORT".equals(stringValue(contract.get("reportType")));
+    }
+
+    private String minimumAvailableDataAnalysis(McpResultEvidencePolicy.Assessment assessment) {
+        int available = assessment == null ? 0 : assessment.availableResultCount();
+        return """
+            # 数据分析结果
+
+            ## 已确认事实
+
+            Runtime 已确认本次执行返回了 %d 个非空工具结果。因此，可以确认查询范围内存在可用数据，不能将本次结果描述为“未返回数据”或“无法分析”。
+
+            ## 判断边界
+
+            当前分析模型未形成更多可核验的字段级结论。本报告仅确认数据存在性与本次查询范围，不据此扩展为趋势、因果关系或长期规律；结构化结果仍保留供人工判断与后续分析。
+            """.formatted(Math.max(1, available)).trim();
+    }
+
     /**
      * A later Driver/reviewer narrative supersedes an earlier synthesis fallback. Clear the
      * fail-closed markers here so stale intermediate state cannot turn a presentable,
@@ -1187,6 +1254,18 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             "证据不足", "数据不足", "信息不足", "关键数据缺失", "数据完全缺失",
             "insufficient evidence", "unable to analyze", "cannot analyze",
             "cannot generate", "not enough data");
+    }
+
+    private boolean refusesAvailableData(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return true;
+        }
+        String normalized = answer.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        return containsAny(normalized,
+            "未返回实际数据", "未返回具体业务数据", "未返回该客户的具体业务数据",
+            "未返回可用数据", "没有返回可用数据", "查询结果为空", "业务数据结果为空",
+            "did not return usable data", "did not return actual data", "no usable data was returned",
+            "not enough data and this cannot be analyzed", "no data and cannot be analyzed");
     }
 
     private boolean mcpResultAvailable(Map<String, Object> metadata) {

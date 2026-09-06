@@ -98,6 +98,11 @@ final class AnswerQualityCoordinator {
         if (!runtimeProperties.isAnswerQualityPipelineEnabled()) {
             return selectedAnswer;
         }
+        if (governedAnalysisReport(metadata)) {
+            put(metadata, "answerCriticAuthority", "advisory_only");
+            put(metadata, "answerCriticSkippedReason", "analysis_runtime_owns_claim_logic");
+            return selectedAnswer;
+        }
         QualityContext context = prepareContext(query, systemPrompt, observations, metadata);
         if (!runtimeProperties.isAnswerCriticEnabled() || activeChatModel == null
             || selectedAnswer == null || selectedAnswer.isBlank()) {
@@ -199,6 +204,15 @@ final class AnswerQualityCoordinator {
         return metadata != null && Boolean.TRUE.equals(metadata.get("modelEvidenceReviewRewriteAllowed"))
             && review != null && AgentAnswerReview.REVISED.equals(review.status())
             && review.answer() != null && !review.answer().isBlank();
+    }
+
+    private boolean governedAnalysisReport(Map<String, Object> metadata) {
+        if (metadata == null) {
+            return false;
+        }
+        Object rawContract = metadata.get("analysisReportContract");
+        return rawContract instanceof Map<?, ?> contract
+            && "DRIVER_REPORT".equals(String.valueOf(contract.get("reportType")));
     }
 
     private void add(List<AnswerQualityEvaluator.AnswerCandidate> target,

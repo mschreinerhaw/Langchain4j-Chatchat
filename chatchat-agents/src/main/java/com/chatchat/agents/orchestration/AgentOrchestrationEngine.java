@@ -152,6 +152,8 @@ import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.config.ModelsConfig;
@@ -192,6 +194,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private static final int SUMMARY_OBSERVATION_METADATA_CHARS = 16_000;
     private static final int SUMMARY_EVIDENCE_TOKEN_BUDGET = 24_000;
     private static final int SUMMARY_COMPRESSED_OBSERVATION_CHARS = 4_000;
+    private static final int TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS = 8_000;
+    private static final int TOOL_REVIEW_CURRENT_EVIDENCE_CHARS = 16_000;
+    private static final int TOOL_REVIEW_CANDIDATE_FIELD_CHARS = 1_500;
     private static final Pattern TOOL_OUTPUT_DOCUMENT_ID = Pattern.compile(
         "tool-output:[A-Za-z0-9._:-]+"
     );
@@ -3294,6 +3299,41 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "toolResultReviewSkipped", true
             ));
         }
+        ToolWorkflowRole workflowRole = ToolWorkflowContract.resolveRole(
+            request.execution().toolName(), toolMetadataOrNull(request.execution().toolName()));
+        if (workflowRole == ToolWorkflowRole.TEMPLATE_EXECUTION && request.execution().success()) {
+            log.info("Tool result admitted without model review runId={} stepId={} tool={} mode={}",
+                firstNonBlank(request.runId(), ""),
+                request.step() == null ? null : request.step().id(),
+                request.execution().toolName(),
+                "RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION");
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "Successful governed template execution is admitted as evidence; analytical sufficiency is evaluated by the unified analysis graph.",
+                Map.of(
+                    "toolResultReviewSkipped", true,
+                    "toolResultReviewMode", "RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION",
+                    "templateExecutionSatisfied", true,
+                    "evidenceIterationSufficient", false
+                )
+            );
+        }
+        if (request.execution().success()
+            && isWebDiscoveryTool(request.execution().toolName())
+            && !hasDownstreamCrawler(request)) {
+            log.info("Tool result admitted without model review runId={} stepId={} tool={} mode={}",
+                firstNonBlank(request.runId(), ""),
+                request.step() == null ? null : request.step().id(),
+                request.execution().toolName(),
+                "RUNTIME_DETERMINISTIC_TERMINAL_DISCOVERY_ADMISSION");
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "Successful terminal web discovery is admitted as evidence; analytical relevance and limitations are evaluated by the unified analysis graph.",
+                Map.of(
+                    "toolResultReviewSkipped", true,
+                    "toolResultReviewMode", "RUNTIME_DETERMINISTIC_TERMINAL_DISCOVERY_ADMISSION",
+                    "evidenceIterationSufficient", false
+                )
+            );
+        }
         long startedAt = System.currentTimeMillis();
         String runId = request.runId();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
@@ -3304,6 +3344,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             request.maxAttempts(),
             activeChatModel.getClass().getName());
         String reviewPrompt = buildToolResultReviewPrompt(query, systemPrompt, request, runtimeAttributes);
+        ContextTokenEstimator.Size reviewSize = contextTokenEstimator.estimate(reviewPrompt);
+        log.info("agentModelPrompt phase=tool_result_review runId={} stepId={} tool={} promptChars={} estimatedTokens={}",
+            firstNonBlank(runId, ""), request.step() == null ? null : request.step().id(),
+            request.execution().toolName(), reviewSize.chars(), reviewSize.tokens());
         // Required semantic selection uses the request's DeadlineAwareChatModel budget.
         // An optional-review cutoff must not prevent the first executable template selection.
         String raw = activeChatModel.chat(reviewPrompt);
@@ -3491,57 +3535,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
             runtimeAttributes, "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION");
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
-        prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"iteration_sufficient\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"evidence_used\":[{\"basis\":\"returned fact\"}],\"missing_evidence\":[\"material gap\"],\"conflicts\":[\"conflict\"],\"hypotheses\":[{\"hypothesis_id\":\"H1\",\"parent_hypothesis_id\":null,\"statement\":\"testable explanation\",\"support_evidence_ids\":[],\"contradict_evidence_ids\":[],\"confidence\":0.0,\"status\":\"SUPPORTED|CONTRADICTED|UNRESOLVED\"}],\"next_actions\":[{\"tool\":\"available_tool_name\",\"intent\":\"evidence gap to close or hypothesis to test\",\"input_changes\":{\"parameter\":\"revised value\"},\"reason\":\"why this action is needed\",\"based_on\":[\"evidenceId\",\"hypothesisId\"],\"scope_basis\":{\"source\":\"user_query|tool_result\",\"reference\":\"exact user quote or returned JSON path\"},\"capability_basis\":{\"source\":\"tool_result|tool_metadata\",\"reference\":\"returned capability JSON path or declared tool capability\"},\"expected_evidence_types\":[\"specific evidence type\"]}],\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_asset_ids\":[\"asset-id\"],\"rejected_asset_ids\":[\"asset-id\"],\"asset_evaluations\":[{\"asset_id\":\"asset-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[\"evidence-based reason\"]}],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"analysis_intent\":{\"business_goal\":\"goal\",\"analysis_subject\":\"subject\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"scope\",\"expected_relationships\":[]},\"template_relationships\":[{\"from_template_id\":\"template-id\",\"to_template_id\":\"template-id\",\"relation_type\":\"business relation\",\"description\":\"evidence-based description\"}],\"template_evaluations\":[{\"template_id\":\"template-id\",\"business_group\":\"returned group\",\"relevance\":0.0,\"relevance_level\":\"HIGH|MEDIUM|LOW\",\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[\"evidence-based reason\"],\"missing_parameters\":[],\"matched_question_aspects\":[\"question aspect\"],\"relationship_hints\":[\"declared relationship to another selected dataset\"]}],\"template_execution_satisfied\":true|false,\"missing_parameters\":[\"parameter\"],\"retry_input_changes\":{\"parameters\":{\"parameter\":\"value proven by user/tool evidence\"}},\"reselect_template\":true|false,\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        appendToolResultReviewOutputContract(prompt, request.execution().toolName());
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
-        prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
-        prompt.append("- iteration_sufficient evaluates the cumulative user request, not merely whether this one tool call technically succeeded. Set it false when material evidence is still missing and provide evidence_used, missing_evidence, conflicts, and tool-agnostic next_actions.\n");
-        prompt.append("- satisfied and iteration_sufficient describe semantic usefulness and evidence sufficiency; they do not control or rewrite the tool execution status.\n");
-        prompt.append("- outputTruncated=true means result completeness is partial. If the ToolOutput itself succeeded, record the returned evidence and its limits; never describe the tool call or Runtime step as failed solely because content is truncated.\n");
-        prompt.append("- next_actions may revise the current tool input, call another available tool, validate a conflict, or retrieve a missing fact. Do not assume any particular tool type.\n");
-        prompt.append("- A broad category phrase in the user query is not permission to invent a conventional checklist. Every missing_evidence, missingAspects, refined_intent expansion, hypothesis, and next_action must be traceable either to exact current-turn user wording or to a criterion explicitly present in returned evidence.\n");
-        prompt.append("- Every next_action must include scope_basis, capability_basis, and expected_evidence_types. scope_basis must quote exact current-turn user text or name a returned JSON path that establishes the gap. capability_basis must identify returned or declared tool capability that can produce the expected evidence. If either basis is unavailable, omit the action and set shouldExpandQuery=false.\n");
-        prompt.append("- A revised query cannot expand a tool's declared capability. Never propose a next_action using a tool whose returned capability/claim-coverage contract explicitly marks the requested evidence as unsupported or not provided. Use another available capability that explicitly covers the gap; if none exists, set shouldExpandQuery=false and preserve the gap for a bounded final answer.\n");
-        prompt.append("- hypotheses must be testable explanations, not facts. Mark each SUPPORTED, CONTRADICTED, or UNRESOLVED and relate it to returned evidence. Runtime will bind the current evidenceId when the model cannot know it yet.\n");
-        prompt.append("- Preserve a hypothesis_id when the same hypothesis is refined later; create a new id only for a materially different explanation.\n");
-        prompt.append("- Use parent_hypothesis_id to decompose a broad hypothesis into independently testable child hypotheses. Do not create cycles or make a hypothesis its own parent.\n");
-        prompt.append("- If satisfied=false, explain missing aspects, but never discard succeeded SQL/database rows merely because they are partial or imperfect.\n");
-        prompt.append("- For SQL/database outputs, any returned rows, columns, metrics, or result sets are usable partial evidence. Mark them satisfied=true when they can support any part of the answer, and list gaps in missingAspects.\n");
-        prompt.append("- For any exact lookup that returns a structurally successful empty result, keep execution success distinct from answerability. If discovery is still required and budget remains, set shouldExpandQuery=true and propose one materially revised available-tool call that relaxes the blocking exact filter and uses bounded alternative tokens derived from the user request or returned diagnostics. Candidate variants are retrieval inputs, never facts that an object exists.\n");
-        prompt.append("- Never propose a downstream binding such as tables[0], results[0], or another indexed element when the returned collection is empty. Route to evidence recovery or a bounded partial answer instead.\n");
-        prompt.append("- For web discovery tools (web_search, web_page_analyze, site_intelligence_resolver, *_site_search), judge candidate URLs/snippets only. Do not require full article content from these tools.\n");
-        prompt.append("- If a web discovery tool returns useful URLs for follow-up crawling or page analysis, set satisfied=true and put those URLs in selected_urls.\n");
-        prompt.append("- For crawl/content tools, judge whether the fetched full content is relevant and usable for analysis.\n");
-        prompt.append("- For document_search, judge whether the result contains relevant document evidence that can support later synthesis. Do not require one chunk to contain the complete final answer or every requested example.\n");
-        prompt.append("- Accept document_search when multiple chunks collectively mention relevant entities, APIs, tables, citations, or snippets, even if the final answer must combine them and state missing pieces.\n");
-        prompt.append("- Reject document_search only when it failed, returned no useful results, violated an explicit source constraint, or is unrelated to the request.\n");
-        prompt.append("- For document_search, evaluate each returned document/chunk against the current user request. Put useful doc:// refs in useful_refs and unrelated or misleading refs in rejected_refs. Do not infer usefulness from retrieval rank alone.\n");
-        prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
-        prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
-        prompt.append("- When the plan has diagnostic_profile checks, selected templates must cover those checks by their full declared capability and dimension meaning. A single generic shared token is insufficient. Prefer the candidate that matches the check-specific template metadata; reject unrelated substitutes and request refined retrieval when the intended capability is absent.\n");
-        prompt.append("- For every asset discovery result, including a single candidate, compare only returned routing metadata with the current target. Return at least one id present in the result under selected_asset_ids when satisfied=true, plus rejected_asset_ids and one asset_evaluations entry per candidate. Asset discovery proves routing eligibility, never target health or business state.\n");
-        prompt.append("- Template retrieval scores and ordering are weak recall priors, never acceptance decisions. Semantically review every returned template candidate, including a single candidate. satisfied=true requires at least one returned id in selected_template_ids or an accept template_evaluations decision.\n");
-        prompt.append("- Candidate discovery is high recall, not an execution list. A business group may contain many templates; select only templates materially required by the original user question and the actual cumulative analysis context. Runtime executes the selected_template_ids admission set and must not execute rejected or merely co-grouped candidates.\n");
-        prompt.append("- For template discovery, also return analysis_intent with business_goal, analysis_subject, core_entities, metrics, dimensions, analysis_focus, time_scope, and expected_relationships. This is the business data requirement derived jointly from the original question and actual context.\n");
-        prompt.append("- Assign every candidate exactly one analysis_role: TARGET, CAUSE, CONTEXT, DIMENSION, VALIDATION, EXPLANATION, or IRRELEVANT. Return template_relationships with from_template_id, to_template_id, relation_type, and description only when supported by the question or declared template metadata.\n");
-        prompt.append("- Put unrelated or materially weaker candidates in rejected_template_ids. Do not select a template merely because Lucene ranked it first or its score ties another candidate.\n");
-        prompt.append("- For each returned template candidate, emit template_evaluations with business_group, evidence-based relevance, evidence_fit, parameter_readiness, total_score, decision, reasons, missing_parameters, matched_question_aspects, and relationship_hints. Scores are 0..1. Justify selection jointly from the original question, actual cumulative analysis context, and returned capability/schema/dependency metadata. Never infer a relationship absent from those sources.\n");
-        prompt.append("- For a template execution tool, set template_execution_satisfied explicitly. If false, list missing_parameters and provide retry_input_changes only for values proven by the user query or completed tool evidence; otherwise leave retry_input_changes empty and set reselect_template=true.\n");
-        prompt.append("- A failed template execution gets at most one repaired plan execution. The repair must materially add/bind parameters or reselect a different authorized candidate; never request an unchanged retry.\n");
-        prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
-        prompt.append("- Do not answer the user here; only review the tool result.\n\n");
-        prompt.append("- Never write final_answer/finalAnswer in this reviewer JSON. If you need to propose wording for audit, write review_answer; it will not become the user-facing answer.\n");
-        prompt.append("- Runtime deterministic fact check is non-overridable: do not contradict returned counts or extracted metadata facts. You may still reject for semantic mismatch, wrong template, wrong target, or missing follow-up evidence.\n");
-        prompt.append("- The Current-turn user query below is the only user-authored source for an explicitly requested target. Plan intent and Current step are model-generated and must never be described as 'the user specified' unless the exact target text also appears in the current-turn user query.\n");
-        prompt.append("- Prefer the tool output's routing/default-asset facts when stating which asset was actually queried. Do not confuse a requested target, datasource asset, database/schema, and table name.\n");
-        prompt.append("- If assetDiscoveryReturnedCount > 0, do not claim the asset query returned zero/no assets.\n");
-        prompt.append("- If templateDiscoveryReturnedCount > 0, do not claim the template query returned zero/no templates.\n");
-        prompt.append("- If sqlMetadataColumnCount > 0, do not claim the SQL metadata step returned no columns/metadata.\n");
-        prompt.append("- Runtime must pass the complete tool-returned result. Any limit, pagination, or truncation marker must originate from the tool contract, never from Runtime prompt construction.\n");
-        prompt.append("- For enterprise metadata matching, use the formatted authoritative evidence projection when present. Its coverage object distinguishes processed fields from fields with candidates; never treat success=true or explicitTruncation=false as proof that every input field matched a standard.\n");
-        prompt.append("- For enterprise metadata discovery, treat evidenceCoverage as a description of returned standard-reference data, not as an answerability or conformance verdict. Evaluate semantic usefulness from the returned records and current user request; do not manufacture unsupported/missing claim lists from the coverage descriptor.\n");
-        prompt.append("- Enterprise metadata records describe fields, terms, roots, and dictionaries. Do not reinterpret a generic request for enterprise standards as a request for unrelated design dimensions unless those dimensions occur verbatim in the user query or as explicit criteria in returned records.\n");
+        appendToolResultReviewRules(prompt, request.execution().toolName());
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("Current-turn user query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -3553,8 +3550,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .append("\n\n");
         Map<String, Object> cumulativeContext = templateRequirementReviewContext(request);
         if (!cumulativeContext.isEmpty()) {
+            String cumulativeEvidence = stringify(cumulativeContext);
             prompt.append("Actual cumulative analysis context (authoritative prior tool evidence and declared semantics; use together with the original question for template admission):\n")
-                .append(stringify(cumulativeContext))
+                .append(shortObservationText(cumulativeEvidence, TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS))
                 .append("\n\n");
         }
         Map<String, Object> factMetadata = toolResultFactExtractor.executionMetadata(request.execution());
@@ -3571,19 +3569,173 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         String authoritativeEvidence = toolObservationBuilder.buildAuthoritativeExecutionEvidence(
             request.execution().toolName(), request.execution().output());
+        Object candidateEvidence = candidateSelectionEvidence(
+            request.execution().toolName(), request.execution().output());
+        if (candidateEvidence != null) {
+            authoritativeEvidence = stringify(candidateEvidence);
+        }
         if (authoritativeEvidence != null && !authoritativeEvidence.isBlank()) {
-            prompt.append("Authoritative tool result evidence (formatted under the tool's reasoning-selection contract; complete raw results remain in the tool trace):\n")
-                .append(authoritativeEvidence)
-                .append("\nPrompt preview truncated: false")
-                .append("\nRuntime truncation applied: false");
+            String boundedEvidence = shortObservationText(
+                authoritativeEvidence, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS);
+            prompt.append("Authoritative tool result evidence projection (all candidate identities are preserved; complete raw results remain in the Runtime trace):\n")
+                .append(boundedEvidence)
+                .append("\nRuntime model-input projection applied: ")
+                .append(!boundedEvidence.equals(authoritativeEvidence) || candidateEvidence != null);
         } else {
             String serializedOutput = stringify(
                 toolResultFactExtractor.redactExecutionStatements(request.execution().output()));
-            prompt.append("Complete tool result:\n")
-                .append(serializedOutput)
-                .append("\nRuntime truncation applied: false");
+            String boundedOutput = shortObservationText(
+                serializedOutput, TOOL_REVIEW_CURRENT_EVIDENCE_CHARS);
+            prompt.append("Tool result projection (complete raw result remains in the Runtime trace):\n")
+                .append(boundedOutput)
+                .append("\nRuntime model-input projection applied: ")
+                .append(!boundedOutput.equals(serializedOutput));
         }
         return prompt.toString();
+    }
+
+    private void appendToolResultReviewRules(StringBuilder prompt, String toolName) {
+        prompt.append("- Decide whether the returned evidence is useful for this plan step and the current-turn user question.\n");
+        prompt.append("- Keep execution success, evidence usefulness, completeness, and cumulative answerability separate. Successful partial rows remain usable evidence; record limits instead of changing success to failure.\n");
+        prompt.append("- iteration_sufficient evaluates the cumulative request. Set it false when material evidence is missing, but do not invent gaps from a conventional industry checklist.\n");
+        prompt.append("- Every missing_evidence and next_action must cite exact current-turn wording or a returned JSON path. A next_action also needs an available declared capability; otherwise omit it and set shouldExpandQuery=false.\n");
+        prompt.append("- Do not contradict Runtime counts, returned fields, target identity, source scope, or truncation markers. Retrieval order and score are weak priors only.\n");
+        prompt.append("- If an exact successful lookup is empty, distinguish execution success from answerability. Propose one bounded revised retrieval only when its values and capability are evidenced. Never bind an index into an empty collection.\n");
+        prompt.append("- If the user required an official source, reject evidence outside that source constraint.\n");
+        prompt.append("- Do not answer the user and never emit final_answer/finalAnswer.\n");
+        if (toolNames.isTemplateDiscoveryToolName(toolName)) {
+            prompt.append("- Semantically evaluate every returned template identity from title, description, capability, output schema, dependencies, and required parameters. Select only IDs present in the result and materially needed by the question.\n");
+            prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, rejected_template_ids, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role.\n");
+            prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
+        } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
+            prompt.append("- Evaluate every returned asset identity from authoritative routing metadata. Select only returned IDs; discovery proves routing eligibility, not business health.\n");
+        } else if (isWebDiscoveryTool(toolName)) {
+            prompt.append("- Judge candidate URLs and snippets. When a downstream content step exists, return useful URLs in selected_urls; do not demand full article content at discovery time.\n");
+        } else if (isDocumentSearchTool(toolName)) {
+            prompt.append("- Evaluate returned chunks collectively. Put relevant doc:// references in useful_refs and unrelated references in rejected_refs; one chunk need not answer the full question.\n");
+        } else {
+            prompt.append("- For a failed template execution, allow at most one materially changed parameter repair or authorized template reselection. Bind only values proven by the question or completed evidence.\n");
+        }
+        String semantic = toolSemanticKey(toolName);
+        if (semantic.contains("metadata") || semantic.contains("standard")) {
+            prompt.append("- Enterprise metadata coverage describes processed and matched records; success or non-truncation does not prove every field matched a standard. Do not turn metadata discovery into a conformance verdict.\n");
+        }
+    }
+
+    private void appendToolResultReviewOutputContract(StringBuilder prompt, String toolName) {
+        prompt.append("Return strict JSON only. Required common fields:\n")
+            .append("{\"satisfied\":true,\"iteration_sufficient\":false,\"reason\":\"short evidence-based reason\",\"evidence_used\":[],\"missing_evidence\":[],\"conflicts\":[],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[],\"missingAspects\":[],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":false,\"confidence\":0.0}\n");
+        if (toolNames.isTemplateDiscoveryToolName(toolName)) {
+            prompt.append("Template-discovery fields:\n")
+                .append("{\"selected_template_ids\":[],\"rejected_template_ids\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
+        } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
+            prompt.append("Asset-discovery fields: {\"selected_asset_ids\":[],\"rejected_asset_ids\":[],\"asset_evaluations\":[{\"asset_id\":\"returned-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[]}]}\n");
+        } else if (isWebDiscoveryTool(toolName)) {
+            prompt.append("Web-discovery fields: {\"selected_urls\":[],\"next_actions\":[]}\n");
+        } else if (isDocumentSearchTool(toolName)) {
+            prompt.append("Document fields: {\"useful_refs\":[],\"rejected_refs\":[],\"next_actions\":[]}\n");
+        } else {
+            prompt.append("Execution fields: {\"template_execution_satisfied\":true,\"missing_parameters\":[],\"retry_input_changes\":{},\"reselect_template\":false,\"next_actions\":[]}\n");
+        }
+        prompt.append("Optional hypotheses use {hypothesis_id,parent_hypothesis_id,statement,support_evidence_ids,contradict_evidence_ids,confidence,status}. Do not emit fields unrelated to this tool type.\n");
+    }
+
+    /**
+     * Projects discovery candidates for semantic admission without copying executor configs,
+     * transport bindings, full schemas and invocation examples into the model request. Runtime
+     * retains those fields and validates the selected id against the complete returned object.
+     */
+    private Object candidateSelectionEvidence(String toolName, Object output) {
+        boolean templates = toolNames.isTemplateDiscoveryToolName(toolName);
+        boolean assets = toolNames.isAssetDiscoveryToolName(toolName);
+        if (!templates && !assets) {
+            return null;
+        }
+        String collectionName = templates ? "templates" : "assets";
+        List<Map<String, Object>> candidates = findCandidateMaps(output, collectionName, 0);
+        if (candidates.isEmpty() && templates) {
+            candidates = findCandidateMaps(output, "candidates", 0);
+        }
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        List<Map<String, Object>> projected = new ArrayList<>();
+        for (Map<String, Object> candidate : candidates) {
+            projected.add(projectCandidate(candidate, templates));
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "candidate_selection_projection.v1");
+        result.put("candidateType", templates ? "TEMPLATE" : "ASSET");
+        result.put("candidateCount", projected.size());
+        result.put(collectionName, List.copyOf(projected));
+        result.put("projectionContract", Map.of(
+            "allCandidateIdentitiesPreserved", true,
+            "selectionFieldsPreserved", true,
+            "executionDetailsRetainedByRuntime", true
+        ));
+        return Map.copyOf(result);
+    }
+
+    private List<Map<String, Object>> findCandidateMaps(Object value, String key, int depth) {
+        if (value == null || depth > 10) {
+            return List.of();
+        }
+        if (value instanceof Map<?, ?> raw) {
+            Map<String, Object> map = asMap(raw);
+            Object direct = map.get(key);
+            if (direct instanceof Iterable<?> iterable) {
+                List<Map<String, Object>> found = new ArrayList<>();
+                for (Object item : iterable) {
+                    Map<String, Object> candidate = asMap(item);
+                    if (!candidate.isEmpty()) {
+                        found.add(candidate);
+                    }
+                }
+                if (!found.isEmpty()) {
+                    return List.copyOf(found);
+                }
+            }
+            for (String nestedKey : List.of("data", "result", "payload", "structuredContent", "body", "preview")) {
+                List<Map<String, Object>> nested = findCandidateMaps(map.get(nestedKey), key, depth + 1);
+                if (!nested.isEmpty()) {
+                    return nested;
+                }
+            }
+        }
+        return List.of();
+    }
+
+    private Map<String, Object> projectCandidate(Map<String, Object> candidate, boolean template) {
+        Map<String, Object> projected = new LinkedHashMap<>();
+        List<String> common = List.of("id", "name", "description", "type", "environment",
+            "businessGroup", "groupContext", "relevanceScore", "matchReasons", "intentSignals",
+            "capabilities", "capabilitySpec", "outputSchema", "dependencySpec", "requiredParameters",
+            "parameterSchema", "parameterContract", "asset", "routing", "labels");
+        if (template) {
+            putCandidateField(projected, candidate, "templateId");
+            putCandidateField(projected, candidate, "databaseQueryId");
+            putCandidateField(projected, candidate, "mcpToolName");
+        }
+        for (String field : common) {
+            putCandidateField(projected, candidate, field);
+        }
+        if (!projected.containsKey("id") && candidate.get("assetId") != null) {
+            putCandidateField(projected, candidate, "assetId");
+        }
+        return Map.copyOf(projected);
+    }
+
+    private void putCandidateField(Map<String, Object> target, Map<String, Object> source, String field) {
+        Object value = source.get(field);
+        if (value == null) {
+            return;
+        }
+        String serialized = stringify(value);
+        if (serialized.length() <= TOOL_REVIEW_CANDIDATE_FIELD_CHARS) {
+            target.put(field, value);
+        } else {
+            target.put(field, shortObservationText(serialized, TOOL_REVIEW_CANDIDATE_FIELD_CHARS));
+        }
     }
 
     private Map<String, Object> templateRequirementReviewContext(
@@ -3723,6 +3875,37 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             || semantic.contains("generic_web_site_search")
             || semantic.equals("web_site_search")
             || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));
+    }
+
+    /**
+     * Discovery needs semantic URL selection only when a later crawler consumes its output.
+     * Terminal discovery evidence is interpreted once by the unified analysis graph instead of
+     * paying for a second model call that cannot affect routing.
+     */
+    private boolean hasDownstreamCrawler(InterpretationPlanRuntime.StepReviewRequest request) {
+        if (request == null || request.plan() == null || request.step() == null
+            || request.step().id() == null || request.plan().steps() == null) {
+            return false;
+        }
+        Integer discoveryStepId = request.step().id();
+        for (InterpretationPlan.Step step : request.plan().steps()) {
+            if (step == null || !isCrawlerTool(step.toolName()) || step.dependsOn() == null) {
+                continue;
+            }
+            if (step.dependsOn().contains(discoveryStepId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isCrawlerTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return !isWebDiscoveryTool(toolName)
+            && (semantic.equals("crawl_url")
+                || semantic.contains("crawl")
+                || semantic.contains("page_content")
+                || semantic.contains("search_and_extract"));
     }
 
     private boolean isDocumentSearchTool(String toolName) {

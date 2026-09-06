@@ -12,7 +12,9 @@ import java.util.concurrent.*;
 
 /** Runtime-owned full-scan statistics and bounded views. Profiles are not semantic authorizations. */
 final class BoundedAnalysisEvidence {
-    static final int INPUT_BUDGET = 64_000;
+    static final int INPUT_BUDGET = 30_000;
+    static final int DIRECT_RECORD_BUDGET = 12_000;
+    static final int REQUEST_RESULT_BUDGET = 4_000;
     private static final int CHUNK_ROWS = 1_000;
     private static final int MAX_FIELDS = 128;
     private static final String VERSION = "bounded_analysis_evidence.v1";
@@ -41,13 +43,13 @@ final class BoundedAnalysisEvidence {
                 "context", source.getValue().analysisContext(), "records", source.getValue().records());
             hashes.add(ModelProtocolJson.sha256Hex(view));
             // Do not construct a giant combined JSON string just to measure the prompt.
-            if (chars <= INPUT_BUDGET) {
+            if (chars <= DIRECT_RECORD_BUDGET) {
                 chars += ModelProtocolJson.compact(view).length();
-                if (chars <= INPUT_BUDGET) direct.add(view);
+                if (chars <= DIRECT_RECORD_BUDGET) direct.add(view);
             }
         }
         String fingerprint = ModelProtocolJson.sha256Hex(hashes);
-        if (chars <= INPUT_BUDGET) {
+        if (chars <= DIRECT_RECORD_BUDGET) {
             metadata.put("unifiedEvidenceMode", "FULL_RECORDS");
             return new Prepared(List.copyOf(direct), fingerprint, sources, false);
         }
@@ -188,12 +190,12 @@ final class BoundedAnalysisEvidence {
             if ("READ_NESTED_RECORDS".equals(request.get("operation"))) {
                 results.add(Map.of("datasetReference", ref,
                     "parentRecordRef", ref + ".records[" + request.get("record") + "]",
-                    "nestedPage", fit(NestedRecordReader.read(dataset.records(), request), 9000)));
+                    "nestedPage", fit(NestedRecordReader.read(dataset.records(), request), REQUEST_RESULT_BUDGET)));
                 continue;
             }
             if ("CALCULATE".equals(request.get("operation"))) {
                 var result = new SupplementaryFormulaExecutor().execute(dataset.analysisContext(), request);
-                results.add(Map.of("datasetReference", ref, "calculation", fit(result, 9000)));
+                results.add(Map.of("datasetReference", ref, "calculation", fit(result, REQUEST_RESULT_BUDGET)));
                 metadata.put("supplementaryFormulaCount", ((Number) metadata.getOrDefault("supplementaryFormulaCount", 0)).intValue() + 1);
                 continue;
             }
@@ -207,7 +209,7 @@ final class BoundedAnalysisEvidence {
                     Math.max(0, 64 - ((Number) metadata.getOrDefault("textExtractionModelCalls", 0)).intValue()));
                 var stableEvidence = new LinkedHashMap<>(result);
                 stableEvidence.remove("modelCalls"); stableEvidence.remove("restoredPartitions");
-                results.add(Map.of("datasetReference", ref, "extraction", fit(stableEvidence, 9000)));
+                results.add(Map.of("datasetReference", ref, "extraction", fit(stableEvidence, REQUEST_RESULT_BUDGET)));
                 metadata.put("textExtractionModelCalls", ((Number) metadata.getOrDefault("textExtractionModelCalls", 0)).intValue()
                     + ((Number) result.get("modelCalls")).intValue());
                 continue;
@@ -230,7 +232,7 @@ final class BoundedAnalysisEvidence {
                     value = list.subList(from, Math.min(from + limit, list.size()));
                 }
                 results.add(Map.of("datasetReference", ref, "contextPath", path, "totalItems", totalItems,
-                    "value", fit(value, 9_000)));
+                    "value", fit(value, REQUEST_RESULT_BUDGET)));
                 continue;
             }
             if (!"READ_RECORDS".equals(request.get("operation")))
@@ -243,9 +245,19 @@ final class BoundedAnalysisEvidence {
                 ? list.stream().map(String::valueOf).toList() : List.of();
             List<Integer> indices = java.util.stream.IntStream.range(from, Math.min(dataset.records().size() + 1, from + limit)).boxed().toList();
             results.add(Map.of("datasetReference", ref, "requestedFromRecord", from,
-                "requestedLimit", limit, "rows", rows(ref, dataset, indices, fields, 10_000)));
+                "requestedLimit", limit, "rows", rows(ref, dataset, indices, fields, REQUEST_RESULT_BUDGET)));
         }
         return results;
+    }
+
+    Object fitViews(List<Map<String, Object>> views, int budget) {
+        if (views == null || views.isEmpty()) return List.of();
+        int share = Math.max(500, budget / views.size());
+        return views.stream().map(view -> fit(view, share)).toList();
+    }
+
+    Object fitRequestedEvidence(List<Map<String, Object>> evidence, int budget) {
+        return fit(evidence == null ? List.of() : evidence, budget);
     }
 
     private List<Map<String, Object>> rows(String ref, Dataset dataset, Collection<Integer> indices,

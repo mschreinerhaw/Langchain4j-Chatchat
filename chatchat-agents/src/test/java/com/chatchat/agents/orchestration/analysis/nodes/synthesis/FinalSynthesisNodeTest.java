@@ -553,7 +553,8 @@ class FinalSynthesisNodeTest {
             new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
-            prompt.contains("Binding Driver role pipeline context"))))
+            prompt.contains("final analytical report composer")
+                && prompt.contains("If no Claim is admitted"))))
             .thenReturn("## 管理分析\n\n下层报告存在未通过证据绑定的推断，现有内容可供人工复核，但不应视为已验证事实。");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
@@ -596,8 +597,8 @@ class FinalSynthesisNodeTest {
             "There are 20 trades: 11 buys and 9 sells", List.of("20", "11", "9"));
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
-            prompt.contains("Worker: assets are concentrated")
-                && prompt.contains("fact:assets") && prompt.contains("coverage")
+            prompt.contains("fact:assets") && prompt.contains("fact:trades")
+                && prompt.contains("coverage")
                 && prompt.contains("ADVISORY_ONLY")
                 && prompt.contains("never treat their count as a publication veto"))))
             .thenReturn("""
@@ -690,7 +691,6 @@ class FinalSynthesisNodeTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("DRIVER_REVIEW")
-                && prompt.contains("nodeInputs")
                 && prompt.contains("客户经营分析决策者")
                 && prompt.contains("claim-1"))))
             .thenReturn("""
@@ -807,6 +807,35 @@ class FinalSynthesisNodeTest {
             fallbackAllowed, () -> "unsafe raw fallback", candidate -> candidate, "empty fallback",
             1, 1, true, true, true, 1, 0,
             List.of(summary), List.of(summary), Map.of("agentRunId", "run-a"), metadata);
+    }
+
+    @Test
+    void claimBoundCompositionDoesNotReplayTheLegacyRawPrompt() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(),
+            new AnswerCandidateCollector(), new StructuredFindingMerger());
+        ChatModel model = mock(ChatModel.class);
+        String legacyMarker = "RAW_EXECUTION_REPLAY_SENTINEL_" + "x".repeat(180_000);
+        String[] captured = new String[1];
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            captured[0] = invocation.getArgument(0);
+            return "{}";
+        });
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        var request = new FinalSynthesisNode.FinalModelSynthesisRequest(
+            model, legacyMarker, "completed", "run-a", 2, 1, 3,
+            true, () -> "unsafe", candidate -> candidate, "empty",
+            1, 1, true, true, true, 1, 0,
+            List.of(claimSummary()), List.of(claimSummary()),
+            Map.of("agentRunId", "run-a"), metadata);
+
+        coordinator.synthesizeFinal(request);
+
+        assertThat(captured[0]).doesNotContain("RAW_EXECUTION_REPLAY_SENTINEL_");
+        assertThat(captured[0].length()).isLessThan(50_000);
+        assertThat(metadata).containsEntry("analysisFinalSynthesisInputMode",
+            "ADMITTED_CLAIMS_AND_BOUNDED_COMPOSITION_CONTEXT");
     }
 
     @Test

@@ -39,6 +39,10 @@ import static com.chatchat.agents.orchestration.support.AgentValueSupport.string
 public final class AgentPlannerPromptBuilder {
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final int MAX_USER_QUERY_PROMPT_CHARS = 32_000;
+    private static final int COMPACT_USER_QUERY_PROMPT_CHARS = 12_000;
+    private static final int COMPACT_OBSERVATIONS_PROMPT_CHARS = 8_000;
+    private static final int COMPACT_PROTOCOL_PROMPT_CHARS = 4_000;
+    private static final int COMPACT_TOOL_DESCRIPTION_CHARS = 800;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -71,6 +75,12 @@ public final class AgentPlannerPromptBuilder {
         }
         String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
             runtimeAttributes, "DAG_BUILD_AND_TEMPLATE_DISCOVERY_PLANNING");
+        List<Map<String, Object>> authoritativeDag = objectMapList(runtimeAttributes == null
+            ? null : runtimeAttributes.get("authoritativeWorkflowDag"));
+        if (!authoritativeDag.isEmpty()) {
+            return buildAuthoritativeWorkflowPrompt(query, systemPrompt, availableTools, observations,
+                mandatoryTools, requireToolBeforeFinal, runtimeAttributes, roleContext, authoritativeDag);
+        }
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: produce a safe, executable InterpretationPlan for the MCP runtime.\n");
@@ -271,6 +281,131 @@ public final class AgentPlannerPromptBuilder {
         }
         prompt.append("User query:\n").append(boundedUserQuery(query));
         return prompt.toString();
+    }
+
+    /**
+     * Builds the model-facing prompt when Runtime already owns the workflow DAG.
+     *
+     * <p>The full JSON schema, generic workflow handbook and unrelated tool instructions are
+     * Runtime implementation details in this mode. Sending all of them for every request made
+     * planning slower without increasing authority: Runtime validates and repairs the candidate
+     * plan against the same contracts after generation. This projection keeps only the decisions
+     * the model must make for the current workflow.</p>
+     */
+    private String buildAuthoritativeWorkflowPrompt(String query,
+                                                     String systemPrompt,
+                                                     List<String> availableTools,
+                                                     List<String> observations,
+                                                     List<String> mandatoryTools,
+                                                     boolean requireToolBeforeFinal,
+                                                     Map<String, Object> runtimeAttributes,
+                                                     String roleContext,
+                                                     List<Map<String, Object>> authoritativeDag) {
+        StringBuilder prompt = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            prompt.append("System instruction: ")
+                .append(boundedText(systemPrompt, 2_000, "system instruction"))
+                .append("\n\n");
+        }
+        if (roleContext != null && !roleContext.isEmpty()) {
+            prompt.append(boundedText(roleContext, 2_000, "role context")).append('\n');
+        }
+        ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);
+        LocalDate runtimeDate = LocalDate.now(clock.withZone(runtimeZone));
+        prompt.append("You are the planning node of Agent Runtime OS. Output exactly one valid InterpretationPlan JSON object; no markdown or explanation.\n")
+            .append("Runtime date: ").append(runtimeDate).append("; timezone: ").append(runtimeZone.getId()).append(".\n\n")
+            .append("Authoritative planning rules:\n")
+            .append("- Preserve every tool and dependency in the Runtime workflow below. Do not add, replace, omit or reorder workflow tools.\n")
+            .append("- Tool steps use action_type=mcp_tool and an exact Available tools name. Step ids are consecutive integers starting at 1.\n")
+            .append("- Add exactly one final_answer step after all required evidence steps. Before execution, its input.answer may state that evidence is pending; never invent results.\n")
+            .append("- depends_on contains prior integer step ids. Runtime owns this authoritative DAG and template bindings: omit dependency_contracts, edge_contracts, bindings, branch_groups and conditional_edges.\n")
+            .append("- Every step, including final_answer, must contain tool_name. Use tool_name=\"\" for final_answer.\n")
+            .append("- Discovery returns candidates, not execution evidence. An analytical final answer must depend on the executor and other evidence-producing tools.\n")
+            .append("- For template execution, select only returned template ids. Put semantic business values in input.toolCall.parameters; Runtime compiles transport fields and validates the selected template contract.\n")
+            .append("- Missing information becomes context.missing_info or the smallest retrieval action. Do not fabricate facts, schemas, parameters or completed calls.\n")
+            .append("- Omit timeout_ms for MCP calls. Keep max_rewrite_times bounded, normally 1, and use fallback_mode=partial_result when partial evidence remains useful.\n")
+            .append("- Numbers in tool_priority and accuracy_vs_speed, when present, are between 0.0 and 1.0.\n\n")
+            .append("Compact InterpretationPlan shape (Runtime enforces the full schema):\n")
+            .append("{\"version\":\"1.0\",\"intent\":{\"type\":\"mixed\",\"goal\":\"...\",\"risk_level\":\"low\"},")
+            .append("\"context\":{\"key_facts\":[],\"assumptions\":[],\"missing_info\":[],\"constraints\":[]},")
+            .append("\"plan\":{\"steps\":[{\"id\":1,\"action_type\":\"mcp_tool\",\"tool_name\":\"exact-name\",\"input\":{},\"depends_on\":[]},")
+            .append("{\"id\":2,\"action_type\":\"final_answer\",\"tool_name\":\"\",\"input\":{\"answer\":\"等待工具证据\"},\"depends_on\":[1]}]},")
+            .append("\"execution_policy\":{\"max_steps\":4,\"allow_parallel\":true,\"allow_tool\":[],\"max_rewrite_times\":1,\"fallback_mode\":\"partial_result\"},")
+            .append("\"review\":{\"self_check\":{\"completeness_score\":0.0,\"hallucination_risk\":0.0,\"tool_sufficiency\":false,\"missing_steps\":[]}}}\n\n");
+        appendAgentBudgetContract(prompt, runtimeAttributes);
+        appendAgentRuntimeEnvironmentContract(prompt, runtimeAttributes);
+        appendAuthoritativeWorkflowContract(prompt, authoritativeDag);
+        if (requireToolBeforeFinal) {
+            prompt.append("Required workflow tools: ").append(mandatoryTools).append(". final_answer must depend on their evidence.\n\n");
+        }
+        prompt.append("Available tools (bounded model-facing metadata):\n")
+            .append(describeToolsCompact(availableTools, runtimeAttributes));
+        String protocol = toolProtocolContracts.plannerSection(availableTools, toolRegistry);
+        if (protocol != null && !protocol.isBlank()) {
+            prompt.append(boundedText(protocol, COMPACT_PROTOCOL_PROMPT_CHARS, "tool protocol rules")).append('\n');
+        }
+        Object requiredToolParameters = runtimeAttributes == null ? null : runtimeAttributes.get("requiredToolParameters");
+        if (requiredToolParameters instanceof Map<?, ?> required && !required.isEmpty()) {
+            prompt.append("Runtime-required tool parameters: ")
+                .append(boundedText(String.valueOf(required), 2_000, "required tool parameters"))
+                .append("\nDo not remove or override them.\n\n");
+        }
+        appendCompactObservations(prompt, observations);
+        prompt.append("User query:\n")
+            .append(boundedText(query, COMPACT_USER_QUERY_PROMPT_CHARS, "user query"));
+        return prompt.toString();
+    }
+
+    private String describeToolsCompact(List<String> availableTools, Map<String, Object> runtimeAttributes) {
+        if (availableTools == null || availableTools.isEmpty()) {
+            return "- (none)\n";
+        }
+        StringBuilder result = new StringBuilder();
+        for (String toolName : availableTools) {
+            ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+            String description = configuredToolDescription(toolName, runtimeAttributes);
+            if (description == null && metadata != null) {
+                description = metadata.getDescription();
+            }
+            if (description == null) {
+                ToolRegistry.Tool tool = toolRegistry.getTool(toolName);
+                description = tool == null ? "No description available" : tool.getDescription();
+            }
+            result.append("- ").append(toolName)
+                .append(" [role=").append(workflowRole(toolName)).append("): ")
+                .append(boundedText(description, COMPACT_TOOL_DESCRIPTION_CHARS, "tool description"))
+                .append('\n');
+        }
+        return result.append('\n').toString();
+    }
+
+    private void appendCompactObservations(StringBuilder prompt, List<String> observations) {
+        if (observations == null || observations.isEmpty()) {
+            return;
+        }
+        StringBuilder values = new StringBuilder();
+        for (String observation : observations) {
+            if (observation == null || observation.isBlank()) {
+                continue;
+            }
+            values.append("- ").append(observation).append('\n');
+        }
+        prompt.append("Observations so far (bounded; Runtime retains complete evidence):\n")
+            .append(boundedText(values.toString(), COMPACT_OBSERVATIONS_PROMPT_CHARS, "observations"))
+            .append("\n\n");
+    }
+
+    private String boundedText(String value, int maxChars, String label) {
+        if (value == null || value.length() <= maxChars) {
+            return value == null ? "" : value;
+        }
+        int markerReserve = 80;
+        int usable = Math.max(2, maxChars - markerReserve);
+        int tail = usable / 4;
+        int head = usable - tail;
+        int omitted = value.length() - head - tail;
+        return value.substring(0, head) + "\n...[" + label + " omitted " + omitted
+            + " chars; complete value retained by Runtime]...\n" + value.substring(value.length() - tail);
     }
 
     private void appendAgentBudgetContract(StringBuilder prompt, Map<String, Object> runtimeAttributes) {

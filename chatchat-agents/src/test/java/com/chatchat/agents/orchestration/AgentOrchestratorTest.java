@@ -3599,6 +3599,128 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void templateReviewPreservesEveryCandidateIdentityWithoutSendingExecutorPayloads() throws Exception {
+        List<Map<String, Object>> templates = new ArrayList<>();
+        for (int index = 1; index <= 5; index++) {
+            templates.add(Map.of(
+                "templateId", "template-" + index,
+                "name", "Candidate " + index,
+                "description", "Business capability " + index,
+                "capabilitySpec", Map.of("metrics", List.of("metric-" + index)),
+                "outputSchema", Map.of("fields", List.of("field-" + index)),
+                "templateConfig", Map.of("executorPayload", ("secret-" + index + "-").repeat(4_000)),
+                "invocationExample", Map.of("transport", "raw-transport-".repeat(4_000))
+            ));
+        }
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "template_discovery", true,
+                Map.of("candidateCount", 5, "templates", templates),
+                null, null, null, 10L
+            );
+        InterpretationPlanRuntime.StepReviewRequest request =
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1);
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "buildToolResultReviewPrompt",
+            String.class,
+            String.class,
+            InterpretationPlanRuntime.StepReviewRequest.class
+        );
+        method.setAccessible(true);
+
+        String prompt = (String) method.invoke(orchestrator, "select business templates", null, request);
+
+        assertThat(prompt)
+            .contains("candidate_selection_projection.v1")
+            .contains("template-1", "template-2", "template-3", "template-4", "template-5")
+            .contains("allCandidateIdentitiesPreserved")
+            .doesNotContain("executorPayload", "secret-1-", "raw-transport-")
+            .hasSizeLessThan(30_000);
+    }
+
+    @Test
+    void successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview() {
+        ChatModel model = mock(ChatModel.class);
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                2, "mcp_tool", "mcp_runtime_sql_query_execute", true,
+                Map.of("success", true, "rows", List.of(Map.of("value", 1))),
+                null, null, null, 10L
+            );
+        InterpretationPlanRuntime.StepReviewRequest request =
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze returned rows", null, () -> false, request);
+
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata())
+            .containsEntry("toolResultReviewMode", "RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION")
+            .containsEntry("templateExecutionSatisfied", true);
+        verify(model, never()).chat(anyString());
+    }
+
+    @Test
+    void terminalWebDiscoveryIsAdmittedWithoutRedundantModelReview() {
+        ChatModel model = mock(ChatModel.class);
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        InterpretationPlan.Step discovery = new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_runtime_web_search", Map.of("query", "market"),
+            List.of(), null, null);
+        InterpretationPlan.Step answer = new InterpretationPlan.Step(
+            2, "final_answer", "", Map.of(), List.of(1), null, null);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", null, null, new InterpretationPlan.Plan(List.of(discovery, answer)), null, null);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_runtime_web_search", true,
+                Map.of("results", List.of(Map.of("title", "Market evidence"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze market", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                plan, discovery, execution, Map.of(), 1, 1));
+
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata()).containsEntry(
+            "toolResultReviewMode", "RUNTIME_DETERMINISTIC_TERMINAL_DISCOVERY_ADMISSION");
+        verify(model, never()).chat(anyString());
+    }
+
+    @Test
+    void webDiscoveryWithDownstreamCrawlerStillUsesSemanticSelectionReview() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_urls\":[\"https://example.test/a\"]}");
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        InterpretationPlan.Step discovery = new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_runtime_web_search", Map.of("query", "market"),
+            List.of(), null, null);
+        InterpretationPlan.Step crawler = new InterpretationPlan.Step(
+            2, "mcp_tool", "mcp_runtime_crawl_url", Map.of(), List.of(1), null, null);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", null, null, new InterpretationPlan.Plan(List.of(discovery, crawler)), null, null);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_runtime_web_search", true,
+                Map.of("results", List.of(Map.of("url", "https://example.test/a"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze market", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                plan, discovery, execution, Map.of(), 1, 1));
+
+        assertThat(review.satisfied()).isTrue();
+        verify(model).chat(anyString());
+    }
+
+    @Test
     void interpretationPlanRunsThroughDagRuntimePipeline() {
         QueueChatModel chatModel = new QueueChatModel(
             """

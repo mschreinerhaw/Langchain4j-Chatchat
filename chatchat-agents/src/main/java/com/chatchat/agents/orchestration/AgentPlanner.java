@@ -11,6 +11,7 @@ import com.chatchat.agents.orchestration.planning.generation.AgentPlannerPromptB
 import com.chatchat.agents.orchestration.planning.generation.InterpretationPlanPayloadNormalizer;
 import com.chatchat.agents.orchestration.planning.generation.NativeToolCallingPlanner;
 import com.chatchat.agents.orchestration.planning.generation.RuntimeDesignatedFunctionCallingAdapter;
+import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeDto;
 import com.chatchat.agents.orchestration.protocol.PlannerEnvelopeParser;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
@@ -63,6 +64,7 @@ public class AgentPlanner implements AgentPlanningPort {
     private static final int DEFAULT_PLAN_REPAIR_ATTEMPTS = 3;
     private static final int MAX_PLAN_REPAIR_ATTEMPTS = 3;
     private static final int MAX_USER_QUERY_PROMPT_CHARS = 32_000;
+    private static final ContextTokenEstimator TOKEN_ESTIMATOR = new ContextTokenEstimator();
     private static final Pattern FINAL_ANSWER_STEP_PATTERN = Pattern.compile(
         "(?s)\"action_type\"\\s*:\\s*\"final_answer\".*?\"answer\"\\s*:\\s*\"(.*?)\"\\s*}\\s*,\\s*\"depends_on\""
     );
@@ -227,12 +229,13 @@ public class AgentPlanner implements AgentPlanningPort {
         boolean experienceOptimizationRequested = false;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             long startedAt = System.currentTimeMillis();
-            log.info("agentModelRequest phase=planner runId={} attempt={}/{} modelClass={} promptChars={} toolCount={} observationCount={}",
+            log.info("agentModelRequest phase=planner runId={} attempt={}/{} modelClass={} promptChars={} estimatedTokens={} toolCount={} observationCount={}",
                 logRunId,
                 attempt,
                 maxAttempts,
                 activeChatModel == null ? null : activeChatModel.getClass().getName(),
                 currentPrompt.length(),
+                TOKEN_ESTIMATOR.estimate(currentPrompt).tokens(),
                 availableTools == null ? 0 : availableTools.size(),
                 observations == null ? 0 : observations.size());
             String raw = activeChatModel.chat(currentPrompt);

@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordi
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator.Outcome;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
+import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -18,7 +19,11 @@ import java.util.function.Supplier;
 public final class UnifiedQuestionAnalysisGraph {
     private static final String VERSION = "unified_question_analysis.v1";
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final int MAX_INPUT_CHARS = 160_000;
+    private static final int MAX_INPUT_TOKENS = 12_000;
+    private static final int MAX_EVIDENCE_ROUNDS = 2;
+    private static final int INITIAL_EVIDENCE_CHARS = 24_000;
+    private static final int REQUESTED_EVIDENCE_CHARS = 10_000;
+    private static final ContextTokenEstimator TOKENS = new ContextTokenEstimator();
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(UnifiedQuestionAnalysisGraph.class);
 
     public Map<String, Outcome> execute(String question, List<Dataset> sources,
@@ -65,7 +70,9 @@ public final class UnifiedQuestionAnalysisGraph {
                 List<Map<String, Object>> requestedEvidence = new ArrayList<>();
                 int modelCalls = 0;
                 boolean allRestored = true;
-                for (int round = 1; round <= 3; round++) {
+                for (int round = 1; round <= MAX_EVIDENCE_ROUNDS; round++) {
+                    Object boundedEvidence = evidenceAccess.fitViews(evidence, INITIAL_EVIDENCE_CHARS);
+                    Object boundedRequests = evidenceAccess.fitRequestedEvidence(requestedEvidence, REQUESTED_EVIDENCE_CHARS);
                     String prompt = "Execute unified question analysis (" + VERSION + "). All datasets below belong to one question. "
                         + "Generate findings around the question, not separate dataset reports. Preserve dataset boundaries; never implicitly join tables. "
                         + "Interpret Runtime verifiedCalculations; do not invent computed values or units. Refer to other supplied datasets as available, not missing. "
@@ -90,11 +97,16 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
                         + "Without history, explain current state and supported composition instead of asserting trends. Do not replace available analysis with an indicator framework or only a request for more data. "
                         + "Final findings must address the supported parts of the question across sources. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
-                        + "Evidence round " + round + "/3. " + (round == 3 ? "No more requests are available; return bounded conclusions and limitations. " : "")
-                        + "Requested evidence: " + ModelProtocolJson.compact(requestedEvidence) + "\n"
-                        + "Question plan: " + ModelProtocolJson.compact(plan) + "\nBound evidence: " + ModelProtocolJson.compact(evidence);
-                    if (prompt.length() > MAX_INPUT_CHARS) throw new IllegalStateException(
-                        "Unified analysis control context exceeds budget after bounded projection");
+                        + "Evidence round " + round + "/" + MAX_EVIDENCE_ROUNDS + ". "
+                        + (round == MAX_EVIDENCE_ROUNDS
+                            ? "No more requests are available; return bounded conclusions and limitations. " : "")
+                        + "Requested evidence: " + ModelProtocolJson.compact(boundedRequests) + "\n"
+                        + "Question plan: " + ModelProtocolJson.compact(plan) + "\nBound evidence: " + ModelProtocolJson.compact(boundedEvidence);
+                    var promptSize = TOKENS.estimate(prompt);
+                    if (promptSize.tokens() > MAX_INPUT_TOKENS) throw new IllegalStateException(
+                        "Unified analysis control context exceeds token budget after bounded projection: " + promptSize.tokens());
+                    metadata.put("unifiedAnalysisMaxPromptTokens", Math.max(promptSize.tokens(),
+                        ((Number) metadata.getOrDefault("unifiedAnalysisMaxPromptTokens", 0L)).longValue()));
                     String hash = ModelProtocolJson.sha256Hex(Map.of("prompt", prompt,
                         "sourceFingerprint", prepared.fingerprint(), "model", String.valueOf(metadata.getOrDefault("modelName", ""))));
                     String key = VERSION + ":findings:round-" + round;
@@ -108,6 +120,9 @@ public final class UnifiedQuestionAnalysisGraph {
                         guard.run();
                         modelCalls++;
                         allRestored = false;
+                        LOG.info("Unified analysis model request partition={} round={} promptChars={} estimatedTokens={} evidenceMode={}",
+                            scope.partitionKey(), round, promptSize.chars(), promptSize.tokens(),
+                            metadata.getOrDefault("unifiedEvidenceMode", "UNKNOWN"));
                         try {
                             product = parse(model.chat(prompt));
                         } catch (RuntimeException failure) {
@@ -138,7 +153,7 @@ public final class UnifiedQuestionAnalysisGraph {
                     metadata.put("unifiedAnalysisMaxPromptChars", Math.max(prompt.length(),
                         ((Number) metadata.getOrDefault("unifiedAnalysisMaxPromptChars", 0)).intValue()));
                     var requests = maps(product.get("evidenceRequests"));
-                    if (!requests.isEmpty() && round < 3) {
+                    if (!requests.isEmpty() && round < MAX_EVIDENCE_ROUNDS) {
                         int accepted = 0;
                         for (var evidenceRequest : requests) {
                             guard.run();

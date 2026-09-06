@@ -151,6 +151,30 @@ class UnifiedQuestionAnalysisGraphTest {
             .contains("analysis_planning", "data_computation", "generate_findings", "validate_findings");
     }
 
+    @Test void mediumStructuredResultUsesProgressiveEvidenceAndStaysWithinTokenBudget() {
+        var rows = java.util.stream.IntStream.rangeClosed(1, 100).mapToObj(index ->
+            Map.<String, Object>of("fund_code", "fund-" + index,
+                "current_scale", index * 1000.25, "payload", "x".repeat(500))).toList();
+        var datasets = List.of(new Dataset("market", Map.of("runtimeAnalysisInputs", Map.of(
+            "verifiedCalculations", List.of(Map.of("metric", "total", "value", 5_000_000)))), rows));
+        var metadata = new LinkedHashMap<String, Object>();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                assertThat(new com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator()
+                    .estimate(prompt).tokens()).isLessThanOrEqualTo(12_000);
+                assertThat(prompt).contains("FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS", "verifiedCalculations")
+                    .doesNotContain("fund-50");
+                return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"bounded\"]}";
+            }
+        };
+
+        new UnifiedQuestionAnalysisGraph().execute("analyze", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+
+        assertThat(metadata).containsEntry("unifiedEvidenceMode", "BOUNDED_PROJECTION");
+        assertThat(((Number) metadata.get("unifiedAnalysisMaxPromptTokens")).longValue()).isLessThanOrEqualTo(12_000);
+    }
+
     @Test void rejectsForeignDatasetEvenWhenEvidenceIsProjected() {
         var calls = new AtomicInteger();
         ChatModel model = new ChatModel() {
@@ -198,6 +222,36 @@ class UnifiedQuestionAnalysisGraphTest {
         assertThat(coverage).hasSize(5).allSatisfy(item -> assertThat(item)
             .containsEntry("scannedRecords", 10_000).containsEntry("chunkCount", 10).containsEntry("scanComplete", true));
         assertThat(outcomes.get("dataset3").summary().datasetSummary().evidence().toString()).contains("dataset3.records[5001]");
+    }
+
+    @Test void supplementaryEvidenceIsBoundedToOneFollowUpModelRound() {
+        List<Dataset> datasets = List.of(new Dataset(
+            "dataset1", Map.of(), List.of(Map.of("VALUE", 1), Map.of("VALUE", 2))));
+        var calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                calls.incrementAndGet();
+                return ModelProtocolJson.compact(Map.of(
+                    "schemaVersion", "unified_question_analysis.v1",
+                    "findings", List.of(Map.of(
+                        "datasetReference", "dataset1",
+                        "claimClass", "OBSERVED_RETURNED_FACT",
+                        "claim", "A returned value is 1",
+                        "operation", "OBSERVE",
+                        "recordRefs", List.of("dataset1.records[1]"),
+                        "supportingValues", List.of("\"VALUE\":1"),
+                        "confidence", "HIGH")),
+                    "evidenceRequests", List.of(Map.of(
+                        "operation", "READ_RECORDS", "datasetReference", "dataset1",
+                        "fromRecord", 1, "limit", 1))));
+            }
+        };
+
+        new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model,
+            scope, new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(),
+            new LinkedHashMap<>(), () -> {});
+
+        assertThat(calls.get()).isEqualTo(2);
     }
 
     private static String product(String dataset) {

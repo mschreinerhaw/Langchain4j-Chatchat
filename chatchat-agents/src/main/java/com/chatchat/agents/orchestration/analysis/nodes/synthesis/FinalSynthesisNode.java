@@ -18,6 +18,7 @@ import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingM
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
+import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycle;
 import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
@@ -185,9 +186,13 @@ public final class FinalSynthesisNode {
         request.metadata().put("analysisDriverPipelineContext", pipelineContext);
         request.metadata().put("analysisDriverPipelineContextSchemaVersion",
             AnalysisSynthesisContext.SCHEMA_VERSION);
-        String driverPrompt = request.prompt()
-            + "\n\nBinding Driver role pipeline context (not evidence): "
-            + ModelProtocolJson.compact(pipelineContext);
+        boolean boundedClaimComposition = claimCompilation.claimContractObserved()
+            && synthesisBarrierReady;
+        String driverPrompt = boundedClaimComposition
+            ? claimBoundReportComposerPrompt(request, pipelineContext)
+            : request.prompt()
+                + "\n\nBinding report-composition pipeline context (not evidence): "
+                + ModelProtocolJson.compact(pipelineContext);
         String modelPrompt = claimBoundPublication
             ? finalClaimContract.appendSelectionInstruction(driverPrompt, claimCompilation)
             : driverPrompt;
@@ -200,6 +205,9 @@ public final class FinalSynthesisNode {
                 + ModelProtocolJson.compact(reportData.promptView());
         }
         request.metadata().put("analysisDriverModelInvoked", true);
+        request.metadata().put("analysisFinalSynthesisInputMode", boundedClaimComposition
+            ? "ADMITTED_CLAIMS_AND_BOUNDED_COMPOSITION_CONTEXT"
+            : "COMPATIBILITY_EVIDENCE_PROMPT");
         request.metadata().put("analysisDriverModelPromptChars", modelPrompt.length());
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={} claimBoundPublication={} admittedClaimCount={}",
             request.runId(), request.stage(), request.model().getClass().getName(),
@@ -444,6 +452,35 @@ public final class FinalSynthesisNode {
             "interpretation_plan_summary", observation);
         return new FinalSynthesisResult(answer, governed,
             !"ANALYSIS_OUTPUT_WITHHELD".equals(outcome));
+    }
+
+    private String claimBoundReportComposerPrompt(FinalModelSynthesisRequest request,
+                                                   Map<String, Object> pipelineContext) {
+        Map<String, Object> boundedContext = new LinkedHashMap<>();
+        boundedContext.put("schemaVersion", "analysis_report_composer_context.v1");
+        for (String key : List.of("analysisObjective", "analysisMethodology", "analysisTree",
+            "methodologyExecutionPolicy", AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
+            "conflictSet", "evidenceGapCount", "evidenceGaps", "evidenceGapPolicy",
+            "activeRepairRequests")) {
+            Object value = pipelineContext.get(key);
+            if (value != null) boundedContext.put(key, value);
+        }
+        boundedContext.put("rawRecordAccess", "PROHIBITED");
+        String question = String.valueOf(request.metadata().getOrDefault(
+            "analysisAcceptanceQuestion", ""));
+        return "You are the final analytical report composer. DRIVER_REVIEW, DRIVER_REASONING and "
+            + "DRIVER_DECISION are mandatory. Compose one coherent, decision-useful "
+            + "report from the admitted Claim ledger supplied by the binding contract. Preserve each "
+            + "Claim's sample, period, confidence and caveats; do not replay raw tool output or execution "
+            + "chronology. Facts, calculations and evidence selection are already complete. Your task is "
+            + "to organize supported findings, explain their business meaning, expose only material "
+            + "limitations, and choose dataRef/visualizationIntent when supplied by Runtime. If no "
+            + "Claim is admitted, return a useful limited analysis and explicit human-review note "
+            + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
+            + "never treat their count as a publication veto.\n"
+            + "User question: " + question + "\n"
+            + "Bounded composition context (not factual evidence): "
+            + ModelProtocolJson.compact(boundedContext);
     }
 
     /**

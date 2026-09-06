@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.LinkedHashMap;
 
-/** Bounded claim-level publication policy; not a score for an entire report. */
+/** Bounded publication policy. Runtime checks mechanics; a model node reviews analytical meaning. */
 public record AnalysisAcceptanceContract(int maxRepairRounds, int maxClaimsPerRound,
                                          long maxRepairDurationMs) {
     public AnalysisAcceptanceContract {
@@ -33,7 +33,7 @@ public record AnalysisAcceptanceContract(int maxRepairRounds, int maxClaimsPerRo
         return new EvidenceIntegrityRule("ADMITTED_CLAIM_AND_SOURCE_REFERENCES", "ISOLATE_AFFECTED_CLAIM");
     }
     public NumericConsistencyRule numericConsistency() {
-        return new NumericConsistencyRule("RUNTIME_CALCULATION_WITH_LINEAGE", "DO_NOT_ASSERT_RECALCULATED");
+        return new NumericConsistencyRule("DECLARED_VALUE_OR_EXECUTED_RESULT_WITH_LINEAGE", "PUBLISH_AS_UNVERIFIED");
     }
     public ScopeConsistencyRule scopeConsistency() {
         return new ScopeConsistencyRule(List.of("TIME", "POPULATION", "SAMPLE", "FILTER", "UNIT"), "NARROW_OR_UNRESOLVED");
@@ -55,18 +55,23 @@ public record AnalysisAcceptanceContract(int maxRepairRounds, int maxClaimsPerRo
                 "maxDurationMs", maxRepairDurationMs, "additionalModelCalls", 0),
             "numericRule", "Number provenance is not formula verification; do not claim recalculation without executable derivation.",
             "patchRule", "Retain valid blocks; narrow only to verified evidence; unresolved claims do not block other findings."));
-        result.put("questionCoverage", Map.of("basis", questionCoverage().basis(),
-            "missingQuestionDisposition", questionCoverage().missingQuestionDisposition()));
-        result.put("evidenceIntegrity", Map.of("requiredLineage", evidenceIntegrity().requiredLineage(),
-            "unknownReferenceDisposition", evidenceIntegrity().unknownReferenceDisposition()));
-        result.put("numericConsistency", Map.of("authority", numericConsistency().authority(),
-            "unavailableDerivationDisposition", numericConsistency().unavailableDerivationDisposition()));
-        result.put("scopeConsistency", Map.of("dimensions", scopeConsistency().dimensions(),
-            "expansionDisposition", scopeConsistency().expansionDisposition()));
-        result.put("claimStrength", Map.of("ceiling", claimStrength().ceiling(),
-            "unsupportedInterpretationDisposition", claimStrength().unsupportedInterpretationDisposition()));
-        result.put("reportConsistency", Map.of("identity", reportConsistency().identity(),
-            "conflictDisposition", reportConsistency().conflictDisposition()));
+        result.put("runtimeChecks", Map.of(
+            "outputShape", "REQUIRED_FIELDS_AND_TYPES_ONLY",
+            "evidenceReferences", Map.of("requiredLineage", evidenceIntegrity().requiredLineage(),
+                "unknownReferenceDisposition", evidenceIntegrity().unknownReferenceDisposition()),
+            "numericProvenance", Map.of("authority", numericConsistency().authority(),
+                "rule", "Verify that a stated number is cited or bound to an executed result; do not infer or judge its business formula."),
+            "dataRefLineage", "COMPUTED_RESULT_RECORD_REFS_MUST_BE_COVERED_BY_CITED_EVIDENCE",
+            "publication", "ORGANIZE_VALID_LIMITED_AND_UNRESOLVED_MODEL_OUTPUT"));
+        result.put("modelQualityReview", Map.of(
+            "questionCoverage", Map.of("basis", questionCoverage().basis(),
+                "missingQuestionDisposition", questionCoverage().missingQuestionDisposition()),
+            "scopeConsistency", Map.of("dimensions", scopeConsistency().dimensions(),
+                "expansionDisposition", scopeConsistency().expansionDisposition()),
+            "claimStrength", Map.of("ceiling", claimStrength().ceiling(),
+                "unsupportedInterpretationDisposition", claimStrength().unsupportedInterpretationDisposition()),
+            "crossReportConsistency", Map.of("identity", reportConsistency().identity(),
+                "conflictDisposition", reportConsistency().conflictDisposition())));
         result.put("repairPolicy", Map.of("maxRounds", maxRepairRounds, "maxClaimsPerRound", maxClaimsPerRound,
             "maxDurationMs", maxRepairDurationMs, "additionalModelCalls", 0,
             "executableActions", repairPolicy().executableActions().stream().map(Enum::name).toList()));

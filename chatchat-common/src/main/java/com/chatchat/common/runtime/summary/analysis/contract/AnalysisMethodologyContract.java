@@ -97,14 +97,16 @@ public record AnalysisMethodologyContract(
             "reportOrder", List.of("SUPPORTED_FINDINGS", "BUSINESS_IMPLICATIONS", "EVIDENCE_BOUND_ACTIONS", "MATERIAL_LIMITATIONS", "TARGETED_FOLLOWUP"),
             "completionRule", "Publish supported partial analysis with explicit limitations. Do not substitute an indicator framework or a request for more data for available analysis.",
             "failureRule", "A runtime failure or absence of analysis products is not evidence that source data is empty.",
-            "responsibilityRule", "Runtime validates evidence, numeric, scope and cross-report logic. Humans judge whether the supported result is useful."));
+            "responsibilityRule", "Runtime validates structure, cited evidence existence and data lineage, then organizes publication. The model reviews semantic scope, logic, consistency and analytical quality. Humans judge usefulness."));
         result.put("analysisAuthorityPolicy", Map.of(
+            "boundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE",
             "analysisOwner", "MODEL_SELECTS_QUESTION_RELEVANT_ANALYSIS",
             "formulaOwner", "MODEL_SELECTS_ONLY_FROM_DECLARED_SEMANTIC_CONTRACT_OR_EXPLICITLY_PROPOSES_A_FORMULA",
-            "runtimeRole", "EXECUTE_DECLARED_CALCULATION_VALIDATE_LINEAGE_AND_AUDIT_RESULT",
+            "runtimeRole", "VALIDATE_PROTOCOL_PERMISSION_PARAMETERS_RESOURCE_BUDGET_READ_ONLY_POLICY_AND_EVIDENCE_LINEAGE_THEN_EXECUTE",
+            "semanticBoundary", "Runtime does not decide analytical meaning, formula suitability, causal validity, conclusion strength or business usefulness.",
             "noImplicitFormulaRule", "Runtime must never infer SUM, AVG, ratio, rate, denominator, weighting or time comparison from a numeric column, field name or data type.",
             "unverifiedFormulaRule", "A model-proposed formula without an authorized semantic definition remains a qualified analytical proposal and is not published as a verified metric."));
-        result.put("narrativeCoherencePolicy", Map.of(
+        result.put("modelReportQualityPolicy", Map.of(
             "findingUnit", List.of("QUESTION", "OBSERVATION", "INTERPRETATION", "IMPLICATION", "EVIDENCE", "CONFIDENCE", "CAVEAT"),
             "canonicalMetricRule", "Use one canonical value, unit, period, population and definition for the same metric throughout the report.",
             "logicalStrengthRule", "Interpretation must not be stronger than observation; implication must not be stronger than interpretation; recommendation must identify the finding that motivates it.",

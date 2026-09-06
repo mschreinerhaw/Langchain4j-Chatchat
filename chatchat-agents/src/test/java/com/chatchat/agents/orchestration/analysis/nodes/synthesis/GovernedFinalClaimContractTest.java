@@ -494,7 +494,7 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void rejectsHabitualProfileEvenWhenNumbersMatchSampleEvidence() {
+    void runtimeDoesNotPretendToJudgeHabitualMeaningWithoutModelReview() {
         var compilation = contract.compile(List.of(factSummary("closed", "sample",
             "抽样清仓记录的持仓天数为2天", "2")));
         var projection = contract.project("""
@@ -503,9 +503,8 @@ class GovernedFinalClaimContractTest {
                "basisClaimIds":["sample"]}],
              "coverage":[{"claimId":"sample","disposition":"USED","reason":"sample"}]}
             """, compilation);
-        assertThat(projection.modelSelectionAccepted()).isFalse();
-        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
-        assertThat(projection.markdown()).contains("抽样清仓记录").doesNotContain("客户通常", "习惯快进快出");
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.markdown()).isNotBlank();
     }
 
     @Test
@@ -522,7 +521,7 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void rejectsCrossChapterScopeConflictBeforeRendering() {
+    void runtimeLeavesCrossChapterMeaningToModelReview() {
         var compilation = contract.compile(List.of(factSummary("holdings", "holding-count",
             "返回20条持仓记录", "20")));
         var projection = contract.project("""
@@ -533,9 +532,8 @@ class GovernedFinalClaimContractTest {
                "basisClaimIds":["holding-count"]}],
              "coverage":[{"claimId":"holding-count","disposition":"USED","reason":"observed"}]}
             """, compilation);
-        assertThat(projection.modelSelectionAccepted()).isFalse();
-        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
-        assertThat(projection.markdown()).contains("返回20条持仓记录").doesNotContain("客户共持有");
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.markdown()).isNotBlank();
     }
 
     @Test

@@ -400,9 +400,6 @@ final class GovernedFinalClaimContract {
         VerifiedReportDataCatalog catalog) {
         class Work implements ClaimAcceptanceGraph.Work<Projection> {
             final com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract policy = acceptancePolicy;
-            final List<ReportConsistencyGate.Statement> statements = new ArrayList<>();
-            final Map<String, ReportConsistencyGate.Evidence> evidence = new LinkedHashMap<>();
-            List<ReportConsistencyGate.Violation> conflicts = List.of();
             final List<List<String>> issuesByClaim = new ArrayList<>();
             final Map<Integer, NarrativeFinding> patches = new LinkedHashMap<>();
             final List<NarrativeFinding> accepted = new ArrayList<>();
@@ -410,27 +407,31 @@ final class GovernedFinalClaimContract {
             final List<Map<String, Object>> decisions = new ArrayList<>();
             SemanticClaimReviewer.Result semantic = new SemanticClaimReviewer.Result("NOT_CONFIGURED", Map.of());
             int repairs;
-            public void build() {
-                findings.forEach(f -> statements.add(new ReportConsistencyGate.Statement(
-                    f.section(), f.groundedText(), f.confidence(), f.basisClaimIds())));
-                review.items().forEach(r -> statements.add(new ReportConsistencyGate.Statement("REVIEW", r.text(), "", r.basisClaimIds())));
-                compilation.claims().forEach((id, claim) -> evidence.put(id,
-                    new ReportConsistencyGate.Evidence(claim.confidence(), claim.caveats())));
-            }
+            public void build() { /* Structured findings are already parsed; Runtime does no semantic reasoning. */ }
             public void validate() {
-                conflicts = new ReportConsistencyGate().validate(statements, evidence);
                 for (int i = 0; i < findings.size(); i++) {
-                    final int index = i;
                     var issues = new ArrayList<>(claimIssues(findings.get(i), compilation, rejected, catalog));
-                    conflicts.stream().filter(v -> v.statementIndex() == index).map(ReportConsistencyGate.Violation::code).forEach(issues::add);
                     issuesByClaim.add(issues);
                 }
             }
             public void review() {
                 if (semanticReviewer == null) return;
                 List<Map<String, Object>> claims = new ArrayList<>();
-                for (int i = 0; i < findings.size(); i++) claims.add(Map.of("claimId", "F" + (i + 1),
-                    "text", findings.get(i).groundedText(), "basisClaimIds", findings.get(i).basisClaimIds()));
+                for (int i = 0; i < findings.size(); i++) {
+                    NarrativeFinding finding = findings.get(i);
+                    Map<String, Object> claim = new LinkedHashMap<>();
+                    claim.put("claimId", "F" + (i + 1));
+                    claim.put("section", finding.section());
+                    claim.put("text", finding.text());
+                    claim.put("question", finding.question());
+                    claim.put("baseline", finding.baseline());
+                    claim.put("comparison", finding.comparison());
+                    claim.put("driver", finding.driver());
+                    claim.put("implication", finding.implication());
+                    claim.put("confidence", finding.confidence());
+                    claim.put("basisClaimIds", finding.basisClaimIds());
+                    claims.add(Map.copyOf(claim));
+                }
                 for (int i = 0; i < review.items().size(); i++) claims.add(Map.of("claimId", "R" + (i + 1),
                     "text", review.items().get(i).text(), "basisClaimIds", review.items().get(i).basisClaimIds()));
                 Set<String> ids = new LinkedHashSet<>();
@@ -465,17 +466,10 @@ final class GovernedFinalClaimContract {
                 }
             }
             public void revalidate() {
-                var updated = new ArrayList<>(statements);
-                patches.forEach((i, f) -> updated.set(i, new ReportConsistencyGate.Statement(f.section(), f.groundedText(), f.confidence(), f.basisClaimIds())));
-                var remaining = new ReportConsistencyGate().validate(updated, evidence);
                 patches.entrySet().removeIf(e -> !claimIssues(e.getValue(), compilation, rejected, catalog).isEmpty()
                     || (semantic.decisions().containsKey("F" + (e.getKey() + 1))
                         && !"ACCEPT".equals(semantic.decisions().get("F" + (e.getKey() + 1)).decision())
-                        && e.getValue().groundedText().trim().equals(findings.get(e.getKey()).groundedText().trim()))
-                    || remaining.stream().anyMatch(v -> v.statementIndex() == e.getKey())
-                    || statements.stream().filter(st -> "LIMITATION".equals(st.section())
-                        && !Collections.disjoint(st.basisIds(), e.getValue().basisClaimIds()))
-                        .anyMatch(st -> new ReportClaimBoundaryPolicy().contradicts(e.getValue().groundedText(), st.text())));
+                        && e.getValue().groundedText().trim().equals(findings.get(e.getKey()).groundedText().trim())));
             }
             public boolean hasPatches() { return !patches.isEmpty(); }
             public Projection assemble() {
@@ -504,8 +498,6 @@ final class GovernedFinalClaimContract {
                         var assessment = semantic.decisions().get("R" + (currentReviewIndex - findings.size() + 1));
                         if (assessment == null || !"ACCEPT".equals(assessment.decision())) issues.add("SEMANTIC_REVIEW_UNRESOLVED");
                     }
-                    conflicts.stream().filter(v -> v.statementIndex() == currentReviewIndex)
-                        .map(ReportConsistencyGate.Violation::code).forEach(issues::add);
                     if (issues.isEmpty()) retainedReviews.add(item);
                     else decisions.add(Map.of("claimId", "review:" + (decisions.size() + 1),
                         "basisClaimIds", item.basisClaimIds(), "status", "UNRESOLVED",
@@ -567,8 +559,6 @@ final class GovernedFinalClaimContract {
         if (!numbersGrounded(finding.groundedText(), finding.basisClaimIds(), compilation,
             catalog, finding.dataRef()))
             issues.add("UNVERIFIED_NUMERIC_VALUE");
-        issues.addAll(new ReportClaimBoundaryPolicy().violations(finding.groundedText(), finding.basisClaimIds().stream()
-            .map(compilation.claims()::get).map(c -> c.text() + " " + String.join(" ", c.caveats())).toList()));
         return List.copyOf(issues);
     }
 
@@ -577,8 +567,7 @@ final class GovernedFinalClaimContract {
         if (issues.contains("REJECTED_BASIS")) return "REJECTED";
         if (issues.contains("INSUFFICIENT_EVIDENCE")) return "INSUFFICIENT_EVIDENCE";
         if (issues.contains("UNVERIFIED_NUMERIC_VALUE")) return "UNRESOLVED";
-        if (issues.stream().anyMatch(i -> i.startsWith("CONTRADICTS"))) return "CONFLICTING";
-        return "OVER_GENERALIZED";
+        return "MODEL_REVIEW_REQUIRED";
     }
 
     private List<NarrativeFinding> ensureSourceFindingCoverage(

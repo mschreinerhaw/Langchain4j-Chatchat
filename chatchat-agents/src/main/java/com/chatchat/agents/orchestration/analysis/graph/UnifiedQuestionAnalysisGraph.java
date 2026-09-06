@@ -56,8 +56,8 @@ public final class UnifiedQuestionAnalysisGraph {
                     .enterpriseDefault().toMap().get("partialEvidencePolicy"));
                 plan.put("analysisAuthorityPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
                     .enterpriseDefault().toMap().get("analysisAuthorityPolicy"));
-                plan.put("narrativeCoherencePolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
-                    .enterpriseDefault().toMap().get("narrativeCoherencePolicy"));
+                plan.put("modelReportQualityPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
+                    .enterpriseDefault().toMap().get("modelReportQualityPolicy"));
                 metadata.put("unifiedAnalysisPlan", plan);
                 return AnalysisExecutionGraph.Status.READY;
             }),

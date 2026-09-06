@@ -14,11 +14,12 @@ class AnalysisMethodologyContractTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> authority = (Map<String, Object>) contract.get("analysisAuthorityPolicy");
         @SuppressWarnings("unchecked")
-        Map<String, Object> coherence = (Map<String, Object>) contract.get("narrativeCoherencePolicy");
+        Map<String, Object> coherence = (Map<String, Object>) contract.get("modelReportQualityPolicy");
 
         assertThat(authority)
+            .containsEntry("boundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE")
             .containsEntry("analysisOwner", "MODEL_SELECTS_QUESTION_RELEVANT_ANALYSIS")
-            .containsEntry("runtimeRole", "EXECUTE_DECLARED_CALCULATION_VALIDATE_LINEAGE_AND_AUDIT_RESULT");
+            .containsEntry("runtimeRole", "VALIDATE_PROTOCOL_PERMISSION_PARAMETERS_RESOURCE_BUDGET_READ_ONLY_POLICY_AND_EVIDENCE_LINEAGE_THEN_EXECUTE");
         assertThat(String.valueOf(authority.get("noImplicitFormulaRule")))
             .contains("must never infer SUM, AVG, ratio");
         assertThat(coherence)

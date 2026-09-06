@@ -12,7 +12,17 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class UnifiedQuestionAnalysisGraphTest {
-    @Test void supplementaryModelBudgetPreservesEarlierFindingsForValidation() throws Exception {
+    @Test void initialAnalysisHonorsConfiguredRequestDeadline() {
+        var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        var delegate = org.mockito.Mockito.mock(ChatModel.class);
+        var model = new com.chatchat.agents.orchestration.model.DeadlineAwareChatModel(delegate, () -> 0L);
+        assertThatThrownBy(() -> new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets,
+            model, scope, new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), new LinkedHashMap<>(), () -> {}))
+            .hasMessageContaining("execution time budget exhausted");
+        org.mockito.Mockito.verifyNoInteractions(delegate);
+    }
+
+    @Test void supplementaryAnalysisWaitsForCompletedFindings() throws Exception {
         var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         @SuppressWarnings("unchecked") Map<String, Object> response = mapper.readValue(product("dataset1"), Map.class);
@@ -21,15 +31,15 @@ class UnifiedQuestionAnalysisGraphTest {
         var model = org.mockito.Mockito.mock(ChatModel.class);
         org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
             if (calls.incrementAndGet() == 1) return mapper.writeValueAsString(response);
-            return com.chatchat.agents.orchestration.model.BoundedModelCall.call(() -> "unused", 0, () -> {});
+            Thread.sleep(250);
+            return product("dataset1");
         });
         var metadata = new LinkedHashMap<String, Object>();
         var outcomes = new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
             new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
         assertThat(outcomes.get("dataset1").summary().content()).contains("Returned value is 1");
         assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 2)
-            .containsEntry("unifiedAnalysisModelLimit", "ANALYSIS_MODEL_TIME_BUDGET_EXHAUSTED")
-            .containsEntry("unifiedAnalysisStatus", "COMPLETED_WITH_LIMITATIONS");
+            .containsEntry("unifiedAnalysisFindingCount", 1);
     }
 
     @Test void rejectedOptionalReadPreservesFindingsFromFortyOneReturnedRows() throws Exception {

@@ -25,8 +25,9 @@ public abstract class AbstractAgentRunStore implements AgentRunStore {
         try {
             eventPublisher.publish(event);
         } catch (RuntimeException error) {
-            log.warn("Agent run event publisher failed. runId={} eventType={} error={}",
-                event == null ? null : event.runId(), event == null ? null : event.type(), error.getMessage());
+            log.warn("Agent run event publisher failed. runId={} eventType={} errorType={} error={}",
+                event == null ? null : event.runId(), event == null ? null : event.type(),
+                error.getClass().getName(), error.getMessage(), error);
         }
     }
 }

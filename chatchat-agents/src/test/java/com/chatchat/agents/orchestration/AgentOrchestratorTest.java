@@ -3576,6 +3576,10 @@ class AgentOrchestratorTest {
 
         String reviewPrompt = (String) reviewMethod.invoke(
             orchestrator, "分析完整结果", null, reviewRequest);
+        String reviewWithCurrentInCompleted = (String) reviewMethod.invoke(
+            orchestrator, "分析完整结果", null,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution, Map.of(1, execution), 1, 1));
+        assertThat(reviewWithCurrentInCompleted).isEqualTo(reviewPrompt);
         InterpretationPlanRuntime.ExecutionResult result =
             new InterpretationPlanRuntime.ExecutionResult(
                 "success", true, false, null, null,

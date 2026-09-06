@@ -17,8 +17,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.UnaryOperator;
 
 /** Owns answer candidate quality evaluation, critic repair and safety admission. */
@@ -73,19 +71,13 @@ final class AnswerQualityCoordinator {
         if (candidates.size() <= 1) {
             return null;
         }
-        long timeoutMs = configuredTimeoutMs(
-            "chatchat.agent.answer.quality.timeout.ms", modelRequestTimeoutMs);
         try {
-            return runWithTimeout("quality", timeoutMs, () -> evaluator.evaluate(
+            return awaitCompletion("quality", () -> evaluator.evaluate(
                 activeChatModel,
                 new AnswerQualityEvaluator.QualityRequest(
                     query, systemPrompt,
                     observations == null ? List.of() : List.copyOf(observations),
                     review == null ? null : review.feedback(), candidates)));
-        } catch (TimeoutException ex) {
-            log.warn("agentModelTimeout phase=answer_quality timeoutMs={} candidateCount={}",
-                timeoutMs, candidates.size());
-            return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_timeout", candidates);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_interrupted", candidates);
@@ -116,12 +108,9 @@ final class AnswerQualityCoordinator {
         }
         AnswerCriticRepairer.Result result;
         try {
-            result = runWithTimeout("critic", runtimeProperties.answerCriticTimeoutMs(),
+            result = awaitCompletion("critic",
                 () -> criticRepairer.review(activeChatModel, context.contract(), context.gate(),
                     selectedAnswer, observations == null ? List.of() : List.copyOf(observations)));
-        } catch (TimeoutException ex) {
-            put(metadata, "answerCriticTimedOut", true);
-            return selectedAnswer;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             put(metadata, "answerCriticInterrupted", true);
@@ -226,8 +215,7 @@ final class AnswerQualityCoordinator {
         return 0;
     }
 
-    private <T> T runWithTimeout(String phase, long timeoutMs, Callable<T> task) throws Exception {
-        if (timeoutMs <= 0) return task.call();
+    private <T> T awaitCompletion(String phase, Callable<T> task) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "agent-answer-" + phase);
             thread.setDaemon(true);
@@ -235,8 +223,8 @@ final class AnswerQualityCoordinator {
         });
         Future<T> future = executor.submit(task);
         try {
-            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | InterruptedException ex) {
+            return future.get();
+        } catch (InterruptedException ex) {
             future.cancel(true);
             throw ex;
         } catch (ExecutionException ex) {
@@ -245,17 +233,6 @@ final class AnswerQualityCoordinator {
             throw new IllegalStateException(cause);
         } finally {
             executor.shutdownNow();
-        }
-    }
-
-    private long configuredTimeoutMs(String property, long fallback) {
-        String value = System.getProperty(property);
-        if (value == null || value.isBlank()) return fallback;
-        try {
-            long parsed = Long.parseLong(value.trim());
-            return parsed < 0 ? fallback : parsed;
-        } catch (NumberFormatException ignored) {
-            return fallback;
         }
     }
 

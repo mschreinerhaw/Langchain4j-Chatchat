@@ -3304,15 +3304,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             request.maxAttempts(),
             activeChatModel.getClass().getName());
         String reviewPrompt = buildToolResultReviewPrompt(query, systemPrompt, request, runtimeAttributes);
-        String raw;
-        try {
-            raw = com.chatchat.agents.orchestration.model.BoundedModelCall.call(
-                () -> activeChatModel.chat(reviewPrompt), 45000, () -> runtimeGuard.checkCancelled(cancellationCheck));
-        } catch (com.chatchat.agents.orchestration.model.BoundedModelCall.LimitExceeded exhausted) {
-            return InterpretationPlanRuntime.StepReview.accepted(
-                "Tool evidence retained; semantic selection did not complete within its budget.",
-                Map.of("toolResultReviewUnavailable", true, "toolResultReviewFailure", exhausted.getMessage()));
-        }
+        // Required semantic selection uses the request's DeadlineAwareChatModel budget.
+        // An optional-review cutoff must not prevent the first executable template selection.
+        String raw = activeChatModel.chat(reviewPrompt);
         log.info("agentModelResponse phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} durationMs={} responseChars={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
@@ -3600,6 +3594,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (request.completed() != null) {
             request.completed().values().stream()
                 .filter(Objects::nonNull)
+                .filter(execution -> request.execution() == null
+                    || !Objects.equals(execution.stepId(), request.execution().stepId()))
                 .sorted(java.util.Comparator.comparing(
                     item -> item.stepId() == null ? 0 : item.stepId()))
                 .limit(12)

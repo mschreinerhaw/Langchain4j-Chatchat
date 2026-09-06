@@ -16,25 +16,28 @@ class SemanticClaimReviewerTest {
              "decision":"REPAIR","issue":"scope overflow","evidenceIds":["e1"],
              "repairAction":"NARROW_SCOPE","repairedClaim":"observed sample only"}]}
             """);
-        var reviewer = new SemanticClaimReviewer(model, 1000);
+        var reviewer = new SemanticClaimReviewer(model);
         assertThat(reviewer.review(Map.of(), Set.of("F1"), Set.of("e1")).status()).isEqualTo("REVIEWED");
         assertThat(reviewer.review(Map.of(), Set.of("F1"), Set.of("other")).status()).isEqualTo("INVALID_RESPONSE");
     }
-    @Test void timeoutAndProviderFailureAreBoundedDispositions() {
+    @Test void slowReviewWaitsForModelCompletion() {
         var model = mock(ChatModel.class);
         when(model.chat(anyString())).thenAnswer(invocation -> {
-            new java.util.concurrent.CountDownLatch(1).await(); return "";
+            Thread.sleep(250);
+            return "{\"schemaVersion\":\"semantic_claim_review.v1\",\"reviews\":[]}";
         });
-        assertThat(new SemanticClaimReviewer(model, 30).review(Map.of(), Set.of("F1"), Set.of("e1")).status())
-            .isEqualTo("TIMEOUT");
+        assertThat(new SemanticClaimReviewer(model).review(Map.of(), Set.of(), Set.of()).status())
+            .isEqualTo("REVIEWED");
+    }
+    @Test void providerFailureRemainsUnavailable() {
         var failed = mock(ChatModel.class);
         when(failed.chat(anyString())).thenThrow(new IllegalStateException("unavailable"));
-        assertThat(new SemanticClaimReviewer(failed, 1000).review(Map.of(), Set.of("F1"), Set.of("e1")).status())
+        assertThat(new SemanticClaimReviewer(failed).review(Map.of(), Set.of("F1"), Set.of("e1")).status())
             .isEqualTo("UNAVAILABLE");
     }
     @Test void oversizedEvidenceNeverStartsModelCall() {
         var model = mock(ChatModel.class);
-        assertThat(new SemanticClaimReviewer(model, 1000).review(Map.of("data", "x".repeat(48001)), Set.of(), Set.of()).status())
+        assertThat(new SemanticClaimReviewer(model).review(Map.of("data", "x".repeat(48001)), Set.of(), Set.of()).status())
             .isEqualTo("BUDGET_EXHAUSTED");
         verifyNoInteractions(model);
     }
@@ -46,7 +49,7 @@ class SemanticClaimReviewerTest {
             new java.util.concurrent.CountDownLatch(1).await();
             return "";
         });
-        assertThatThrownBy(() -> new SemanticClaimReviewer(model, 1000, cancelled::get)
+        assertThatThrownBy(() -> new SemanticClaimReviewer(model, cancelled::get)
             .review(Map.of(), Set.of("F1"), Set.of("e1")))
             .isInstanceOf(java.util.concurrent.CancellationException.class);
     }

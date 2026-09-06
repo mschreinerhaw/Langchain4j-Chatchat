@@ -105,21 +105,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         guard.run();
                         modelCalls++;
                         allRestored = false;
-                        try {
-                            product = parse(com.chatchat.agents.orchestration.model.BoundedModelCall.call(
-                                () -> model.chat(prompt), 60000, guard));
-                        } catch (com.chatchat.agents.orchestration.model.BoundedModelCall.LimitExceeded exhausted) {
-                            metadata.put("unifiedAnalysisModelCalls", modelCalls);
-                            metadata.put("unifiedAnalysisRestored", false);
-                            metadata.put("unifiedAnalysisModelLimit", exhausted.getMessage());
-                            if (maps(generated.get("findings")).isEmpty()) throw exhausted;
-                            var limitations = new ArrayList<Object>();
-                            if (generated.get("limitations") instanceof List<?> prior) limitations.addAll(prior);
-                            limitations.add("Supplementary analysis exceeded its model budget. Prior candidate findings remain subject to evidence validation; additional evidence has not been fully interpreted.");
-                            generated.put("limitations", limitations);
-                            metadata.put("unifiedAnalysisFindingCount", maps(generated.get("findings")).size());
-                            break;
-                        }
+                        product = parse(model.chat(prompt));
                         if (!valid(product)) throw new IllegalStateException("Unified analysis returned an invalid finding contract");
                         if (!boundFindings(product, known)) throw new IllegalStateException("Finding cites an unbound dataset");
                     }

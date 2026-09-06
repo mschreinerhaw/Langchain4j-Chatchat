@@ -271,12 +271,10 @@ public final class FinalSynthesisNode {
         if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
             if (claimBoundPublication) {
                 String acceptanceQuestion = String.valueOf(request.metadata().getOrDefault("analysisAcceptanceQuestion", ""));
-                long reviewTimeoutMs = request.runtimeAttributes().get("__agentDeadlineAt") instanceof Number deadline
-                    ? Math.max(0, Math.min(10000, deadline.longValue() - System.currentTimeMillis())) : 10000;
                 GovernedFinalClaimContract acceptance = acceptanceQuestion.isBlank() ? finalClaimContract
                     : new GovernedFinalClaimContract(
                         com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
-                        new SemanticClaimReviewer(request.model(), reviewTimeoutMs,
+                        new SemanticClaimReviewer(request.model(),
                             request.runtimeAttributes().get("__agentCancellation") instanceof java.util.function.BooleanSupplier cancelled
                                 ? cancelled : () -> false), acceptanceQuestion);
                 GovernedFinalClaimContract.Projection projection = acceptance.project(answer, claimCompilation, reportData);

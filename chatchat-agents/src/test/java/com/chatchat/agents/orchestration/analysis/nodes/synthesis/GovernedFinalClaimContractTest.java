@@ -559,7 +559,7 @@ class GovernedFinalClaimContractTest {
             """);
         var reviewed = new GovernedFinalClaimContract(
             com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
-            new SemanticClaimReviewer(model, 1000), "客户交易偏好是什么？");
+            new SemanticClaimReviewer(model), "客户交易偏好是什么？");
         var compilation = reviewed.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
         var projection = reviewed.project("""
             {"schemaVersion":"governed_management_synthesis.v4","findings":[
@@ -581,7 +581,7 @@ class GovernedFinalClaimContractTest {
             """);
         var reviewed = new GovernedFinalClaimContract(
             com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
-            new SemanticClaimReviewer(model, 1000), "资产情况？");
+            new SemanticClaimReviewer(model), "资产情况？");
         var projection = reviewed.project("""
             {"schemaVersion":"governed_management_synthesis.v4","findings":[
              {"section":"CORE","text":"当前资产规模为42元","basisClaimIds":["asset"]}]}

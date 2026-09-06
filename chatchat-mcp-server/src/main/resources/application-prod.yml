@@ -19,7 +19,7 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: "${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}"
+    encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   license:
     fail-startup-on-invalid: false

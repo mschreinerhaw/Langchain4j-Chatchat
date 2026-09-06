@@ -11,7 +11,7 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: "${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}"
+    encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   runtime:
     news:
@@ -53,8 +53,8 @@ chatchat:
         enabled: true
         endpoint: https://wsa.tencentcloudapi.com
         # Credentials must be injected by the deployment environment. Never add defaults here.
-        secret-id: ${TENCENTCLOUD_SECRET_ID:}
-        secret-key: ${TENCENTCLOUD_SECRET_KEY:}
+        secret-id: 
+        secret-key: 
         region: ""
         # 0 is the cross-edition natural-search mode. The client also downgrades an unsupported richer mode once.
         mode: 0
@@ -80,9 +80,9 @@ chatchat:
           zone-id: Asia/Shanghai
       open-search:
         enabled: true
-        endpoint: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
-        username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
-        password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
+        endpoint: https://127.0.0.1:9200
+        username: admin
+        password: 
         insecure-ssl: true
         index-name: runtime-news
         retention-days: 7
@@ -91,7 +91,7 @@ chatchat:
         embedding:
           enabled: false
           endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
-          api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
+          api-key: 
           model: kinfra-text-embedding-4b
           dimension: 1024
           vector-field: embedding

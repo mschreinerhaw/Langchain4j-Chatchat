@@ -19,7 +19,7 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: "${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}"
+    encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   license:
     fail-startup-on-invalid: false
@@ -28,25 +28,25 @@ chatchat:
     server-id-file: ./data/license/server.id
     public-key-path: ./data/license/license-public.pem
   audit:
-    default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
+    default-query-window-days: 7
   mcp:
     grpc:
       client:
         enabled: false
       server:
-        enabled: ${CHATCHAT_MCP_GRPC_SERVER_ENABLED:true}
-        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
-        chunk-bytes: ${CHATCHAT_MCP_GRPC_CHUNK_BYTES:1048576}
-        max-inbound-message-bytes: ${CHATCHAT_MCP_GRPC_MAX_REQUEST_BYTES:67108864}
-        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:true}
-        certificate-chain-path: ${CHATCHAT_MCP_GRPC_CERT_CHAIN:}
-        private-key-path: ${CHATCHAT_MCP_GRPC_PRIVATE_KEY:}
+        enabled: true
+        port: 9091
+        chunk-bytes: 1048576
+        max-inbound-message-bytes: 67108864
+        plaintext: true
+        certificate-chain-path: 
+        private-key-path: 
     python:
-      workspace-root: ${CHATCHAT_MCP_PYTHON_WORKSPACE_ROOT:./data/python-assets}
-      data-root: ${CHATCHAT_MCP_PYTHON_DATA_ROOT:./data/python-user-data}
-      max-data-file-bytes: ${CHATCHAT_MCP_PYTHON_MAX_DATA_FILE_BYTES:52428800}
-      docker-command: ${CHATCHAT_MCP_PYTHON_DOCKER_COMMAND:docker}
-      output-limit-bytes: ${CHATCHAT_MCP_PYTHON_OUTPUT_LIMIT_BYTES:1000000}
+      workspace-root: ./data/python-assets
+      data-root: ./data/python-user-data
+      max-data-file-bytes: 52428800
+      docker-command: docker
+      output-limit-bytes: 1000000
     market:
       require-dedicated-storage: true
       query-timeout-seconds: 15
@@ -93,7 +93,7 @@ chatchat:
       token-ttl-minutes: 480
     security:
       require-mcp-token: true
-      encrypted-invocation-token: "${CHATCHAT_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
+      encrypted-invocation-token: ""
     authorization:
       enabled: true
       fail-open: false
@@ -102,7 +102,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
+        encrypted-password: ""
         bearer-token:
     notifications:
       # Enable notification/alert MCP tool publishing in development.
@@ -118,9 +118,9 @@ chatchat:
       index-dir: ./data/lucene/mcp
       open-search:
         enabled: true
-        url: ${CHATCHAT_OPENSEARCH_URL:https://127.0.0.1:9200}
-        username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
-        password: ${CHATCHAT_OPENSEARCH_PASSWORD:}
+        url:  https://127.0.0.1:9200
+        username: admin
+        password:
         index-prefix: chatchat_mcp_dev_
         insecure-ssl: true
         request-timeout-ms: 30000
@@ -143,7 +143,7 @@ chatchat:
           request-timeout-ms: 300000
           enabled: true
           endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
-          api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
+          api-key: 
           model: kinfra-text-embedding-4b
           dimension: 1024
           vector-field: mcpContentVector
@@ -159,7 +159,7 @@ chatchat:
         api-base-url: http://localhost:8080
         auth:
           username: chatchat_mcp_internal
-          encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
+          encrypted-password: ""
           bearer-token:
   tools:
     document-search:
@@ -167,7 +167,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
+        encrypted-password: ""
         bearer-token:
     livedata:
       # Runtime values are maintained on the admin page. Database access is bound through a database asset.

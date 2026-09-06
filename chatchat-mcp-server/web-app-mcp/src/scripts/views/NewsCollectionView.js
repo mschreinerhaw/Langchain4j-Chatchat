@@ -125,7 +125,7 @@ export default {
   data: () => ({
     sources: [], presets: [], patternPresets: [], collectionTemplates: [], selectedCollectionTemplateCode: '',
     structuredFlashConfigText: '',
-    loading: false, saving: false, collectingId: null, checkingRobotsId: null, dialogOpen: false,
+    loading: false, saving: false, collectingIds: [], collectionViewActive: true, checkingRobotsId: null, dialogOpen: false,
     robotsOverrideDialogOpen: false, robotsOverrideSaving: false, robotsOverrideSource: null,
     robotsOverrideForm: { reason: '', hours: 24, acknowledged: false },
     logDialogOpen: false, logsLoading: false, logs: [], logSourceId: '', logPage: 1, logPageSize: 20, logTotal: 0,
@@ -155,6 +155,7 @@ export default {
     }
   },
   mounted() { this.load(); },
+  beforeUnmount() { this.collectionViewActive = false; },
   methods: {
     async load() {
       this.loading = true;
@@ -380,9 +381,24 @@ export default {
       }
     },
     async collect(source) {
-      this.collectingId = source.id;
+      if (this.collectingIds.includes(source.id)) return;
+      this.collectingIds.push(source.id);
       try {
-        const result = await newsApi.collect(source.id);
+        let task = await newsApi.collect(source.id);
+        if (task?.status === 'QUEUED' || task?.status === 'RUNNING') {
+          this.$emit('notify', { title: '采集任务已提交', message: `${source.sourceName} 正在后台采集，可离开页面，采集不会中断。` });
+        }
+        while (task?.status === 'QUEUED' || task?.status === 'RUNNING') {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          if (!this.collectionViewActive) return;
+          task = await newsApi.collectionStatus(source.id, task.executionId);
+        }
+        if (!this.collectionViewActive) return;
+        const result = task?.result || task;
+        if (task?.status === 'FAILED' && !task.result) throw new Error(task.errorMessage || '采集失败');
+        if (task?.status === 'FAILED' && result?.robotsAllowed !== false) {
+          this.$emit('notify', { type: 'danger', title: '采集失败', message: result.errorMessage || '请查看采集结果' });
+        }
         if (result?.robotsAllowed === false) {
           this.$emit('notify', { type: 'danger', title: '机器人协议检测未通过', message: result.errorMessage || '采集已停止' });
         } else if (result?.robotsStatus === 'OVERRIDDEN') {
@@ -392,7 +408,7 @@ export default {
         await this.load();
       }
       catch (error) { this.$emit('error', error); }
-      finally { this.collectingId = null; }
+      finally { this.collectingIds = this.collectingIds.filter(id => id !== source.id); }
     },
     async remove(source) {
       try { await newsApi.removeSource(source.id); await this.load(); }

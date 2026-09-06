@@ -11,7 +11,6 @@ import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/internal/v1/news", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
@@ -20,10 +19,13 @@ public class NewsRuntimeInternalController {
     private final NewsSourceAdminService sources;
     private final NewsCollectionService collection;
     private final NewsMcpToolProvider tools;
+    private final com.chatchat.runtime.news.collector.NewsCollectionTaskService tasks;
 
     public NewsRuntimeInternalController(NewsSourceAdminService sources, NewsCollectionService collection,
-                                         NewsMcpToolProvider tools) {
+                                         NewsMcpToolProvider tools,
+                                         com.chatchat.runtime.news.collector.NewsCollectionTaskService tasks) {
         this.sources = sources; this.collection = collection; this.tools = tools;
+        this.tasks = tasks;
     }
 
     @GetMapping("/health") public ApiResponse<Map<String, Object>> health() {
@@ -51,7 +53,11 @@ public class NewsRuntimeInternalController {
         return ApiResponse.success(sources.saveRule(NEWS_CAPABILITY_ID, id, request));
     }
     @PostMapping("/sources/{id}/collect") public ApiResponse<?> collect(@PathVariable("id") Long id) {
-        return ApiResponse.success(collection.collect(id, "mcp-admin-" + UUID.randomUUID()), "采集完成");
+        return ApiResponse.success(tasks.submit(id), "采集任务已提交");
+    }
+    @GetMapping("/sources/{id}/collections/{executionId}") public ApiResponse<?> collectionStatus(
+        @PathVariable("id") Long id, @PathVariable("executionId") String executionId) {
+        return ApiResponse.success(tasks.get(id, executionId));
     }
     @PostMapping("/sources/{id}/robots-check") public ApiResponse<?> checkRobots(@PathVariable("id") Long id) {
         return ApiResponse.success(collection.checkRobots(id), "机器人协议检测完成");

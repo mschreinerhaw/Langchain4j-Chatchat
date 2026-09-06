@@ -18,6 +18,21 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class NewsRuntimeClientTest {
+    @Test
+    void timeoutIdentifiesTheOperationInsteadOfImplyingRuntimeIsUnreachable() throws Exception {
+        var transport = org.mockito.Mockito.mock(java.net.http.HttpClient.class);
+        org.mockito.Mockito.when(transport.send(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenThrow(new java.net.http.HttpTimeoutException("request timed out"));
+        var credentials = new InternalCredentialProperties();
+        setEncryptedSecret(credentials, "test-secret");
+        var client = new NewsRuntimeClient(new ObjectMapper(), credentials, transport,
+            "http://localhost:8091", Duration.ofSeconds(20));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.post("/sources/7/collect", null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("timed out", "POST /sources/7/collect", "may still be running")
+            .hasCauseInstanceOf(java.net.http.HttpTimeoutException.class);
+    }
+
     private HttpServer server;
 
     @AfterEach void stop() { if (server != null) server.stop(0); }

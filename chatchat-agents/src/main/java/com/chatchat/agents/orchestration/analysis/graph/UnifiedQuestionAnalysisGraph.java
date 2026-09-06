@@ -71,6 +71,9 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Interpret Runtime verifiedCalculations; do not invent computed values or units. Refer to other supplied datasets as available, not missing. "
                         + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],limitations:[],evidenceRequests:[]}. "
                         + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE; confidence is HIGH, MEDIUM or LOW. "
+                        + "operation must be one of OBSERVE, AGGREGATE, DERIVE, COMPARE, RANK, TREND, INFER, PROXY; do not invent operation names. "
+                        + "recordRefs, supportingValues, caveats, inputFields, semanticBasis and alternativeExplanations are JSON arrays of strings. "
+                        + "supportingValues contains exact JSON field fragments from cited records, e.g. ['\"VALUE\":17','\"previous\":null']; never field=value prose. "
                         + "Each finding must cite original dataset.records[n] and exact supporting values. A finding belongs to its evidence dataset. "
                         + "Cross-dataset implications must stay qualified unless an authorized relationship and computation supports them. "
                         + "Do not emit SQL or executable instructions. Cover material returned facts relevant to the question; explain unsupported questions in limitations.\n"
@@ -105,7 +108,27 @@ public final class UnifiedQuestionAnalysisGraph {
                         guard.run();
                         modelCalls++;
                         allRestored = false;
-                        product = parse(model.chat(prompt));
+                        try {
+                            product = parse(model.chat(prompt));
+                        } catch (RuntimeException failure) {
+                            guard.run();
+                            if (Thread.currentThread().isInterrupted()
+                                || failure instanceof java.util.concurrent.CancellationException
+                                || failure instanceof com.chatchat.agents.orchestration.model.AgentDeadlineExceededException
+                                || maps(generated.get("findings")).isEmpty()) throw failure;
+                            // Optional enrichment must not discard existing candidates. They still
+                            // pass through the same evidence validation as a successful final round.
+                            List<Object> limitations = new ArrayList<>();
+                            if (generated.get("limitations") instanceof List<?> list) limitations.addAll(list);
+                            limitations.add("Supplementary model analysis failed; retained earlier findings require normal evidence validation. Requested enrichment remains unresolved.");
+                            generated.put("limitations", limitations);
+                            metadata.put("unifiedAnalysisSupplementFailure", failure.getClass().getSimpleName());
+                            metadata.put("unifiedAnalysisModelCalls", modelCalls);
+                            metadata.put("unifiedAnalysisFindingCount", maps(generated.get("findings")).size());
+                            LOG.warn("Supplementary analysis failed; retaining candidates partition={} round={} failure={}",
+                                scope.partitionKey(), round, failure.getClass().getSimpleName());
+                            break;
+                        }
                         if (!valid(product)) throw new IllegalStateException("Unified analysis returned an invalid finding contract");
                         if (!boundFindings(product, known)) throw new IllegalStateException("Finding cites an unbound dataset");
                     }

@@ -93,7 +93,7 @@ chatchat:
       token-ttl-minutes: 480
     security:
       require-mcp-token: true
-      encrypted-invocation-token: ""
+      encrypted-invocation-token: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     authorization:
       enabled: true
       fail-open: false
@@ -159,7 +159,7 @@ chatchat:
         api-base-url: http://localhost:8080
         auth:
           username: chatchat_mcp_internal
-          encrypted-password: ""
+          encrypted-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
           bearer-token:
   tools:
     document-search:
@@ -167,7 +167,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password: ""
+        encrypted-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
         bearer-token:
     livedata:
       # Runtime values are maintained on the admin page. Database access is bound through a database asset.

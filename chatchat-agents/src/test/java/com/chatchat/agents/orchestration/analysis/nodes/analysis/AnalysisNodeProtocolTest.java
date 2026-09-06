@@ -22,6 +22,38 @@ import static org.mockito.Mockito.when;
 class AnalysisNodeProtocolTest {
 
     @Test
+    void validatesStructuredSupportingValuesAgainstTheirOwnRecordAndField() {
+        var row = new java.util.LinkedHashMap<String, Object>();
+        row.put("VALUE", 42.0);
+        row.put("previous", null);
+        var rows = List.<Map<String, Object>>of(row, Map.of("VALUE", 99));
+        for (String values : List.of(
+            "{\"sample.records[1]\":{\"VALUE\":\"4.2E1\",\"previous\":null}}",
+            "[{\"recordRef\":\"sample.records[1]\",\"VALUE\":42,\"previous\":null}]")) {
+            var result = validateStructuredValues(rows, values);
+            assertThat(result.evidence()).containsEntry("rejectedInsightCount", 0);
+            assertThat(result.evidence().get("insights").toString()).contains("previous", "42.0");
+        }
+        for (String values : List.of(
+            "{\"sample.records[1]\":{\"VALUE\":99}}",
+            "{\"sample.records[2]\":{\"VALUE\":99}}",
+            "{\"sample.records[1]\":{\"missing\":null}}")) {
+            assertThat(validateStructuredValues(rows, values).evidence())
+                .containsEntry("rejectedInsightCount", 1);
+        }
+    }
+
+    private AnalysisSummaryResult validateStructuredValues(List<Map<String, Object>> rows, String values) {
+        return bridge.validateProduct(isolationScope, bridge.position("sample", 1, 1, 1, 2, 2),
+            bridge.govern("sample", Map.of(), rows), rows, "Observe returned values",
+            """
+            {"summary":"Returned observation","insights":[{"claimClass":"OBSERVED_RETURNED_FACT",
+            "operation":"OBSERVE","claim":"Returned value","significance":"Current observation",
+            "recordRefs":["sample.records[1]"],"confidence":"HIGH","supportingValues":
+            """ + values + "}]}");
+    }
+
+    @Test
     void repairsInvalidProductOnceUsingAdmissionDecisionsAndOriginalRecords() {
         var calls = new java.util.ArrayList<String>();
         var rows = List.<Map<String, Object>>of(Map.of("VALUE", 17));

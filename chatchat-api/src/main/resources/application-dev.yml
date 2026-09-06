@@ -81,7 +81,7 @@ chatchat:
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
-    encrypted-secret: "${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}"
+    encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   mcp:
     grpc:
@@ -103,8 +103,8 @@ chatchat:
       enabled: true
       base-url: http://localhost:8090
       admin-username: chatchat_mcp_internal
-      encrypted-admin-password: "${CHATCHAT_API_MCP_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
-      encrypted-invocation-token: "${CHATCHAT_API_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
+      encrypted-admin-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
+      encrypted-invocation-token: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
       timeout-ms: 1800000
       import-standalone-server: true
       auto-recovery-enabled: true
@@ -242,7 +242,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
+        encrypted-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
 
 springdoc:
   api-docs:

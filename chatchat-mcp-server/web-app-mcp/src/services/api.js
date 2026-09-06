@@ -170,6 +170,8 @@ export const newsApi = {
     apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   collect: (id) =>
     apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collect`, { method: 'POST' }),
+  collectionStatus: (id, executionId) =>
+    apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collections/${encodeURIComponent(executionId)}`),
   checkRobots: (id) =>
     apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/robots-check`, { method: 'POST' }),
   listRecords: (params) => {

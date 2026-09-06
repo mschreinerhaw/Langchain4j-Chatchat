@@ -3,7 +3,7 @@ package com.chatchat.agents.runtime.plan;
 import java.util.Map;
 import java.util.Optional;
 
-/** Central fail-closed budget boundary for the DAG executor. */
+/** Enforces execution cost; planner latency estimates do not cancel required model work. */
 public final class PlanExecutionGovernor {
 
     public Optional<Violation> check(InterpretationPlan plan,
@@ -12,16 +12,9 @@ public final class PlanExecutionGovernor {
                                      Map<String, Object> runtimeAttributes) {
         if (plan == null || plan.executionPolicy() == null) return Optional.empty();
         InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
-        if (policy.latencyBudgetMs() != null && policy.latencyBudgetMs() > 0) {
-            long elapsed = Math.max(0L, System.currentTimeMillis() - startedAt);
-            if (elapsed >= policy.latencyBudgetMs()) {
-                return Optional.of(new Violation("PLAN_LATENCY_BUDGET_EXCEEDED",
-                    "InterpretationPlan latency budget exhausted", Map.of(
-                        "elapsedMs", elapsed,
-                        "latencyBudgetMs", policy.latencyBudgetMs(),
-                        "executedSteps", executedSteps)));
-            }
-        }
+        // latencyBudgetMs is a planner estimate, not an authoritative request deadline.
+        // Tool-result review can exceed it while still returning valid evidence. Continue
+        // ready nodes; explicit cancellation and request deadlines belong to RuntimeGuard.
         if (policy.costBudget() != null && policy.costBudget() >= 0 && runtimeAttributes != null) {
             double cost = number(runtimeAttributes.get("__agentEstimatedCost"));
             if (cost > policy.costBudget()) {

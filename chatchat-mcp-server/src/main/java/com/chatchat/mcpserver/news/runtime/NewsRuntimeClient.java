@@ -94,6 +94,10 @@ public class NewsRuntimeClient {
         } catch (Exception ex) {
             CancellationSupport.rethrowIfCancelled(ex, "News Runtime request");
             if (ex instanceof IllegalStateException state) throw state;
+            if (ex instanceof java.net.http.HttpTimeoutException) {
+                throw new IllegalStateException("News Runtime request timed out: " + method + " " + path
+                    + "; the operation may still be running", ex);
+            }
             throw new IllegalStateException("Cannot communicate with News Runtime at " + baseUrl, ex);
         }
     }

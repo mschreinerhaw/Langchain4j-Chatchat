@@ -715,7 +715,7 @@ public final class AnalysisNodeProtocol
             List<String> alternatives = strings(candidate.get("alternativeExplanations"));
             List<String> references = strings(candidate.get("recordRefs")).stream()
                 .filter(reference -> validRecordReference(position, reference)).distinct().toList();
-            List<String> values = strings(candidate.get("supportingValues")).stream()
+            List<String> values = supportingValues(position, records, references, candidate.get("supportingValues")).stream()
                 .filter(exact -> exactValueSupported(position, records, references, exact))
                 .distinct().toList();
             SemanticOperation operation = SemanticOperation.from(string(candidate.get("operation")));
@@ -931,6 +931,55 @@ public final class AnalysisNodeProtocol
             }
         }
         return false;
+    }
+
+    private List<String> supportingValues(DataAnalysisPosition position,
+                                          List<Map<String, Object>> records,
+                                          List<String> references, Object value) {
+        if (value instanceof Map<?, ?> bound) {
+            List<String> verified = new ArrayList<>();
+            for (var entry : bound.entrySet()) {
+                String reference = String.valueOf(entry.getKey());
+                if (entry.getValue() instanceof Map<?, ?> fields && references.contains(reference)) {
+                    verified.addAll(verifiedFields(position, records, reference, fields));
+                }
+            }
+            return verified;
+        }
+        if (!(value instanceof Iterable<?> items)) return List.of();
+        List<String> verified = new ArrayList<>();
+        for (Object item : items) {
+            if (item instanceof Map<?, ?> fields) {
+                String reference = String.valueOf(fields.get("recordRef"));
+                if (references.contains(reference)) verified.addAll(verifiedFields(position, records, reference, fields));
+            } else if (item != null) verified.add(String.valueOf(item));
+        }
+        return verified;
+    }
+
+    private List<String> verifiedFields(DataAnalysisPosition position, List<Map<String, Object>> records,
+                                        String reference, Map<?, ?> fields) {
+        Integer index = recordIndex(position, reference);
+        if (index == null || index < position.recordFrom() || index - position.recordFrom() >= records.size()) return List.of();
+        Map<String, Object> record = records.get(index - position.recordFrom());
+        List<String> verified = new ArrayList<>();
+        for (var field : fields.entrySet()) {
+            String name = String.valueOf(field.getKey());
+            if (name.equals("recordRef") || !record.containsKey(name)) continue;
+            Object actual = record.get(name);
+            boolean equal = java.util.Objects.equals(actual, field.getValue());
+            if (!equal && actual instanceof Number && field.getValue() != null) {
+                try {
+                    equal = new java.math.BigDecimal(actual.toString()).compareTo(
+                        new java.math.BigDecimal(field.getValue().toString())) == 0;
+                } catch (NumberFormatException ignored) { }
+            }
+            if (equal) {
+                String json = ModelProtocolJson.compact(Collections.singletonMap(name, actual));
+                verified.add(json.substring(1, json.length() - 1));
+            }
+        }
+        return verified;
     }
 
     private Integer recordIndex(DataAnalysisPosition position, String reference) {

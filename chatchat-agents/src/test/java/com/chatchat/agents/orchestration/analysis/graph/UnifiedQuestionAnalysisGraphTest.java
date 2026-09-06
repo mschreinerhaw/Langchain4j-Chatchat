@@ -12,6 +12,31 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class UnifiedQuestionAnalysisGraphTest {
+    @Test void failedOptionalModelCallRetainsCandidatesForEvidenceValidation() throws Exception {
+        var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        @SuppressWarnings("unchecked") Map<String, Object> response = mapper.readValue(product("dataset1"), Map.class);
+        response.put("evidenceRequests", List.of(Map.of("operation", "READ_RECORDS", "datasetReference", "dataset1", "fromRecord", 1, "limit", 1)));
+        var model = org.mockito.Mockito.mock(ChatModel.class);
+        org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(mapper.writeValueAsString(response)).thenThrow(new IllegalStateException("transport unavailable"));
+        var metadata = new LinkedHashMap<String, Object>();
+        var outcomes = new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+        assertThat(outcomes.get("dataset1").summary().content()).contains("Returned value is 1");
+        assertThat(metadata).containsEntry("unifiedAnalysisSupplementFailure", "IllegalStateException")
+            .containsEntry("unifiedAnalysisStatus", "COMPLETED_WITH_LIMITATIONS");
+        for (RuntimeException stop : List.of(new java.util.concurrent.CancellationException("cancelled"),
+            new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("deadline"))) {
+            org.mockito.Mockito.reset(model);
+            org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(mapper.writeValueAsString(response)).thenThrow(stop);
+            assertThatThrownBy(() -> new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+                new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), new LinkedHashMap<>(), () -> {}))
+                .isInstanceOf(stop.getClass());
+        }
+    }
+
     @Test void initialAnalysisHonorsConfiguredRequestDeadline() {
         var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
         var delegate = org.mockito.Mockito.mock(ChatModel.class);

@@ -43,7 +43,7 @@ chatchat:
     enabled: true
     username: chatchat_mcp_internal
     # Use com.chatchat.common.security.InternalSecretTool to generate ENC(...).
-    encrypted-secret: "${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}"
+    encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   mcp:
     capabilities:
@@ -55,13 +55,13 @@ chatchat:
       enabled: true
       base-url: http://localhost:8090
       admin-username: chatchat_mcp_internal
-      encrypted-admin-password: "${CHATCHAT_API_MCP_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
+      encrypted-admin-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
       admin-login-path: /api/v1/admin/auth/login
       service-list-path: /api/v1/mcp-services
       mcp-endpoint: /mcp
       standalone-service-id: chatchat-mcp-server
       standalone-service-name: ChatChat MCP Server
-      encrypted-invocation-token: "${CHATCHAT_API_MCP_ENCRYPTED_INVOCATION_TOKEN:${chatchat.internal-credential.encrypted-secret:}}"
+      encrypted-invocation-token: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
       timeout-ms: 0
       import-standalone-server: true
       auto-recovery-enabled: true

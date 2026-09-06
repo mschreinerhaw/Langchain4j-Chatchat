@@ -57,7 +57,12 @@ public class NewsAdminController {
     }
     @PostMapping("/sources/{id}/collect")
     public ApiResponse<JsonNode> collect(@PathVariable("id") Long id) {
-        return ApiResponse.success(runtime.post("/sources/" + id + "/collect", null), "采集完成");
+        return ApiResponse.success(runtime.post("/sources/" + id + "/collect", null), "采集任务已提交");
+    }
+    @GetMapping("/sources/{id}/collections/{executionId}")
+    public ApiResponse<JsonNode> collectionStatus(@PathVariable("id") Long id,
+                                                @PathVariable("executionId") java.util.UUID executionId) {
+        return ApiResponse.success(runtime.get("/sources/" + id + "/collections/" + executionId));
     }
     @PostMapping("/sources/{id}/robots-check")
     public ApiResponse<JsonNode> checkRobots(@PathVariable("id") Long id) {

@@ -66,7 +66,7 @@
         <el-button link type="warning" :loading="checkingRobotsId === row.id" @click="checkRobots(row)">协议检测</el-button>
         <el-button v-if="!robotsOverrideActive(row)" link type="warning" @click="openRobotsOverride(row)">忽略检测</el-button>
         <el-button v-else link type="danger" @click="cancelRobotsOverride(row)">取消忽略</el-button>
-        <el-button link type="success" :disabled="!row.enabled" :loading="collectingId === row.id" @click="collect(row)">立即采集</el-button>
+        <el-button link type="success" :disabled="!row.enabled" :loading="collectingIds.includes(row.id)" @click="collect(row)">{{ collectingIds.includes(row.id) ? '采集中' : '立即采集' }}</el-button>
         <el-button link type="danger" :disabled="row.collectedRecords > 0" @click="remove(row)">删除</el-button>
       </template></el-table-column>
     </el-table>

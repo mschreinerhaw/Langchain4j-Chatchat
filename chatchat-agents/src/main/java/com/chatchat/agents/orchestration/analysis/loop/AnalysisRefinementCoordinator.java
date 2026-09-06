@@ -39,6 +39,40 @@ public final class AnalysisRefinementCoordinator {
             + firstNonBlank(result == null ? null : result.errorMessage(), "none");
     }
 
+    /** A failed tool is not evidence that rewriting the graph can repair it. */
+    public RefinementAdmission admitRefinement(InterpretationPlanRuntime.ExecutionResult result,
+        List<InterpretationPlanRuntime.ExecutionResult> attempts,
+        List<Map<String, Object>> evidenceHistory, List<String> availableTools, int rewrites) {
+        if (result != null && result.approvalRequired()) {
+            return new RefinementAdmission(false, false, "authorization_required");
+        }
+        boolean structural = result != null && "INVALID_PLAN".equals(result.status());
+        if (structural) {
+            return new RefinementAdmission(rewrites == 0, true,
+                rewrites == 0 ? "invalid_plan" : "structural_repair_already_attempted");
+        }
+        List<String> attempted = new ArrayList<>();
+        for (var attempt : attempts == null ? List.<InterpretationPlanRuntime.ExecutionResult>of() : attempts) {
+            if (attempt != null && attempt.steps() != null) {
+                attempt.steps().stream().filter(Objects::nonNull)
+                    .map(InterpretationPlanRuntime.StepExecution::toolName)
+                    .filter(Objects::nonNull).forEach(attempted::add);
+            }
+        }
+        if (result != null && result.steps() != null) {
+            result.steps().stream().filter(Objects::nonNull)
+                .map(InterpretationPlanRuntime.StepExecution::toolName)
+                .filter(Objects::nonNull).forEach(attempted::add);
+        }
+        boolean newPath = requiredTools(evidenceHistory, availableTools, false).stream()
+            .anyMatch(required -> attempted.stream().noneMatch(tool ->
+                toolNames.sameToolName(tool, required.toolName())));
+        return new RefinementAdmission(newPath, false,
+            newPath ? "untried_evidence_tool" : "no_verified_new_retrieval_path");
+    }
+
+    public record RefinementAdmission(boolean allowed, boolean structuralRepair, String reason) {}
+
     public List<InterpretationPlanRewriter.RequiredToolExecution> requiredTools(
         List<Map<String, Object>> evidenceHistory,
         List<String> availableTools,

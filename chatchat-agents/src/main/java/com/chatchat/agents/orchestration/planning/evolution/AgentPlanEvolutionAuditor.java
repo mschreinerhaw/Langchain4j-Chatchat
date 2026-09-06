@@ -67,7 +67,7 @@ public final class AgentPlanEvolutionAuditor {
         }
         String content = switch (normalizedState) {
             case "STARTED" -> "Runtime started DAG repair attempt " + rewriteCount
-                + " after detecting a recoverable plan or execution failure.";
+                + " after graph validation identified an invalid plan.";
             case "APPLIED" -> "Runtime applied DAG repair attempt " + rewriteCount
                 + " with " + safeChanges.size() + " audited change(s); validation passed.";
             case "REJECTED" -> "DAG repair attempt " + rewriteCount

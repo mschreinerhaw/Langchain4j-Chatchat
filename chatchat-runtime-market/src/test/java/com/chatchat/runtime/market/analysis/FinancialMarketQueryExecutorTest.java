@@ -35,6 +35,27 @@ class FinancialMarketQueryExecutorTest {
     }
 
     @Test
+    void guardedDecimalConversionAcceptsGroupingAndPreservesUnknowns() {
+        List<String> values = java.util.Arrays.asList("11,092.58", "11092.58", "-1,234.50", "1,23", "--", null);
+        for (int i = 0; i < values.size(); i++) {
+            jdbc.update("insert into market_asset_catalog(dataset_code,asset_name) values(?,?)",
+                String.valueOf(i), values.get(i));
+        }
+        var result = executor.execute("""
+            SELECT dataset_code, CASE WHEN REGEXP_LIKE(TRIM(asset_name),
+              '^[+-]?([0-9]{1,26}|[0-9]{1,3}(,[0-9]{3}){1,7})([.][0-9]{1,4})?$')
+              THEN CAST(REGEXP_REPLACE(TRIM(asset_name), ',', '') AS DECIMAL(30,4))
+              ELSE NULL END AS numeric_value
+            FROM market_asset_catalog ORDER BY dataset_code
+            """, Map.of(), 20, 10);
+        assertThat(result.rows()).hasSize(6);
+        assertThat(result.rows().get(0).get("numeric_value")).isEqualTo(new java.math.BigDecimal("11092.5800"));
+        assertThat(result.rows().get(1).get("numeric_value")).isEqualTo(new java.math.BigDecimal("11092.5800"));
+        assertThat(result.rows().get(2).get("numeric_value")).isEqualTo(new java.math.BigDecimal("-1234.5000"));
+        for (int i = 3; i < 6; i++) assertThat(result.rows().get(i)).containsEntry("numeric_value", null);
+    }
+
+    @Test
     void queriesOnlyGovernedFinancialTablesAndPreservesNullValues() {
         jdbc.update("insert into market_asset_catalog(dataset_code,asset_name,last_observation_date) values(?,?,?)",
             "market_quote_daily", "证券行情", null);

@@ -3049,7 +3049,11 @@ public class ToolRuntimeService {
             return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
                 "MCP workflow exceeded max_steps=" + maxSteps, matchedRules);
         }
-        if (strategy != null && strategy.isStopOnError() && attemptState.failed.get()) {
+        boolean dagOwnsFailureIsolation = "interpretation_plan".equals(request.getRuntimeMode())
+            && request.getAttributes() != null
+            && Boolean.TRUE.equals(request.getAttributes().get("dagDependencyIsolation"))
+            && authoritativeWorkflowDependencies(request, toolName) != null;
+        if (strategy != null && strategy.isStopOnError() && attemptState.failed.get() && !dagOwnsFailureIsolation) {
             return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
                 "MCP workflow is stopped because a previous required step failed", matchedRules);
         }
@@ -3057,7 +3061,7 @@ public class ToolRuntimeService {
         List<String> dependencies = new ArrayList<>();
         List<String> authoritativeDependencies = authoritativeWorkflowDependencies(request, toolName);
         boolean authoritativeSequence = authoritativeDependencies != null
-            && authoritativeWorkflowHasEdges(request);
+            && (dagOwnsFailureIsolation || authoritativeWorkflowHasEdges(request));
         boolean authoritativeOptionalTool = authoritativeDependencies == null
             && authoritativeWorkflowConfigured(request)
             && workflow != null

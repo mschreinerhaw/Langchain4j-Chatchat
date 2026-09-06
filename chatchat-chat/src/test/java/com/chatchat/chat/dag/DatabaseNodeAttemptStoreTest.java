@@ -18,6 +18,25 @@ import static org.mockito.Mockito.when;
 class DatabaseNodeAttemptStoreTest {
 
     @Test
+    void longFailureReasonIsBoundedWithoutLosingOriginalDiagnostic() throws Exception {
+        NodeAttemptRepository repository = mock(NodeAttemptRepository.class);
+        NodeAttemptEntity failed = entity("attempt-a", "tenant-a", "run-a", 1, 1, "RUNNING");
+        failed.setMetadataJson("{\"existing\":true}");
+        when(repository.findByTenantIdAndAttemptId("tenant-a", "attempt-a")).thenReturn(Optional.of(failed));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        ObjectMapper mapper = new ObjectMapper();
+        String reason = "x".repeat(999) + "\uD83D\uDE00" + "SQL diagnostic".repeat(1000);
+
+        new DatabaseNodeAttemptStore(repository, mapper).transition("tenant-a", "attempt-a",
+            NodeAttemptStore.State.RUNNING, NodeAttemptStore.State.FAILED, reason, null);
+
+        assertThat(failed.getState()).isEqualTo("FAILED");
+        assertThat(failed.getStateReason()).isEqualTo("x".repeat(999));
+        assertThat(mapper.readTree(failed.getMetadataJson()).get("fullStateReason").asText()).isEqualTo(reason);
+        assertThat(mapper.readTree(failed.getMetadataJson()).get("existing").asBoolean()).isTrue();
+    }
+
+    @Test
     void assignsNextAttemptNumberAndRejectsStaleOrIllegalTransitions() {
         NodeAttemptRepository repository = mock(NodeAttemptRepository.class);
         NodeAttemptEntity previous = entity("previous", "tenant-a", "run-a", 7, 2, "FAILED");

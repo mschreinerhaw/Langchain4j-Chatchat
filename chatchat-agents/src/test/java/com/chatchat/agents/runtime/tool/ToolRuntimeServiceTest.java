@@ -1365,6 +1365,41 @@ class ToolRuntimeServiceTest {
         verify(toolRegistry).executeEnhancedTool(any(), any());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void dagFailureIsolationAllowsIndependentBranchButStillBlocksDependentBranch(boolean hasEdges) {
+        List<String> names = List.of("source_read", "independent_read", "dependent_read");
+        ToolRegistry registry = mock(ToolRegistry.class);
+        names.forEach(tool -> when(registry.getToolMetadata(tool)).thenReturn(
+            ToolMetadata.builder().id(tool).title(tool).build()));
+        when(registry.executeEnhancedTool(any(), any()))
+            .thenReturn(ToolOutput.failure("source unavailable"), ToolOutput.success("independent evidence"));
+        ToolRuntimeService service = new ToolRuntimeService(registry, new ObjectMapper(), properties(),
+            new McpPolicyProperties(), new McpWorkflowProperties(), List.of(), List.of());
+        Map<String, Object> workflow = Map.of("enabled", true,
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(Map.of("step", 1, "tool", names.get(0), "required", true),
+                Map.of("step", 2, "tool", names.get(1), "required", true),
+                Map.of("step", 3, "tool", names.get(2), "required", true)));
+        List<Map<String, Object>> dag = List.of(
+            Map.of("tool", names.get(0), "dependsOnTools", List.of()),
+            Map.of("tool", names.get(1), "dependsOnTools", List.of()),
+            Map.of("tool", names.get(2), "dependsOnTools", hasEdges ? List.of(names.get(0)) : List.of()));
+        java.util.function.Function<String, ToolRuntimeRequest> request = tool -> ToolRuntimeRequest.builder()
+            .toolName(tool).runtimeMode("interpretation_plan").requestId("req-isolated")
+            .conversationId("conv-isolated").tenantId("tenant-1").userId("user-1").allowedTools(names)
+            .toolInput(ToolInput.builder().userId("user-1").parameters(Map.of()).build())
+            .attributes(Map.of("mcpWorkflow", workflow, "authoritativeWorkflowDag", dag,
+                "dagDependencyIsolation", true)).build();
+
+        assertThat(service.execute(request.apply(names.get(0))).output().isSuccess()).isFalse();
+        assertThat(service.execute(request.apply(names.get(1))).output().isSuccess()).isTrue();
+        if (hasEdges) {
+            assertThat(service.execute(request.apply(names.get(2))).output().isSuccess()).isFalse();
+        }
+        verify(registry, times(2)).executeEnhancedTool(any(), any());
+    }
+
     @Test
     void authoritativeDagOverridesStaleSequentialOrderForTemplateProtocol() {
         String asset = "mcp_chatchat_mcp_server_api_asset_query";

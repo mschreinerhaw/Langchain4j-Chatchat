@@ -141,13 +141,16 @@ public class DatabaseNodeAttemptStore implements NodeAttemptStore {
             throw new IllegalStateException("Illegal node attempt transition: " + current + " -> " + targetState);
         }
         entity.setState(targetState.name());
-        entity.setStateReason(reason);
+        boolean longReason = reason != null && reason.length() > 1000;
+        int reasonEnd = longReason && Character.isHighSurrogate(reason.charAt(999)) ? 999 : 1000;
+        entity.setStateReason(longReason ? reason.substring(0, reasonEnd) : reason);
         if (targetState == State.PREPARED) {
             entity.setPreparedAt(java.time.Instant.now());
         }
-        if (metadata != null && !metadata.isEmpty()) {
+        if (longReason || (metadata != null && !metadata.isEmpty())) {
             Map<String, Object> merged = readMetadata(entity.getMetadataJson());
-            merged.putAll(metadata);
+            if (metadata != null) merged.putAll(metadata);
+            if (longReason) merged.put("fullStateReason", reason);
             entity.setMetadataJson(writeMetadata(merged));
         }
         return snapshot(repository.saveAndFlush(entity));

@@ -1793,6 +1793,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     summarize(resolvedInput));
                 Map<String, Object> stepAttributes = new LinkedHashMap<>(
                     attributesForStep(request, step, completed, resolvedInput, routingDecision));
+                stepAttributes.put("dagDependencyIsolation", true);
                 if (batchToolInput(resolvedInput)
                     && runtimeOwnedTemplateBatch(step, request.plan(), completed)) {
                     stepAttributes.put("runtimeOwnedTemplateBatch", true);

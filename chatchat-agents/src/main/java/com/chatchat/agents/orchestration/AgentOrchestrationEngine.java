@@ -4016,6 +4016,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                                          InterpretationPlanRuntime.ExecutionResult result,
                                          List<String> availableTools,
                                          boolean budgetAvailable) {
+        if (result != null && "INVALID_PLAN".equals(result.status())) {
+            return budgetAvailable && availableTools != null && !availableTools.isEmpty();
+        }
         return analysisLoopCoordinator.explorationAvailable(snapshot, result != null && result.success(),
             availableTools != null && !availableTools.isEmpty(), budgetAvailable,
             snapshot != null && !evidenceRefinementRequiredTools(List.of(snapshot), availableTools).isEmpty());

@@ -16,6 +16,48 @@ import static org.mockito.Mockito.when;
 class AnalysisRefinementCoordinatorTest {
 
     @Test
+    void executionFailuresAndGenericGapTextDoNotAuthorizeGraphRewriting() {
+        var coordinator = new AnalysisRefinementCoordinator(mock(AgentToolNameResolver.class), 3);
+        for (String status : List.of("STEP_FAILED", "NODE_ATTEMPT_PERSISTENCE_FAILED",
+                "EDGE_CONTRACT_FAILED", "DAG_ABORTED", "DAG_REWRITE_REQUESTED")) {
+            var result = new InterpretationPlanRuntime.ExecutionResult(status, false, false,
+                "failure", null, List.of(execution(1, false)), Map.of(), 1L);
+            var admission = coordinator.admitRefinement(result, List.of(result),
+                List.of(Map.of("missingEvidence", List.of("more data"))), List.of("first_tool"), 0);
+            assertThat(admission.allowed()).as(status).isFalse();
+            assertThat(admission.structuralRepair()).isFalse();
+        }
+    }
+
+    @Test
+    void structuralRepairIsAllowedOnlyOnce() {
+        var coordinator = new AnalysisRefinementCoordinator(mock(AgentToolNameResolver.class), 3);
+        var result = new InterpretationPlanRuntime.ExecutionResult("INVALID_PLAN", false, false,
+            "dependency cycle", null, List.of(), Map.of(), 1L);
+        assertThat(coordinator.admitRefinement(result, List.of(), List.of(), List.of(), 0).allowed()).isTrue();
+        assertThat(coordinator.admitRefinement(result, List.of(), List.of(), List.of(), 1).allowed()).isFalse();
+    }
+
+    @Test
+    void onlyAnUntriedConcreteEvidenceToolCanExtendExecution() {
+        AgentToolNameResolver names = mock(AgentToolNameResolver.class);
+        when(names.resolveMostSpecificAvailableTool("second_tool", List.of("second_tool")))
+            .thenReturn("second_tool");
+        when(names.sameToolName("second_tool", "second_tool")).thenReturn(true);
+        var coordinator = new AnalysisRefinementCoordinator(names, 3);
+        var failed = new InterpretationPlanRuntime.ExecutionResult("STEP_FAILED", false, false,
+            "failure", null, List.of(execution(1, false)), Map.of(), 1L);
+        var history = List.<Map<String, Object>>of(Map.of("nextActions", List.of(Map.of("tool", "second_tool"))));
+        var allowed = coordinator.admitRefinement(failed, List.of(failed), history, List.of("second_tool"), 0);
+        assertThat(allowed.allowed()).isTrue();
+        assertThat(allowed.structuralRepair()).isFalse();
+        var tried = new InterpretationPlanRuntime.ExecutionResult("STEP_FAILED", false, false,
+            "failure", null, List.of(execution(2, false)), Map.of(), 1L);
+        assertThat(coordinator.admitRefinement(failed, List.of(tried, failed), history,
+            List.of("second_tool"), 1).allowed()).isFalse();
+    }
+
+    @Test
     void resolvesOnlyAvailableConcreteGapToolsAndExpandsPositiveBudget() {
         AgentToolNameResolver names = mock(AgentToolNameResolver.class);
         when(names.resolveMostSpecificAvailableTool("history_query", List.of("tenant_history_query")))

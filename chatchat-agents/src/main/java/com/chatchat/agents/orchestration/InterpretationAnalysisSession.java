@@ -428,6 +428,18 @@ final class InterpretationAnalysisSession {
     }
 
     Phase refinementGate() {
+        var admission = host.analysisRefinementCoordinator.admitRefinement(
+                currentResult, planAttemptResults, evidenceHistory, tools, rewriteCount);
+        metadata.put("refinementAdmission", Map.of("allowed", admission.allowed(),
+                "structuralRepair", admission.structuralRepair(), "reason", admission.reason()));
+        if (!admission.allowed()) {
+            metadata.put("refinementStopReason", admission.reason());
+            host.recordEvidenceStopState(metadata, evidenceHistory.isEmpty() ? Map.of()
+                    : evidenceHistory.get(evidenceHistory.size() - 1), admission.reason(), evidenceHistory.size());
+            observations.add("Runtime skipped plan rewriting: " + admission.reason()
+                    + ". Existing evidence and unresolved execution failures will be retained.");
+            return FINALIZE;
+        }
         if (rewriteCount >= maxRewriteTimes) return FINALIZE;
         rewriteCount++;
         return REFINEMENT_PLAN;
@@ -443,7 +455,7 @@ final class InterpretationAnalysisSession {
                 host.analysisRefinementCoordinator.rewriteReason(currentResult, evidenceHistory);
         Map<String, Object> repairEvidenceContext = host.planEvolutionAuditor.repairContext(evidenceHistory);
         metadata.put("latestDagRepairEvidenceContext", repairEvidenceContext);
-        boolean dagRepairAttempt = !currentResult.success() || failedStep != null;
+        boolean dagRepairAttempt = "INVALID_PLAN".equals(currentResult.status());
         if (dagRepairAttempt) {
             host.planEvolutionAuditor.recordDagRepair(
                     runtimeAttributes,
@@ -852,7 +864,9 @@ final class InterpretationAnalysisSession {
                 "interpretationPlanFallbackMode",
                 host.planEvolutionAuditor.fallbackMode(initialPipelinePlan));
         String evidenceCompletionReason =
-                usablePartialAnalysis
+                metadata.containsKey("refinementStopReason")
+                        ? String.valueOf(metadata.get("refinementStopReason"))
+                        : usablePartialAnalysis
                         ? "evidence_partial_analysis"
                         : duplicateToolPlanSuppressed
                                 ? "duplicate_tool_plan_suppressed"

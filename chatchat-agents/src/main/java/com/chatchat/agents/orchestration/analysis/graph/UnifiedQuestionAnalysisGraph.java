@@ -48,11 +48,16 @@ public final class UnifiedQuestionAnalysisGraph {
                 plan.put("scope", "ONE_QUESTION_ALL_BOUND_DATASETS");
                 plan.put("datasets", sources.stream().map(dataset -> Map.of(
                     "datasetReference", dataset.reference(), "recordCount", dataset.records().size())).toList());
-                plan.put("calculationPolicy", "EXECUTE_ONLY_RESOLVED_SEMANTIC_CONTRACTS");
+                plan.put("calculationPolicy", "MODEL_SELECTS_ANALYSIS_RUNTIME_EXECUTES_ONLY_DECLARED_OR_RESOLVED_SEMANTICS");
+                plan.put("formulaInferencePolicy", "RUNTIME_NEVER_INFERS_AGGREGATION_DENOMINATOR_WEIGHTING_OR_TIME_COMPARISON");
                 plan.put("claimBoundaryPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
                     .enterpriseDefault().toMap().get("claimBoundaryPolicy"));
                 plan.put("partialEvidencePolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
                     .enterpriseDefault().toMap().get("partialEvidencePolicy"));
+                plan.put("analysisAuthorityPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
+                    .enterpriseDefault().toMap().get("analysisAuthorityPolicy"));
+                plan.put("narrativeCoherencePolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
+                    .enterpriseDefault().toMap().get("narrativeCoherencePolicy"));
                 metadata.put("unifiedAnalysisPlan", plan);
                 return AnalysisExecutionGraph.Status.READY;
             }),
@@ -75,6 +80,8 @@ public final class UnifiedQuestionAnalysisGraph {
                     Object boundedRequests = evidenceAccess.fitRequestedEvidence(requestedEvidence, REQUESTED_EVIDENCE_CHARS);
                     String prompt = "Execute unified question analysis (" + VERSION + "). All datasets below belong to one question. "
                         + "Generate findings around the question, not separate dataset reports. Preserve dataset boundaries; never implicitly join tables. "
+                        + "You own the analytical choice: decide what the question requires and which supported analysis is meaningful. Runtime does not infer SUM, AVG, ratios, denominators, weights or time comparisons from numeric columns. "
+                        + "Select a derived measure only when the supplied semantic contract declares its aggregation, grain, denominator, unit and scope, or request it explicitly as an unverified formula proposal. Runtime executes and audits the declaration; it does not choose the business formula. "
                         + "Interpret Runtime verifiedCalculations; do not invent computed values or units. Refer to other supplied datasets as available, not missing. "
                         + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],limitations:[],evidenceRequests:[]}. "
                         + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE; confidence is HIGH, MEDIUM or LOW. "
@@ -97,6 +104,9 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
                         + "Without history, explain current state and supported composition instead of asserting trends. Do not replace available analysis with an indicator framework or only a request for more data. "
                         + "Final findings must address the supported parts of the question across sources. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
+                        + "Make the finding set read as one report: each material finding states the answer, observation, interpretation, implication and boundary; keep one value/unit/period/population definition for each metric. "
+                        + "Do not make the executive conclusion stronger than the detailed evidence, do not contradict a finding later in limitations, and do not issue an action without the finding that motivates it. Use meaningful prose, remove duplicate findings and expose no runtime IDs. "
+                        + "Before returning JSON, silently verify QUESTION_ANSWERED, METRIC_DEFINITION_STABLE, TIME_SCOPE_STABLE, POPULATION_SCOPE_STABLE, NO_INTERNAL_CONTRADICTION, NO_UNSUPPORTED_CAUSE, NO_SAMPLE_TO_LONG_TERM_EXPANSION, ACTION_TRACES_TO_FINDING and READABLE_WITHOUT_RUNTIME_CONTEXT. "
                         + "Evidence round " + round + "/" + MAX_EVIDENCE_ROUNDS + ". "
                         + (round == MAX_EVIDENCE_ROUNDS
                             ? "No more requests are available; return bounded conclusions and limitations. " : "")

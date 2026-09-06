@@ -25,7 +25,8 @@ import java.util.Set;
  *
  * <p>Every finding remains bound to admitted evidence. Invalid findings are repaired locally
  * within a bounded policy, or represented as unresolved; valid findings retain their content.
- * Numeric provenance checks do not establish arithmetic or semantic correctness.</p>
+ * Numeric publication requires exact returned values or model-selected, contract-authorized calculations executed
+ * by the Runtime; model claim text is never accepted as numeric evidence for itself.</p>
  */
 final class GovernedFinalClaimContract {
 
@@ -420,7 +421,7 @@ final class GovernedFinalClaimContract {
                 conflicts = new ReportConsistencyGate().validate(statements, evidence);
                 for (int i = 0; i < findings.size(); i++) {
                     final int index = i;
-                    var issues = new ArrayList<>(claimIssues(findings.get(i), compilation, rejected));
+                    var issues = new ArrayList<>(claimIssues(findings.get(i), compilation, rejected, catalog));
                     conflicts.stream().filter(v -> v.statementIndex() == index).map(ReportConsistencyGate.Violation::code).forEach(issues::add);
                     issuesByClaim.add(issues);
                 }
@@ -467,7 +468,7 @@ final class GovernedFinalClaimContract {
                 var updated = new ArrayList<>(statements);
                 patches.forEach((i, f) -> updated.set(i, new ReportConsistencyGate.Statement(f.section(), f.groundedText(), f.confidence(), f.basisClaimIds())));
                 var remaining = new ReportConsistencyGate().validate(updated, evidence);
-                patches.entrySet().removeIf(e -> !claimIssues(e.getValue(), compilation, rejected).isEmpty()
+                patches.entrySet().removeIf(e -> !claimIssues(e.getValue(), compilation, rejected, catalog).isEmpty()
                     || (semantic.decisions().containsKey("F" + (e.getKey() + 1))
                         && !"ACCEPT".equals(semantic.decisions().get("F" + (e.getKey() + 1)).decision())
                         && e.getValue().groundedText().trim().equals(findings.get(e.getKey()).groundedText().trim()))
@@ -497,7 +498,7 @@ final class GovernedFinalClaimContract {
                 int reviewIndex = findings.size();
                 for (ReviewItem item : review.items()) {
                     var candidate = new NarrativeFinding("REVIEW", item.text(), item.basisClaimIds());
-                    List<String> issues = new ArrayList<>(claimIssues(candidate, compilation, rejected));
+                    List<String> issues = new ArrayList<>(claimIssues(candidate, compilation, rejected, catalog));
                     final int currentReviewIndex = reviewIndex++;
                     if (semanticReviewer != null) {
                         var assessment = semantic.decisions().get("R" + (currentReviewIndex - findings.size() + 1));
@@ -535,7 +536,6 @@ final class GovernedFinalClaimContract {
                         "runtimeDataCatalog", catalog.promptView())));
                 boolean modified = decisions.stream().anyMatch(d -> !"VALID".equals(d.get("status")));
                 String markdown = rendered.markdown();
-                if (modified) markdown += acceptanceNotes(decisions);
                 return new Projection(!modified, modified ? "CLAIM_LEVEL_PARTIAL_DELIVERY" : rendered.reason(),
                     markdown, List.copyOf(selected), Map.copyOf(report));
             }
@@ -557,13 +557,15 @@ final class GovernedFinalClaimContract {
             List.of(), finding.question(), "", "", "", "", "", "", "");
     }
 
-    private List<String> claimIssues(NarrativeFinding finding, Compilation compilation, Set<String> rejected) {
+    private List<String> claimIssues(NarrativeFinding finding, Compilation compilation, Set<String> rejected,
+                                     VerifiedReportDataCatalog catalog) {
         List<String> issues = new ArrayList<>();
         if (finding.basisClaimIds().isEmpty() || finding.basisClaimIds().stream()
             .anyMatch(id -> !compilation.claims().containsKey(id))) issues.add("INSUFFICIENT_EVIDENCE");
         if (finding.basisClaimIds().stream().anyMatch(rejected::contains)) issues.add("REJECTED_BASIS");
         if (!issues.isEmpty()) return List.copyOf(issues);
-        if (!numbersGrounded(finding.groundedText(), finding.basisClaimIds(), compilation))
+        if (!numbersGrounded(finding.groundedText(), finding.basisClaimIds(), compilation,
+            catalog, finding.dataRef()))
             issues.add("UNVERIFIED_NUMERIC_VALUE");
         issues.addAll(new ReportClaimBoundaryPolicy().violations(finding.groundedText(), finding.basisClaimIds().stream()
             .map(compilation.claims()::get).map(c -> c.text() + " " + String.join(" ", c.caveats())).toList()));
@@ -577,17 +579,6 @@ final class GovernedFinalClaimContract {
         if (issues.contains("UNVERIFIED_NUMERIC_VALUE")) return "UNRESOLVED";
         if (issues.stream().anyMatch(i -> i.startsWith("CONTRADICTS"))) return "CONFLICTING";
         return "OVER_GENERALIZED";
-    }
-
-    private String acceptanceNotes(List<Map<String, Object>> decisions) {
-        StringBuilder notes = new StringBuilder("\n\n## 受限判断与未决事项\n\n");
-        for (Map<String, Object> decision : decisions) {
-            if ("LIMITED".equals(decision.get("status"))) notes.append("- 分析项 ")
-                .append(decision.get("claimId")).append("：已收敛为已有证据支持的事实，原推断不作为结论。\n");
-            if ("UNRESOLVED".equals(decision.get("status"))) notes.append("- 分析项 ")
-                .append(decision.get("claimId")).append("：当前依据不足或存在未消解冲突，暂不作判断。\n");
-        }
-        return notes.toString();
     }
 
     private List<NarrativeFinding> ensureSourceFindingCoverage(
@@ -649,12 +640,29 @@ final class GovernedFinalClaimContract {
 
     private boolean numbersGrounded(String narrative, List<String> basisClaimIds,
                                     Compilation compilation) {
+        return numbersGrounded(narrative, basisClaimIds, compilation,
+            VerifiedReportDataCatalog.empty(), "");
+    }
+
+    private boolean numbersGrounded(String narrative, List<String> basisClaimIds,
+                                    Compilation compilation, VerifiedReportDataCatalog catalog,
+                                    String dataRef) {
         Set<String> allowed = new LinkedHashSet<>();
+        Set<String> basisRecordRefs = new LinkedHashSet<>();
         for (String claimId : basisClaimIds) {
             Claim claim = compilation.claims().get(claimId);
             if (claim == null) continue;
-            allowed.addAll(numberTokens(claim.text()));
+            basisRecordRefs.addAll(claim.recordRefs());
             claim.supportingValues().forEach(value -> allowed.addAll(numberTokens(value)));
+        }
+        VerifiedReportDataCatalog.Data data = catalog == null || dataRef == null || dataRef.isBlank()
+            ? null : catalog.get(dataRef);
+        if (data != null && !data.recordRefs().isEmpty()
+            && basisRecordRefs.containsAll(data.recordRefs())) {
+            if (data.metric() != null) allowed.addAll(numberTokens(data.metric().toPlainString()));
+            for (Map<String, Object> row : data.rows()) {
+                row.values().forEach(value -> allowed.addAll(numberTokens(String.valueOf(value))));
+            }
         }
         return allowed.containsAll(numberTokens(narrative));
     }
@@ -700,10 +708,12 @@ final class GovernedFinalClaimContract {
             + "and use a gap only to qualify the specific unsupported extension; do not reject the whole analysis or "
             + "request repair merely because gaps exist or are numerous. "
             + "Execute the analysisMethodologyContract and analysisTree carried in the Driver pipeline context. "
+            + "The model owns analysis selection. Runtime never infers aggregation, denominator, weighting, time window or formula from numeric fields; it only executes and audits calculations declared by the semantic contract or explicitly requested by the model. "
             + "Build the reasoning chain from question and baseline through overall result, decomposition, contribution, "
             + "explanation, validation, impact and action. Missing baseline limits only dependent comparisons. Rank "
             + "findings by objective relevance, materiality and confidence; rank anomalies by degree and business impact. "
             + "Prefer a small number of decision-useful findings over repeated factual restatements. Complete the "
+            + "Before returning, perform a strict coherence pass: keep one value, unit, period, population and definition per metric; ensure CORE is no stronger than its detailed finding; place qualifications where the claim first appears; prohibit contradictions between findings, limitations and actions; trace every action to a finding; remove duplicate or empty sections; and make the report readable without workflow context. "
             + "analysisItemCoverage matrix for the dynamic analysisAgenda carried by Worker/Reducer reports. Every "
             + "ANSWERED or PARTIAL item must point to findings and basis Claims; REVIEW_REQUIRED must retain its "
             + "qualification, and NOT_APPLICABLE must explain the scope mismatch. "

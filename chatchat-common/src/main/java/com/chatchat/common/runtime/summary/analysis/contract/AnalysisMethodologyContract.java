@@ -98,6 +98,21 @@ public record AnalysisMethodologyContract(
             "completionRule", "Publish supported partial analysis with explicit limitations. Do not substitute an indicator framework or a request for more data for available analysis.",
             "failureRule", "A runtime failure or absence of analysis products is not evidence that source data is empty.",
             "responsibilityRule", "Runtime validates evidence, numeric, scope and cross-report logic. Humans judge whether the supported result is useful."));
+        result.put("analysisAuthorityPolicy", Map.of(
+            "analysisOwner", "MODEL_SELECTS_QUESTION_RELEVANT_ANALYSIS",
+            "formulaOwner", "MODEL_SELECTS_ONLY_FROM_DECLARED_SEMANTIC_CONTRACT_OR_EXPLICITLY_PROPOSES_A_FORMULA",
+            "runtimeRole", "EXECUTE_DECLARED_CALCULATION_VALIDATE_LINEAGE_AND_AUDIT_RESULT",
+            "noImplicitFormulaRule", "Runtime must never infer SUM, AVG, ratio, rate, denominator, weighting or time comparison from a numeric column, field name or data type.",
+            "unverifiedFormulaRule", "A model-proposed formula without an authorized semantic definition remains a qualified analytical proposal and is not published as a verified metric."));
+        result.put("narrativeCoherencePolicy", Map.of(
+            "findingUnit", List.of("QUESTION", "OBSERVATION", "INTERPRETATION", "IMPLICATION", "EVIDENCE", "CONFIDENCE", "CAVEAT"),
+            "canonicalMetricRule", "Use one canonical value, unit, period, population and definition for the same metric throughout the report.",
+            "logicalStrengthRule", "Interpretation must not be stronger than observation; implication must not be stronger than interpretation; recommendation must identify the finding that motivates it.",
+            "crossSectionRule", "Executive summary, detail, limitation and recommendation must not contradict each other. Qualify a claim where it first appears rather than repairing it later with a caveat.",
+            "readerRule", "Use meaningful finding titles, lead with the answer, place evidence next to the claim, avoid internal IDs and remove repeated or empty sections.",
+            "selfReview", List.of("QUESTION_ANSWERED", "METRIC_DEFINITION_STABLE", "TIME_SCOPE_STABLE",
+                "POPULATION_SCOPE_STABLE", "NO_INTERNAL_CONTRADICTION", "NO_UNSUPPORTED_CAUSE",
+                "NO_SAMPLE_TO_LONG_TERM_EXPANSION", "ACTION_TRACES_TO_FINDING", "READABLE_WITHOUT_RUNTIME_CONTEXT")));
         result.put("insightBlockPolicy", Map.of(
             "minimumPrimaryExpressions", 2,
             "requiredDataExpression", List.of("VERIFIED_CHART", "VERIFIED_TABLE", "VERIFIED_METRIC", "VERIFIED_RECORD_EVIDENCE"),

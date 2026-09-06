@@ -25,8 +25,12 @@ final class AnalysisSynthesisContract {
             it would resolve; conditional monitoring is appropriate when allocation claims are unsupported.
             Each finding is an Analytical Insight Block. Choose dataRef only from the runtime report data catalog,
             bound to the finding's basisClaimIds. Choose visualizationIntent from RANK, CONTRIBUTION or KPI according
-            to the executed operation. Never supply chart data, table rows, units, or computed metrics yourself.
-            The runtime planner chooses the chart and the composer binds chart, table, metric, observation,
+            to the executed operation. The model selects the question-relevant analysis from declared field semantics;
+            the Runtime never invents SUM, AVG, ratio, denominator, weighting, time window or aggregation meaning.
+            For a derived value, select and explain only a semantic-contract-authorized calculation and cite its
+            Runtime result through dataRef. A new formula may be proposed with its inputs and intended meaning, but
+            remains an explicitly unverified analysis direction until the Runtime can execute and audit it.
+            Never fabricate chart data or table rows. The runtime planner chooses the chart and the composer binds chart, table, metric, observation,
             interpretation, implication, confidence and evidence. Write plain prose in text; no Markdown data tables.
             Every primary conclusion requires both an explanation and a verifiable data expression. An admitted claim
             with returned-record references and supporting values is a verifiable evidence expression even when no
@@ -34,6 +38,11 @@ final class AnalysisSynthesisContract {
             chart is presentation enrichment, not a publication gate. Missing dimensions limit only dependent claims.
             If at least one usable record exists, analyze what it supports and state scope limits instead of refusing
             the whole analysis. Unsupported visualization intents fall back to verified data tables.
+            Before returning, make the report self-consistent: use one value, unit, period, population and definition
+            for each metric; keep interpretation no stronger than observation and implication no stronger than
+            interpretation; qualify a limitation where the claim first appears; ensure every action traces to a
+            finding; remove duplicate findings, empty sections and internal workflow language. The executive summary,
+            detail, limitations and actions must be readable together without contradiction or Runtime context.
             Findings must not contain embedded section headings or dangling citation brackets.
             """;
     }

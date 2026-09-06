@@ -39,6 +39,10 @@ class GovernedRecordFinalPromptBuilderTest {
             .contains("do not present cumulative counters as current rates")
             .contains("producer-returned metric at its declared grain is an observation")
             .contains("do not claim that aggregation authorization is missing")
+            .contains("The model owns the analytical choice; Runtime owns execution and audit")
+            .contains("Runtime never decides that a numeric field should be summed")
+            .contains("Run a final coherence pass before returning")
+            .contains("one canonical value, unit, period, population and definition")
             .contains("do not reproduce complete record tables")
             .contains("livedata_orders summary")
             .doesNotContain("Executed plan attempts");

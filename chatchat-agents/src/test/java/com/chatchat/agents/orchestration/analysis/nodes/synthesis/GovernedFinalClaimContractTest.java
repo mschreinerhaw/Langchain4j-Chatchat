@@ -359,6 +359,45 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
+    void modelClaimTextCannotServeAsEvidenceForItsOwnDerivedNumber() {
+        AnalysisSummaryResult invalidUpstream = factSummary(
+            "calculation", "bad-sum", "Calculated total is 99", "40");
+        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(invalidUpstream));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","text":"Calculated total is 99",
+               "basisClaimIds":["bad-sum"]}],
+             "coverage":[{"claimId":"bad-sum","disposition":"USED","reason":"calculation"}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.markdown()).doesNotContain("Calculated total is 99");
+    }
+
+    @Test
+    void runtimeComputedMetricCanGroundDerivedNumberThroughDataRef() {
+        AnalysisSummaryResult source = factSummary(
+            "calculation", "source-value", "Returned source value is 40", "40");
+        var finding = new com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine.Finding(
+            "derived-total", "aggregate", "Calculated total", new java.math.BigDecimal("99"),
+            "units", "runtime calculation", List.of("calculation.records[1]"), Map.of());
+        var catalog = com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatalog.fromRuntime(
+            Map.of("deterministicInsightResults", List.of(
+                Map.of("status", "executed", "findings", List.of(finding)))));
+
+        GovernedFinalClaimContract.Projection projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","text":"Calculated total is 99",
+               "dataRef":"computed:0:derived-total", "basisClaimIds":["source-value"]}],
+             "coverage":[{"claimId":"source-value","disposition":"USED","reason":"calculation"}]}
+            """, contract.compile(List.of(source)), catalog);
+
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.markdown()).contains("Calculated total is 99");
+    }
+
+    @Test
     void rendersStructuredReasoningAndChecksItsNumericGrounding() {
         var compilation = contract.compile(List.of(factSummary(
             "trades", "fact:trades", "There are 20 trades", "20")));
@@ -449,8 +488,9 @@ class GovernedFinalClaimContractTest {
              "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"current result"}]}
             """, contract.compile(List.of(summary())));
         assertThat(projection.modelSelectionAccepted()).isTrue();
-        assertThat(projection.analyticalReport()).containsEntry("executiveSummaryIds", List.of());
-        assertThat(projection.markdown()).contains("暂无同时绑定计算数据与证据的核心结论", "数据状态：待补充可验证数据");
+        assertThat(projection.analyticalReport()).containsEntry("executiveSummaryIds", List.of("F1"));
+        assertThat(projection.markdown()).contains("Returned value is 42")
+            .doesNotContain("暂无同时绑定计算数据与证据的核心结论", "数据状态：待补充可验证数据");
     }
 
     @Test

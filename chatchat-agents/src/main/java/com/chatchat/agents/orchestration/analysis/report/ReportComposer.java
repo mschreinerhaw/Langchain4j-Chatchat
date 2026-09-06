@@ -17,16 +17,19 @@ public final class ReportComposer {
         List<String> refs = evidence.stream().flatMap(item -> strings(item.get("recordRefs")).stream()).toList();
         boolean dataBound = data != null && data.recordRefs().stream().allMatch(ref -> refs.stream()
             .anyMatch(claimRef -> ref.equals(claimRef) || ref.startsWith(claimRef + ".")));
+        boolean rejected = evidence.stream().anyMatch(item ->
+            "REJECTED".equals(String.valueOf(item.get("status"))));
         boolean reviewRequired = evidence.stream().anyMatch(item ->
             !strings(item.get("reviewReasons")).isEmpty()
-                || List.of("REVIEW_REQUIRED", "DOWNGRADE", "REJECTED").contains(String.valueOf(item.get("status"))));
+                || List.of("REVIEW_REQUIRED", "DOWNGRADE").contains(String.valueOf(item.get("status"))));
         boolean evidenceBound = evidence.stream().anyMatch(item ->
             !strings(item.get("recordRefs")).isEmpty()
                 && !strings(item.get("supportingValues")).isEmpty());
-        boolean publishableEvidence = dataBound || evidenceBound;
+        boolean publishableEvidence = (dataBound || evidenceBound) && !rejected;
         List<String> limitations = new ArrayList<>(caveats);
         if (!publishableEvidence) limitations.add("未绑定可验证的记录证据或计算数据；保留为待验证说明，不进入核心业务结论。");
-        if (reviewRequired) limitations.add("依据包含待复核判断，不进入核心业务结论。");
+        if (reviewRequired) limitations.add("该判断包含待复核项，以受限结论发布，需结合证据范围理解。");
+        if (rejected) limitations.add("该判断的依据已被拒绝，不作为业务结论发布。");
         var plan = dataBound ? planner.plan(id, data, intent) : null;
         if (dataBound && plan == null && !data.rows().isEmpty()) {
             limitations.add("当前数据或分析意图不满足图表条件，保留数据表供核对。");
@@ -41,8 +44,10 @@ public final class ReportComposer {
                 : !dataBound ? "TEXT"
                 : plan != null ? "CHART" : rows.isEmpty() ? "KPI" : "TABLE",
                 dataBound && !rows.isEmpty(), dataBound && data.metric() != null,
-                publishableEvidence && !reviewRequired && "CORE".equals(section),
-                dataBound ? "VERIFIED_DATA_BOUND" : evidenceBound ? "VERIFIED_EVIDENCE_BOUND" : "INSUFFICIENT_DATA"));
+                publishableEvidence && "CORE".equals(section),
+                !publishableEvidence ? "INSUFFICIENT_DATA"
+                    : reviewRequired ? dataBound ? "LIMITED_DATA_BOUND" : "LIMITED_EVIDENCE_BOUND"
+                    : dataBound ? "VERIFIED_DATA_BOUND" : "VERIFIED_EVIDENCE_BOUND"));
     }
 
     private List<String> strings(Object value) {
@@ -52,11 +57,21 @@ public final class ReportComposer {
     /** Text-only clients receive a projection of the same blocks, including the same data and caveats. */
     public String markdown(String question, List<AnalyticalInsightBlock> blocks) {
         StringBuilder output = new StringBuilder("# 数据分析报告\n\n分析问题：").append(question).append("\n\n## 核心业务判断\n\n");
-        List<AnalyticalInsightBlock> primary = blocks.stream().filter(block -> block.presentation().primaryConclusion()).limit(5).toList();
-        if (primary.isEmpty()) output.append("暂无同时绑定计算数据与证据的核心结论。\n\n");
+        List<AnalyticalInsightBlock> primary = blocks.stream()
+            .filter(block -> block.presentation().primaryConclusion()).limit(5).toList();
+        if (primary.isEmpty()) {
+            primary = blocks.stream().filter(block -> block.presentation().validationStatus().startsWith("VERIFIED_"))
+                .filter(block -> !List.of("ACTION", "REVIEW").contains(block.section())).limit(5).toList();
+        }
+        if (primary.isEmpty()) {
+            primary = blocks.stream().filter(block -> block.presentation().validationStatus().startsWith("LIMITED_"))
+                .filter(block -> !List.of("ACTION", "REVIEW").contains(block.section())).limit(3).toList();
+        }
+        if (primary.isEmpty()) output.append("当前没有已绑定可验证证据的业务判断；下文仅展示数据状态与未决事项。\n\n");
         primary.forEach(block -> output.append("- ").append(block.observation()).append("\n\n"));
+        int findingIndex = 0;
         for (var block : blocks) {
-            output.append("## ").append(block.question().isBlank() ? "分析发现" : block.question()).append("\n\n");
+            output.append("## ").append(block.question().isBlank() ? "分析发现 " + (++findingIndex) : block.question()).append("\n\n");
             if ("DATA_STATUS".equals(block.presentation().primaryPresentation())) output.append("数据状态：待补充可验证数据。\n\n");
             output.append(block.observation()).append("\n\n");
             if (block.presentation().showKeyMetrics()) output.append("关键数据：").append(block.data().get("title"))
@@ -71,8 +86,10 @@ public final class ReportComposer {
             if (!block.implication().isBlank()) output.append("业务含义：").append(block.implication()).append("\n\n");
             if (!block.confidence().isBlank()) output.append("判断可信度：").append(block.confidence()).append("\n\n");
             block.caveats().forEach(caveat -> output.append("- 限制：").append(caveat).append('\n'));
-            block.evidence().stream().map(item -> String.valueOf(item.getOrDefault("sourceScope", "")))
-                .filter(source -> !source.isBlank()).distinct().forEach(source -> output.append("\n数据来源：").append(source).append('\n'));
+            block.evidence().stream().map(item -> item.get("sourceScope"))
+                .filter(java.util.Objects::nonNull).map(String::valueOf).map(String::trim)
+                .filter(source -> !source.isBlank() && !"null".equalsIgnoreCase(source)).distinct()
+                .forEach(source -> output.append("\n数据来源：").append(source).append('\n'));
             output.append('\n');
         }
         return output.toString().trim();

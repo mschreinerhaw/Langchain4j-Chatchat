@@ -91,4 +91,34 @@ class ReportComposerTest {
         assertThat(block.presentation().validationStatus()).isEqualTo("VERIFIED_EVIDENCE_BOUND");
         assertThat(block.caveats()).doesNotContain("未绑定可验证的计算数据；保留为待验证说明，不进入核心业务结论。");
     }
+
+    @Test
+    void limitedEvidenceIsPublishedWithBoundariesWhileRejectedEvidenceIsNot() {
+        var limited = composer.compose("F1", "CORE", "question", "supported observation", "", "", "MEDIUM",
+            List.of(), List.of(Map.of("status", "REVIEW_REQUIRED",
+                "recordRefs", List.of("result.records[0]"), "supportingValues", List.of("42"),
+                "reviewReasons", List.of("scope requires review"))), "", "",
+            VerifiedReportDataCatalog.fromRuntime(Map.of()));
+        var rejected = composer.compose("F2", "CORE", "question", "unsupported observation", "", "", "LOW",
+            List.of(), List.of(Map.of("status", "REJECTED",
+                "recordRefs", List.of("result.records[0]"), "supportingValues", List.of("42"))), "", "",
+            VerifiedReportDataCatalog.fromRuntime(Map.of()));
+
+        assertThat(limited.presentation().primaryConclusion()).isTrue();
+        assertThat(limited.presentation().validationStatus()).isEqualTo("LIMITED_EVIDENCE_BOUND");
+        assertThat(rejected.presentation().primaryConclusion()).isFalse();
+        assertThat(rejected.presentation().validationStatus()).isEqualTo("INSUFFICIENT_DATA");
+    }
+
+    @Test
+    void verifiedFindingIsPromotedIntoExecutiveSummaryRegardlessOfModelSection() {
+        var verified = composer.compose("F1", "LIMITATION", "", "history fields are absent", "", "", "HIGH",
+            List.of(), List.of(Map.of("status", "SUPPORTED",
+                "recordRefs", List.of("result.records[0]"), "supportingValues", List.of("null"))), "", "",
+            VerifiedReportDataCatalog.fromRuntime(Map.of()));
+
+        assertThat(composer.markdown("can flow be measured", List.of(verified)))
+            .contains("## 核心业务判断", "- history fields are absent", "## 分析发现 1")
+            .doesNotContain("暂无同时绑定计算数据与证据的核心结论");
+    }
 }

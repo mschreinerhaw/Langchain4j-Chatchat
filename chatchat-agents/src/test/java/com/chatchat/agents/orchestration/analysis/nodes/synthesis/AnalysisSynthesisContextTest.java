@@ -23,4 +23,14 @@ class AnalysisSynthesisContextTest {
         assertThat(compact).doesNotContain("UNIQUE_WORKER_DETAIL").contains(worker.resultId(), reducer.resultId());
         assertThat(compact.length()).isLessThan(original.length());
     }
+
+    @Test void carriesAdaptivePromptGuidanceIntoFinalCompositionContext() {
+        var context = new AnalysisSynthesisContext().build(List.of(), List.of(), Map.of(),
+            Map.of("adaptiveAnalysisPromptContract", Map.of(
+                "schemaVersion", "dynamic_analysis_prompt.v1",
+                "authority", "ANALYSIS_GUIDANCE_ONLY",
+                "output", List.of("EXECUTIVE_SUMMARY", "KEY_FINDINGS"))));
+        assertThat(context.get("adaptiveAnalysisPrompt").toString())
+            .contains("dynamic_analysis_prompt.v1", "EXECUTIVE_SUMMARY", "ANALYSIS_GUIDANCE_ONLY");
+    }
 }

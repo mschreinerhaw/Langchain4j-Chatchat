@@ -15,6 +15,8 @@ class AnalysisMethodologyContractTest {
         Map<String, Object> authority = (Map<String, Object>) contract.get("analysisAuthorityPolicy");
         @SuppressWarnings("unchecked")
         Map<String, Object> coherence = (Map<String, Object>) contract.get("modelReportQualityPolicy");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> adaptive = (Map<String, Object>) contract.get("adaptivePromptPolicy");
 
         assertThat(authority)
             .containsEntry("boundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE")
@@ -24,5 +26,9 @@ class AnalysisMethodologyContractTest {
             .contains("must never infer SUM, AVG, ratio");
         assertThat(coherence)
             .containsKeys("canonicalMetricRule", "logicalStrengthRule", "crossSectionRule", "readerRule", "selfReview");
+        assertThat(adaptive)
+            .containsEntry("invocationScope", "ONCE_PER_QUESTION_NOT_PER_DATASET_OR_CHUNK")
+            .containsEntry("inputBoundary", "QUESTION_ROLE_OBJECTIVE_AND_SEMANTIC_METADATA_NO_RAW_RECORDS")
+            .containsEntry("fixedPromptPolicy", "ONLY_EXPLICIT_PRODUCER_GOVERNED_CONTRACTS");
     }
 }

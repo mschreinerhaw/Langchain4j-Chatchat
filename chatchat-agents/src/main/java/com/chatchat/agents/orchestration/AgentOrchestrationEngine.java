@@ -1228,6 +1228,17 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("interpretationPlanWorkflowResolvedAfterFallback", true);
             return null;
         }
+        if (missingTools.isEmpty()
+            && Boolean.TRUE.equals(metadata.get("interpretationPlanUsableEvidenceForLimitedSynthesis"))) {
+            metadata.put("interpretationPlanWorkflowBlocked", false);
+            metadata.put("interpretationPlanWorkflowLimitedSynthesis", true);
+            metadata.put("interpretationPlanWorkflowResolvedWithUsableEvidence", true);
+            metadata.put("mandatoryWorkflowBlocked", false);
+            metadata.put("mandatoryWorkflowPending", false);
+            observations.add("InterpretationPlan retained usable evidence and will synthesize a limited report."
+                + " Unfinished non-mandatory plan steps: " + missingStepIds + ".");
+            return null;
+        }
         metadata.put("stopReason", stopReason);
         metadata.put("fatalExecutionBlocked", true);
         metadata.put("mandatoryWorkflowBlocked", true);

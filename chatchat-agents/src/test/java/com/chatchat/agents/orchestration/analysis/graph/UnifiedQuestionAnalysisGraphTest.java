@@ -12,6 +12,46 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class UnifiedQuestionAnalysisGraphTest {
+    @Test void acceptsJsonContractWrappedInModelReasoningText() {
+        var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                return "I checked the evidence.\n```json\n" + product("dataset1") + "\n```\nDone.";
+            }
+        };
+        var metadata = new LinkedHashMap<String, Object>();
+
+        var outcomes = new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+
+        assertThat(outcomes.get("dataset1").summary().content()).contains("Returned value is 1");
+        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1)
+            .doesNotContainKey("unifiedAnalysisContractRepairAttempted");
+    }
+
+    @Test void repairsAnInvalidInitialFindingContractInsteadOfDiscardingReturnedRows() {
+        var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        var calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                return calls.incrementAndGet() == 1
+                    ? "The value is one, but I did not follow the protocol."
+                    : product("dataset1");
+            }
+        };
+        var metadata = new LinkedHashMap<String, Object>();
+
+        var outcomes = new UnifiedQuestionAnalysisGraph().execute("question", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(outcomes.get("dataset1").summary().content()).contains("Returned value is 1");
+        assertThat(metadata)
+            .containsEntry("unifiedAnalysisContractRepairAttempted", true)
+            .containsEntry("unifiedAnalysisContractRepairSucceeded", true)
+            .containsEntry("unifiedAnalysisModelCalls", 2);
+    }
+
     @Test void failedOptionalModelCallRetainsCandidatesForEvidenceValidation() throws Exception {
         var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -149,6 +189,33 @@ class UnifiedQuestionAnalysisGraphTest {
         assertThat(metadata).containsEntry("unifiedAnalysisStatus", "COMPLETED_WITH_LIMITATIONS");
         assertThat(metadata.get("unifiedAnalysisGraphNodes").toString())
             .contains("analysis_planning", "data_computation", "generate_findings", "validate_findings");
+    }
+
+    @Test void semanticMetadataTriggersOnePromptSynthesisBeforeUnifiedFindings() {
+        var datasets = List.of(new Dataset("customer_trades", Map.of(
+            "source", Map.of("displayName", "客户交易", "description", "客户成交明细"),
+            "schema", Map.of("fields", List.of(Map.of("name", "amount", "label", "成交金额")))),
+            List.<Map<String, Object>>of(Map.of("amount", 100))));
+        var calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                if (calls.incrementAndGet() == 1) {
+                    assertThat(prompt).contains("Synthesize one adaptive business analysis prompt contract", "客户交易", "成交金额")
+                        .doesNotContain("\"amount\":100");
+                    return com.chatchat.agents.orchestration.analysis.prompt.AdaptiveBusinessAnalysisPromptSynthesizerTest.response();
+                }
+                assertThat(prompt).contains("Adaptive business analysis instruction", "客户经营分析师", "CONTRIBUTION", "\"amount\":100");
+                return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"bounded\"]}";
+            }
+        };
+        var metadata = new LinkedHashMap<String, Object>();
+        new UnifiedQuestionAnalysisGraph().execute("识别活跃度变化", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> { });
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(metadata).containsEntry("adaptiveAnalysisPromptMode", "MODEL_SYNTHESIZED")
+            .containsEntry("adaptiveAnalysisPromptModelCalls", 1)
+            .containsEntry("unifiedAnalysisModelCalls", 1);
+        assertThat(metadata.get("unifiedAnalysisGraphNodes").toString()).contains("prompt_synthesis");
     }
 
     @Test void mediumStructuredResultUsesProgressiveEvidenceAndStaysWithinTokenBudget() {

@@ -278,14 +278,8 @@ public final class FinalSynthesisNode {
 
         if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
             if (claimBoundPublication) {
-                String acceptanceQuestion = String.valueOf(request.metadata().getOrDefault("analysisAcceptanceQuestion", ""));
-                GovernedFinalClaimContract acceptance = acceptanceQuestion.isBlank() ? finalClaimContract
-                    : new GovernedFinalClaimContract(
-                        com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
-                        new SemanticClaimReviewer(request.model(),
-                            request.runtimeAttributes().get("__agentCancellation") instanceof java.util.function.BooleanSupplier cancelled
-                                ? cancelled : () -> false), acceptanceQuestion);
-                GovernedFinalClaimContract.Projection projection = acceptance.project(answer, claimCompilation, reportData);
+                GovernedFinalClaimContract.Projection projection =
+                    finalClaimContract.project(answer, claimCompilation, reportData);
                 boolean partialDelivery = "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(projection.reason());
                 if (!projection.modelSelectionAccepted() && !partialDelivery) {
                     recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
@@ -460,6 +454,7 @@ public final class FinalSynthesisNode {
         boundedContext.put("schemaVersion", "analysis_report_composer_context.v1");
         for (String key : List.of("analysisObjective", "analysisMethodology", "analysisTree",
             "methodologyExecutionPolicy", AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
+            "adaptiveAnalysisPrompt",
             "conflictSet", "evidenceGapCount", "evidenceGaps", "evidenceGapPolicy",
             "activeRepairRequests")) {
             Object value = pipelineContext.get(key);

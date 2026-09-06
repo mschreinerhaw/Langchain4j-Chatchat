@@ -304,75 +304,12 @@ class GovernedFinalClaimContractTest {
             """, compilation);
 
         assertThat(projection.modelSelectionAccepted()).isTrue();
-        assertThat(projection.reason()).isEqualTo("GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
+        assertThat(projection.reason()).isEqualTo("MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT");
         assertThat(projection.markdown())
             .contains("overwhelmingly invested in securities", "847174.25", "20 trades")
             .contains("二、关键发现");
         assertThat(projection.selectedClaimIds())
             .containsExactly("fact:assets", "fact:cash", "fact:trades");
-    }
-
-    @Test
-    void restoresSupportedSourceFindingWhenDriverWritesOnlyItsGap() {
-        AnalysisSummaryResult account = factSummary(
-            "account-overview", "fact:account",
-            "Current total assets are 847174.25", "847174.25");
-        AnalysisSummaryResult trades = factSummary(
-            "trade-history", "fact:trades", "There are 20 current-day trades", "20");
-        GovernedFinalClaimContract.Compilation compilation = contract.compile(
-            List.of(account, trades));
-
-        GovernedFinalClaimContract.Projection projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v2",
-             "findings":[{"section":"CORE","text":"There are 20 current-day trades",
-               "basisClaimIds":["fact:trades"]}],
-             "coverage":[
-               {"claimId":"fact:account","disposition":"SUPPORTING_CONTEXT","reason":"no history"},
-               {"claimId":"fact:trades","disposition":"USED","reason":"current activity"}],
-             "managementReview":{"identifiedProblems":[{"text":"Historical asset series is unavailable",
-               "basisClaimIds":["fact:account"]}]}}
-            """, compilation);
-
-        assertThat(projection.modelSelectionAccepted()).isTrue();
-        assertThat(projection.markdown())
-            .contains("20 current-day trades", "Current total assets are 847174.25")
-            .contains("Historical asset series is unavailable");
-        assertThat(projection.selectedClaimIds()).contains("fact:account", "fact:trades");
-    }
-
-    @Test
-    void rejectsManagementSynthesisWithInventedValue() {
-        AnalysisSummaryResult account = factSummary(
-            "account-overview", "fact:account", "Total assets are 847174.25", "847174.25");
-        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(account));
-
-        GovernedFinalClaimContract.Projection projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v2",
-             "findings":[{"section":"CORE","text":"Total assets grew by 99.5%.",
-               "basisClaimIds":["fact:account"]}],
-             "coverage":[{"claimId":"fact:account","disposition":"USED","reason":"asset result"}]}
-            """, compilation);
-
-        assertThat(projection.modelSelectionAccepted()).isFalse();
-        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
-        assertThat(projection.markdown()).doesNotContain("99.5%");
-    }
-
-    @Test
-    void modelClaimTextCannotServeAsEvidenceForItsOwnDerivedNumber() {
-        AnalysisSummaryResult invalidUpstream = factSummary(
-            "calculation", "bad-sum", "Calculated total is 99", "40");
-        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(invalidUpstream));
-
-        GovernedFinalClaimContract.Projection projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v4",
-             "findings":[{"section":"CORE","text":"Calculated total is 99",
-               "basisClaimIds":["bad-sum"]}],
-             "coverage":[{"claimId":"bad-sum","disposition":"USED","reason":"calculation"}]}
-            """, compilation);
-
-        assertThat(projection.modelSelectionAccepted()).isFalse();
-        assertThat(projection.markdown()).doesNotContain("Calculated total is 99");
     }
 
     @Test
@@ -395,53 +332,6 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isTrue();
         assertThat(projection.markdown()).contains("Calculated total is 99");
-    }
-
-    @Test
-    void rendersStructuredReasoningAndChecksItsNumericGrounding() {
-        var compilation = contract.compile(List.of(factSummary(
-            "trades", "fact:trades", "There are 20 trades", "20")));
-        String payload = """
-            {"schemaVersion":"governed_management_synthesis.v3",
-             "demandAnalysis":{"decisionGoal":"How active is trading?"},
-             "findings":[
-               {"section":"LIMITATION","text":"No historical baseline", "basisClaimIds":["fact:trades"]},
-               {"section":"DEEP_DIVE","text":"There are 20 trades", "question":"Trading activity",
-                "comparison":"No trend can be established", "implication":"Monitor activity",
-                "confidence":"Observed count only", "basisClaimIds":["fact:trades"]},
-               {"section":"CORE","text":"Current activity is observable", "basisClaimIds":["fact:trades"]}],
-             "coverage":[{"claimId":"fact:trades","disposition":"USED","reason":"activity"}]}
-            """;
-        var projection = contract.project(payload, compilation);
-        assertThat(projection.modelSelectionAccepted()).isTrue();
-        assertThat(projection.markdown()).contains("分析问题：How active is trading?",
-            "### Trading activity", "**业务影响**：Monitor activity", "**判断可信度**：Observed count only");
-        assertThat(projection.markdown().indexOf("一、分析结论"))
-            .isLessThan(projection.markdown().indexOf("二、关键发现"));
-        assertThat(projection.markdown().indexOf("二、关键发现"))
-            .isLessThan(projection.markdown().indexOf("六、数据边界"));
-        var invalid = contract.project(payload.replace("Monitor activity", "Expect 99.5% growth"), compilation);
-        assertThat(invalid.modelSelectionAccepted()).isFalse();
-        assertThat(invalid.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
-        assertThat(invalid.markdown()).doesNotContain("99.5%");
-    }
-
-    @Test
-    void driverRejectedClaimCannotReenterThePublishedDecision() {
-        GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
-
-        GovernedFinalClaimContract.Projection projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v3",
-             "driverReview":{"claimAssessments":[
-               {"claimId":"claim-1","verdict":"REJECT","reason":"unsupported"}]},
-             "findings":[{"section":"CORE","text":"Returned value is 42",
-               "basisClaimIds":["claim-1"]}],
-             "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"selected"}]}
-            """, compilation);
-
-        assertThat(projection.modelSelectionAccepted()).isFalse();
-        assertThat(projection.reason())
-            .isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
     }
 
     @Test
@@ -537,97 +427,89 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void repairsOnlyInvalidFindingAndPreservesValidNarrativeAndBlockId() {
-        var compilation = contract.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
-        var projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
-             {"section":"CORE","text":"总资产42元，当前规模可作为后续观测基准", "basisClaimIds":["asset"]},
-             {"section":"CORE","text":"总资产增长99.5%", "basisClaimIds":["asset"]}]}
-            """, compilation);
-        assertThat(projection.reason()).isEqualTo("CLAIM_LEVEL_PARTIAL_DELIVERY");
-        assertThat(projection.markdown()).contains("当前规模可作为后续观测基准", "总资产42元").doesNotContain("99.5%");
-        var blocks = (List<com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock>)
-            projection.analyticalReport().get("blocks");
-        assertThat(blocks).extracting(com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock::id)
-            .containsExactly("F1", "F2");
-        var acceptance = (Map<String, Object>) projection.analyticalReport().get("claimAcceptance");
-        assertThat(acceptance).containsEntry("repairAttempts", 1);
-        var decisions = (List<Map<String, Object>>) acceptance.get("decisions");
-        assertThat(decisions).extracting(d -> d.get("status")).containsExactly("VALID", "LIMITED");
-    }
-
-    @Test
-    void exhaustedRepairBudgetStillPublishesOtherFindingsAndUnresolvedBlock() {
-        var bounded = new GovernedFinalClaimContract(
-            new com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract(0, 0, 0));
-        var compilation = bounded.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
-        var projection = bounded.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
-             {"section":"CORE","text":"总资产42元", "basisClaimIds":["asset"]},
-             {"section":"CORE","text":"总资产增长99.5%", "basisClaimIds":["asset"]}]}
-            """, compilation);
-        assertThat(projection.markdown()).contains("总资产42元", "暂不作业务判断").doesNotContain("99.5%");
-        var acceptance = (Map<String, Object>) projection.analyticalReport().get("claimAcceptance");
-        assertThat(acceptance).containsEntry("repairAttempts", 0);
-        var nodes = (List<Map<String, Object>>) projection.analyticalReport().get("acceptanceGraphNodes");
-        assertThat(nodes).extracting(n -> n.get("node")).contains("ASSEMBLE_VERIFIED_REPORT").doesNotContain("VALIDATE_ONCE");
-        var decisions = (List<Map<String, Object>>) acceptance.get("decisions");
-        assertThat(decisions).extracting(d -> d.get("status")).containsExactly("VALID", "UNRESOLVED");
-    }
-
-    @Test
-    void unknownBasisDoesNotDiscardOtherFindingsOrPublishUnknownEvidence() {
-        var compilation = contract.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
-        var projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
-             {"section":"CORE","text":"总资产42元", "basisClaimIds":["asset"]},
-             {"section":"CORE","text":"不存在的收益结论", "basisClaimIds":["missing"]}]}
-            """, compilation);
-        assertThat(projection.markdown()).contains("总资产42元").doesNotContain("不存在的收益结论");
-        assertThat(projection.selectedClaimIds()).containsExactly("asset");
-    }
-
-    @Test
-    void semanticRepairTraversesGraphOnceAndCannotIntroduceProposedNumbers() {
+    void semanticRepairCannotRemoveAnExactAdmittedEvidenceClaim() {
         var model = org.mockito.Mockito.mock(dev.langchain4j.model.chat.ChatModel.class);
         org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
             {"schemaVersion":"semantic_claim_review.v1","reviews":[{"claimId":"F1","decision":"REPAIR",
-             "issue":"资产截面不能证明交易动机","evidenceIds":["asset"],"repairAction":"REMOVE_CAUSAL_LANGUAGE",
-             "repairedClaim":"客户获利999元"}]}
+             "issue":"reviewer requested a narrower statement","evidenceIds":["asset"],
+             "repairAction":"NARROW_SCOPE"}]}
             """);
         var reviewed = new GovernedFinalClaimContract(
             com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
-            new SemanticClaimReviewer(model), "客户交易偏好是什么？");
-        var compilation = reviewed.compile(List.of(factSummary("account", "asset", "总资产42元", "42")));
+            new SemanticClaimReviewer(model), "What is the returned asset value?");
+        var compilation = reviewed.compile(List.of(factSummary("account", "asset", "Returned asset value is 42", "42")));
+
         var projection = reviewed.project("""
             {"schemaVersion":"governed_management_synthesis.v4","findings":[
-             {"section":"CORE","text":"客户偏爱追逐热点","basisClaimIds":["asset"]}]}
+             {"section":"CORE","text":"Returned asset value is 42","basisClaimIds":["asset"]}]}
             """, compilation);
-        assertThat(projection.markdown()).contains("总资产42元").doesNotContain("追逐热点", "999");
-        var nodes = (List<Map<String, Object>>) projection.analyticalReport().get("acceptanceGraphNodes");
-        assertThat(nodes).extracting(n -> n.get("node")).containsExactly("BUILD_CLAIMS", "PROGRAMMATIC_VALIDATE",
-            "SEMANTIC_REVIEW", "REPAIR_CLAIMS", "VALIDATE_ONCE", "ASSEMBLE_VERIFIED_REPORT");
-        org.mockito.Mockito.verify(model, org.mockito.Mockito.times(1)).chat(org.mockito.ArgumentMatchers.anyString());
+
+        assertThat(projection.markdown()).contains("Returned asset value is 42")
+            .doesNotContain("No verified evidence");
+        assertThat(projection.selectedClaimIds()).contains("asset");
     }
 
     @Test
-    void cleanSemanticReviewSkipsRepairNodes() {
+    void exactAdmittedFactSurvivesEquivalentScientificNotationInSupportingValue() {
+        var compilation = contract.compile(List.of(factSummary("etf", "market-total",
+            "Returned ETF total is 259,106,965.42", "2.5910696542E8")));
+
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"Returned ETF total is 259,106,965.42",
+              "basisClaimIds":["market-total"]}]}
+            """, compilation);
+
+        assertThat(projection.markdown()).contains("Returned ETF total is 259,106,965.42");
+        assertThat(projection.selectedClaimIds()).containsExactly("market-total");
+    }
+
+    @Test
+    void preservesModelDerivedMetricAndRecordsEvidenceBindingInsteadOfVetoingIt() {
+        var compilation = contract.compile(List.of(factSummary(
+            "etf", "market", "Returned market total is 100", "100")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"The selected products represent 68.65% of the market total.",
+              "basisClaimIds":["market"]}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.reason()).isEqualTo("MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT");
+        assertThat(projection.markdown()).contains("68.65%");
+        assertThat(projection.analyticalReport()).containsKey("evidenceBindingAudit");
+    }
+
+    @Test
+    void unknownEvidenceIdIsAuditedWithoutDeletingModelFinding() {
+        var compilation = contract.compile(List.of(factSummary(
+            "etf", "market", "Returned market total is 100", "100")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+             {"section":"CORE","text":"Model analysis remains readable.",
+              "basisClaimIds":["missing"]}]}
+            """, compilation);
+
+        assertThat(projection.markdown()).contains("Model analysis remains readable.");
+        assertThat(projection.selectedClaimIds()).isEmpty();
+        assertThat(projection.analyticalReport().get("evidenceBindingAudit").toString())
+            .contains("UNBOUND", "missing");
+    }
+
+    @Test
+    void publicationDoesNotInvokeSemanticReviewer() {
         var model = org.mockito.Mockito.mock(dev.langchain4j.model.chat.ChatModel.class);
-        org.mockito.Mockito.when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
-            {"schemaVersion":"semantic_claim_review.v1","reviews":[{"claimId":"F1","decision":"ACCEPT",
-             "evidenceIds":["asset"],"repairAction":"RETAIN"}]}
-            """);
         var reviewed = new GovernedFinalClaimContract(
             com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
-            new SemanticClaimReviewer(model), "资产情况？");
+            new SemanticClaimReviewer(model), "ETF analysis");
         var projection = reviewed.project("""
             {"schemaVersion":"governed_management_synthesis.v4","findings":[
-             {"section":"CORE","text":"当前资产规模为42元","basisClaimIds":["asset"]}]}
-            """, reviewed.compile(List.of(factSummary("account", "asset", "总资产42元", "42"))));
-        assertThat(projection.modelSelectionAccepted()).isTrue();
-        var nodes = (List<Map<String, Object>>) projection.analyticalReport().get("acceptanceGraphNodes");
-        assertThat(nodes).extracting(n -> n.get("node")).containsExactly("BUILD_CLAIMS", "PROGRAMMATIC_VALIDATE",
-            "SEMANTIC_REVIEW", "ASSEMBLE_VERIFIED_REPORT");
+             {"section":"CORE","text":"Returned market total is 100","basisClaimIds":["market"]}]}
+            """, reviewed.compile(List.of(factSummary(
+                "etf", "market", "Returned market total is 100", "100"))));
+
+        assertThat(projection.markdown()).contains("Returned market total is 100");
+        org.mockito.Mockito.verifyNoInteractions(model);
     }
 
     private AnalysisSummaryResult factSummary(String dataset, String claimId,

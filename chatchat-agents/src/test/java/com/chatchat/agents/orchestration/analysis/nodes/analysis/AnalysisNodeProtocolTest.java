@@ -43,6 +43,27 @@ class AnalysisNodeProtocolTest {
         }
     }
 
+    @Test
+    void treatsReturnedTotalFieldAsObservationWhenModelMislabelsItAsSum() {
+        List<Map<String, Object>> rows = List.of(Map.of(
+            "total_current_scale_10k_units", new java.math.BigDecimal("2.5910696542E8"),
+            "latest_fund_count", 1402));
+        var result = bridge.validateProduct(isolationScope,
+            bridge.position("etf", 1, 1, 1, 1, 1),
+            bridge.govern("etf", Map.of(), rows), rows, "Describe returned ETF scale", """
+            {"summary":"Returned ETF total", "insights":[{
+              "claimClass":"OBSERVED_RETURNED_FACT","operation":"SUM",
+              "claim":"Returned ETF total is 259,106,965.42","significance":"Current market scale",
+              "recordRefs":["etf.records[1]"],
+              "supportingValues":{"etf.records[1]":{"total_current_scale_10k_units":2.5910696542E8}},
+              "confidence":"HIGH","caveats":[]}]}
+            """);
+
+        assertThat(result.evidence()).containsEntry("rejectedInsightCount", 0);
+        assertThat(result.evidence().get("insights").toString())
+            .contains("operation=OBSERVE", "259,106,965.42");
+    }
+
     private AnalysisSummaryResult validateStructuredValues(List<Map<String, Object>> rows, String values) {
         return bridge.validateProduct(isolationScope, bridge.position("sample", 1, 1, 1, 2, 2),
             bridge.govern("sample", Map.of(), rows), rows, "Observe returned values",

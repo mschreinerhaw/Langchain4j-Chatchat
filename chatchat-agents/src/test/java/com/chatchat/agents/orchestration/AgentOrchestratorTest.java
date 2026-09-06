@@ -3599,6 +3599,45 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void interpretationPlanWorkflowUsesAvailableEvidenceWhenOnlyNonMandatoryStepsRemain() throws Exception {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        Method method = AgentOrchestrator.class.getDeclaredMethod(
+            "finishInterpretationPlanWorkflowBlockedIfPending",
+            List.class,
+            Map.class,
+            List.class,
+            String.class,
+            String.class
+        );
+        method.setAccessible(true);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("interpretationPlanWorkflowBlocked", true);
+        metadata.put("interpretationPlanWorkflowMissingTools", List.of());
+        metadata.put("interpretationPlanWorkflowMissingPlanStepIds", List.of(4));
+        metadata.put("interpretationPlanUsableEvidenceForLimitedSynthesis", true);
+        List<String> observations = new ArrayList<>();
+
+        AgentOrchestrator.AgentExecutionResult result = (AgentOrchestrator.AgentExecutionResult) method.invoke(
+            orchestrator,
+            List.of(),
+            metadata,
+            observations,
+            "interpretation_plan_workflow_incomplete",
+            "InterpretationPlan workflow guard blocked final_answer before all required DAG steps completed."
+        );
+
+        assertThat(result).isNull();
+        assertThat(metadata)
+            .containsEntry("interpretationPlanWorkflowBlocked", false)
+            .containsEntry("interpretationPlanWorkflowLimitedSynthesis", true)
+            .containsEntry("interpretationPlanWorkflowResolvedWithUsableEvidence", true)
+            .containsEntry("mandatoryWorkflowPending", false);
+        assertThat(observations)
+            .anyMatch(value -> value.contains("will synthesize a limited report")
+                && value.contains("[4]"));
+    }
+
+    @Test
     void templateReviewPreservesEveryCandidateIdentityWithoutSendingExecutorPayloads() throws Exception {
         List<Map<String, Object>> templates = new ArrayList<>();
         for (int index = 1; index <= 5; index++) {

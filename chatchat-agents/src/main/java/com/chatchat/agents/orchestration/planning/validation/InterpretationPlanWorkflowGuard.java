@@ -34,9 +34,11 @@ public class InterpretationPlanWorkflowGuard implements RuntimeWorkflowGuard<Int
         List<String> requiredTools = normalizeList(mandatoryTools);
         List<String> completedTools = mergeCompletedTools(completedTools(result), externallyCompletedTools);
         List<String> executedActions = executedActions(result);
-        List<Integer> requiredStepIds = requiredStepIds(plan, result);
+        List<Integer> finalAnswerStepIds = finalAnswerStepIds(plan, result);
+        List<Integer> requiredStepIds = requiredStepIds(plan, result, finalAnswerStepIds);
         List<Integer> completedStepIds = completedStepIds(result);
         Map<String, Object> metadata = metadata(requiredTools, completedTools, executedActions, requiredStepIds, completedStepIds);
+        metadata.put("plannedFinalAnswerStepIds", finalAnswerStepIds);
 
         List<Integer> missingStepIds = requiredStepIds.stream()
             .filter(required -> !completedStepIds.contains(required))
@@ -70,7 +72,7 @@ public class InterpretationPlanWorkflowGuard implements RuntimeWorkflowGuard<Int
                 metadata
             );
         }
-        if (!finalAnswerWasLast(result)) {
+        if (finalAnswerWasExecuted(result) && !finalAnswerWasLast(result)) {
             return new GuardResult(
                 false,
                 "final_answer_not_last_step",
@@ -80,27 +82,52 @@ public class InterpretationPlanWorkflowGuard implements RuntimeWorkflowGuard<Int
                 metadata
             );
         }
+        if (!finalAnswerWasExecuted(result)) {
+            metadata.put("outerSynthesisRequired", true);
+            return GuardResult.allowed("evidence_workflow_complete_outer_synthesis_required", metadata);
+        }
         return GuardResult.allowed("mcp_workflow_complete", metadata);
     }
 
     private List<Integer> requiredStepIds(InterpretationPlan plan,
-                                          InterpretationPlanRuntime.ExecutionResult result) {
+                                          InterpretationPlanRuntime.ExecutionResult result,
+                                          List<Integer> finalAnswerStepIds) {
         List<Integer> runtimeStepIds = integerList(
             result == null || result.metadata() == null
                 ? null
                 : result.metadata().get("requiredPlanStepIds")
         );
         if (!runtimeStepIds.isEmpty()) {
-            return runtimeStepIds;
+            return runtimeStepIds.stream()
+                .filter(stepId -> !finalAnswerStepIds.contains(stepId))
+                .toList();
         }
         if (plan == null || plan.steps() == null || plan.steps().isEmpty()) {
             return List.of();
         }
         return plan.steps().stream()
-            .filter(step -> step != null && step.id() != null)
+            .filter(step -> step != null && step.id() != null && !isFinalAnswer(step.actionType()))
             .map(InterpretationPlan.Step::id)
             .distinct()
             .toList();
+    }
+
+    private List<Integer> finalAnswerStepIds(InterpretationPlan plan,
+                                             InterpretationPlanRuntime.ExecutionResult result) {
+        Set<Integer> ids = new LinkedHashSet<>();
+        if (plan != null && plan.steps() != null) {
+            plan.steps().stream()
+                .filter(step -> step != null && step.id() != null && isFinalAnswer(step.actionType()))
+                .map(InterpretationPlan.Step::id)
+                .forEach(ids::add);
+        }
+        if (result != null && result.steps() != null) {
+            result.steps().stream()
+                .filter(step -> step != null && step.stepId() != null && isFinalAnswer(step.actionType()))
+                .map(InterpretationPlanRuntime.StepExecution::stepId)
+                .forEach(ids::add);
+        }
+        return List.copyOf(ids);
     }
 
     private List<Integer> integerList(Object value) {
@@ -181,6 +208,15 @@ public class InterpretationPlanWorkflowGuard implements RuntimeWorkflowGuard<Int
         return finalIndex == result.steps().size() - 1;
     }
 
+    private boolean finalAnswerWasExecuted(InterpretationPlanRuntime.ExecutionResult result) {
+        return result != null && result.steps() != null && result.steps().stream()
+            .anyMatch(step -> step != null && step.success() && isFinalAnswer(step.actionType()));
+    }
+
+    private boolean isFinalAnswer(String actionType) {
+        return actionType != null && "final_answer".equalsIgnoreCase(actionType.trim());
+    }
+
     private boolean sameSemanticTool(String expected, String actual) {
         String expectedKey = semanticKey(expected);
         String actualKey = semanticKey(actual);
@@ -223,6 +259,7 @@ public class InterpretationPlanWorkflowGuard implements RuntimeWorkflowGuard<Int
         metadata.put("completedPlanStepIds", completedStepIds);
         metadata.put("singleWriterFinalAnswer", true);
         metadata.put("strictPlanStepCompletion", true);
+        metadata.put("strictEvidenceStepCompletion", true);
         return metadata;
     }
 

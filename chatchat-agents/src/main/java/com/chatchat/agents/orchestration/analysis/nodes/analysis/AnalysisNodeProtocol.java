@@ -719,7 +719,11 @@ public final class AnalysisNodeProtocol
                 .filter(exact -> exactValueSupported(position, records, references, exact))
                 .distinct().toList();
             SemanticOperation operation = SemanticOperation.from(string(candidate.get("operation")));
-            if (operation == null && "OBSERVED_RETURNED_FACT".equals(claimClass)) {
+            if ("OBSERVED_RETURNED_FACT".equals(claimClass)) {
+                // A value copied from a cited returned field is an observation even when the
+                // model labels the field name "total" as SUM. Operation labels describe how
+                // evidence was produced; they must not turn an existing total field into a new
+                // Runtime aggregation or reject the fact as an unauthorized calculation.
                 operation = SemanticOperation.OBSERVE;
             }
             CapabilityEvidenceClaimContract.Evidence boundEvidence =

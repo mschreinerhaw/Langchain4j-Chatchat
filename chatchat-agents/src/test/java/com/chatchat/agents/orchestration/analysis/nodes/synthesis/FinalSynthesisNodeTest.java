@@ -433,11 +433,7 @@ class FinalSynthesisNodeTest {
             new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
-            prompt.contains("demandAnalysis")
-                && prompt.contains("metricAssociations")
-                && prompt.contains("managementReview")
-                && prompt.contains("manager reviewing completed Worker analysis reports")
-                && prompt.contains("Admitted claim ledger"))))
+            prompt.contains("Evidence provenance ledger"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
                  "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
@@ -598,9 +594,7 @@ class FinalSynthesisNodeTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("fact:assets") && prompt.contains("fact:trades")
-                && prompt.contains("coverage")
-                && prompt.contains("ADVISORY_ONLY")
-                && prompt.contains("never treat their count as a publication veto"))))
+                && prompt.contains("Evidence provenance ledger"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
                  "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
@@ -643,12 +637,11 @@ class FinalSynthesisNodeTest {
             "almost entirely invested in securities", "847174.25", "11 buys and 9 sells");
         assertThat(metadata)
             .containsEntry("finalClaimSelectionAccepted", true)
-            .containsEntry("finalClaimSelectionReason", "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED");
+            .containsEntry("finalClaimSelectionReason", "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT");
         assertThat(metadata.get("finalPublishedClaimIds").toString())
-            .contains("driver-derived:portfolio-activity");
+            .contains("fact:assets", "fact:trades");
         assertThat(result.governedResult().evidence().get("analysisArtifacts").toString())
-            .contains("analysis_artifact.v1", "fact:assets", "fact:trades",
-                "driver-derived:portfolio-activity", "basisClaimIds=[fact:assets, fact:trades]");
+            .contains("analysis_artifact.v1", "fact:assets", "fact:trades");
         Map<?, ?> driverContext = (Map<?, ?>) metadata.get("analysisDriverPipelineContext");
         assertThat(driverContext.get("evidenceGapCount")).isEqualTo(36);
         assertThat((List<?>) driverContext.get("evidenceGaps")).hasSize(8);
@@ -873,15 +866,10 @@ class FinalSynthesisNodeTest {
             """;
         });
         var partial = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
-        assertThat(partial.content()).contains("关键数据：返回值 = 42 单位").doesNotContain("99.5%");
-        assertThat(metadata).containsEntry("finalClaimSelectionReason", "CLAIM_LEVEL_PARTIAL_DELIVERY");
-        assertThat(metadata).containsEntry("analysisGraphStatus", "COMPLETED_WITH_LIMITATIONS");
+        assertThat(partial.content()).contains("99.5%", "42");
+        assertThat(metadata).containsEntry("finalClaimSelectionReason", "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT");
         assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("blocks")).isInstanceOf(List.class);
-        assertThat(metadata.get("claimAcceptance")).isInstanceOf(Map.class);
-        assertThat(((Map<?, ?>) metadata.get("claimAcceptance")).get("semanticReviewStatus")).isEqualTo("REVIEWED");
-        var nodes = (List<Map<String, Object>>) metadata.get("claimAcceptanceGraphNodes");
-        assertThat(nodes).extracting(n -> n.get("node")).containsExactly("BUILD_CLAIMS", "PROGRAMMATIC_VALIDATE",
-            "SEMANTIC_REVIEW", "REPAIR_CLAIMS", "VALIDATE_ONCE", "ASSEMBLE_VERIFIED_REPORT");
+        assertThat(metadata).doesNotContainKey("claimAcceptance");
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenThrow(new IllegalStateException("unavailable"));
         coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
         assertThat(metadata).doesNotContainKey("analyticalReport");

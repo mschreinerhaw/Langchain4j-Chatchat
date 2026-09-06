@@ -5,6 +5,7 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoord
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveBusinessAnalysisPromptSynthesizer;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -36,6 +37,7 @@ public final class UnifiedQuestionAnalysisGraph {
         var outcomes = new LinkedHashMap<String, Outcome>();
         var evidenceAccess = new BoundedAnalysisEvidence();
         var evidenceView = new BoundedAnalysisEvidence.Prepared[1];
+        var adaptivePrompt = new AdaptiveBusinessAnalysisPromptSynthesizer.Result[1];
         metadata.put("textExtractionModelCalls", 0);
         metadata.put("supplementaryFormulaCount", 0);
         metadata.put("unifiedEvidenceRejectedRequestCount", 0);
@@ -61,6 +63,13 @@ public final class UnifiedQuestionAnalysisGraph {
                 metadata.put("unifiedAnalysisPlan", plan);
                 return AnalysisExecutionGraph.Status.READY;
             }),
+            new AnalysisExecutionGraph.Step("prompt_synthesis", () -> {
+                adaptivePrompt[0] = new AdaptiveBusinessAnalysisPromptSynthesizer().synthesize(
+                    question, sources, model, scope, checkpoints, metadata, guard);
+                plan.put("adaptivePromptContractSha256", metadata.get("adaptiveAnalysisPromptSha256"));
+                plan.put("adaptivePromptMode", metadata.get("adaptiveAnalysisPromptMode"));
+                return AnalysisExecutionGraph.Status.READY;
+            }),
             new AnalysisExecutionGraph.Step("data_computation", () -> {
                 bound.addAll(computation.get());
                 return AnalysisExecutionGraph.Status.READY;
@@ -78,7 +87,8 @@ public final class UnifiedQuestionAnalysisGraph {
                 for (int round = 1; round <= MAX_EVIDENCE_ROUNDS; round++) {
                     Object boundedEvidence = evidenceAccess.fitViews(evidence, INITIAL_EVIDENCE_CHARS);
                     Object boundedRequests = evidenceAccess.fitRequestedEvidence(requestedEvidence, REQUESTED_EVIDENCE_CHARS);
-                    String prompt = "Execute unified question analysis (" + VERSION + "). All datasets below belong to one question. "
+                    String prompt = adaptivePrompt[0].compiledPrompt() + "\n"
+                        + "Execute unified question analysis (" + VERSION + "). All datasets below belong to one question. "
                         + "Generate findings around the question, not separate dataset reports. Preserve dataset boundaries; never implicitly join tables. "
                         + "You own the analytical choice: decide what the question requires and which supported analysis is meaningful. Runtime does not infer SUM, AVG, ratios, denominators, weights or time comparisons from numeric columns. "
                         + "Select a derived measure only when the supplied semantic contract declares its aggregation, grain, denominator, unit and scope, or request it explicitly as an unverified formula proposal. Runtime executes and audits the declaration; it does not choose the business formula. "
@@ -134,7 +144,22 @@ public final class UnifiedQuestionAnalysisGraph {
                             scope.partitionKey(), round, promptSize.chars(), promptSize.tokens(),
                             metadata.getOrDefault("unifiedEvidenceMode", "UNKNOWN"));
                         try {
-                            product = parse(model.chat(prompt));
+                            String rawProduct = model.chat(prompt);
+                            product = parse(rawProduct);
+                            if (!valid(product)) {
+                                guard.run();
+                                modelCalls++;
+                                metadata.put("unifiedAnalysisContractRepairAttempted", true);
+                                String repairPrompt = "Repair the previous response into the required JSON protocol. "
+                                    + "Preserve its supported analytical meaning; do not add facts or calculations. "
+                                    + "Return exactly one JSON object with schemaVersion='" + VERSION + "', "
+                                    + "findings as an array, limitations as an array, and evidenceRequests as an array. "
+                                    + "Each finding must retain datasetReference, claimClass, claim, operation, recordRefs, "
+                                    + "supportingValues, confidence and caveats. JSON only.\nPrevious response:\n"
+                                    + boundedRawResponse(rawProduct);
+                                product = parse(model.chat(repairPrompt));
+                                metadata.put("unifiedAnalysisContractRepairSucceeded", valid(product));
+                            }
                         } catch (RuntimeException failure) {
                             guard.run();
                             if (Thread.currentThread().isInterrupted()
@@ -289,8 +314,22 @@ public final class UnifiedQuestionAnalysisGraph {
         try {
             String text = raw == null ? "" : raw.trim();
             if (text.startsWith("```")) text = text.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "");
-            return JSON.readValue(text, new TypeReference<Map<String, Object>>() {});
+            int start = text.indexOf('{');
+            int end = text.lastIndexOf('}');
+            if (start >= 0 && end > start) text = text.substring(start, end + 1);
+            Map<String, Object> parsed = JSON.readValue(text, new TypeReference<Map<String, Object>>() {});
+            if (!parsed.containsKey("schemaVersion") && parsed.get("findings") instanceof List<?>) {
+                parsed.put("schemaVersion", VERSION);
+            }
+            parsed.putIfAbsent("limitations", List.of());
+            parsed.putIfAbsent("evidenceRequests", List.of());
+            return parsed;
         } catch (Exception invalid) { return Map.of(); }
+    }
+    private String boundedRawResponse(String raw) {
+        String text = raw == null ? "" : raw.trim();
+        int limit = 20_000;
+        return text.length() <= limit ? text : text.substring(text.length() - limit);
     }
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> maps(Object value) {

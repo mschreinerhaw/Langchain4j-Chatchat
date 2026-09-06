@@ -942,6 +942,7 @@ final class InterpretationAnalysisSession {
             completion = blockedResult;
             return END;
         }
+        metadata.put("interpretationPlanUsableEvidenceForLimitedSynthesis", usablePartialAnalysis);
         AgentOrchestrator.AgentExecutionResult planWorkflowBlockedResult =
                 host.finishInterpretationPlanWorkflowBlockedIfPending(
                         traces,
@@ -955,8 +956,17 @@ final class InterpretationAnalysisSession {
             return END;
         }
         if (!planAttemptResults.isEmpty()) {
-            planAttemptResults.addAll(
-                    RecoveredBatchEvidenceBridge.project(traces, host.objectMapper));
+            List<InterpretationPlanRuntime.ExecutionResult> recoveredEvidence =
+                    RecoveredBatchEvidenceBridge.project(traces, host.objectMapper);
+            planAttemptResults.addAll(recoveredEvidence);
+            AgentOrchestrator.RecordCoverageBundle terminalRecordCoverage = latestRecordCoverage;
+            if (!recoveredEvidence.isEmpty()) {
+                terminalRecordCoverage = null;
+                metadata.put("recoveredEvidenceCoverageRecomputed", true);
+                metadata.put("recoveredEvidenceAttemptCount", recoveredEvidence.size());
+                observations.add("Recovered completed tool evidence was merged before unified analysis"
+                        + " and final synthesis coverage was recomputed.");
+            }
             String synthesisStage =
                     host.terminalSynthesisStage(
                             usablePartialAnalysis,
@@ -975,7 +985,7 @@ final class InterpretationAnalysisSession {
                             metadata,
                             cancellationCheck,
                             synthesisStage,
-                            latestRecordCoverage);
+                            terminalRecordCoverage);
             completion =
                     host.finishSynthesizedInterpretationPlanAnswer(
                             activeChatModel,

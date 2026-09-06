@@ -41,6 +41,8 @@ final class AnalysisSynthesisContext {
             "missingBaselineEffect", "QUALIFY_DEPENDENT_CLAIMS_DO_NOT_SUPPRESS_SUPPORTED_FINDINGS"));
         result.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
             AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes));
+        result.put("adaptiveAnalysisPrompt", value(metadata,
+            "adaptiveAnalysisPromptContract", Map.of()));
         result.put("nodeInputs", Map.of(
             "analysisProducts", reducers.isEmpty() ? reports(workers) : workerReferences(workers),
             "validation", value(metadata, "analysisWorkerSupervision", Map.of()),

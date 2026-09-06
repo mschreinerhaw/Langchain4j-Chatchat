@@ -21,12 +21,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Publication boundary between governed Claim admission and the final language model.
+ * Publication boundary between the final analysis model and evidence provenance.
  *
- * <p>Every finding remains bound to admitted evidence. Invalid findings are repaired locally
- * within a bounded policy, or represented as unresolved; valid findings retain their content.
- * Numeric publication requires exact returned values or model-selected, contract-authorized calculations executed
- * by the Runtime; model claim text is never accepted as numeric evidence for itself.</p>
+ * <p>The model owns business analysis, calculations and narrative coherence. Runtime preserves
+ * the model's findings and audits whether their declared evidence identifiers exist. Evidence
+ * binding is publication metadata; it is never a semantic veto or a second analysis engine.</p>
  */
 final class GovernedFinalClaimContract {
 
@@ -36,9 +35,6 @@ final class GovernedFinalClaimContract {
     private static final String LEGACY_SCHEMA_VERSION = "governed_final_claim_selection.v1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MAX_FALLBACK_CLAIMS = 30;
-    private final com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract acceptancePolicy;
-    private final SemanticClaimReviewer semanticReviewer;
-    private final String acceptanceQuestion;
 
     GovernedFinalClaimContract() {
         this(com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard());
@@ -50,9 +46,8 @@ final class GovernedFinalClaimContract {
 
     GovernedFinalClaimContract(com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract policy,
         SemanticClaimReviewer reviewer, String question) {
-        acceptancePolicy = java.util.Objects.requireNonNull(policy);
-        semanticReviewer = reviewer;
-        acceptanceQuestion = question == null ? "" : question;
+        java.util.Objects.requireNonNull(policy);
+        // Compatibility constructor: semantic review is intentionally outside Runtime publication.
     }
 
     Compilation compile(List<AnalysisSummaryResult> summaries) {
@@ -303,8 +298,7 @@ final class GovernedFinalClaimContract {
         boolean duplicateDerivedId = derivedClaims.stream().map(DerivedClaim::derivedClaimId)
             .distinct().count() != derivedClaims.size();
         boolean invalidDerived = duplicateDerivedId || derivedClaims.stream().anyMatch(derived ->
-            derived.basisClaimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id))
-                || !numbersGrounded(derived.text(), derived.basisClaimIds(), compilation));
+            derived.basisClaimIds().stream().anyMatch(id -> !compilation.claims().containsKey(id)));
         if (invalidDerived) return DriverAudit.invalid("DRIVER_DERIVED_CLAIM_INVALID");
         Map<String, Object> reviewSummary = new LinkedHashMap<>();
         reviewSummary.put("status", reviewStatus);
@@ -381,226 +375,60 @@ final class GovernedFinalClaimContract {
             .map(this::metricAssociation).filter(java.util.Objects::nonNull).limit(8).toList();
         ManagementReview managementReview = managementReview(payload.get("managementReview"));
 
-        Set<String> rejectedByDriver = maps(object(payload.get("driverReview"))
-            .get("claimAssessments")).stream()
-            .filter(item -> "REJECT".equals(text(item.get("verdict")).toUpperCase(
-                java.util.Locale.ROOT)))
-            .map(item -> text(item.get("claimId")))
-            .filter(id -> !id.isBlank())
-            .collect(java.util.stream.Collectors.toSet());
-
-        findings = ensureSourceFindingCoverage(findings, compilation, rejectedByDriver);
         return acceptClaims(payload, compilation, findings, demandAnalysis, metricAssociations,
-            managementReview, rejectedByDriver, dataCatalog);
+            managementReview, dataCatalog);
     }
 
+    /**
+     * Preserve the analysis model's report and audit only evidence identifier binding.
+     *
+     * <p>Runtime deliberately does not decide whether an aggregation, comparison, explanation
+     * or business conclusion is semantically correct. Those decisions belong to the analysis
+     * model and its mandatory coherence pass. Missing or unknown evidence identifiers are
+     * exposed as audit metadata without deleting or rewriting the finding.</p>
+     */
     private Projection acceptClaims(Map<String, Object> payload, Compilation compilation,
         List<NarrativeFinding> findings, DemandAnalysis demandAnalysis,
-        List<MetricAssociation> associations, ManagementReview review, Set<String> rejected,
+        List<MetricAssociation> associations, ManagementReview review,
         VerifiedReportDataCatalog catalog) {
-        class Work implements ClaimAcceptanceGraph.Work<Projection> {
-            final com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract policy = acceptancePolicy;
-            final List<List<String>> issuesByClaim = new ArrayList<>();
-            final Map<Integer, NarrativeFinding> patches = new LinkedHashMap<>();
-            final List<NarrativeFinding> accepted = new ArrayList<>();
-            final Map<NarrativeFinding, String> blockIds = new java.util.IdentityHashMap<>();
-            final List<Map<String, Object>> decisions = new ArrayList<>();
-            SemanticClaimReviewer.Result semantic = new SemanticClaimReviewer.Result("NOT_CONFIGURED", Map.of());
-            int repairs;
-            public void build() { /* Structured findings are already parsed; Runtime does no semantic reasoning. */ }
-            public void validate() {
-                for (int i = 0; i < findings.size(); i++) {
-                    var issues = new ArrayList<>(claimIssues(findings.get(i), compilation, rejected, catalog));
-                    issuesByClaim.add(issues);
-                }
-            }
-            public void review() {
-                if (semanticReviewer == null) return;
-                List<Map<String, Object>> claims = new ArrayList<>();
-                for (int i = 0; i < findings.size(); i++) {
-                    NarrativeFinding finding = findings.get(i);
-                    Map<String, Object> claim = new LinkedHashMap<>();
-                    claim.put("claimId", "F" + (i + 1));
-                    claim.put("section", finding.section());
-                    claim.put("text", finding.text());
-                    claim.put("question", finding.question());
-                    claim.put("baseline", finding.baseline());
-                    claim.put("comparison", finding.comparison());
-                    claim.put("driver", finding.driver());
-                    claim.put("implication", finding.implication());
-                    claim.put("confidence", finding.confidence());
-                    claim.put("basisClaimIds", finding.basisClaimIds());
-                    claims.add(Map.copyOf(claim));
-                }
-                for (int i = 0; i < review.items().size(); i++) claims.add(Map.of("claimId", "R" + (i + 1),
-                    "text", review.items().get(i).text(), "basisClaimIds", review.items().get(i).basisClaimIds()));
-                Set<String> ids = new LinkedHashSet<>();
-                claims.forEach(c -> ids.add(c.get("claimId").toString()));
-                semantic = semanticReviewer.review(Map.of("question", acceptanceQuestion, "claims", claims,
-                    "evidence", compilation.claims().values().stream().map(Claim::toPromptMap).toList()), ids, compilation.claims().keySet());
-                for (int i = 0; i < findings.size(); i++) {
-                    var decision = semantic.decisions().get("F" + (i + 1));
-                    if (decision != null && !"ACCEPT".equals(decision.decision()))
-                        issuesByClaim.get(i).add("SEMANTIC_" + decision.decision() + ":" + decision.issue());
-                    else if (decision == null && !isExactEvidence(findings.get(i), compilation))
-                        issuesByClaim.get(i).add("SEMANTIC_REVIEW_UNRESOLVED");
-                }
-            }
-            public boolean needsRepair() { return issuesByClaim.stream().anyMatch(i -> !i.isEmpty()); }
-            public void repair() {
-                long started = System.nanoTime();
-                for (int i = 0; i < findings.size(); i++) {
-                    if (issuesByClaim.get(i).isEmpty()) continue;
-                    if (policy.maxRepairRounds() == 0 || repairs >= policy.maxClaimsPerRound()
-                        || (System.nanoTime() - started) / 1_000_000 >= policy.maxRepairDurationMs()) {
-                        issuesByClaim.get(i).add("REPAIR_BUDGET_EXHAUSTED"); continue;
-                    }
-                    repairs++;
-                    var original = findings.get(i);
-                    List<Claim> basis = original.basisClaimIds().stream().filter(id -> !rejected.contains(id))
-                        .map(compilation.claims()::get).filter(java.util.Objects::nonNull).toList();
-                    // Suggestions from semantic review are proposals, never new verified facts.
-                    if (!basis.isEmpty()) patches.put(i, new NarrativeFinding("DEEP_DIVE",
-                        String.join("\n", basis.stream().map(Claim::text).distinct().toList()),
-                        basis.stream().map(Claim::claimId).toList()));
-                }
-            }
-            public void revalidate() {
-                patches.entrySet().removeIf(e -> !claimIssues(e.getValue(), compilation, rejected, catalog).isEmpty()
-                    || (semantic.decisions().containsKey("F" + (e.getKey() + 1))
-                        && !"ACCEPT".equals(semantic.decisions().get("F" + (e.getKey() + 1)).decision())
-                        && e.getValue().groundedText().trim().equals(findings.get(e.getKey()).groundedText().trim())));
-            }
-            public boolean hasPatches() { return !patches.isEmpty(); }
-            public Projection assemble() {
-                for (int index = 0; index < findings.size(); index++) {
-                    var finding = findings.get(index);
-                    var issues = issuesByClaim.get(index);
-                    String status = issues.isEmpty() ? "VALID" : patches.containsKey(index) ? "LIMITED" : "UNRESOLVED";
-                    String action = issues.isEmpty() ? "RETAIN" : patches.containsKey(index) ? "NARROW_SCOPE" : "REMOVE_CLAIM";
-                    NarrativeFinding published = issues.isEmpty() ? finding : patches.get(index);
-                    if (published == null) published = unresolvedFinding(finding);
-                    accepted.add(published);
-                    blockIds.put(published, "F" + (index + 1));
-                    decisions.add(Map.of("claimId", "F" + (index + 1), "basisClaimIds", finding.basisClaimIds(),
-                        "status", status, "issues", List.copyOf(issues), "repairAction", action,
-                        "validationStatus", validationStatus(issues), "originalText", finding.groundedText(),
-                        "repairedClaim", "UNRESOLVED".equals(status) ? "" : published.text()));
-                }
-                // Free-form reviews are validated independently; one bad review never discards findings.
-                List<ReviewItem> retainedReviews = new ArrayList<>();
-                int reviewIndex = findings.size();
-                for (ReviewItem item : review.items()) {
-                    var candidate = new NarrativeFinding("REVIEW", item.text(), item.basisClaimIds());
-                    List<String> issues = new ArrayList<>(claimIssues(candidate, compilation, rejected, catalog));
-                    final int currentReviewIndex = reviewIndex++;
-                    if (semanticReviewer != null) {
-                        var assessment = semantic.decisions().get("R" + (currentReviewIndex - findings.size() + 1));
-                        if (assessment == null || !"ACCEPT".equals(assessment.decision())) issues.add("SEMANTIC_REVIEW_UNRESOLVED");
-                    }
-                    if (issues.isEmpty()) retainedReviews.add(item);
-                    else decisions.add(Map.of("claimId", "review:" + (decisions.size() + 1),
-                        "basisClaimIds", item.basisClaimIds(), "status", "UNRESOLVED",
-                        "issues", issues, "repairAction", "REMOVE_CLAIM"));
-                }
-                ManagementReview safeReview = new ManagementReview(
-                    retainedReviews.contains(review.overallAssessment()) ? review.overallAssessment() : null,
-                    review.identifiedProblems().stream().filter(retainedReviews::contains).toList(),
-                    review.improvementSuggestions().stream().filter(retainedReviews::contains).toList(),
-                    review.nextWorkDirections().stream().filter(retainedReviews::contains).toList());
-                List<MetricAssociation> safeAssociations = associations.stream().filter(a -> !a.basisClaimIds().isEmpty()
-                    && a.basisClaimIds().stream().allMatch(id -> compilation.claims().containsKey(id) && !rejected.contains(id))).toList();
-                LinkedHashSet<String> selected = new LinkedHashSet<>();
-                accepted.forEach(f -> selected.addAll(f.basisClaimIds()));
-                retainedReviews.forEach(r -> selected.addAll(r.basisClaimIds()));
-                safeAssociations.forEach(a -> selected.addAll(a.basisClaimIds()));
-                Projection rendered = renderNarrative(compilation, accepted, selected, demandAnalysis,
-                    safeAssociations, safeReview, catalog, SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))
-                        || accepted.stream().anyMatch(f -> !f.dataRef().isBlank()), blockIds);
-                Map<String, Object> report = new LinkedHashMap<>(rendered.analyticalReport());
-                report.put("claimAcceptance", Map.of("contract", policy.toMap(), "decisions", List.copyOf(decisions),
-                    "repairAttempts", repairs, "semanticReviewStatus", semantic.status(), "semanticDecisions", semantic.decisions().entrySet().stream()
-                        .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toMap())), "context", Map.of(
-                        "decisionQuestion", demandAnalysis == null ? "" : demandAnalysis.decisionGoal(),
-                        "sourceScopes", compilation.claims().values().stream().map(Claim::sourceScope)
-                            .filter(java.util.Objects::nonNull).distinct().toList(),
-                        "evidenceClaimIds", List.copyOf(compilation.claims().keySet()),
-                        "runtimeDataCatalog", catalog.promptView())));
-                boolean modified = decisions.stream().anyMatch(d -> !"VALID".equals(d.get("status")));
-                String markdown = rendered.markdown();
-                return new Projection(!modified, modified ? "CLAIM_LEVEL_PARTIAL_DELIVERY" : rendered.reason(),
-                    markdown, List.copyOf(selected), Map.copyOf(report));
-            }
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        List<Map<String, Object>> bindings = new ArrayList<>();
+        Map<NarrativeFinding, String> blockIds = new java.util.IdentityHashMap<>();
+
+        for (int index = 0; index < findings.size(); index++) {
+            NarrativeFinding finding = findings.get(index);
+            String findingId = "F" + (index + 1);
+            blockIds.put(finding, findingId);
+            List<String> known = finding.basisClaimIds().stream()
+                .filter(compilation.claims()::containsKey).distinct().toList();
+            List<String> unknown = finding.basisClaimIds().stream()
+                .filter(id -> !compilation.claims().containsKey(id)).distinct().toList();
+            selected.addAll(known);
+            bindings.add(Map.of(
+                "findingId", findingId,
+                "declaredBasisClaimIds", finding.basisClaimIds(),
+                "boundBasisClaimIds", known,
+                "unboundBasisClaimIds", unknown,
+                "status", unknown.isEmpty() && !known.isEmpty() ? "BOUND"
+                    : known.isEmpty() ? "UNBOUND" : "PARTIALLY_BOUND"));
         }
-        var execution = new ClaimAcceptanceGraph().execute(new Work());
-        Projection value = execution.value();
-        Map<String, Object> report = new LinkedHashMap<>(value.analyticalReport());
-        report.put("acceptanceGraphNodes", execution.nodes());
-        return new Projection(value.modelSelectionAccepted(), value.reason(), value.markdown(), value.selectedClaimIds(), Map.copyOf(report));
-    }
+        review.items().forEach(item -> item.basisClaimIds().stream()
+            .filter(compilation.claims()::containsKey).forEach(selected::add));
+        associations.forEach(item -> item.basisClaimIds().stream()
+            .filter(compilation.claims()::containsKey).forEach(selected::add));
 
-    private boolean isExactEvidence(NarrativeFinding finding, Compilation compilation) {
-        return finding.basisClaimIds().stream().map(compilation.claims()::get).filter(java.util.Objects::nonNull)
-            .anyMatch(c -> finding.groundedText().trim().equals(c.text().trim()));
-    }
-
-    private NarrativeFinding unresolvedFinding(NarrativeFinding finding) {
-        return new NarrativeFinding("LIMITATION", "本项分析依据不足或存在未消解冲突，暂不作业务判断。",
-            List.of(), finding.question(), "", "", "", "", "", "", "");
-    }
-
-    private List<String> claimIssues(NarrativeFinding finding, Compilation compilation, Set<String> rejected,
-                                     VerifiedReportDataCatalog catalog) {
-        List<String> issues = new ArrayList<>();
-        if (finding.basisClaimIds().isEmpty() || finding.basisClaimIds().stream()
-            .anyMatch(id -> !compilation.claims().containsKey(id))) issues.add("INSUFFICIENT_EVIDENCE");
-        if (finding.basisClaimIds().stream().anyMatch(rejected::contains)) issues.add("REJECTED_BASIS");
-        if (!issues.isEmpty()) return List.copyOf(issues);
-        if (!numbersGrounded(finding.groundedText(), finding.basisClaimIds(), compilation,
-            catalog, finding.dataRef()))
-            issues.add("UNVERIFIED_NUMERIC_VALUE");
-        return List.copyOf(issues);
-    }
-
-    private String validationStatus(List<String> issues) {
-        if (issues.isEmpty()) return "VALID";
-        if (issues.contains("REJECTED_BASIS")) return "REJECTED";
-        if (issues.contains("INSUFFICIENT_EVIDENCE")) return "INSUFFICIENT_EVIDENCE";
-        if (issues.contains("UNVERIFIED_NUMERIC_VALUE")) return "UNRESOLVED";
-        return "MODEL_REVIEW_REQUIRED";
-    }
-
-    private List<NarrativeFinding> ensureSourceFindingCoverage(
-        List<NarrativeFinding> findings, Compilation compilation, Set<String> rejectedClaimIds
-    ) {
-        List<NarrativeFinding> result = new ArrayList<>(findings);
-        Set<String> coveredSources = result.stream()
-            .flatMap(finding -> finding.basisClaimIds().stream())
-            .map(compilation.claims()::get)
-            .filter(java.util.Objects::nonNull)
-            .map(Claim::sourceScope)
-            .filter(source -> source != null && !source.isBlank())
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        Map<String, List<Claim>> bySource = new LinkedHashMap<>();
-        for (Claim claim : compilation.claims().values()) {
-            if (claim.sourceScope() == null || claim.sourceScope().isBlank()
-                || rejectedClaimIds.contains(claim.claimId())) continue;
-            bySource.computeIfAbsent(claim.sourceScope(), ignored -> new ArrayList<>()).add(claim);
-        }
-        for (Map.Entry<String, List<Claim>> entry : bySource.entrySet()) {
-            if (coveredSources.contains(entry.getKey())) continue;
-            Claim representative = entry.getValue().stream()
-                .sorted(java.util.Comparator
-                    .comparing(Claim::observedFact)
-                    .thenComparing(claim -> claim.significance() == null
-                        || claim.significance().isBlank()))
-                .findFirst().orElse(null);
-            if (representative != null) {
-                result.add(new NarrativeFinding("DEEP_DIVE", representative.text(),
-                    List.of(representative.claimId())));
-            }
-        }
-        return List.copyOf(result);
+        Projection rendered = renderNarrative(compilation, findings, selected, demandAnalysis,
+            associations, review, catalog,
+            SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))
+                || findings.stream().anyMatch(f -> !f.dataRef().isBlank()), blockIds);
+        Map<String, Object> report = new LinkedHashMap<>(rendered.analyticalReport());
+        report.put("evidenceBindingAudit", Map.of(
+            "mode", "PROVENANCE_ONLY",
+            "modelAnalysisPreserved", true,
+            "findings", List.copyOf(bindings),
+            "knownEvidenceClaimIds", List.copyOf(compilation.claims().keySet())));
+        return new Projection(true, "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT",
+            rendered.markdown(), List.copyOf(selected), Map.copyOf(report));
     }
 
     private NarrativeFinding narrativeFinding(Map<String, Object> source) {
@@ -619,153 +447,52 @@ final class GovernedFinalClaimContract {
             boundedText(source.get("dataRef"), 200), boundedText(source.get("visualizationIntent"), 40));
     }
 
-    private ClaimCoverage claimCoverage(Map<String, Object> source) {
-        String claimId = text(source.get("claimId"));
-        String disposition = text(source.get("disposition")).toUpperCase(java.util.Locale.ROOT);
-        if (claimId.isBlank() || !Set.of("USED", "SUPPORTING_CONTEXT", "NOT_MATERIAL")
-            .contains(disposition)) return null;
-        return new ClaimCoverage(claimId, disposition, text(source.get("reason")));
-    }
-
-    private boolean numbersGrounded(String narrative, List<String> basisClaimIds,
-                                    Compilation compilation) {
-        return numbersGrounded(narrative, basisClaimIds, compilation,
-            VerifiedReportDataCatalog.empty(), "");
-    }
-
-    private boolean numbersGrounded(String narrative, List<String> basisClaimIds,
-                                    Compilation compilation, VerifiedReportDataCatalog catalog,
-                                    String dataRef) {
-        Set<String> allowed = new LinkedHashSet<>();
-        Set<String> basisRecordRefs = new LinkedHashSet<>();
-        for (String claimId : basisClaimIds) {
-            Claim claim = compilation.claims().get(claimId);
-            if (claim == null) continue;
-            basisRecordRefs.addAll(claim.recordRefs());
-            claim.supportingValues().forEach(value -> allowed.addAll(numberTokens(value)));
-        }
-        VerifiedReportDataCatalog.Data data = catalog == null || dataRef == null || dataRef.isBlank()
-            ? null : catalog.get(dataRef);
-        if (data != null && !data.recordRefs().isEmpty()
-            && basisRecordRefs.containsAll(data.recordRefs())) {
-            if (data.metric() != null) allowed.addAll(numberTokens(data.metric().toPlainString()));
-            for (Map<String, Object> row : data.rows()) {
-                row.values().forEach(value -> allowed.addAll(numberTokens(String.valueOf(value))));
-            }
-        }
-        return allowed.containsAll(numberTokens(narrative));
-    }
-
-    private Set<String> numberTokens(String value) {
-        if (value == null || value.isBlank()) return Set.of();
-        java.util.regex.Matcher matcher = java.util.regex.Pattern
-            .compile("[-+]?\\d+(?:[.,]\\d+)*%?").matcher(value);
-        Set<String> result = new LinkedHashSet<>();
-        while (matcher.find()) result.add(matcher.group().replace(",", ""));
-        return result;
-    }
-
     String appendSelectionInstruction(String prompt, Compilation compilation) {
         if (compilation == null || compilation.claims().isEmpty()) return prompt;
         List<Map<String, Object>> ledger = compilation.claims().values().stream()
             .map(Claim::toPromptMap).toList();
         return (prompt == null ? "" : prompt)
-            + "\n\nFinal management-synthesis contract (binding): the Worker and Reducer reports above are "
-            + "the primary analytical input. The ledger below is their evidence index and factual boundary; it is "
-            + "not the final report and must not be copied as a row inventory. Act as the management-level Driver: "
-            + "combine related findings, explain their business meaning, identify tensions and evaluate the quality "
-            + "of the completed analysis. Every synthesized finding must cite the admitted claim IDs that support it. "
-            + "A ledger Claim marked REVIEW_REQUIRED is an evidence-bound analytical interpretation retained for "
-            + "human judgment, not a rejected payload. You may use it when useful, but explicitly qualify it as an "
-            + "interpretation, preserve its reviewReasons/caveats, and never present it as a verified fact. Claims "
-            + "marked PARTIAL must retain their scope limitation; Claims marked SUPPORTED may be stated at their "
-            + "recorded confidence. "
-            + "Preserve exact producer field semantics: daily PnL is not necessarily unrealized or realized PnL; an asset field is not cumulative return. Unknown definitions must remain unknown. "
-            + "A few sampled trades cannot establish habitual holding duration, high turnover, win rate, investment motives or a profitable long-term strategy. Returned position rows cannot establish total position count or diversification unless completeness is verified. "
-            + "Apply every sample/period limitation in the executive summary and profile too. Do not make an absolute claim first and contradict it with a caveat later. Do not rank holdings or calculate residual other-items across incompatible dates or measures. "
-            + "You may paraphrase and combine supported claims into a more useful management conclusion, but may not "
-            + "invent a value, entity state, comparison, threshold, relationship or cause absent from those claims. "
-            + "Never report a requested dimension as missing or unavailable when the ledger contains a claim that "
-            + "answers it. Do not omit a supported dimension merely because its evidence is a direct observation. "
-            + "Use a supported-first reporting order. Missing history limits only trend, change, stability and causal "
-            + "extensions; it never invalidates current-period values, composition, ranking, outcome or transaction "
-            + "findings already present in the ledger. Every objective-relevant sourceScope with admitted Claims must "
-            + "contribute at least one substantive finding. Marking all of its Claims as SUPPORTING_CONTEXT or "
-            + "NOT_MATERIAL while discussing its gaps is not an answer. When multiple compatible Claims jointly answer "
-            + "one question, synthesize them into a multi-Claim finding and explain the business meaning. "
-            + "Evidence gaps are advisory review context, never a publication veto. Publish every supported finding "
-            + "and use a gap only to qualify the specific unsupported extension; do not reject the whole analysis or "
-            + "request repair merely because gaps exist or are numerous. "
-            + "Execute the analysisMethodologyContract and analysisTree carried in the Driver pipeline context. "
-            + "The model owns analysis selection. Runtime never infers aggregation, denominator, weighting, time window or formula from numeric fields; it only executes and audits calculations declared by the semantic contract or explicitly requested by the model. "
-            + "Build the reasoning chain from question and baseline through overall result, decomposition, contribution, "
-            + "explanation, validation, impact and action. Missing baseline limits only dependent comparisons. Rank "
-            + "findings by objective relevance, materiality and confidence; rank anomalies by degree and business impact. "
-            + "Prefer a small number of decision-useful findings over repeated factual restatements. Complete the "
-            + "Before returning, perform a strict coherence pass: keep one value, unit, period, population and definition per metric; ensure CORE is no stronger than its detailed finding; place qualifications where the claim first appears; prohibit contradictions between findings, limitations and actions; trace every action to a finding; remove duplicate or empty sections; and make the report readable without workflow context. "
-            + "analysisItemCoverage matrix for the dynamic analysisAgenda carried by Worker/Reducer reports. Every "
-            + "ANSWERED or PARTIAL item must point to findings and basis Claims; REVIEW_REQUIRED must retain its "
-            + "qualification, and NOT_APPLICABLE must explain the scope mismatch. "
-            + "coverage matrix for every OBSERVED_RETURNED_FACT, including facts used in a finding, retained only as "
-            + "supporting context, or consciously excluded as not material. Coverage does not require publishing "
-            + "every fact; it prevents accidental loss during synthesis. Return only one JSON object with this shape: "
-            + "{\"schemaVersion\":\"" + SCHEMA_VERSION + "\","
-            + "\"driverReview\":{\"status\":\"PASS|CHALLENGE\","
+            + "\n\nBinding final-analysis protocol: Worker/Reducer reports are the primary analytical "
+            + "input. The ledger is an evidence provenance index, not a whitelist of permitted "
+            + "business meanings and not the report itself. You are the analysis model and own "
+            + "selection of metrics, compatible records, formulas, aggregations, comparisons, "
+            + "interpretation, conclusion strength and narrative coherence. Runtime will preserve "
+            + "your findings and only audit whether declared basisClaimIds exist. "
+            + "Analyze every useful row or field available for the user's question. One usable row "
+            + "still requires a bounded factual analysis. Missing history limits trend claims only; "
+            + "it must not erase current-period scale, ranking, composition or other available facts. "
+            + "You may calculate sums, shares, averages, changes, rankings and other derived metrics "
+            + "when you determine the records and definitions are compatible. State the calculation "
+            + "scope or formula in the finding, cite the closest evidence claim IDs, and never invent "
+            + "source values. Do not infer product meaning from an identifier unless evidence supplies it. "
+            + "Before returning, perform a strict self-review of metric definition and unit, time range, "
+            + "population/denominator, conclusion strength, cross-section consistency, and the evidence "
+            + "for every recommended action. A sample cannot become a long-term habit or market-wide "
+            + "rule. Put a qualification beside the affected conclusion, never in a later section that "
+            + "contradicts it. Remove duplicates, empty sections and workflow commentary. "
+            + "Return useful conclusions first, followed by supporting analysis, business implications, "
+            + "local limitations and next actions. Do not replace analysis with a list of missing data. "
+            + "Return only one JSON object. Use this shape: "
+            + "{\"schemaVersion\":\"" + SCHEMA_VERSION + "\"," 
+            + "\"driverReview\":{\"status\":\"PASS|CHALLENGE\"," 
             + "\"requirementCoverage\":[],\"claimConsistency\":[],\"evidenceSufficiency\":{},"
             + "\"crossWorkerConflicts\":[],\"duplicateEvidence\":[],\"unsupportedInferences\":[],"
-            + "\"missingCriticalDimensions\":[],"
-            + "\"claimAssessments\":[{\"claimId\":\"\",\"verdict\":\"ACCEPT|DOWNGRADE|REJECT\",\"reason\":\"\"}],"
-            + "\"challenges\":[{\"targetLayer\":\"WORKER_REPORT|REDUCER_REPORT\","
-            + "\"targetReportId\":\"\",\"claimIds\":[],\"reason\":\"\","
-            + "\"requiredCorrection\":\"\"}]},"
-            + "\"driverReasoning\":{\"derivedClaims\":[{\"derivedClaimId\":\"\","
-            + "\"text\":\"\",\"basisClaimIds\":[],\"caveats\":[]}]},"
-            + "\"findings\":[{\"section\":\"CORE|OVERALL|KEY_DRIVER|DEEP_DIVE|RISK_OPPORTUNITY|LIMITATION|ACTION\","
-            + "\"text\":\"management-level synthesized conclusion\",\"basisClaimIds\":[],"
-            + "\"question\":\"\",\"baseline\":\"\",\"comparison\":\"\",\"driver\":\"\","
-            + "\"implication\":\"\",\"confidence\":\"\",\"dataRef\":\"\",\"visualizationIntent\":\"\"}],"
-            + "\"coverage\":[{\"claimId\":\"\","
-            + "\"disposition\":\"USED|SUPPORTING_CONTEXT|NOT_MATERIAL\",\"reason\":\"\"}],"
-            + "\"analysisItemCoverage\":[{\"itemId\":\"\","
-            + "\"status\":\"ANSWERED|PARTIAL|NOT_APPLICABLE|REVIEW_REQUIRED\","
-            + "\"basisClaimIds\":[],\"findingIndexes\":[],\"reason\":\"\"}],"
+            + "\"missingCriticalDimensions\":[],\"claimAssessments\":[],\"challenges\":[]},"
+            + "\"driverReasoning\":{\"derivedClaims\":[]},"
+            + "\"findings\":[{\"section\":\"CORE|OVERALL|KEY_DRIVER|DEEP_DIVE|RISK_OPPORTUNITY|LIMITATION|ACTION\"," 
+            + "\"text\":\"complete readable analytical conclusion\",\"basisClaimIds\":[\"known-id\"],"
+            + "\"question\":\"\",\"baseline\":\"\",\"comparison\":\"\","
+            + "\"driver\":\"\",\"implication\":\"\",\"confidence\":\"\","
+            + "\"dataRef\":\"\",\"visualizationIntent\":\"\"}],"
+            + "\"coverage\":[],\"analysisItemCoverage\":[],"
             + "\"demandAnalysis\":{\"decisionGoal\":\"\",\"priorityQuestions\":[]},"
-            + "\"metricAssociations\":[{\"title\":\"\",\"basisClaimIds\":[],"
-            + "\"candidateMetrics\":[],\"analysisMethod\":\"\",\"validationNeeded\":[]}],"
-            + "\"managementReview\":{"
-            + "\"overallAssessment\":{\"text\":\"\",\"basisClaimIds\":[]},"
-            + "\"identifiedProblems\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
-            + "\"improvementSuggestions\":[{\"text\":\"\",\"basisClaimIds\":[]}],"
-            + "\"nextWorkDirections\":[{\"text\":\"\",\"basisClaimIds\":[]}]}}. "
+            + "\"metricAssociations\":[],"
+            + "\"managementReview\":{\"overallAssessment\":null,\"identifiedProblems\":[],"
+            + "\"improvementSuggestions\":[],\"nextWorkDirections\":[]}}. "
+            + "Each finding must contain at least one known basisClaimId. CORE must directly answer "
+            + "the user's decision question and must not be stronger than its detailed support. "
             + AnalysisSynthesisContract.instruction()
-            + "Put one to three decisive answers to the decision question in CORE. Use OVERALL for scale/trend/baseline, KEY_DRIVER for "
-            + "decomposition and contribution, DEEP_DIVE for the most material questions, RISK_OPPORTUNITY for supported "
-            + "impact, and LIMITATION only after findings. A finding's numbers must already occur in its cited "
-            + "claims or supporting values. demandAnalysis explains the decision goal and open questions without adding facts. "
-            + "metricAssociations are optional, explicitly unverified follow-up directions grounded in selected "
-            + "admitted claims. Each must cite selected basisClaimIds and state candidate metrics, method and "
-            + "validation needed. Never introduce a new observed value, entity state, threshold or causal claim. "
-            + "Act as the manager reviewing completed Worker analysis reports: managementReview must synthesize "
-            + "what the analyses collectively established, detect evidence/coverage/method gaps, and provide "
-            + "specific improvements and prioritized next work. Do not repeat the ledger as a row inventory. Every "
-            + "managementReview section is secondary to business findings and must never become a gap-only substitute "
-            + "for the requested analysis. Consolidate repeated gaps into a short limitation instead of enumerating them. "
-            + "non-empty review item must cite selected basisClaimIds; it is an evaluation of the admitted analysis, "
-            + "not permission to create a new business fact. "
-            + "Unknown IDs, missing finding bases, invented numeric values, or an incomplete observed-fact coverage "
-            + "matrix invalidate the synthesis. Execute three mandatory stages before returning. DRIVER_REVIEW "
-            + "independently checks requirement coverage, every admitted Claim, evidence sufficiency, cross-Worker "
-            + "conflict, duplicate evidence, unsupported inference and missing critical dimensions. Agreement from "
-            + "reports sharing the same lineage is not independent confirmation. DRIVER_REASONING may create derived "
-            + "Claims only from admitted basisClaimIds, with alternatives and caveats. DRIVER_DECISION writes findings "
-            + "only after review. You may downgrade or reject lower-layer Claims. A material error must set review "
-            + "status CHALLENGE, identify the target report and Claims, and request a concrete correction. Claims with "
-            + "a REJECT verdict must not enter findings; DOWNGRADE or REVIEW_REQUIRED Claims may enter only with their "
-            + "uncertainty made explicit. A CHALLENGE is a management review note, not a publication "
-            + "veto: still return all supported findings and expose disputed items for human judgment. Runtime "
-            + "governance organizes evidence and labels uncertainty; it does not replace the human reviewer. Assess "
-            + "every ledger Claim exactly once. "
-            + "Do not return Markdown. Admitted claim ledger: " + ModelProtocolJson.compact(ledger);
+            + "Evidence provenance ledger: " + ModelProtocolJson.compact(ledger);
     }
 
     private Projection deterministic(Compilation compilation, String reason) {
@@ -848,7 +575,8 @@ final class GovernedFinalClaimContract {
         List<String> sectionOrder = List.of("CORE", "DEEP_DIVE", "OVERALL", "KEY_DRIVER", "RISK_OPPORTUNITY", "LIMITATION", "ACTION");
         for (NarrativeFinding finding : findings.stream()
             .sorted(java.util.Comparator.comparingInt(item -> sectionOrder.indexOf(item.section()))).toList()) {
-            List<Claim> basis = finding.basisClaimIds().stream().map(compilation.claims()::get).toList();
+            List<Claim> basis = finding.basisClaimIds().stream().map(compilation.claims()::get)
+                .filter(java.util.Objects::nonNull).toList();
             String interpretation = (finding.baseline().isBlank() ? "" : "比较基准：" + finding.baseline() + "\n")
                 + (finding.comparison().isBlank() ? "" : "比较结果：" + finding.comparison() + "\n") + finding.driver();
             blocks.add(composer.compose(blockIds.get(finding), finding.section(), finding.question(),

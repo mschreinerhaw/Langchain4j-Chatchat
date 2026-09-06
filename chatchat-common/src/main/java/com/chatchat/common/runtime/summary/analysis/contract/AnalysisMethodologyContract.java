@@ -106,6 +106,15 @@ public record AnalysisMethodologyContract(
             "semanticBoundary", "Runtime does not decide analytical meaning, formula suitability, causal validity, conclusion strength or business usefulness.",
             "noImplicitFormulaRule", "Runtime must never infer SUM, AVG, ratio, rate, denominator, weighting or time comparison from a numeric column, field name or data type.",
             "unverifiedFormulaRule", "A model-proposed formula without an authorized semantic definition remains a qualified analytical proposal and is not published as a verified metric."));
+        result.put("adaptivePromptPolicy", Map.of(
+            "defaultMode", "MODEL_SYNTHESIZED_FROM_QUESTION_ROLE_AND_SEMANTIC_METADATA",
+            "artifact", "STRUCTURED_DYNAMIC_ANALYSIS_PROMPT_CONTRACT",
+            "invocationScope", "ONCE_PER_QUESTION_NOT_PER_DATASET_OR_CHUNK",
+            "inputBoundary", "QUESTION_ROLE_OBJECTIVE_AND_SEMANTIC_METADATA_NO_RAW_RECORDS",
+            "cachePolicy", "REUSE_BY_QUESTION_CONTEXT_AND_MODEL_FINGERPRINT",
+            "fallbackPolicy", "COMPILE_SAFE_GENERIC_GUIDANCE_AND_CONTINUE_ANALYZING_AVAILABLE_EVIDENCE",
+            "fixedPromptPolicy", "ONLY_EXPLICIT_PRODUCER_GOVERNED_CONTRACTS",
+            "authorityBoundary", "PROMPT_GUIDANCE_NEVER_GRANTS_TOOL_FORMULA_JOIN_OR_DATA_ACCESS_AUTHORITY"));
         result.put("modelReportQualityPolicy", Map.of(
             "findingUnit", List.of("QUESTION", "OBSERVATION", "INTERPRETATION", "IMPLICATION", "EVIDENCE", "CONFIDENCE", "CAVEAT"),
             "canonicalMetricRule", "Use one canonical value, unit, period, population and definition for the same metric throughout the report.",

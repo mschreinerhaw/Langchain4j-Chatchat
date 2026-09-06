@@ -67,6 +67,32 @@ class InterpretationPlanWorkflowGuardTest {
     }
 
     @Test
+    void allowsOuterSynthesisWhenEvidenceStepsCompletedButFinalAnswerPlaceholderWasNotExecuted() {
+        InterpretationPlan plan = planWithSteps(List.of(
+            new InterpretationPlan.Step(1, "mcp_tool", "data_query", Map.of(), List.of(), null, null),
+            new InterpretationPlan.Step(4, "final_answer", "", Map.of(), List.of(1), null, null)
+        ));
+        InterpretationPlanRuntime.ExecutionResult result = result(
+            List.of(execution(1, "mcp_tool", "data_query", true)),
+            Map.of(
+                "requiredPlanStepIds", List.of(1, 4),
+                "completedPlanStepIds", List.of(1)
+            )
+        );
+
+        InterpretationPlanWorkflowGuard.GuardResult evaluated = guard.evaluate(
+            plan, result, List.of("data_query"), List.of());
+
+        assertThat(evaluated.allowed()).isTrue();
+        assertThat(evaluated.code()).isEqualTo("evidence_workflow_complete_outer_synthesis_required");
+        assertThat(evaluated.missingPlanStepIds()).isEmpty();
+        assertThat(evaluated.metadata())
+            .containsEntry("requiredPlanStepIds", List.of(1))
+            .containsEntry("plannedFinalAnswerStepIds", List.of(4))
+            .containsEntry("outerSynthesisRequired", true);
+    }
+
+    @Test
     void matchesSemanticToolsUnderAnUnseenRuntimeServerNamespace() {
         String namespace = "mcp_tenant_" + System.nanoTime() + "_data_fabric_";
         InterpretationPlanRuntime.ExecutionResult result = result(List.of(
@@ -203,7 +229,7 @@ class InterpretationPlanWorkflowGuardTest {
         assertThat(evaluated.allowed()).isTrue();
         assertThat(evaluated.missingPlanStepIds()).isEmpty();
         assertThat(evaluated.metadata())
-            .containsEntry("requiredPlanStepIds", List.of(1, 2, 3))
+            .containsEntry("requiredPlanStepIds", List.of(1, 2))
             .containsEntry("completedPlanStepIds", List.of(1, 2, 3));
     }
 

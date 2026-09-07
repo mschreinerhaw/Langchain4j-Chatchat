@@ -32,6 +32,6 @@ class DynamicAnalysisPromptContractTest {
             "methodology", List.of("RUN_SQL"))))
             .hasMessageContaining("Unsupported dynamic prompt enum");
         assertThat(DynamicAnalysisPromptContract.fallback("分析当前数据", Map.of()).compile())
-            .contains("分析当前数据", "样本结论不得扩展为长期规律");
+            .contains("分析当前数据", "结论明确限定在观察期间与样本范围", "ordered H2 guidance");
     }
 }

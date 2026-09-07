@@ -240,6 +240,7 @@ public final class FinalSynthesisNode {
             outcome = "MODEL_FINAL_REPORT_UNAVAILABLE";
         }
 
+        answer = sanitizeReport(answer, request);
         boolean authoredNarrative = answer != null && !answer.stripLeading().startsWith("{")
             && !answer.stripLeading().startsWith("```json")
             && AnalysisOutputAdmissionPolicy.admit(answer).admitted();
@@ -298,6 +299,7 @@ public final class FinalSynthesisNode {
         } else {
             answer = request.postProcessor().apply(answer);
         }
+        answer = sanitizeReport(answer, request);
         if (answer == null || answer.isBlank()) {
             answer = "";
             outcome = "MODEL_FINAL_REPORT_REPAIR_REQUIRED";
@@ -461,9 +463,7 @@ public final class FinalSynthesisNode {
             "activeRepairRequests")) {
             Object value = pipelineContext.get(key);
             if (value != null) {
-                Set<String> presentationKeys = "adaptiveAnalysisPrompt".equals(key)
-                    ? Set.of("output")
-                    : "analysisMethodology".equals(key)
+                Set<String> presentationKeys = "analysisMethodology".equals(key)
                         ? Set.of("reportSections", "reportOrder", "insightBlockPolicy")
                         : Set.of();
                 boundedContext.put(key, omitPresentationDirectives(value, presentationKeys));
@@ -479,7 +479,10 @@ public final class FinalSynthesisNode {
             + "Claim's sample, period, confidence and caveats; do not replay raw tool output or execution "
             + "chronology. Use the supplied analysis and evidence, and verify any calculation you present. "
             + "Your task is to organize supported findings, explain their business meaning and expose material "
-            + "limitations. Choose the report structure and tables yourself. If no "
+            + "limitations. Use adaptiveAnalysisPrompt.output as the ordered H2 section plan, with natural "
+            + "headings in the user's language and business vocabulary. Combine overlapping sections and omit "
+            + "empty sections; explicit user formatting requests take precedence. When no adaptive plan is "
+            + "available, choose the structure yourself. Use concise evidence tables for useful comparisons. If no "
             + "Claim is admitted, return a useful limited analysis and explicit human-review note "
             + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
             + "never treat their count as a publication veto. Write in the user's language. Do not expose "
@@ -512,6 +515,14 @@ public final class FinalSynthesisNode {
         return source;
     }
 
+    private String sanitizeReport(String answer, FinalModelSynthesisRequest request) {
+        String cleaned = AnalysisOutputAdmissionPolicy.sanitizeNarrative(answer);
+        if (!java.util.Objects.equals(answer, cleaned)) {
+            request.metadata().put("analysisReportSanitized", true);
+        }
+        return cleaned;
+    }
+
     /**
      * Asks the model to recover the complete report using already acquired evidence.
      * A failed repair never falls back to concatenating lower-layer reports or claim fields.
@@ -535,6 +546,7 @@ public final class FinalSynthesisNode {
         try {
             String repaired = request.model().chat(repairPrompt);
             repaired = request.postProcessor().apply(repaired);
+            repaired = sanitizeReport(repaired, request);
             AnalysisOutputAdmissionPolicy.Admission repairedAdmission =
                 AnalysisOutputAdmissionPolicy.admit(repaired);
             if (repairedAdmission.admitted()) {

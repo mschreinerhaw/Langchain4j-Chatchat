@@ -33,6 +33,33 @@ public final class AnalysisOutputAdmissionPolicy {
     private AnalysisOutputAdmissionPolicy() {
     }
 
+    /** Removes only standalone leaked instruction lines; never rewrites business prose or code. */
+    public static String sanitizeNarrative(String candidate) {
+        if (candidate == null || candidate.isBlank()) return candidate;
+        StringBuilder cleaned = new StringBuilder();
+        String fence = null;
+        boolean changed = false;
+        for (String line : candidate.split("(?<=\n)", -1)) {
+            String trimmed = line.strip();
+            if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+                char marker = trimmed.charAt(0);
+                int length = 0;
+                while (length < trimmed.length() && trimmed.charAt(length) == marker) length++;
+                if (fence == null) fence = trimmed.substring(0, length);
+                else if (marker == fence.charAt(0) && length >= fence.length()
+                    && trimmed.substring(length).isBlank()) fence = null;
+                cleaned.append(line);
+                continue;
+            }
+            String standalone = trimmed.replaceFirst("[。.!！:：]$", "").strip();
+            boolean instruction = fence == null && INTERNAL_INSTRUCTION_MARKERS.stream()
+                .anyMatch(marker -> marker.equalsIgnoreCase(standalone));
+            if (instruction) changed = true;
+            else cleaned.append(line);
+        }
+        return changed ? cleaned.toString().strip() : candidate;
+    }
+
     public static Admission admit(String candidate) {
         if (candidate == null || candidate.isBlank()) {
             return new Admission(false, "EMPTY_ANALYSIS_OUTPUT");

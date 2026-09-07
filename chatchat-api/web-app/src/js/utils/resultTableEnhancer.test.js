@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
 import { normalizeArtifactHtml } from "./artifactHtmlNormalizer.js";
 import { enhanceResultTables } from "./resultTableEnhancer.js";
+import { parseChartNumber, selectChartMetricKey } from "./chartDatasetTypes.js";
 import { stripInternalDocumentRefs, stripInternalDocumentRefsFromHtml } from "./internalDocumentRefs.js";
 import {
   configureTrendSemantics,
@@ -26,6 +27,22 @@ function payloadFor(root, selector = ".query-result-chart-button") {
 }
 
 describe("dynamic report table regression matrix", () => {
+  it("preserves duplicate and empty header positions in chart datasets", () => {
+    const html = "<table><thead><tr><th>对象</th><th>金额</th><th>金额</th><th></th></tr></thead>"
+      + "<tbody><tr><td>A</td><td>12</td><td>-3</td><td>7</td></tr></tbody></table>";
+    const payload = payloadFor(dom(enhanceResultTables(html)));
+    expect(payload.columns).toEqual(["对象", "金额", "金额 (2)", "列 4"]);
+    expect(payload.rows).toEqual([{ 对象: "A", 金额: 12, "金额 (2)": -3, "列 4": 7 }]);
+  });
+
+  it("keeps large source values exact and excludes them from numeric chart axes", () => {
+    const html = renderMarkdown("| 对象 | 数值 | 数量 |\n|---|---|---|\n| A | 9007199254740993 | 12 |");
+    const payload = payloadFor(dom(enhanceResultTables(html)));
+    expect(payload.rows[0].数值).toBe("9007199254740993");
+    expect(parseChartNumber(payload.rows[0].数值)).toBeNull();
+    expect(selectChartMetricKey(payload.columns, payload.rows, "对象")).toBe("数量");
+  });
+
   it("enhances a canonical Markdown table with a chart action and accurate dimensions", () => {
     const source = [
       "## 服务器配置",

@@ -7,7 +7,7 @@ function parseNumber(value) {
   const raw = String(value ?? "").trim();
   if (!raw || /^[-+]?0\d+/.test(raw)) return null;
   const parsed = Number(raw.replace(/,/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && Math.abs(parsed) <= Number.MAX_SAFE_INTEGER ? parsed : null;
 }
 
 function tableTitle(table, index) {
@@ -24,9 +24,16 @@ function tableTitle(table, index) {
 }
 
 function tablePayload(table, index) {
-  const columns = [...table.querySelectorAll("thead th")]
-    .map((cell) => String(cell.textContent || "").trim())
-    .filter(Boolean);
+  const labels = [...table.querySelectorAll("thead th")]
+    .map((cell, index) => String(cell.textContent || "").trim() || `列 ${index + 1}`);
+  const used = new Set();
+  const columns = labels.map((label) => {
+    let key = label;
+    let suffix = 2;
+    while (used.has(key)) key = `${label} (${suffix++})`;
+    used.add(key);
+    return key;
+  });
   if (columns.length < 2) return null;
 
   const rows = [...table.querySelectorAll("tbody tr")]

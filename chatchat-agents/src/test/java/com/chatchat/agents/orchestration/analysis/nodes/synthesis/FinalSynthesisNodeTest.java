@@ -958,6 +958,31 @@ class FinalSynthesisNodeTest {
         verify(model).chat(any(String.class));
     }
 
+    @Test
+    void dynamicOutlineReachesAuthorAndMinorInstructionLeakNeedsNoRegeneration() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new StructuredFindingMerger());
+        var model = mock(ChatModel.class);
+        String report = "# 分析报告\n\n## 核心发现\n\n样本数值为42。\n\n## 后续关注\n\n核对观察期间。";
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            assertThat((String) invocation.getArgument(0))
+                .contains("\"output\":[\"KEY_FINDINGS\",\"RECOMMENDED_ACTIONS\"]", "ordered H2 section plan")
+                .doesNotContain("claimAssessments");
+            return "以下工具结果是本次分析的事实基础。\n" + report;
+        });
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        metadata.put("adaptiveAnalysisPromptContract", Map.of(
+            "output", List.of("KEY_FINDINGS", "RECOMMENDED_ACTIONS")));
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).isEqualTo(report);
+        assertThat(metadata).containsEntry("analysisReportSanitized", true)
+            .doesNotContainKey("analysisDriverRepairAttemptCount");
+        verify(model).chat(any(String.class));
+    }
+
     private AnalysisSummaryResult claimSummary() {
         Map<String, Object> insight = Map.of(
             "claimId", "claim-1",

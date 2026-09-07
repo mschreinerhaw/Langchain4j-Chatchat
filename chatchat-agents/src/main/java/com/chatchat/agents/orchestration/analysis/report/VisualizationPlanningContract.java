@@ -19,7 +19,11 @@ public final class VisualizationPlanningContract {
             case "concentration", "contribution" -> VisualizationIntent.CONTRIBUTION;
             default -> VisualizationIntent.KPI;
         };
-        if (!requestedIntent.isBlank() && !intent.name().equals(requestedIntent)) return null;
+        String requested = requestedIntent == null ? "" : requestedIntent.trim().toUpperCase(java.util.Locale.ROOT);
+        // Comparing verified category values needs no new calculation or population assumption.
+        if ("COMPARE".equals(requested) && intent != VisualizationIntent.KPI) {
+            intent = VisualizationIntent.COMPARE;
+        } else if (!requested.isBlank() && !intent.name().equals(requested)) return null;
         if (data.rows().size() < 2 || data.unit().isBlank() || intent == VisualizationIntent.KPI) return null;
         if (data.rows().stream().map(row -> row.get("entity")).distinct().count() != data.rows().size()) return null;
         if (data.rows().stream().anyMatch(row -> ((java.math.BigDecimal) row.get("value")).abs()

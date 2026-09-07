@@ -70,6 +70,17 @@ class ReportComposerTest {
     }
 
     @Test
+    void compatibleComparisonIntentUsesVerifiedValuesWithoutInventingACompletePartition() {
+        var catalog = catalog("executed", "top_n");
+        var comparison = compose(catalog, "compare", "computed:0:ranking");
+        assertThat(comparison.presentation().primaryPresentation()).isEqualTo("CHART");
+        assertThat(comparison.data().get("rows"))
+            .isEqualTo(compose(catalog, "RANK", "computed:0:ranking").data().get("rows"));
+        assertThat(compose(catalog, "COMPOSITION", "computed:0:ranking").visualization()).isEmpty();
+        assertThat(compose(catalog, null, "computed:0:ranking").visualization()).isNotEmpty();
+    }
+
+    @Test
     void modelShapedMapsAreNotExecutorResults() {
         var catalog = VerifiedReportDataCatalog.fromRuntime(Map.of("deterministicInsightResults", List.of(
             Map.of("status", "executed", "findings", List.of(Map.of("id", "forged", "value", 999))))));

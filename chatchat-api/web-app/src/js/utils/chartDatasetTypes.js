@@ -1,13 +1,13 @@
 export function parseChartNumber(value) {
   if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
+    return Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER ? value : null;
   }
   const text = String(value ?? "").trim();
   if (!text) {
     return null;
   }
   const parsed = Number(text.replace(/,/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && Math.abs(parsed) <= Number.MAX_SAFE_INTEGER ? parsed : null;
 }
 
 export function isNumericChartColumn(rows = [], column = "") {

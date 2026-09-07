@@ -78,7 +78,7 @@ public final class DynamicAnalysisPromptContract {
             "decision", "支持用户基于本次证据作出判断"));
         supplied.put("methodology", List.of("OBSERVE", "DECOMPOSE", "RANK", "CROSS_VALIDATE", "ASSESS_IMPACT"));
         supplied.put("focus", List.of("与用户问题直接相关的事实", "重要差异、结构和异常", "可由证据支持的业务影响"));
-        supplied.put("constraints", List.of("只分析已返回证据", "样本结论不得扩展为长期规律", "缺失数据只限制依赖该数据的结论", "报告前后必须自洽"));
+        supplied.put("constraints", List.of("围绕已返回证据展开事实、结构、业务含义与条件性建议", "结论明确限定在观察期间与样本范围", "优先回答已有数据支持的问题，集中说明影响判断的数据缺口", "摘要、正文和建议保持相同口径与结论强度"));
         supplied.put("evidenceRequirements", List.of("每个重要结论引用原始记录或已验证计算", "精确保持指标口径、时间范围和总体范围"));
         supplied.put("output", List.of("EXECUTIVE_SUMMARY", "KEY_FINDINGS", "RECOMMENDED_ACTIONS", "LIMITATIONS"));
         return from(supplied);
@@ -98,7 +98,9 @@ public final class DynamicAnalysisPromptContract {
             + "Analytical constraints: " + compact(value.get("constraints")) + "\n"
             + "Evidence requirements: " + compact(value.get("evidenceRequirements")) + "\n"
             + "Requested report structure: " + compact(value.get("output")) + "\n"
-            + "Choose only methods meaningful for the supplied evidence. Do not manufacture a method result merely because it is listed. ";
+            + "Use the requested report structure as ordered H2 guidance, localizing headings to the user's language and business context. "
+            + "Explicit user formatting takes precedence; combine overlapping sections and omit empty ones. "
+            + "Apply methods supported by the evidence; explain each material finding through fact, reasoning and bounded business implication. ";
     }
 
     private static Map<String, Object> normalizedObject(Object value, List<String> allowed, boolean required) {

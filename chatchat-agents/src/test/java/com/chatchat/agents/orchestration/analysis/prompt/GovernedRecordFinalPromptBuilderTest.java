@@ -5,46 +5,26 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class GovernedRecordFinalPromptBuilderTest {
+    @Test
+    void compactPromptPreservesAnalyticalDepthAndMarkdownOwnership() {
+        String prompt = GovernedRecordFinalPromptBuilder.build(
+            "分析客户交易偏好", "遵守业务口径", "assets summary\norders summary\nprofit summary");
+        assertThat(prompt).contains(
+            "workerAnalysisContext and templateMatchAnalysis", "agent_role_analysis_context",
+            "every successful non-empty dataset", "objective-aspect coverage matrix",
+            "observation -> comparison/decomposition -> explanation",
+            "producer-returned metric directly at its declared grain",
+            "formula, inputs and scope", "Distinguish facts, calculations and hypotheses",
+            "adaptiveAnalysisPrompt.output", "ordered H2 section plan",
+            "Explicit user formatting takes precedence", "evidence-backed Markdown tables",
+            "complete user-facing Markdown report", "orders summary", "遵守业务口径")
+            .doesNotContain("machine-readable output shape", "claimAssessments", "anomaly degree multiplied");
+        assertThat(prompt.length()).isLessThan(4500);
+    }
 
     @Test
-    void makesPerDatasetContractsAuthoritativeAndRejectsFalseMissingDataClaims() {
-        String prompt = GovernedRecordFinalPromptBuilder.build(
-            "分析客户交易偏好", "遵守业务口径",
-            "livedata_assets summary\nlivedata_orders summary\nlivedata_profit summary");
-
-        assertThat(prompt)
-            .contains("workerAnalysisContext and templateMatchAnalysis")
-            .contains("agent_role_analysis_context attached to governed inputs")
-            .contains("management-level Driver reviewing completed Worker analysis reports")
-            .contains("do not restart from raw rows")
-            .contains("perform a management review of the Worker analyses")
-            .contains("specific improvement suggestions and prioritized next work directions")
-            .contains("supported-first reporting order")
-            .contains("does not invalidate exact current-period levels")
-            .contains("must contribute at least one substantive business finding")
-            .contains("business description, business scenarios and tags")
-            .contains("Account for every successful non-empty dataset")
-            .contains("omit irrelevant, rejected or merely catalog-like results")
-            .contains("never by query source, tool, search channel, chunk or execution view")
-            .contains("do not claim that a type of record is missing")
-            .contains("objective-aspect coverage matrix")
-            .contains("one-period observation or small sample")
-            .contains("A table of values, configuration inventory")
-            .contains("current state, declared baseline/comparable reference, material deviation")
-            .contains("Execute the shared analysisMethodologyContract and analysisTree")
-            .contains("question -> baseline -> overall observation -> decomposition")
-            .contains("anomaly degree multiplied by business impact")
-            .contains("Executive Summary (three to five ranked findings)")
-            .contains("Overall Performance, Key Drivers, Deep Dive")
-            .contains("do not present cumulative counters as current rates")
-            .contains("producer-returned metric at its declared grain is an observation")
-            .contains("do not claim that aggregation authorization is missing")
-            .contains("The model owns the analytical choice; Runtime owns execution and audit")
-            .contains("Runtime never decides that a numeric field should be summed")
-            .contains("Run a final coherence pass before returning")
-            .contains("one canonical value, unit, period, population and definition")
-            .contains("do not reproduce complete record tables")
-            .contains("livedata_orders summary")
-            .doesNotContain("Executed plan attempts");
+    void nullInputsDoNotLeakNullLiterals() {
+        assertThat(GovernedRecordFinalPromptBuilder.build(null, null, null))
+            .contains("complete user-facing Markdown report").doesNotContain("null");
     }
 }

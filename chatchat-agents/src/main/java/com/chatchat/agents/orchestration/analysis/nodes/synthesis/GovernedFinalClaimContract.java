@@ -462,16 +462,17 @@ final class GovernedFinalClaimContract {
     }
 
     String appendNarrativeInstruction(String prompt, Compilation compilation) {
+        List<Map<String, Object>> ledger = compilation == null
+            ? List.of()
+            : compilation.claims().values().stream().map(Claim::toPromptMap).toList();
         return (prompt == null ? "" : prompt)
             + "\n\nFinal deliverable: return only the complete model-authored Markdown report. "
             + "Choose its title, organization, depth, tables and explanatory narrative from the user's "
             + "question and available evidence. Do not return JSON, findings fields or a review form. "
-            + "Review definitions, calculations, evidence scope and consistency before responding. "
-            + "Keep qualifications beside the affected claims and distinguish observation from inference. "
             + "Runtime will publish this body without composing sections or filling business conclusions. "
+            + AnalysisSynthesisContract.narrativeCoherenceInstruction()
             + "The ledger below supplies evidence, not a required outline or a list to copy. "
-            + "Evidence provenance ledger: " + ModelProtocolJson.compact(compilation.claims().values()
-                .stream().map(Claim::toPromptMap).toList());
+            + "Evidence provenance ledger: " + ModelProtocolJson.compact(ledger);
     }
 
     Projection publishNarrative(String body, Compilation compilation) {

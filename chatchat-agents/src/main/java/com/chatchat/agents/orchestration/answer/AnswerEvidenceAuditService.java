@@ -49,11 +49,25 @@ final class AnswerEvidenceAuditService {
             metadata.put("evidenceWarningSuppressedForExecutionFailure", true);
             return answer;
         }
+        if (isModelAuthoredAnalysisReport(metadata)) {
+            metadata.put("answerEvidenceUserVisible", false);
+            metadata.put("evidenceWarningSuppressedForModelAuthoredReport", true);
+            return answer;
+        }
         if (answer != null && !answer.contains("证据完整性提示")) {
             return answer + "\n\n> **证据完整性提示**：部分关键结论尚未与本次返回证据逐条绑定，"
                 + "或引用无法核验。相关内容应视为待核验分析，不宜直接作为决策依据。";
         }
         return answer;
+    }
+
+    private boolean isModelAuthoredAnalysisReport(Map<String, Object> metadata) {
+        if ("MODEL_AUTHORED_MARKDOWN".equals(text(metadata.get("analysisReportGenerationMode")))) {
+            return true;
+        }
+        Object analyticalReport = metadata.get("analyticalReport");
+        return analyticalReport instanceof Map<?, ?> report
+            && "MODEL_REPORT_MARKDOWN".equals(text(report.get("publicationMode")));
     }
 
     String bindReturnedEvidence(String answer, Map<String, Object> metadata,

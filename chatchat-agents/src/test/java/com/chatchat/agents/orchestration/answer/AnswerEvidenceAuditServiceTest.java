@@ -10,6 +10,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class AnswerEvidenceAuditServiceTest {
     @Test
+    void modelAuthoredAnalysisAuditRecordsFailureWithoutChangingTheReportBody() {
+        var service = new AnswerEvidenceAuditService(
+            new AnswerEvidenceLedgerCompiler(), new AnswerUserFacingPolicy(null));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analyticalReport", Map.of("publicationMode", "MODEL_REPORT_MARKDOWN"));
+        String body = "# Model-authored report\n\nThe observed value is 42 [evidence: tool://missing#result=1].";
+
+        String result = service.attachLedger(body, metadata, List.of(), List.of());
+
+        assertThat(result).isEqualTo(body).doesNotContain("证据完整性提示");
+        assertThat(metadata).containsEntry("claimCoverageStatus", "FAIL")
+            .containsEntry("answerClaimAuditPassed", false)
+            .containsEntry("evidenceWarningSuppressedForModelAuthoredReport", true)
+            .containsEntry("answerEvidenceUserVisible", false);
+    }
+
+    @Test
     void repeatedAuditKeepsOneNoticeAndRetainsFailureStatus() {
         var service = new AnswerEvidenceAuditService(
             new AnswerEvidenceLedgerCompiler(), new AnswerUserFacingPolicy(null));

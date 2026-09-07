@@ -107,7 +107,16 @@ class FinalSynthesisNodeTest {
             new StructuredFindingMerger());
         Map<String, Object> metadata = new LinkedHashMap<>();
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("model answer");
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            String prompt = invocation.getArgument(0);
+            assertThat(prompt).contains(
+                "Presentation is free-form, but facts, evidence scope and reasoning order are constrained",
+                "decision question and evidence scope",
+                "same definition, unit, period, population and value",
+                "Any summary may compress the supporting analysis",
+                "Do not expose this internal checklist");
+            return "model answer";
+        });
 
         FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> "guarded answer", () -> "fallback", true));
@@ -923,10 +932,16 @@ class FinalSynthesisNodeTest {
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
             String prompt = invocation.getArgument(0);
             assertThat(prompt).contains("modelAnalysisInputs", "calibration and adjustment rules are undeclared",
-                "complete model-authored Markdown report", "Do not return JSON")
+                "complete model-authored Markdown report", "Do not return JSON",
+                "decision question and evidence scope",
+                "same definition, unit, period, population and value",
+                "Any summary may compress the supporting analysis",
+                "Resolve them", "before returning",
+                "Do not expose this internal checklist")
                 .doesNotContain("当日盈亏", "trading strategy", "asset, holding", "Trading turnover",
                     "Static size cannot establish subscriptions", "no Markdown data tables",
-                    "Return only one JSON object", "\"findings\":", "claimAssessments");
+                    "Return only one JSON object", "\"findings\":", "claimAssessments",
+                    "reportSections", "reportOrder", "insightBlockPolicy");
             return "# Model report\n\nMeasure is 42; adjustments are unknown.";
         });
         Map<String, Object> metadata = new LinkedHashMap<>();

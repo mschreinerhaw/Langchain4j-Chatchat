@@ -192,9 +192,8 @@ public final class FinalSynthesisNode {
             : request.prompt()
                 + "\n\nBinding report-composition pipeline context (not evidence): "
                 + ModelProtocolJson.compact(pipelineContext);
-        String modelPrompt = claimBoundPublication
-            ? finalClaimContract.appendNarrativeInstruction(driverPrompt, claimCompilation)
-            : driverPrompt;
+        String modelPrompt = finalClaimContract.appendNarrativeInstruction(
+            driverPrompt, claimCompilation);
         VerifiedReportDataCatalog reportData = VerifiedReportDataCatalog.fromRuntime(request.metadata());
         request.metadata().remove("analyticalReport");
         request.metadata().remove("claimAcceptance");
@@ -461,7 +460,14 @@ public final class FinalSynthesisNode {
             "conflictSet", "evidenceGapCount", "evidenceGaps", "evidenceGapPolicy",
             "activeRepairRequests")) {
             Object value = pipelineContext.get(key);
-            if (value != null) boundedContext.put(key, value);
+            if (value != null) {
+                Set<String> presentationKeys = "adaptiveAnalysisPrompt".equals(key)
+                    ? Set.of("output")
+                    : "analysisMethodology".equals(key)
+                        ? Set.of("reportSections", "reportOrder", "insightBlockPolicy")
+                        : Set.of();
+                boundedContext.put(key, omitPresentationDirectives(value, presentationKeys));
+            }
         }
         boundedContext.put("rawRecordAccess", "PROHIBITED");
         String question = String.valueOf(request.metadata().getOrDefault(
@@ -471,21 +477,39 @@ public final class FinalSynthesisNode {
             + "report from the model analysis inputs and declared source semantics, using the Claim ledger "
             + "as an evidence provenance index rather than a report outline. Preserve each "
             + "Claim's sample, period, confidence and caveats; do not replay raw tool output or execution "
-            + "chronology. Facts, calculations and evidence selection are already complete. Your task is "
-            + "to organize supported findings, explain their business meaning, expose only material "
+            + "chronology. Use the supplied analysis and evidence, and verify any calculation you present. "
+            + "Your task is to organize supported findings, explain their business meaning and expose material "
             + "limitations. Choose the report structure and tables yourself. If no "
             + "Claim is admitted, return a useful limited analysis and explicit human-review note "
             + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
             + "never treat their count as a publication veto. Write in the user's language. Do not expose "
             + "DRIVER_REVIEW, DRIVER_REASONING, DRIVER_DECISION, Claim IDs, Runtime status or governance diagnostics in the user-facing report. "
-            + "During the mandatory Driver review, qualify statements that infer intent, causality or persistent behavior from co-occurrence alone; use comparative labels without an evidence baseline; change a producer field's measurement basis; or expand a sample into a population claim. "
+            + "During your internal consistency review, qualify statements that infer intent, causality or persistent behavior from co-occurrence alone; use comparative labels without an evidence baseline; change a producer field's measurement basis; or expand a sample into a population claim. "
             + "Preserve producer-declared labels, definitions, units, measurement bases and inclusion/exclusion rules. "
             + "When any of these is undeclared, leave it unknown; never import a domain convention or reuse a definition from a similarly named field. "
-            + "Do not repeat the executive-summary paragraph as a section body; each section must add evidence, comparison, interpretation, or a bounded implication. "
-            + "Keep useful observed-period conclusions after narrowing them. Ensure the executive summary and every detail section use the same scope and claim strength.\n"
+            + "Do not repeat a summary paragraph as a section body; each section must add evidence, comparison, interpretation, or a bounded implication. "
+            + "Keep useful observed-period conclusions after narrowing them. Ensure any summary and its supporting detail use the same scope and claim strength.\n"
             + "User question: " + question + "\n"
             + "Bounded composition context (not factual evidence): "
             + ModelProtocolJson.compact(boundedContext);
+    }
+
+    private Object omitPresentationDirectives(Object source, Set<String> omittedKeys) {
+        if (source == null || omittedKeys.isEmpty()) return source;
+        if (source instanceof Map<?, ?> map) {
+            Map<String, Object> sanitized = new LinkedHashMap<>();
+            map.forEach((key, value) -> {
+                String name = String.valueOf(key);
+                if (!omittedKeys.contains(name)) {
+                    sanitized.put(name, omitPresentationDirectives(value, omittedKeys));
+                }
+            });
+            return sanitized;
+        }
+        if (source instanceof List<?> list) {
+            return list.stream().map(value -> omitPresentationDirectives(value, omittedKeys)).toList();
+        }
+        return source;
     }
 
     /**

@@ -16,8 +16,24 @@ public record PlannerValidationContext(
     String query,
     Map<String, Object> experiencePrior,
     AgentPlanBudgetPolicy.BudgetCaps budgetCaps,
-    Object authoritativeWorkflowDag
+    Object authoritativeWorkflowDag,
+    Object agentWorkflow
 ) {
+    public PlannerValidationContext(List<String> mandatoryTools,
+                                    boolean requireToolBeforeFinal,
+                                    boolean requireDocumentWebVerification,
+                                    String documentSearchTool,
+                                    String verificationWebSearchTool,
+                                    List<String> availableTools,
+                                    String query,
+                                    Map<String, Object> experiencePrior,
+                                    AgentPlanBudgetPolicy.BudgetCaps budgetCaps,
+                                    Object authoritativeWorkflowDag) {
+        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
+            documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
+            budgetCaps, authoritativeWorkflowDag, null);
+    }
+
     public PlannerValidationContext(List<String> mandatoryTools,
                                     boolean requireToolBeforeFinal,
                                     boolean requireDocumentWebVerification,
@@ -29,7 +45,7 @@ public record PlannerValidationContext(
                                     AgentPlanBudgetPolicy.BudgetCaps budgetCaps) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
             documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
-            budgetCaps, null);
+            budgetCaps, null, null);
     }
 
     public PlannerValidationContext(List<String> mandatoryTools,
@@ -42,7 +58,7 @@ public record PlannerValidationContext(
                                     Map<String, Object> experiencePrior) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
             documentSearchTool, verificationWebSearchTool, availableTools, query, experiencePrior,
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null, null);
     }
 
     public PlannerValidationContext(List<String> mandatoryTools,
@@ -54,6 +70,6 @@ public record PlannerValidationContext(
                                     String query) {
         this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
             documentSearchTool, verificationWebSearchTool, availableTools, query, Map.of(),
-            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null);
+            new AgentPlanBudgetPolicy.BudgetCaps(null, null, null), null, null);
     }
 }

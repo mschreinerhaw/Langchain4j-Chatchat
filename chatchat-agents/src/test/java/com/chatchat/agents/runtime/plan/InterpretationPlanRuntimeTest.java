@@ -50,6 +50,65 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRuntimeTest {
 
     @Test
+    void honorsAgentWorkflowAutoExecuteDuringPlanPreflight() {
+        String toolName = "mcp_chatchat_mcp_server_http_request_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).riskLevel("high").runtimeLevel("confirm_required").build());
+        AtomicInteger calls = new AtomicInteger();
+        PlanToolExecutionPort durablePort = command -> {
+            calls.incrementAndGet();
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("clusterMetrics", Map.of("totalNodes", 3))),
+                ToolMetadata.builder().id(toolName).build(), null, "success", Map.of());
+        };
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("analysis", "YARN metrics", "low"), context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName,
+                    Map.of("template", "yarn_metrics"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(), List.of(), 10_000),
+            review());
+        Map<String, Object> workflow = Map.of(
+            "enabled", true,
+            "steps", List.of(Map.of(
+                "tool", toolName,
+                "required", true,
+                "confirmation", "auto_execute")));
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), new InterpretationPlanOptimizer(),
+            null, null, scriptedController(List.of(List.of(1), List.of(2))), null, durablePort);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName), "tenant", "request-auto-execute",
+                "conversation", "user", Map.of("mcpWorkflow", workflow)));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.approvalRequired()).isFalse();
+        assertThat(calls.get()).isEqualTo(1);
+
+        Map<String, Object> confirmationWorkflow = Map.of(
+            "enabled", true,
+            "steps", List.of(Map.of(
+                "tool", toolName,
+                "required", true,
+                "confirmation", "ask_before_execute")));
+        InterpretationPlanRuntime.ExecutionResult confirmation = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(toolName), "tenant", "request-confirm",
+                "conversation", "user", Map.of("mcpWorkflow", confirmationWorkflow)));
+
+        assertThat(confirmation.success()).isFalse();
+        assertThat(confirmation.approvalRequired()).isTrue();
+        assertThat(calls.get()).isEqualTo(1);
+    }
+
+    @Test
     void routesRealPlanToolStepThroughSerializableExecutionPort() {
         String toolName = "customer_trade_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

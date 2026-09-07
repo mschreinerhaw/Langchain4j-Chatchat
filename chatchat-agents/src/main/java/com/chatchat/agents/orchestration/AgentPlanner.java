@@ -7,6 +7,7 @@ import com.chatchat.agents.orchestration.planning.selection.AgentPlanAttribution
 import com.chatchat.agents.orchestration.planning.model.PlanCandidate;
 import com.chatchat.agents.orchestration.planning.model.PlanRewriteContext;
 import com.chatchat.agents.orchestration.planning.model.PlannerValidationContext;
+import com.chatchat.agents.runtime.plan.AgentWorkflowApprovalPolicy;
 import com.chatchat.agents.orchestration.planning.generation.AgentPlannerPromptBuilder;
 import com.chatchat.agents.orchestration.planning.generation.InterpretationPlanPayloadNormalizer;
 import com.chatchat.agents.orchestration.planning.generation.NativeToolCallingPlanner;
@@ -190,7 +191,8 @@ public class AgentPlanner implements AgentPlanningPort {
             query,
             candidateScorer.experiencePrior(runtimeAttributes),
             AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
-            authoritativeWorkflowDagForPlanning(runtimeAttributes)
+            authoritativeWorkflowDagForPlanning(runtimeAttributes),
+            runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow")
         );
         var nativeDecision = RuntimeDesignatedFunctionCallingAdapter.decide(nativeToolCallingPlanner,
             toolRegistry, activeChatModel, query, systemPrompt, availableTools, observations,
@@ -492,6 +494,9 @@ public class AgentPlanner implements AgentPlanningPort {
             validationContext == null ? null : validationContext.budgetCaps()
         );
         interpretationPlan = budgetResult.plan();
+        interpretationPlan = AgentWorkflowApprovalPolicy.apply(
+            interpretationPlan,
+            validationContext == null ? null : validationContext.agentWorkflow());
         InterpretationPlan sourcePlan = interpretationPlan;
         InterpretationPlanOptimizer.OptimizationResult optimization =
             new InterpretationPlanOptimizer(toolRegistry).optimize(

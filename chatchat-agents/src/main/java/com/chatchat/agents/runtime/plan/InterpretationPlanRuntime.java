@@ -331,7 +331,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ? null : stringValue(request.attributes().get("authoritativeWorkflowTaskId"));
         InterpretationPlanOptimizer.OptimizationResult optimization = optimizer.optimize(
             request.plan(), authoritativeWorkflowDag);
-        InterpretationPlan executablePlan = optimization.plan() == null ? request.plan() : optimization.plan();
+        InterpretationPlan optimizedPlan = optimization.plan() == null ? request.plan() : optimization.plan();
+        Object agentWorkflow = request.attributes() == null ? null : request.attributes().get("mcpWorkflow");
+        InterpretationPlan executablePlan = AgentWorkflowApprovalPolicy.apply(optimizedPlan, agentWorkflow);
         String executionTraceId = executionTraceId(request, startedAt);
         InterpretationPlanValidator.ValidationResult validation = validator.validate(
             executablePlan,
@@ -341,6 +343,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             authoritativeWorkflowTaskId
         );
         Map<String, Object> executableAttributes = attributesWithProtocol(request.attributes(), executionTraceId);
+        List<String> workflowApprovedTools = AgentWorkflowApprovalPolicy.approvedTools(agentWorkflow);
+        if (!workflowApprovedTools.isEmpty()) {
+            executableAttributes.put("workflowPolicyApprovedTools", workflowApprovedTools);
+        }
         executableAttributes.put("dagRepair", optimization.repairResult().auditMetadata());
         executableAttributes.put("dagRepairValidationState", validation.valid() ? "ACCEPTED" : "REJECTED");
         ExecutionRequest executableRequest = request.withPlanAndAttributes(

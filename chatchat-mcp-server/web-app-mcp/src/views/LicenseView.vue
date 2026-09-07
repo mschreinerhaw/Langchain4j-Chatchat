@@ -29,7 +29,7 @@
           </div>
         </div>
         <div class="license-hero-meta">
-          <div><span>授权客户</span><strong>{{ customerDisplayName }}</strong><small>{{ customerDisplayCode }}</small></div>
+          <div><span>授权对象编码</span><strong>{{ customerCode }}</strong></div>
           <div><span>License 编号</span><strong class="license-number">{{ license.licenseNo || '未签发' }}</strong><small>签发于 {{ formatDate(license.issuedTime) }}</small></div>
         </div>
       </section>

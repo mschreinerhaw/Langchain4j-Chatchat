@@ -11,18 +11,7 @@ export default {
   data: () => ({ busy: false, status: {}, catalog: [] }),
   computed: {
     license() { return this.status.license || {}; },
-    customerDisplayName() {
-      const customer = String(this.license.customer || '').trim();
-      const customerCode = String(this.license.customerCode || '').trim();
-      return customer || customerCode || '未配置';
-    },
-    customerDisplayCode() {
-      const customer = String(this.license.customer || '').trim();
-      const customerCode = String(this.license.customerCode || '').trim();
-      if (customer && customerCode) return customerCode;
-      if (customerCode) return '授权对象编码';
-      return '暂无客户编号';
-    },
+    customerCode() { return String(this.license.customerCode || '').trim() || '-'; },
     statusType() {
       if (this.status.valid) return 'success';
       return this.status.status === 'NOT_INSTALLED' ? 'warning' : 'danger';

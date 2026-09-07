@@ -21,6 +21,11 @@ public class PythonAdminController {
         return ApiResponse.success(service.environments(published));
     }
 
+    @GetMapping("/environments/{id}")
+    public ApiResponse<?> environment(@PathVariable("id") String id) {
+        return ApiResponse.success(service.environmentState(id));
+    }
+
     @PostMapping("/environments")
     public ApiResponse<?> createEnvironment(@RequestBody PythonCapabilityService.EnvironmentRequest r) {
         return ApiResponse.success(service.saveEnvironment(r));

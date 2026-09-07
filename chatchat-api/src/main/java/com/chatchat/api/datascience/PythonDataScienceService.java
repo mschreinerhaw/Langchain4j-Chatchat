@@ -38,7 +38,9 @@ public class PythonDataScienceService {
     private final PythonSystemExampleCatalog exampleCatalog;
 
     public Workbench workbench(String tenant, String owner) {
-        return new Workbench(assetRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner), folderRepository.findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(tenant, owner), scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant, owner), executionRepository.findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(tenant, owner), dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner), exampleCatalog.list());
+        List<PythonAssetEntity> assets = assetRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner);
+        assets.forEach(this::applyMcpEnvironmentStatus);
+        return new Workbench(assets, folderRepository.findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(tenant, owner), scriptRepository.findByTenantIdAndOwnerIdOrderByUpdatedAtDesc(tenant, owner), executionRepository.findTop50ByTenantIdAndOwnerIdOrderByStartedAtDesc(tenant, owner), dataFileRepository.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(tenant, owner), exampleCatalog.list());
     }
 
     public List<McpPythonControlPlanePort.EnvironmentView> publishedEnvironments() {
@@ -51,6 +53,8 @@ public class PythonDataScienceService {
         requireText(request.name(), "环境名称不能为空");
         requireText(request.environmentId(), "必须选择 MCP 已发布环境");
         var env = mcp.environment(request.environmentId());
+        if (!"PUBLISHED".equalsIgnoreCase(or(env.status(), "")))
+            throw new IllegalArgumentException("必须选择 MCP 已发布环境");
         PythonAssetEntity asset = new PythonAssetEntity();
         asset.setTenantId(tenant);
         asset.setOwnerId(owner);
@@ -73,7 +77,7 @@ public class PythonDataScienceService {
         var result = mcp.provision(env.id(), tenant, owner, asset.getId());
         asset.setContainerName(result.containerName());
         asset.setWorkspacePath(result.workspacePath());
-        asset.setStatus(result.ready() ? "READY" : "DISABLED");
+        asset.setStatus(result.ready() ? "READY" : "FAILED");
         asset.setStatusMessage(result.ready() ? "MCP 隔离环境已就绪" : result.message());
         return assetRepository.save(asset);
     }
@@ -409,9 +413,40 @@ public class PythonDataScienceService {
 
     private PythonAssetEntity ownedReadyAsset(String id, String tenant, String owner) {
         PythonAssetEntity asset = assetRepository.findByIdAndTenantIdAndOwnerId(id, tenant, owner).orElseThrow(() -> new IllegalArgumentException("Python Asset 不存在或不属于当前用户"));
+        applyMcpEnvironmentStatus(asset);
         if (!"READY".equals(asset.getStatus()))
             throw new IllegalArgumentException("只有 READY 状态的 Python Asset 才能开发和发布");
         return asset;
+    }
+
+    /**
+     * MCP is authoritative for availability. Only an explicit negative state from
+     * MCP makes an asset unavailable; a missing or unknown response fails open.
+     */
+    private void applyMcpEnvironmentStatus(PythonAssetEntity asset) {
+        try {
+            var environment = mcp.environment(asset.getMcpEnvironmentId());
+            String status = effectiveAssetStatus(environment.status());
+            asset.setStatus(status);
+            asset.setStatusMessage("READY".equals(status)
+                    ? "MCP 环境状态正常"
+                    : "MCP 环境报告状态：" + environment.status());
+        } catch (RuntimeException ex) {
+            asset.setStatus("READY");
+            asset.setStatusMessage("MCP 未报告环境异常");
+            log.debug("MCP environment status unavailable; defaulting asset {} to READY: {}",
+                    asset.getId(), ex.getMessage());
+        }
+    }
+
+    static String effectiveAssetStatus(String mcpStatus) {
+        String normalized = mcpStatus == null ? "" : mcpStatus.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "DISABLED" -> "DISABLED";
+            case "FAILED", "ERROR", "UNAVAILABLE" -> "FAILED";
+            case "DRAFT", "CREATING", "PROVISIONING" -> "PROVISIONING";
+            default -> "READY";
+        };
     }
 
     private PythonScriptEntity ownedScript(String id, String tenant, String owner) {

@@ -30,6 +30,10 @@ public class PythonCapabilityService {
         return published ? environments.findByStatusOrderByNameAsc("PUBLISHED") : environments.findAllByOrderByUpdatedAtDesc();
     }
 
+    public PythonEnvironment environmentState(String id) {
+        return environment(id);
+    }
+
     @Transactional
     public PythonEnvironment saveEnvironment(EnvironmentRequest r) {
         if (r == null || blank(r.name()) || blank(r.dockerImage()))

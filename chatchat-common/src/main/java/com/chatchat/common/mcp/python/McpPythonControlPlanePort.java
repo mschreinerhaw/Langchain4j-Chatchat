@@ -10,6 +10,7 @@ public interface McpPythonControlPlanePort extends RuntimeProtocolPort {
     String PROTOCOL_VERSION = "runtime_os.mcp.python_control.v1";
 
     List<EnvironmentView> environments();
+    /** Returns the MCP-published state of an environment, including non-active states. */
     EnvironmentView environment(String id);
     ProvisionResult provision(String environmentId, String tenantId, String ownerId, String assetId);
     ExecutionResult preview(String environmentId, String tenantId, String ownerId, String assetId,

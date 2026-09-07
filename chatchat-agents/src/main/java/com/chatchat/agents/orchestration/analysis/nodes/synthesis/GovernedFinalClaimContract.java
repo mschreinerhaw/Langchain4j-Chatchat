@@ -468,13 +468,14 @@ final class GovernedFinalClaimContract {
         return (prompt == null ? "" : prompt)
             + "\n\nFinal deliverable: return only the complete model-authored Markdown report. "
             + "Choose its title, organization, depth, tables and explanatory narrative from the user's "
-            + "question and available evidence. Do not return JSON, findings fields or a review form. "
+            + "question and available evidence. Do not return JSON as the report envelope, findings fields or a review form. "
             + "When adaptiveAnalysisPrompt.output is supplied, use its order as localized H2 section guidance; "
             + "explicit user formatting takes precedence, overlapping sections may be combined and empty ones omitted. "
             + "Support important comparisons with compact Markdown tables, preserving labels, units, periods and "
             + "source values. Existing table controls can visualize those datasets without a computed dataRef. "
             + "Runtime will publish this body without composing sections or filling business conclusions. "
             + AnalysisSynthesisContract.narrativeCoherenceInstruction()
+            + com.chatchat.agents.orchestration.analysis.report.ReportVisualizationAudit.instruction()
             + "The ledger below supplies evidence, not a required outline or a list to copy. "
             + "Evidence provenance ledger: " + ModelProtocolJson.compact(ledger);
     }
@@ -487,72 +488,10 @@ final class GovernedFinalClaimContract {
                     "modelAnalysisPreserved", true, "bindingStatus", "PENDING_SENTENCE_LEVEL_AUDIT")));
     }
 
+    /** Compatibility entry point: new generations always author Markdown, even for legacy callers. */
     String appendSelectionInstruction(String prompt, Compilation compilation) {
-        if (compilation == null || compilation.claims().isEmpty()) return prompt;
-        List<Map<String, Object>> ledger = compilation.claims().values().stream()
-            .map(Claim::toPromptMap).toList();
-        return (prompt == null ? "" : prompt)
-            + "\n\nBinding final-analysis protocol: Worker/Reducer reports are the primary analytical "
-            + "input. The ledger is an evidence provenance index, not a whitelist of permitted "
-            + "business meanings and not the report itself. You are the analysis model and own "
-            + "selection of metrics, compatible records, formulas, aggregations, comparisons, "
-            + "interpretation, conclusion strength and narrative coherence. Runtime will preserve "
-            + "your findings and only audit whether declared basisClaimIds exist. "
-            + "Analyze every useful row or field available for the user's question. One usable row "
-            + "still requires a bounded factual analysis. Missing history limits trend claims only; "
-            + "it must not erase current-period scale, ranking, composition or other available facts. "
-            + "You may calculate sums, shares, averages, changes, rankings and other derived metrics "
-            + "when you determine the records and definitions are compatible. State the calculation "
-            + "scope or formula in the finding, cite the closest evidence claim IDs, and never invent "
-            + "source values. Do not infer product meaning from an identifier unless evidence supplies it. "
-            + "Before returning, perform a strict self-review of metric definition and unit, time range, "
-            + "population/denominator, conclusion strength, cross-section consistency, and the evidence "
-            + "for every recommended action. A sample cannot become a long-term habit or market-wide "
-            + "rule. Put a qualification beside the affected conclusion, never in a later section that "
-            + "contradicts it. Remove duplicates, empty sections and workflow commentary. "
-            + "Write a report, not a concatenation of source descriptions: combine complementary "
-            + "question-relevant Claims from complementary datasets into "
-            + "question-level findings whenever they answer the same business question. Do not repeat "
-            + "the CORE conclusion verbatim in a detail section. Each detail section must add evidence, "
-            + "comparison, interpretation or implication. Describe behavior only for the observed period; "
-            + "a lack of longer history limits persistence claims but does not erase observed behavior. "
-            + "Return useful conclusions first, followed by supporting analysis, business implications, "
-            + "local limitations and next actions. Do not replace analysis with a list of missing data. "
-            + "reportMarkdown is required; Runtime never composes report prose from findings. "
-            + "reportMarkdown is the deliverable the user reads: author it as a complete professional "
-            + "analysis report in Markdown (headings, tables where useful), directly answering the "
-            + "decision question, consistent with your findings and their basis Claims, with each "
-            + "qualification placed beside the affected conclusion. findings remain the machine-readable "
-            + "evidence binding for the same content, not a substitute for the report. "
-            + "driverReview.claimAssessments must contain exactly one entry for every claimId in the "
-            + "evidence ledger, including claims not selected for the report. Use verdict ACCEPT, DOWNGRADE "
-            + "or REJECT with a reason; never leave this array empty when the ledger is non-empty. "
-            + "Review coverage and finding selection are separate: omission from the report is not omission from review. "
-            + "Return only one JSON object. Use this shape: "
-            + "{\"schemaVersion\":\"" + SCHEMA_VERSION + "\"," 
-            + "\"reportMarkdown\":\"the complete professional report in Markdown\","
-            + "\"driverReview\":{\"status\":\"PASS|CHALLENGE\"," 
-            + "\"requirementCoverage\":[],\"claimConsistency\":[],\"evidenceSufficiency\":{},"
-            + "\"crossWorkerConflicts\":[],\"duplicateEvidence\":[],\"unsupportedInferences\":[],"
-            + "\"missingCriticalDimensions\":[],\"claimAssessments\":[{\"claimId\":\"known-id\","
-            + "\"verdict\":\"ACCEPT|DOWNGRADE|REJECT\",\"reason\":\"review of this claim\"}],\"challenges\":[]},"
-            + "\"driverReasoning\":{\"derivedClaims\":[]},"
-            + "\"findings\":[{\"section\":\"CORE|OVERALL|KEY_DRIVER|DEEP_DIVE|RISK_OPPORTUNITY|LIMITATION|ACTION\"," 
-            + "\"text\":\"complete readable analytical conclusion\",\"basisClaimIds\":[\"known-id\"],"
-            + "\"question\":\"\",\"baseline\":\"\",\"comparison\":\"\","
-            + "\"driver\":\"\",\"implication\":\"\",\"confidence\":\"\","
-            + "\"dataRef\":\"\",\"visualizationIntent\":\"\"}],"
-            + "\"coverage\":[],\"analysisItemCoverage\":[],"
-            + "\"demandAnalysis\":{\"decisionGoal\":\"\",\"priorityQuestions\":[]},"
-            + "\"metricAssociations\":[],"
-            + "\"managementReview\":{\"overallAssessment\":null,\"identifiedProblems\":[],"
-            + "\"improvementSuggestions\":[],\"nextWorkDirections\":[]}}. "
-            + "Each finding must contain at least one known basisClaimId. CORE must directly answer "
-            + "the user's decision question and must not be stronger than its detailed support. "
-            + AnalysisSynthesisContract.instruction()
-            + "Evidence provenance ledger: " + ModelProtocolJson.compact(ledger);
+        return appendNarrativeInstruction(prompt, compilation);
     }
-
     private Projection withheld(String reason) {
         return new Projection(false, reason, "", List.of());
     }

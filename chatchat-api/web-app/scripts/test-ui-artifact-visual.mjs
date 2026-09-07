@@ -39,7 +39,15 @@ try {
   await page.goto(`http://127.0.0.1:${port}/tests/ui-artifact-regression.html`, { waitUntil: "networkidle" });
   await page.locator('[data-case="panel"] canvas').waitFor({ state: "visible" });
 
-  assert(await page.locator(".regression-case").count() === 17, "回归夹具数量不完整");
+  assert(await page.locator(".regression-case").count() === 18, "回归夹具数量不完整");
+  await page.locator('[data-case="inline-model-report"] canvas').waitFor({ state: "visible" });
+  assert(await page.locator('[data-case="inline-model-report"] .report-inline-visualization').count() === 2,
+    "模型图表与指标卡未混排展示");
+  assert(await page.locator('[data-case="inline-model-report"] pre').count() === 0, "模型图表仍显示为JSON代码");
+  assert((await page.locator('[data-case="inline-model-report"]').textContent()).includes("横轴："),
+    "编译后的排名图未使用横向数值轴");
+  assert((await page.locator('[data-case="inline-model-report"]').textContent()).includes("结合资金需求核对可用余额"),
+    "图表渲染丢失了正文后续章节");
   assert(await page.locator(".query-result-table-card:not(.query-result-multi-dataset-card) table").count() === 9, "所有可恢复输入都应形成可用表格");
   assert(await page.locator(".query-result-chart-button").count() === 10, "单表及多表可视化入口数量不正确");
   assert(await page.locator("text=|---|---|---:|").count() === 0, "旧管道表格仍显示为原始文本");

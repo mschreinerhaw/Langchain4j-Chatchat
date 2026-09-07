@@ -9,6 +9,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DynamicAnalysisPromptContractTest {
+    @Test void genericFallbackNeverLoadsAnIndustryProfileFromKeywords() {
+        var assets = DynamicAnalysisPromptContract.fallback("分析客户资产持仓", Map.of());
+        assertThat(assets.toMap()).containsEntry("analysisType", "GENERIC").doesNotContainKey("domainFocus");
+        assertThat(assets.compile()).doesNotContain("资产总览与关键指标", "持仓明细与盈亏表现", "资产配置与集中度");
+        assertThat(DynamicAnalysisPromptContract.fallback("分析成交交易", Map.of()).compile())
+            .doesNotContain("交易总览与关键指标", "成交结构与期间表现", "区分委托与成交");
+        assertThat(DynamicAnalysisPromptContract.fallback("分析服务器容量", Map.of()).compile())
+            .doesNotContain("持仓", "成交", "资产配置");
+    }
     @Test void validatesAndCompilesGuidanceWithoutExecutionAuthority() {
         var contract = DynamicAnalysisPromptContract.from(Map.of(
             "schemaVersion", DynamicAnalysisPromptContract.SCHEMA_VERSION,

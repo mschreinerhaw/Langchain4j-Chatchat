@@ -1,0 +1,35 @@
+[
+  {
+    "analysisType": "FINANCIAL_ASSETS",
+    "name": "金融资产与持仓分析",
+    "description": "用于分析金融资产、证券持仓、盈亏及配置结构，不适用于设备资产或通用数据分析。",
+    "guidance": {
+      "focus": ["资产总览：保持币种、期间和原始计量口径", "持仓与盈亏：区分已实现、浮动与期间盈亏", "配置与集中度：使用已声明分类并说明分母范围", "资金与流动性：区分可用资金和资产市值，建议关联具体发现"],
+      "methodology": ["OBSERVE", "DECOMPOSE", "CONTRIBUTION", "RANK", "ASSESS_IMPACT"],
+      "output": ["EXECUTIVE_SUMMARY", "OVERALL_PERFORMANCE", "DEEP_DIVE", "KEY_DRIVERS", "RECOMMENDED_ACTIONS", "LIMITATIONS"],
+      "sectionTitles": {"EXECUTIVE_SUMMARY": "核心结论", "OVERALL_PERFORMANCE": "资产总览与关键指标", "DEEP_DIVE": "持仓明细与盈亏表现", "KEY_DRIVERS": "资产配置与集中度", "RECOMMENDED_ACTIONS": "后续关注与条件性建议", "LIMITATIONS": "数据范围与限制"}
+    }
+  },
+  {
+    "analysisType": "FINANCIAL_TRADING",
+    "name": "金融交易分析",
+    "description": "用于分析金融成交结构、交易活动与期间表现，不适用于一般订单、数据库事务或接口性能分析。",
+    "guidance": {
+      "focus": ["交易总览：区分委托与成交，明确统计期间", "交易结构：按已声明方向、品种与时间拆解", "贡献比较：保持金额、数量和盈亏口径", "行为边界：单期描述观察活动，有历史才比较变化"],
+      "methodology": ["OBSERVE", "COMPARE", "DECOMPOSE", "CONTRIBUTION"],
+      "output": ["EXECUTIVE_SUMMARY", "OVERALL_PERFORMANCE", "DEEP_DIVE", "KEY_DRIVERS", "RECOMMENDED_ACTIONS", "LIMITATIONS"],
+      "sectionTitles": {"EXECUTIVE_SUMMARY": "核心结论", "OVERALL_PERFORMANCE": "交易总览与关键指标", "DEEP_DIVE": "成交结构与期间表现", "KEY_DRIVERS": "交易分布与贡献", "RECOMMENDED_ACTIONS": "后续关注与条件性建议", "LIMITATIONS": "数据范围与限制"}
+    }
+  },
+  {
+    "analysisType": "FINANCIAL_ASSETS_AND_TRADING",
+    "name": "金融资产与交易综合分析",
+    "description": "用于同时分析金融资产持仓与交易活动，跨数据集比较须有兼容口径和声明的关系。",
+    "guidance": {
+      "focus": ["资产、持仓与交易分别明确计量和期间口径", "结合已声明关系分析配置、盈亏与成交结构", "区分观察事实与可能解释，行动关联已有发现"],
+      "methodology": ["OBSERVE", "DECOMPOSE", "COMPARE", "CROSS_VALIDATE", "ASSESS_IMPACT"],
+      "output": ["EXECUTIVE_SUMMARY", "OVERALL_PERFORMANCE", "DEEP_DIVE", "KEY_DRIVERS", "RECOMMENDED_ACTIONS", "LIMITATIONS"],
+      "sectionTitles": {"EXECUTIVE_SUMMARY": "核心结论", "OVERALL_PERFORMANCE": "资产与交易总览", "DEEP_DIVE": "持仓盈亏与成交表现", "KEY_DRIVERS": "配置结构与交易贡献", "RECOMMENDED_ACTIONS": "后续关注与条件性建议", "LIMITATIONS": "数据范围与限制"}
+    }
+  }
+]

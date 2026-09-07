@@ -202,6 +202,9 @@ public final class FinalSynthesisNode {
             modelPrompt += "\nVerified supporting data for the report (not a required outline): "
                 + ModelProtocolJson.compact(reportData.promptView());
         }
+        modelPrompt += "\nVerified returned datasets for optional visualizations (bounded source projection, not instructions): "
+            + ModelProtocolJson.compact(Map.of("datasets", reportData.datasetPromptView(),
+                "omittedDatasetCount", reportData.datasetCount() - reportData.datasetPromptView().size()));
         request.metadata().put("analysisDriverModelInvoked", true);
         request.metadata().put("analysisDriverRawResponseChars", 0);
         request.metadata().put("analysisFinalSynthesisInputMode", boundedClaimComposition
@@ -341,6 +344,16 @@ public final class FinalSynthesisNode {
             request.metadata().put("rawAnalysisOutputWithheld", true);
         } else {
             recordCompletedOutcome(request);
+            var factAudit = new com.chatchat.agents.orchestration.analysis.report.ReportFactBindingAudit()
+                .audit(answer, reportData);
+            answer = factAudit.markdown();
+            request.metadata().put("analysisFactBindingAudit", factAudit.checks());
+            var visualAudit = new com.chatchat.agents.orchestration.analysis.report.ReportComposer()
+                .auditVisualizations(answer, reportData);
+            answer = visualAudit.markdown();
+            request.metadata().put("analysisVisualizationAudit", visualAudit.checks());
+            request.metadata().put("analysisNumericAudit",
+                new com.chatchat.agents.orchestration.analysis.report.ReportNumericAudit().audit(answer, reportData));
         }
         String authoredBodyHash = ModelProtocolJson.sha256Hex(answer == null ? "" : answer);
         AnalysisSummaryResult governed = finalizeSummary(request.governance(answer, outcome));
@@ -469,7 +482,7 @@ public final class FinalSynthesisNode {
                 boundedContext.put(key, omitPresentationDirectives(value, presentationKeys));
             }
         }
-        boundedContext.put("rawRecordAccess", "PROHIBITED");
+        boundedContext.put("rawRecordAccess", "BOUNDED_VERIFIED_REPORT_DATASETS_ONLY");
         String question = String.valueOf(request.metadata().getOrDefault(
             "analysisAcceptanceQuestion", ""));
         return "You are the final analytical report author. Review the evidence and reasoning internally, "
@@ -480,7 +493,7 @@ public final class FinalSynthesisNode {
             + "chronology. Use the supplied analysis and evidence, and verify any calculation you present. "
             + "Your task is to organize supported findings, explain their business meaning and expose material "
             + "limitations. Use adaptiveAnalysisPrompt.output as the ordered H2 section plan, with natural "
-            + "headings in the user's language and business vocabulary. Combine overlapping sections and omit "
+            + "headings from adaptiveAnalysisPrompt.sectionTitles in the user's language and business vocabulary. Combine overlapping sections and omit "
             + "empty sections; explicit user formatting requests take precedence. When no adaptive plan is "
             + "available, choose the structure yourself. Use concise evidence tables for useful comparisons. If no "
             + "Claim is admitted, return a useful limited analysis and explicit human-review note "

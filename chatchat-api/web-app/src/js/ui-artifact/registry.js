@@ -4,6 +4,7 @@ import { defineRegistry } from "@json-render/vue";
 import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
 import { enterpriseUiCatalog } from "./catalog.js";
 import AnalyticalReport from "../../components/AnalyticalReport.vue";
+import ReportMarkdown from "../../components/ReportMarkdown.vue";
 import { enhanceResultTables } from "../utils/resultTableEnhancer.js";
 import { normalizeArtifactHtml } from "../utils/artifactHtmlNormalizer.js";
 import { isInternalDocumentRef, stripInternalDocumentRefs } from "../utils/internalDocumentRefs.js";
@@ -93,8 +94,9 @@ export function renderArtifactHtml(value = "") {
   return collapseRecordCoverageEvidenceHtml(collapseToolExecutionEvidenceHtml(rendered));
 }
 
-const MarkdownResource = resourceComponent("ArtifactMarkdown", (value) =>
-  h("section", { class: "artifact-markdown message-markdown", innerHTML: renderArtifactMarkdownHtml(value) })
+const MarkdownResource = resourceComponent("ArtifactMarkdown", (value, props, dispatch) =>
+  h(ReportMarkdown, { class: "artifact-markdown message-markdown", content: String(value || ""),
+    renderMarkdown: renderArtifactMarkdownHtml, onDrillDown: (payload) => dispatch?.("drill-down", payload) })
 );
 
 const AnalyticalReportResource = resourceComponent("ArtifactAnalyticalReport", (value, props, dispatchArtifactEvent) =>

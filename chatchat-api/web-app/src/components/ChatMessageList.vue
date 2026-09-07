@@ -138,12 +138,14 @@
           @drill-down="handleVisualizationDrillDown(message, $event)"
           @table-chart="openChartAnalysisModal"
         />
-        <div
+        <ReportMarkdown
           v-else-if="messageHasRenderableContent(message)"
           class="message-markdown"
-          v-html="renderMarkdown(message.content, message)"
+          :content="message.content || ''"
+          :render-markdown="(content) => renderMarkdown(content, message, content !== String(message.content || ''))"
+          @drill-down="handleVisualizationDrillDown(message, $event)"
           @click="handleMarkdownClick"
-        ></div>
+        />
         <section
           v-if="message.role === 'assistant' && !message.streaming && metadataTableCatalog(message).rows.length"
           class="metadata-catalog-section"

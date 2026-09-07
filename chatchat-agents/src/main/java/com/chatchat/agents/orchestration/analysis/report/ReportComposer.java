@@ -10,6 +10,11 @@ public final class ReportComposer {
     private final VisualizationPlanningContract planner = new VisualizationPlanningContract();
     private final ChartDataExecutor executor = new ChartDataExecutor();
 
+    /** Optional visual enrichment is audited independently from model-authored business prose. */
+    public ReportVisualizationAudit.Result auditVisualizations(String markdown, VerifiedReportDataCatalog catalog) {
+        return new ReportVisualizationAudit().audit(markdown, catalog);
+    }
+
     public AnalyticalInsightBlock compose(String id, String section, String question, String observation,
         String interpretation, String implication, String confidence, List<String> caveats,
         List<Map<String, Object>> evidence, String dataRef, String intent, VerifiedReportDataCatalog catalog) {

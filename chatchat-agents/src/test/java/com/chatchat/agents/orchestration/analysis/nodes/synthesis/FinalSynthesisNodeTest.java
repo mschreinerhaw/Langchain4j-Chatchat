@@ -983,6 +983,35 @@ class FinalSynthesisNodeTest {
         verify(model).chat(any(String.class));
     }
 
+    @Test
+    void auditsInlineVisualizationOnActualPublicationPathWithoutRegeneratingTheReport() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
+        var model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            assertThat((String) invocation.getArgument(0)).contains("returned:1", "visualization_spec.v2");
+            return """
+                # 报告
+                正文数值为42。
+                ```json
+                {"visualizationSpec":{"chartType":"bar","dataset":{"sourceRef":"returned:1","xKey":"name",
+                "series":[{"name":"value","yKey":"value"}],"rows":[{"name":"A","value":999}]}}}
+                ```
+                后续行动。
+                """;
+        });
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        metadata.put("runtimeReturnedReportDatasets", List.of(
+            com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture("returned:1",
+                List.of(Map.of("name", "A", "value", 42)))));
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("正文数值为42", "后续行动", "已省略图表").doesNotContain("999");
+        assertThat(metadata).containsKey("analysisVisualizationAudit").containsKey("analysisNumericAudit");
+        verify(model).chat(any(String.class));
+    }
+
     private AnalysisSummaryResult claimSummary() {
         Map<String, Object> insight = Map.of(
             "claimId", "claim-1",

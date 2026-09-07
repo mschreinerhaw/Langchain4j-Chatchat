@@ -1,6 +1,7 @@
 import MarkdownIt from "markdown-it";
 import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, RefreshCw, Trash2, TriangleAlert, Wrench } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
+import ReportMarkdown from "../../components/ReportMarkdown.vue";
 import { defineAsyncComponent } from "vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
@@ -101,6 +102,7 @@ export default {
   name: "ChatMessageList",
   mixins: [chartAnalysisMixin],
   components: {
+    ReportMarkdown,
     Check,
     ChevronDown,
     ChevronRight,
@@ -626,9 +628,9 @@ export default {
       }
       return `完成（${this.runtimeToolCalls(message).length} 项）`;
     },
-    renderMarkdown(content, message = {}) {
+    renderMarkdown(content, message = {}, fragment = false) {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
-      const uiContract = this.uiRenderContract(message, prepared.content);
+      const uiContract = fragment ? null : this.uiRenderContract(message, prepared.content);
       if (uiContract) {
         const rendered = stripWebCitationMarkersFromHtml(
           this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls), prepared.pages)

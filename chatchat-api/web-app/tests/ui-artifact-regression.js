@@ -8,6 +8,7 @@ import { stripInternalDocumentRefs } from "../src/js/utils/internalDocumentRefs.
 import { normalizeMarkdownTables } from "../src/js/utils/markdownTableNormalizer.js";
 import ChatMessageList from "../src/js/components/ChatMessageList.js";
 import VisualizationRenderer from "../src/components/VisualizationRenderer.vue";
+import ReportMarkdown from "../src/components/ReportMarkdown.vue";
 import PlanDagGraph from "../src/components/PlanDagGraph.vue";
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
@@ -153,7 +154,23 @@ document.querySelector("#app").innerHTML = `
   <section class="regression-case chart-gallery" data-case="metrics"><div class="regression-case-label">关键指标卡</div><div id="metrics"></div></section>
   <section class="regression-case" data-case="panel"><div class="regression-case-label">组合分析面板</div><div id="panel"></div></section>
   <section class="regression-case" data-case="interactive-plan-dag"><div class="regression-case-label">可拖动智能体计划图</div><div id="interactive-plan-dag"></div></section>
+  <section class="regression-case" data-case="inline-model-report"><div class="regression-case-label">模型正文与已核验图表混排</div><div id="inline-model-report"></div></section>
 `;
+
+const inlineSpec = {
+  schemaVersion: "visualization_spec.v2", validationStatus: "VERIFIED_SOURCE_DATA", type: "chart", chartType: "bar",
+  title: "本次持仓盈亏排名", scope: "仅对应返回样本，非业务总体", orientation: "horizontal",
+  dataset: { sourceRef: "returned:1", xKey: "对象", series: [{ name: "盈亏", yKey: "盈亏", unit: "元" }],
+    rows: [{ 对象: "B", 盈亏: 30 }, { 对象: "A", 盈亏: -12 }] }
+};
+const inlineKpi = { ...inlineSpec, type: "metric", chartType: "kpi", title: "可用资金",
+  metrics: [{ label: "可用资金", value: 42 }],
+  dataset: { ...inlineSpec.dataset, rows: [{ 对象: "可用资金", 盈亏: 42 }] } };
+createApp(ReportMarkdown, {
+  content: ["## 核心发现", "样本中 A 浮亏12、B 浮盈30。", "```json", JSON.stringify({ visualizationSpec: inlineSpec }),
+    "```", "## 后续关注", "结合资金需求核对可用余额。", "```json", JSON.stringify({ visualizationSpec: inlineKpi }), "```"].join("\n\n"),
+  renderMarkdown: renderReport
+}).mount("#inline-model-report");
 
 function mountVisualization(selector, spec) {
   createApp(VisualizationRenderer, { spec }).mount(selector);

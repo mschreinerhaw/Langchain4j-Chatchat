@@ -14,6 +14,13 @@ class GovernedFinalClaimContractTest {
     private final GovernedFinalClaimContract contract = new GovernedFinalClaimContract();
 
     @Test
+    void legacyPromptEntryAlsoUsesMarkdownWithoutPerClaimReviewForms() {
+        String prompt = contract.appendSelectionInstruction("original", contract.compile(List.of(summary())));
+        assertThat(prompt).contains("complete model-authored Markdown report", "visualization_spec.v2")
+            .doesNotContain("claimAssessments", "Return only one JSON object", "driverReview");
+    }
+
+    @Test
     void legacyClaimSelectionRequiresAModelAuthoredBody() {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
 

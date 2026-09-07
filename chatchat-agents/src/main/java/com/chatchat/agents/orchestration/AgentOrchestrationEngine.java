@@ -2344,6 +2344,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
     }
 
+    @Autowired(required = false)
+    public void setDomainAnalysisProfileProvider(com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider provider) {
+        this.analysisCoverageCoordinator.setDomainAnalysisProfileProvider(provider);
+    }
+
     /** Returns whether trace recovery contributes evidence absent from the executed plan chain. */
     boolean hasAdditionalRecoveredEvidence(
         InterpretationPlanRuntime.ExecutionResult latest,

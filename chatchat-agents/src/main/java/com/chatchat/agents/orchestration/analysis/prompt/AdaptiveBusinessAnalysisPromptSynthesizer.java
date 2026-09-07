@@ -21,7 +21,13 @@ import java.util.Optional;
 /** One bounded, cached prompt-planning call per question, never per dataset chunk. */
 public final class AdaptiveBusinessAnalysisPromptSynthesizer {
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final String CHECKPOINT_KEY = "adaptive_business_analysis_prompt:v1";
+    private static final String CHECKPOINT_KEY = "adaptive_business_analysis_prompt:v4";
+    private final DomainAnalysisProfileProvider profiles;
+
+    public AdaptiveBusinessAnalysisPromptSynthesizer() { this(DomainAnalysisProfileProvider.empty()); }
+    public AdaptiveBusinessAnalysisPromptSynthesizer(DomainAnalysisProfileProvider profiles) {
+        this.profiles = profiles == null ? DomainAnalysisProfileProvider.empty() : profiles;
+    }
     private static final int MAX_MODEL_INPUT_CHARS = 18_000;
     private static final int MAX_DATASETS = 50;
     private static final int MAX_FIELDS_PER_DATASET = 40;
@@ -32,17 +38,32 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
         Map<String, Object> role = commonRole(datasets);
         Optional<DynamicAnalysisPromptContract> fixed = fixedContract(datasets);
         if (fixed.isPresent()) return record(fixed.get(), "FIXED_GOVERNED", 0, metadata);
+        Object declaredType = declaredType(datasets, metadata);
+        List<DomainAnalysisProfileProvider.Profile> available;
+        try {
+            available = List.copyOf(profiles.profiles(scope.tenantId()));
+            metadata.put("domainProfileLoadStatus", "LOADED");
+        }
+        catch (RuntimeException unavailable) {
+            if (unavailable instanceof java.util.concurrent.CancellationException) throw unavailable;
+            metadata.put("domainProfileLoadStatus", "UNAVAILABLE_GENERIC_FALLBACK");
+            available = List.of();
+        }
         // A second model call cannot specialize anything when producers supplied no role,
         // business intent or semantic metadata. Compile the safe generic contract directly.
-        if (!hasPlanningMetadata(datasets, role)) {
-            return record(DynamicAnalysisPromptContract.fallback(question, role),
+        if (!hasPlanningMetadata(datasets, role) && (available.isEmpty() || model == null)) {
+            return record(fallback(question, role, declaredType, available),
                 "SAFE_FALLBACK", 0, metadata);
         }
 
-        Map<String, Object> input = planningInput(question, datasets, role);
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("availableDomainProfiles", available.stream().map(DomainAnalysisProfileProvider.Profile::catalogEntry).toList());
+        if (declaredType != null) input.put("declaredAnalysisType", AnalysisPromptScaffoldRegistry.normalize(declaredType));
+        input.putAll(planningInput(question, datasets, role));
         String fingerprint = ModelProtocolJson.sha256Hex(Map.of(
             "schemaVersion", DynamicAnalysisPromptContract.SCHEMA_VERSION,
             "input", input,
+            "profileSnapshot", available,
             "model", String.valueOf(metadata.getOrDefault("modelName", ""))));
         Optional<String> restored = checkpoints.readCheckpoint(scope, CHECKPOINT_KEY, fingerprint);
         if (restored.isPresent()) {
@@ -53,13 +74,16 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
                 metadata.put("adaptiveAnalysisPromptInvalidCheckpoint", true);
             }
         }
-        if (model == null) return record(DynamicAnalysisPromptContract.fallback(question, role),
+        if (model == null) return record(fallback(question, role, declaredType, available),
             "SAFE_FALLBACK", 0, metadata);
 
         String prompt = buildPrompt(input);
         guard.run();
         try {
-            DynamicAnalysisPromptContract contract = DynamicAnalysisPromptContract.from(parse(model.chat(prompt)));
+            Map<String, Object> planned = parse(model.chat(prompt));
+            Object selectedType = declaredType == null ? planned.get("analysisType") : declaredType;
+            DynamicAnalysisPromptContract contract = DynamicAnalysisPromptContract.from(
+                AnalysisPromptScaffoldRegistry.apply(planned, selectedType, available));
             checkpoints.checkpoint(scope, CHECKPOINT_KEY, fingerprint, ModelProtocolJson.compact(contract.toMap()));
             return record(contract, "MODEL_SYNTHESIZED", 1, metadata);
         } catch (java.util.concurrent.CancellationException failure) {
@@ -67,7 +91,7 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
         } catch (RuntimeException malformedOrUnavailable) {
             guard.run();
             metadata.put("adaptiveAnalysisPromptFallbackReason", malformedOrUnavailable.getClass().getSimpleName());
-            return record(DynamicAnalysisPromptContract.fallback(question, role),
+            return record(fallback(question, role, declaredType, available),
                 "SAFE_FALLBACK", 1, metadata);
         }
     }
@@ -78,6 +102,7 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
         metadata.put("adaptiveAnalysisPromptContract", contract.toMap());
         metadata.put("adaptiveAnalysisPromptSha256", ModelProtocolJson.sha256Hex(contract.toMap()));
         metadata.put("adaptiveAnalysisPromptModelCalls", calls);
+        metadata.put("adaptiveAnalysisPromptType", contract.toMap().get("analysisType"));
         return new Result(contract, contract.compile(), mode, calls);
     }
 
@@ -134,7 +159,12 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
             + "then conditional actions. Treat domain knowledge as a source of questions, not evidence or metric definitions. "
             + "The contract only guides how the later model reasons; Runtime alone decides legal execution. "
             + "Return JSON only: {schemaVersion:'dynamic_analysis_prompt.v1',role:{name,perspective,responsibilities:[]},"
-            + "objective:{goal,decision},methodology:[],focus:[],constraints:[],evidenceRequirements:[],output:[]}. "
+            + "objective:{goal,decision},analysisType:'GENERIC',methodology:[],focus:[],constraints:[],evidenceRequirements:[],output:[],sectionTitles:{}}. "
+            + "First select analysisType from availableDomainProfiles according to this question's actual decision objective, or GENERIC. "
+            + "Respect declaredAnalysisType when supplied; absent, disabled or unknown profiles use GENERIC. "
+            + "Incidental words in role, field or dataset names do not establish the analysis type. "
+            + "Runtime loads only the selected database profile after planning; the catalog descriptions are guidance, not evidence. "
+            + "sectionTitles maps selected output enum keys to concise localized business headings. "
             + "methodology values must come from OBSERVE, BASELINE, COMPARE, DECOMPOSE, CONTRIBUTION, RANK, TREND, DISTRIBUTION, CORRELATION, CROSS_VALIDATE, EXPLAIN, ASSESS_IMPACT. "
             + "output values must come from EXECUTIVE_SUMMARY, OVERALL_PERFORMANCE, KEY_FINDINGS, KEY_DRIVERS, DEEP_DIVE, RISKS_AND_OPPORTUNITIES, RECOMMENDED_ACTIONS, LIMITATIONS. "
             + "Require the later model to analyze every supported part even with partial evidence, calibrate claims to sample/time/population, preserve metric definitions, prevent cross-section contradictions, and trace actions to findings. "
@@ -156,6 +186,27 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
             }
         }
         return Optional.empty();
+    }
+
+    private Object declaredType(List<Dataset> datasets, Map<String, Object> metadata) {
+        if (metadata.containsKey("analysisType")) return AnalysisPromptScaffoldRegistry.normalize(metadata.get("analysisType"));
+        var types = new java.util.LinkedHashSet<String>();
+        for (Dataset dataset : datasets == null ? List.<Dataset>of() : datasets) {
+            if (dataset.analysisContext().containsKey("analysisType")) {
+                types.add(AnalysisPromptScaffoldRegistry.normalize(dataset.analysisContext().get("analysisType")));
+            }
+        }
+        return types.isEmpty() ? null : types.size() == 1 ? types.iterator().next() : "GENERIC";
+    }
+
+    private DynamicAnalysisPromptContract fallback(String question, Map<String, Object> role, Object declaredType,
+                                                   List<DomainAnalysisProfileProvider.Profile> available) {
+        Map<String, Object> generic = new LinkedHashMap<>(DynamicAnalysisPromptContract.fallback(question, role).toMap());
+        if (!"GENERIC".equals(AnalysisPromptScaffoldRegistry.normalize(declaredType))) {
+            generic.remove("output");
+            generic.remove("focus");
+        }
+        return DynamicAnalysisPromptContract.from(AnalysisPromptScaffoldRegistry.apply(generic, declaredType, available));
     }
 
     private Map<String, Object> commonRole(List<Dataset> datasets) {

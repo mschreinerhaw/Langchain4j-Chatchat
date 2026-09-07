@@ -18,6 +18,11 @@ import java.util.function.Supplier;
 
 /** Question-scoped interpretation with bounded evidence reads; no per-dataset model reports. */
 public final class UnifiedQuestionAnalysisGraph {
+    private final com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider profiles;
+    public UnifiedQuestionAnalysisGraph() { this(com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider.empty()); }
+    public UnifiedQuestionAnalysisGraph(com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider profiles) {
+        this.profiles = profiles;
+    }
     private static final String VERSION = "unified_question_analysis.v1";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAX_INPUT_TOKENS = 12_000;
@@ -65,7 +70,7 @@ public final class UnifiedQuestionAnalysisGraph {
                 return AnalysisExecutionGraph.Status.READY;
             }),
             new AnalysisExecutionGraph.Step("prompt_synthesis", () -> {
-                adaptivePrompt[0] = new AdaptiveBusinessAnalysisPromptSynthesizer().synthesize(
+                adaptivePrompt[0] = new AdaptiveBusinessAnalysisPromptSynthesizer(profiles).synthesize(
                     question, sources, model, scope, checkpoints, metadata, guard);
                 plan.put("adaptivePromptContractSha256", metadata.get("adaptiveAnalysisPromptSha256"));
                 plan.put("adaptivePromptMode", metadata.get("adaptiveAnalysisPromptMode"));

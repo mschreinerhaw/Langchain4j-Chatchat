@@ -58,6 +58,12 @@ public final class DynamicAnalysisPromptContract {
         result.put("constraints", constraints);
         result.put("evidenceRequirements", evidenceRequirements);
         result.put("output", output);
+        result.put("analysisType", AnalysisPromptScaffoldRegistry.normalize(supplied.get("analysisType")));
+        if (supplied.get("domainProfileRevision") instanceof Number revision) result.put("domainProfileRevision", revision.longValue());
+        List<String> domainFocus = items(supplied.get("domainFocus"));
+        if (!domainFocus.isEmpty()) result.put("domainFocus", domainFocus);
+        Map<String, Object> titles = normalizedObject(supplied.get("sectionTitles"), output, false);
+        if (!titles.isEmpty()) result.put("sectionTitles", titles);
         result.put("executionBoundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE");
         if (compact(result).length() > MAX_CONTRACT_CHARS) {
             throw new IllegalArgumentException("Dynamic analysis prompt contract exceeds size limit");
@@ -95,9 +101,11 @@ public final class DynamicAnalysisPromptContract {
             + "Business objective and intended decision: " + compact(value.get("objective")) + "\n"
             + "Preferred analytical methods: " + compact(value.get("methodology")) + "\n"
             + "Question-specific focus: " + compact(value.get("focus")) + "\n"
+            + (value.containsKey("domainFocus") ? "Type-specific analytical questions: " + compact(value.get("domainFocus")) + "\n" : "")
             + "Analytical constraints: " + compact(value.get("constraints")) + "\n"
             + "Evidence requirements: " + compact(value.get("evidenceRequirements")) + "\n"
             + "Requested report structure: " + compact(value.get("output")) + "\n"
+            + "Suggested business headings: " + compact(value.getOrDefault("sectionTitles", Map.of())) + "\n"
             + "Use the requested report structure as ordered H2 guidance, localizing headings to the user's language and business context. "
             + "Explicit user formatting takes precedence; combine overlapping sections and omit empty ones. "
             + "Apply methods supported by the evidence; explain each material finding through fact, reasoning and bounded business implication. ";

@@ -165,7 +165,7 @@ function normalizeRows(spec = {}) {
 }
 
 function normalizeMetrics(metrics, rows = [], type = "") {
-  if ((type === "metric" || type === "metrics") && rows.length) {
+  if ((type === "metric" || type === "metrics") && rows.length && !metrics) {
     return rows.map((row, index) => ({
       label: row.metric || row.label || row.name || `Metric ${index + 1}`,
       value: row.value ?? row.amount ?? "",

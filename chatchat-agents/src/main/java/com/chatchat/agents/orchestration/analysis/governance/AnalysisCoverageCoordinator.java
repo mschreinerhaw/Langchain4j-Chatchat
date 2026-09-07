@@ -47,6 +47,12 @@ public final class AnalysisCoverageCoordinator {
         new AnalysisGovernanceStateCoordinator();
     private final Configuration configuration;
     private AnalysisEvidenceSpillStore spillStore;
+    private com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider profiles =
+        com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider.empty();
+
+    public void setDomainAnalysisProfileProvider(com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider provider) {
+        this.profiles = provider == null ? com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider.empty() : provider;
+    }
 
     public AnalysisCoverageCoordinator(
         AgentRunResultAdapter resultAdapter,
@@ -126,7 +132,7 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
         observe(request, "已启动数据分析图，全部 " + datasets.size() + " 个数据集共同参与规划、计算和结论生成。",
             "analysis_graph", metadataOf("type", "unified_question_analysis_started", "datasetCount", datasets.size(), "modelTaskCount", 1));
-        var outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph().execute(
+        var outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(profiles).execute(
             request.query(), datasets, computation, request.model(), request.isolationScope(),
             request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
         lifecycle = lifecycle.datasetsDispatched(datasets.size());
@@ -181,6 +187,8 @@ public final class AnalysisCoverageCoordinator {
         List<Map<String, Object>> insightResults = new ArrayList<>();
         List<com.chatchat.agents.orchestration.analysis.report.ObservedReportData> observedData = new ArrayList<>();
         request.metadata().put("runtimeObservedReportData", List.of());
+        List<com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset> reportDatasets = new ArrayList<>();
+        request.metadata().put("runtimeReturnedReportDatasets", List.of());
         List<Map<String, Object>> insightDecisions = new ArrayList<>();
         List<Map<String, Object>> presentationViews = new ArrayList<>();
         List<Map<String, Object>> failures = new ArrayList<>();
@@ -224,6 +232,11 @@ public final class AnalysisCoverageCoordinator {
             AnalysisDatasetSummary summary = outcome.summary();
             counters.analyzed++;
             request.isolationScope().requireSamePartition(summary.datasetSummary().isolationScope());
+            if (reportDatasets.size() < 12) {
+                reportDatasets.add(com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture(
+                    reference, dataset.records(), dataset.analysisContext()));
+                request.metadata().put("runtimeReturnedReportDatasets", List.copyOf(reportDatasets));
+            }
             if ("PYTHON_JSON_STDOUT_RECORDS".equals(dataset.analysisContext().get("projectionMode"))) {
                 observedData.addAll(com.chatchat.agents.orchestration.analysis.report.ObservedReportData.capture(
                     reference, dataset.records()));

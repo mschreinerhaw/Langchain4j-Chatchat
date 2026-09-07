@@ -26,7 +26,12 @@ public final class VerifiedReportDataCatalog {
     }
 
     private final Map<String, Data> entries;
-    private VerifiedReportDataCatalog(Map<String, Data> entries) { this.entries = Map.copyOf(entries); }
+    private final Map<String, ReturnedReportDataset> datasets;
+    private VerifiedReportDataCatalog(Map<String, Data> entries) { this(entries, Map.of()); }
+    private VerifiedReportDataCatalog(Map<String, Data> entries, Map<String, ReturnedReportDataset> datasets) {
+        this.entries = Map.copyOf(entries);
+        this.datasets = Map.copyOf(datasets);
+    }
     public static VerifiedReportDataCatalog empty() { return new VerifiedReportDataCatalog(Map.of()); }
 
     public static VerifiedReportDataCatalog fromRuntime(Map<String, Object> metadata) {
@@ -70,10 +75,31 @@ public final class VerifiedReportDataCatalog {
                     "Exact returned value; no computation or inferred unit", List.of(observed.recordRef()), List.of()));
             }
         }
-        return new VerifiedReportDataCatalog(entries);
+        Map<String, ReturnedReportDataset> datasets = new LinkedHashMap<>();
+        if (metadata.get("runtimeReturnedReportDatasets") instanceof List<?> returned) {
+            for (Object raw : returned) {
+                if (datasets.size() >= 12) break;
+                if (raw instanceof ReturnedReportDataset dataset) datasets.putIfAbsent(dataset.reference(), dataset);
+            }
+        }
+        return new VerifiedReportDataCatalog(entries, datasets);
     }
 
     public Data get(String id) { return entries.get(id); }
+    public ReturnedReportDataset dataset(String reference) { return datasets.get(reference); }
+    public List<Map<String, Object>> datasetPromptView() {
+        List<Map<String, Object>> projected = new ArrayList<>();
+        int characters = 0;
+        for (var dataset : datasets.values().stream().sorted(java.util.Comparator.comparing(ReturnedReportDataset::reference)).toList()) {
+            Map<String, Object> view = dataset.promptView();
+            int size = com.chatchat.agents.protocol.ModelProtocolJson.compact(view).length();
+            if (characters + size > 32000) break;
+            projected.add(view);
+            characters += size;
+        }
+        return List.copyOf(projected);
+    }
+    public int datasetCount() { return datasets.size(); }
     public List<Map<String, Object>> promptView() {
         return entries.values().stream().sorted(java.util.Comparator.comparing(Data::id)).map(Data::toMap).toList();
     }

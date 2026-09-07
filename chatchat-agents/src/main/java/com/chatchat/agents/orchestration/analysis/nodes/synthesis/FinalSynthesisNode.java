@@ -13,7 +13,6 @@ import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProto
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisExecutionOutcomeRecorder;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGovernanceCoordinator;
-import com.chatchat.agents.orchestration.analysis.governance.GovernedGlobalSynthesisPolicy;
 import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.protocol.ModelProtocolJson;
@@ -205,6 +204,7 @@ public final class FinalSynthesisNode {
                 + ModelProtocolJson.compact(reportData.promptView());
         }
         request.metadata().put("analysisDriverModelInvoked", true);
+        request.metadata().put("analysisDriverRawResponseChars", 0);
         request.metadata().put("analysisFinalSynthesisInputMode", boundedClaimComposition
             ? "ADMITTED_CLAIMS_AND_BOUNDED_COMPOSITION_CONTEXT"
             : "COMPATIBILITY_EVIDENCE_PROMPT");
@@ -222,6 +222,7 @@ public final class FinalSynthesisNode {
         GovernedFinalClaimContract.DriverAudit driverAudit = null;
         try {
             answer = request.model().chat(modelPrompt);
+            request.metadata().put("analysisDriverRawResponseChars", answer == null ? 0 : answer.length());
             if (claimBoundPublication) {
                 driverAudit = finalClaimContract.inspectDriverAudit(answer, claimCompilation,
                     claimSources.stream().map(AnalysisSummaryResult::resultId).toList());
@@ -234,29 +235,10 @@ public final class FinalSynthesisNode {
                 ex.getClass().getName(), safeMessage(ex));
             request.metadata().put("interpretationPlanSummaryGenerated", false);
             request.metadata().put("interpretationPlanSummaryFailure", safeMessage(ex));
-            if (claimBoundPublication) {
-                GovernedFinalClaimContract.Projection projection =
-                    finalClaimContract.project("", claimCompilation);
-                answer = projection.markdown();
-                outcome = "DETERMINISTIC_CLAIM_BOUND_FINAL_SUMMARY";
-                request.metadata().put("finalClaimSelectionAccepted", false);
-                request.metadata().put("finalClaimSelectionReason",
-                    "FINAL_MODEL_FAILED_" + projection.reason());
-                request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
-                request.metadata().put("interpretationPlanDeterministicClaimFallback", true);
-            } else {
-                if (!request.fallbackAllowed()) {
-                    request.metadata().putIfAbsent("executionStatus", "NO_PRESENTABLE_RESULT");
-                    return new FinalSynthesisResult("", null, false);
-                }
-                outcome = "DETERMINISTIC_FINAL_FALLBACK";
-                request.metadata().put("interpretationPlanDeterministicSummaryFallback", true);
-                // Publish the fallback marker before constructing the fallback. Presentation governance
-                // must know that the candidate is not a model-authored global synthesis, otherwise a
-                // long serialized tool envelope can be misclassified as narrative analysis.
-                answer = request.fallbackSupplier().get();
-                request.metadata().putIfAbsent("executionStatus", "PARTIAL_RESULT_PRESENTED");
-            }
+            // Only the model may author the final report. Let the same-data repair path
+            // handle failures; never publish a claim inventory or a runtime fallback body.
+            answer = "";
+            outcome = "MODEL_FINAL_REPORT_UNAVAILABLE";
         }
 
         if (claimBoundPublication) {
@@ -276,41 +258,39 @@ public final class FinalSynthesisNode {
             }
         }
 
-        if (!"DETERMINISTIC_FINAL_FALLBACK".equals(outcome)) {
-            if (claimBoundPublication) {
-                GovernedFinalClaimContract.Projection projection =
-                    finalClaimContract.project(answer, claimCompilation, reportData);
-                boolean partialDelivery = "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(projection.reason());
-                if (!projection.modelSelectionAccepted() && !partialDelivery) {
-                    recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
-                }
-                answer = projection.markdown();
-                outcome = partialDelivery ? "CLAIM_BOUND_PARTIAL_SUMMARY" : projection.modelSelectionAccepted()
-                    ? "CLAIM_BOUND_FINAL_SUMMARY"
-                    : "DETERMINISTIC_CLAIM_SUMMARY_WITH_REVIEW_NOTES";
-                request.metadata().put("finalClaimSelectionAccepted",
-                    projection.modelSelectionAccepted());
-                request.metadata().put("finalClaimSelectionReason", projection.reason());
-                request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
-                if ((projection.modelSelectionAccepted() || partialDelivery)
-                    && projection.analyticalReport().containsKey("blocks")) {
-                    request.metadata().put("analyticalReport", projection.analyticalReport());
-                }
-                if (projection.analyticalReport().containsKey("claimAcceptance")) {
-                    request.metadata().put("claimAcceptance", projection.analyticalReport().get("claimAcceptance"));
-                }
-                request.metadata().put("claimAcceptanceGraphNodes", projection.analyticalReport().getOrDefault("acceptanceGraphNodes", List.of()));
-                log.info("analysisDriverGovernance runId={} stage={} admitted={} reason={} "
-                        + "publishedClaimCount={}",
-                    request.runId(), request.stage(), projection.modelSelectionAccepted(),
-                    projection.reason(), projection.selectedClaimIds().size());
-            } else {
-                answer = request.postProcessor().apply(answer);
+        if (claimBoundPublication) {
+            GovernedFinalClaimContract.Projection projection =
+                finalClaimContract.project(answer, claimCompilation, reportData);
+            boolean partialDelivery = "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(projection.reason());
+            if (!projection.modelSelectionAccepted() && !partialDelivery) {
+                recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
             }
-            if (answer == null || answer.isBlank()) {
-                answer = request.emptyModelFallback();
-                outcome = "MODEL_EMPTY_RUNTIME_FINAL_FALLBACK";
+            answer = projection.markdown();
+            outcome = partialDelivery ? "CLAIM_BOUND_PARTIAL_SUMMARY" : projection.modelSelectionAccepted()
+                ? "CLAIM_BOUND_FINAL_SUMMARY"
+                : "MODEL_FINAL_REPORT_REPAIR_REQUIRED";
+            request.metadata().put("finalClaimSelectionAccepted",
+                projection.modelSelectionAccepted());
+            request.metadata().put("finalClaimSelectionReason", projection.reason());
+            request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
+            if ((projection.modelSelectionAccepted() || partialDelivery)
+                && projection.analyticalReport().containsKey("blocks")) {
+                request.metadata().put("analyticalReport", projection.analyticalReport());
             }
+            if (projection.analyticalReport().containsKey("claimAcceptance")) {
+                request.metadata().put("claimAcceptance", projection.analyticalReport().get("claimAcceptance"));
+            }
+            request.metadata().put("claimAcceptanceGraphNodes", projection.analyticalReport().getOrDefault("acceptanceGraphNodes", List.of()));
+            log.info("analysisDriverGovernance runId={} stage={} admitted={} reason={} "
+                    + "publishedClaimCount={}",
+                request.runId(), request.stage(), projection.modelSelectionAccepted(),
+                projection.reason(), projection.selectedClaimIds().size());
+        } else {
+            answer = request.postProcessor().apply(answer);
+        }
+        if (answer == null || answer.isBlank()) {
+            answer = "";
+            outcome = "MODEL_FINAL_REPORT_REPAIR_REQUIRED";
         }
         AnalysisOutputAdmissionPolicy.Admission admission =
             AnalysisOutputAdmissionPolicy.admit(answer);
@@ -345,6 +325,7 @@ public final class FinalSynthesisNode {
         } else {
             recordCompletedOutcome(request);
         }
+        String authoredBodyHash = ModelProtocolJson.sha256Hex(answer == null ? "" : answer);
         AnalysisSummaryResult governed = finalizeSummary(request.governance(answer, outcome));
         List<String> publishedClaimIds = strings(request.metadata().get("finalPublishedClaimIds"));
         DataAnalysisLayerGovernanceContract.Admission driverAdmission =
@@ -405,6 +386,12 @@ public final class FinalSynthesisNode {
             DataAnalysisLineageGraph.SCHEMA_VERSION);
         request.metadata().put("analysisSummaryResult", governed.toMap());
         answer = governed.content();
+        boolean bodyPreserved = authoredBodyHash.equals(ModelProtocolJson.sha256Hex(answer == null ? "" : answer));
+        request.metadata().put("analysisReportBodyPreserved", bodyPreserved);
+        request.metadata().put("analysisReportBodySha256", ModelProtocolJson.sha256Hex(answer == null ? "" : answer));
+        log.info("analysisReportPublication runId={} outcome={} rawResponseChars={} reportChars={} bodyPreserved={}",
+            request.runId(), outcome, request.metadata().getOrDefault("analysisDriverRawResponseChars", 0),
+            answer == null ? 0 : answer.length(), bodyPreserved);
         if (admission.admitted()) {
             if (claimBoundPublication) {
                 recordFinalReportContract(request, answer);
@@ -454,7 +441,7 @@ public final class FinalSynthesisNode {
         boundedContext.put("schemaVersion", "analysis_report_composer_context.v1");
         for (String key : List.of("analysisObjective", "analysisMethodology", "analysisTree",
             "methodologyExecutionPolicy", AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
-            "adaptiveAnalysisPrompt",
+            "adaptiveAnalysisPrompt", "modelAnalysisInputs",
             "conflictSet", "evidenceGapCount", "evidenceGaps", "evidenceGapPolicy",
             "activeRepairRequests")) {
             Object value = pipelineContext.get(key);
@@ -465,7 +452,8 @@ public final class FinalSynthesisNode {
             "analysisAcceptanceQuestion", ""));
         return "You are the final analytical report composer. DRIVER_REVIEW, DRIVER_REASONING and "
             + "DRIVER_DECISION are mandatory. Compose one coherent, decision-useful "
-            + "report from the admitted Claim ledger supplied by the binding contract. Preserve each "
+            + "report from the model analysis inputs and declared source semantics, using the Claim ledger "
+            + "as an evidence provenance index rather than a report outline. Preserve each "
             + "Claim's sample, period, confidence and caveats; do not replay raw tool output or execution "
             + "chronology. Facts, calculations and evidence selection are already complete. Your task is "
             + "to organize supported findings, explain their business meaning, expose only material "
@@ -474,8 +462,9 @@ public final class FinalSynthesisNode {
             + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
             + "never treat their count as a publication veto. Write in the user's language. Do not expose "
             + "DRIVER_REVIEW, DRIVER_REASONING, DRIVER_DECISION, Claim IDs, Runtime status or governance diagnostics in the user-facing report. "
-            + "During the mandatory Driver review, downgrade or omit any statement that infers intent, motive, causality or a named trading strategy from co-occurrence alone; uses high/low/extreme/healthy/normal without an evidence baseline; changes a producer field's realization basis; or expands a sample into a habitual or long-term trait. "
-            + "Preserve neutral producer labels when their realization basis is not declared: for example, 当日盈亏 must remain 当日盈亏 and must not become 当日实现盈亏. "
+            + "During the mandatory Driver review, qualify statements that infer intent, causality or persistent behavior from co-occurrence alone; use comparative labels without an evidence baseline; change a producer field's measurement basis; or expand a sample into a population claim. "
+            + "Preserve producer-declared labels, definitions, units, measurement bases and inclusion/exclusion rules. "
+            + "When any of these is undeclared, leave it unknown; never import a domain convention or reuse a definition from a similarly named field. "
             + "Do not repeat the executive-summary paragraph as a section body; each section must add evidence, comparison, interpretation, or a bounded implication. "
             + "Keep useful observed-period conclusions after narrowing them. Ensure the executive summary and every detail section use the same scope and claim strength.\n"
             + "User question: " + question + "\n"
@@ -484,10 +473,8 @@ public final class FinalSynthesisNode {
     }
 
     /**
-     * Recovers a business analysis from the already acquired evidence. Governance findings are
-     * annotations for the human reviewer; they must not turn an otherwise useful lower-layer
-     * analysis into a publication veto. Raw runtime envelopes and internal instructions remain
-     * ineligible because they are not analysis products at all.
+     * Asks the model to recover the complete report using already acquired evidence.
+     * A failed repair never falls back to concatenating lower-layer reports or claim fields.
      */
     private AnalysisRecovery recoverAnalysisNarrative(FinalModelSynthesisRequest request,
                                                        String originalPrompt,
@@ -502,7 +489,9 @@ public final class FinalSynthesisNode {
             + "material observations, explain their meaning, review lower-layer mistakes, and give "
             + "prioritized recommendations. Evidence gaps and REVIEW_REQUIRED items are advisory labels "
             + "for human judgment, never a reason to suppress the report. Return only the analysis; do "
-            + "not repeat prompts, runtime instructions, tool envelopes or publication-governance status.";
+            + "not repeat prompts, runtime instructions, tool envelopes or publication-governance status. "
+            + "This repair supersedes the JSON output format above: return the complete report as "
+            + "Markdown only, not JSON or a findings list. Runtime will not assemble a report for you.";
         try {
             String repaired = request.model().chat(repairPrompt);
             repaired = request.postProcessor().apply(repaired);
@@ -519,129 +508,25 @@ public final class FinalSynthesisNode {
                 request.runId(), request.stage(), ex.getClass().getName(), safeMessage(ex));
         }
 
-        List<AnalysisSummaryResult> candidates = request.synthesisInputs().isEmpty()
-            ? request.summaryResults() : request.synthesisInputs();
-        List<String> reports = candidates.stream()
-            .map(AnalysisSummaryResult::content)
-            .filter(content -> content != null && !content.isBlank())
-            .filter(content -> AnalysisOutputAdmissionPolicy.admitWorkerNarrative(content).admitted())
-            .distinct().limit(8).toList();
-        if (reports.isEmpty()) return AnalysisRecovery.none(rejectionReason);
-        String content = "# 数据分析结论\n\n" + String.join("\n\n", reports)
-            + "\n\n> 分析审阅提示：以上内容来自已完成的 Worker/Reducer 分析，Driver 输出异常，"
-            + "证据强弱与未确定项已保留供人工复核；该提示不构成发布阻断。";
-        return new AnalysisRecovery(true, content,
-            "LOWER_LAYER_ANALYSIS_WITH_HUMAN_REVIEW", "GOVERNED_LOWER_LAYER_REPORTS",
-            rejectionReason);
+        return AnalysisRecovery.none(rejectionReason);
     }
 
-    /** Applies the governed Worker narrative and lossless coverage fallback before publication. */
+    /** Preserve the final model body; coverage and source records belong in metadata. */
     public String presentGovernedAnalysis(String answer, PresentationRequest request) {
-        if (request.returnedRecordCount() == 0) {
-            AnalysisOutputAdmissionPolicy.Admission admission =
-                AnalysisOutputAdmissionPolicy.admit(answer);
-            if (admission.admitted()) return answer;
-            recordWithheld(request, admission.reason());
-            return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
-        }
-        String governedAnswer = governedNarrative(answer, request);
-        if (Boolean.TRUE.equals(request.metadata().get("rawAnalysisOutputWithheld"))) {
-            // A fail-closed decision must be terminal for presentation. Appending the raw coverage
-            // appendix here would recreate the exact publication leak that the admission gate
-            // rejected above.
-            return governedAnswer;
-        }
-        boolean everyRecordReferenced = !request.iterative()
-            && request.recordValueGroups().stream()
-                .allMatch(values -> containsAnyConcreteValue(governedAnswer, values));
-        if (everyRecordReferenced && !request.iterative() && request.sourceContentComplete()) {
-            return governedAnswer;
-        }
-        long governedSummaryCount = request.summaryResults().stream()
-            .filter(summary -> java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(summary.outcome()))
-            .filter(summary -> summary.content() != null && !summary.content().isBlank())
-            .count();
-        if (request.coverageComplete() && request.evidenceTraceComplete()
-            && request.sourceContentComplete() && governedSummaryCount > 0) {
-            request.metadata().put("recordAnalysisCoverageAppendixApplied", false);
-            request.metadata().put("recordAnalysisNarrativeCoverageApplied", true);
-            request.metadata().put("recordAnalysisEveryRecordReferencedByModel", everyRecordReferenced);
-            request.metadata().put("recordAnalysisGovernedSummaryCount", governedSummaryCount);
-            return governedAnswer;
-        }
         request.metadata().put("recordAnalysisCoverageAppendixApplied", false);
-        request.metadata().put("recordAnalysisDataFallbackApplied", true);
-        request.metadata().put("recordAnalysisEveryRecordReferencedByModel", everyRecordReferenced);
-        String limitation = !request.coverageComplete()
-            ? "\n\n> 限制：部分已返回数据未完成分析，当前结论仅基于已处理数据。"
-            : !request.sourceContentComplete()
-                ? "\n\n> 限制：以上结果仅基于已返回的预览数据，不能代表完整源数据。"
-                : "";
-        return firstNonBlank(governedAnswer, "") + "\n\n## 已返回数据\n\n"
-            + request.appendix() + limitation;
-    }
-
-    private String governedNarrative(String answer, PresentationRequest request) {
-        if (GovernedGlobalSynthesisPolicy.retain(answer, request.coverageComplete(),
-            request.evidenceTraceComplete(), request.metadata())) return answer.trim();
-        List<AnalysisSummaryResult> preferred = request.synthesisInputs().isEmpty()
-            ? request.summaryResults() : request.synthesisInputs();
-        Set<String> modelSummaryIds = request.summaryResults().stream()
-            .filter(summary -> java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(summary.outcome()))
-            .map(AnalysisSummaryResult::resultId).collect(java.util.stream.Collectors.toSet());
-        List<AnalysisSummaryResult> modelSummaries = preferred.stream()
-            .filter(summary -> summary.outcome().startsWith("MODEL_")
-                || java.util.Set.of("MODEL_SUMMARY", "UNIFIED_FINDING_VALIDATION").contains(summary.outcome())
-                || summary.inputSummaryResultIds().stream().anyMatch(modelSummaryIds::contains))
-            .filter(summary -> summary.content() != null && !summary.content().isBlank())
-            .collect(java.util.stream.Collectors.toMap(
-                AnalysisSummaryResult::resultId, java.util.function.Function.identity(),
-                (first, ignored) -> first, LinkedHashMap::new))
-            .values().stream().toList();
-        if (modelSummaries.isEmpty()) {
-            request.metadata().put("governedNarrativeAnalysisUnavailable", true);
-            request.metadata().put("returnedDataAnalysisRequired", true);
-            AnalysisOutputAdmissionPolicy.Admission admission =
-                AnalysisOutputAdmissionPolicy.admit(answer);
-            boolean modelNarrative = admission.admitted()
-                && !Boolean.TRUE.equals(request.metadata()
-                    .get("interpretationPlanDeterministicSummaryFallback"));
-            if (modelNarrative) {
-                // Worker lineage is preferred, but a final model can still produce a legitimate
-                // narrative for ordinary document/tool evidence. The accident boundary is raw
-                // protocol publication, not the absence of a particular implementation lineage.
-                request.metadata().put("ungovernedCandidateWithheld", false);
-                request.metadata().put("analysisOutputAdmissionReason", admission.reason());
-                request.metadata().put("analysisOutputAdmitted", true);
-                return answer.trim();
-            }
-            request.metadata().put("ungovernedCandidateWithheld", true);
-            request.metadata().put("analysisOutputAdmissionReason",
-                admission.admitted()
-                    ? "DETERMINISTIC_OUTPUT_WITHOUT_GOVERNED_ANALYSIS" : admission.reason());
-            request.metadata().put("analysisOutputAdmitted", false);
-            request.metadata().put("rawAnalysisOutputWithheld", true);
+        if (Boolean.TRUE.equals(request.metadata().get("rawAnalysisOutputWithheld"))) {
             return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
         }
-        StringBuilder narrative = new StringBuilder("\n\n## 数据分析总结\n\n");
-        for (AnalysisSummaryResult summary : modelSummaries) {
-            String dataset = text(summary.position().get("datasetReference"));
-            String displayName = text(map(summary.analysisContext().get("source")).get("displayName"));
-            if (modelSummaries.size() > 1 || (dataset != null && !dataset.isBlank())) {
-                narrative.append("### ").append(firstNonBlank(displayName,
-                    firstNonBlank(dataset, "数据集分析"))).append("\n\n");
-            }
-            narrative.append(summary.content().trim()).append("\n\n");
+        AnalysisOutputAdmissionPolicy.Admission admission = AnalysisOutputAdmissionPolicy.admit(answer);
+        if (!admission.admitted()
+            || Boolean.TRUE.equals(request.metadata().get("interpretationPlanDeterministicSummaryFallback"))) {
+            recordWithheld(request, admission.admitted()
+                ? "MODEL_AUTHORED_REPORT_REQUIRED" : admission.reason());
+            return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
         }
-        request.metadata().put("governedNarrativeAnalysisAppended", true);
-        request.metadata().put("governedNarrativeAnalysisReplacedOperationalDraft", true);
-        request.metadata().put("returnedDataAnalysisRequired", true);
-        request.metadata().put("ungovernedCandidateWithheld", true);
-        request.metadata().put("governedNarrativeAnalysisSummaryCount", modelSummaries.size());
-        request.metadata().put("governedNarrativeAnalysisSource",
-            request.synthesisInputs().isEmpty()
-                ? "CHUNK_COMPATIBILITY_FALLBACK" : "DRIVER_SYNTHESIS_INPUTS");
-        return narrative.toString().trim();
+        request.metadata().put("analysisOutputAdmissionReason", admission.reason());
+        request.metadata().put("analysisOutputAdmitted", true);
+        return answer;
     }
 
     private void recordWithheld(PresentationRequest request, String reason) {
@@ -676,6 +561,10 @@ public final class FinalSynthesisNode {
             audit == null ? 0 : audit.challenges().size(),
             audit == null ? 0 : audit.derivedClaims().size(),
             audit == null ? "DRIVER_REVIEW_NOT_COMPLETED" : audit.reason());
+        if (audit != null && !audit.valid() && !audit.review().isEmpty()) {
+            log.info("analysisDriverReviewDiagnostics runId={} diagnostics={}",
+                request.runId(), ModelProtocolJson.compact(audit.review()));
+        }
     }
 
     private void recordHumanReviewAdvisory(FinalModelSynthesisRequest request,
@@ -847,11 +736,6 @@ public final class FinalSynthesisNode {
         return List.copyOf(result);
     }
 
-    private boolean containsAnyConcreteValue(String answer, List<String> values) {
-        String normalized = firstNonBlank(answer, "").replace(",", "");
-        return values.stream().map(value -> value.replace(",", "")).anyMatch(normalized::contains);
-    }
-
     private String text(Object value) { return value == null ? null : String.valueOf(value); }
 
     private Map<String, Object> map(Object value) {
@@ -859,10 +743,6 @@ public final class FinalSynthesisNode {
         Map<String, Object> result = new LinkedHashMap<>();
         source.forEach((key, item) -> result.put(String.valueOf(key), item));
         return result;
-    }
-
-    private String firstNonBlank(String first, String second) {
-        return first == null || first.isBlank() ? second : first;
     }
 
     private String safeMessage(RuntimeException exception) {

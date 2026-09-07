@@ -24,7 +24,7 @@ import java.util.Set;
  * Publication boundary between the final analysis model and evidence provenance.
  *
  * <p>The model owns business analysis, calculations and narrative coherence. Runtime preserves
- * the model's findings and audits whether their declared evidence identifiers exist. Evidence
+ * the model's complete report and audits whether declared evidence identifiers exist. Evidence
  * binding is publication metadata; it is never a semantic veto or a second analysis engine.</p>
  */
 final class GovernedFinalClaimContract {
@@ -34,7 +34,6 @@ final class GovernedFinalClaimContract {
     private static final String LEGACY_SCHEMA_VERSION_V2 = "governed_management_synthesis.v2";
     private static final String LEGACY_SCHEMA_VERSION = "governed_final_claim_selection.v1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final int MAX_FALLBACK_CLAIMS = 30;
 
     GovernedFinalClaimContract() {
         this(com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard());
@@ -186,7 +185,7 @@ final class GovernedFinalClaimContract {
             && !LEGACY_SCHEMA_VERSION_V3.equals(schemaVersion)
             && !LEGACY_SCHEMA_VERSION_V2.equals(schemaVersion)
             && !LEGACY_SCHEMA_VERSION.equals(schemaVersion))) {
-            return deterministic(compilation, "FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
+            return withheld("FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
         }
         List<NarrativeFinding> narrativeFindings = maps(payload.get("findings")).stream()
             .map(this::narrativeFinding).filter(java.util.Objects::nonNull).limit(20).toList();
@@ -231,24 +230,25 @@ final class GovernedFinalClaimContract {
                 .filter(java.util.Objects::nonNull)
                 .noneMatch(selectedClaim -> evidenceCovers(selectedClaim, observed)));
         if (selected.isEmpty() || unknownClaim) {
-            return deterministic(compilation, unknownClaim
+            return withheld(unknownClaim
                 ? "UNKNOWN_FINAL_CLAIM_ID" : "EMPTY_FINAL_CLAIM_SELECTION");
         }
         if (invalidAssociationBasis) {
-            return deterministic(compilation, "INVALID_METRIC_ASSOCIATION_BASIS");
+            return withheld("INVALID_METRIC_ASSOCIATION_BASIS");
         }
         if (invalidReviewBasis) {
-            return deterministic(compilation, "INVALID_MANAGEMENT_REVIEW_BASIS");
+            return withheld("INVALID_MANAGEMENT_REVIEW_BASIS");
         }
         if (incompleteSourceCoverage) {
-            return deterministic(compilation, "INCOMPLETE_ANALYSIS_SOURCE_COVERAGE");
+            return withheld("INCOMPLETE_ANALYSIS_SOURCE_COVERAGE");
         }
         if (incompleteObservedFactCoverage) {
-            return deterministic(compilation, "INCOMPLETE_OBSERVED_FACT_COVERAGE");
+            return withheld("INCOMPLETE_OBSERVED_FACT_COVERAGE");
         }
-        return render(compilation, headlineClaimIds, sections, selected,
-            demandAnalysis, metricAssociations, managementReview,
-            true, "CLAIM_SELECTION_ADMITTED");
+        String reportMarkdown = reportBody(payload);
+        if (reportMarkdown.isBlank()) return withheld("MODEL_REPORT_MARKDOWN_REQUIRED");
+        return new Projection(true, "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT",
+            reportMarkdown, List.copyOf(selected), Map.of("publicationMode", "MODEL_REPORT_MARKDOWN"));
     }
 
     DriverAudit inspectDriverAudit(String modelOutput, Compilation compilation,
@@ -279,7 +279,14 @@ final class GovernedFinalClaimContract {
         if (assessments.size() != assessed.size()
             || !assessed.containsAll(compilation.claims().keySet())
             || assessments.stream().anyMatch(item -> !compilation.claims().containsKey(item.claimId()))) {
-            return DriverAudit.invalid("DRIVER_REVIEW_CLAIM_COVERAGE_INCOMPLETE");
+            return new DriverAudit(false, "DRIVER_REVIEW_CLAIM_COVERAGE_INCOMPLETE", "INVALID",
+                Map.of("expectedClaimCount", compilation.claims().size(),
+                    "assessmentCount", assessments.size(),
+                    "missingClaimIds", compilation.claims().keySet().stream().filter(id -> !assessed.contains(id)).toList(),
+                    "unknownClaimIds", assessed.stream().filter(id -> !compilation.claims().containsKey(id)).toList(),
+                    "duplicateClaimIds", assessments.stream().map(ClaimAssessment::claimId).distinct()
+                        .filter(id -> assessments.stream().filter(item -> item.claimId().equals(id)).count() > 1).toList()),
+                List.of(), List.of());
         }
         Set<String> validReports = reportIds == null ? Set.of() : reportIds.stream()
             .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
@@ -368,7 +375,7 @@ final class GovernedFinalClaimContract {
     private Projection projectNarrative(Map<String, Object> payload, Compilation compilation,
                                          List<NarrativeFinding> findings, VerifiedReportDataCatalog dataCatalog) {
         if (findings.isEmpty()) {
-            return deterministic(compilation, "EMPTY_MANAGEMENT_FINDINGS");
+            return withheld("EMPTY_MANAGEMENT_FINDINGS");
         }
         DemandAnalysis demandAnalysis = demandAnalysis(payload.get("demandAnalysis"));
         List<MetricAssociation> metricAssociations = maps(payload.get("metricAssociations")).stream()
@@ -417,18 +424,25 @@ final class GovernedFinalClaimContract {
         associations.forEach(item -> item.basisClaimIds().stream()
             .filter(compilation.claims()::containsKey).forEach(selected::add));
 
-        Projection rendered = renderNarrative(compilation, findings, selected, demandAnalysis,
-            associations, review, catalog,
-            SCHEMA_VERSION.equals(text(payload.get("schemaVersion")))
-                || findings.stream().anyMatch(f -> !f.dataRef().isBlank()), blockIds);
-        Map<String, Object> report = new LinkedHashMap<>(rendered.analyticalReport());
+        String reportMarkdown = reportBody(payload);
+        if (reportMarkdown.isBlank()) return withheld("MODEL_REPORT_MARKDOWN_REQUIRED");
+        Map<String, Object> report = new LinkedHashMap<>(evidenceReportMetadata(
+            compilation, findings, demandAnalysis, catalog, blockIds));
         report.put("evidenceBindingAudit", Map.of(
             "mode", "PROVENANCE_ONLY",
             "modelAnalysisPreserved", true,
             "findings", List.copyOf(bindings),
             "knownEvidenceClaimIds", List.copyOf(compilation.claims().keySet())));
+        report.put("publicationMode", "MODEL_REPORT_MARKDOWN");
         return new Projection(true, "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT",
-            rendered.markdown(), List.copyOf(selected), Map.copyOf(report));
+            reportMarkdown, List.copyOf(selected), Map.copyOf(report));
+    }
+
+    private String reportBody(Map<String, Object> payload) {
+        // A missing or oversized deliverable requires model repair, never field composition
+        // or silent truncation of a model-authored report.
+        Object body = payload.get("reportMarkdown");
+        return body instanceof String report && report.length() <= 60_000 ? report : "";
     }
 
     private NarrativeFinding narrativeFinding(Map<String, Object> source) {
@@ -471,19 +485,31 @@ final class GovernedFinalClaimContract {
             + "rule. Put a qualification beside the affected conclusion, never in a later section that "
             + "contradicts it. Remove duplicates, empty sections and workflow commentary. "
             + "Write a report, not a concatenation of source descriptions: combine complementary "
-            + "asset, holding, transaction, realized-profit/loss and position-history Claims into "
+            + "question-relevant Claims from complementary datasets into "
             + "question-level findings whenever they answer the same business question. Do not repeat "
             + "the CORE conclusion verbatim in a detail section. Each detail section must add evidence, "
             + "comparison, interpretation or implication. Describe behavior only for the observed period; "
-            + "a lack of longer history limits persistence claims but does not erase observed trading behavior. "
+            + "a lack of longer history limits persistence claims but does not erase observed behavior. "
             + "Return useful conclusions first, followed by supporting analysis, business implications, "
             + "local limitations and next actions. Do not replace analysis with a list of missing data. "
+            + "reportMarkdown is required; Runtime never composes report prose from findings. "
+            + "reportMarkdown is the deliverable the user reads: author it as a complete professional "
+            + "analysis report in Markdown (headings, tables where useful), directly answering the "
+            + "decision question, consistent with your findings and their basis Claims, with each "
+            + "qualification placed beside the affected conclusion. findings remain the machine-readable "
+            + "evidence binding for the same content, not a substitute for the report. "
+            + "driverReview.claimAssessments must contain exactly one entry for every claimId in the "
+            + "evidence ledger, including claims not selected for the report. Use verdict ACCEPT, DOWNGRADE "
+            + "or REJECT with a reason; never leave this array empty when the ledger is non-empty. "
+            + "Review coverage and finding selection are separate: omission from the report is not omission from review. "
             + "Return only one JSON object. Use this shape: "
             + "{\"schemaVersion\":\"" + SCHEMA_VERSION + "\"," 
+            + "\"reportMarkdown\":\"the complete professional report in Markdown\","
             + "\"driverReview\":{\"status\":\"PASS|CHALLENGE\"," 
             + "\"requirementCoverage\":[],\"claimConsistency\":[],\"evidenceSufficiency\":{},"
             + "\"crossWorkerConflicts\":[],\"duplicateEvidence\":[],\"unsupportedInferences\":[],"
-            + "\"missingCriticalDimensions\":[],\"claimAssessments\":[],\"challenges\":[]},"
+            + "\"missingCriticalDimensions\":[],\"claimAssessments\":[{\"claimId\":\"known-id\","
+            + "\"verdict\":\"ACCEPT|DOWNGRADE|REJECT\",\"reason\":\"review of this claim\"}],\"challenges\":[]},"
             + "\"driverReasoning\":{\"derivedClaims\":[]},"
             + "\"findings\":[{\"section\":\"CORE|OVERALL|KEY_DRIVER|DEEP_DIVE|RISK_OPPORTUNITY|LIMITATION|ACTION\"," 
             + "\"text\":\"complete readable analytical conclusion\",\"basisClaimIds\":[\"known-id\"],"
@@ -501,81 +527,14 @@ final class GovernedFinalClaimContract {
             + "Evidence provenance ledger: " + ModelProtocolJson.compact(ledger);
     }
 
-    private Projection deterministic(Compilation compilation, String reason) {
-        LinkedHashSet<String> selected = new LinkedHashSet<>();
-        compilation.claims().values().stream().filter(Claim::observedFact)
-            .map(Claim::claimId).forEach(selected::add);
-        Set<String> representedSources = new LinkedHashSet<>();
-        for (Claim claim : compilation.claims().values()) {
-            String source = claim.sourceScope();
-            if (source != null && !source.isBlank() && representedSources.add(source)) {
-                selected.add(claim.claimId());
-            }
-        }
-        for (String claimId : compilation.claims().keySet()) {
-            if (selected.size() >= MAX_FALLBACK_CLAIMS) break;
-            selected.add(claimId);
-        }
-        return render(compilation, List.copyOf(selected), List.of(), selected,
-            DemandAnalysis.empty(), List.of(), ManagementReview.empty(), false, reason);
+    private Projection withheld(String reason) {
+        return new Projection(false, reason, "", List.of());
     }
 
-    private Projection renderNarrative(Compilation compilation,
-                                       List<NarrativeFinding> findings,
-                                       Collection<String> selected,
-                                       DemandAnalysis demandAnalysis,
-                                       List<MetricAssociation> metricAssociations,
-                                       ManagementReview managementReview, VerifiedReportDataCatalog dataCatalog,
-                                       boolean structuredComposition, Map<NarrativeFinding, String> blockIds) {
-        StringBuilder answer = new StringBuilder("# 数据分析报告\n");
-        if (demandAnalysis != null && !demandAnalysis.decisionGoal().isBlank()) {
-            answer.append("\n分析问题：").append(demandAnalysis.decisionGoal()).append('\n');
-        }
-        appendNarrativeSection(answer, "一、分析结论", findings, "CORE");
-        appendNarrativeSection(answer, "二、关键发现", findings, "DEEP_DIVE");
-        appendNarrativeSection(answer, "三、结构性拆解", findings, "OVERALL");
-        appendNarrativeSection(answer, "四、驱动因素", findings, "KEY_DRIVER");
-        appendNarrativeSection(answer, "五、业务含义", findings, "RISK_OPPORTUNITY");
-        appendNarrativeSection(answer, "六、数据边界", findings, "LIMITATION");
-        appendNarrativeSection(answer, "七、下一步行动与补充数据", findings, "ACTION");
-        if (demandAnalysis != null && !demandAnalysis.emptyValue()) {
-            if (!demandAnalysis.priorityQuestions().isEmpty()) answer.append("\n### 待验证问题\n\n");
-            demandAnalysis.priorityQuestions().forEach(question ->
-                answer.append("- 未决问题：").append(question).append('\n'));
-        }
-        if (metricAssociations != null && !metricAssociations.isEmpty()) {
-            answer.append("\n## 指标联想与待验证方向\n\n");
-            for (MetricAssociation association : metricAssociations) {
-                answer.append("- ").append(association.title());
-                if (!association.candidateMetrics().isEmpty()) {
-                    answer.append("；候选指标：")
-                        .append(String.join("、", association.candidateMetrics()));
-                }
-                if (!association.analysisMethod().isBlank()) {
-                    answer.append("；分析方法：").append(association.analysisMethod());
-                }
-                if (!association.validationNeeded().isEmpty()) {
-                    answer.append("；验证所需：")
-                        .append(String.join("、", association.validationNeeded()));
-                }
-                answer.append('\n');
-            }
-        }
-        if (managementReview != null && !managementReview.emptyValue()) {
-            answer.append("\n## 管理复盘与下一步\n\n");
-            if (managementReview.overallAssessment() != null) {
-                answer.append("- 总体评价：")
-                    .append(managementReview.overallAssessment().text()).append('\n');
-            }
-            managementReview.identifiedProblems().forEach(item ->
-                answer.append("- 分析问题：").append(item.text()).append('\n'));
-            managementReview.improvementSuggestions().forEach(item ->
-                answer.append("- 改进建议：").append(item.text()).append('\n'));
-            managementReview.nextWorkDirections().forEach(item ->
-                answer.append("- 下一步：").append(item.text()).append('\n'));
-        }
-        if (!structuredComposition) return new Projection(true, "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED",
-            answer.toString().trim(), List.copyOf(selected));
+    // Structured data is retained solely as evidence metadata, never rendered as the report body.
+    private Map<String, Object> evidenceReportMetadata(Compilation compilation,
+            List<NarrativeFinding> findings, DemandAnalysis demandAnalysis,
+            VerifiedReportDataCatalog dataCatalog, Map<NarrativeFinding, String> blockIds) {
         ReportComposer composer = new ReportComposer();
         List<AnalyticalInsightBlock> blocks = new ArrayList<>();
         List<String> sectionOrder = List.of("CORE", "DEEP_DIVE", "OVERALL", "KEY_DRIVER", "RISK_OPPORTUNITY", "LIMITATION", "ACTION");
@@ -595,36 +554,7 @@ final class GovernedFinalClaimContract {
             "decisionQuestion", demandAnalysis == null ? "" : demandAnalysis.decisionGoal(),
             "blocks", List.copyOf(blocks), "executiveSummaryIds", blocks.stream()
                 .filter(block -> block.presentation().primaryConclusion()).map(AnalyticalInsightBlock::id).limit(5).toList());
-        return new Projection(true, "GROUNDED_MANAGEMENT_SYNTHESIS_ADMITTED",
-            composer.markdown(demandAnalysis == null ? "" : demandAnalysis.decisionGoal(), blocks), List.copyOf(selected), report);
-    }
-
-    private void appendNarrativeSection(StringBuilder answer, String title,
-                                        List<NarrativeFinding> findings, String section) {
-        List<NarrativeFinding> sectionFindings = findings.stream()
-            .filter(finding -> section.equals(finding.section())).distinct().toList();
-        if (sectionFindings.isEmpty()) return;
-        answer.append("\n## ").append(title).append("\n\n");
-        int index = 0;
-        for (NarrativeFinding finding : sectionFindings) {
-            if ("DEEP_DIVE".equals(section)) {
-                answer.append("### ").append(finding.question().isBlank()
-                    ? "发现 " + (++index) : finding.question()).append("\n\n");
-                answer.append(finding.text()).append("\n\n");
-            } else {
-                answer.append("- ").append(finding.text()).append("\n\n");
-            }
-            appendFindingDetail(answer, "比较基准", finding.baseline());
-            appendFindingDetail(answer, "比较结果", finding.comparison());
-            appendFindingDetail(answer, "驱动解释", finding.driver());
-            appendFindingDetail(answer, "业务影响", finding.implication());
-            appendFindingDetail(answer, "判断可信度", finding.confidence());
-        }
-    }
-
-    private void appendFindingDetail(StringBuilder answer, String label, String value) {
-        if (!value.isBlank()) answer.append("**").append(label).append("**：")
-            .append(value).append("\n\n");
+        return report;
     }
 
     private boolean evidenceCovers(Claim candidate, Claim observed) {
@@ -632,87 +562,6 @@ final class GovernedFinalClaimContract {
         return !observed.recordRefs().isEmpty() && !observed.supportingValues().isEmpty()
             && candidate.recordRefs().containsAll(observed.recordRefs())
             && candidate.supportingValues().containsAll(observed.supportingValues());
-    }
-
-    private Projection render(Compilation compilation, Collection<String> headlineClaimIds,
-                              List<Section> requestedSections, Collection<String> selected,
-                              DemandAnalysis demandAnalysis,
-                              List<MetricAssociation> metricAssociations,
-                              ManagementReview managementReview,
-                              boolean modelSelectionAccepted, String reason) {
-        List<Claim> claims = selected.stream().map(compilation.claims()::get)
-            .filter(java.util.Objects::nonNull).toList();
-        if (claims.isEmpty()) return new Projection(false, reason, "", List.of());
-        StringBuilder answer = new StringBuilder("# 数据分析结论\n\n## 核心结论\n\n");
-        List<Claim> headlines = headlineClaimIds.stream().distinct()
-            .map(compilation.claims()::get).filter(java.util.Objects::nonNull).toList();
-        if (headlines.isEmpty()) headlines = claims;
-        for (Claim claim : headlines) answer.append("- ").append(claim.text()).append('\n');
-        if (!requestedSections.isEmpty()) {
-            Set<String> rendered = new LinkedHashSet<>();
-            headlines.forEach(claim -> rendered.add(claim.claimId()));
-            for (Section section : requestedSections) {
-                List<Claim> sectionClaims = section.claimIds().stream().distinct()
-                    .filter(id -> !rendered.contains(id)).map(compilation.claims()::get)
-                    .filter(java.util.Objects::nonNull).toList();
-                if (sectionClaims.isEmpty()) continue;
-                answer.append("\n## ").append(section.title()).append("\n\n");
-                sectionClaims.forEach(claim -> {
-                    answer.append("- ").append(claim.text()).append('\n');
-                    rendered.add(claim.claimId());
-                });
-            }
-        }
-        LinkedHashSet<String> caveats = claims.stream()
-            .flatMap(claim -> claim.caveats().stream())
-            .filter(value -> value != null && !value.isBlank())
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        if (!caveats.isEmpty()) {
-            answer.append("\n## 分析边界\n\n");
-            caveats.forEach(value -> answer.append("- ").append(value).append('\n'));
-        }
-        if (demandAnalysis != null && !demandAnalysis.emptyValue()) {
-            answer.append("\n## 需求分析\n\n");
-            if (!demandAnalysis.decisionGoal().isBlank()) {
-                answer.append("- 决策目标：").append(demandAnalysis.decisionGoal()).append('\n');
-            }
-            demandAnalysis.priorityQuestions().forEach(question ->
-                answer.append("- 待回答问题：").append(question).append('\n'));
-        }
-        if (metricAssociations != null && !metricAssociations.isEmpty()) {
-            answer.append("\n## 指标联想与后续分析\n\n")
-                .append("> 以下内容是基于已返回数据提出的待验证分析方向，不代表当前数据已经证明。\n\n");
-            for (MetricAssociation association : metricAssociations) {
-                answer.append("- ").append(association.title());
-                if (!association.candidateMetrics().isEmpty()) {
-                    answer.append("；候选指标：")
-                        .append(String.join("、", association.candidateMetrics()));
-                }
-                if (!association.analysisMethod().isBlank()) {
-                    answer.append("；建议方法：").append(association.analysisMethod());
-                }
-                if (!association.validationNeeded().isEmpty()) {
-                    answer.append("；验证所需：")
-                        .append(String.join("、", association.validationNeeded()));
-                }
-                answer.append('\n');
-            }
-        }
-        if (managementReview != null && !managementReview.emptyValue()) {
-            answer.append("\n## 分析复盘与改进方向\n\n");
-            if (managementReview.overallAssessment() != null) {
-                answer.append("- 总体评价：")
-                    .append(managementReview.overallAssessment().text()).append('\n');
-            }
-            managementReview.identifiedProblems().forEach(item ->
-                answer.append("- 发现的问题：").append(item.text()).append('\n'));
-            managementReview.improvementSuggestions().forEach(item ->
-                answer.append("- 改进建议：").append(item.text()).append('\n'));
-            managementReview.nextWorkDirections().forEach(item ->
-                answer.append("- 下一步方向：").append(item.text()).append('\n'));
-        }
-        return new Projection(modelSelectionAccepted, reason, answer.toString().trim(),
-            claims.stream().map(Claim::claimId).toList());
     }
 
     private DemandAnalysis demandAnalysis(Object value) {

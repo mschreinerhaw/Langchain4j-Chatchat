@@ -13,25 +13,26 @@ final class AnalysisSynthesisContract {
             comparison, driver, implication and confidence. Leave unsupported fields empty; never invent a baseline
             or a cause to fill the structure. Label explanations as hypotheses unless causality is established.
             Keep CORE concise; put detailed reasoning in DEEP_DIVE without repeating the same paragraph.
-            Separate direct evidence, qualified proxies, trading behavior, external context and event narratives.
-            Trading turnover cannot establish net inflow. Static size cannot establish subscriptions or liquidity.
-            Share changes and asset-value changes have different units; asset-value changes also reflect repricing.
-            External fund flows cannot establish flows into the target market or product universe.
+            Separate direct evidence, declared proxies, observed behavior, external context and event narratives.
+            Measures with different definitions, units, populations or temporal bases are not interchangeable.
+            A snapshot does not establish a change, sequence, cause, intent or persistent behavior.
             Context and events cannot replace missing direct evidence or validated proxies for a directional claim.
-            Compare dates, universe, denominator and units before combining statistics. A sample is not the whole market.
-            Do not infer product categories from identifiers, or infer zero flows from a suspension announcement.
+            Compare dates, population, denominator and units before combining statistics. A sample is not the population.
+            Do not infer categories from identifiers, or convert absent measurements into zero values.
             Explain concentration by verified category only when classifications are available.
             Put consolidated missing-data details in LIMITATION once. ACTION ranks follow-up data by the decision
-            it would resolve; conditional monitoring is appropriate when allocation claims are unsupported.
-            Each finding is an Analytical Insight Block. Choose dataRef only from the runtime report data catalog,
+            it would resolve; conditional actions require explicit evidence and assumptions.
+            Findings are evidence-binding metadata, not the report body. Choose dataRef only from the runtime report data catalog,
             bound to the finding's basisClaimIds. Choose visualizationIntent from RANK, CONTRIBUTION or KPI according
             to the executed operation. The model selects the question-relevant analysis from declared field semantics;
             the Runtime never invents SUM, AVG, ratio, denominator, weighting, time window or aggregation meaning.
             For a derived value, select and explain only a semantic-contract-authorized calculation and cite its
             Runtime result through dataRef. A new formula may be proposed with its inputs and intended meaning, but
             remains an explicitly unverified analysis direction until the Runtime can execute and audit it.
-            Never fabricate chart data or table rows. The runtime planner chooses the chart and the composer binds chart, table, metric, observation,
-            interpretation, implication, confidence and evidence. Write plain prose in text; no Markdown data tables.
+            Never fabricate chart data or table rows. Runtime binds optional visualizations to verified data.
+            Write plain prose in finding.text for machine-readable indexing. In reportMarkdown, author the complete
+            report with your own headings, evidence-backed Markdown tables, comparisons and connected explanations
+            where they help answer the question. Runtime never composes the report from finding fields.
             Every primary conclusion requires both an explanation and a verifiable data expression. An admitted claim
             with returned-record references and supporting values is a verifiable evidence expression even when no
             computed dataRef exists. In that case leave dataRef empty and publish a grounded text/metric finding; a
@@ -43,7 +44,7 @@ final class AnalysisSynthesisContract {
             interpretation; qualify a limitation where the claim first appears; ensure every action traces to a
             finding; remove duplicate findings, empty sections and internal workflow language. The executive summary,
             detail, limitations and actions must be readable together without contradiction or Runtime context.
-            Findings must not contain embedded section headings or dangling citation brackets.
+            Only finding.text must avoid embedded section headings; this restriction never applies to reportMarkdown.
             """;
     }
 }

@@ -22,6 +22,31 @@ import static org.mockito.Mockito.when;
 class AnalysisNodeProtocolTest {
 
     @Test
+    void validatesStructuredFactValuesUsingTheSameRecordFieldBindingAsInsights() {
+        var rows = List.<Map<String, Object>>of(Map.of("MEASURE", "42.00"), Map.of("MEASURE", "99.00"));
+        for (String values : List.of(
+            "{\"sample.records[1]\":{\"MEASURE\":42}}",
+            "[{\"recordRef\":\"sample.records[1]\",\"field\":\"MEASURE\",\"value\":42}]")) {
+            var result = bridge.validateProduct(isolationScope, bridge.position("sample", 1, 1, 1, 2, 2),
+                bridge.govern("sample", Map.of(), rows), rows, "Describe the returned measure", """
+                {"summary":"The returned measure is 42","facts":[{"claim":"Measure is 42",
+                 "recordRefs":["sample.records[1]"],"exactValues":%s}],"insights":[]}
+                """.formatted(values));
+            assertThat(result.evidence()).containsEntry("rejectedFactCount", 0);
+            assertThat((List<?>) result.evidence().get("observedFactClaims")).hasSize(1);
+            assertThat(result.evidence().get("facts").toString()).contains("\"MEASURE\":\"42.00\"");
+        }
+        var invalid = bridge.validateProduct(isolationScope, bridge.position("sample", 1, 1, 1, 2, 2),
+            bridge.govern("sample", Map.of(), rows), rows, "Describe the returned measure", """
+            {"summary":"Unsupported measurement","facts":[{"claim":"Measure is 99",
+             "recordRefs":["sample.records[1]"],
+             "exactValues":[{"recordRef":"sample.records[1]","field":"MEASURE","value":99}]}],"insights":[]}
+            """);
+        assertThat(invalid.evidence()).containsEntry("rejectedFactCount", 1);
+        assertThat((List<?>) invalid.evidence().get("observedFactClaims")).isEmpty();
+    }
+
+    @Test
     void validatesStructuredSupportingValuesAgainstTheirOwnRecordAndField() {
         var row = new java.util.LinkedHashMap<String, Object>();
         row.put("VALUE", 42.0);

@@ -121,4 +121,57 @@ class ReportComposerTest {
             .contains("## 核心业务判断", "- history fields are absent", "## 分析发现 1")
             .doesNotContain("暂无同时绑定计算数据与证据的核心结论");
     }
+
+    @Test
+    void executiveSummaryQuotesOnlyTheLeadSentenceOfEachConclusion() {
+        var block = composer.compose("F1", "CORE", "资产结构如何？",
+            "总资产为847174.25元。证券市值占比99.89%，呈现满仓状态。", "", "", "HIGH",
+            List.of(), List.of(Map.of("status", "SUPPORTED",
+                "recordRefs", List.of("r.records[0]"), "supportingValues", List.of("847174.25"))), "", "",
+            VerifiedReportDataCatalog.fromRuntime(Map.of()));
+
+        String markdown = composer.markdown("客户资产如何", List.of(block));
+
+        assertThat(markdown).contains("- 总资产为847174.25元。\n");
+        assertThat(markdown).doesNotContain("- 总资产为847174.25元。证券市值占比99.89%");
+        assertThat(markdown).contains("总资产为847174.25元。证券市值占比99.89%，呈现满仓状态。");
+    }
+
+    @Test
+    void markdownRendersLabeledDetailsChineseConfidenceAndMergedSources() {
+        var block = composer.compose("F1", "CORE", "资产结构如何？", "总资产为847174.25元。",
+            "比较基准：总资产100%。\n比较结果：证券市值占比99.89%。\n资金几乎全部转化为证券持仓。",
+            "满仓状态缺乏现金缓冲", "HIGH", List.of(),
+            List.of(Map.of("status", "SUPPORTED", "recordRefs", List.of("r.records[0]"),
+                    "supportingValues", List.of("847174.25"), "sourceScope", "livedata_cx_mncg_khzc_r"),
+                Map.of("status", "SUPPORTED", "recordRefs", List.of("q.records[0]"),
+                    "supportingValues", List.of("99.89"), "sourceScope", "livedata_cx_mncg_qcfx")),
+            "", "", VerifiedReportDataCatalog.fromRuntime(Map.of()));
+
+        String markdown = composer.markdown("客户资产如何", List.of(block));
+
+        assertThat(markdown)
+            .contains("解释与判断：\n\n- 比较基准：总资产100%。\n- 比较结果：证券市值占比99.89%。\n- 资金几乎全部转化为证券持仓。")
+            .contains("判断可信度：高")
+            .contains("数据来源：livedata_cx_mncg_khzc_r、livedata_cx_mncg_qcfx")
+            .doesNotContain("判断可信度：HIGH");
+    }
+
+    @Test
+    void repeatedCaveatsAppearOnlyOnceAcrossTheReport() {
+        var evidence = List.<Map<String, Object>>of(Map.of("status", "SUPPORTED",
+            "recordRefs", List.of("r.records[0]"), "supportingValues", List.of("42")));
+        var first = composer.compose("F1", "CORE", "q1", "observation one", "", "", "HIGH",
+            List.of("资产数据为单日截面数据", "仅展示部分持仓记录"), evidence, "", "",
+            VerifiedReportDataCatalog.fromRuntime(Map.of()));
+        var second = composer.compose("F2", "DEEP_DIVE", "q2", "observation two", "", "", "MEDIUM",
+            List.of("资产数据为单日截面数据"), evidence, "", "",
+            VerifiedReportDataCatalog.fromRuntime(Map.of()));
+
+        String markdown = composer.markdown("q", List.of(first, second));
+
+        assertThat(markdown.indexOf("限制：资产数据为单日截面数据"))
+            .isEqualTo(markdown.lastIndexOf("限制：资产数据为单日截面数据"));
+        assertThat(markdown).contains("限制：仅展示部分持仓记录", "判断可信度：中");
+    }
 }

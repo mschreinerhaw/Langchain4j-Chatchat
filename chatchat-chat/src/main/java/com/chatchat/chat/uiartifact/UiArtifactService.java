@@ -66,16 +66,14 @@ public class UiArtifactService {
         String explicitHtml = UserFacingContentSanitizer.removeInternalEvidenceMarkers(
             explicitReportHtml(uiResponse));
         Object analyticalReport = uiResponse.get("analyticalReport");
-        boolean structuredReport = analyticalReport instanceof Map<?, ?> report
+        boolean hasAnalyticalReport = analyticalReport instanceof Map<?, ?> report
             && "analytical_report.v1".equals(report.get("schemaVersion"))
             && report.get("blocks") instanceof List<?> blocks && !blocks.isEmpty();
-        if (structuredReport) {
+        if (hasAnalyticalReport) {
+            // Findings are an evidence resource, never a substitute report body.
             addResource(resources, resourceCatalog, artifactId, "analytical-report", analyticalReport, "application/json");
-            elements.put("analytical-report", element("AnalyticalReport", Map.of("resourceId", "analytical-report"), List.of()));
-            reportChildren.add("analytical-report");
-            // Retain a text fallback for non-visual clients, without publishing a duplicate report body.
-            if (!answer.isBlank()) addResource(resources, resourceCatalog, artifactId, "answer", answer, "text/markdown");
-        } else if (!answer.isBlank()) {
+        }
+        if (!answer.isBlank()) {
             // Keep authored Markdown as the canonical report resource. Converting it to an opaque
             // HTML blob here loses semantics and makes evidence/report styling much harder to control.
             addResource(resources, resourceCatalog, artifactId, "answer", answer, "text/markdown");
@@ -98,7 +96,7 @@ public class UiArtifactService {
             reportChildren.add("evidence-summary");
         }
 
-        Object visualizationSpec = structuredReport ? null : uiResponse.get("visualizationSpec");
+        Object visualizationSpec = uiResponse.get("visualizationSpec");
 
         Object citations = uiResponse.get("citations");
         if (citations instanceof List<?> list && !list.isEmpty()) {
@@ -170,7 +168,7 @@ public class UiArtifactService {
         reference.put("revision", 1);
         reference.put("catalogVersion", CATALOG_VERSION);
         reference.put("manifestUrl", "/ui-artifacts/" + artifactId);
-        String renderMode = structuredReport ? "analytical" : !answer.isBlank() ? "markdown" : "html";
+        String renderMode = !answer.isBlank() ? "markdown" : "html";
         reference.put("renderMode", renderMode);
 
         Map<String, Object> lightweight = new LinkedHashMap<>();

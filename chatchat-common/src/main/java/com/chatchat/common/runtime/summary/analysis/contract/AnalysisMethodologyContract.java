@@ -81,12 +81,12 @@ public record AnalysisMethodologyContract(
         result.put("findingPriority", findingPriority);
         result.put("reportSections", reportSections);
         result.put("claimBoundaryPolicy", Map.of(
-            "factRule", "Preserve producer field meaning, unit, realization basis and period. Numeric equality does not establish semantic equivalence. Undeclared field meanings remain unresolved.",
-            "sampleRule", "Returned rows are not the population unless completeness is explicitly established. Single-date data and a few closed positions cannot establish habitual frequency, typical holding periods, motives or long-term performance.",
-            "inferenceRule", "Keep observation, derived metric and hypothesis distinct. Asset allocation cannot establish intent; holding count cannot establish diversification quality; a few profitable trades cannot establish win rate or strategy effectiveness.",
+            "factRule", "Preserve producer field meaning, unit, measurement basis, inclusion/exclusion rules and period. Numeric equality does not establish semantic equivalence. Undeclared meanings and adjustment rules remain unresolved.",
+            "sampleRule", "Returned rows are not the population unless completeness is explicitly established. A snapshot or a few observations cannot establish habitual frequency, typical duration, motives or long-term outcomes.",
+            "inferenceRule", "Keep observation, derived metric and hypothesis distinct. A distribution cannot establish intent, an entity count cannot establish quality, and selected outcomes cannot establish overall effectiveness.",
             "consistencyRule", "Use the same metric definition and evidence scope in executive summary, body, profile and recommendations. A limitations section cannot repair an overstatement elsewhere.",
             "reconciliationRule", "Do not compute other-items residuals from different dates, populations or measures. Rank and concentration require a verified comparison population.",
-            "recommendationRule", "Recommend verification or monitoring supported by the observed state; do not prescribe a strategy based on an unverified customer identity or inferred motive."));
+            "recommendationRule", "Recommend verification or monitoring supported by the observed state; do not prescribe actions based on an unverified entity classification or inferred motive."));
         result.put("partialEvidencePolicy", Map.of(
             "disposition", "ANALYZE_AVAILABLE_EVIDENCE_FIRST",
             "minimumUsableDataRule", "One usable returned record requires an analysis of every conclusion that record can support.",

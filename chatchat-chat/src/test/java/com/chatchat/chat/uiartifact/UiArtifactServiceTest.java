@@ -112,7 +112,7 @@ class UiArtifactServiceTest {
     }
 
     @Test
-    void structuredReportOwnsBodyAndRetainsTextFallbackWithoutDuplicateCharts() {
+    void legacyBlocksRemainEvidenceAndNeverReplaceTheAnswerBody() {
         Fixture fixture = fixture(64);
         Map<String, Object> analytical = Map.of("schemaVersion", "analytical_report.v1", "blocks",
             List.of(Map.of("id", "F1", "question", "Scope", "observation", "Verified observation")));
@@ -123,11 +123,46 @@ class UiArtifactServiceTest {
         Map<?, ?> manifest = fixture.service().manifest("tenant-a", id).orElseThrow();
         Map<?, ?> spec = (Map<?, ?>) manifest.get("spec");
         Map<?, ?> elements = (Map<?, ?>) spec.get("elements");
-        assertThat(((Map<?, ?>) elements.get("report")).get("children")).isEqualTo(List.of("analytical-report"));
+        assertThat(((Map<?, ?>) elements.get("report")).get("children")).isEqualTo(List.of("answer"));
         assertThat(fixture.service().resource("tenant-a", id, "analytical-report")).contains(analytical);
         assertThat(fixture.service().resource("tenant-a", id, "answer")).contains("Legacy text fallback");
-        assertThat(presentation.uiResponse()).doesNotContainKey("visualizationSpec");
+        assertThat(presentation.uiResponse()).containsKey("visualizationSpec");
         assertThat(fixture.service().resource("tenant-b", id, "analytical-report")).isEmpty();
+    }
+
+    @Test
+    void modelReportOwnsArtifactBodyWhileBlocksRemainAvailableForAudit() {
+        Fixture fixture = fixture(64);
+        String answer = "# 客户分析\n\n|资产|金额|\n|---|---|\n|总资产|847174.25|\n\n"
+            + "> **证据完整性提示**：部分结论待核验。";
+        Map<String, Object> analytical = Map.of("schemaVersion", "analytical_report.v1",
+            "publicationMode", "MODEL_REPORT_MARKDOWN", "blocks",
+            List.of(Map.of("id", "F1", "observation", "Template observation")));
+        var presentation = fixture.service().externalizeIfNeeded("tenant-a", "model-report", Map.of(
+            "answer", answer, "analyticalReport", analytical));
+        String id = presentation.reference().get("artifactId").toString();
+        Map<?, ?> spec = (Map<?, ?>) fixture.service().manifest("tenant-a", id).orElseThrow().get("spec");
+        Map<?, ?> elements = (Map<?, ?>) spec.get("elements");
+        assertThat(((Map<?, ?>) elements.get("report")).get("children")).isEqualTo(List.of("answer"));
+        assertThat(((Map<?, ?>) elements.get("answer")).get("type")).isEqualTo("Markdown");
+        assertThat(presentation.reference()).containsEntry("renderMode", "markdown");
+        assertThat(fixture.service().resource("tenant-a", id, "answer")).contains(answer);
+        assertThat(fixture.service().resource("tenant-a", id, "analytical-report")).contains(analytical);
+    }
+
+    @Test
+    void modelReportWithoutBodyDoesNotPublishBlocksAsAReport() {
+        Fixture fixture = fixture(64);
+        Map<String, Object> analytical = Map.of("schemaVersion", "analytical_report.v1",
+            "publicationMode", "MODEL_REPORT_MARKDOWN", "blocks",
+            List.of(Map.of("id", "F1", "observation", "Available finding")));
+        var presentation = fixture.service().externalizeIfNeeded("tenant-a", "missing-body", Map.of(
+            "answer", " ", "analyticalReport", analytical));
+        String id = presentation.reference().get("artifactId").toString();
+        Map<?, ?> spec = (Map<?, ?>) fixture.service().manifest("tenant-a", id).orElseThrow().get("spec");
+        Map<?, ?> elements = (Map<?, ?>) spec.get("elements");
+        assertThat(((Map<?, ?>) elements.get("report")).get("children")).isEqualTo(List.of());
+        assertThat(fixture.service().resource("tenant-a", id, "analytical-report")).contains(analytical);
     }
 
     @Test

@@ -68,8 +68,11 @@ public final class ReportComposer {
                 .filter(block -> !List.of("ACTION", "REVIEW").contains(block.section())).limit(3).toList();
         }
         if (primary.isEmpty()) output.append("当前没有已绑定可验证证据的业务判断；下文仅展示数据状态与未决事项。\n\n");
-        primary.forEach(block -> output.append("- ").append(block.observation()).append("\n\n"));
+        primary.stream().map(block -> headline(block.observation()))
+            .filter(headline -> !headline.isBlank()).distinct()
+            .forEach(headline -> output.append("- ").append(headline).append("\n\n"));
         int findingIndex = 0;
+        java.util.Set<String> renderedCaveats = new java.util.LinkedHashSet<>();
         for (var block : blocks) {
             output.append("## ").append(block.question().isBlank() ? "分析发现 " + (++findingIndex) : block.question()).append("\n\n");
             if ("DATA_STATUS".equals(block.presentation().primaryPresentation())) output.append("数据状态：待补充可验证数据。\n\n");
@@ -82,17 +85,46 @@ public final class ReportComposer {
                     .append(cell(row.get("entity"))).append(" | ").append(cell(row.get("value"))).append(" |\n");
                 output.append('\n');
             }
-            if (!block.interpretation().isBlank()) output.append("解释与判断：").append(block.interpretation()).append("\n\n");
-            if (!block.implication().isBlank()) output.append("业务含义：").append(block.implication()).append("\n\n");
-            if (!block.confidence().isBlank()) output.append("判断可信度：").append(block.confidence()).append("\n\n");
-            block.caveats().forEach(caveat -> output.append("- 限制：").append(caveat).append('\n'));
-            block.evidence().stream().map(item -> item.get("sourceScope"))
+            if (!block.interpretation().isBlank()) appendDetail(output, "解释与判断", block.interpretation());
+            if (!block.implication().isBlank()) appendDetail(output, "业务含义", block.implication());
+            if (!block.confidence().isBlank()) output.append("判断可信度：")
+                .append(confidenceLabel(block.confidence())).append("\n\n");
+            block.caveats().stream().filter(renderedCaveats::add)
+                .forEach(caveat -> output.append("- 限制：").append(caveat).append('\n'));
+            List<String> sources = block.evidence().stream().map(item -> item.get("sourceScope"))
                 .filter(java.util.Objects::nonNull).map(String::valueOf).map(String::trim)
-                .filter(source -> !source.isBlank() && !"null".equalsIgnoreCase(source)).distinct()
-                .forEach(source -> output.append("\n数据来源：").append(source).append('\n'));
+                .filter(source -> !source.isBlank() && !"null".equalsIgnoreCase(source)).distinct().toList();
+            if (!sources.isEmpty()) output.append("\n数据来源：").append(String.join("、", sources)).append('\n');
             output.append('\n');
         }
         return output.toString().trim();
+    }
+
+    /** The executive summary quotes only each conclusion's lead sentence; details stay in its section. */
+    private String headline(String observation) {
+        String text = observation == null ? "" : observation.trim();
+        return text.split("(?<=[。！？!?])|(?<=\\.)\\s+", 2)[0].trim();
+    }
+
+    /** Multi-line detail fields (e.g. 比较基准/比较结果 scaffolding) render as a labeled list, not one blob. */
+    private void appendDetail(StringBuilder output, String label, String value) {
+        List<String> lines = value.lines().map(String::trim).filter(line -> !line.isEmpty()).toList();
+        if (lines.size() <= 1) {
+            output.append(label).append("：").append(lines.isEmpty() ? "" : lines.get(0)).append("\n\n");
+            return;
+        }
+        output.append(label).append("：\n\n");
+        lines.forEach(line -> output.append("- ").append(line).append('\n'));
+        output.append('\n');
+    }
+
+    private String confidenceLabel(String confidence) {
+        return switch (confidence.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "HIGH" -> "高";
+            case "MEDIUM" -> "中";
+            case "LOW" -> "低";
+            default -> confidence;
+        };
     }
 
     private String cell(Object value) {

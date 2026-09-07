@@ -414,7 +414,8 @@ public final class AnalysisNodeProtocol
                 .filter(reference -> validRecordReference(position, reference))
                 .distinct()
                 .toList();
-            List<String> exactValues = strings(candidate.get("exactValues")).stream()
+            List<String> exactValues = supportingValues(position, records, recordRefs,
+                candidate.get("exactValues")).stream()
                 .filter(value -> !value.isBlank()
                     && exactValueSupported(position, records, recordRefs, value))
                 .distinct()

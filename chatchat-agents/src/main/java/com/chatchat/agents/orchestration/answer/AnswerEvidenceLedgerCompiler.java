@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration.answer;
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
 import com.chatchat.agents.evidence.answer.EvidenceAnswer;
+import com.chatchat.agents.orchestration.analysis.report.AnalyticalInsightBlock;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -173,6 +174,9 @@ public final class AnswerEvidenceLedgerCompiler {
                 ? List.of() : activeSectionRefs;
             if (bindings.isEmpty()) bindings = inferredEvidenceRefs(trimmed, manifest);
             if (bindings.isEmpty()) bindings = semanticEvidenceRefs(trimmed, manifest);
+            // Governed-claim bindings verify the ledger but stay out of the visible text:
+            // claim:// is an internal lineage namespace, not a user-facing citation URI.
+            bindings = bindings.stream().filter(ref -> !ref.startsWith("claim://")).toList();
             if (bindings.isEmpty()) {
                 values.add(working);
                 continue;
@@ -223,6 +227,7 @@ public final class AnswerEvidenceLedgerCompiler {
             String executor = aliasMatcher.group(1);
             List<EvidenceItem> candidates = eligibleFactEvidence(manifest).stream()
                 .filter(item -> "TRUSTED".equals(item.trustStatus()))
+                .filter(item -> item.evidenceId().startsWith("tool://"))
                 .filter(item -> executor == null
                     || item.evidenceId().startsWith("tool://" + executor + "#result="))
                 .toList();
@@ -426,7 +431,50 @@ public final class AnswerEvidenceLedgerCompiler {
                 }
             }
         }
+        addGovernedReportClaims(items, metadata == null ? null : metadata.get("analyticalReport"));
         return items;
+    }
+
+    /**
+     * Claims admitted into the structured analytical report already passed the deterministic
+     * claim-acceptance gate against returned records (recordRefs + supportingValues). They are
+     * registered here so the sentence-level ledger can bind report prose to the same verified
+     * lineage instead of re-deriving it from truncated tool previews and failing spuriously.
+     * Only SUPPORTED claims with full record lineage qualify; rejected or review-marked claims
+     * are never registered.
+     */
+    private void addGovernedReportClaims(Map<String, EvidenceItem> items, Object rawReport) {
+        Map<String, Object> report = map(rawReport);
+        if (!(report.get("blocks") instanceof List<?> blocks)) return;
+        int index = 0;
+        for (Object rawBlock : blocks) {
+            for (Map<String, Object> claim : governedBlockEvidence(rawBlock)) {
+                if (!"SUPPORTED".equals(firstNonBlank(claim.get("status"), "SUPPORTED"))) continue;
+                if (claim.get("reviewReasons") instanceof List<?> reasons && !reasons.isEmpty()) continue;
+                List<String> recordRefs = stringList(claim.get("recordRefs"));
+                List<String> supportingValues = stringList(claim.get("supportingValues"));
+                if (recordRefs.isEmpty() || supportingValues.isEmpty()) continue;
+                index++;
+                String ref = "claim://" + firstNonBlank(claim.get("artifactId"), "governed") + "#record=" + index;
+                String content = (text(claim.get("text")) + " " + String.join(" ", supportingValues) + "\n"
+                    + String.join(" ", recordRefs) + " " + text(claim.get("sourceScope"))).trim();
+                if (content.isBlank()) continue;
+                items.putIfAbsent(ref, evidence(ref, "GOVERNED_CLAIM", content,
+                    firstNonBlank(claim.get("sourceScope"), "analytical_report"), true));
+            }
+        }
+    }
+
+    private List<Map<String, Object>> governedBlockEvidence(Object rawBlock) {
+        if (rawBlock instanceof AnalyticalInsightBlock block) return block.evidence();
+        Object evidence = map(rawBlock).get("evidence");
+        if (!(evidence instanceof List<?> list)) return List.of();
+        return list.stream().map(this::map).filter(item -> !item.isEmpty()).toList();
+    }
+
+    private List<String> stringList(Object value) {
+        return value instanceof List<?> list
+            ? list.stream().map(this::text).filter(item -> !item.isBlank()).toList() : List.of();
     }
 
     private void addCitationObjects(Map<String, EvidenceItem> items, Object raw, Map<String, String> contents) {
@@ -551,10 +599,10 @@ public final class AnswerEvidenceLedgerCompiler {
         return List.copyOf(matches);
     }
 
-    /** Runtime result sets take precedence over discovery/catalog payloads for factual value binding. */
+    /** Runtime result sets and governed report claims take precedence over discovery/catalog payloads. */
     private List<EvidenceItem> eligibleFactEvidence(Map<String, EvidenceItem> manifest) {
         List<EvidenceItem> resultSets = manifest.values().stream()
-            .filter(item -> "TOOL_RESULT_SET".equals(item.type()))
+            .filter(item -> "TOOL_RESULT_SET".equals(item.type()) || "GOVERNED_CLAIM".equals(item.type()))
             .toList();
         return resultSets.isEmpty() ? List.copyOf(manifest.values()) : resultSets;
     }

@@ -41,6 +41,11 @@ public final class AnalysisOutputAdmissionPolicy {
             return new Admission(false, "WITHHELD_STATUS_NOT_ANALYSIS");
         }
         String normalized = candidate.toLowerCase(Locale.ROOT);
+        if ((normalized.stripLeading().startsWith("{") || normalized.stripLeading().startsWith("```json"))
+            && (normalized.contains("governed_management_synthesis.")
+                || normalized.contains("governed_final_claim_selection."))) {
+            return new Admission(false, "SYNTHESIS_PROTOCOL_NOT_REPORT_BODY");
+        }
         long markerCount = ENVELOPE_MARKERS.stream().filter(normalized::contains).count();
         boolean executionManifest = normalized.contains("## 可用执行结果")
             && normalized.contains("成功子项：") && normalized.contains("返回内容：");

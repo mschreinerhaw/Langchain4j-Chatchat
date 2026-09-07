@@ -516,4 +516,60 @@ class AnswerEvidenceLedgerCompilerTest {
         assertThat(results.stream().map(result -> result.evidenceManifest().get("manifestHash")))
             .doesNotHaveDuplicates();
     }
+
+    @Test
+    void bindsReportProseToGovernedClaimsAlreadyVerifiedByTheAcceptanceGate() {
+        Map<String, Object> metadata = Map.of("analyticalReport", Map.of(
+            "schemaVersion", "analytical_report.v1",
+            "blocks", List.of(Map.of("id", "F1", "evidence", List.of(Map.of(
+                "artifactId", "observed-fact:asset",
+                "status", "SUPPORTED",
+                "text", "截至2026年7月31日客户总资产为847174.25元，当日总盈亏为42263.81元",
+                "recordRefs", List.of("livedata_cx_mncg_khzc_r.records[0]"),
+                "supportingValues", List.of("847174.25", "42263.81"),
+                "sourceScope", "livedata_cx_mncg_khzc_r"))))));
+
+        AnswerEvidenceLedgerCompiler.Result result = compiler.compile(
+            "截至2026年7月31日，客户总资产为847,174.25元，当日总盈亏为42,263.81元。",
+            metadata, List.of(), List.of());
+
+        assertThat(result.status()).withFailMessage("%s", result.claimLedger()).isEqualTo("PASS");
+        assertThat(result.claimLedger().toString()).contains("VERIFIED_VALUE_MATCH", "claim://");
+    }
+
+    @Test
+    void ignoresRejectedAndReviewMarkedReportClaimsWhenBuildingTheManifest() {
+        Map<String, Object> metadata = Map.of("analyticalReport", Map.of(
+            "blocks", List.of(Map.of("id", "F1", "evidence", List.of(
+                Map.of("artifactId", "c1", "status", "REJECTED",
+                    "text", "总资产为847174.25元",
+                    "recordRefs", List.of("r.records[0]"), "supportingValues", List.of("847174.25")),
+                Map.of("artifactId", "c2", "status", "SUPPORTED",
+                    "text", "总资产为847174.25元",
+                    "reviewReasons", List.of("scope requires review"),
+                    "recordRefs", List.of("r.records[0]"), "supportingValues", List.of("847174.25")))))));
+
+        AnswerEvidenceLedgerCompiler.Result result = compiler.compile(
+            "客户总资产为847,174.25元。", metadata, List.of(), List.of());
+
+        assertThat(result.evidenceManifest()).containsEntry("evidenceCount", 0);
+        assertThat(result.status()).isEqualTo("NOT_APPLICABLE");
+    }
+
+    @Test
+    void governedClaimBindingsNeverDecorateUserVisibleTextWithInternalUris() {
+        Map<String, Object> metadata = Map.of("analyticalReport", Map.of(
+            "blocks", List.of(Map.of("id", "F1", "evidence", List.of(Map.of(
+                "artifactId", "observed-fact:asset",
+                "status", "SUPPORTED",
+                "text", "客户总资产为847174.25元",
+                "recordRefs", List.of("livedata_cx_mncg_khzc_r.records[0]"),
+                "supportingValues", List.of("847174.25"),
+                "sourceScope", "livedata_cx_mncg_khzc_r"))))));
+
+        AnswerEvidenceLedgerCompiler.BindingResult binding = compiler.bindReturnedEvidence(
+            "客户总资产为847,174.25元。", metadata, List.of(), List.of());
+
+        assertThat(binding.answer()).doesNotContain("claim://");
+    }
 }

@@ -14,7 +14,7 @@ class GovernedFinalClaimContractTest {
     private final GovernedFinalClaimContract contract = new GovernedFinalClaimContract();
 
     @Test
-    void publishesOnlySelectedAdmittedClaimText() {
+    void legacyClaimSelectionRequiresAModelAuthoredBody() {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
 
         GovernedFinalClaimContract.Projection projection = contract.project("""
@@ -22,13 +22,13 @@ class GovernedFinalClaimContractTest {
              "headlineClaimIds":["claim-1"],"sections":[]}
             """, compilation);
 
-        assertThat(projection.modelSelectionAccepted()).isTrue();
-        assertThat(projection.markdown()).contains("返回值为 42");
-        assertThat(projection.markdown()).doesNotContain("模型新增结论");
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
-    void unknownClaimIdFallsBackToAdmittedLedger() {
+    void unknownClaimIdDoesNotPublishALedgerAsReport() {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
 
         GovernedFinalClaimContract.Projection projection = contract.project("""
@@ -38,7 +38,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("UNKNOWN_FINAL_CLAIM_ID");
-        assertThat(projection.markdown()).contains("返回值为 42").doesNotContain("invented-claim");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
@@ -55,7 +55,7 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void preservesModelSelectedBusinessSectionsWithoutAllowingNewClaimText() {
+    void legacySectionsCannotBecomeReportProse() {
         AnalysisSummaryResult second = summary().withEvidence(Map.of(
             "insights", List.of(insight("claim-2", "存在需要关注的例外")),
             "claimAdmissionDecisions", List.of(Map.of(
@@ -69,9 +69,9 @@ class GovernedFinalClaimContractTest {
              "sections":[{"sectionType":"EXCEPTIONS","claimIds":["claim-2"]}]}
             """, compilation);
 
-        assertThat(projection.markdown())
-            .contains("## 核心结论", "## 异常与边界", "返回值为 42", "存在需要关注的例外")
-            .doesNotContain("模型新增结论");
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
@@ -88,7 +88,7 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void publishesDemandAnalysisAndClearlyUnverifiedMetricDirections() {
+    void legacyDemandAndMetricDirectionsCannotBecomeReportProse() {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
 
         GovernedFinalClaimContract.Projection projection = contract.project("""
@@ -103,11 +103,9 @@ class GovernedFinalClaimContractTest {
                "validationNeeded":["完整持仓范围","指标聚合语义"]}]}
             """, compilation);
 
-        assertThat(projection.modelSelectionAccepted()).isTrue();
-        assertThat(projection.markdown()).contains(
-            "## 需求分析", "判断资产增长来源与风险暴露",
-            "## 指标联想与后续分析", "待验证分析方向",
-            "当日盈亏贡献率", "完整持仓范围");
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
@@ -127,7 +125,7 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void publishesManagementReviewGroundedInWorkerClaims() {
+    void legacyManagementReviewCannotBecomeReportProse() {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(summary()));
 
         GovernedFinalClaimContract.Projection projection = contract.project("""
@@ -144,12 +142,9 @@ class GovernedFinalClaimContractTest {
                  "basisClaimIds":["claim-1"]}]}}
             """, compilation);
 
-        assertThat(projection.modelSelectionAccepted()).isTrue();
-        assertThat(projection.markdown()).contains(
-            "## 分析复盘与改进方向", "总体评价：现有分析确认了当前返回值",
-            "发现的问题：缺少可用于比较的基准",
-            "改进建议：补充同口径历史基准",
-            "下一步方向：优先验证指标变化");
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
@@ -169,7 +164,7 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void publishesValidatedObservedFactsEvenWhenWorkerProducedNoInsight() {
+    void validatedFactsDoNotReplaceAMissingModelReport() {
         AnalysisSummaryResult factsOnly = AnalysisSummaryResult.chunk(
             GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
             Map.of("datasetReference", "account-overview", "chunkIndex", 1), Map.of(),
@@ -190,7 +185,9 @@ class GovernedFinalClaimContractTest {
 
         assertThat(compilation.active()).isTrue();
         assertThat(compilation.claimContractObserved()).isTrue();
-        assertThat(projection.markdown()).contains("847174.25", "42263.81");
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
@@ -219,13 +216,11 @@ class GovernedFinalClaimContractTest {
         assertThat(compilation.claims().values().toString())
             .contains("GOVERNED_ANALYSIS_ITEM", "Buffer allocation has no recorded wait",
                 "Innodb_buffer_pool_wait_free");
-        assertThat(projection.markdown())
-            .contains("Buffer allocation has no recorded wait")
-            .doesNotContain("NO_ADMITTED_CLAIMS");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
-    void rejectsDriverSelectionThatOmitsAnAnalyzedSourceAndFallsBackToFullCoverage() {
+    void rejectsIncompleteSourceCoverageWithoutSynthesizingAReport() {
         AnalysisSummaryResult account = factSummary(
             "account-overview", "observed-fact:account", "Total assets are 847174.25", "847174.25");
         AnalysisSummaryResult trades = factSummary(
@@ -242,8 +237,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("INCOMPLETE_ANALYSIS_SOURCE_COVERAGE");
-        assertThat(projection.markdown()).contains("847174.25", "20")
-            .doesNotContain("Account data is missing");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
@@ -268,7 +262,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("INCOMPLETE_OBSERVED_FACT_COVERAGE");
-        assertThat(projection.markdown()).contains("847174.25", "20");
+        assertThat(projection.markdown()).isEmpty();
     }
 
     @Test
@@ -292,6 +286,7 @@ class GovernedFinalClaimContractTest {
         GovernedFinalClaimContract.Compilation compilation = contract.compile(List.of(combined));
         GovernedFinalClaimContract.Projection projection = contract.project("""
             {"schemaVersion":"governed_management_synthesis.v2",
+             "reportMarkdown":"The account is overwhelmingly invested in securities, with limited cash available while trading remains active.\\n\\nTotal assets are 847174.25, security value is 846262.20, cash is 912.05, and 20 trades were returned.",
              "findings":[
                {"section":"CORE","text":"The account is overwhelmingly invested in securities, with limited cash available while trading remains active.",
                 "basisClaimIds":["fact:assets","fact:cash","fact:trades"]},
@@ -307,7 +302,7 @@ class GovernedFinalClaimContractTest {
         assertThat(projection.reason()).isEqualTo("MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT");
         assertThat(projection.markdown())
             .contains("overwhelmingly invested in securities", "847174.25", "20 trades")
-            .contains("二、关键发现");
+            .doesNotContain("二、关键发现", "# 数据分析报告");
         assertThat(projection.selectedClaimIds())
             .containsExactly("fact:assets", "fact:cash", "fact:trades");
     }
@@ -325,6 +320,7 @@ class GovernedFinalClaimContractTest {
 
         GovernedFinalClaimContract.Projection projection = contract.project("""
             {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"Calculated total is 99",
              "findings":[{"section":"CORE","text":"Calculated total is 99",
                "dataRef":"computed:0:derived-total", "basisClaimIds":["source-value"]}],
              "coverage":[{"claimId":"source-value","disposition":"USED","reason":"calculation"}]}
@@ -356,6 +352,7 @@ class GovernedFinalClaimContractTest {
             Map.of("deterministicInsightResults", List.of(Map.of("status", "executed", "findings", List.of(finding)))));
         var projection = contract.project("""
             {"schemaVersion":"governed_management_synthesis.v3",
+             "reportMarkdown":"Returned value is 42",
              "findings":[{"section":"CORE","question":"What is the total?", "text":"Returned value is 42",
                "dataRef":"computed:0:sum", "visualizationIntent":"KPI", "chartData":[99999],
                "basisClaimIds":["claim-1"]}],
@@ -370,9 +367,10 @@ class GovernedFinalClaimContractTest {
     }
 
     @Test
-    void v4UsesSameMissingDataDecisionInStructuredAndTextReports() {
+    void v4RetainsEvidenceMetadataAlongsideTheModelReport() {
         var projection = contract.project("""
             {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"Returned value is 42",
              "findings":[{"section":"CORE","question":"当前情况", "text":"Returned value is 42",
                "basisClaimIds":["claim-1"]}],
              "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"current result"}]}
@@ -389,6 +387,7 @@ class GovernedFinalClaimContractTest {
             "抽样清仓记录的持仓天数为2天", "2")));
         var projection = contract.project("""
             {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"客户通常持仓2天，习惯快进快出。当前仅为样本。",
              "findings":[{"section":"CORE","text":"客户通常持仓2天，习惯快进快出。当前仅为样本。",
                "basisClaimIds":["sample"]}],
              "coverage":[{"claimId":"sample","disposition":"USED","reason":"sample"}]}
@@ -403,6 +402,7 @@ class GovernedFinalClaimContractTest {
             "抽样清仓记录的持仓天数为2天", "2")));
         var projection = contract.project("""
             {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"本次抽样记录持仓2天，无法据此判断其通常持仓周期。",
              "findings":[{"section":"CORE","text":"本次抽样记录持仓2天，无法据此判断其通常持仓周期。",
                "basisClaimIds":["sample"]}],
              "coverage":[{"claimId":"sample","disposition":"USED","reason":"sample"}]}
@@ -416,6 +416,7 @@ class GovernedFinalClaimContractTest {
             "返回20条持仓记录", "20")));
         var projection = contract.project("""
             {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"客户共持有20只证券\\n\\n本次仅为持仓样本，不能确认全部持仓",
              "findings":[{"section":"CORE","text":"客户共持有20只证券",
                "basisClaimIds":["holding-count"]},
                {"section":"LIMITATION","text":"本次仅为持仓样本，不能确认全部持仓",
@@ -440,7 +441,8 @@ class GovernedFinalClaimContractTest {
         var compilation = reviewed.compile(List.of(factSummary("account", "asset", "Returned asset value is 42", "42")));
 
         var projection = reviewed.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"Returned asset value is 42","findings":[
              {"section":"CORE","text":"Returned asset value is 42","basisClaimIds":["asset"]}]}
             """, compilation);
 
@@ -455,7 +457,8 @@ class GovernedFinalClaimContractTest {
             "Returned ETF total is 259,106,965.42", "2.5910696542E8")));
 
         var projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"Returned ETF total is 259,106,965.42","findings":[
              {"section":"CORE","text":"Returned ETF total is 259,106,965.42",
               "basisClaimIds":["market-total"]}]}
             """, compilation);
@@ -469,7 +472,8 @@ class GovernedFinalClaimContractTest {
         var compilation = contract.compile(List.of(factSummary(
             "etf", "market", "Returned market total is 100", "100")));
         var projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"The selected products represent 68.65% of the market total.","findings":[
              {"section":"CORE","text":"The selected products represent 68.65% of the market total.",
               "basisClaimIds":["market"]}]}
             """, compilation);
@@ -485,7 +489,8 @@ class GovernedFinalClaimContractTest {
         var compilation = contract.compile(List.of(factSummary(
             "etf", "market", "Returned market total is 100", "100")));
         var projection = contract.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"Model analysis remains readable.","findings":[
              {"section":"CORE","text":"Model analysis remains readable.",
               "basisClaimIds":["missing"]}]}
             """, compilation);
@@ -503,13 +508,113 @@ class GovernedFinalClaimContractTest {
             com.chatchat.common.runtime.summary.analysis.contract.AnalysisAcceptanceContract.standard(),
             new SemanticClaimReviewer(model), "ETF analysis");
         var projection = reviewed.project("""
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"Returned market total is 100","findings":[
              {"section":"CORE","text":"Returned market total is 100","basisClaimIds":["market"]}]}
             """, reviewed.compile(List.of(factSummary(
                 "etf", "market", "Returned market total is 100", "100"))));
 
         assertThat(projection.markdown()).contains("Returned market total is 100");
         org.mockito.Mockito.verifyNoInteractions(model);
+    }
+
+    @Test
+    void publishesTheModelAuthoredReportBodyInsteadOfRecomposingItFromFindingFields() {
+        var compilation = contract.compile(List.of(factSummary(
+            "account", "asset", "Returned asset value is 847174.25", "847174.25")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"# 客户交易与资产分析报告\\n\\n## 一、核心结论\\n\\n总资产为 847174.25 元，呈现满仓短线特征。\\n\\n| 指标 | 数值 |\\n| --- | --- |\\n| 总资产 | 847174.25 |",
+             "findings":[{"section":"CORE","text":"Returned asset value is 847174.25",
+              "basisClaimIds":["asset"]}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isTrue();
+        assertThat(projection.reason()).isEqualTo("MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT");
+        assertThat(projection.markdown())
+            .startsWith("# 客户交易与资产分析报告")
+            .contains("## 一、核心结论", "| 总资产 | 847174.25 |")
+            .doesNotContain("# 数据分析报告", "解释与判断");
+        assertThat(projection.analyticalReport())
+            .containsEntry("publicationMode", "MODEL_REPORT_MARKDOWN")
+            .containsKey("evidenceBindingAudit");
+        assertThat(projection.selectedClaimIds()).contains("asset");
+    }
+
+    @Test
+    void requiresModelReportInsteadOfComposingFindingFields() {
+        var compilation = contract.compile(List.of(factSummary(
+            "account", "asset", "Returned asset value is 847174.25", "847174.25")));
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[
+             {"section":"CORE","text":"Returned asset value is 847174.25",
+              "basisClaimIds":["asset"]}]}
+            """, compilation);
+
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
+        assertThat(projection.analyticalReport()).isEmpty();
+    }
+
+    @Test
+    void rejectsBlankNonTextAndOversizedBodiesWithoutTruncatingOrComposing() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var compilation = contract.compile(List.of(summary()));
+        for (Object body : List.of(" ", Map.of("text", "not a report"), "x".repeat(60_001))) {
+            String payload = mapper.writeValueAsString(Map.of(
+                "schemaVersion", "governed_management_synthesis.v4", "reportMarkdown", body,
+                "findings", List.of(Map.of("section", "CORE", "text", "Source value is 42",
+                    "basisClaimIds", List.of("claim-1")))));
+            var projection = contract.project(payload, compilation);
+            assertThat(projection.modelSelectionAccepted()).isFalse();
+            assertThat(projection.markdown()).isEmpty();
+            assertThat(projection.selectedClaimIds()).isEmpty();
+        }
+    }
+
+    @Test
+    void preservesTheExactModelBodyIncludingWhitespaceAndTheTail() throws Exception {
+        String body = "  # Model report\n\n| metric | value |\n|---|---|\n| asset | 42 |\n"
+            + "Bounded model interpretation.\n".repeat(1500) + "\nMODEL_TAIL\n ";
+        String payload = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(Map.of(
+            "schemaVersion", "governed_management_synthesis.v4", "reportMarkdown", body,
+            "findings", List.of(Map.of("section", "CORE", "text", "Source value is 42",
+                "basisClaimIds", List.of("claim-1")))));
+        var projection = contract.project(payload, contract.compile(List.of(summary())));
+        assertThat(projection.markdown()).isEqualTo(body);
+        assertThat(projection.analyticalReport()).containsKey("evidenceBindingAudit");
+    }
+
+    @Test
+    void aBodyWithoutFindingsStillRequiresProtocolRepair() {
+        var projection = contract.project("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"# Model report","findings":[]}
+            """, contract.compile(List.of(summary())));
+        assertThat(projection.modelSelectionAccepted()).isFalse();
+        assertThat(projection.reason()).isEqualTo("EMPTY_MANAGEMENT_FINDINGS");
+        assertThat(projection.markdown()).isEmpty();
+    }
+
+    @Test
+    void incompleteReviewReportsTheMissingClaimIdsWithoutGuessingVerdicts() throws Exception {
+        var review = new java.util.LinkedHashMap<String, Object>();
+        review.put("status", "PASS");
+        for (String field : List.of("requirementCoverage", "claimConsistency", "crossWorkerConflicts",
+                "duplicateEvidence", "unsupportedInferences", "missingCriticalDimensions", "claimAssessments", "challenges")) {
+            review.put(field, List.of());
+        }
+        review.put("evidenceSufficiency", Map.of());
+        String output = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(Map.of(
+            "schemaVersion", "governed_management_synthesis.v4", "driverReview", review,
+            "driverReasoning", Map.of("derivedClaims", List.of())));
+        var audit = contract.inspectDriverAudit(output, contract.compile(List.of(summary())), List.of());
+        assertThat(audit.valid()).isFalse();
+        assertThat(audit.reason()).isEqualTo("DRIVER_REVIEW_CLAIM_COVERAGE_INCOMPLETE");
+        assertThat(audit.review()).containsEntry("missingClaimIds", List.of("claim-1"))
+            .containsEntry("expectedClaimCount", 1).containsEntry("assessmentCount", 0);
     }
 
     private AnalysisSummaryResult factSummary(String dataset, String claimId,

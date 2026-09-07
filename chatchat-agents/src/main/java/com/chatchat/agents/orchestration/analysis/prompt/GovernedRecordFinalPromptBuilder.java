@@ -79,7 +79,7 @@ public final class GovernedRecordFinalPromptBuilder {
             .append("questions, never by query source, tool, search channel, chunk or execution view. ")
             .append("Do not expose planning, template selection, driver/worker, tool calls, evidence IDs, or runtime chronology.\n")
             .append("Do not recalculate authoritative deterministic findings. Do not infer joins, aggregation semantics, ")
-            .append("population completeness, trends, or holding periods unless the supplied contract declares them.\n")
+            .append("population completeness, trends, or durations unless the supplied contract declares them.\n")
             .append("The model owns the analytical choice; Runtime owns execution and audit. Runtime never decides that a numeric field should be summed, averaged, divided, weighted or compared over time. Select such an operation only from declared semantic meaning and grain. If a useful formula is not authorized, describe it as a proposed analysis with required inputs instead of publishing its result.\n")
             .append("A producer-returned metric at its declared grain is an observation, not a Runtime aggregation. ")
             .append("Use it directly when it answers the question; do not claim that aggregation authorization is ")

@@ -138,11 +138,6 @@
           @drill-down="handleVisualizationDrillDown(message, $event)"
           @table-chart="openChartAnalysisModal"
         />
-        <AnalyticalReport
-          v-else-if="message.role === 'assistant' && !message.streaming && messageAnalyticalReport(message)"
-          :report="messageAnalyticalReport(message)"
-          @drill-down="handleVisualizationDrillDown(message, $event)"
-        />
         <div
           v-else-if="messageHasRenderableContent(message)"
           class="message-markdown"

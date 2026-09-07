@@ -9,6 +9,25 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AnalysisSynthesisContextTest {
+    @Test void carriesAuthoredAnalysisAndDeclaredSemanticsWithExplicitBounds() {
+        var scope = GovernanceIsolationScope.runtime("tenant", "run", "request", "conversation", "user");
+        var report = AnalysisSummaryResult.intermediateSummary(scope, "DATASET_SYNTHESIS", "source-a",
+            "The device's measure changed; the calibration basis remains unknown.", "MODEL_DATASET_REDUCE",
+            Map.of(), Map.of(), Map.of(), List.of(), Map.of("analysisSemanticContract", Map.of(
+                "semanticAuthority", "PRODUCER_DECLARED", "semantics", Map.of("MEASURE", "observed reading, calibration unknown"))));
+        var context = new AnalysisSynthesisContext().build(List.of(report), List.of(), Map.of(), Map.of());
+        String inputs = ModelProtocolJson.compact(context.get("modelAnalysisInputs"));
+        assertThat(inputs).contains(report.content(), "observed reading, calibration unknown", "PRODUCER_DECLARED")
+            .contains("\"narrativeTruncated\":false", "\"semanticsTruncated\":false", "\"omittedReportCount\":0");
+
+        var large = AnalysisSummaryResult.intermediateSummary(scope, "DATASET_SYNTHESIS", "source-b",
+            "Model analysis. ".repeat(1000), "MODEL_DATASET_REDUCE", Map.of(), Map.of(), Map.of(), List.of(), Map.of());
+        String bounded = ModelProtocolJson.compact(new AnalysisSynthesisContext()
+            .build(java.util.Collections.nCopies(20, large), List.of(), Map.of(), Map.of()).get("modelAnalysisInputs"));
+        assertThat(bounded).contains("\"narrativeTruncated\":true");
+        assertThat(bounded.length()).isLessThan(22_000);
+    }
+
     @Test void consolidatedInputDoesNotReplayWorkerAnalysisButKeepsItsIdentity() {
         var scope = GovernanceIsolationScope.runtime("tenant", "run", "request", "conversation", "user");
         var worker = AnalysisSummaryResult.intermediateSummary(scope, "DATASET_SYNTHESIS", "worker",

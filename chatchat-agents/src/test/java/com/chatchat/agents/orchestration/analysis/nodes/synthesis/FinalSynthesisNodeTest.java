@@ -199,11 +199,8 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void modelFailureUsesGovernedDeterministicFallbackWhenPolicyAllowsIt() {
-        AnalysisSummaryGovernanceCoordinator governance = mock(AnalysisSummaryGovernanceCoordinator.class);
-        AnalysisSummaryResult governed = AnalysisSummaryResult.finalSummary(
-            scope, "completed", "fallback", "DETERMINISTIC_FINAL_FALLBACK", Map.of(), List.of());
-        when(governance.finalizeSummary(any())).thenReturn(governed);
+    void modelFailureDoesNotInvokeRuntimeFallbackEvenWhenAllowed() {
+        AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -213,14 +210,15 @@ class FinalSynthesisNodeTest {
         when(failing.chat(any(String.class))).thenThrow(new IllegalStateException("model unavailable"));
 
         FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
-            request(failing, metadata, candidate -> candidate, () -> "fallback", true));
+            request(failing, metadata, candidate -> candidate,
+                () -> { throw new AssertionError("Runtime must not compose the report"); }, true));
 
-        assertThat(result.content()).isEqualTo("fallback");
+        assertThat(result.generated()).isFalse();
         assertThat(metadata)
-            .containsEntry("interpretationPlanDeterministicSummaryFallback", true)
-            .containsEntry("executionStatus", "PARTIAL_RESULT_PRESENTED")
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
             .containsEntry("interpretationPlanSummaryGenerated", false)
-            .containsEntry("interpretationPlanFinalResultProduced", true);
+            .containsEntry("interpretationPlanFinalResultProduced", false);
+        verify(failing, org.mockito.Mockito.times(2)).chat(any(String.class));
     }
 
     @Test
@@ -255,7 +253,7 @@ class FinalSynthesisNodeTest {
         assertThat(result.generated()).isFalse();
         assertThat(metadata)
             .containsEntry("analysisOutputAdmitted", false)
-            .containsEntry("analysisOutputAdmissionReason", "EXECUTION_MANIFEST_NOT_ANALYSIS")
+            .containsEntry("analysisOutputAdmissionReason", "EMPTY_ANALYSIS_OUTPUT")
             .containsEntry("rawAnalysisOutputWithheld", true)
             .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
             .containsEntry("interpretationPlanFinalResultProduced", false);
@@ -313,8 +311,7 @@ class FinalSynthesisNodeTest {
 
         assertThat(answer).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
         assertThat(metadata)
-            .containsEntry("governedNarrativeAnalysisUnavailable", true)
-            .containsEntry("ungovernedCandidateWithheld", true)
+            .containsEntry("rawAnalysisOutputWithheld", true)
             .containsEntry("analysisOutputAdmitted", false);
     }
 
@@ -369,14 +366,15 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void missingDriverReviewProtocolPublishesDeterministicEvidenceForHumanReview() {
+    void missingProtocolRequestsAModelAuthoredReportUsingExistingData() {
         AnalysisSummaryGovernanceCoordinator governance = passthroughGovernance();
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", governance,
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
             new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("客户具有模型擅自推断出的稳定交易风格");
+        when(model.chat(any(String.class))).thenReturn("invalid protocol",
+            "# 客户分析\n\n返回记录显示数值为 42，缺少历史基准。 ");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
 
@@ -384,8 +382,10 @@ class FinalSynthesisNodeTest {
             claimBoundRequest(model, metadata, claimSummary(), true));
 
         assertThat(result.generated()).isTrue();
-        assertThat(result.content()).contains("返回记录显示数值为 42")
-            .doesNotContain("分析未完成", "稳定交易风格");
+        assertThat(result.content()).contains("# 客户分析", "返回记录显示数值为 42", "缺少历史基准");
+        assertThat(metadata).containsEntry("analysisDriverRepairAttemptCount", 1)
+            .containsEntry("analysisRecoverySource", "DRIVER_MODEL_REPAIR");
+        verify(model, org.mockito.Mockito.times(2)).chat(any(String.class));
         assertThat(metadata)
             .containsEntry("finalClaimPublicationContractActive", true)
             .containsEntry("analysisDriverReviewCompleted", false)
@@ -399,7 +399,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void finalModelFailurePublishesDeterministicEvidenceInsteadOfBlockingForDriverReview() {
+    void finalModelFailureNeverSplicesLowerLayerEvidenceIntoAReport() {
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -412,17 +412,13 @@ class FinalSynthesisNodeTest {
         FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), false));
 
-        assertThat(result.generated()).isTrue();
-        assertThat(result.content()).contains("返回记录显示数值为 42")
-            .doesNotContain("分析未完成");
-        assertThat(metadata)
-            .containsEntry("interpretationPlanDeterministicClaimFallback", true)
-            .containsEntry("analysisDriverReviewCompleted", false)
-            .containsEntry("analysisHumanReviewRequired", true)
-            .containsEntry("analysisRepairRequired", false)
-            .containsEntry("analysisExecutionStatus", "COMPLETED");
-        assertThat(metadata).doesNotContainKeys(
-            "analysisRetryDirective", "analysisReuseExistingDataset");
+        assertThat(result.generated()).isFalse();
+        assertThat(result.content()).doesNotContain("返回记录显示数值为 42");
+        assertThat(metadata).containsEntry("analysisOutputAdmitted", false)
+            .containsEntry("analysisDriverRepairAttemptCount", 1)
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
+            .doesNotContainKeys("analyticalReport", "interpretationPlanDeterministicClaimFallback");
+        verify(model, org.mockito.Mockito.times(2)).chat(any(String.class));
     }
 
     @Test
@@ -436,6 +432,7 @@ class FinalSynthesisNodeTest {
             prompt.contains("Evidence provenance ledger"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
+             "reportMarkdown":"返回记录显示数值为 42\\n\\nWorker已形成初步事实判断，但解释深度不足\\n\\n缺少比较基准\\n\\n补充历史同口径数据\\n\\n优先完成趋势验证",
                  "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
                    "evidenceSufficiency":{},"crossWorkerConflicts":[],"duplicateEvidence":[],
                    "unsupportedInferences":[],"missingCriticalDimensions":[],
@@ -462,10 +459,8 @@ class FinalSynthesisNodeTest {
         FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), true));
 
-        assertThat(result.content()).contains(
-            "分析问题：定位增长来源与风险",
-            "## 指标联想与待验证方向", "收益贡献率",
-            "## 管理复盘与下一步", "缺少比较基准", "优先完成趋势验证");
+        assertThat(result.content()).contains("42", "缺少比较基准", "优先完成趋势验证")
+            .doesNotContain("## 指标联想与待验证方向", "## 管理复盘与下一步");
         assertThat(metadata)
             .containsEntry("analysisDriverModelInvoked", true)
             .containsEntry("finalClaimSelectionAccepted", true);
@@ -499,6 +494,7 @@ class FinalSynthesisNodeTest {
             prompt.contains("claim-reducer") && !prompt.contains("claim-1"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
+             "reportMarkdown":"Reducer归并后的管理分析结论",
                  "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
                    "evidenceSufficiency":{},"crossWorkerConflicts":[],"duplicateEvidence":[],
                    "unsupportedInferences":[],"missingCriticalDimensions":[],
@@ -597,9 +593,10 @@ class FinalSynthesisNodeTest {
                 && prompt.contains("Evidence provenance ledger")
                 && prompt.contains("Write a report, not a concatenation of source descriptions")
                 && prompt.contains("Do not repeat the CORE conclusion verbatim")
-                && prompt.contains("does not erase observed trading behavior"))))
+                && prompt.contains("does not erase observed behavior"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
+             "reportMarkdown":"The account combines limited cash flexibility with active two-way trading.\\n\\nThe account is almost entirely invested in securities with little cash flexibility, while the returned day also shows active two-way trading.\\n\\nTotal assets are 847174.25, security value is 846262.20 and cash is 912.05; the day contains 20 trades, including 11 buys and 9 sells.",
                  "driverReview":{"status":"PASS","requirementCoverage":[],"claimConsistency":[],
                    "evidenceSufficiency":{},"crossWorkerConflicts":[],"duplicateEvidence":[],
                    "unsupportedInferences":[],"missingCriticalDimensions":[],
@@ -655,7 +652,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void presentationReplacesUngovernedDraftWithDriverSynthesis() {
+    void presentationDoesNotRecomposeTheBodyFromWorkerReports() {
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId",
             mock(AnalysisSummaryGovernanceCoordinator.class),
@@ -669,11 +666,8 @@ class FinalSynthesisNodeTest {
                 "raw appendix", List.of(List.of("完整")), 1, false,
                 true, true, true, List.of(summary), List.of(summary), metadata));
 
-        assertThat(answer).contains("数据分析总结", "完整的业务分析结论")
-            .doesNotContain("operational draft", "raw appendix");
-        assertThat(metadata)
-            .containsEntry("governedNarrativeAnalysisReplacedOperationalDraft", true)
-            .containsEntry("governedNarrativeAnalysisSource", "DRIVER_SYNTHESIS_INPUTS");
+        assertThat(answer).isEqualTo("operational draft");
+        assertThat(metadata).containsEntry("recordAnalysisCoverageAppendixApplied", false);
     }
 
     @Test
@@ -691,6 +685,7 @@ class FinalSynthesisNodeTest {
                 && prompt.contains("claim-1"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
+             "reportMarkdown":"The returned observation is 42, but no comparison basis supports a trend judgment.",
                  "driverReview":{"status":"CHALLENGE","requirementCoverage":[],
                    "claimConsistency":[],"evidenceSufficiency":{},"crossWorkerConflicts":[],
                    "duplicateEvidence":[],"unsupportedInferences":["missing comparison basis"],
@@ -841,6 +836,7 @@ class FinalSynthesisNodeTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn("""
             {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"返回记录显示数值为 42",
              "findings":[{"section":"CORE","text":"返回记录显示数值为 42", "question":"返回数值是多少？",
                "dataRef":"computed:0:total", "visualizationIntent":"KPI", "basisClaimIds":["claim-1"]}],
              "coverage":[{"claimId":"claim-1","disposition":"USED","reason":"current value"}]}
@@ -851,7 +847,7 @@ class FinalSynthesisNodeTest {
             new DeterministicInsightEngine.Finding("total", "aggregate", "返回值", new java.math.BigDecimal("42"), "单位",
                 "sum(value)", List.of("dataset.records[1].value"), Map.of())))));
         var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
-        assertThat(result.content()).contains("关键数据：返回值 = 42 单位");
+        assertThat(result.content()).contains("返回记录显示数值为 42").doesNotContain("关键数据：");
         assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("blocks")).isInstanceOf(List.class);
         metadata.put("analysisAcceptanceQuestion", "本次返回值是多少？是否支持增长判断？");
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
@@ -862,7 +858,8 @@ class FinalSynthesisNodeTest {
                   "evidenceIds":["claim-1"],"repairAction":"NARROW_SCOPE"}]}
                 """;
             return """
-            {"schemaVersion":"governed_management_synthesis.v4","findings":[
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "reportMarkdown":"返回记录显示数值为42\\n\\n增长99.5%","findings":[
              {"section":"CORE","text":"返回记录显示数值为42", "dataRef":"computed:0:total",
               "visualizationIntent":"KPI", "basisClaimIds":["claim-1"]},
              {"section":"CORE","text":"增长99.5%", "basisClaimIds":["claim-1"]}]}
@@ -877,6 +874,72 @@ class FinalSynthesisNodeTest {
         coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
         assertThat(metadata).doesNotContainKey("analyticalReport");
         assertThat(metadata).doesNotContainKey("claimAcceptance");
+    }
+
+    @Test
+    void incompleteCoverageDoesNotAppendRawDataToTheModelReport() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new StructuredFindingMerger());
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        String body = "# Model report\n\nCurrent value is 42. This is a partial sample.\n";
+        String answer = coordinator.presentGovernedAnalysis(body,
+            new FinalSynthesisNode.PresentationRequest("RAW_APPENDIX_SENTINEL", List.of(List.of("42")),
+                1, false, false, false, false, List.of(claimSummary()), List.of(claimSummary()), metadata));
+        assertThat(answer).isEqualTo(body);
+        assertThat(metadata).containsEntry("recordAnalysisCoverageAppendixApplied", false);
+    }
+
+    @Test
+    void missingBodyAndFailedRepairNeverPublishFindingFields() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new StructuredFindingMerger());
+        var model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenReturn("""
+            {"schemaVersion":"governed_management_synthesis.v4",
+             "findings":[{"section":"CORE","text":"FINDING_SENTINEL 42","basisClaimIds":["claim-1"]}]}
+            """);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+        assertThat(result.generated()).isFalse();
+        assertThat(result.content()).doesNotContain("FINDING_SENTINEL", "governed_management_synthesis", "42");
+        assertThat(metadata).containsEntry("finalClaimSelectionReason", "MODEL_REPORT_MARKDOWN_REQUIRED")
+            .containsEntry("analysisDriverRepairAttemptCount", 1);
+        verify(model, org.mockito.Mockito.times(2)).chat(any(String.class));
+    }
+
+    @Test
+    void boundedDriverPromptRetainsProducerSemanticsWithoutRuntimeDomainInstructions() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new StructuredFindingMerger());
+        var source = claimSummary();
+        var evidence = new LinkedHashMap<String, Object>(source.evidence());
+        evidence.put("analysisSemanticContract", Map.of("semanticAuthority", "PRODUCER_DECLARED",
+            "semantics", Map.of("MEASURE", "calibration and adjustment rules are undeclared")));
+        source = source.withEvidence(evidence);
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            String prompt = invocation.getArgument(0);
+            assertThat(prompt).contains("modelAnalysisInputs", "calibration and adjustment rules are undeclared",
+                "driverReview.claimAssessments must contain exactly one entry for every claimId",
+                "reportMarkdown", "Markdown tables")
+                .doesNotContain("当日盈亏", "trading strategy", "asset, holding", "Trading turnover",
+                    "Static size cannot establish subscriptions", "no Markdown data tables");
+            return """
+                {"schemaVersion":"governed_management_synthesis.v4",
+                 "reportMarkdown":"# Model report\\n\\nMeasure is 42; adjustments are unknown.",
+                 "findings":[{"section":"CORE","text":"Measure is 42","basisClaimIds":["claim-1"]}]}
+                """;
+        });
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, source, true));
+        assertThat(result.content()).isEqualTo("# Model report\n\nMeasure is 42; adjustments are unknown.");
+        assertThat(metadata).containsEntry("analysisReportBodyPreserved", true)
+            .containsKey("analysisDriverRawResponseChars");
     }
 
     private AnalysisSummaryResult claimSummary() {

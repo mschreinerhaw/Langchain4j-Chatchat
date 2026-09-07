@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp, h, nextTick } from 'vue';
 import AnalyticalReport from '../../components/AnalyticalReport.vue';
 import ChatMessageList from '../components/ChatMessageList.js';
+import ChatMessageListView from '../../components/ChatMessageList.vue';
 
 vi.mock('../../components/VisualizationRenderer.vue', () => ({ default: {
   props: ['spec'], setup: (props) => () => h('div', { class: 'test-chart' }, JSON.stringify(props.spec.dataset.rows))
@@ -54,4 +55,18 @@ describe('structured analytical report', () => {
     const report = { schemaVersion: 'analytical_report.v1', blocks: [block] };
     expect(ChatMessageList.methods.messageAnalyticalReport.call({ extractUiResponse: () => ({ analyticalReport: report }) }, {})).toBe(report);
   });
+
+  it.each(['MODEL_REPORT_MARKDOWN', 'COMPOSED_BLOCKS', undefined])(
+    'never renders evidence blocks as the answer for publicationMode=%s', async (publicationMode) => {
+      const report = { schemaVersion: 'analytical_report.v1', publicationMode, blocks: [block] };
+      const root = document.createElement('div'); document.body.append(root);
+      app = createApp(ChatMessageListView, { messages: [{ id: 'report-1', role: 'assistant',
+        content: '# Model report\n\n| Asset | Value |\n|---|---|\n| Total | 42 |',
+        metadata: { analyticalReport: report } }] });
+      app.mount(root); await nextTick();
+      expect(root.querySelector('.message-markdown h1')?.textContent).toBe('Model report');
+      expect(root.querySelector('.message-markdown table')?.textContent).toContain('Total');
+      expect(root.querySelector('.analytical-report')).toBeNull();
+      expect(root.querySelector('.analytical-insight')).toBeNull();
+    });
 });

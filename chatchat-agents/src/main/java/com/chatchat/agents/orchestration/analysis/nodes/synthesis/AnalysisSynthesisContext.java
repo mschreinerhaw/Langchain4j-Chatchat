@@ -43,6 +43,7 @@ final class AnalysisSynthesisContext {
             AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes));
         result.put("adaptiveAnalysisPrompt", value(metadata,
             "adaptiveAnalysisPromptContract", Map.of()));
+        result.put("modelAnalysisInputs", modelAnalysisInputs(reducers.isEmpty() ? workers : reducers));
         result.put("nodeInputs", Map.of(
             "analysisProducts", reducers.isEmpty() ? reports(workers) : workerReferences(workers),
             "validation", value(metadata, "analysisWorkerSupervision", Map.of()),
@@ -73,6 +74,39 @@ final class AnalysisSynthesisContext {
             if (!contract.isEmpty()) return contract;
         }
         return Map.of();
+    }
+
+    private Map<String, Object> modelAnalysisInputs(List<AnalysisSummaryResult> sources) {
+        int remaining = 18_000;
+        List<Map<String, Object>> reports = new ArrayList<>();
+        for (AnalysisSummaryResult source : sources) {
+            if (source == null || remaining == 0 || reports.size() >= 16) continue;
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("reportId", source.resultId());
+            item.put("sourceScope", source.position().getOrDefault("datasetReference", source.scope()));
+            // Carry declared definitions, not raw records or inferred domain semantics.
+            Object semantics = source.evidence().get("analysisSemanticContract");
+            if (semantics == null) semantics = new com.chatchat.agents.orchestration.analysis.contract.AnalysisSemanticContractCompiler()
+                .compile(source.analysisContext());
+            String declared = ModelProtocolJson.compact(semantics);
+            int semanticChars = Math.min(declared.length(), Math.min(4_000, remaining));
+            item.put("declaredSemantics", declared.substring(0, semanticChars));
+            item.put("semanticsTruncated", semanticChars < declared.length());
+            remaining -= semanticChars;
+            String narrative = source.content() == null ? "" : source.content();
+            boolean eligible = com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy
+                .admitWorkerNarrative(narrative).admitted();
+            int narrativeChars = eligible ? Math.min(narrative.length(), Math.min(4_000, remaining)) : 0;
+            item.put("modelNarrative", narrative.substring(0, narrativeChars));
+            item.put("narrativeTruncated", eligible && narrativeChars < narrative.length());
+            item.put("narrativeEligible", eligible);
+            remaining -= narrativeChars;
+            reports.add(Map.copyOf(item));
+        }
+        return Map.of("reports", List.copyOf(reports),
+            "omittedReportCount", sources.stream().filter(java.util.Objects::nonNull).count() - reports.size(),
+            "purpose", "Model analysis and producer-declared semantics; verify conclusions against the evidence ledger. "
+                + "Truncated inputs are excerpts, not complete definitions. Missing semantics remain unknown.");
     }
 
     // Consolidated reports already carry analytical content. Keep upstream identities for audit

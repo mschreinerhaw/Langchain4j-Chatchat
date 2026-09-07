@@ -206,8 +206,9 @@ class UnifiedQuestionAnalysisGraphTest {
                 }
                 assertThat(prompt).contains("Adaptive business analysis instruction", "客户经营分析师", "CONTRIBUTION", "\"amount\":100",
                     "supportingValues must cite every raw input value",
-                    "Emit at least one material evidence-bound finding for every non-empty question-relevant dataset",
-                    "Never describe a returned transaction, holding, profit/loss or position dataset as missing");
+                    "Emit material evidence-bound findings for every non-empty question-relevant dataset",
+                    "Never describe a returned question-relevant dataset as missing",
+                    "not a one-finding-per-dataset limit");
                 return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"bounded\"]}";
             }
         };

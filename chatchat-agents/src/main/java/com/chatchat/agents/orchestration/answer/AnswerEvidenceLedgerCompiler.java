@@ -445,7 +445,11 @@ public final class AnswerEvidenceLedgerCompiler {
      */
     private void addGovernedReportClaims(Map<String, EvidenceItem> items, Object rawReport) {
         Map<String, Object> report = map(rawReport);
-        if (!(report.get("blocks") instanceof List<?> blocks)) return;
+        List<Object> blocks = new ArrayList<>();
+        if (report.get("blocks") instanceof List<?> existing) blocks.addAll(existing);
+        if (report.get("evidenceClaims") instanceof List<?> claims) {
+            blocks.add(Map.of("evidence", claims));
+        }
         int index = 0;
         for (Object rawBlock : blocks) {
             for (Map<String, Object> claim : governedBlockEvidence(rawBlock)) {

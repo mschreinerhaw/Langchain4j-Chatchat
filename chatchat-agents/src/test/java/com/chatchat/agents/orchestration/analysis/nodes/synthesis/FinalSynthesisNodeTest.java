@@ -373,7 +373,7 @@ class FinalSynthesisNodeTest {
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
             new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
-        when(model.chat(any(String.class))).thenReturn("invalid protocol",
+        when(model.chat(any(String.class))).thenReturn("{}",
             "# 客户分析\n\n返回记录显示数值为 42，缺少历史基准。 ");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
@@ -545,7 +545,7 @@ class FinalSynthesisNodeTest {
             new StructuredFindingMerger());
         ChatModel model = mock(ChatModel.class);
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
-            prompt.contains("final analytical report composer")
+            prompt.contains("final analytical report author")
                 && prompt.contains("If no Claim is admitted"))))
             .thenReturn("## 管理分析\n\n下层报告存在未通过证据绑定的推断，现有内容可供人工复核，但不应视为已验证事实。");
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -591,9 +591,8 @@ class FinalSynthesisNodeTest {
         when(model.chat(org.mockito.ArgumentMatchers.argThat((String prompt) ->
             prompt.contains("fact:assets") && prompt.contains("fact:trades")
                 && prompt.contains("Evidence provenance ledger")
-                && prompt.contains("Write a report, not a concatenation of source descriptions")
-                && prompt.contains("Do not repeat the CORE conclusion verbatim")
-                && prompt.contains("does not erase observed behavior"))))
+                && prompt.contains("complete model-authored Markdown report")
+                && prompt.contains("not a required outline"))))
             .thenReturn("""
                 {"schemaVersion":"governed_management_synthesis.v3",
              "reportMarkdown":"The account combines limited cash flexibility with active two-way trading.\\n\\nThe account is almost entirely invested in securities with little cash flexibility, while the returned day also shows active two-way trading.\\n\\nTotal assets are 847174.25, security value is 846262.20 and cash is 912.05; the day contains 20 trades, including 11 buys and 9 sells.",
@@ -924,22 +923,24 @@ class FinalSynthesisNodeTest {
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
             String prompt = invocation.getArgument(0);
             assertThat(prompt).contains("modelAnalysisInputs", "calibration and adjustment rules are undeclared",
-                "driverReview.claimAssessments must contain exactly one entry for every claimId",
-                "reportMarkdown", "Markdown tables")
+                "complete model-authored Markdown report", "Do not return JSON")
                 .doesNotContain("当日盈亏", "trading strategy", "asset, holding", "Trading turnover",
-                    "Static size cannot establish subscriptions", "no Markdown data tables");
-            return """
-                {"schemaVersion":"governed_management_synthesis.v4",
-                 "reportMarkdown":"# Model report\\n\\nMeasure is 42; adjustments are unknown.",
-                 "findings":[{"section":"CORE","text":"Measure is 42","basisClaimIds":["claim-1"]}]}
-                """;
+                    "Static size cannot establish subscriptions", "no Markdown data tables",
+                    "Return only one JSON object", "\"findings\":", "claimAssessments");
+            return "# Model report\n\nMeasure is 42; adjustments are unknown.";
         });
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
         var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, source, true));
         assertThat(result.content()).isEqualTo("# Model report\n\nMeasure is 42; adjustments are unknown.");
         assertThat(metadata).containsEntry("analysisReportBodyPreserved", true)
+            .containsEntry("analysisReportGenerationMode", "MODEL_AUTHORED_MARKDOWN")
             .containsKey("analysisDriverRawResponseChars");
+        assertThat((List<?>) metadata.get("finalPublishedClaimIds")).isEmpty();
+        var reportMetadata = (Map<?, ?>) metadata.get("analyticalReport");
+        assertThat(reportMetadata.containsKey("blocks")).isFalse();
+        assertThat((List<?>) reportMetadata.get("evidenceClaims")).hasSize(1);
+        verify(model).chat(any(String.class));
     }
 
     private AnalysisSummaryResult claimSummary() {

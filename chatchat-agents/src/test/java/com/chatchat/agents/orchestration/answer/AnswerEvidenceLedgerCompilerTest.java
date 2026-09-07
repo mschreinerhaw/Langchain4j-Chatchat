@@ -518,6 +518,20 @@ class AnswerEvidenceLedgerCompilerTest {
     }
 
     @Test
+    void auditsFreeMarkdownAgainstEvidenceWithoutRequiringFindingBlocks() {
+        var metadata = Map.<String, Object>of("analyticalReport", Map.of(
+            "publicationMode", "MODEL_REPORT_MARKDOWN",
+            "evidenceClaims", List.of(Map.of("artifactId", "measure-1", "status", "SUPPORTED",
+                "text", "Returned measure is 42 units", "recordRefs", List.of("source.records[1]"),
+                "supportingValues", List.of("42"), "sourceScope", "source"))));
+        String body = "Returned measure is 42 units.";
+        assertThat(compiler.compile(body, metadata, List.of(), List.of()).status()).isEqualTo("PASS");
+        assertThat(compiler.compile("Returned measure is 999 units.", metadata, List.of(), List.of()).status())
+            .isNotEqualTo("PASS");
+        assertThat(compiler.bindReturnedEvidence(body, metadata, List.of(), List.of()).answer()).isEqualTo(body);
+    }
+
+    @Test
     void bindsReportProseToGovernedClaimsAlreadyVerifiedByTheAcceptanceGate() {
         Map<String, Object> metadata = Map.of("analyticalReport", Map.of(
             "schemaVersion", "analytical_report.v1",

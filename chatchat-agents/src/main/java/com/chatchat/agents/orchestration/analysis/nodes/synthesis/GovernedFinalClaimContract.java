@@ -461,6 +461,27 @@ final class GovernedFinalClaimContract {
             boundedText(source.get("dataRef"), 200), boundedText(source.get("visualizationIntent"), 40));
     }
 
+    String appendNarrativeInstruction(String prompt, Compilation compilation) {
+        return (prompt == null ? "" : prompt)
+            + "\n\nFinal deliverable: return only the complete model-authored Markdown report. "
+            + "Choose its title, organization, depth, tables and explanatory narrative from the user's "
+            + "question and available evidence. Do not return JSON, findings fields or a review form. "
+            + "Review definitions, calculations, evidence scope and consistency before responding. "
+            + "Keep qualifications beside the affected claims and distinguish observation from inference. "
+            + "Runtime will publish this body without composing sections or filling business conclusions. "
+            + "The ledger below supplies evidence, not a required outline or a list to copy. "
+            + "Evidence provenance ledger: " + ModelProtocolJson.compact(compilation.claims().values()
+                .stream().map(Claim::toPromptMap).toList());
+    }
+
+    Projection publishNarrative(String body, Compilation compilation) {
+        return new Projection(true, "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT", body, List.of(),
+            Map.of("schemaVersion", ReportComposer.VERSION, "publicationMode", "MODEL_REPORT_MARKDOWN",
+                "evidenceClaims", compilation.artifacts(compilation.claims().keySet()),
+                "evidenceBindingAudit", Map.of("mode", "PROVENANCE_ONLY",
+                    "modelAnalysisPreserved", true, "bindingStatus", "PENDING_SENTENCE_LEVEL_AUDIT")));
+    }
+
     String appendSelectionInstruction(String prompt, Compilation compilation) {
         if (compilation == null || compilation.claims().isEmpty()) return prompt;
         List<Map<String, Object>> ledger = compilation.claims().values().stream()

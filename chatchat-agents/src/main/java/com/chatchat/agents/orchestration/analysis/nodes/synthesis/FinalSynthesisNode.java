@@ -193,14 +193,14 @@ public final class FinalSynthesisNode {
                 + "\n\nBinding report-composition pipeline context (not evidence): "
                 + ModelProtocolJson.compact(pipelineContext);
         String modelPrompt = claimBoundPublication
-            ? finalClaimContract.appendSelectionInstruction(driverPrompt, claimCompilation)
+            ? finalClaimContract.appendNarrativeInstruction(driverPrompt, claimCompilation)
             : driverPrompt;
         VerifiedReportDataCatalog reportData = VerifiedReportDataCatalog.fromRuntime(request.metadata());
         request.metadata().remove("analyticalReport");
         request.metadata().remove("claimAcceptance");
         request.metadata().remove("claimAcceptanceGraphNodes");
         if (claimBoundPublication) {
-            modelPrompt += "\nRuntime-owned report data catalog (choose dataRef; never return chart values): "
+            modelPrompt += "\nVerified supporting data for the report (not a required outline): "
                 + ModelProtocolJson.compact(reportData.promptView());
         }
         request.metadata().put("analysisDriverModelInvoked", true);
@@ -241,7 +241,16 @@ public final class FinalSynthesisNode {
             outcome = "MODEL_FINAL_REPORT_UNAVAILABLE";
         }
 
-        if (claimBoundPublication) {
+        boolean authoredNarrative = answer != null && !answer.stripLeading().startsWith("{")
+            && !answer.stripLeading().startsWith("```json")
+            && AnalysisOutputAdmissionPolicy.admit(answer).admitted();
+        if (claimBoundPublication && authoredNarrative) {
+            request.metadata().remove("analysisDriverReview");
+            request.metadata().put("analysisDriverReviewCompleted", false);
+            request.metadata().put("analysisDriverReviewStatus", "STRUCTURED_REVIEW_NOT_REQUESTED");
+            request.metadata().put("analysisReportGenerationMode", "MODEL_AUTHORED_MARKDOWN");
+        }
+        if (claimBoundPublication && !authoredNarrative) {
             recordDriverAudit(request, driverAudit);
             if (driverAudit == null || !driverAudit.valid()) {
                 String reason = driverAudit == null
@@ -260,13 +269,15 @@ public final class FinalSynthesisNode {
 
         if (claimBoundPublication) {
             GovernedFinalClaimContract.Projection projection =
-                finalClaimContract.project(answer, claimCompilation, reportData);
+                authoredNarrative ? finalClaimContract.publishNarrative(answer, claimCompilation)
+                    : finalClaimContract.project(answer, claimCompilation, reportData);
             boolean partialDelivery = "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(projection.reason());
             if (!projection.modelSelectionAccepted() && !partialDelivery) {
                 recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
             }
             answer = projection.markdown();
-            outcome = partialDelivery ? "CLAIM_BOUND_PARTIAL_SUMMARY" : projection.modelSelectionAccepted()
+            outcome = authoredNarrative ? "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT"
+                : partialDelivery ? "CLAIM_BOUND_PARTIAL_SUMMARY" : projection.modelSelectionAccepted()
                 ? "CLAIM_BOUND_FINAL_SUMMARY"
                 : "MODEL_FINAL_REPORT_REPAIR_REQUIRED";
             request.metadata().put("finalClaimSelectionAccepted",
@@ -274,7 +285,7 @@ public final class FinalSynthesisNode {
             request.metadata().put("finalClaimSelectionReason", projection.reason());
             request.metadata().put("finalPublishedClaimIds", projection.selectedClaimIds());
             if ((projection.modelSelectionAccepted() || partialDelivery)
-                && projection.analyticalReport().containsKey("blocks")) {
+                && !projection.analyticalReport().isEmpty()) {
                 request.metadata().put("analyticalReport", projection.analyticalReport());
             }
             if (projection.analyticalReport().containsKey("claimAcceptance")) {
@@ -302,6 +313,11 @@ public final class FinalSynthesisNode {
                 request.metadata().remove("claimAcceptance");
                 request.metadata().remove("claimAcceptanceGraphNodes");
                 answer = recovery.content();
+                if (claimBoundPublication) {
+                    request.metadata().put("analyticalReport",
+                        finalClaimContract.publishNarrative(answer, claimCompilation).analyticalReport());
+                    request.metadata().put("analysisReportGenerationMode", "MODEL_AUTHORED_MARKDOWN");
+                }
                 outcome = recovery.outcome();
                 admission = AnalysisOutputAdmissionPolicy.admit(answer);
                 request.metadata().put("analysisRecoveryApplied", true);
@@ -450,14 +466,14 @@ public final class FinalSynthesisNode {
         boundedContext.put("rawRecordAccess", "PROHIBITED");
         String question = String.valueOf(request.metadata().getOrDefault(
             "analysisAcceptanceQuestion", ""));
-        return "You are the final analytical report composer. DRIVER_REVIEW, DRIVER_REASONING and "
-            + "DRIVER_DECISION are mandatory. Compose one coherent, decision-useful "
+        return "You are the final analytical report author. Review the evidence and reasoning internally, "
+            + "then write one coherent, decision-useful Markdown "
             + "report from the model analysis inputs and declared source semantics, using the Claim ledger "
             + "as an evidence provenance index rather than a report outline. Preserve each "
             + "Claim's sample, period, confidence and caveats; do not replay raw tool output or execution "
             + "chronology. Facts, calculations and evidence selection are already complete. Your task is "
             + "to organize supported findings, explain their business meaning, expose only material "
-            + "limitations, and choose dataRef/visualizationIntent when supplied by Runtime. If no "
+            + "limitations. Choose the report structure and tables yourself. If no "
             + "Claim is admitted, return a useful limited analysis and explicit human-review note "
             + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
             + "never treat their count as a publication veto. Write in the user's language. Do not expose "

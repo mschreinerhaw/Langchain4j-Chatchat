@@ -26,6 +26,8 @@ import com.chatchat.agents.runtime.toolcall.ToolInputSchemaResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
+import com.chatchat.common.mcp.audit.McpContractAuditReport;
+import com.chatchat.common.mcp.audit.McpContractAuditRequest;
 import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.mcp.service.McpServiceCall;
@@ -132,6 +134,28 @@ public class ToolRuntimeService {
     /** Injects the common Runtime OS kernel without coupling Agents to an MCP implementation. */
     public void setMcpRuntimeKernel(McpRuntimeKernel mcpRuntimeKernel) {
         this.mcpRuntimeKernel = mcpRuntimeKernel;
+    }
+
+    /** Runs the existing Kernel contract audit without invoking the provider. */
+    public McpContractAuditReport preflightMcpContract(String toolName, String templateId) {
+        ToolMetadata metadata = toolName == null ? null : toolRegistry.getToolMetadata(toolName);
+        Map<String, Object> contractMetadata = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        String serviceId = stringValue(contractMetadata.get("serviceId"));
+        McpRuntimeKernel kernel = mcpRuntimeKernel;
+        if (kernel == null || serviceId == null || !isMcpGovernedTool(toolName, metadata)) {
+            return null;
+        }
+        Set<String> requiredArguments = metadata.getParameters() == null ? Set.of()
+            : metadata.getParameters().stream()
+                .filter(Objects::nonNull)
+                .filter(ToolParameter::isRequired)
+                .map(ToolParameter::getName)
+                .filter(Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        return kernel.audit(new McpContractAuditRequest(
+            serviceId, toolName, normalizeText(templateId), requiredArguments, null));
     }
 
     /**
@@ -2153,9 +2177,27 @@ public class ToolRuntimeService {
             toolInput.getParameters() == null ? null : toolInput.getParameters().get("template"));
         String boundTemplateId = templateId == null ? null : String.valueOf(templateId);
         if (boundTemplateId != null) context.putIfAbsent("templateId", boundTemplateId);
-        runtimeTemplateBindingEvidence(request)
-            .filter(binding -> binding.authorizes(boundTemplateId, toolName))
-            .ifPresent(binding -> context.put(McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap()));
+        McpTemplateBindingEvidence.ParseResult bindingParse = runtimeTemplateBindingEvidence(request);
+        String propagatedInvalidReason = runtimeTemplateBindingMarker(
+            request, McpTemplateBindingEvidence.INVALID_REASON_KEY);
+        String bindingInvalidReason = firstText(bindingParse.invalidReason(), propagatedInvalidReason);
+        if (bindingInvalidReason != null) {
+            context.put(McpTemplateBindingEvidence.INVALID_REASON_KEY, bindingInvalidReason);
+            log.warn("Runtime rejected malformed template binding before MCP invocation: tool={} templateId={} reason={}",
+                toolName, boundTemplateId, bindingInvalidReason);
+        } else if (bindingParse.evidence().isPresent()) {
+            McpTemplateBindingEvidence binding = bindingParse.evidence().orElseThrow();
+            context.put(McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap());
+            if (!binding.authorizes(boundTemplateId, toolName)) {
+                context.put(McpTemplateBindingEvidence.INVALID_REASON_KEY,
+                    "binding does not authorize requested templateId/executorTool");
+                log.warn("Runtime detected template binding mismatch before MCP invocation: requestedTemplateId={} "
+                        + "requestedTool={} boundTemplateId={} boundTool={}",
+                    boundTemplateId, toolName, binding.templateId(), binding.executorTool());
+            }
+        }
+        String skippedReason = runtimeTemplateBindingMarker(request, McpTemplateBindingEvidence.SKIPPED_REASON_KEY);
+        if (skippedReason != null) context.put(McpTemplateBindingEvidence.SKIPPED_REASON_KEY, skippedReason);
         long deadlineAt = 0L;
         if (request != null && request.getAttributes() != null) {
             Long configuredDeadline = longValue(firstPresent(request.getAttributes().get("__agentDeadlineAt"),
@@ -2211,13 +2253,26 @@ public class ToolRuntimeService {
             result.resultKind(), result.resultSchemaRef(), bound, result.pagination(), result.completedAt());
     }
 
-    private Optional<McpTemplateBindingEvidence> runtimeTemplateBindingEvidence(ToolRuntimeRequest request) {
-        if (request == null || request.getAttributes() == null) return Optional.empty();
+    private McpTemplateBindingEvidence.ParseResult runtimeTemplateBindingEvidence(ToolRuntimeRequest request) {
+        if (request == null || request.getAttributes() == null) {
+            return McpTemplateBindingEvidence.parse(null);
+        }
         Object executionPlan = request.getAttributes().get("executionPlan");
-        if (!(executionPlan instanceof Map<?, ?> plan)) return Optional.empty();
+        if (!(executionPlan instanceof Map<?, ?> plan)) return McpTemplateBindingEvidence.parse(null);
         Object parameters = plan.get("parameters");
-        if (!(parameters instanceof Map<?, ?> values)) return Optional.empty();
-        return McpTemplateBindingEvidence.from(values.get(McpTemplateBindingEvidence.CONTEXT_KEY));
+        if (!(parameters instanceof Map<?, ?> values)) return McpTemplateBindingEvidence.parse(null);
+        return McpTemplateBindingEvidence.parse(values.get(McpTemplateBindingEvidence.CONTEXT_KEY));
+    }
+
+    private String runtimeTemplateBindingMarker(ToolRuntimeRequest request, String marker) {
+        if (request == null || request.getAttributes() == null) return null;
+        String direct = normalizeText(stringValue(request.getAttributes().get(marker)));
+        if (direct != null) return direct;
+        Object executionPlan = request.getAttributes().get("executionPlan");
+        if (!(executionPlan instanceof Map<?, ?> plan)) return null;
+        Object parameters = plan.get("parameters");
+        return parameters instanceof Map<?, ?> values
+            ? normalizeText(stringValue(values.get(marker))) : null;
     }
 
     private Object losslessMcpAnalysisPayload(ToolOutput output,
@@ -2324,6 +2379,8 @@ public class ToolRuntimeService {
         attributes.put("workflowExecutionAttempt", String.valueOf(attempt) + ".batch-" + index);
         Map<String, Object> childArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         Object rawBinding = childArguments.remove(McpTemplateBindingEvidence.CONTEXT_KEY);
+        boolean bindingReattached = false;
+        String bindingDropReason = null;
         if (parent != null && parent.getAttributes() != null
             && Boolean.TRUE.equals(parent.getAttributes().get("runtimeOwnedTemplateBatch"))) {
             String childTemplateId = normalizeText(stringValue(firstPresent(
@@ -2333,16 +2390,32 @@ public class ToolRuntimeService {
                 childArguments.get("template_code"),
                 childArguments.get("template")
             )));
-            McpTemplateBindingEvidence.from(rawBinding)
-                .filter(binding -> binding.authorizes(childTemplateId, toolName))
-                .ifPresent(binding -> {
+            McpTemplateBindingEvidence.ParseResult parsedBinding = McpTemplateBindingEvidence.parse(rawBinding);
+            if (parsedBinding.invalidReason() != null) {
+                bindingDropReason = parsedBinding.invalidReason();
+            } else if (parsedBinding.evidence().isPresent()) {
+                McpTemplateBindingEvidence binding = parsedBinding.evidence().orElseThrow();
+                if (binding.authorizes(childTemplateId, toolName)) {
                     Map<String, Object> executionPlan = new LinkedHashMap<>(
                         asMap(attributes.get("executionPlan")));
                     Map<String, Object> parameters = new LinkedHashMap<>(childArguments);
                     parameters.put(McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap());
                     executionPlan.put("parameters", parameters);
                     attributes.put("executionPlan", executionPlan);
-                });
+                    bindingReattached = true;
+                } else {
+                    bindingDropReason = "binding does not authorize batch child templateId/executorTool";
+                }
+            }
+        } else if (rawBinding != null) {
+            bindingDropReason = "parent batch is not Runtime-owned";
+        }
+        if (rawBinding != null && !bindingReattached) {
+            attributes.put(McpTemplateBindingEvidence.BATCH_DROPPED_KEY, true);
+            attributes.put(McpTemplateBindingEvidence.INVALID_REASON_KEY,
+                bindingDropReason == null ? "batch child binding was not reattached" : bindingDropReason);
+            log.warn("Runtime dropped template binding at batch child boundary: batchId={} callId={} tool={} reason={}",
+                batchId, callId, toolName, attributes.get(McpTemplateBindingEvidence.INVALID_REASON_KEY));
         }
         ToolInput parentInput = parent == null ? null : parent.getToolInput();
         return ToolRuntimeRequest.builder()

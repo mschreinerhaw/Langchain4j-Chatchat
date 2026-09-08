@@ -36,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -193,6 +194,24 @@ class ToolRuntimeServiceTest {
                             .containsEntry("templateId", templateId)
                             .containsEntry("executorTool", toolName));
             });
+            clearInvocations(kernel);
+            Map<String, Object> mismatchedCall = Map.of(
+                "callId", "mismatched",
+                "toolName", toolName,
+                "arguments", Map.of(
+                    "templateId", "customer_orders",
+                    McpTemplateBindingEvidence.CONTEXT_KEY,
+                    new McpTemplateBindingEvidence(McpTemplateBindingEvidence.SCHEMA_VERSION,
+                        "reviewed_template_discovery_batch", "different_template", toolName).toMap()));
+
+            service.execute(batchRequest(List.of(mismatchedCall), false,
+                Map.of("runtimeOwnedTemplateBatch", true)));
+
+            ArgumentCaptor<McpServiceCall> rejected = ArgumentCaptor.forClass(McpServiceCall.class);
+            verify(kernel).execute(rejected.capture());
+            assertThat(rejected.getValue().context())
+                .containsEntry(McpTemplateBindingEvidence.INVALID_REASON_KEY,
+                    "binding does not authorize batch child templateId/executorTool");
         } finally {
             service.shutdown();
         }

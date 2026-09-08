@@ -23,6 +23,10 @@ import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
+import com.chatchat.common.mcp.audit.McpContractAuditReport;
+import com.chatchat.common.mcp.audit.McpContractFinding;
+import com.chatchat.common.mcp.audit.McpContractSeverity;
+import com.chatchat.common.mcp.audit.McpContractSource;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolOutput;
@@ -36,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,6 +53,74 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
+
+    @Test
+    void rejectsPlanBeforeStepZeroWhenResourcePreflightFails() {
+        String toolName = "mcp_dynamic_read";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).riskLevel("low").categories(List.of("mcp"))
+            .metadata(Map.of("serviceId", "dynamic-service")).build());
+        ToolRuntimeService tools = mock(ToolRuntimeService.class);
+        McpContractFinding finding = new McpContractFinding(McpContractSeverity.ERROR,
+            "MCP_OUTPUT_SCHEMA_MISSING", "dynamic-service", toolName, "generic",
+            McpContractSource.OUTPUT_SCHEMA, "type", "missing", "absent", "PUBLISH_OUTPUT_SCHEMA");
+        when(tools.preflightMcpContract(toolName, null)).thenReturn(new McpContractAuditReport(
+            null, false, List.of(), List.of(finding), Map.of("ERROR", 1L), 0));
+        AtomicInteger calls = new AtomicInteger();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            tools, new InterpretationPlanValidator(), new InterpretationPlanOptimizer(),
+            null, null, scriptedController(List.of(List.of(1), List.of(2))), null,
+            command -> {
+                calls.incrementAndGet();
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of()),
+                    ToolMetadata.builder().id(toolName).build(), null, "success", Map.of());
+            });
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            simpleMcpPlan(toolName), toolRegistry, List.of(toolName), "tenant", "preflight-reject",
+            "conversation", "user", Map.of()));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.status()).isEqualTo("RESOURCE_PREFLIGHT_FAILED");
+        assertThat(result.metadata().toString()).contains("MCP_OUTPUT_SCHEMA_MISSING");
+        assertThat(calls.get()).isZero();
+        verify(tools).preflightMcpContract(toolName, null);
+    }
+
+    @Test
+    void blocksProviderInvocationWhenContractChangesAfterPlanSnapshot() {
+        String toolName = "mcp_dynamic_read";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        AtomicBoolean drifted = new AtomicBoolean();
+        when(toolRegistry.getToolMetadata(toolName)).thenAnswer(ignored -> ToolMetadata.builder()
+            .id(toolName).version(drifted.get() ? "2" : "1").riskLevel("low")
+            .categories(List.of("mcp")).metadata(Map.of("serviceId", "dynamic-service")).build());
+        ToolRuntimeService tools = mock(ToolRuntimeService.class);
+        when(tools.preflightMcpContract(toolName, null)).thenAnswer(ignored -> {
+            drifted.set(true);
+            return null;
+        });
+        AtomicInteger calls = new AtomicInteger();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            tools, new InterpretationPlanValidator(), new InterpretationPlanOptimizer(),
+            null, null, scriptedController(List.of(List.of(1), List.of(2))), null,
+            command -> {
+                calls.incrementAndGet();
+                return new ToolRuntimeExecution(ToolOutput.success(Map.of()),
+                    ToolMetadata.builder().id(toolName).build(), null, "success", Map.of());
+            });
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            simpleMcpPlan(toolName), toolRegistry, List.of(toolName), "tenant", "version-drift",
+            "conversation", "user", Map.of()));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("RESOURCE_VERSION_MISMATCH");
+        assertThat(calls.get()).isZero();
+    }
 
     @Test
     void honorsAgentWorkflowAutoExecuteDuringPlanPreflight() {
@@ -7018,7 +7091,7 @@ class InterpretationPlanRuntimeTest {
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(linuxParameters.get("templateId")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(linuxParameters.get("runtimeTemplateBinding").toString())
-            .contains("runtime_template_binding.v1", "CHECK_SYSTEM_OVERVIEW");
+            .contains("runtime_template_binding.v2", "CHECK_SYSTEM_OVERVIEW");
     }
 
     @Test
@@ -8652,6 +8725,19 @@ class InterpretationPlanRuntimeTest {
             ),
             review()
         );
+    }
+
+    private InterpretationPlan simpleMcpPlan(String toolName) {
+        return new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("analysis", "resource preflight", "low"), context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName,
+                    Map.of("query", "status"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(), List.of(), 10_000),
+            review());
     }
 
     private InterpretationPlanRuntime.StepExecution completedSqlAssetStep() {

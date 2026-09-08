@@ -11,10 +11,12 @@ import com.chatchat.common.mcp.service.McpServiceDirectory;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
+import com.chatchat.common.mcp.service.McpToolDescriptor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -89,6 +91,59 @@ class DefaultMcpRuntimeKernelTest {
         assertThat(result.metadata().get("templateBindingValidation")).asString()
             .contains("runtimeEvidenceValidated=true", "plan_binding_from_template_discovery");
         verify(directory).invoke(call);
+    }
+
+    @Test
+    void rejectsMalformedRuntimeTemplateBindingInsteadOfSilentlyDroppingIt() {
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
+        DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
+        McpServiceCall call = new McpServiceCall(null, "request-1", "python",
+            "python_template_execute", Map.of("templateId", "template-123"),
+            Map.of("templateId", "template-123", McpTemplateBindingEvidence.CONTEXT_KEY,
+                Map.of("schemaVersion", McpTemplateBindingEvidence.SCHEMA_VERSION,
+                    "source", "plan_preflight")), 0);
+
+        McpServiceResult result = kernel.execute(call);
+
+        assertThat(result.status()).isEqualTo(McpServiceResultStatus.REJECTED);
+        assertThat(result.errorCode()).isEqualTo("MCP_TEMPLATE_BINDING_INVALID");
+        assertThat(result.metadata())
+            .containsEntry("resourceFailureCategory", "CONTEXT_LOST")
+            .containsKey(McpTemplateBindingEvidence.INVALID_REASON_KEY);
+        verify(directory, never()).invoke(any());
+        verify(contracts, never()).audit(any());
+    }
+
+    @Test
+    void rejectsTemplateVersionDriftBeforeProviderInvocation() {
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
+        when(directory.tools(any())).thenReturn(List.of(new McpToolDescriptor(
+            "python", "python_template_execute", "python_template_execute", "", "template_execution",
+            Map.of(), Map.of(), Map.of(), Map.of(
+                "workflowContractVersion", "version-4",
+                "workflowContractChecksum", "sha256:new"))));
+        DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
+        McpTemplateBindingEvidence binding = new McpTemplateBindingEvidence(
+            McpTemplateBindingEvidence.SCHEMA_VERSION, "plan_preflight", "template-123",
+            "python_template_execute", "asset-1", "version-3", "sha256:old");
+        McpServiceCall call = new McpServiceCall(null, "request-1", "python",
+            "python_template_execute", Map.of("templateId", "template-123"),
+            Map.of("templateId", "template-123",
+                McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap()), 0);
+
+        McpServiceResult result = kernel.execute(call);
+
+        assertThat(result.status()).isEqualTo(McpServiceResultStatus.REJECTED);
+        assertThat(result.errorCode()).isEqualTo("RESOURCE_VERSION_MISMATCH");
+        assertThat(result.recoveryAction()).isEqualTo("REDISCOVER_TEMPLATE_AND_RECOMPILE_PLAN");
+        assertThat(result.metadata())
+            .containsEntry("resourceFailureCategory", "VERSION_MISMATCH")
+            .containsEntry("snapshottedTemplateVersion", "version-3")
+            .containsEntry("currentTemplateVersion", "version-4");
+        verify(directory, never()).invoke(any());
+        verify(contracts, never()).audit(any());
     }
 
     @Test

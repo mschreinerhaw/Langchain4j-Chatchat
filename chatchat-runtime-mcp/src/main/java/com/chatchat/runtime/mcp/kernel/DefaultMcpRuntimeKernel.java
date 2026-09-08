@@ -91,10 +91,20 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
     public McpServiceResult invoke(McpServiceCall call) {
         if (call == null) throw new IllegalArgumentException("call is required");
         String requestedTemplateId = text(call.context().get("templateId"));
-        McpTemplateBindingEvidence templateBinding = McpTemplateBindingEvidence
-            .from(call.context().get(McpTemplateBindingEvidence.CONTEXT_KEY))
-            .filter(binding -> binding.authorizes(requestedTemplateId, call.toolName()))
-            .orElse(null);
+        McpTemplateBindingEvidence.ParseResult bindingParse = McpTemplateBindingEvidence
+            .parse(call.context().get(McpTemplateBindingEvidence.CONTEXT_KEY));
+        String propagatedInvalidReason = text(call.context().get(McpTemplateBindingEvidence.INVALID_REASON_KEY));
+        if (bindingParse.invalidReason() != null || propagatedInvalidReason != null) {
+            String reason = propagatedInvalidReason == null ? bindingParse.invalidReason() : propagatedInvalidReason;
+            return invalidTemplateBinding(call, requestedTemplateId, reason);
+        }
+        McpTemplateBindingEvidence templateBinding = bindingParse.evidence().orElse(null);
+        if (templateBinding != null && !templateBinding.authorizes(requestedTemplateId, call.toolName())) {
+            return invalidTemplateBinding(call, requestedTemplateId,
+                "binding does not authorize requested templateId/executorTool");
+        }
+        McpServiceResult versionMismatch = validateTemplateSnapshot(call, templateBinding);
+        if (versionMismatch != null) return versionMismatch;
         McpContractAuditRequest preflightRequest = new McpContractAuditRequest(
             call.serviceId(), call.toolName(), templateBinding == null ? requestedTemplateId : null,
             stringSet(call.context().get("requiredArguments")), null);
@@ -150,6 +160,70 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         metadata.put("templateBindingValidation", templateBindingMetadata(
             requestedTemplateId, call.toolName(), templateBinding));
         return copyWithMetadata(invoked, metadata);
+    }
+
+    private McpServiceResult invalidTemplateBinding(McpServiceCall call,
+                                                    String requestedTemplateId,
+                                                    String reason) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        putIfPresent(metadata, "templateId", requestedTemplateId);
+        metadata.put("executorTool", call.toolName());
+        metadata.put(McpTemplateBindingEvidence.INVALID_REASON_KEY,
+            reason == null ? "runtime template binding is invalid" : reason);
+        metadata.put("failureStage", "MCP_KERNEL_PREFLIGHT");
+        metadata.put("resourceFailureCategory", "CONTEXT_LOST");
+        log.warn("MCP invocation rejected because Runtime template binding is invalid: requestId={} "
+                + "serviceId={} tool={} templateId={} reason={}",
+            call.requestId(), call.serviceId(), call.toolName(), requestedTemplateId, reason);
+        return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
+            McpServiceResultStatus.REJECTED, null, null, "MCP_TEMPLATE_BINDING_INVALID",
+            "Runtime template binding context is invalid: " + reason, false,
+            "REBUILD_RUNTIME_TEMPLATE_BINDING", metadata, 0);
+    }
+
+    private McpServiceResult validateTemplateSnapshot(McpServiceCall call,
+                                                      McpTemplateBindingEvidence binding) {
+        if (binding == null || (binding.templateVersion() == null && binding.contentHash() == null)) return null;
+        McpToolDescriptor current = tools(new McpToolQuery(
+            call.serviceId(), null, Set.of(call.toolName()))).stream().findFirst().orElse(null);
+        if (current == null) return null;
+        String currentVersion = firstText(
+            current.metadata().get("workflowContractVersion"), current.metadata().get("contractVersion"));
+        String currentHash = firstText(
+            current.metadata().get("workflowContractChecksum"),
+            current.metadata().get("contractChecksum"), current.metadata().get("contentHash"));
+        boolean versionChanged = binding.templateVersion() != null && currentVersion != null
+            && !binding.templateVersion().equals(currentVersion);
+        boolean contentChanged = binding.contentHash() != null && currentHash != null
+            && !binding.contentHash().equals(currentHash);
+        if (!versionChanged && !contentChanged) return null;
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("failureStage", "MCP_KERNEL_PREFLIGHT");
+        metadata.put("resourceFailureCategory", "VERSION_MISMATCH");
+        metadata.put("templateId", binding.templateId());
+        putIfPresent(metadata, "snapshottedTemplateVersion", binding.templateVersion());
+        putIfPresent(metadata, "currentTemplateVersion", currentVersion);
+        putIfPresent(metadata, "snapshottedContentHash", binding.contentHash());
+        putIfPresent(metadata, "currentContentHash", currentHash);
+        log.warn("MCP invocation rejected because template contract changed after plan preflight: "
+                + "requestId={} serviceId={} tool={} templateId={} versionChanged={} contentChanged={}",
+            call.requestId(), call.serviceId(), call.toolName(), binding.templateId(), versionChanged, contentChanged);
+        return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
+            McpServiceResultStatus.REJECTED, null, null, "RESOURCE_VERSION_MISMATCH",
+            "Template/tool contract changed after plan preflight", false,
+            "REDISCOVER_TEMPLATE_AND_RECOMPILE_PLAN", metadata, 0);
+    }
+
+    private String firstText(Object... values) {
+        for (Object value : values) {
+            String text = text(value);
+            if (text != null) return text;
+        }
+        return null;
+    }
+
+    private void putIfPresent(Map<String, Object> values, String key, Object value) {
+        if (value != null) values.put(key, value);
     }
 
     private Map<String, Object> templateBindingMetadata(String templateId, String toolName,

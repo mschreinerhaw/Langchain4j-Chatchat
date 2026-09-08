@@ -45,6 +45,7 @@ import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.runtime.toolcall.TemplateExecutionContractSelector;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
+import com.chatchat.common.mcp.audit.McpContractAuditReport;
 import com.chatchat.common.knowledge.template.BusinessTemplateRequirementMatchingEvent;
 import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
 import com.chatchat.agents.routing.McpToolRouter;
@@ -201,6 +202,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         "remote_tool"
     );
     private final PlanToolExecutionPort toolExecutionPort;
+    private final ToolRuntimeService toolRuntimeService;
     private final PlanDagControlPort dagControlPort;
     private final InterpretationPlanValidator validator;
     private final InterpretationPlanOptimizer optimizer;
@@ -292,6 +294,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                      StepInputEnricher stepInputEnricher,
                                      PlanToolExecutionPort toolExecutionPort,
                                      PlanDagControlPort dagControlPort) {
+        this.toolRuntimeService = toolRuntimeService;
         this.toolExecutionPort = toolExecutionPort == null
             ? new LocalPlanToolExecutionPort(toolRuntimeService) : toolExecutionPort;
         this.dagControlPort = dagControlPort == null
@@ -349,7 +352,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         executableAttributes.put("dagRepair", optimization.repairResult().auditMetadata());
         executableAttributes.put("dagRepairValidationState", validation.valid() ? "ACCEPTED" : "REJECTED");
-        ExecutionRequest executableRequest = request.withPlanAndAttributes(
+        ExecutionRequest validatedRequest = request.withPlanAndAttributes(
             executablePlan,
             executableAttributes
         );
@@ -361,13 +364,27 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 Map.of("validationIssues", validation.issues()),
                 null,
                 elapsed(startedAt)
-            ), executableRequest, planStepIds(executablePlan));
+            ), validatedRequest, planStepIds(executablePlan));
         }
         if (validation.approvalRequired()) {
             return withDiagnosticRun(ExecutionResult.approvalRequired(
                 validation.approvalRequests(),
                 List.of(),
                 Map.of("validationIssues", validation.issues()),
+                elapsed(startedAt)
+            ), validatedRequest, planStepIds(executablePlan));
+        }
+        Map<String, Object> resourcePreflight = preflightPlanResources(
+            executablePlan, request.plan(), request);
+        executableAttributes.put("planResourcePreflight", resourcePreflight);
+        ExecutionRequest executableRequest = request.withPlanAndAttributes(executablePlan, executableAttributes);
+        if (!Boolean.TRUE.equals(resourcePreflight.get("valid"))) {
+            return withDiagnosticRun(ExecutionResult.failed(
+                "RESOURCE_PREFLIGHT_FAILED",
+                "Runtime resource preflight rejected the plan before step execution",
+                List.of(),
+                Map.of("planResourcePreflight", resourcePreflight),
+                null,
                 elapsed(startedAt)
             ), executableRequest, planStepIds(executablePlan));
         }
@@ -1107,6 +1124,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 metadata.put("recoveryAttemptIds", new ArrayList<>(recoverable.attemptIds()));
             }
         }
+        Object resourcePreflight = request.attributes() == null
+            ? null : request.attributes().get("planResourcePreflight");
+        if (resourcePreflight != null) {
+            metadata.put("planResourcePreflight", resourcePreflight);
+        }
         Map<String, Object> governance = dagGovernanceContract(request);
         if (!governance.isEmpty()) {
             metadata.put("dagGovernanceContract", governance);
@@ -1715,6 +1737,143 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         ));
     }
 
+    private Map<String, Object> preflightPlanResources(InterpretationPlan plan,
+                                                       InterpretationPlan sourcePlan,
+                                                       ExecutionRequest request) {
+        Map<String, Object> snapshots = new LinkedHashMap<>();
+        List<Map<String, Object>> audits = new ArrayList<>();
+        List<Map<String, Object>> failures = new ArrayList<>();
+        boolean deferred = false;
+        for (InterpretationPlan.Step step : plan == null ? List.<InterpretationPlan.Step>of() : plan.steps()) {
+            if (step == null || step.id() == null || !step.mcpToolAction()) continue;
+            ToolMetadata metadata = request == null || request.toolRegistry() == null
+                ? null : request.toolRegistry().getToolMetadata(step.toolName());
+            if (metadata == null) {
+                failures.add(mapOf("stepId", step.id(), "toolName", step.toolName(),
+                    "errorCode", "RESOURCE_TOOL_CONTRACT_MISSING"));
+                continue;
+            }
+            Map<String, Object> snapshot = toolContractSnapshot(step.toolName(), metadata);
+            snapshots.put(String.valueOf(step.id()), snapshot);
+            String templateId = sourcePlan == null ? null : sourcePlan.steps().stream()
+                .filter(candidate -> candidate != null && Objects.equals(candidate.id(), step.id()))
+                .findFirst()
+                .map(candidate -> canonicalTemplateId(firstValueAtAnyPath(candidate.input(),
+                    "$.templateId", "$.template_id", "$.template")))
+                .orElse(null);
+            McpContractAuditReport audit = toolRuntimeService == null ? null
+                : toolRuntimeService.preflightMcpContract(step.toolName(), templateId);
+            if (audit == null) {
+                deferred = true;
+                audits.add(mapOf("stepId", step.id(), "toolName", step.toolName(),
+                    "status", "DEFERRED_NON_MCP_OR_KERNEL_UNAVAILABLE", "snapshot", snapshot));
+            } else {
+                audits.add(mapOf("stepId", step.id(), "toolName", step.toolName(),
+                    "templateId", templateId, "status", audit.compliant() ? "PASSED" : "REJECTED",
+                    "audit", audit, "snapshot", snapshot));
+                if (!audit.compliant()) {
+                    failures.add(mapOf("stepId", step.id(), "toolName", step.toolName(),
+                        "templateId", templateId, "errorCode", "MCP_CONTRACT_PREFLIGHT_FAILED",
+                        "findingCodes", audit.findings().stream().map(finding -> finding.code()).distinct().toList()));
+                }
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "plan_resource_preflight.v1");
+        result.put("valid", failures.isEmpty());
+        result.put("status", failures.isEmpty() ? (deferred ? "PASSED_WITH_DEFERRED_LOCAL_CHECKS" : "PASSED") : "REJECTED");
+        result.put("snapshottedAt", Instant.now().toString());
+        result.put("snapshots", snapshots);
+        result.put("audits", audits);
+        result.put("failures", failures);
+        return Map.copyOf(result);
+    }
+
+    private Map<String, Object> toolContractSnapshot(String toolName, ToolMetadata metadata) {
+        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("toolName", toolName);
+        putSnapshotValue(snapshot, "serviceId", extra.get("serviceId"));
+        putSnapshotValue(snapshot, "templateVersion", firstNonBlankObject(
+            extra.get("workflowContractVersion"), extra.get("contractVersion"),
+            metadata == null ? null : metadata.getVersion()));
+        putSnapshotValue(snapshot, "publishedContentHash", firstNonBlankObject(
+            extra.get("workflowContractChecksum"), extra.get("contractChecksum"), extra.get("contentHash")));
+        snapshot.put("contractFingerprint", sha256(mapOf(
+            "toolName", toolName,
+            "version", metadata == null ? null : metadata.getVersion(),
+            "parameters", metadata == null ? List.of() : metadata.getParameters(),
+            "governance", metadata == null ? Map.of() : mapOf(
+                "riskLevel", metadata.getRiskLevel(), "operationType", metadata.getOperationType(),
+                "runtimeLevel", metadata.getRuntimeLevel(), "confirmation", metadata.getConfirmation()),
+            "metadata", extra
+        )));
+        return Map.copyOf(snapshot);
+    }
+
+    private void putSnapshotValue(Map<String, Object> target, String key, Object value) {
+        if (value != null && !String.valueOf(value).isBlank()) target.put(key, String.valueOf(value).trim());
+    }
+
+    private void validatePinnedResourceSnapshot(InterpretationPlan.Step step, ExecutionRequest request) {
+        if (step == null || request == null || request.toolRegistry() == null) return;
+        Map<String, Object> preflight = asStringMap(request.attributes().get("planResourcePreflight"));
+        Map<String, Object> expected = asStringMap(asStringMap(preflight.get("snapshots")).get(String.valueOf(step.id())));
+        if (expected.isEmpty()) return;
+        ToolMetadata currentMetadata = request.toolRegistry().getToolMetadata(step.toolName());
+        Map<String, Object> current = currentMetadata == null ? Map.of()
+            : toolContractSnapshot(step.toolName(), currentMetadata);
+        if (!Objects.equals(expected.get("contractFingerprint"), current.get("contractFingerprint"))) {
+            throw new IllegalStateException("RESOURCE_VERSION_MISMATCH: MCP tool/template contract changed after "
+                + "plan preflight for step " + step.id() + " tool " + step.toolName());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void attachPinnedTemplateSnapshot(InterpretationPlan.Step step,
+                                              ExecutionRequest request,
+                                              Map<String, Object> input) {
+        if (step == null || input == null || !isTemplateExecutionTool(step.toolName())) return;
+        Map<String, Object> preflight = asStringMap(request.attributes().get("planResourcePreflight"));
+        Map<String, Object> snapshot = asStringMap(
+            asStringMap(preflight.get("snapshots")).get(String.valueOf(step.id())));
+        attachPinnedTemplateSnapshot(input, snapshot);
+        Object callsValue = firstPresent(input, "calls", "toolCalls", "tool_calls");
+        if (callsValue instanceof List<?> calls) {
+            for (Object callValue : calls) {
+                if (!(callValue instanceof Map<?, ?> rawCall)) continue;
+                Object arguments = firstPresent((Map<String, Object>) rawCall, "arguments", "input");
+                if (arguments instanceof Map<?, ?> rawArguments) {
+                    attachPinnedTemplateSnapshot((Map<String, Object>) rawArguments, snapshot);
+                }
+            }
+        }
+    }
+
+    private void attachPinnedTemplateSnapshot(Map<String, Object> input, Map<String, Object> snapshot) {
+        McpTemplateBindingEvidence.ParseResult parsed = McpTemplateBindingEvidence.parse(
+            input.get(McpTemplateBindingEvidence.CONTEXT_KEY));
+        if (parsed.invalidReason() != null) {
+            throw new IllegalStateException("CONTEXT_PROPAGATION_FAILED: " + parsed.invalidReason());
+        }
+        if (parsed.evidence().isEmpty()) {
+            // Discovery/review may legitimately resolve the template later. The explicit skip
+            // marker remains diagnostic evidence; only malformed propagated evidence fails here.
+            return;
+        }
+        McpTemplateBindingEvidence binding = parsed.evidence().orElseThrow();
+        String assetId = canonicalTemplateId(firstValueAtAnyPath(input,
+            "$.assetId", "$.asset_id", "$.executionContext.assetId", "$.mcpExecutionContext.assetId"));
+        McpTemplateBindingEvidence pinned = binding.withSnapshot(
+            assetId,
+            stringValue(snapshot.get("templateVersion")),
+            firstText(stringValue(snapshot.get("publishedContentHash")),
+                stringValue(snapshot.get("contractFingerprint")))
+        );
+        input.put(McpTemplateBindingEvidence.CONTEXT_KEY, pinned.toMap());
+    }
+
     private StepExecution executeStepBody(InterpretationPlan.Step step,
                                           ExecutionRequest request,
                                           Map<Integer, StepExecution> completed) {
@@ -1722,6 +1881,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         recordPlanStep(request, step, completed);
         if (step.mcpToolAction()) {
             try {
+                validatePinnedResourceSnapshot(step, request);
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
                 applyBoundDocumentScope(step, request, resolvedInput);
                 Map<String, Object> contextParameterRecovery = new LinkedHashMap<>(
@@ -1791,6 +1951,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                         }
                     }
                 }
+                attachPinnedTemplateSnapshot(step, request, resolvedInput);
                 assertNoUnresolvedBindingPlaceholders(resolvedInput);
                 log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
                     executionTraceId(request),
@@ -7602,8 +7763,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                            String source) {
         if (input == null || templateId == null || templateId.isBlank()
             || executorTool == null || executorTool.isBlank()) {
+            String reason = input == null ? "binding_target_missing"
+                : templateId == null || templateId.isBlank() ? "template_id_missing"
+                : "executor_tool_missing";
+            if (input != null) input.put(McpTemplateBindingEvidence.SKIPPED_REASON_KEY, reason);
+            log.warn("InterpretationPlan skipped Runtime template binding: templateId={} executorTool={} source={} reason={}",
+                templateId, executorTool, source, reason);
             return;
         }
+        input.remove(McpTemplateBindingEvidence.SKIPPED_REASON_KEY);
         input.put(McpTemplateBindingEvidence.CONTEXT_KEY, new McpTemplateBindingEvidence(
             McpTemplateBindingEvidence.SCHEMA_VERSION, source, templateId, executorTool).toMap());
     }

@@ -58,8 +58,13 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             return Evaluation.notApplied(output,
                 "model-selected template ids were not present in the authorized MCP candidate set");
         }
-        List<Map<String, Object>> reviewedInvocations = reviewedInvocations(
-            metadata.get("nextActions"), projection.selectedIds());
+        Object parameterProtocols = metadata.get("parameterProtocols");
+        List<Map<String, Object>> reviewedInvocations = parameterProtocolInvocations(
+            parameterProtocols, projection.selectedIds());
+        if (!(parameterProtocols instanceof Iterable<?>)) {
+            reviewedInvocations = reviewedInvocations(
+                metadata.get("nextActions"), projection.selectedIds());
+        }
         Object invocationProjectedOutput = reviewedInvocations.isEmpty()
             ? projection.output()
             : attachReviewedInvocations(projection.output(), reviewedInvocations, 0);
@@ -322,6 +327,39 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         }
         duplicateIds.forEach(byTemplate::remove);
         return List.copyOf(byTemplate.values());
+    }
+
+    /** Converts reviewed parameter protocols into executor-neutral invocation intents.
+     * The execution bridge re-verifies every evidence pointer and applies all omitted defaults. */
+    private List<Map<String, Object>> parameterProtocolInvocations(Object value,
+                                                                    List<String> selectedIds) {
+        Set<String> admitted = selectedIds == null ? Set.of() : selectedIds.stream()
+            .map(this::normalize)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (admitted.isEmpty() || !(value instanceof Iterable<?> protocols)) return List.of();
+        Map<String, Map<String, Object>> byTemplate = new LinkedHashMap<>();
+        Set<String> duplicateIds = new LinkedHashSet<>();
+        for (Object raw : protocols) {
+            if (!(raw instanceof Map<?, ?> rawProtocol)) continue;
+            Map<String, Object> protocol = cast(rawProtocol);
+            String templateId = text(first(protocol, "template_id", "templateId"));
+            String normalizedId = normalize(templateId);
+            if (!admitted.contains(normalizedId)) continue;
+            Map<String, Object> arguments = new LinkedHashMap<>();
+            arguments.put("templateId", templateId);
+            arguments.put("parameterProtocol",
+                java.util.Collections.unmodifiableMap(new LinkedHashMap<>(protocol)));
+            Map<String, Object> invocation = Map.of(
+                "templateId", templateId,
+                "arguments", Map.copyOf(arguments));
+            if (byTemplate.putIfAbsent(normalizedId, invocation) != null) {
+                duplicateIds.add(normalizedId);
+            }
+        }
+        duplicateIds.forEach(byTemplate::remove);
+        // A partial protocol set must never discard selected siblings whose defaults may be
+        // sufficient. Fall back to the normal deterministic batch compiler in that case.
+        return byTemplate.keySet().equals(admitted) ? List.copyOf(byTemplate.values()) : List.of();
     }
 
     @SuppressWarnings("unchecked")

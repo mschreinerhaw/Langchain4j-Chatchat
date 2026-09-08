@@ -1061,6 +1061,17 @@ public class AgentToolArgumentResolver {
             if (uniqueCandidates.size() < 2) {
                 continue;
             }
+            Map<String, Object> reviewedBatch = reviewedInvocationBatch(
+                toolName, values, List.copyOf(uniqueCandidates.values()), output);
+            if (reviewedBatch != null) {
+                return applyObservedBatchTemplateContracts(
+                    toolName,
+                    reviewedBatch,
+                    List.copyOf(uniqueCandidates.values()),
+                    output,
+                    trace,
+                    userQuery);
+            }
             List<Map<String, Object>> calls = new ArrayList<>();
             int callIndex = 1;
             for (Map<String, Object> template : uniqueCandidates.values()) {

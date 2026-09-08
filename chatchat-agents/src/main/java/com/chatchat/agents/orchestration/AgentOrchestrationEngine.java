@@ -3500,6 +3500,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (templateEvaluations instanceof Iterable<?>) {
             metadata.put("templateEvaluations", templateEvaluations);
         }
+        Object parameterProtocols = firstObject(payload, "parameter_protocols", "parameterProtocols");
+        if (parameterProtocols instanceof Iterable<?>) {
+            metadata.put("parameterProtocols", parameterProtocols);
+        }
         Map<String, Object> businessAnalysisIntent = asMap(firstObject(payload,
             "analysis_intent", "analysisIntent", "business_analysis_intent", "businessAnalysisIntent"));
         if (!businessAnalysisIntent.isEmpty()) {
@@ -3739,6 +3743,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("- Before selecting, decompose every explicit user-requested subject and analysis facet into supportsQuestionAspect entries. The selected complementary set must cover each facet for which a returned template declares relevant evidence; do not let a general snapshot or aggregate template displace a returned transaction, history, detail, composition, or comparison template needed for a separately requested facet.\n");
             prompt.append("- Selection completeness is semantic coverage, not a fixed template count. Select all and only complementary candidates required for the requested facets, and state an explicit missingAspects entry for any requested facet left uncovered.\n");
             prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, rejected_template_ids, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role.\n");
+            prompt.append("- Return exactly one parameter_protocols entry for every selected template. Include only schema-declared overrides proven by an exact user-query quote or completed tool-result path. Keep arguments={} when defaults are sufficient; do not copy defaults as model values.\n");
             prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
             prompt.append("- Evaluate every returned asset identity from authoritative routing metadata. Select only returned IDs; discovery proves routing eligibility, not business health.\n");
@@ -3760,7 +3765,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .append("{\"satisfied\":true,\"iteration_sufficient\":false,\"reason\":\"short evidence-based reason\",\"evidence_used\":[],\"missing_evidence\":[],\"conflicts\":[],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[],\"missingAspects\":[],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":false,\"confidence\":0.0}\n");
         if (toolNames.isTemplateDiscoveryToolName(toolName)) {
             prompt.append("Template-discovery fields:\n")
-                .append("{\"selected_template_ids\":[],\"rejected_template_ids\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
+                .append("{\"selected_template_ids\":[],\"rejected_template_ids\":[],\"parameter_protocols\":[{\"protocol_version\":\"")
+                .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
+                .append("\",\"template_id\":\"returned-id\",\"arguments\":{\"declared_field\":{\"value\":\"evidence-backed value\",\"source\":\"user_query\",\"evidence\":{\"quote\":\"exact query excerpt\"}}},\"unresolved_parameters\":[]}],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
             prompt.append("Asset-discovery fields: {\"selected_asset_ids\":[],\"rejected_asset_ids\":[],\"asset_evaluations\":[{\"asset_id\":\"returned-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[]}]}\n");
         } else if (isWebDiscoveryTool(toolName)) {

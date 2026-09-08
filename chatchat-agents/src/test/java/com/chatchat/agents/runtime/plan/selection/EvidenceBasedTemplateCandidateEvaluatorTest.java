@@ -117,6 +117,56 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
+    void carriesCompleteEvidenceProtocolsForAllSelectedTemplatesIntoExecution() {
+        Map<String, Object> customerProtocol = Map.of(
+            "protocol_version", "template_parameter_protocol_v2",
+            "template_id", "asset-summary",
+            "arguments", Map.of("khh", Map.of(
+                "value", "070200046604",
+                "source", "user_query",
+                "evidence", Map.of("quote", "客户070200046604"))),
+            "unresolved_parameters", List.of());
+        Map<String, Object> defaultsOnlyProtocol = Map.of(
+            "protocol_version", "template_parameter_protocol_v2",
+            "template_id", "trade-flow",
+            "arguments", Map.of(),
+            "unresolved_parameters", List.of());
+
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset-summary"),
+                    Map.of("templateId", "trade-flow"))),
+                Map.of(
+                    "selectedTemplateIds", List.of("asset-summary", "trade-flow"),
+                    "parameterProtocols", List.of(customerProtocol, defaultsOnlyProtocol)));
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.output().toString())
+            .contains("reviewedInvocations", "parameterProtocol", "070200046604",
+                "asset-summary", "trade-flow");
+    }
+
+    @Test
+    void ignoresPartialParameterProtocolSetSoDefaultCompilationKeepsAllSelectedTemplates() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset-summary"),
+                    Map.of("templateId", "trade-flow"))),
+                Map.of(
+                    "selectedTemplateIds", List.of("asset-summary", "trade-flow"),
+                    "parameterProtocols", List.of(Map.of(
+                        "protocol_version", "template_parameter_protocol_v2",
+                        "template_id", "asset-summary",
+                        "arguments", Map.of(),
+                        "unresolved_parameters", List.of()))));
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.output().toString()).doesNotContain("reviewedInvocations");
+    }
+
+    @Test
     void recordsQuestionAndActualContextInCommonTemplateMatchAnalysis() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(

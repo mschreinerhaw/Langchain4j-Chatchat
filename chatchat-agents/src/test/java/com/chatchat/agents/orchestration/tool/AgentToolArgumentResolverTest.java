@@ -1485,6 +1485,57 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryRecoveryAppliesEvidenceOverridesAndKeepsEveryRemainingTemplateDefault() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_customer_template_query")
+            .success(true)
+            .output("""
+                {"runtimeTemplateSelection":{
+                   "selectedTemplateIds":["asset-summary","trade-flow"],
+                   "reviewedInvocations":[
+                    {"templateId":"asset-summary","arguments":{"templateId":"asset-summary",
+                     "parameterProtocol":{"protocol_version":"template_parameter_protocol_v2",
+                      "template_id":"asset-summary","arguments":{"khh":{"value":"070200046604",
+                       "source":"user_query","evidence":{"quote":"客户070200046604"}}},
+                      "unresolved_parameters":[]}}},
+                    {"templateId":"trade-flow","arguments":{"templateId":"trade-flow",
+                     "parameterProtocol":{"protocol_version":"template_parameter_protocol_v2",
+                      "template_id":"trade-flow","arguments":{},"unresolved_parameters":[]}}}
+                   ]},
+                 "templates":[
+                  {"templateId":"asset-summary","parameterContract":{"executionTool":"api_template_execute"},
+                   "parameterSchema":{"type":"object","properties":{
+                     "khh":{"type":"string","default":"DEFAULT_CUSTOMER"},
+                     "page":{"type":"integer","default":1}},"required":["khh"]}},
+                  {"templateId":"trade-flow","parameterContract":{"executionTool":"api_template_execute"},
+                   "parameterSchema":{"type":"object","properties":{
+                     "limit":{"type":"integer","default":100}},"required":[]}}
+                 ]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyDeterministicDependencyContracts(
+            "mcp_runtime_api_template_execute",
+            Map.of("purpose", "query customer"),
+            List.of(discovery),
+            "查询客户070200046604的资产与交易");
+
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            Map<String, Object> first = (Map<String, Object>)
+                ((Map<String, Object>) calls.get(0)).get("arguments");
+            Map<String, Object> second = (Map<String, Object>)
+                ((Map<String, Object>) calls.get(1)).get("arguments");
+            assertThat((Map<String, Object>) first.get("parameters"))
+                .containsEntry("khh", "070200046604")
+                .containsEntry("page", 1);
+            assertThat((Map<String, Object>) second.get("parameters"))
+                .containsEntry("limit", 100);
+        });
+    }
+
+    @Test
     void mandatoryRecoveryDoesNotExecuteAnUnreviewedBusinessGroupWholesale() {
         String firstId = "unreviewed_scale_" + System.nanoTime();
         String secondId = "unreviewed_margin_" + System.nanoTime();

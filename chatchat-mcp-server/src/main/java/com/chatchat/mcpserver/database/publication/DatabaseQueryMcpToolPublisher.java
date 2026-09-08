@@ -36,7 +36,7 @@ public class DatabaseQueryMcpToolPublisher {
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        refresh();
+        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
     }
 
     public synchronized void refresh() {

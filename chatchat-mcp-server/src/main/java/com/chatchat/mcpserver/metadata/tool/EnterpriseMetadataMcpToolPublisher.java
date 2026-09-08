@@ -47,7 +47,7 @@ public class EnterpriseMetadataMcpToolPublisher {
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         if (properties.isEnabled()) {
-            refresh();
+            com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
         }
     }
 

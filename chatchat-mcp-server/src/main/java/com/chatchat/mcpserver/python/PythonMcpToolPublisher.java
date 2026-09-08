@@ -45,7 +45,9 @@ public class PythonMcpToolPublisher {
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
-    public void ready() { refresh(); }
+    public void ready() {
+        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
+    }
 
     public synchronized void refresh() {
         McpSyncServer server = serverProvider.getIfAvailable();

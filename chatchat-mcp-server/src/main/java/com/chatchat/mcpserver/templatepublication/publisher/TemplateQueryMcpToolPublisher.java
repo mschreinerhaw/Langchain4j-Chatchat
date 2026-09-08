@@ -4,9 +4,11 @@ import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingSe
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateQueryParentCatalog;
 import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePolicy;
+import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryBridgeRoutingPolicy;
 
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
@@ -35,8 +37,6 @@ import java.util.LinkedHashSet;
 public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     private static final String LEGACY_TOOL_NAME = "template_query";
-    /** @deprecated rolling-upgrade compatibility only; new callers invoke child tools directly. */
-    @Deprecated(forRemoval = false)
     public static final String CHILD_TOOL_ARGUMENT = "_templateQueryChildToolName";
 
     private final McpSyncServer mcpSyncServer;
@@ -112,8 +112,6 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         return query(toolName, null, arguments);
     }
 
-    /** @deprecated rolling-upgrade compatibility for cached parent-delegation descriptors. */
-    @Deprecated(forRemoval = false)
     public Map<String, Object> queryFromParent(String toolName, String parentToolName,
                                                Map<String, Object> arguments) {
         return query(toolName, parentToolName, arguments);
@@ -124,14 +122,17 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
         String configuredParent = invokedParentToolName == null
             ? null : bindingService.parentToolName(reviewedName);
-        if (configuredParent != null && !configuredParent.equals(invokedParentToolName)) {
+        if (configuredParent != null && !configuredParent.equals(invokedParentToolName)
+            && !TemplateQueryBridgeRoutingPolicy.publicBridge(configuredParent).equals(invokedParentToolName)) {
             throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
         }
         McpInvocationContext.Context invocationContext = McpInvocationContext.current();
         TemplateQueryBindingService.PolicyResolution policy = invocationContext == null
             ? bindingService.resolvePolicy(null, reviewedName, arguments)
             : bindingService.resolvePolicy(invocationContext, reviewedName);
-        if (invokedParentToolName != null && !policy.parentToolNames().contains(invokedParentToolName)) {
+        if (invokedParentToolName != null && policy.parentToolNames().stream()
+            .noneMatch(parent -> parent.equals(invokedParentToolName)
+                || TemplateQueryBridgeRoutingPolicy.publicBridge(parent).equals(invokedParentToolName))) {
             log.warn("Dynamic template query authorization rejected tool={} parent={} transportContext={} "
                     + "resolvedParents={} configuredTemplateCount={}",
                 reviewedName, invokedParentToolName, invocationContext != null,
@@ -146,7 +147,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             arguments == null ? null : arguments.get("excludeTemplateIds"));
         List<String> assetTypes;
         if (invokedParentToolName != null) {
-            assetTypes = List.of(parentAssetType(invokedParentToolName));
+            assetTypes = List.of(parentAssetType(configuredParent));
         } else {
             assetTypes = requestedType.isBlank()
                 ? List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
@@ -237,8 +238,6 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         );
     }
 
-    /** @deprecated rolling-upgrade compatibility for cached parent-delegation descriptors. */
-    @Deprecated(forRemoval = false)
     public static String childToolName(Map<String, Object> arguments) {
         Object value = arguments == null ? null : arguments.get(CHILD_TOOL_ARGUMENT);
         return value == null ? "" : String.valueOf(value).trim();
@@ -328,9 +327,17 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta(
             "template_query_publication", "system-managed", governance));
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);
-        // This publication is a first-class MCP tool. Parent delegation remains executable only
-        // as a rolling-upgrade compatibility path and is intentionally absent from the contract.
-        meta.put("routingMode", "direct_child_invocation");
+        // The child remains the Agent-visible capability. Transport routing is declared as
+        // control-plane metadata so Runtime can invoke the stable parent gateway without
+        // leaking this internal discriminator into either public input schema.
+        String persistedParentToolName = bindingService.parentToolName(toolName);
+        if (persistedParentToolName == null || persistedParentToolName.isBlank()) {
+            throw new IllegalStateException("Dynamic template query has no parent gateway: " + toolName);
+        }
+        String parentToolName = TemplateQueryBridgeRoutingPolicy.publicBridge(persistedParentToolName);
+        meta.put(McpDynamicCapabilityRoute.METADATA_KEY,
+            McpDynamicCapabilityRoute.parentDelegation(parentToolName, CHILD_TOOL_ARGUMENT).toMetadata());
+        meta.put("routingMode", McpDynamicCapabilityRoute.ROUTING_MODE_PARENT_DELEGATION);
         meta.put("readOnly", true);
         meta.put("runtimeAction", "read_only");
         meta.put("controlPlane", "server_managed");

@@ -9,6 +9,7 @@ import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
+import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -17,6 +18,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,17 +42,20 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     private final ApiToolSpecFactory toolSpecFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
+    private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
 
     public ApiMcpToolPublisher(McpSyncServer mcpSyncServer,
                                @Qualifier("apiServiceBridge") TemplateServicePort bridge,
                                ApiToolSpecFactory toolSpecFactory,
                                McpToolConcurrencyManager concurrencyManager,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher) {
         this.mcpSyncServer = mcpSyncServer;
         this.bridge = bridge;
         this.toolSpecFactory = toolSpecFactory;
         this.concurrencyManager = concurrencyManager;
         this.objectMapper = objectMapper;
+        this.dynamicQueryPublisher = dynamicQueryPublisher;
     }
 
     /**
@@ -96,6 +101,10 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             "maximum", CommandTemplateDiscoveryService.MAX_LIMIT));
         properties.put("purpose", Map.of("type", "string"));
         properties.put("sourceTaskId", Map.of("type", "string"));
+        properties.put(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
+            "type", "string",
+            "description", "Server-managed dynamic capability identity; caller values are overwritten by Runtime routing"
+        ));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(BRIDGE_TOOL_NAME)
             .title("API 服务模板查询")
@@ -105,6 +114,11 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
             Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
             return concurrencyManager.execute(BRIDGE_TOOL_NAME, "discovery", arguments, () -> {
+                String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
+                if (!childToolName.isBlank()) {
+                    return dynamicQueryResult(dynamicQueryPublisher.getObject().queryFromParent(
+                        childToolName, BRIDGE_TOOL_NAME, arguments));
+                }
                 KernelDataScope scope = scope(arguments);
                 TemplateServiceCall call = TemplateServiceCall.search(
                     firstText(text(arguments.get("query")), text(arguments.get("intent"))),
@@ -112,6 +126,14 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
                 return callResult(bridge.invoke(call, scope));
             });
         }).build();
+    }
+
+    private McpSchema.CallToolResult dynamicQueryResult(Map<String, Object> body) {
+        String text;
+        try { text = objectMapper.writeValueAsString(body); }
+        catch (Exception ex) { text = String.valueOf(body); }
+        return McpSchema.CallToolResult.builder().addTextContent(text).structuredContent(body)
+            .isError(false).build();
     }
 
     private Map<String, Object> meta() {

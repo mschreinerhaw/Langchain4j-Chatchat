@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.python.PythonAnalysisBridge;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.Test;
@@ -74,10 +75,16 @@ class TemplateQueryMcpToolPublisherTest {
         assertThat(captor.getValue().tool().name()).isEqualTo("customer_template_query");
         assertThat(captor.getValue().tool().meta().toString())
             .contains("governanceEditable=false", "only_selected_templates=true", "allow_user_override=false",
-                "routingMode=direct_child_invocation",
+                "routingMode=parent_delegation",
                 "runtime_level=discovery", "timeout_seconds=90");
         assertThat(captor.getValue().tool().meta())
-            .doesNotContainKeys("parentToolName", "mcpDynamicCapabilityRoute", "kind");
+            .containsKey(McpDynamicCapabilityRoute.METADATA_KEY)
+            .doesNotContainKeys("parentToolName", "kind");
+        assertThat(McpDynamicCapabilityRoute.fromToolMetadata(captor.getValue().tool().meta()).orElseThrow())
+            .satisfies(route -> {
+                assertThat(route.parentToolName()).isEqualTo("api_service_query");
+                assertThat(route.implementationIdentityArgument()).isEqualTo("_templateQueryChildToolName");
+            });
         assertThat((Map<String, Object>) captor.getValue().tool().inputSchema().get("properties"))
             .doesNotContainKeys("templateIds", "serviceId", "roleId", "governance");
     }

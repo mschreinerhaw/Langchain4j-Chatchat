@@ -23,6 +23,10 @@ public record McpAnalysisPayload(
     Map<String, Object> completeness,
     Object data,
     Object rawData,
+    String errorCode,
+    String errorMessage,
+    boolean retryable,
+    String recoveryAction,
     Map<String, Object> runtimeMetadata
 ) {
     public static final String SCHEMA_VERSION = "mcp_analysis_payload.v1";
@@ -44,7 +48,8 @@ public record McpAnalysisPayload(
         if (result == null) throw new IllegalArgumentException("result is required");
         return new McpAnalysisPayload(null, result.requestId(), result.serviceId(), result.toolName(),
             result.status().name(), result.resultKind(), result.resultSchemaRef(), result.provenance(),
-            result.pagination(), completeness(result), governedData, governedRawData, result.metadata());
+            result.pagination(), completeness(result), governedData, governedRawData,
+            result.errorCode(), result.errorMessage(), result.retryable(), result.recoveryAction(), result.metadata());
     }
 
     /** Stable map form used by existing model and evidence serializers. */
@@ -62,6 +67,12 @@ public record McpAnalysisPayload(
         value.put("completeness", completeness);
         value.put("data", data);
         value.put("rawData", rawData);
+        if (errorCode != null) value.put("errorCode", errorCode);
+        if (errorMessage != null) value.put("errorMessage", errorMessage);
+        if (errorCode != null || errorMessage != null) {
+            value.put("retryable", retryable);
+            if (recoveryAction != null) value.put("recoveryAction", recoveryAction);
+        }
         value.put("runtimeMetadata", runtimeMetadata);
         return value;
     }

@@ -77,6 +77,31 @@ class DatabaseToolRateLimiterScenarioTest {
             .isEqualTo(1);
     }
 
+    @Test
+    void bootstrapsTheSameMissingBucketWithoutLeakingADeadlock() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService workers = Executors.newFixedThreadPool(12);
+        List<Future<Boolean>> results = new ArrayList<>();
+        for (int index = 0; index < 24; index++) {
+            results.add(workers.submit(() -> {
+                start.await();
+                return limiter.tryAcquire("tenant-new", "customer.template.query", "actor", 0, 7, now);
+            }));
+        }
+        start.countDown();
+
+        int accepted = 0;
+        for (Future<Boolean> result : results) {
+            if (result.get(15, TimeUnit.SECONDS)) accepted++;
+        }
+        workers.shutdown();
+        assertThat(workers.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(accepted).isEqualTo(7);
+        assertThat(repository.findById(bucketId("tenant-new", "customer.template.query", now))
+            .orElseThrow().getUsedTokens()).isEqualTo(7);
+    }
+
     private void seedSecondBucket(String tenant, String tool, Instant now, int limit) {
         ToolRateBucketEntity bucket = new ToolRateBucketEntity();
         bucket.setBucketId(bucketId(tenant, tool, now));

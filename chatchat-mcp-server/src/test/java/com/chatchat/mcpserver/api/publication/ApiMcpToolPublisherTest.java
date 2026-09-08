@@ -9,11 +9,15 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,7 +40,8 @@ class ApiMcpToolPublisherTest {
         when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "discovery")).thenReturn(java.util.Map.of());
         when(mcpSyncServer.listTools()).thenReturn(java.util.List.of());
         ApiMcpToolPublisher publisher = new ApiMcpToolPublisher(
-            mcpSyncServer, bridge, toolSpecFactory, concurrencyManager, new ObjectMapper());
+            mcpSyncServer, bridge, toolSpecFactory, concurrencyManager, new ObjectMapper(),
+            mock(org.springframework.beans.factory.ObjectProvider.class));
 
         publisher.refresh();
 
@@ -49,7 +54,7 @@ class ApiMcpToolPublisherTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void bridgeSchemaDoesNotExposeDynamicChildRoutingInternals() {
+    void bridgeSchemaDeclaresOnlyTheProtectedDynamicRoutingIdentity() {
         McpSyncServer mcpSyncServer = mock(McpSyncServer.class);
         ApiToolSpecFactory toolSpecFactory = mock(ApiToolSpecFactory.class);
         io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification executor =
@@ -65,7 +70,7 @@ class ApiMcpToolPublisherTest {
         when(mcpSyncServer.listTools()).thenReturn(List.of());
         ApiMcpToolPublisher publisher = new ApiMcpToolPublisher(
             mcpSyncServer, mock(ApiServiceBridge.class), toolSpecFactory,
-            concurrencyManager, new ObjectMapper());
+            concurrencyManager, new ObjectMapper(), mock(org.springframework.beans.factory.ObjectProvider.class));
 
         publisher.refresh();
 
@@ -83,11 +88,54 @@ class ApiMcpToolPublisherTest {
         assertThat(properties).containsKeys(
             "filters", "trace", "limit", "assetType", "bilingualIntent", "intentZh", "intentEn",
             "purpose", "sourceTaskId");
-        assertThat(properties).doesNotContainKey(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT);
+        assertThat(properties).containsKey(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT);
         assertThat(bridgeTool.inputSchema()).containsEntry("additionalProperties", false);
         assertThat(bridgeTool.meta())
             .containsEntry("runtimeLevel", "discovery")
             .containsEntry("runtime_level", "discovery");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void delegatesDynamicCapabilityToItsBoundQueryPolicy() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        ApiToolSpecFactory toolSpecFactory = mock(ApiToolSpecFactory.class);
+        var executor = mock(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
+        McpSchema.Tool executorTool = mock(McpSchema.Tool.class);
+        when(executor.tool()).thenReturn(executorTool);
+        when(executorTool.name()).thenReturn(ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
+        stubContract(executorTool);
+        when(toolSpecFactory.toGatewayToolSpecification()).thenReturn(executor);
+        McpToolConcurrencyManager concurrency = mock(McpToolConcurrencyManager.class);
+        when(concurrency.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "discovery")).thenReturn(Map.of());
+        when(concurrency.execute(anyString(), anyString(), anyMap(), any())).thenAnswer(invocation -> {
+            Supplier<McpSchema.CallToolResult> operation = invocation.getArgument(3);
+            return operation.get();
+        });
+        TemplateQueryMcpToolPublisher dynamicPublisher = mock(TemplateQueryMcpToolPublisher.class);
+        when(dynamicPublisher.queryFromParent("tenant_template_query",
+            ApiMcpToolPublisher.BRIDGE_TOOL_NAME, Map.of(
+                TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, "tenant_template_query", "limit", 5)))
+            .thenReturn(Map.of("success", true, "templates", List.of()));
+        org.springframework.beans.factory.ObjectProvider<TemplateQueryMcpToolPublisher> provider =
+            mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(provider.getObject()).thenReturn(dynamicPublisher);
+        ApiMcpToolPublisher publisher = new ApiMcpToolPublisher(server, mock(ApiServiceBridge.class),
+            toolSpecFactory, concurrency, new ObjectMapper(), provider);
+
+        var specification = publisher.contribute().stream()
+            .map(com.chatchat.mcpserver.tool.ToolPublication::specification)
+            .filter(item -> ApiMcpToolPublisher.BRIDGE_TOOL_NAME.equals(item.tool().name()))
+            .findFirst().orElseThrow();
+        McpSchema.CallToolResult result = specification.callHandler().apply(null,
+            new McpSchema.CallToolRequest(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, Map.of(
+                TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, "tenant_template_query", "limit", 5), Map.of()));
+
+        assertThat(result.isError()).isFalse();
+        assertThat((Map<String, Object>) result.structuredContent()).containsEntry("success", true);
+        verify(dynamicPublisher).queryFromParent("tenant_template_query",
+            ApiMcpToolPublisher.BRIDGE_TOOL_NAME, Map.of(
+                TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, "tenant_template_query", "limit", 5));
     }
 
     private static void stubContract(McpSchema.Tool tool) {

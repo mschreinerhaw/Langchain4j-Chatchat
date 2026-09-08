@@ -31,6 +31,12 @@ class McpGatewayClientTest {
         assertThat(result.errorCode()).isEqualTo("MCP_TOOL_TIMEOUT");
         assertThat(result.retryable()).isFalse();
         assertThat(result.action()).isEqualTo("STOP");
+        assertThat(result.rawData()).isEqualTo(Map.of(
+            "schemaVersion", "mcp_transport_failure.v1",
+            "errorCode", "MCP_TOOL_TIMEOUT",
+            "errorMessage", "TIMEOUT: MCP tool execution timed out after 30 seconds",
+            "retryable", false,
+            "recoveryAction", "STOP"));
     }
 
     @Test

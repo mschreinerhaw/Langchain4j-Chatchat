@@ -310,6 +310,14 @@ public class McpToolRegistryBridge {
         }
         String action = firstText(stringValue(metadata.get("mcpAction")), stringValue(metadata.get("action")));
         boolean retryable = Boolean.TRUE.equals(firstPresent(metadata.get("mcpRetryable"), metadata.get("retryable")));
+        if (!output.isSuccess() && rawData == null) {
+            return McpToolInvokeResult.failure(
+                firstText(output.getErrorMessage(), "MCP registered tool execution failed"),
+                firstText(output.getExceptionType(), "MCP_TOOL_CALL_FAILED"),
+                retryable,
+                action,
+                Map.copyOf(executionState));
+        }
         return new McpToolInvokeResult(output.isSuccess(), output.getData(), rawData, output.getMessage(),
             output.getErrorMessage(), output.getExceptionType(), retryable, action, Map.copyOf(executionState));
     }

@@ -35,7 +35,18 @@ public record McpToolInvokeResult(
 
     public static McpToolInvokeResult failure(String errorMessage, String errorCode, boolean retryable, String action,
                                               Map<String, Object> executionState) {
-        return new McpToolInvokeResult(false, null, null, null, errorMessage, errorCode, retryable, action, executionState);
+        String effectiveMessage = errorMessage == null || errorMessage.isBlank()
+            ? "MCP tool call failed" : errorMessage;
+        String effectiveCode = errorCode == null || errorCode.isBlank()
+            ? "MCP_TOOL_CALL_FAILED" : errorCode;
+        Map<String, Object> failureEnvelope = new LinkedHashMap<>();
+        failureEnvelope.put("schemaVersion", "mcp_transport_failure.v1");
+        failureEnvelope.put("errorCode", effectiveCode);
+        failureEnvelope.put("errorMessage", effectiveMessage);
+        failureEnvelope.put("retryable", retryable);
+        if (action != null && !action.isBlank()) failureEnvelope.put("recoveryAction", action);
+        return new McpToolInvokeResult(false, null, Map.copyOf(failureEnvelope), null,
+            effectiveMessage, effectiveCode, retryable, action, executionState);
     }
 
     public McpToolInvokeResult withExecutionState(Map<String, Object> executionState) {

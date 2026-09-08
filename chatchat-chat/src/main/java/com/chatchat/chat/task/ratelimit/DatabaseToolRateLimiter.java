@@ -3,6 +3,7 @@ package com.chatchat.chat.task.ratelimit;
 import com.chatchat.agents.runtime.tool.DistributedToolRateLimiter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.TransientDataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -36,11 +37,15 @@ public class DatabaseToolRateLimiter implements DistributedToolRateLimiter {
         if (specs.isEmpty()) {
             return true;
         }
+        List<BucketSpec> ordered = specs.stream().sorted(Comparator.comparing(BucketSpec::id)).toList();
+        for (BucketSpec spec : ordered) {
+            ensureBucket(spec);
+        }
         for (int attempt = 0; attempt < 4; attempt++) {
             try {
-                Boolean accepted = new TransactionTemplate(transactionManager).execute(status -> acquire(specs));
+                Boolean accepted = new TransactionTemplate(transactionManager).execute(status -> acquire(ordered));
                 return Boolean.TRUE.equals(accepted);
-            } catch (DataIntegrityViolationException collision) {
+            } catch (DataIntegrityViolationException | TransientDataAccessException collision) {
                 if (attempt == 3) {
                     throw collision;
                 }
@@ -51,8 +56,9 @@ public class DatabaseToolRateLimiter implements DistributedToolRateLimiter {
 
     private boolean acquire(List<BucketSpec> specs) {
         List<ToolRateBucketEntity> buckets = new ArrayList<>();
-        for (BucketSpec spec : specs.stream().sorted(Comparator.comparing(BucketSpec::id)).toList()) {
-            ToolRateBucketEntity bucket = repository.findForUpdate(spec.id()).orElseGet(() -> create(spec));
+        for (BucketSpec spec : specs) {
+            ToolRateBucketEntity bucket = repository.findForUpdate(spec.id())
+                .orElseThrow(() -> new IllegalStateException("Rate bucket disappeared during acquisition"));
             if (bucket.getUsedTokens() != null && bucket.getUsedTokens() >= spec.limit()) {
                 return false;
             }
@@ -63,6 +69,23 @@ public class DatabaseToolRateLimiter implements DistributedToolRateLimiter {
             repository.save(bucket);
         }
         return true;
+    }
+
+    private void ensureBucket(BucketSpec spec) {
+        for (int attempt = 0; attempt < 4; attempt++) {
+            try {
+                TransactionTemplate bootstrap = new TransactionTemplate(transactionManager);
+                bootstrap.setPropagationBehavior(
+                    org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+                bootstrap.executeWithoutResult(status -> {
+                    if (!repository.existsById(spec.id())) create(spec);
+                });
+                return;
+            } catch (DataIntegrityViolationException | TransientDataAccessException collision) {
+                if (repository.existsById(spec.id())) return;
+                if (attempt == 3) throw collision;
+            }
+        }
     }
 
     private ToolRateBucketEntity create(BucketSpec spec) {

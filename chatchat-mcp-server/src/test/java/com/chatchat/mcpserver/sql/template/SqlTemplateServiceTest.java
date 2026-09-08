@@ -30,6 +30,39 @@ class SqlTemplateServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
+    void invalidParameterSchemaIsRejectedInsteadOfSilentlyDisabled() {
+        SqlTemplateService service = service(new SqlTemplateSeedProperties());
+        SqlTemplateConfig config = template("BROKEN_SCHEMA");
+        config.setParameterSchemaJson("{\"type\":\"object\", broken}");
+
+        assertThatThrownBy(() -> service.save(config))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("TEMPLATE_PARAMETER_SCHEMA_INVALID");
+        verify(repository, never()).save(config);
+    }
+
+    @Test
+    void rendersArrayParameterAsIndividuallyEscapedSqlList() {
+        SqlTemplateService service = service(new SqlTemplateSeedProperties());
+        SqlTemplateConfig config = template("FILTER_BY_IDS");
+        config.setSqlTemplate("SELECT id FROM governed_view WHERE id IN ({{ids}})");
+        config.setParameterSchemaJson("""
+            {
+              "type": "object",
+              "properties": {"ids": {"type": "array", "items": {"type": "string"}}},
+              "required": ["ids"]
+            }
+            """);
+        when(repository.findByCode("FILTER_BY_IDS")).thenReturn(Optional.of(config));
+
+        assertThat(service.render("FILTER_BY_IDS", Map.of("ids", List.of("A", "O'Hare"))))
+            .isEqualTo("SELECT id FROM governed_view WHERE id IN ('A', 'O''Hare')");
+        assertThatThrownBy(() -> service.render("FILTER_BY_IDS", Map.of("ids", List.of())))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("SQL_PARAMETER_LIST_EMPTY");
+    }
+
+    @Test
     void doesNotSeedDefaultTemplatesUnlessExplicitlyEnabled() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
         SqlTemplateService service = service(properties);

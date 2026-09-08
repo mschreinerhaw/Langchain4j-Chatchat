@@ -30,6 +30,48 @@ import static org.mockito.Mockito.when;
 class ApiInvokeServiceTest {
 
     @Test
+    void unresolvedUrlTokenFailsBeforeAnyRemoteRequest() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/branches", exchange -> {
+            requests.incrementAndGet();
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponseCacheService cacheService = mock(ApiResponseCacheService.class);
+            useDirectCacheLoader(cacheService);
+            HttpEndpointConfigService gateways = mock(HttpEndpointConfigService.class);
+            HttpEndpointConfig gateway = new HttpEndpointConfig();
+            gateway.setId("gateway-unbound");
+            gateway.setEnabled(true);
+            gateway.setMethod("GET");
+            gateway.setUrlTemplate("http://localhost:" + server.getAddress().getPort()
+                + "/branches/{{branchId}}");
+            when(gateways.getById("gateway-unbound")).thenReturn(gateway);
+            ApiInvokeService service = new ApiInvokeService(objectMapper,
+                mock(InvocationAuditService.class), cacheService, mockObjectProvider(),
+                new TemplateParameterValidator(objectMapper), gateways);
+            ApiServiceConfig config = new ApiServiceConfig();
+            config.setId("api-unbound");
+            config.setToolName("branch_query");
+            config.setGatewayId("gateway-unbound");
+            config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"branchId\":{\"type\":\"string\"}}}");
+
+            ApiInvokeResult result = service.invoke(config, Map.of());
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.statusCode()).isZero();
+            assertThat(result.errorMessage()).contains("API_BINDING_INCOMPLETE", "branchId", "url");
+            assertThat(requests.get()).isZero();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void invokeUsesBoundApiGatewayAssetForHttpTransport() throws Exception {
         AtomicReference<String> requestedPath = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);

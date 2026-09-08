@@ -472,10 +472,12 @@ public class SqlTemplateService {
             if (value instanceof Map<?, ?>) {
                 return ModelProtocolJson.compact(value);
             }
-        } catch (Exception ignored) {
-            // Fall through to safe default.
+            throw new IllegalArgumentException("TEMPLATE_PARAMETER_SCHEMA_INVALID: parameterSchema must be a JSON object");
+        } catch (IllegalArgumentException invalid) {
+            throw invalid;
+        } catch (Exception invalid) {
+            throw new IllegalArgumentException("TEMPLATE_PARAMETER_SCHEMA_INVALID: parameterSchema is invalid JSON", invalid);
         }
-        return writeJson(Map.of("type", "object", "properties", Map.of(), "required", List.of()));
     }
 
     private String normalizeJsonArray(String json) {
@@ -516,6 +518,29 @@ public class SqlTemplateService {
         if (value == null) {
             throw new IllegalArgumentException("SQL template parameter is required: " + name);
         }
+        if (value instanceof Iterable<?> values) {
+            List<Object> items = new java.util.ArrayList<>();
+            values.forEach(items::add);
+            if (items.isEmpty()) {
+                throw new IllegalArgumentException("SQL_PARAMETER_LIST_EMPTY: " + name);
+            }
+            if (items.size() > 100) {
+                throw new IllegalArgumentException("SQL_PARAMETER_LIST_TOO_LARGE: " + name);
+            }
+            return items.stream().map(item -> safeSqlListElement(name, item))
+                .collect(java.util.stream.Collectors.joining(", "));
+        }
+        return safeSqlScalar(name, value);
+    }
+
+    private String safeSqlListElement(String name, Object value) {
+        if (value == null || value instanceof Iterable<?> || value.getClass().isArray()) {
+            throw new IllegalArgumentException("SQL_PARAMETER_LIST_ELEMENT_INVALID: " + name);
+        }
+        return safeSqlScalar(name, value);
+    }
+
+    private String safeSqlScalar(String name, Object value) {
         if ("table".equals(name) || name.endsWith("Table")) {
             String identifier = String.valueOf(value).trim();
             if (!identifier.matches("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?")) {

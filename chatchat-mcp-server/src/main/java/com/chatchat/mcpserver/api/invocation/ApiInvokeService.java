@@ -212,6 +212,7 @@ public class ApiInvokeService {
         String url = renderUrl(transport.urlTemplate(), args, consumed);
         Map<String, String> headers = renderHeaders(transport.headersJson(), args, consumed);
         String body = renderBody(transport, args, consumed);
+        assertFullyBound(url, headers, body);
 
         if (method.equals("GET") || method.equals("DELETE")) {
             url = appendQueryParams(url, args, consumed);
@@ -231,6 +232,33 @@ public class ApiInvokeService {
             requestBuilder.header("Content-Type", "application/json");
         }
         return requestBuilder.build();
+    }
+
+    /** Prevents unresolved template placeholders from reaching a remote API. */
+    private void assertFullyBound(String url, Map<String, String> headers, String body) {
+        Map<String, Set<String>> unresolved = new LinkedHashMap<>();
+        collectTokens(unresolved, "url", url, true);
+        if (headers != null) {
+            headers.forEach((name, value) -> collectTokens(unresolved, "header:" + name, value, false));
+        }
+        collectTokens(unresolved, "body", body, false);
+        if (!unresolved.isEmpty()) {
+            throw new IllegalArgumentException("API_BINDING_INCOMPLETE: unresolved template parameters " + unresolved);
+        }
+    }
+
+    private void collectTokens(Map<String, Set<String>> unresolved, String location,
+                               String value, boolean includeSingleBrace) {
+        if (value == null || value.isBlank()) return;
+        Set<String> names = new LinkedHashSet<>();
+        collectTokens(DOUBLE_BRACE_TOKEN, value, names);
+        if (includeSingleBrace) collectTokens(SINGLE_BRACE_TOKEN, value, names);
+        if (!names.isEmpty()) unresolved.put(location, java.util.Collections.unmodifiableSet(names));
+    }
+
+    private void collectTokens(Pattern pattern, String value, Set<String> names) {
+        Matcher matcher = pattern.matcher(value);
+        while (matcher.find()) names.add(matcher.group(1));
     }
 
     /**

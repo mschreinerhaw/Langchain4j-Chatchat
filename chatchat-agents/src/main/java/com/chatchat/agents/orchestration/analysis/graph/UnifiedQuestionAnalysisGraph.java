@@ -381,20 +381,56 @@ public final class UnifiedQuestionAnalysisGraph {
         return maps(product.get("findings")).stream().allMatch(f -> known.contains(f.get("datasetReference")));
     }
     private Map<String, Object> parse(String raw) {
-        try {
-            String text = raw == null ? "" : raw.trim();
-            if (text.startsWith("```")) text = text.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "");
-            int start = text.indexOf('{');
-            int end = text.lastIndexOf('}');
-            if (start >= 0 && end > start) text = text.substring(start, end + 1);
-            Map<String, Object> parsed = JSON.readValue(text, new TypeReference<Map<String, Object>>() {});
-            if (!parsed.containsKey("schemaVersion") && parsed.get("findings") instanceof List<?>) {
-                parsed.put("schemaVersion", VERSION);
+        String text = raw == null ? "" : raw.trim();
+        List<String> candidates = new ArrayList<>();
+        candidates.add(text);
+        candidates.addAll(jsonObjectCandidates(text));
+        for (String candidate : candidates) {
+            try {
+                Map<String, Object> parsed = JSON.readValue(candidate,
+                    new TypeReference<Map<String, Object>>() {});
+                if (!(parsed.get("findings") instanceof List<?>)) continue;
+                if (!parsed.containsKey("schemaVersion")) parsed.put("schemaVersion", VERSION);
+                parsed.putIfAbsent("limitations", List.of());
+                parsed.putIfAbsent("evidenceRequests", List.of());
+                if (parsed.get("evidenceRequests") instanceof List<?> requests
+                    && requests.size() > 4) {
+                    parsed.put("evidenceRequests", List.copyOf(requests.subList(0, 4)));
+                }
+                return parsed;
+            } catch (Exception ignored) {
+                // Model reasoning may contain braces before the actual JSON object. Try the
+                // next balanced object instead of joining unrelated fragments together.
             }
-            parsed.putIfAbsent("limitations", List.of());
-            parsed.putIfAbsent("evidenceRequests", List.of());
-            return parsed;
-        } catch (Exception invalid) { return Map.of(); }
+        }
+        return Map.of();
+    }
+
+    private List<String> jsonObjectCandidates(String text) {
+        if (text == null || text.isBlank()) return List.of();
+        List<String> candidates = new ArrayList<>();
+        int start = -1;
+        int depth = 0;
+        boolean quoted = false;
+        boolean escaped = false;
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            if (quoted) {
+                if (escaped) escaped = false;
+                else if (current == '\\') escaped = true;
+                else if (current == '"') quoted = false;
+                continue;
+            }
+            if (current == '"') {
+                quoted = true;
+            } else if (current == '{') {
+                if (depth++ == 0) start = index;
+            } else if (current == '}' && depth > 0 && --depth == 0 && start >= 0) {
+                candidates.add(text.substring(start, index + 1));
+                start = -1;
+            }
+        }
+        return List.copyOf(candidates);
     }
 
     private Map<String, Object> promptPlan(Map<String, Object> plan) {

@@ -52,6 +52,32 @@ class UnifiedQuestionAnalysisGraphTest {
             .containsEntry("unifiedAnalysisModelCalls", 2);
     }
 
+    @Test void extractsBalancedProtocolObjectAfterReasoningBracesAndBoundsEvidenceRequests() {
+        var datasets = List.of(new Dataset("dataset1", Map.of(),
+            List.<Map<String, Object>>of(Map.of("VALUE", 1))));
+        var calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                calls.incrementAndGet();
+                String requests = java.util.stream.IntStream.rangeClosed(1, 5)
+                    .mapToObj(index -> "{\"operation\":\"READ_RECORDS\",\"datasetReference\":\"dataset1\",\"fromRecord\":1,\"limit\":1}")
+                    .collect(java.util.stream.Collectors.joining(","));
+                return "Reasoning example {not valid JSON}. Final answer:\n"
+                    + product("dataset1").replace("\"limitations\":[]",
+                        "\"limitations\":[],\"evidenceRequests\":[" + requests + "]");
+            }
+        };
+        var metadata = new LinkedHashMap<String, Object>();
+
+        var outcomes = new UnifiedQuestionAnalysisGraph().execute("question", datasets,
+            () -> datasets, model, scope, new AnalysisNodeProtocol(),
+            AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
+
+        assertThat(outcomes.get("dataset1").summary().content()).contains("Returned value is 1");
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(metadata).doesNotContainKey("unifiedAnalysisContractRepairAttempted");
+    }
+
     @Test void failedOptionalModelCallRetainsCandidatesForEvidenceValidation() throws Exception {
         var datasets = List.of(new Dataset("dataset1", Map.of(), List.<Map<String, Object>>of(Map.of("VALUE", 1))));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();

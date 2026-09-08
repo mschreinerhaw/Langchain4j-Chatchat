@@ -176,6 +176,34 @@ class DefaultMcpRuntimeKernelTest {
     }
 
     @Test
+    void doesNotCompareWorkflowSnapshotWithGenericDescriptorProtocolVersion() {
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
+        when(directory.tools(any())).thenReturn(List.of(new McpToolDescriptor(
+            "api", "api_template_execute", "api_template_execute", "", "template_execution",
+            Map.of(), Map.of(), Map.of(), Map.of(
+                "contractVersion", "mcp_tool_contract.v1",
+                "contentHash", "generic-resource-hash"))));
+        when(directory.invoke(any())).thenReturn(new McpServiceResult(
+            null, "request-1", "api", "api_template_execute", McpServiceResultStatus.SUCCESS,
+            Map.of("ok", true), null, null, null, false, null, Map.of(), 0));
+        when(contracts.audit(any())).thenReturn(report(true));
+        DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
+        McpTemplateBindingEvidence binding = new McpTemplateBindingEvidence(
+            McpTemplateBindingEvidence.SCHEMA_VERSION, "plan_preflight", "template-1",
+            "api_template_execute", null, "4", "workflow-checksum");
+        McpServiceCall call = new McpServiceCall(null, "request-1", "api",
+            "api_template_execute", Map.of("templateId", "template-1"),
+            Map.of("templateId", "template-1",
+                McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap()), 0);
+
+        McpServiceResult result = kernel.execute(call);
+
+        assertThat(result.successful()).isTrue();
+        verify(directory).invoke(call);
+    }
+
+    @Test
     void reportsDegradedHealthWithoutFailingApplicationStartup() {
         McpServiceDirectory directory = mock(McpServiceDirectory.class);
         McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);

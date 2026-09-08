@@ -1817,10 +1817,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         // Cross-layer pinning may use only identifiers published by both ToolRegistry and
         // McpToolDescriptor. The local ToolMetadata version/fingerprint remains guarded by
         // validatePinnedResourceSnapshot and must not masquerade as a child-template version.
-        putSnapshotValue(snapshot, "toolContractVersion", firstNonBlankObject(
-            extra.get("workflowContractVersion"), extra.get("contractVersion")));
-        putSnapshotValue(snapshot, "toolContractHash", firstNonBlankObject(
-            extra.get("workflowContractChecksum"), extra.get("contractChecksum"), extra.get("contentHash")));
+        // These values cross the ToolRegistry/McpToolDescriptor boundary, so they must
+        // remain in the workflow-contract namespace. Generic contractVersion/contentHash
+        // fields describe different resources and are intentionally not interchangeable.
+        putSnapshotValue(snapshot, "toolContractVersion", extra.get("workflowContractVersion"));
+        putSnapshotValue(snapshot, "toolContractHash", extra.get("workflowContractChecksum"));
         snapshot.put("contractFingerprint", sha256(mapOf(
             "toolName", toolName,
             "version", metadata == null ? null : metadata.getVersion(),

@@ -127,14 +127,18 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void keepsLocalRegistryFingerprintOutOfPublishedToolSnapshotDomain() throws Exception {
+    void keepsGenericAndLocalRegistryIdentityOutOfPublishedWorkflowSnapshotDomain() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
             new InterpretationPlanOptimizer(), null, null, scriptedController(List.of()));
         ToolMetadata localOnly = ToolMetadata.builder()
             .id("mcp_api_template_execute")
             .version("local-registry-v9")
-            .metadata(Map.of("serviceId", "api"))
+            .metadata(Map.of(
+                "serviceId", "api",
+                "contractVersion", "mcp_tool_contract.v1",
+                "contractChecksum", "generic-checksum",
+                "contentHash", "generic-content-hash"))
             .build();
         Method snapshotMethod = InterpretationPlanRuntime.class.getDeclaredMethod(
             "toolContractSnapshot", String.class, ToolMetadata.class);

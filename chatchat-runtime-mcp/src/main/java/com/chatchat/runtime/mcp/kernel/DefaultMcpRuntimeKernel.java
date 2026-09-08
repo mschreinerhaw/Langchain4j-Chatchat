@@ -188,11 +188,11 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         McpToolDescriptor current = tools(new McpToolQuery(
             call.serviceId(), null, Set.of(call.toolName()))).stream().findFirst().orElse(null);
         if (current == null) return null;
-        String currentVersion = firstText(
-            current.metadata().get("workflowContractVersion"), current.metadata().get("contractVersion"));
-        String currentHash = firstText(
-            current.metadata().get("workflowContractChecksum"),
-            current.metadata().get("contractChecksum"), current.metadata().get("contentHash"));
+        // Compare only identities from the same workflow-contract namespace. In
+        // particular, contractVersion is the MCP descriptor protocol version (for
+        // example mcp_tool_contract.v1), not a fallback for workflow version 4.
+        String currentVersion = firstText(current.metadata().get("workflowContractVersion"));
+        String currentHash = firstText(current.metadata().get("workflowContractChecksum"));
         boolean versionChanged = binding.toolContractVersion() != null && currentVersion != null
             && !binding.toolContractVersion().equals(currentVersion);
         boolean contentChanged = binding.toolContractHash() != null && currentHash != null

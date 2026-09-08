@@ -76,6 +76,12 @@ public class AgentRuntimeProperties {
     private double modelInputCostPerThousandTokens = 0D;
     private double modelOutputCostPerThousandTokens = 0D;
     private double budgetAlertRatio = 0.8D;
+    /** Runtime-wide concurrency ceiling for each selected model identity. */
+    private int modelMaxConcurrentPerModel = 8;
+    /** Runtime-wide request-start rate for each selected model identity. */
+    private int modelMaxRequestsPerSecond = 10;
+    /** Maximum time a model invocation may wait for concurrency/rate capacity. */
+    private long modelCapacityAcquireTimeoutMs = 30_000;
     /** Lets the model generate arguments for an exact Runtime-designated DIRECT tool. */
     private boolean nativeToolCallingEnabled = false;
 
@@ -216,6 +222,18 @@ public class AgentRuntimeProperties {
 
     public double budgetAlertRatio() {
         return Math.max(0.01D, Math.min(1D, budgetAlertRatio));
+    }
+
+    public int modelMaxConcurrentPerModel() {
+        return Math.max(1, modelMaxConcurrentPerModel);
+    }
+
+    public int modelMaxRequestsPerSecond() {
+        return Math.max(1, modelMaxRequestsPerSecond);
+    }
+
+    public long modelCapacityAcquireTimeoutMs() {
+        return Math.max(1L, modelCapacityAcquireTimeoutMs);
     }
 
 }

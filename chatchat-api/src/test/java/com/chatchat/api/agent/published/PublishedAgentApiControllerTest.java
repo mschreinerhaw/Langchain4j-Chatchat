@@ -26,6 +26,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -124,6 +125,39 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.ready").value(true))
             .andExpect(jsonPath("$.data.answer").value("Revenue grew 12%."))
             .andExpect(jsonPath("$.data.references[0].title").value("Q2 report"));
+    }
+
+    @Test
+    void cancelsOnlyTheAuthenticatedOwnersNonTerminalTask() throws Exception {
+        AgentTaskResponse running = task("user-a", "RUNNING", "EXECUTING");
+        AgentTaskResponse cancelled = task("user-a", "CANCELLED", "CANCELLED");
+        when(taskService.get("tenant-a", "task-1")).thenReturn(Optional.of(running));
+        when(taskService.cancel("tenant-a", "task-1")).thenReturn(cancelled);
+
+        mockMvc.perform(delete("/api/v1/published-agents/finance-agent/questions/task-1")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskId").value("task-1"))
+            .andExpect(jsonPath("$.data.status").value("CANCELLED"))
+            .andExpect(jsonPath("$.data.terminal").value(true));
+
+        verify(taskService).cancel("tenant-a", "task-1");
+    }
+
+    @Test
+    void deniesCancellingAnotherUsersTask() throws Exception {
+        when(taskService.get("tenant-a", "task-1"))
+            .thenReturn(Optional.of(task("user-b", "RUNNING", "EXECUTING")));
+
+        mockMvc.perform(delete("/api/v1/published-agents/finance-agent/questions/task-1")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(403));
+
+        org.mockito.Mockito.verify(taskService, org.mockito.Mockito.never())
+            .cancel(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test

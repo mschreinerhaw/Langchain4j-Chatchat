@@ -179,6 +179,9 @@ chatchat:
     model-input-cost-per-thousand-tokens: 0
     model-output-cost-per-thousand-tokens: 0
     budget-alert-ratio: 0.8
+    model-max-concurrent-per-model: 8
+    model-max-requests-per-second: 10
+    model-capacity-acquire-timeout-ms: 30000
     max-concurrent-per-tenant: 4
     max-queued-per-tenant: 50
     tenant-fair-scheduling-enabled: true

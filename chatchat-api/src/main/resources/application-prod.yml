@@ -182,6 +182,9 @@ chatchat:
     model-input-cost-per-thousand-tokens: ${CHATCHAT_AGENT_MODEL_INPUT_COST_PER_1K:0}
     model-output-cost-per-thousand-tokens: ${CHATCHAT_AGENT_MODEL_OUTPUT_COST_PER_1K:0}
     budget-alert-ratio: ${CHATCHAT_AGENT_BUDGET_ALERT_RATIO:0.8}
+    model-max-concurrent-per-model: ${CHATCHAT_AGENT_MODEL_MAX_CONCURRENT_PER_MODEL:8}
+    model-max-requests-per-second: ${CHATCHAT_AGENT_MODEL_MAX_REQUESTS_PER_SECOND:10}
+    model-capacity-acquire-timeout-ms: ${CHATCHAT_AGENT_MODEL_CAPACITY_ACQUIRE_TIMEOUT_MS:30000}
     max-concurrent-per-tenant: ${CHATCHAT_AGENT_MAX_CONCURRENT_PER_TENANT:4}
     max-queued-per-tenant: ${CHATCHAT_AGENT_MAX_QUEUED_PER_TENANT:50}
     tenant-fair-scheduling-enabled: true

@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.model;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -23,19 +24,42 @@ public class AgentChatModelResolver {
     private final ModelsConfig modelsConfig;
     private final ConfigurableChatModelFactory chatModelFactory;
     private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
+    private final Map<String, ChatModel> governedModelsByName = new ConcurrentHashMap<>();
+    private final ModelInvocationCapacityManager modelCapacity;
 
     public AgentChatModelResolver(ChatModel defaultChatModel, ModelsConfig modelsConfig) {
         this(defaultChatModel, modelsConfig,
-            new ConfigurableChatModelFactory(modelsConfig, new ObjectMapper()));
+            new ConfigurableChatModelFactory(modelsConfig, new ObjectMapper()),
+            new AgentRuntimeProperties());
+    }
+
+    public AgentChatModelResolver(ChatModel defaultChatModel,
+                                  ModelsConfig modelsConfig,
+                                  ConfigurableChatModelFactory chatModelFactory) {
+        this(defaultChatModel, modelsConfig, chatModelFactory, new AgentRuntimeProperties());
+    }
+
+    public AgentChatModelResolver(ChatModel defaultChatModel,
+                                  ModelsConfig modelsConfig,
+                                  AgentRuntimeProperties runtimeProperties) {
+        this(defaultChatModel, modelsConfig,
+            new ConfigurableChatModelFactory(modelsConfig, new ObjectMapper()), runtimeProperties);
     }
 
     @Autowired
     public AgentChatModelResolver(ChatModel defaultChatModel,
                                   ModelsConfig modelsConfig,
-                                  ConfigurableChatModelFactory chatModelFactory) {
+                                  ConfigurableChatModelFactory chatModelFactory,
+                                  AgentRuntimeProperties runtimeProperties) {
         this.defaultChatModel = defaultChatModel;
         this.modelsConfig = modelsConfig;
         this.chatModelFactory = chatModelFactory;
+        AgentRuntimeProperties configured = runtimeProperties == null
+            ? new AgentRuntimeProperties() : runtimeProperties;
+        this.modelCapacity = new ModelInvocationCapacityManager(
+            configured.modelMaxConcurrentPerModel(),
+            configured.modelMaxRequestsPerSecond(),
+            configured.modelCapacityAcquireTimeoutMs());
     }
 
     public ChatModel resolveChatModel(String modelName) {
@@ -44,11 +68,14 @@ public class AgentChatModelResolver {
         if (selectedModelName != null && !selectedModelName.isBlank()) {
             log.info("Agent chat model selected modelName={}", selectedModelName);
         }
-        if (normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())) {
-            return defaultChatModel;
-        }
-        return chatModelsByName.computeIfAbsent(normalized,
-            chatModelFactory::create);
+        String modelKey = selectedModelName == null || selectedModelName.isBlank()
+            ? "default" : selectedModelName.trim();
+        return governedModelsByName.computeIfAbsent(modelKey, ignored -> {
+            ChatModel resolved = normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())
+                ? defaultChatModel
+                : chatModelsByName.computeIfAbsent(normalized, chatModelFactory::create);
+            return new CapacityGovernedChatModel(modelKey, resolved, modelCapacity);
+        });
     }
 
     /** Returns a secret-free identity snapshot suitable for checkpoint fingerprinting. */
@@ -58,7 +85,10 @@ public class AgentChatModelResolver {
         ModelsConfig.ModelConnectionConfig config = modelsConfig.resolveChatModelConfig(selected);
         Map<String, Object> identity = new LinkedHashMap<>();
         identity.put("selectedModel", selected == null ? "default" : selected);
-        identity.put("implementation", resolvedModel == null ? "none" : resolvedModel.getClass().getName());
+        Class<?> implementation = resolvedModel instanceof CapacityGovernedChatModel governed
+            ? governed.delegateType()
+            : resolvedModel == null ? null : resolvedModel.getClass();
+        identity.put("implementation", implementation == null ? "none" : implementation.getName());
         if (config != null) {
             identity.put("providerModel", config.getModelName() == null ? "" : config.getModelName());
             identity.put("baseUrl", config.getBaseUrl() == null ? "" : config.getBaseUrl());

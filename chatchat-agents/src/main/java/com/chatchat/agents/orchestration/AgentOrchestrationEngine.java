@@ -431,7 +431,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.planEvolutionAuditor =
             new AgentPlanEvolutionAuditor(this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE);
         this.toolObservationBuilder = new ToolObservationBuilder(this.evidenceTrustEvaluator);
-        this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig);
+        this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig, agentRuntimeProperties);
         this.analysisDatasetActivityExecutor = new AnalysisDatasetActivityExecutor(
             this.chatModelResolver, this.analysisDatasetWorker);
         this.toolNames = new AgentToolNameResolver(new RegistryMcpCapabilityHierarchy(toolRegistry));

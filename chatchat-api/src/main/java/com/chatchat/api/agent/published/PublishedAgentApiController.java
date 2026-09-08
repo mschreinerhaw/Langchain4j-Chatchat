@@ -19,6 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -248,6 +249,25 @@ public class PublishedAgentApiController {
             ready ? content.answer() : null,
             ready ? content.references() : List.of(),
             task.errorMessage(), task.updateTime()
+        ));
+    }
+
+    @DeleteMapping("/{agentId}/questions/{taskId}")
+    @Operation(summary = "Cancel the authenticated caller's published Agent run")
+    public ResponseEntity<ApiResponse<PublishedAgentCancellation>> cancel(
+        @PathVariable("agentId") String agentId,
+        @PathVariable("taskId") String taskId,
+        HttpServletRequest servletRequest
+    ) {
+        RequestIdentity identity = requireIdentity(servletRequest);
+        AgentTaskResponse ownedTask = requireOwnedTask(identity, agentId, taskId);
+        AgentTaskResponse cancelled = terminal(ownedTask)
+            ? ownedTask
+            : taskService.cancel(identity.tenantId(), ownedTask.taskId());
+        return ok(new PublishedAgentCancellation(
+            cancelled.taskId(), cancelled.executionId(), cancelled.attemptId(),
+            cancelled.agentId(), cancelled.status(), cancelled.canonicalState(),
+            terminal(cancelled), cancelled.updateTime()
         ));
     }
 
@@ -572,6 +592,18 @@ public class PublishedAgentApiController {
         String answer,
         List<Map<String, Object>> references,
         String error,
+        Instant updatedAt
+    ) {
+    }
+
+    public record PublishedAgentCancellation(
+        String taskId,
+        String executionId,
+        String attemptId,
+        String agentId,
+        String status,
+        String canonicalState,
+        boolean terminal,
         Instant updatedAt
     ) {
     }

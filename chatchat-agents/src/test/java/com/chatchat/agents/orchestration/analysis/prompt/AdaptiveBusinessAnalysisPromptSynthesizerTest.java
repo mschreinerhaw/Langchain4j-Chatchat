@@ -34,7 +34,10 @@ public class AdaptiveBusinessAnalysisPromptSynthesizerTest {
         };
         var dataset = new Dataset("trades", Map.of(
             "source", Map.of("displayName", "客户交易", "description", "客户成交明细"),
-            "schema", Map.of("fields", List.of(Map.of("name", "amount", "label", "成交金额", "type", "decimal")))),
+            "schema", Map.of("fields", List.of(
+                Map.of("name", "amount", "label", "成交金额", "type", "decimal"),
+                Map.of("name", "segment", "label", "客户分组", "type", "string"))),
+            "allowedOperations", List.of("AGGREGATE")),
             List.of(Map.of("amount", 100, "secretRowValue", "must-not-enter-planning")));
         var metadata = new LinkedHashMap<String, Object>();
 
@@ -43,11 +46,39 @@ public class AdaptiveBusinessAnalysisPromptSynthesizerTest {
             AnalysisEvidenceSpillStore.disabled(), metadata, () -> { });
 
         assertThat(result.mode()).isEqualTo("MODEL_SYNTHESIZED");
-        assertThat(result.compiledPrompt()).contains("客户经营分析师", "CONTRIBUTION");
+        assertThat(result.compiledPrompt()).contains("客户经营分析师", "CONTRIBUTION",
+            "Capability-bound analysis plan", "amount", "segment", "NONE_DECLARED")
+            .doesNotContain("invented_field", "last month");
         assertThat(seen.get()).contains("识别活跃度下降客户", "客户交易", "成交金额")
+            .contains("dataCapabilities", "supportedMethodology", "analysisTree")
             .doesNotContain("must-not-enter-planning");
         assertThat(metadata).containsEntry("adaptiveAnalysisPromptModelCalls", 1)
-            .containsEntry("adaptiveAnalysisPromptMode", "MODEL_SYNTHESIZED");
+            .containsEntry("adaptiveAnalysisPromptMode", "MODEL_SYNTHESIZED")
+            .containsKeys("analysisDataCapabilities", "adaptiveAnalysisBoundPlan");
+    }
+
+    @Test void rejectsTrendBeforeWorkerWhenNoMultiPeriodCapabilityWasDeclared() {
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                return response().replace("[\"COMPARE\",\"CONTRIBUTION\"]", "[\"OBSERVE\",\"TREND\"]");
+            }
+        };
+        var dataset = new Dataset("snapshot", Map.of(
+            "source", Map.of("displayName", "Snapshot"),
+            "schema", Map.of("fields", List.of(
+                Map.of("name", "observed_at", "type", "timestamp"),
+                Map.of("name", "value", "type", "decimal")))),
+            List.of(Map.of("observed_at", "2026-09-08", "value", 10)));
+        var metadata = new LinkedHashMap<String, Object>();
+
+        var result = new AdaptiveBusinessAnalysisPromptSynthesizer().synthesize(
+            "analyze the snapshot", List.of(dataset), model, scope,
+            AnalysisEvidenceSpillStore.disabled(), metadata, () -> { });
+
+        assertThat(result.contract().toMap().get("methodology")).isEqualTo(List.of("OBSERVE"));
+        assertThat(metadata.get("adaptiveAnalysisRejectedMethodology")).isEqualTo(List.of("TREND"));
+        assertThat(metadata.get("analysisDataCapabilities").toString())
+            .contains("hasTimeDimension=true", "supportsMultiPeriod=false");
     }
 
     @Test void malformedSynthesisFallsBackWithoutBlockingAnalysis() {
@@ -90,7 +121,9 @@ public class AdaptiveBusinessAnalysisPromptSynthesizerTest {
         return "{\"schemaVersion\":\"dynamic_analysis_prompt.v1\","
             + "\"role\":{\"name\":\"客户经营分析师\",\"perspective\":\"客户活跃度\",\"responsibilities\":[\"识别变化\"]},"
             + "\"objective\":{\"goal\":\"识别活跃度下降\",\"decision\":\"确定跟进客户\"},"
-            + "\"methodology\":[\"COMPARE\",\"CONTRIBUTION\"],\"focus\":[\"交易金额\"],"
+            + "\"methodology\":[\"COMPARE\",\"CONTRIBUTION\"],"
+            + "\"analysisPlan\":{\"subQuestions\":[{\"question\":\"按客户分组拆解成交金额\",\"method\":\"CONTRIBUTION\",\"targetFields\":[\"amount\",\"segment\",\"invented_field\"],\"datasetReference\":\"trades\",\"baseline\":\"last month\"}]},"
+            + "\"focus\":[\"交易金额\"],"
             + "\"constraints\":[\"不推断客户流失\"],\"evidenceRequirements\":[\"引用证据\"],"
             + "\"output\":[\"EXECUTIVE_SUMMARY\",\"KEY_FINDINGS\",\"RECOMMENDED_ACTIONS\"]}";
     }

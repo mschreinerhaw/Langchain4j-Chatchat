@@ -24,6 +24,9 @@ class DynamicAnalysisPromptContractTest {
             "role", Map.of("name", "客户经营分析师", "perspective", "客户活跃度"),
             "objective", Map.of("goal", "识别活跃度下降", "decision", "确定跟进客户"),
             "methodology", List.of("COMPARE", "CONTRIBUTION"),
+            "analysisPlan", Map.of("subQuestions", List.of(Map.of(
+                "question", "按客户分组拆解成交金额", "method", "CONTRIBUTION",
+                "targetFields", List.of("amount", "segment"), "baseline", "NONE_DECLARED"))),
             "focus", List.of("交易金额", "交易次数"),
             "constraints", List.of("不得把单月波动解释为流失"),
             "evidenceRequirements", List.of("结论引用证据"),
@@ -31,7 +34,8 @@ class DynamicAnalysisPromptContractTest {
 
         assertThat(contract.toMap()).containsEntry("authority", "ANALYSIS_GUIDANCE_ONLY")
             .containsEntry("executionBoundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE");
-        assertThat(contract.compile()).contains("客户经营分析师", "COMPARE", "grants no execution authority");
+        assertThat(contract.compile()).contains("客户经营分析师", "COMPARE", "grants no execution authority",
+            "Capability-bound analysis plan", "amount", "segment", "NONE_DECLARED");
     }
 
     @Test void rejectsInventedMethodAndProvidesUsableFallback() {

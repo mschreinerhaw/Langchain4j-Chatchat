@@ -194,8 +194,11 @@ class UnifiedQuestionAnalysisGraphTest {
     @Test void semanticMetadataTriggersOnePromptSynthesisBeforeUnifiedFindings() {
         var datasets = List.of(new Dataset("customer_trades", Map.of(
             "source", Map.of("displayName", "客户交易", "description", "客户成交明细"),
-            "schema", Map.of("fields", List.of(Map.of("name", "amount", "label", "成交金额")))),
-            List.<Map<String, Object>>of(Map.of("amount", 100))));
+            "schema", Map.of("fields", List.of(
+                Map.of("name", "amount", "label", "成交金额", "type", "decimal"),
+                Map.of("name", "segment", "label", "客户分组", "type", "string"))),
+            "allowedOperations", List.of("AGGREGATE")),
+            List.<Map<String, Object>>of(Map.of("amount", 100, "segment", "A"))));
         var calls = new AtomicInteger();
         ChatModel model = new ChatModel() {
             @Override public String chat(String prompt) {
@@ -345,13 +348,11 @@ class UnifiedQuestionAnalysisGraphTest {
                 product.put("findings", findings);
                 product.put("limitations", List.of());
                 if (call == 2) return ModelProtocolJson.compact(product);
-                assertThat(prompt).contains("METHODOLOGY_COVERAGE_REQUIRED", "COMPARE", "CONTRIBUTION",
+                assertThat(prompt).contains("METHODOLOGY_COVERAGE_REQUIRED", "OBSERVE",
                     "previousFindings");
                 product.put("methodologyCoverage", List.of(
-                    Map.of("method", "COMPARE", "status", "LIMITED", "findingIndexes", List.of(),
-                        "limitation", "No declared comparable baseline"),
-                    Map.of("method", "CONTRIBUTION", "status", "LIMITED", "findingIndexes", List.of(),
-                        "limitation", "No authorized contribution formula")));
+                    Map.of("method", "OBSERVE", "status", "EXECUTED", "findingIndexes", List.of(1),
+                        "limitation", "")));
                 product.put("questionLevelFindings", List.of(Map.of(
                     "claim", "The two returned observations differ",
                     "observation", "The returned values are 1 and 2",

@@ -37,6 +37,7 @@ public final class AnalysisContextPresentationContract {
             put(item, "description", first(field, "description", "comment"));
             put(item, "type", first(field, "type", "dataType"));
             put(item, "unit", first(field, "unit"));
+            put(item, "semanticRole", first(field, "semanticRole", "fieldRole", "role"));
             fields.add(Collections.unmodifiableMap(item));
         }
 

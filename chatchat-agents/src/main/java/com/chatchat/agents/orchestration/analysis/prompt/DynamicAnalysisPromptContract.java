@@ -54,6 +54,8 @@ public final class DynamicAnalysisPromptContract {
         result.put("role", role);
         result.put("objective", objective);
         result.put("methodology", methodology);
+        Map<String, Object> analysisPlan = normalizedAnalysisPlan(supplied.get("analysisPlan"));
+        if (!analysisPlan.isEmpty()) result.put("analysisPlan", analysisPlan);
         result.put("focus", focus);
         result.put("constraints", constraints);
         result.put("evidenceRequirements", evidenceRequirements);
@@ -100,6 +102,8 @@ public final class DynamicAnalysisPromptContract {
             + "Dynamic role and perspective: " + compact(value.get("role")) + "\n"
             + "Business objective and intended decision: " + compact(value.get("objective")) + "\n"
             + "Preferred analytical methods: " + compact(value.get("methodology")) + "\n"
+            + (value.containsKey("analysisPlan")
+                ? "Capability-bound analysis plan: " + compact(value.get("analysisPlan")) + "\n" : "")
             + "Question-specific focus: " + compact(value.get("focus")) + "\n"
             + (value.containsKey("domainFocus") ? "Type-specific analytical questions: " + compact(value.get("domainFocus")) + "\n" : "")
             + "Analytical constraints: " + compact(value.get("constraints")) + "\n"
@@ -109,6 +113,42 @@ public final class DynamicAnalysisPromptContract {
             + "Use the requested report structure as ordered H2 guidance, localizing headings to the user's language and business context. "
             + "Explicit user formatting takes precedence; combine overlapping sections and omit empty ones. "
             + "Apply methods supported by the evidence; explain each material finding through fact, reasoning and bounded business implication. ";
+    }
+
+    private static Map<String, Object> normalizedAnalysisPlan(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) return Map.of();
+        List<Map<String, Object>> subQuestions = new ArrayList<>();
+        Object rawItems = raw.get("subQuestions");
+        if (rawItems instanceof Iterable<?> iterable) {
+            for (Object candidate : iterable) {
+                if (!(candidate instanceof Map<?, ?> item)) continue;
+                String question = text(item.get("question"), MAX_ITEM);
+                String method = text(item.get("method"), 80);
+                if (question == null || method == null) continue;
+                String normalizedMethod = method.toUpperCase(java.util.Locale.ROOT);
+                if (!METHODS.contains(normalizedMethod)) {
+                    throw new IllegalArgumentException("Unsupported analysis plan method: " + method);
+                }
+                Map<String, Object> normalized = new LinkedHashMap<>();
+                normalized.put("question", question);
+                normalized.put("method", normalizedMethod);
+                normalized.put("targetFields", items(item.get("targetFields")));
+                String dataset = text(item.get("datasetReference"), MAX_ITEM);
+                if (dataset != null) normalized.put("datasetReference", dataset);
+                normalized.put("baseline", text(item.get("baseline"), MAX_ITEM) == null
+                    ? "NONE_DECLARED" : text(item.get("baseline"), MAX_ITEM));
+                subQuestions.add(Collections.unmodifiableMap(normalized));
+                if (subQuestions.size() >= MAX_ITEMS) break;
+            }
+        }
+        if (subQuestions.isEmpty()) return Map.of();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", text(raw.get("schemaVersion"), 80) == null
+            ? AnalysisMethodologyPlanCompiler.SCHEMA_VERSION : text(raw.get("schemaVersion"), 80));
+        result.put("bindingPolicy", text(raw.get("bindingPolicy"), MAX_ITEM) == null
+            ? "EXACT_DECLARED_FIELD_IDENTITY_ONLY" : text(raw.get("bindingPolicy"), MAX_ITEM));
+        result.put("subQuestions", List.copyOf(subQuestions));
+        return Collections.unmodifiableMap(result);
     }
 
     private static Map<String, Object> normalizedObject(Object value, List<String> allowed, boolean required) {

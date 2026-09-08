@@ -16,9 +16,17 @@ public record McpServiceResult(
     boolean retryable,
     String recoveryAction,
     Map<String, Object> metadata,
+    McpResultKind resultKind,
+    String resultSchemaRef,
+    McpResultProvenance provenance,
+    McpPaginationResult pagination,
     long completedAt
 ) {
     public static final String SCHEMA_VERSION = "mcp_service_result.v1";
+    public static final String RESULT_KIND_KEY = "resultKind";
+    public static final String RESULT_SCHEMA_REF_KEY = "resultSchemaRef";
+    public static final String PROVENANCE_KEY = "provenance";
+    public static final String PAGINATION_KEY = "pagination";
 
     public McpServiceResult {
         schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? SCHEMA_VERSION : schemaVersion.trim();
@@ -28,11 +36,29 @@ public record McpServiceResult(
         if (toolName == null || toolName.isBlank()) throw new IllegalArgumentException("toolName is required");
         status = status == null ? McpServiceResultStatus.FAILED : status;
         metadata = McpServiceDescriptor.immutable(metadata);
+        resultKind = resultKind == null ? McpResultKind.parse(metadata.get(RESULT_KIND_KEY)) : resultKind;
+        if (status == McpServiceResultStatus.EMPTY_RESULT) resultKind = McpResultKind.EMPTY;
+        resultSchemaRef = resultSchemaRef == null || resultSchemaRef.isBlank()
+            ? text(metadata.get(RESULT_SCHEMA_REF_KEY)) : resultSchemaRef.trim();
+        provenance = provenance == null ? McpResultProvenance.from(metadata.get(PROVENANCE_KEY)) : provenance;
+        pagination = pagination == null ? McpPaginationResult.from(metadata.get(PAGINATION_KEY)) : pagination;
         completedAt = completedAt <= 0 ? System.currentTimeMillis() : completedAt;
+    }
+
+    public McpServiceResult(String schemaVersion, String requestId, String serviceId, String toolName,
+                            McpServiceResultStatus status, Object data, Object rawData, String errorCode,
+                            String errorMessage, boolean retryable, String recoveryAction,
+                            Map<String, Object> metadata, long completedAt) {
+        this(schemaVersion, requestId, serviceId, toolName, status, data, rawData, errorCode,
+            errorMessage, retryable, recoveryAction, metadata, null, null, null, null, completedAt);
     }
 
     public boolean successful() {
         return status == McpServiceResultStatus.SUCCESS || status == McpServiceResultStatus.REPAIRED
-            || status == McpServiceResultStatus.PARTIAL;
+            || status == McpServiceResultStatus.PARTIAL || status == McpServiceResultStatus.EMPTY_RESULT;
+    }
+
+    private static String text(Object value) {
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
     }
 }

@@ -9,6 +9,9 @@ import com.chatchat.common.mcp.service.McpServiceDescriptor;
 import com.chatchat.common.mcp.service.McpServiceProvider;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
+import com.chatchat.common.mcp.service.McpResultKind;
+import com.chatchat.common.mcp.service.McpResultProvenance;
+import com.chatchat.common.mcp.service.McpPaginationResult;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
@@ -62,13 +65,22 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
     @Override
     public McpServiceResult invoke(McpServiceCall call) {
         McpToolInvokeResult result = registryBridge.invoke(call);
+        Map<String, Object> declaration = result.executionState();
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
             result.success() ? McpServiceResultStatus.SUCCESS : McpServiceResultStatus.FAILED,
             result.data(), result.rawData(), result.errorCode(), result.errorMessage(), result.retryable(), result.action(),
-            result.executionState(), 0);
+            declaration, McpResultKind.parse(declaration.get(McpServiceResult.RESULT_KIND_KEY)),
+            text(declaration.get(McpServiceResult.RESULT_SCHEMA_REF_KEY)),
+            McpResultProvenance.from(declaration.get(McpServiceResult.PROVENANCE_KEY)),
+            McpPaginationResult.from(declaration.containsKey(McpServiceResult.PAGINATION_KEY)
+                ? declaration.get(McpServiceResult.PAGINATION_KEY) : declaration), 0);
     }
 
     @Override public void refresh() { registryBridge.refreshRegistry(); }
+
+    private String text(Object value) {
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
 
     private McpServiceDescriptor descriptor(McpServiceConfig config) {
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -104,6 +116,10 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         metadata.put("workflowContractVersion", extra.get("workflowContractVersion"));
         metadata.put("workflowContractChecksum", extra.get("workflowContractChecksum"));
         metadata.put("contractMeta", safeContractMeta(extra.get("mcpToolMeta")));
+        for (String key : List.of(McpServiceResult.RESULT_KIND_KEY, McpServiceResult.RESULT_SCHEMA_REF_KEY,
+            "paginationSupported")) {
+            if (extra.get(key) != null) metadata.put(key, extra.get(key));
+        }
         Map<String, Object> workflowContract = map(extra.get(ToolWorkflowContract.METADATA_KEY));
         if (workflowContract.isEmpty()) {
             workflowContract = map(map(extra.get("mcpToolMeta")).get(ToolWorkflowContract.METADATA_KEY));
@@ -130,7 +146,8 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         Map<String, Object> safe = new LinkedHashMap<>();
         List.of("capabilityCode", "providerModule", "contractVersion", "runtimeAction", "readOnly",
             "technicalType", "backendServiceType", "templateRegistryRequired", "templateSelectionPolicy",
-            "templates", "resultSchema", "outputSchema", "toolResultInstruction", "tags")
+            "templates", "resultSchema", "outputSchema", "toolResultInstruction", "tags",
+            "resultKind", "resultSchemaRef", "paginationSupported")
             .forEach(key -> { if (source.containsKey(key)) safe.put(key, source.get(key)); });
         return safe;
     }

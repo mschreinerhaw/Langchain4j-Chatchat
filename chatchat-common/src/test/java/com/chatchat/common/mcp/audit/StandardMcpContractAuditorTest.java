@@ -4,6 +4,8 @@ import com.chatchat.common.mcp.service.McpServiceDescriptor;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
+import com.chatchat.common.mcp.service.McpResultKind;
+import com.chatchat.common.mcp.service.McpResultProvenance;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import org.junit.jupiter.api.Test;
@@ -140,6 +142,39 @@ class StandardMcpContractAuditorTest {
             .extracting(McpContractEvidence::domainCode).isEqualTo("generic");
         assertThat(report.findings()).extracting(McpContractFinding::recoveryAction)
             .contains("PUBLISH_INPUT_SCHEMA", "PUBLISH_OUTPUT_SCHEMA", "REVIEW_TOOL_GOVERNANCE");
+    }
+
+    @Test
+    void reportsUndeclaredUpstreamSemanticsWithoutRejectingLegacySuccessfulResults() {
+        McpToolDescriptor tool = tool("future", "records", "custom",
+            Map.of("type", "object"), Map.of("type", "object"),
+            Map.of("operationType", "read"), Map.of("contractVersion", "v1"));
+        McpServiceResult legacy = new McpServiceResult(null, "r1", "future", "records",
+            McpServiceResultStatus.SUCCESS, List.of(Map.of("id", 1)), List.of(Map.of("id", 1)),
+            null, null, false, null, Map.of(), 0);
+
+        McpContractAuditReport legacyReport = auditor.audit(
+            new McpContractAuditRequest("future", "records", null, Set.of(), legacy),
+            List.of(service("future")), List.of(tool), contracts());
+
+        assertThat(legacyReport.findings()).extracting(McpContractFinding::code)
+            .contains("MCP_RESULT_SEMANTICS_UNDECLARED", "MCP_RESULT_SCHEMA_UNDECLARED",
+                "MCP_RESULT_PROVENANCE_UNDECLARED");
+        assertThat(legacyReport.findings().stream()
+            .filter(finding -> finding.code().startsWith("MCP_RESULT_")))
+            .allSatisfy(finding -> assertThat(finding.severity()).isEqualTo(McpContractSeverity.WARNING));
+
+        McpServiceResult declared = new McpServiceResult(null, "r2", "future", "records",
+            McpServiceResultStatus.SUCCESS, List.of(Map.of("id", 1)), List.of(Map.of("id", 1)),
+            null, null, false, null, Map.of(), McpResultKind.RAW_RECORDS, "records.v1",
+            new McpResultProvenance("future/source", "42", null, "sha256:abc", Map.of(), Map.of()),
+            null, 0);
+        McpContractAuditReport declaredReport = auditor.audit(
+            new McpContractAuditRequest("future", "records", null, Set.of(), declared),
+            List.of(service("future")), List.of(tool), contracts());
+        assertThat(declaredReport.findings()).extracting(McpContractFinding::code)
+            .doesNotContain("MCP_RESULT_SEMANTICS_UNDECLARED", "MCP_RESULT_SCHEMA_UNDECLARED",
+                "MCP_RESULT_PROVENANCE_UNDECLARED");
     }
 
     private List<McpDomainServiceContract> contracts() {

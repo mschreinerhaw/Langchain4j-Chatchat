@@ -17,6 +17,8 @@ import com.chatchat.common.mcp.capability.McpCapabilityNodeKind;
 import com.chatchat.common.mcp.capability.McpCapabilityFallbackPolicy;
 import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.mcp.service.McpServiceCall;
+import com.chatchat.common.mcp.service.McpServiceResult;
+import com.chatchat.common.mcp.service.McpPaginationRequest;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.McpToolNamePolicy;
@@ -277,8 +279,13 @@ public class McpToolRegistryBridge {
                 "MCP_TOOL_NOT_FOUND", true, "REFRESH_OR_DISCOVER");
         }
         Map<String, Object> context = new LinkedHashMap<>(call.context());
+        Map<String, Object> parameters = new LinkedHashMap<>(call.arguments());
+        if (call.pagination() != null) {
+            if (call.pagination().pageToken() != null) parameters.putIfAbsent("pageToken", call.pagination().pageToken());
+            if (call.pagination().pageSize() != null) parameters.putIfAbsent("pageSize", call.pagination().pageSize());
+        }
         ToolInput input = ToolInput.builder()
-            .parameters(new LinkedHashMap<>(call.arguments()))
+            .parameters(parameters)
             .requestId(call.requestId())
             .userId(stringValue(context.get("userId")))
             .conversationId(stringValue(context.get("conversationId")))
@@ -291,11 +298,20 @@ public class McpToolRegistryBridge {
         }
         Map<String, Object> metadata = output.getMetadata() == null ? Map.of() : output.getMetadata();
         Object rawData = metadata.get("mcpRawData");
-        Map<String, Object> executionState = mapValue(metadata.get("executionState"));
+        Map<String, Object> executionState = new LinkedHashMap<>(mapValue(metadata.get("executionState")));
+        ToolMetadata published = toolRegistry.getToolMetadata(registered.localToolName());
+        Map<String, Object> publishedMetadata = published == null || published.getMetadata() == null
+            ? Map.of() : published.getMetadata();
+        for (String key : List.of(McpServiceResult.RESULT_KIND_KEY, McpServiceResult.RESULT_SCHEMA_REF_KEY,
+            McpServiceResult.PROVENANCE_KEY, McpServiceResult.PAGINATION_KEY,
+            "nextPageToken", "hasMore", "pageSize", "returnedCount")) {
+            if (metadata.get(key) != null) executionState.putIfAbsent(key, metadata.get(key));
+            if (publishedMetadata.get(key) != null) executionState.putIfAbsent(key, publishedMetadata.get(key));
+        }
         String action = firstText(stringValue(metadata.get("mcpAction")), stringValue(metadata.get("action")));
         boolean retryable = Boolean.TRUE.equals(firstPresent(metadata.get("mcpRetryable"), metadata.get("retryable")));
         return new McpToolInvokeResult(output.isSuccess(), output.getData(), rawData, output.getMessage(),
-            output.getErrorMessage(), output.getExceptionType(), retryable, action, executionState);
+            output.getErrorMessage(), output.getExceptionType(), retryable, action, Map.copyOf(executionState));
     }
 
     /**
@@ -339,6 +355,9 @@ public class McpToolRegistryBridge {
         Map<String, Object> runtimeOutput = canonicalObjectSchema(selectedOutput);
         Map<String, Object> effectiveMeta = effectiveRuntimeMetadata(
             definition.meta(), activeContract);
+        if (effectiveMeta != null && Boolean.TRUE.equals(effectiveMeta.get("paginationSupported"))) {
+            runtimeInput = McpPaginationRequest.augmentInputSchema(runtimeInput);
+        }
         McpToolDefinition runtimeDefinition = withRuntimeContract(
             definition, runtimeInput, runtimeOutput, effectiveMeta);
         try {
@@ -372,6 +391,10 @@ public class McpToolRegistryBridge {
         if (effectiveMeta != null && !effectiveMeta.isEmpty()) {
             extraMetadata.put("mcpToolMeta", effectiveMeta);
             copyToolResultInstruction(extraMetadata, effectiveMeta);
+            for (String key : List.of(McpServiceResult.RESULT_KIND_KEY, McpServiceResult.RESULT_SCHEMA_REF_KEY,
+                McpServiceResult.PROVENANCE_KEY, McpServiceResult.PAGINATION_KEY)) {
+                if (effectiveMeta.get(key) != null) extraMetadata.put(key, effectiveMeta.get(key));
+            }
         }
         // The ACTIVE database snapshot wins over newly discovered schemas.
         if (!runtimeOutput.isEmpty()) extraMetadata.put("toolResultSchema", runtimeOutput);

@@ -11,6 +11,7 @@ public record McpServiceCall(
     String toolName,
     Map<String, Object> arguments,
     Map<String, Object> context,
+    McpPaginationRequest pagination,
     long deadlineAt
 ) {
     public static final String SCHEMA_VERSION = "mcp_service_call.v1";
@@ -25,13 +26,19 @@ public record McpServiceCall(
         toolName = toolName.trim();
         arguments = McpServiceDescriptor.immutable(arguments);
         context = McpServiceDescriptor.immutable(context);
+        pagination = pagination == null ? McpPaginationRequest.from(arguments) : pagination;
         deadlineAt = Math.max(0, deadlineAt);
+    }
+
+    public McpServiceCall(String schemaVersion, String requestId, String serviceId, String toolName,
+                          Map<String, Object> arguments, Map<String, Object> context, long deadlineAt) {
+        this(schemaVersion, requestId, serviceId, toolName, arguments, context, null, deadlineAt);
     }
 
     public boolean expired(long now) { return deadlineAt > 0 && now > deadlineAt; }
 
     public McpServiceCall withContext(Map<String, Object> governedContext) {
         return new McpServiceCall(schemaVersion, requestId, serviceId, toolName, arguments,
-            governedContext, deadlineAt);
+            governedContext, pagination, deadlineAt);
     }
 }

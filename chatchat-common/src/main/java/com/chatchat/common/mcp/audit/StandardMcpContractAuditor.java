@@ -2,6 +2,7 @@ package com.chatchat.common.mcp.audit;
 
 import com.chatchat.common.mcp.service.McpServiceDescriptor;
 import com.chatchat.common.mcp.service.McpServiceResult;
+import com.chatchat.common.mcp.service.McpResultKind;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 
 import java.util.ArrayList;
@@ -118,6 +119,33 @@ public final class StandardMcpContractAuditor implements McpContractAuditor {
                 "Execution evidence lost the original MCP payload", "null", "REPLAY_WITH_LOSSLESS_BRIDGE"));
         } else if (raw) {
             satisfied.add("RAW_RESULT:$");
+        }
+        if (result != null && result.successful()) {
+            if (result.resultKind() == McpResultKind.UNDECLARED) {
+                missing.add("RESULT_CONTRACT:resultKind");
+                findings.add(finding(McpContractSeverity.WARNING, "MCP_RESULT_SEMANTICS_UNDECLARED",
+                    tool.serviceId(), tool.localToolName(), contract.domainCode(), McpContractSource.NORMALIZED_RESULT,
+                    "resultKind", "Successful MCP result must declare its semantic result kind", "UNDECLARED",
+                    "DECLARE_RESULT_KIND"));
+            } else {
+                satisfied.add("RESULT_CONTRACT:resultKind");
+            }
+            if (result.resultKind() != McpResultKind.EMPTY && result.resultSchemaRef() == null) {
+                missing.add("RESULT_CONTRACT:resultSchemaRef");
+                findings.add(finding(McpContractSeverity.WARNING, "MCP_RESULT_SCHEMA_UNDECLARED",
+                    tool.serviceId(), tool.localToolName(), contract.domainCode(), McpContractSource.NORMALIZED_RESULT,
+                    "resultSchemaRef", "Successful non-empty MCP result must declare its result schema", "absent",
+                    "DECLARE_RESULT_SCHEMA"));
+            }
+            if (result.provenance() == null || !result.provenance().declared()) {
+                missing.add("RESULT_CONTRACT:provenance");
+                findings.add(finding(McpContractSeverity.WARNING, "MCP_RESULT_PROVENANCE_UNDECLARED",
+                    tool.serviceId(), tool.localToolName(), contract.domainCode(), McpContractSource.NORMALIZED_RESULT,
+                    "provenance", "MCP result does not identify the observed source/version/scope", "absent",
+                    "DECLARE_RESULT_PROVENANCE"));
+            } else {
+                satisfied.add("RESULT_CONTRACT:provenance");
+            }
         }
         evidence.add(new McpContractEvidence(tool.serviceId(), tool.localToolName(), contract.domainCode(),
             contract.contractId(), contract.contractVersion(), tool, satisfied, missing, normalized, raw));

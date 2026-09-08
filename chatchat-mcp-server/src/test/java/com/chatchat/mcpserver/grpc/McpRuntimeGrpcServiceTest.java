@@ -5,6 +5,10 @@ import com.chatchat.common.mcp.runtime.McpRuntimeTransportPort;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
+import com.chatchat.common.mcp.service.McpResultKind;
+import com.chatchat.common.mcp.service.McpResultProvenance;
+import com.chatchat.common.mcp.service.McpPaginationRequest;
+import com.chatchat.common.mcp.service.McpPaginationResult;
 import com.chatchat.mcp.grpc.McpGrpcPayloads;
 import com.chatchat.mcp.grpc.v1.JsonRequest;
 import com.chatchat.mcp.grpc.v1.PayloadChunk;
@@ -28,11 +32,16 @@ class McpRuntimeGrpcServiceTest {
         ObjectMapper mapper = new ObjectMapper();
         McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
         McpServiceCall call = new McpServiceCall(null, "request-1", "linux", "execute",
-            Map.of("templateId", "CHECK_LOG"), Map.of("tenantId", "tenant-a"), 0);
+            Map.of("templateId", "CHECK_LOG"), Map.of("tenantId", "tenant-a"),
+            new McpPaginationRequest("page-1", 100), 0);
         String stdout = "x".repeat(3 * 1024 * 1024);
         McpServiceResult result = new McpServiceResult(null, call.requestId(), call.serviceId(),
             call.toolName(), McpServiceResultStatus.SUCCESS, Map.of("stdout", stdout),
-            Map.of("stdout", stdout), null, null, false, null, Map.of(), 0);
+            Map.of("stdout", stdout), null, null, false, null, Map.of(),
+            McpResultKind.COMMAND_STREAM, "ssh_steps.v1",
+            new McpResultProvenance("host-a/log", "boot-42", "2026-09-08T10:00:00Z",
+                "sha256:args", Map.of("from", 1), Map.of()),
+            new McpPaginationResult("page-2", true, 100, 100L), 0);
         when(kernel.execute(call)).thenReturn(result);
         McpRuntimeGrpcService service = new McpRuntimeGrpcService(kernel, mapper, 1024 * 1024);
         CapturingObserver observer = new CapturingObserver();
@@ -52,6 +61,10 @@ class McpRuntimeGrpcServiceTest {
             McpServiceResult.class);
         assertThat(((Map<?, ?>) restored.data()).get("stdout")).isEqualTo(stdout);
         assertThat(((Map<?, ?>) restored.rawData()).get("stdout")).isEqualTo(stdout);
+        assertThat(restored.resultKind()).isEqualTo(McpResultKind.COMMAND_STREAM);
+        assertThat(restored.resultSchemaRef()).isEqualTo("ssh_steps.v1");
+        assertThat(restored.provenance().dataVersion()).isEqualTo("boot-42");
+        assertThat(restored.pagination().nextPageToken()).isEqualTo("page-2");
     }
 
     private static final class CapturingObserver implements StreamObserver<PayloadChunk> {

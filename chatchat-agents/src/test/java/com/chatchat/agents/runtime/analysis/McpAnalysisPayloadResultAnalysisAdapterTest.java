@@ -54,4 +54,45 @@ class McpAnalysisPayloadResultAnalysisAdapterTest {
             });
         });
     }
+
+    @Test
+    void routesDeclaredRecordsAndCarriesSourceVersionCompletenessAndCursorIntoDatasetContext() {
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind", "RAW_RECORDS",
+            "resultSchemaRef", "positions.v2",
+            "provenance", Map.of("sourceRef", "ledger/positions", "dataVersion", "close-20260908",
+                "inputFingerprint", "sha256:abc", "rowRange", Map.of("from", 1, "to", 2)),
+            "pagination", Map.of("nextPageToken", "next-2", "hasMore", true, "pageSize", 2),
+            "completeness", Map.of("status", "PARTIAL", "complete", false,
+                "missingRequired", List.of("currency")),
+            "data", Map.of("records", List.of(Map.of("id", 1), Map.of("id", 2))));
+
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("positions", payload, 10_000));
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.records()).hasSize(2);
+            assertThat(dataset.analysisContext())
+                .containsEntry("resultKind", "RAW_RECORDS")
+                .containsEntry("resultSchemaRef", "positions.v2")
+                .containsEntry("resultSemanticsDeclared", true)
+                .containsEntry("resultRouting", "DECLARED_RESULT_KIND");
+            assertThat(dataset.analysisContext().toString())
+                .contains("ledger/positions", "close-20260908", "next-2", "missingRequired", "currency");
+        });
+    }
+
+    @Test
+    void marksUndeclaredLegacyProjectionAsCompatibilityRouting() {
+        Map<String, Object> payload = Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "data", Map.of("records", List.of(Map.of("id", 1))));
+
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("legacy", payload, 10_000));
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> assertThat(dataset.analysisContext())
+            .containsEntry("resultSemanticsDeclared", false)
+            .containsEntry("resultRouting", "HEURISTIC_COMPATIBILITY"));
+    }
 }

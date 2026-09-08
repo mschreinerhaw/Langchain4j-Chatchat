@@ -3,6 +3,7 @@ package com.chatchat.agents.runtime.analysis;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
+import com.chatchat.common.mcp.service.McpResultKind;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 
@@ -50,10 +51,41 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
     public AnalysisResult adapt(AnalysisRequest request) {
         Map<String, Object> envelope = map(request.payload());
         Object governedData = envelope.get("data");
+        McpResultKind resultKind = McpResultKind.parse(envelope.get("resultKind"));
+        Map<String, Object> contractContext = resultContractContext(envelope, resultKind);
+        if (resultKind == McpResultKind.EMPTY || resultKind == McpResultKind.ERROR_PAGE) {
+            return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, resultKind.name(), List.of());
+        }
+        if (resultKind == McpResultKind.COMMAND_STREAM) {
+            Map<String, Object> command = map(governedData);
+            Map<String, Object> root = command;
+            if (!command.containsKey("data")) {
+                root = new LinkedHashMap<>();
+                if (envelope.get("resultSchemaRef") != null) root.put("dataSchema", envelope.get("resultSchemaRef"));
+                root.put("data", command);
+            }
+            AnalysisResult projected = new CommandStreamResultAnalysisAdapter().adapt(
+                new AnalysisRequest(request.datasetReference(), root, request.maximumRecordChars()));
+            return withContext(projected, contractContext, "DECLARED_RESULT_KIND");
+        }
+        if (resultKind == McpResultKind.DOCUMENT) {
+            if (governedData == null) return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
+                "MCP_DECLARED_DOCUMENT", List.of());
+            return documentResult(request, governedData, contractContext);
+        }
+        if (resultKind == McpResultKind.CALCULATION) {
+            if (governedData == null) return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
+                "MCP_DECLARED_CALCULATION", List.of());
+            Map<String, Object> row = map(normalizeJson(governedData));
+            if (row.isEmpty()) row = Map.of("value", governedData);
+            return new AnalysisResult(string(envelope.get("resultSchemaRef")), "MCP_DECLARED_CALCULATION",
+                List.of(new AnalysisDataset(request.datasetReference(), contractContext, List.of(row))));
+        }
         List<AnalysisDataset> stdoutDatasets = new PythonStdoutRecordProjector().project(
             request.datasetReference(), governedData);
-        if (!stdoutDatasets.isEmpty()) return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
-            "MCP_CANONICAL_BUSINESS_DATA", stdoutDatasets);
+        if (!stdoutDatasets.isEmpty()) return withContext(new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
+            "MCP_CANONICAL_BUSINESS_DATA", stdoutDatasets), contractContext,
+            resultKind == McpResultKind.UNDECLARED ? "HEURISTIC_COMPATIBILITY" : "DECLARED_RESULT_KIND");
         boolean governedBodyPresent = hasCanonicalBody(governedData);
         List<Candidate> candidates = canonicalCandidates(governedData, "$.data");
         String source = "governed_data";
@@ -62,12 +94,60 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
             source = "raw_data_recovery";
         }
         List<AnalysisDataset> datasets = toDatasets(
-            request.datasetReference(), candidates, source, analysisContext(governedData));
+            request.datasetReference(), candidates, source, merge(analysisContext(governedData), contractContext));
         if (datasets.isEmpty() && governedData != null && !governedBodyPresent) {
             datasets = List.of(canonicalPayloadDataset(request, governedData));
         }
-        return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
-            "MCP_CANONICAL_BUSINESS_DATA", datasets);
+        return withContext(new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
+            "MCP_CANONICAL_BUSINESS_DATA", datasets), contractContext,
+            resultKind == McpResultKind.UNDECLARED ? "HEURISTIC_COMPATIBILITY" : "DECLARED_RESULT_KIND");
+    }
+
+    private AnalysisResult documentResult(AnalysisRequest request, Object governedData,
+                                          Map<String, Object> contractContext) {
+        Map<String, Object> value = map(normalizeJson(governedData));
+        Object document = value.get("text");
+        if (document == null) document = value.get("content");
+        String content = document == null ? ModelProtocolJson.compact(governedData) : String.valueOf(document);
+        if (content.isBlank()) return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
+            "MCP_DECLARED_DOCUMENT", List.of());
+        int chunkChars = Math.max(1_000, request.maximumRecordChars());
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (int from = 0, index = 1; from < content.length(); from += chunkChars, index++) {
+            int to = Math.min(content.length(), from + chunkChars);
+            records.add(Map.of("chunkIndex", index, "fromChar", from, "toChar", to,
+                "sourceComplete", true, "content", content.substring(from, to)));
+        }
+        return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, "MCP_DECLARED_DOCUMENT",
+            List.of(new AnalysisDataset(request.datasetReference() + "#document", contractContext, records)));
+    }
+
+    private AnalysisResult withContext(AnalysisResult source, Map<String, Object> contractContext, String routing) {
+        List<AnalysisDataset> datasets = source.datasets().stream().map(dataset -> {
+            Map<String, Object> context = merge(dataset.analysisContext(), contractContext);
+            context = new LinkedHashMap<>(context);
+            context.put("resultRouting", routing);
+            return new AnalysisDataset(dataset.datasetReference(), Map.copyOf(context), dataset.handle());
+        }).toList();
+        return new AnalysisResult(source.sourceSchemaVersion(), source.evidenceRole(), datasets);
+    }
+
+    private Map<String, Object> resultContractContext(Map<String, Object> envelope, McpResultKind kind) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("resultKind", kind.name());
+        context.put("resultSemanticsDeclared", kind != McpResultKind.UNDECLARED);
+        if (envelope.get("resultSchemaRef") != null) context.put("resultSchemaRef", envelope.get("resultSchemaRef"));
+        if (envelope.get("provenance") != null) context.put("provenance", envelope.get("provenance"));
+        if (envelope.get("pagination") != null) context.put("pagination", envelope.get("pagination"));
+        if (envelope.get("completeness") != null) context.put("completeness", envelope.get("completeness"));
+        return Map.copyOf(context);
+    }
+
+    private Map<String, Object> merge(Map<String, Object> left, Map<String, Object> right) {
+        Map<String, Object> result = new LinkedHashMap<>(left == null ? Map.of() : left);
+        if (right != null) result.putAll(right);
+        result.values().removeIf(java.util.Objects::isNull);
+        return Map.copyOf(result);
     }
 
     private List<Candidate> canonicalCandidates(Object value, String path) {

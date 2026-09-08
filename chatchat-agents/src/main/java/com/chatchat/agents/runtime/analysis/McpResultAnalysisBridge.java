@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 /** Default adapter registry and canonical projection implementation for MCP result analysis. */
 public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProtocol {
@@ -70,7 +71,12 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
         RuntimeResultAnalysisAdapter adapter = select(request, includeFallback);
         if (adapter == null) return Map.of();
         RuntimeResultAnalysisAdapter.AnalysisResult result = adapter.adapt(request);
-        if (result == null || result.datasets().isEmpty()) return Map.of();
+        if (result == null) return Map.of();
+        boolean declaredNoRecords = boundedPayload instanceof Map<?, ?> envelope
+            && com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION.equals(
+                String.valueOf(envelope.get("schemaVersion")))
+            && Set.of("EMPTY", "ERROR_PAGE").contains(String.valueOf(envelope.get("resultKind")));
+        if (result.datasets().isEmpty() && !declaredNoRecords) return Map.of();
         List<Map<String, Object>> datasets = result.datasets().stream()
             .filter(dataset -> dataset != null && !dataset.records().isEmpty())
             .map(dataset -> Map.<String, Object>of(
@@ -78,7 +84,7 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
                 "analysisContext", dataset.analysisContext(),
                 "records", dataset.records()))
             .toList();
-        if (datasets.isEmpty()) return Map.of();
+        if (datasets.isEmpty() && !declaredNoRecords) return Map.of();
         Map<String, Object> projection = new LinkedHashMap<>();
         projection.put("schemaVersion", PROJECTION_SCHEMA_VERSION);
         projection.put("adapterId", adapter.id());
@@ -90,6 +96,17 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
         projection.put("sourcePayloadSha256", ModelProtocolJson.sha256Hex(sourcePayloadJson));
         projection.put("sourcePayloadChars", sourcePayloadJson.length());
         projection.put("projectionContainsBusinessDataOnly", true);
+        projection.put("declaredNoRecords", declaredNoRecords);
+        if (boundedPayload instanceof Map<?, ?> envelope
+            && com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION.equals(
+                String.valueOf(envelope.get("schemaVersion")))) {
+            for (String key : List.of("resultKind", "resultSchemaRef", "provenance",
+                "pagination", "completeness")) {
+                if (envelope.get(key) != null) projection.put(key, envelope.get(key));
+            }
+            projection.put("resultRouting", "UNDECLARED".equals(String.valueOf(envelope.get("resultKind")))
+                ? "HEURISTIC_COMPATIBILITY" : "DECLARED_RESULT_KIND");
+        }
         projection.put("datasets", datasets);
         return Map.copyOf(projection);
     }

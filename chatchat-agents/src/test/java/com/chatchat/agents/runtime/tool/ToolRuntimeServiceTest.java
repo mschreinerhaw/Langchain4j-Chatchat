@@ -16,6 +16,8 @@ import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
+import com.chatchat.common.mcp.service.McpResultKind;
+import com.chatchat.common.mcp.service.McpResultProvenance;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
@@ -56,7 +58,10 @@ class ToolRuntimeServiceTest {
             Map.of("type", "text", "text", "CONTAINER ID  NAMES\nabc123  database")));
         when(kernel.execute(any())).thenReturn(new McpServiceResult(null, "kernel-1", "docker", toolName,
             McpServiceResultStatus.SUCCESS, Map.of("stdoutLength", 42), raw,
-            null, null, false, null, Map.of("kernelProtocolVersion", "runtime_os_mcp_kernel.v1"), 0));
+            null, null, false, null, Map.of("kernelProtocolVersion", "runtime_os_mcp_kernel.v1"),
+            McpResultKind.COMMAND_STREAM, "docker.stdout.v1",
+            new McpResultProvenance("docker/daemon", "snapshot-1", null, null, Map.of(), Map.of()),
+            null, 0));
         ToolRuntimeService service = new ToolRuntimeService(
             registry, new ObjectMapper(), properties(), List.of(), List.of());
         service.setMcpRuntimeKernel(kernel);
@@ -75,7 +80,11 @@ class ToolRuntimeServiceTest {
             Map<String, Object> analysisPayload = (Map<String, Object>) execution.output().getData();
             assertThat(analysisPayload)
                 .containsEntry("schemaVersion", "mcp_analysis_payload.v1")
+                .containsEntry("resultKind", "COMMAND_STREAM")
+                .containsEntry("resultSchemaRef", "docker.stdout.v1")
                 .containsEntry("rawData", raw);
+            assertThat(analysisPayload.get("provenance").toString())
+                .contains("docker/daemon", "snapshot-1", "inputFingerprint");
             assertThat(execution.output().getMetadata())
                 .containsEntry("mcpRawDataPreserved", true)
                 .containsEntry("mcpKernelProtocolVersion", "runtime_os_mcp_kernel.v1");

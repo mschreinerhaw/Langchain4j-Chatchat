@@ -3,6 +3,7 @@ package com.chatchat.agents.runtime.analysis;
 import com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle;
 import com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
+import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -58,5 +59,22 @@ class McpResultAnalysisBridgeTest {
             assertThat(dataset.handle()).isSameAs(handle);
             assertThat(dataset.handle().recordCount()).isEqualTo(10_000);
         });
+    }
+
+    @Test
+    void preservesDeclaredEmptyResultWithoutInventingADataRecord() {
+        Map<String, Object> projection = bridge.analysisProjection("empty", Map.of(
+            "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind", "EMPTY",
+            "status", "EMPTY_RESULT",
+            "completeness", Map.of("complete", true),
+            "data", List.of(), "rawData", List.of()));
+
+        assertThat(projection)
+            .containsEntry("declaredNoRecords", true)
+            .containsEntry("resultKind", "EMPTY")
+            .containsEntry("resultRouting", "DECLARED_RESULT_KIND");
+        assertThat(projection.get("datasets"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).isEmpty();
     }
 }

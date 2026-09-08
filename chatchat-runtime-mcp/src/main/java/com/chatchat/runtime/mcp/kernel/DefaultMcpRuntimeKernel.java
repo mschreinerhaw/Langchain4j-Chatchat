@@ -138,7 +138,8 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
             if (repaired.normalizedData() != null) {
                 invoked = new McpServiceResult(null, invoked.requestId(), invoked.serviceId(), invoked.toolName(),
                     repaired.status(), repaired.normalizedData(), invoked.rawData(), null,
-                    null, false, null, invoked.metadata(), 0);
+                    null, false, null, invoked.metadata(), invoked.resultKind(), invoked.resultSchemaRef(),
+                    invoked.provenance(), invoked.pagination(), 0);
             }
         }
         McpContractAuditReport postflight = audit(new McpContractAuditRequest(
@@ -167,7 +168,8 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         metadata.putAll(kernelMetadata);
         return new McpServiceResult(null, result.requestId(), result.serviceId(), result.toolName(), result.status(),
             result.data(), result.rawData(), result.errorCode(), result.errorMessage(), result.retryable(),
-            result.recoveryAction(), metadata, result.completedAt());
+            result.recoveryAction(), metadata, result.resultKind(), result.resultSchemaRef(), result.provenance(),
+            result.pagination(), result.completedAt());
     }
 
     private Map<String, Object> kernelMetadata(McpContractAuditReport preflight,

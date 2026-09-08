@@ -30,6 +30,7 @@ import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpServiceResult;
+import com.chatchat.common.mcp.service.McpResultProvenance;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
@@ -2174,6 +2175,7 @@ public class ToolRuntimeService {
         McpServiceResult result = kernel.execute(new McpServiceCall(null,
             canonicalInvocation.requestId(), serviceId, canonicalInvocation.toolName(),
             canonicalInvocation.arguments().values(), canonicalInvocation.context(), deadlineAt));
+        result = bindInvocationFingerprint(result, canonicalInvocation.arguments().values());
         Map<String, Object> outputMetadata = new LinkedHashMap<>(result.metadata());
         outputMetadata.put("mcpServiceResult", result);
         outputMetadata.put("mcpKernelProtocolVersion", McpRuntimeKernel.KERNEL_PROTOCOL_VERSION);
@@ -2188,6 +2190,25 @@ public class ToolRuntimeService {
             .metadata(outputMetadata)
             .build();
         return output;
+    }
+
+    private McpServiceResult bindInvocationFingerprint(McpServiceResult result,
+                                                       Map<String, Object> arguments) {
+        if (result == null) return null;
+        McpResultProvenance source = result.provenance();
+        String fingerprint = source == null ? null : source.inputFingerprint();
+        if (fingerprint == null) fingerprint = ModelProtocolJson.sha256Hex(
+            ModelProtocolJson.compact(arguments == null ? Map.of() : arguments));
+        McpResultProvenance bound = new McpResultProvenance(
+            source == null ? null : source.sourceRef(),
+            source == null ? null : source.dataVersion(),
+            source == null ? null : source.asOf(), fingerprint,
+            source == null ? Map.of() : source.rowRange(),
+            source == null ? Map.of() : source.filterSummary());
+        return new McpServiceResult(result.schemaVersion(), result.requestId(), result.serviceId(),
+            result.toolName(), result.status(), result.data(), result.rawData(), result.errorCode(),
+            result.errorMessage(), result.retryable(), result.recoveryAction(), result.metadata(),
+            result.resultKind(), result.resultSchemaRef(), bound, result.pagination(), result.completedAt());
     }
 
     private Optional<McpTemplateBindingEvidence> runtimeTemplateBindingEvidence(ToolRuntimeRequest request) {

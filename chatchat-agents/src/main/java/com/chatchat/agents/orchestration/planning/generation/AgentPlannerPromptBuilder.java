@@ -11,6 +11,7 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -671,6 +672,11 @@ public final class AgentPlannerPromptBuilder {
         Map<String, Object> mcpMeta = asMap(toolMetadata.get("mcpToolMeta"));
         Map<String, Object> applicability = asMap(mcpMeta.get("applicability"));
         Map<String, Object> routingProtocol = asMap(mcpMeta.get("routingProtocol"));
+        McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
+            .filter(McpTemplateSelectionScope::fixedBindingAuthority)
+            .ifPresent(scope -> prompt.append("  Authoritative template scope: FIXED_BINDING for assetType=")
+                .append(scope.assetType())
+                .append(". If this child capability is selected, it is the only template-selection source for that asset family in the current plan. Do not add a generic template-discovery step, do not semantically reselect or reject returned templates, and do not mutate its bound set. Additional discovery is permitted only in a later Runtime-authorized evidence-recovery iteration and remains separate evidence.\n"));
         List<String> allowedFilterFields = stringList(routingProtocol.get("allowedFilterFields"));
         if (!allowedFilterFields.isEmpty()) {
             prompt.append("  MCP-declared allowed logical filter fields: ")

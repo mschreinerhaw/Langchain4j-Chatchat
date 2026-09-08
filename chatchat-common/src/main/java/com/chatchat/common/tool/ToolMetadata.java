@@ -42,6 +42,27 @@ public class ToolMetadata {
     @Builder.Default
     private String version = "1.0.0";
 
+    /** Version of the published input/output schema contract. */
+    @Builder.Default
+    private String schemaVersion = "1.0.0";
+
+    /** Publication lifecycle: draft, validated, active, deprecated, disabled or retired. */
+    @Builder.Default
+    private String publicationStatus = "active";
+
+    /** Human-readable migration guidance for deprecated tools. */
+    private String deprecationMessage;
+
+    /** Optional tenant allow-list. Empty means visible to every authorized tenant. */
+    private List<String> visibleTenantIds;
+
+    /** Stable rollout labels used by deployment and audit tooling. */
+    private List<String> rolloutLabels;
+
+    /** Percentage of stable caller buckets allowed to invoke this publication. */
+    @Builder.Default
+    private int rolloutPercentage = 100;
+
     /**
      * Author or maintainer of the tool
      */

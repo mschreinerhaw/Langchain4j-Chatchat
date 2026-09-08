@@ -36,7 +36,7 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
 
         verify(server).removeTool(ApiAssetDiscoveryMcpToolPublisher.TOOL_NAME);
         verify(server, never()).addTool(org.mockito.ArgumentMatchers.any());
-        verify(server, never()).notifyToolsListChanged();
+        verify(server).notifyToolsListChanged();
     }
 
     @Test

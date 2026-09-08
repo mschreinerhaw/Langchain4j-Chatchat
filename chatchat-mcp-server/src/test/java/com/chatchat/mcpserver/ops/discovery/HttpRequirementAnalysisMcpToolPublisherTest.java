@@ -23,7 +23,8 @@ class HttpRequirementAnalysisMcpToolPublisherTest {
 
         publisher.refresh();
 
-        verify(server).removeTool(HttpRequirementAnalysisMcpToolPublisher.TOOL_NAME);
+        verify(server, org.mockito.Mockito.never())
+            .removeTool(HttpRequirementAnalysisMcpToolPublisher.TOOL_NAME);
         ArgumentCaptor<io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification> specification =
             ArgumentCaptor.forClass(io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
         verify(server).addTool(specification.capture());

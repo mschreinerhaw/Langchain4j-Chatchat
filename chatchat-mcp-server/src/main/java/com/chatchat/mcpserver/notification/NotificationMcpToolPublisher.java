@@ -4,19 +4,16 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NotificationMcpToolPublisher {
+public class NotificationMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     private final McpSyncServer mcpSyncServer;
     private final NotificationChannelConfigService configService;
@@ -26,38 +23,19 @@ public class NotificationMcpToolPublisher {
     @Value("${chatchat.mcp.notifications.enabled:true}")
     private boolean notificationsEnabled = true;
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
-    }
-
     public synchronized void refresh() {
-        managedToolNames.forEach(toolName -> {
-            try {
-                mcpSyncServer.removeTool(toolName);
-            } catch (Exception ex) {
-                log.debug("Failed to remove old notification MCP tool {}: {}", toolName, ex.getMessage());
-            }
-        });
+        com.chatchat.mcpserver.tool.McpToolPublicationPipeline.PublicationResult result = refreshPublication();
         managedToolNames.clear();
-
-        if (!notificationsEnabled) {
-            mcpSyncServer.notifyToolsListChanged();
-            log.info("Notification/alert MCP tool publishing is disabled");
-            return;
-        }
-
-        for (NotificationChannelConfig config : configService.listEnabled()) {
-            try {
-                com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-                    mcpSyncServer, toolSpecFactory.toToolSpecification(config));
-                managedToolNames.add(config.getToolName());
-            } catch (Exception ex) {
-                log.warn("Skip notification MCP tool {}: {}", config.getToolName(), ex.getMessage());
-            }
-        }
-        mcpSyncServer.notifyToolsListChanged();
+        managedToolNames.addAll(result.publishedTools());
         log.info("Notification MCP tools refreshed, registered {}", managedToolNames.size());
     }
+
+    @Override public String contributorId() { return "notifications"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        if (!notificationsEnabled) return List.of();
+        return configService.listEnabled().stream().map(toolSpecFactory::toToolSpecification)
+            .map(com.chatchat.mcpserver.tool.ToolPublication::from).toList();
+    }
+    @Override public Set<String> retiredToolNames() { return Set.copyOf(managedToolNames); }
 }

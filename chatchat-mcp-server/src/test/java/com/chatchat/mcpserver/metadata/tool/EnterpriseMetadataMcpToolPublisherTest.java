@@ -300,7 +300,8 @@ class EnterpriseMetadataMcpToolPublisherTest {
         ArgumentCaptor<io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification> tool =
             ArgumentCaptor.forClass(
                 io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification.class);
-        verify(server).removeTool(EnterpriseMetadataMcpToolPublisher.TOOL_NAME);
+        verify(server, org.mockito.Mockito.never())
+            .removeTool(EnterpriseMetadataMcpToolPublisher.TOOL_NAME);
         verify(server).removeTool(EnterpriseMetadataMcpToolPublisher.RETIRED_MATCH_TOOL_NAME);
         verify(server).addTool(tool.capture());
         assertThat(tool.getValue().tool().name())

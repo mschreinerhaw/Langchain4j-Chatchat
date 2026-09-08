@@ -55,8 +55,10 @@ public class MetadataGovernancePolicyAdminController {
 
     private void refreshPublishers() {
         if (properties.isEnabled()) {
-            searchPublisher.refresh();
-            governancePublisher.refresh();
+            com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(
+                searchPublisher.getClass(), searchPublisher::refresh);
+            com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(
+                governancePublisher.getClass(), governancePublisher::refresh);
         }
     }
 

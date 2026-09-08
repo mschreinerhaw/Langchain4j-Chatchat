@@ -4,7 +4,6 @@ import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
-import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -13,10 +12,6 @@ import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -29,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class PythonMcpToolPublisher {
+public class PythonMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
     public static final String ANALYSIS_RUN_TOOL = "python_analysis_query";
     public static final String TEMPLATE_EXECUTE_TOOL = "python_template_execute";
     static final List<String> LEGACY_PROTOCOL_TOOLS = List.of(
@@ -43,28 +38,30 @@ public class PythonMcpToolPublisher {
     private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
     private final Set<String> managed = ConcurrentHashMap.newKeySet();
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void ready() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
-    }
-
     public synchronized void refresh() {
         McpSyncServer server = serverProvider.getIfAvailable();
         if (server == null) return;
+        refreshPublication();
+        managed.clear();
+        managed.add(ANALYSIS_RUN_TOOL);
+        managed.add(TEMPLATE_EXECUTE_TOOL);
+        log.info("Unified Python discovery bridge published: {}; Runtime executor retained: {}",
+            ANALYSIS_RUN_TOOL, TEMPLATE_EXECUTE_TOOL);
+    }
+
+    @Override public String contributorId() { return "python"; }
+    @Override public McpSyncServer publicationServer() { return serverProvider.getIfAvailable(); }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        if (publicationServer() == null) return List.of();
+        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(analysisRunSpec()),
+            com.chatchat.mcpserver.tool.ToolPublication.from(templateExecuteSpec()));
+    }
+    @Override public Set<String> retiredToolNames() {
         Set<String> obsolete = new LinkedHashSet<>(managed);
         obsolete.addAll(LEGACY_PROTOCOL_TOOLS);
         templates.findByStatus("PUBLISHED").stream().map(PythonTemplate::getToolName)
             .filter(name -> name != null && !name.isBlank()).forEach(obsolete::add);
-        obsolete.forEach(name -> { try { server.removeTool(name); } catch (Exception ignored) { } });
-        managed.clear();
-        McpToolPublicationReviewer.addReviewedTool(server, analysisRunSpec());
-        managed.add(ANALYSIS_RUN_TOOL);
-        McpToolPublicationReviewer.addReviewedTool(server, templateExecuteSpec());
-        managed.add(TEMPLATE_EXECUTE_TOOL);
-        server.notifyToolsListChanged();
-        log.info("Unified Python discovery bridge published: {}; Runtime executor retained: {}",
-            ANALYSIS_RUN_TOOL, TEMPLATE_EXECUTE_TOOL);
+        return Set.copyOf(obsolete);
     }
 
     private McpServerFeatures.SyncToolSpecification analysisRunSpec() {
@@ -86,9 +83,6 @@ public class PythonMcpToolPublisher {
         properties.put("environmentId", Map.of("type", "string", "description", "Optional exact environment selection"));
         properties.put("parameters", Map.of("type", "object", "additionalProperties", true,
             "description", "Business parameters; supplied values override defaults"));
-        properties.put(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
-            "type", "string",
-            "description", "Internal dynamic template-query routing identity"));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(ANALYSIS_RUN_TOOL)
             .title("Python analysis capability query")

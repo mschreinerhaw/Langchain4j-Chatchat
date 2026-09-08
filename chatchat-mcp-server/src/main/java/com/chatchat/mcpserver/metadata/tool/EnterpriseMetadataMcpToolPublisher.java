@@ -13,8 +13,6 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -24,11 +22,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class EnterpriseMetadataMcpToolPublisher {
+public class EnterpriseMetadataMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     public static final String TOOL_NAME = "enterprise_metadata_search";
     public static final String RETIRED_MATCH_TOOL_NAME = "enterprise_metadata_match";
@@ -44,22 +43,19 @@ public class EnterpriseMetadataMcpToolPublisher {
     private final MetadataGovernancePolicyService policyService;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        if (properties.isEnabled()) {
-            com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
-        }
-    }
-
     public synchronized void refresh() {
-        remove(TOOL_NAME);
-        remove(RETIRED_MATCH_TOOL_NAME);
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, searchSpecification());
-        mcpSyncServer.notifyToolsListChanged();
+        refreshPublication();
         log.info("Enterprise metadata MCP capabilities registered tools={}; retiredToolRemoved={}",
             TOOL_NAME, RETIRED_MATCH_TOOL_NAME);
     }
+
+    @Override public String contributorId() { return "enterprise_metadata"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return properties.isEnabled()
+            ? List.of(com.chatchat.mcpserver.tool.ToolPublication.from(searchSpecification())) : List.of();
+    }
+    @Override public Set<String> retiredToolNames() { return Set.of(RETIRED_MATCH_TOOL_NAME); }
 
     private McpServerFeatures.SyncToolSpecification searchSpecification() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -629,15 +625,6 @@ public class EnterpriseMetadataMcpToolPublisher {
 
     private String text(Object value) {
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
-    }
-
-    private void remove(String toolName) {
-        try {
-            mcpSyncServer.removeTool(toolName);
-        } catch (Exception ex) {
-            log.debug("Enterprise metadata MCP tool {} was not registered: {}",
-                toolName, ex.getMessage());
-        }
     }
 
     private Map<String, Object> mapOf(Object... values) {

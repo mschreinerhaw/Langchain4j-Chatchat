@@ -55,7 +55,7 @@ class NotificationMcpToolPublisherTest {
         publisher.refresh();
 
         verify(mcpSyncServer, never()).addTool(any());
-        verify(mcpSyncServer).notifyToolsListChanged();
+        verify(mcpSyncServer, never()).notifyToolsListChanged();
     }
 
     @Test
@@ -95,7 +95,7 @@ class NotificationMcpToolPublisherTest {
 
         verify(configService, never()).listEnabled();
         verify(mcpSyncServer, never()).addTool(any());
-        verify(mcpSyncServer).notifyToolsListChanged();
+        verify(mcpSyncServer, never()).notifyToolsListChanged();
     }
 
     private NotificationChannelConfig notificationConfig(String toolName) {

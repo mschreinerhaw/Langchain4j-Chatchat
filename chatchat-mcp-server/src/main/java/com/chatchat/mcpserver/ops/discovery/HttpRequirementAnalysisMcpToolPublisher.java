@@ -6,10 +6,6 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -20,28 +16,21 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class HttpRequirementAnalysisMcpToolPublisher {
+public class HttpRequirementAnalysisMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     public static final String TOOL_NAME = "http_requirement_analyze";
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
+    public synchronized void refresh() {
+        refreshPublication();
+        log.info("HTTP requirement analysis published as an HTTP-specific discovery contract: {}", TOOL_NAME);
     }
 
-    public synchronized void refresh() {
-        try {
-            mcpSyncServer.removeTool(TOOL_NAME);
-        } catch (Exception ex) {
-            log.debug("HTTP requirement analysis tool was not registered: {}", ex.getMessage());
-        }
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, toolSpecification());
-        mcpSyncServer.notifyToolsListChanged();
-        log.info("HTTP requirement analysis published as an HTTP-specific discovery contract: {}", TOOL_NAME);
+    @Override public String contributorId() { return "http_requirement_analysis"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(toolSpecification()));
     }
 
     private McpServerFeatures.SyncToolSpecification toolSpecification() {

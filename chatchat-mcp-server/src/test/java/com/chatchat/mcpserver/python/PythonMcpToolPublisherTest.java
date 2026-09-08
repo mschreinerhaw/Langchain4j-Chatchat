@@ -47,7 +47,9 @@ class PythonMcpToolPublisherTest {
             verify(server).removeTool(legacyTool);
         verify(server).addTool(argThat(spec ->
             PythonMcpToolPublisher.ANALYSIS_RUN_TOOL.equals(spec.tool().name())
-                && "Python analysis capability query".equals(spec.tool().title())));
+                && "Python analysis capability query".equals(spec.tool().title())
+                && !((Map<?, ?>) spec.tool().inputSchema().get("properties"))
+                    .containsKey(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT)));
         verify(server).addTool(argThat(spec ->
             PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL.equals(spec.tool().name())));
         verify(server, times(2)).addTool(org.mockito.ArgumentMatchers.any());

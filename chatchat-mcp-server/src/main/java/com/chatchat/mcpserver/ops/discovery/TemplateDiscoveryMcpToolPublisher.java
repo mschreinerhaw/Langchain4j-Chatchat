@@ -10,21 +10,18 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class TemplateDiscoveryMcpToolPublisher {
+public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     public static final String SSH_TEMPLATE_TOOL_NAME = "ssh_template_query";
     public static final String SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "database_ops_template_search";
@@ -38,20 +35,18 @@ public class TemplateDiscoveryMcpToolPublisher {
     private final TargetKindRegistry targetKindRegistry;
     private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
+    public synchronized void refresh() {
+        refreshPublication();
+        log.info("Operations template discovery is internal to the domain-specific server, HTTP, JMX and database capability queries");
     }
 
-    public synchronized void refresh() {
-        remove(SSH_TEMPLATE_TOOL_NAME);
-        remove(SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
-        remove(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
-        remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
-        remove(JMX_TEMPLATE_TOOL_NAME);
-        remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
-        log.info("Operations template discovery is internal to the domain-specific server, HTTP, JMX and database capability queries");
+    @Override public String contributorId() { return "operations_template_discovery_legacy"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() { return List.of(); }
+    @Override public Set<String> retiredToolNames() {
+        return Set.of(SSH_TEMPLATE_TOOL_NAME, SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
+            LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME, HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
+            JMX_TEMPLATE_TOOL_NAME, DATABASE_QUERY_TEMPLATE_TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification domainTemplateQueryTool(String toolName,
@@ -511,14 +506,6 @@ public class TemplateDiscoveryMcpToolPublisher {
             "error", ex.getMessage(),
             "errorDetail", ex.details()
         );
-    }
-
-    private void remove(String toolName) {
-        try {
-            mcpSyncServer.removeTool(toolName);
-        } catch (Exception ex) {
-            log.debug("Template discovery MCP tool {} was not registered: {}", toolName, ex.getMessage());
-        }
     }
 
     private Map<String, Object> mapOf(Object... values) {

@@ -4,6 +4,8 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.mcp.contract.McpToolGovernance;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -14,6 +16,7 @@ import java.util.Map;
 
 /** The single registration point for built-in MCP tools. */
 public class McpToolRegistry {
+    private static final Logger log = LoggerFactory.getLogger(McpToolRegistry.class);
     private final McpToolPublicationPort publicationPort;
     private final McpCapabilityStatePort capabilityStatePort;
     private final McpCapabilitiesProperties properties;
@@ -43,7 +46,14 @@ public class McpToolRegistry {
 
     @PostConstruct
     public void publish() {
-        tools.values().forEach(this::publishOne);
+        tools.values().forEach(tool -> {
+            try {
+                publishOne(tool);
+            } catch (RuntimeException failure) {
+                log.error("MCP provider publication failed; remaining tools will continue tool={} provider={}",
+                    tool.definition().name(), tool.definition().provider(), failure);
+            }
+        });
     }
 
     public Collection<RegisteredMcpTool> listTools() {
@@ -65,8 +75,11 @@ public class McpToolRegistry {
         tools.values().stream()
             .filter(tool -> tool.definition().capabilityCode().equals(capabilityCode))
             .forEach(tool -> {
-                publicationPort.unpublish(tool.definition().name());
-                publishOne(tool);
+                if (tool.enabled() && capabilityEnabled(tool.definition().capabilityCode())) {
+                    publishOne(tool);
+                } else {
+                    publicationPort.unpublish(tool.definition().name());
+                }
             });
     }
 

@@ -10,20 +10,17 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AssetDiscoveryMcpToolPublisher {
+public class AssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     public static final String SSH_ASSET_TOOL_NAME = "ssh_asset_query";
     public static final String SQL_DATASOURCE_ASSET_TOOL_NAME = "database_asset_search";
@@ -35,19 +32,18 @@ public class AssetDiscoveryMcpToolPublisher {
     private final AssetDiscoveryService assetDiscoveryService;
     private final TargetKindRegistry targetKindRegistry;
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
+    public synchronized void refresh() {
+        refreshPublication();
+        log.info("Operations asset discovery is internal to the domain-specific server, HTTP and database capability queries");
     }
 
-    public synchronized void refresh() {
-        remove(SSH_ASSET_TOOL_NAME);
-        remove(SQL_DATASOURCE_ASSET_TOOL_NAME);
-        remove(LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME);
-        remove(HTTP_ENDPOINT_ASSET_TOOL_NAME);
-        remove(MICROSERVICE_ASSET_TOOL_NAME);
-        log.info("Operations asset discovery is internal to the domain-specific server, HTTP and database capability queries");
+    @Override public String contributorId() { return "operations_asset_discovery_legacy"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() { return List.of(); }
+    @Override public Set<String> retiredToolNames() {
+        return Set.of(SSH_ASSET_TOOL_NAME, SQL_DATASOURCE_ASSET_TOOL_NAME,
+            LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME, HTTP_ENDPOINT_ASSET_TOOL_NAME,
+            MICROSERVICE_ASSET_TOOL_NAME);
     }
 
     private McpServerFeatures.SyncToolSpecification assetQueryTool(String toolName,
@@ -274,14 +270,6 @@ public class AssetDiscoveryMcpToolPublisher {
             "error", ex.getMessage(),
             "errorDetail", ex.details()
         );
-    }
-
-    private void remove(String toolName) {
-        try {
-            mcpSyncServer.removeTool(toolName);
-        } catch (Exception ex) {
-            log.debug("Asset discovery MCP tool {} was not registered: {}", toolName, ex.getMessage());
-        }
     }
 
     private Map<String, Object> mapOf(Object... values) {

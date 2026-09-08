@@ -33,23 +33,34 @@ class McpPublicationStartupGuardTest {
     }
 
     @Test
-    void everyApplicationReadyPublisherUsesTheIsolationGuard() throws IOException {
+    void startupPublicationHasOneCoordinatorAndPublishersOnlyContribute() throws IOException {
         Path moduleLocal = Path.of("src/main/java");
         Path sourceRoot = Files.isDirectory(moduleLocal)
             ? moduleLocal.toAbsolutePath().normalize()
             : Path.of("chatchat-mcp-server/src/main/java").toAbsolutePath().normalize();
-        List<Path> startupPublishers;
+        List<Path> eventListeners;
+        List<Path> publishers;
         try (Stream<Path> sources = Files.walk(sourceRoot)) {
-            startupPublishers = sources
+            List<Path> javaSources = sources.filter(path -> path.toString().endsWith(".java")).toList();
+            eventListeners = javaSources.stream()
                 .filter(path -> path.toString().endsWith("Publisher.java"))
                 .filter(path -> contains(path, "@EventListener(ApplicationReadyEvent.class)"))
                 .toList();
+            publishers = javaSources.stream()
+                .filter(path -> path.toString().endsWith("Publisher.java"))
+                .filter(path -> contains(path, "McpSyncServer"))
+                .toList();
         }
 
-        assertThat(startupPublishers).isNotEmpty();
-        assertThat(startupPublishers)
-            .allSatisfy(path -> assertThat(contains(path, "McpPublicationStartupGuard.run"))
-                .as("startup publisher must isolate refresh failure: %s", path)
+        assertThat(eventListeners).isEmpty();
+        Path coordinator = sourceRoot.resolve(
+            "com/chatchat/mcpserver/tool/McpToolPublicationCoordinator.java");
+        assertThat(contains(coordinator, "@EventListener(ApplicationReadyEvent.class)")).isTrue();
+        assertThat(contains(coordinator, "McpPublicationStartupGuard.run")).isTrue();
+        assertThat(publishers).isNotEmpty();
+        assertThat(publishers)
+            .allSatisfy(path -> assertThat(contains(path, "McpToolContributor"))
+                .as("publisher must contribute through the central pipeline: %s", path)
                 .isTrue());
     }
 

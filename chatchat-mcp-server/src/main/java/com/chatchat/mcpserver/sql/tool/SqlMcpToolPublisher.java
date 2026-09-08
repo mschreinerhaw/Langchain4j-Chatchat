@@ -36,10 +36,6 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -55,7 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SqlMcpToolPublisher {
+public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     public static final String DATA_QUERY_BRIDGE_TOOL = "data_query_query";
     public static final String SQL_METADATA_BRIDGE_TOOL = "sql_schema_context_query";
@@ -94,31 +90,27 @@ public class SqlMcpToolPublisher {
         this.dynamicTemplateQueries = dynamicTemplateQueries;
     }
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
-    }
-
     public synchronized void refresh() {
-        remove("sql_query_execute");
-        remove("sql_script_execute");
-        remove(SQL_METADATA_SEARCH_TOOL);
-        remove(SQL_METADATA_BRIDGE_TOOL);
-        remove(DATA_QUERY_BRIDGE_TOOL);
-        datasourceConfigService.listAll().forEach(datasource -> remove(datasource.getToolName()));
-        managedToolNames.forEach(this::remove);
-        managedToolNames.clear();
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, dataQueryBridgeTool());
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, sqlMetadataBridgeTool());
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, sqlQueryGatewayTool());
-        mcpSyncServer.notifyToolsListChanged();
+        refreshPublication();
         log.info("SQL discovery tools refreshed: dataBridge={}, metadataBridge={}; "
                 + "sql_metadata_search retained as an internal capability; Runtime SQL executor retained: sql_query_execute",
             DATA_QUERY_BRIDGE_TOOL, SQL_METADATA_BRIDGE_TOOL);
+    }
+
+    @Override public String contributorId() { return "sql"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(dataQueryBridgeTool()),
+            com.chatchat.mcpserver.tool.ToolPublication.from(sqlMetadataBridgeTool()),
+            com.chatchat.mcpserver.tool.ToolPublication.from(sqlQueryGatewayTool()));
+    }
+    @Override public Set<String> retiredToolNames() {
+        java.util.LinkedHashSet<String> retired = new java.util.LinkedHashSet<>(List.of(
+            "sql_query_execute", "sql_script_execute", SQL_METADATA_SEARCH_TOOL));
+        datasourceConfigService.listAll().stream().map(item -> item.getToolName())
+            .filter(java.util.Objects::nonNull).forEach(retired::add);
+        retired.addAll(managedToolNames);
+        return Set.copyOf(retired);
     }
 
     private McpServerFeatures.SyncToolSpecification sqlMetadataBridgeTool() {
@@ -1522,11 +1514,4 @@ public class SqlMcpToolPublisher {
         return value.replace("|", "\\|").replace("\r", " ").replace("\n", "<br>");
     }
 
-    private void remove(String toolName) {
-        try {
-            mcpSyncServer.removeTool(toolName);
-        } catch (Exception ex) {
-            log.debug("SQL MCP tool {} was not registered: {}", toolName, ex.getMessage());
-        }
-    }
 }

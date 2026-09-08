@@ -3,10 +3,8 @@ package com.chatchat.mcpserver.templatepublication.publisher;
 import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateQueryParentCatalog;
-import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryBridgeRoutingPolicy;
 import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePolicy;
 
-import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
@@ -17,16 +15,11 @@ import com.chatchat.mcpserver.python.PythonAnalysisBridge;
 import com.chatchat.mcpserver.python.PythonMcpToolPublisher;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
-import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -39,9 +32,11 @@ import java.util.LinkedHashSet;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class TemplateQueryMcpToolPublisher {
+public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     private static final String LEGACY_TOOL_NAME = "template_query";
+    /** @deprecated rolling-upgrade compatibility only; new callers invoke child tools directly. */
+    @Deprecated(forRemoval = false)
     public static final String CHILD_TOOL_ARGUMENT = "_templateQueryChildToolName";
 
     private final McpSyncServer mcpSyncServer;
@@ -53,24 +48,25 @@ public class TemplateQueryMcpToolPublisher {
     private final McpToolConcurrencyManager concurrencyManager;
     private final Set<String> publishedToolNames = new LinkedHashSet<>();
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
+    public synchronized void refresh() {
+        com.chatchat.mcpserver.tool.McpToolPublicationPipeline.PublicationResult result = refreshPublication();
+        publishedToolNames.clear();
+        publishedToolNames.addAll(result.publishedTools());
+        log.info("Governed dynamic template query tools published: {}", publishedToolNames);
     }
 
-    public synchronized void refresh() {
-        Set<String> namesToRemove = new LinkedHashSet<>(publishedToolNames);
-        namesToRemove.add(LEGACY_TOOL_NAME);
-        namesToRemove.forEach(this::remove);
-        publishedToolNames.clear();
-        for (String toolName : bindingService.publishedToolNames()) {
-            String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
-            McpToolPublicationReviewer.addReviewedTool(mcpSyncServer, specification(reviewedName));
-            publishedToolNames.add(reviewedName);
-        }
-        mcpSyncServer.notifyToolsListChanged();
-        log.info("Governed dynamic template query tools published: {}", publishedToolNames);
+    @Override public String contributorId() { return "template_query"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return bindingService.publishedToolNames().stream()
+            .map(TemplateQueryToolNamePolicy::requireToolName)
+            .map(this::specification)
+            .map(com.chatchat.mcpserver.tool.ToolPublication::from).toList();
+    }
+    @Override public Set<String> retiredToolNames() {
+        java.util.LinkedHashSet<String> retired = new java.util.LinkedHashSet<>(publishedToolNames);
+        retired.add(LEGACY_TOOL_NAME);
+        return Set.copyOf(retired);
     }
 
     private McpServerFeatures.SyncToolSpecification specification(String toolName) {
@@ -116,6 +112,8 @@ public class TemplateQueryMcpToolPublisher {
         return query(toolName, null, arguments);
     }
 
+    /** @deprecated rolling-upgrade compatibility for cached parent-delegation descriptors. */
+    @Deprecated(forRemoval = false)
     public Map<String, Object> queryFromParent(String toolName, String parentToolName,
                                                Map<String, Object> arguments) {
         return query(toolName, parentToolName, arguments);
@@ -239,6 +237,8 @@ public class TemplateQueryMcpToolPublisher {
         );
     }
 
+    /** @deprecated rolling-upgrade compatibility for cached parent-delegation descriptors. */
+    @Deprecated(forRemoval = false)
     public static String childToolName(Map<String, Object> arguments) {
         Object value = arguments == null ? null : arguments.get(CHILD_TOOL_ARGUMENT);
         return value == null ? "" : String.valueOf(value).trim();
@@ -328,15 +328,9 @@ public class TemplateQueryMcpToolPublisher {
         Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta(
             "template_query_publication", "system-managed", governance));
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);
-        String parentToolName = TemplateQueryBridgeRoutingPolicy.publicBridge(
-            bindingService.parentToolName(toolName));
-        McpDynamicCapabilityRoute route = McpDynamicCapabilityRoute.parentDelegation(
-            parentToolName, CHILD_TOOL_ARGUMENT);
-        meta.put(McpDynamicCapabilityRoute.METADATA_KEY, route.toMetadata());
-        // Rolling-upgrade fields for API nodes that have not adopted the v1 route contract.
-        meta.put("kind", "dynamic_authorized_template_discovery");
-        meta.put("parentToolName", parentToolName);
-        meta.put("routingMode", "api_parent_mcp_policy_filter");
+        // This publication is a first-class MCP tool. Parent delegation remains executable only
+        // as a rolling-upgrade compatibility path and is intentionally absent from the contract.
+        meta.put("routingMode", "direct_child_invocation");
         meta.put("readOnly", true);
         meta.put("runtimeAction", "read_only");
         meta.put("controlPlane", "server_managed");
@@ -392,11 +386,4 @@ public class TemplateQueryMcpToolPublisher {
         return result;
     }
 
-    private void remove(String toolName) {
-        try {
-            mcpSyncServer.removeTool(toolName);
-        } catch (Exception ex) {
-            log.debug("Dynamic template query tool {} was not registered: {}", toolName, ex.getMessage());
-        }
-    }
 }

@@ -53,7 +53,8 @@ public class PythonAnalysisBridge {
 
     public Result queryAuthorized(Map<String, Object> rawArguments, Set<String> authorizedTemplateIds) {
         Map<String, Object> arguments = new LinkedHashMap<>(rawArguments == null ? Map.of() : rawArguments);
-        arguments.remove("_templateQueryChildToolName");
+        arguments.remove(com.chatchat.mcpserver.templatepublication.publisher
+            .TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT);
         arguments.put("_authorizedTemplateIds", List.copyOf(authorizedTemplateIds == null
             ? Set.of() : authorizedTemplateIds));
         if (text(arguments.get("query")) == null) {

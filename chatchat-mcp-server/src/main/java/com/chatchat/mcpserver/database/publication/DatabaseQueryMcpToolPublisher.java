@@ -8,20 +8,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpSyncServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DatabaseQueryMcpToolPublisher {
+public class DatabaseQueryMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     static final String UNIFIED_EXECUTION_MODE = "template_via_execution_gateway";
     static final String MARKET_DATA_CATEGORY = "market_data";
@@ -33,20 +30,18 @@ public class DatabaseQueryMcpToolPublisher {
     private final ObjectMapper objectMapper;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
+    public synchronized void refresh() {
+        refreshPublication();
+        log.info("Database query templates remain index-only and execute through sql_query_execute");
     }
 
-    public synchronized void refresh() {
-        managedToolNames.forEach(this::remove);
-        managedToolNames.clear();
-        for (DatabaseQueryConfig config : configService.listEnabled()) {
-            remove(namingPolicy.toolName(config));
-        }
-        mcpSyncServer.notifyToolsListChanged();
-        log.info("Database query templates remain index-only and execute through sql_query_execute");
+    @Override public String contributorId() { return "database_query_legacy"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() { return List.of(); }
+    @Override public Set<String> retiredToolNames() {
+        java.util.LinkedHashSet<String> retired = new java.util.LinkedHashSet<>(managedToolNames);
+        configService.listEnabled().stream().map(namingPolicy::toolName).forEach(retired::add);
+        return Set.copyOf(retired);
     }
 
     boolean publishAsDedicatedTool(DatabaseQueryConfig config) {
@@ -86,11 +81,4 @@ public class DatabaseQueryMcpToolPublisher {
         return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
     }
 
-    private void remove(String toolName) {
-        try {
-            mcpSyncServer.removeTool(toolName);
-        } catch (Exception ex) {
-            log.debug("Database query MCP tool {} was not registered: {}", toolName, ex.getMessage());
-        }
-    }
 }

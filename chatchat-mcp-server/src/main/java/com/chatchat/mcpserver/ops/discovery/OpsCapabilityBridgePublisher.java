@@ -6,22 +6,18 @@ import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.routing.asset.AssetDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.routing.asset.AssetDiscoveryService;
 import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
-import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Publishes domain-specific read-only discovery bridges. The Java implementation is shared, but
@@ -30,7 +26,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OpsCapabilityBridgePublisher {
+public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
     public static final String LEGACY_TOOL_NAME = "ops_capability_query";
     public static final String SERVER_QUERY_TOOL = "server_capability_query";
     public static final String HTTP_QUERY_TOOL = "http_capability_query";
@@ -73,22 +69,22 @@ public class OpsCapabilityBridgePublisher {
     void configureDynamicTemplateQueries(TemplateQueryMcpToolPublisher dynamicTemplateQueries) {
         this.dynamicTemplateQueries = dynamicTemplateQueries;
     }
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void ready() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
-    }
-
     public synchronized void refresh() {
-        INTERNAL_DISCOVERY_TOOLS.forEach(this::remove);
-        remove(LEGACY_TOOL_NAME);
-        DOMAINS.forEach(domain -> {
-            remove(domain.toolName());
-            McpToolPublicationReviewer.addReviewedTool(server, specification(domain));
-        });
-        server.notifyToolsListChanged();
+        refreshPublication();
         log.info("Domain capability queries published: {}; generic operations bridge removed",
             DOMAINS.stream().map(Domain::toolName).toList());
+    }
+
+    @Override public String contributorId() { return "operations_discovery"; }
+    @Override public McpSyncServer publicationServer() { return server; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return DOMAINS.stream().map(this::specification)
+            .map(com.chatchat.mcpserver.tool.ToolPublication::from).toList();
+    }
+    @Override public Set<String> retiredToolNames() {
+        java.util.LinkedHashSet<String> retired = new java.util.LinkedHashSet<>(INTERNAL_DISCOVERY_TOOLS);
+        retired.add(LEGACY_TOOL_NAME);
+        return Set.copyOf(retired);
     }
 
     private McpServerFeatures.SyncToolSpecification specification(Domain domain) {
@@ -239,13 +235,6 @@ public class OpsCapabilityBridgePublisher {
         if (value == null) return null;
         String text = String.valueOf(value).trim();
         return text.isBlank() ? null : text;
-    }
-
-    private void remove(String name) {
-        try {
-            server.removeTool(name);
-        } catch (Exception ignored) {
-        }
     }
 
     private record Domain(String toolName, String title, String targetKind, String assetType,

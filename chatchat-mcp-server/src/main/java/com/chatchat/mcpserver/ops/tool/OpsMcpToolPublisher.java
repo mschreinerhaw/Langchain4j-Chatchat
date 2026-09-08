@@ -30,10 +30,6 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -45,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OpsMcpToolPublisher {
+public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     private final McpSyncServer mcpSyncServer;
     private final SshHostConfigService hostConfigService;
@@ -64,31 +60,27 @@ public class OpsMcpToolPublisher {
     private final Set<String> managedSshToolNames = ConcurrentHashMap.newKeySet();
     private final Set<String> managedHttpToolNames = ConcurrentHashMap.newKeySet();
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
+    public synchronized void refresh() {
+        refreshPublication();
+        log.info("Ops MCP gateway tools refreshed: linux_command_execute, http_request_execute, jmx_monitor_execute");
     }
 
-    public synchronized void refresh() {
-        remove("linux_command_execute");
-        remove("http_request_execute");
-        remove("jmx_monitor_execute");
-        httpEndpointConfigService.listAll().forEach(endpoint -> remove(endpoint.getToolName()));
-        hostConfigService.listAll().forEach(host -> remove(host.getToolName()));
-        managedHttpToolNames.forEach(this::remove);
-        managedHttpToolNames.clear();
-        managedSshToolNames.forEach(this::remove);
-        managedSshToolNames.clear();
-
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, linuxCommandGatewayTool());
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, httpRequestGatewayTool());
-        com.chatchat.mcpserver.tool.McpToolPublicationReviewer.addReviewedTool(
-            mcpSyncServer, jmxMonitorTool());
-        mcpSyncServer.notifyToolsListChanged();
-        log.info("Ops MCP gateway tools refreshed: linux_command_execute, http_request_execute, jmx_monitor_execute");
+    @Override public String contributorId() { return "operations"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(linuxCommandGatewayTool()),
+            com.chatchat.mcpserver.tool.ToolPublication.from(httpRequestGatewayTool()),
+            com.chatchat.mcpserver.tool.ToolPublication.from(jmxMonitorTool()));
+    }
+    @Override public Set<String> retiredToolNames() {
+        java.util.LinkedHashSet<String> retired = new java.util.LinkedHashSet<>();
+        httpEndpointConfigService.listAll().stream().map(item -> item.getToolName())
+            .filter(java.util.Objects::nonNull).forEach(retired::add);
+        hostConfigService.listAll().stream().map(item -> item.getToolName())
+            .filter(java.util.Objects::nonNull).forEach(retired::add);
+        retired.addAll(managedHttpToolNames);
+        retired.addAll(managedSshToolNames);
+        return Set.copyOf(retired);
     }
 
     private McpServerFeatures.SyncToolSpecification jmxMonitorTool() {
@@ -653,11 +645,4 @@ public class OpsMcpToolPublisher {
         return values;
     }
 
-    private void remove(String toolName) {
-        try {
-            mcpSyncServer.removeTool(toolName);
-        } catch (Exception ex) {
-            log.debug("Ops MCP tool {} was not registered: {}", toolName, ex.getMessage());
-        }
-    }
 }

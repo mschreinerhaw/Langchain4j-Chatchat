@@ -26,7 +26,7 @@ class ApiRequirementAnalysisMcpToolPublisherTest {
 
         verify(server).removeTool(ApiRequirementAnalysisMcpToolPublisher.TOOL_NAME);
         verify(server, never()).addTool(any());
-        verify(server, never()).notifyToolsListChanged();
+        verify(server).notifyToolsListChanged();
     }
 
     @Test

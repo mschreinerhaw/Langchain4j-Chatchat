@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,24 @@ class McpToolRegistryTest {
 
         assertThat(registry.listTools()).extracting(tool -> tool.definition().name()).containsExactly("web_search");
         verify(publication).publish(anyString(), any(), any());
+    }
+
+    @Test
+    void oneProviderPublicationFailureDoesNotBlockTheRemainingTools() {
+        McpToolPublicationPort publication = mock(McpToolPublicationPort.class);
+        doAnswer(invocation -> {
+            if ("broken_tool".equals(invocation.getArgument(0))) {
+                throw new IllegalStateException("publication unavailable");
+            }
+            return null;
+        }).when(publication).publish(anyString(), any(), any());
+        McpToolRegistry registry = new McpToolRegistry(
+            List.of(provider("broken_tool"), provider("healthy_tool")), publication,
+            capability -> true, new McpCapabilitiesProperties());
+
+        registry.publish();
+
+        verify(publication).publish(org.mockito.ArgumentMatchers.eq("healthy_tool"), any(), any());
     }
 
     @Test

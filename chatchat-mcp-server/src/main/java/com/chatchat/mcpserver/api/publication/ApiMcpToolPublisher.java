@@ -9,29 +9,24 @@ import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
-import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
-import com.chatchat.mcpserver.tool.McpToolPublicationReviewer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
 @Component
-public class ApiMcpToolPublisher {
+public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     public static final String BRIDGE_TOOL_NAME = "api_service_query";
     /** @deprecated internal protocol name retained only for compatibility metadata and cleanup. */
@@ -61,29 +56,24 @@ public class ApiMcpToolPublisher {
     /**
      * Performs the on application ready operation.
      */
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
-    }
-
     /**
      * Performs the refresh operation.
      */
     public synchronized void refresh() {
-        LEGACY_PROTOCOL_TOOLS.forEach(toolName -> {
-            try {
-                mcpSyncServer.removeTool(toolName);
-            } catch (Exception ex) {
-                log.debug("API internal tool {} was not registered: {}", toolName, ex.getMessage());
-            }
-        });
-        try { mcpSyncServer.removeTool(BRIDGE_TOOL_NAME); } catch (Exception ignored) { }
-        McpToolPublicationReviewer.addReviewedTool(mcpSyncServer, bridgeTool());
-        McpToolPublicationReviewer.addReviewedTool(mcpSyncServer, toolSpecFactory.toGatewayToolSpecification());
-        mcpSyncServer.notifyToolsListChanged();
+        refreshPublication();
         log.info("Unified API discovery bridge published: {}; Runtime executor retained: {}",
             BRIDGE_TOOL_NAME, EXECUTE_TOOL_NAME);
+    }
+
+    @Override public String contributorId() { return "api"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(bridgeTool()),
+            com.chatchat.mcpserver.tool.ToolPublication.from(toolSpecFactory.toGatewayToolSpecification()));
+    }
+    @Override public Set<String> retiredToolNames() {
+        java.util.LinkedHashSet<String> retired = new java.util.LinkedHashSet<>(LEGACY_PROTOCOL_TOOLS);
+        return Set.copyOf(retired);
     }
 
     private McpServerFeatures.SyncToolSpecification bridgeTool() {
@@ -104,9 +94,6 @@ public class ApiMcpToolPublisher {
         properties.put("trace", Map.of("type", "object", "additionalProperties", true));
         properties.put("limit", Map.of("type", "integer", "minimum", 1,
             "maximum", CommandTemplateDiscoveryService.MAX_LIMIT));
-        properties.put(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
-            "type", "string",
-            "description", "Internal server-discovered dynamic child identity; callers cannot override it"));
         properties.put("purpose", Map.of("type", "string"));
         properties.put("sourceTaskId", Map.of("type", "string"));
         McpSchema.Tool tool = McpSchema.Tool.builder()

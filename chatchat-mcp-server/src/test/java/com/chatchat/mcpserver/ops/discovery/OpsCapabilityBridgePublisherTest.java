@@ -83,10 +83,10 @@ class OpsCapabilityBridgePublisherTest {
         publisher.refresh();
 
         verify(server).removeTool(OpsCapabilityBridgePublisher.LEGACY_TOOL_NAME);
-        verify(server).removeTool(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL);
-        verify(server).removeTool(OpsCapabilityBridgePublisher.HTTP_QUERY_TOOL);
-        verify(server).removeTool(OpsCapabilityBridgePublisher.JMX_QUERY_TOOL);
-        verify(server).removeTool(OpsCapabilityBridgePublisher.DATABASE_QUERY_TOOL);
+        verify(server, org.mockito.Mockito.never()).removeTool(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL);
+        verify(server, org.mockito.Mockito.never()).removeTool(OpsCapabilityBridgePublisher.HTTP_QUERY_TOOL);
+        verify(server, org.mockito.Mockito.never()).removeTool(OpsCapabilityBridgePublisher.JMX_QUERY_TOOL);
+        verify(server, org.mockito.Mockito.never()).removeTool(OpsCapabilityBridgePublisher.DATABASE_QUERY_TOOL);
         verify(server).notifyToolsListChanged();
     }
 

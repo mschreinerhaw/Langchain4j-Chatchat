@@ -30,6 +30,7 @@ class ApiMcpToolPublisherTest {
         McpSchema.Tool executorTool = mock(McpSchema.Tool.class);
         when(executor.tool()).thenReturn(executorTool);
         when(executorTool.name()).thenReturn(ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
+        stubContract(executorTool);
         when(toolSpecFactory.toGatewayToolSpecification()).thenReturn(executor);
         McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
         when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "discovery")).thenReturn(java.util.Map.of());
@@ -48,7 +49,7 @@ class ApiMcpToolPublisherTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void bridgeSchemaAcceptsDelegatedDynamicTemplateQueryEnvelope() {
+    void bridgeSchemaDoesNotExposeDynamicChildRoutingInternals() {
         McpSyncServer mcpSyncServer = mock(McpSyncServer.class);
         ApiToolSpecFactory toolSpecFactory = mock(ApiToolSpecFactory.class);
         io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification executor =
@@ -56,6 +57,7 @@ class ApiMcpToolPublisherTest {
         McpSchema.Tool executorTool = mock(McpSchema.Tool.class);
         when(executor.tool()).thenReturn(executorTool);
         when(executorTool.name()).thenReturn(ApiMcpToolPublisher.EXECUTE_TOOL_NAME);
+        stubContract(executorTool);
         when(toolSpecFactory.toGatewayToolSpecification()).thenReturn(executor);
         McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
         when(concurrencyManager.limitMeta(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, "discovery"))
@@ -80,10 +82,17 @@ class ApiMcpToolPublisherTest {
 
         assertThat(properties).containsKeys(
             "filters", "trace", "limit", "assetType", "bilingualIntent", "intentZh", "intentEn",
-            TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT);
+            "purpose", "sourceTaskId");
+        assertThat(properties).doesNotContainKey(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT);
         assertThat(bridgeTool.inputSchema()).containsEntry("additionalProperties", false);
         assertThat(bridgeTool.meta())
             .containsEntry("runtimeLevel", "discovery")
             .containsEntry("runtime_level", "discovery");
+    }
+
+    private static void stubContract(McpSchema.Tool tool) {
+        when(tool.title()).thenReturn("API template execution");
+        when(tool.description()).thenReturn("Execute one authorized API template");
+        when(tool.inputSchema()).thenReturn(Map.of("type", "object", "properties", Map.of()));
     }
 }

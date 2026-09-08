@@ -6,40 +6,32 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ApiRequirementAnalysisMcpToolPublisher {
+public class ApiRequirementAnalysisMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
 
     public static final String TOOL_NAME = "api_requirement_analyze";
     private final McpSyncServer mcpSyncServer;
     private final ApiTemplateDiscoveryMcpToolPublisher templateDiscovery;
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        com.chatchat.mcpserver.tool.McpPublicationStartupGuard.run(getClass(), this::refresh);
-    }
-
     public synchronized void refresh() {
-        try {
-            mcpSyncServer.removeTool(TOOL_NAME);
-        } catch (Exception ex) {
-            log.debug("API requirement analysis tool was not registered: {}", ex.getMessage());
-        }
+        refreshPublication();
         log.info("API requirement analysis is internal to {}", ApiMcpToolPublisher.BRIDGE_TOOL_NAME);
     }
+
+    @Override public String contributorId() { return "api_requirement_analysis_legacy"; }
+    @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() { return List.of(); }
+    @Override public Set<String> retiredToolNames() { return Set.of(TOOL_NAME); }
 
     private McpServerFeatures.SyncToolSpecification toolSpecification() {
         McpSchema.Tool tool = McpSchema.Tool.builder()

@@ -153,7 +153,7 @@ class TemplateQueryBindingServiceTest {
 
         assertThat(resolution.parentToolNames()).containsExactly("api_template_query");
         assertThat(resolution.allowedTemplates()).isEmpty();
-        assertThat(resolution.configuredTemplateCount()).isZero();
+        assertThat(resolution.configuredTemplateCount()).isEqualTo(1);
     }
 
     @Test
@@ -257,7 +257,7 @@ class TemplateQueryBindingServiceTest {
     private TemplateAssetCatalogService.TemplateAsset asset(String key) {
         String[] parts = key.split(":", 2);
         return new TemplateAssetCatalogService.TemplateAsset(
-            key, parts[0], parts[1], parts[1], "", "", "", "");
+            key, parts[0], parts[1], parts[1], "", "", "", "", Map.of());
     }
 
     private McpSynchronizedRole role(String id, String code) {

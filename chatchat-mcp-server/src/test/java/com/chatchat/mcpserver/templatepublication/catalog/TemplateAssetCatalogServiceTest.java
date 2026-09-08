@@ -55,6 +55,7 @@ class TemplateAssetCatalogServiceTest {
         api.setTitle("客户画像查询");
         api.setCategoryId(category.getId());
         api.setBusinessGroup("legacy_customer_group");
+        api.setInputSchemaJson("{\"type\":\"object\",\"required\":[\"customer_id\"]}");
         api.setEnabled(true);
         when(apis.listEnabled()).thenReturn(List.of(api));
 
@@ -64,6 +65,8 @@ class TemplateAssetCatalogServiceTest {
 
         assertThat(service.listEnabled()).singleElement().satisfies(asset -> {
             assertThat(asset.businessCategoryCode()).isEqualTo("customer_service");
+            assertThat(asset.parameterSchema()).containsEntry("type", "object");
+            assertThat(asset.parameterSchema().get("required")).isEqualTo(List.of("customer_id"));
             assertThat(asset.businessCategoryName()).isEqualTo("客户服务");
         });
 

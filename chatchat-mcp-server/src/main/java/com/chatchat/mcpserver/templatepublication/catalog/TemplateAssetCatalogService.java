@@ -87,32 +87,36 @@ public class TemplateAssetCatalogService {
         List<CatalogEntry> result = new ArrayList<>();
         commandTemplateService.listEnabled().forEach(item -> result.add(entry(asset(
             SSH, item.getCode(), item.getTitle(), item.getDescription(), item.getCategory(),
-            category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory())),
+            category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory()),
+            item.getParameterSchemaJson()),
             refsForCommand(item.getCode(), hosts))));
         sqlTemplateService.listEnabled().forEach(item -> result.add(entry(asset(
             SQL, item.getCode(), item.getTitle(), item.getDescription(), item.getCategory(),
-            category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory())),
+            category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory()),
+            item.getParameterSchemaJson()),
             refsForSqlTemplate(item.getCode(), datasources))));
         httpEndpointConfigService.listEnabled().forEach(item -> {
             String templateId = firstText(item.getToolName(), firstText(item.getName(), item.getId()));
             result.add(entry(asset(HTTP, templateId, firstText(item.getTitle(), item.getName()),
                 item.getDescription(), item.getCategory(), category(categoriesById, categoriesByCode,
-                    item.getCategoryId(), item.getCategory(), item.getCategory())),
+                    item.getCategoryId(), item.getCategory(), item.getCategory()), item.getInputSchemaJson()),
                 List.of(new AuthorizationRef(templateId, HTTP, "execute", "request", item.getId()))));
         });
         databaseQueryConfigService.listEnabled().forEach(item -> result.add(entry(asset(
             DATABASE_QUERY, item.getToolName(), item.getTitle(), item.getDescription(), item.getCapabilityCategory(),
             category(categoriesById, categoriesByCode, item.getCategoryId(),
-                firstText(item.getCapabilityCategory(), item.getBusinessGroup()), item.getBusinessGroupName())),
+                firstText(item.getCapabilityCategory(), item.getBusinessGroup()), item.getBusinessGroupName()),
+            item.getInputSchemaJson()),
             List.of(new AuthorizationRef(item.getToolName(), null, null, null, null)))));
         apiServiceConfigService.listEnabled().forEach(item -> result.add(entry(asset(
             API, item.getToolName(), item.getTitle(), item.getDescription(), item.getBusinessGroup(),
             category(categoriesById, categoriesByCode, item.getCategoryId(),
-                item.getBusinessGroup(), item.getBusinessGroupName())),
+                item.getBusinessGroup(), item.getBusinessGroupName()), item.getInputSchemaJson()),
             List.of(new AuthorizationRef(item.getToolName(), null, null, null, null)))));
         pythonTemplateCatalog.listPublished().forEach(item -> result.add(entry(asset(
             PYTHON, item.getId(), item.getTemplateName(), item.getDescription(), item.getDomain(),
-            category(categoriesById, categoriesByCode, item.getCategoryId(), item.getDomain(), item.getDomain())),
+            category(categoriesById, categoriesByCode, item.getCategoryId(), item.getDomain(), item.getDomain()),
+            item.getInputSchemaJson()),
             List.of(new AuthorizationRef(PythonMcpToolPublisher.ANALYSIS_RUN_TOOL, null, null, null, null)),
             item.getTenantId())));
         return result.stream()
@@ -165,10 +169,25 @@ public class TemplateAssetCatalogService {
     }
 
     private TemplateAsset asset(String assetType, String templateId, String title,
-                                String description, String category, CategoryRef businessCategory) {
+                                String description, String category, CategoryRef businessCategory,
+                                String parameterSchemaJson) {
         return new TemplateAsset(assetType + ":" + templateId, assetType, templateId,
             firstText(title, templateId), firstText(description, ""), firstText(category, ""),
-            businessCategory.code(), businessCategory.name());
+            businessCategory.code(), businessCategory.name(), schema(parameterSchemaJson));
+    }
+
+    private Map<String, Object> schema(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> value = objectMapper.readValue(
+                json, new TypeReference<Map<String, Object>>() { });
+            return value == null ? Map.of()
+                : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(value));
+        } catch (Exception ex) {
+            return Map.of();
+        }
     }
 
     private CategoryRef category(Map<String, BusinessCategory> categoriesById,
@@ -195,7 +214,7 @@ public class TemplateAssetCatalogService {
 
     public record TemplateAsset(String key, String assetType, String templateId, String title,
                                 String description, String category, String businessCategoryCode,
-                                String businessCategoryName) { }
+                                String businessCategoryName, Map<String, Object> parameterSchema) { }
 
     private record CategoryRef(String code, String name) { }
 

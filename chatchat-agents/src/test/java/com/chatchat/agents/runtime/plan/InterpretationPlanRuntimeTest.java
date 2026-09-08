@@ -1217,6 +1217,56 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void admitsEveryFixedBindingTemplateWithoutSemanticReselection() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query",
+            Map.of(), List.of(), null, null
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            2, "mcp_tool", step.toolName(), true,
+            Map.of(
+                "success", true,
+                "selectionMode", "FIXED_BINDING",
+                "bindingComplete", true,
+                "returnedCount", 2,
+                "templates", List.of(
+                    Map.of("templateId", "CUSTOMER_TRADES", "parameterSchema", Map.of("type", "object")),
+                    Map.of("templateId", "CUSTOMER_ASSETS", "parameterSchema", Map.of("type", "object"))
+                )
+            ),
+            null, null, null, 5
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "reviewToolResult",
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class,
+            Map.class,
+            long.class
+        );
+        method.setAccessible(true);
+
+        InterpretationPlanRuntime.StepExecution reviewed =
+            (InterpretationPlanRuntime.StepExecution) method.invoke(
+                runtime, null, step, execution, Map.of(), System.currentTimeMillis());
+
+        assertThat(reviewed.success()).isTrue();
+        assertThat(reviewed.metadata())
+            .containsEntry("toolResultReviewSkipped", true)
+            .containsEntry("toolResultReviewSatisfied", true)
+            .containsEntry("semanticCandidateReviewSatisfied", true)
+            .containsEntry("semanticCandidateReviewSource", "FIXED_BINDING")
+            .containsEntry("runtimeTemplateCandidateCount", 2)
+            .containsEntry("runtimeTemplateSelectedCount", 2)
+            .containsEntry("runtimeSelectedTemplateIds", List.of("CUSTOMER_TRADES", "CUSTOMER_ASSETS"));
+    }
+
+    @Test
     void rejectsTechnicallySuccessfulEmptyTemplateDiscoveryBeforeDependentExecution() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

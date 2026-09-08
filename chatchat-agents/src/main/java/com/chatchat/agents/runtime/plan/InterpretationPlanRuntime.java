@@ -2829,6 +2829,22 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             metadata.put("localFactCheckSatisfied", localReview.satisfied());
             metadata.put("localFactCheckReason", localReview.reason());
             metadata.putAll(localReview.metadata() == null ? Map.of() : localReview.metadata());
+            if (localReview.satisfied()
+                && "template_discovery".equals(metadata.get("localFactCheckEvidenceType"))
+                && isFixedBindingTemplateSet(evidenceReviewExecution.output())) {
+                if (!isCompleteFixedBindingTemplateSet(evidenceReviewExecution.output())) {
+                    metadata.put("toolResultReviewSatisfied", false);
+                    metadata.put("semanticCandidateReviewSatisfied", false);
+                    metadata.put("semanticCandidateReviewError", "TEMPLATE_BINDING_INCOMPLETE");
+                    return new StepExecution(
+                        execution.stepId(), execution.actionType(), execution.toolName(), false,
+                        execution.output(),
+                        "Tool result rejected: one or more templates in the fixed child binding are unavailable or unauthorized.",
+                        execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
+                    );
+                }
+                return admitFixedBindingTemplates(execution, evidenceReviewExecution, metadata, startedAt);
+            }
             if (localReview.satisfied() && stepResultReviewer == null) {
                 return execution.withMetadata(metadata, elapsed(startedAt));
             }
@@ -2995,6 +3011,59 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             elapsed(startedAt),
             metadata
         );
+    }
+
+    /**
+     * A FIXED_BINDING response is an authorization-scoped contract projection, not a
+     * semantic search result. The relation table has already selected the complete
+     * child-tool template set; Runtime only verifies the returned records and then
+     * transports every bound id to execution.
+     */
+    private StepExecution admitFixedBindingTemplates(StepExecution execution,
+                                                      StepExecution evidenceExecution,
+                                                      Map<String, Object> metadata,
+                                                      long startedAt) {
+        List<String> selectedIds = templateCandidates(evidenceExecution.output()).stream()
+            .map(this::canonicalTemplateId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        metadata.put("toolResultReviewSkipped", true);
+        metadata.put("toolResultReviewSkipReason",
+            "fixed binding contract returned an existence-checked, authorization-scoped template set");
+        metadata.put("toolResultReviewSatisfied", true);
+        metadata.put("runtimeTemplateSelectionApplied", true);
+        metadata.put("runtimeTemplateCandidateCount", selectedIds.size());
+        metadata.put("runtimeTemplateSelectedCount", selectedIds.size());
+        metadata.put("runtimeSelectedTemplateIds", selectedIds);
+        metadata.put("runtimeTemplateCandidateEvaluations", List.of());
+        metadata.put("runtimeTemplateSelectionReason",
+            "all templates are selected by the persisted child-parent-template binding");
+        metadata.put("semanticCandidateReviewSatisfied", true);
+        metadata.put("semanticCandidateReviewSource", "FIXED_BINDING");
+        return execution.withMetadata(metadata, elapsed(startedAt));
+    }
+
+    private boolean isFixedBindingTemplateSet(Object output) {
+        Object mode = firstValueAtAnyPath(output,
+            "$.selectionMode",
+            "$.selection_mode",
+            "$.data.selectionMode",
+            "$.structuredContent.selectionMode",
+            "$.result.selectionMode",
+            "$.payload.selectionMode");
+        return mode != null && "FIXED_BINDING".equalsIgnoreCase(String.valueOf(mode).trim());
+    }
+
+    private boolean isCompleteFixedBindingTemplateSet(Object output) {
+        Object complete = firstValueAtAnyPath(output,
+            "$.bindingComplete",
+            "$.binding_complete",
+            "$.data.bindingComplete",
+            "$.structuredContent.bindingComplete",
+            "$.result.bindingComplete",
+            "$.payload.bindingComplete");
+        return Boolean.TRUE.equals(booleanValue(complete));
     }
 
     private StepExecution executionWithResolvedEvidence(StepExecution execution) {

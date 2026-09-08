@@ -9,12 +9,9 @@ import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePo
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
-import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
-import com.chatchat.mcpserver.python.PythonAnalysisBridge;
-import com.chatchat.mcpserver.python.PythonMcpToolPublisher;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -42,9 +39,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private final McpSyncServer mcpSyncServer;
     private final TemplateQueryBindingService bindingService;
     private final TemplateQueryRouteResolver routeResolver;
-    private final CommandTemplateDiscoveryService discoveryService;
-    private final ApiTemplateDiscoveryMcpToolPublisher apiDiscoveryPublisher;
-    private final PythonAnalysisBridge pythonAnalysisBridge;
+    private final TemplateAssetCatalogService assetCatalogService;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final Set<String> publishedToolNames = new LinkedHashSet<>();
@@ -74,9 +69,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(toolName)
             .title("Authorized template query")
-            .description("Agent-selectable child capability for read-only discovery of system-maintained templates. "
+            .description("Agent-selectable child capability representing a fixed, system-maintained template set. "
                 + "It is never executed directly: Runtime delegates it to the declared parent toolbox, which "
-                + "executes the query using this child's server-managed template subset. The result scope is fixed by "
+                + "returns this child's bound template information and parameter contracts without another search. "
+                + "The result scope is fixed by "
                 + "the authenticated MCP service and caller roles. It only returns templates selected in "
                 + "Template Query Publication administration and never returns raw commands, SQL, URLs, headers, "
                 + "request bodies, credentials, or other execution specifications.")
@@ -119,9 +115,8 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private Map<String, Object> query(String toolName, String invokedParentToolName,
                                       Map<String, Object> arguments) {
         String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
-        TemplateQueryRouteResolver.Route route = invokedParentToolName == null
-            ? null : routeResolver.requireRoute(reviewedName);
-        if (route != null && !route.parentToolName().equals(invokedParentToolName)) {
+        TemplateQueryRouteResolver.Route route = routeResolver.requireRoute(reviewedName);
+        if (invokedParentToolName != null && !route.parentToolName().equals(invokedParentToolName)) {
             throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
         }
         McpInvocationContext.Context invocationContext = McpInvocationContext.current();
@@ -137,123 +132,64 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             throw new IllegalArgumentException("Dynamic template query is not authorized for current caller: "
                 + reviewedName);
         }
-        Map<String, Set<String>> allowed = policy.allowedTemplates();
-        String requestedType = text(arguments == null ? null : arguments.get("assetType"));
-        int limit = limit(arguments);
-        Set<String> excludedTemplateIds = stringSet(
-            arguments == null ? null : arguments.get("excludeTemplateIds"));
-        List<String> assetTypes;
-        if (invokedParentToolName != null) {
-            assetTypes = List.of(route.assetType());
-        } else {
-            assetTypes = requestedType.isBlank()
-                ? List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
-                    TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
-                    TemplateAssetCatalogService.API, TemplateAssetCatalogService.PYTHON)
-                : List.of(requestedType);
-        }
-
+        Set<String> templateIds = policy.allowedTemplates().getOrDefault(route.assetType(), Set.of());
+        Map<String, TemplateAssetCatalogService.TemplateAsset> enabledAssets = new LinkedHashMap<>();
+        assetCatalogService.listEnabled().stream()
+            .filter(asset -> route.assetType().equals(asset.assetType()))
+            .forEach(asset -> enabledAssets.put(asset.templateId(), asset));
         List<Map<String, Object>> templates = new ArrayList<>();
-        int candidateCount = 0;
-        int filteredUnauthorizedCount = 0;
-        int filteredExcludedCount = 0;
-        for (String assetType : assetTypes) {
-            Set<String> templateIds = allowed.getOrDefault(assetType, Set.of());
-            if (templateIds.isEmpty()) {
+        for (String templateId : templateIds) {
+            TemplateAssetCatalogService.TemplateAsset asset = enabledAssets.get(templateId);
+            if (asset == null) {
                 continue;
             }
-            Map<String, Object> scopedArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
-            scopedArguments.remove(CHILD_TOOL_ARGUMENT);
-            scopedArguments.put("assetType", assetType);
-            if (TemplateAssetCatalogService.API.equals(assetType)) {
-                scopedArguments.put("templateIds", List.copyOf(templateIds));
-            } else {
-                scopedArguments.put("_authorizedTemplateIds", List.copyOf(templateIds));
-            }
-            scopedArguments.put("limit", limit);
-            Map<String, Object> result;
-            Object values;
-            if (TemplateAssetCatalogService.API.equals(assetType)) {
-                result = apiDiscoveryPublisher.queryAuthorized(scopedArguments, templateIds);
-                values = result.get("templates");
-            } else if (TemplateAssetCatalogService.PYTHON.equals(assetType)) {
-                result = pythonAnalysisBridge.queryAuthorized(scopedArguments, templateIds).body();
-                values = result.get("candidates");
-            } else {
-                result = discoveryService.query(forceTarget(scopedArguments, assetType));
-                values = result.get("templates");
-            }
-            if (values instanceof Iterable<?> iterable) {
-                for (Object value : iterable) {
-                    if (value instanceof Map<?, ?> map && templates.size() < limit) {
-                        candidateCount++;
-                        String returnedTemplateId = text(map.get("templateId"));
-                        if (returnedTemplateId.isBlank() || !templateIds.contains(returnedTemplateId)) {
-                            filteredUnauthorizedCount++;
-                            continue;
-                        }
-                        if (excludedTemplateIds.contains(returnedTemplateId)) {
-                            filteredExcludedCount++;
-                            continue;
-                        }
-                        Map<String, Object> item = new LinkedHashMap<>();
-                        map.forEach((key, entry) -> item.put(String.valueOf(key), entry));
-                        item.putIfAbsent("assetType", assetType);
-                        templates.add(item);
-                    }
-                }
-            }
-            if (templates.size() >= limit) {
-                break;
-            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("templateId", asset.templateId());
+            item.put("title", asset.title());
+            item.put("description", asset.description());
+            item.put("assetType", asset.assetType());
+            item.put("category", asset.category());
+            item.put("businessCategoryCode", asset.businessCategoryCode());
+            item.put("businessCategoryName", asset.businessCategoryName());
+            item.put("parameterSchema", asset.parameterSchema());
+            item.put("exists", true);
+            item.put("selectionSource", "template_query_binding");
+            templates.add(Map.copyOf(item));
         }
+        int unavailableCount = Math.max(0, policy.configuredTemplateCount() - templates.size());
         McpInvocationContext.Context context = McpInvocationContext.current();
-        return Map.of(
-            "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
-            "success", true,
-            "toolName", reviewedName,
-            "returnedCount", templates.size(),
-            "templates", List.copyOf(templates),
-            "publicationScope", Map.of(
+        return Map.ofEntries(
+            Map.entry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
+            Map.entry("success", true),
+            Map.entry("toolName", reviewedName),
+            Map.entry("returnedCount", templates.size()),
+            Map.entry("templates", List.copyOf(templates)),
+            Map.entry("selectionMode", "FIXED_BINDING"),
+            Map.entry("searchPerformed", false),
+            Map.entry("bindingComplete", unavailableCount == 0),
+            Map.entry("publicationScope", Map.of(
                 "serviceId", context == null || context.clientId() == null || context.clientId().isBlank()
                     ? TemplateQueryParentCatalog.SERVICE_ID : context.clientId(),
                 "roleBound", context != null && context.roles() != null && !context.roles().isBlank(),
-                "configuredAssetTypes", allowed.keySet(),
+                "configuredAssetTypes", policy.allowedTemplates().keySet(),
                 "configuredTemplateCount", policy.configuredTemplateCount(),
                 "parentToolNames", policy.parentToolNames(),
                 "policyVersion", policy.policyVersion()
-            ),
-            "filterAudit", Map.of(
-                "candidateCount", candidateCount,
+            )),
+            Map.entry("filterAudit", Map.of(
+                "candidateCount", policy.configuredTemplateCount(),
                 "returnedCount", templates.size(),
-                "filteredUnauthorizedCount", filteredUnauthorizedCount,
-                "filteredExcludedCount", filteredExcludedCount,
+                "unavailableOrUnauthorizedCount", unavailableCount,
                 "policyCacheHit", policy.cacheHit(),
                 "policyResolvedAt", policy.resolvedAt().toString()
-            ),
-            "rawExecutionSpecReturned", false
+            )),
+            Map.entry("rawExecutionSpecReturned", false)
         );
     }
 
     public static String childToolName(Map<String, Object> arguments) {
         Object value = arguments == null ? null : arguments.get(CHILD_TOOL_ARGUMENT);
         return value == null ? "" : String.valueOf(value).trim();
-    }
-
-    private Map<String, Object> forceTarget(Map<String, Object> arguments, String assetType) {
-        Map<String, Object> values = new LinkedHashMap<>(arguments);
-        String targetKind = switch (assetType) {
-            case TemplateAssetCatalogService.SSH -> "host";
-            case TemplateAssetCatalogService.SQL -> "database";
-            case TemplateAssetCatalogService.HTTP -> "http";
-            case TemplateAssetCatalogService.DATABASE_QUERY -> "business_database_query";
-            default -> throw new IllegalArgumentException("Unsupported template asset type: " + assetType);
-        };
-        values.put("finalDecision", targetKind);
-        values.put("targetKind", targetKind);
-        values.put("confidence", 1.0);
-        values.put("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 1.0)));
-        return values;
     }
 
     private McpSchema.JsonSchema inputSchema() {
@@ -263,17 +199,16 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 "enum", List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
                     TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
                     TemplateAssetCatalogService.API, TemplateAssetCatalogService.PYTHON),
-                "description", "Optional template asset family. Omit to search every family authorized by the fixed publication binding."
+                "description", "Compatibility hint only; the persisted child-parent binding determines the asset family."
             ),
             "filters", Map.of(
                 "type", "object",
-                "description", "Logical search intent and classification filters only. queryTerms[], keywords[], retrievalSignals[], and nested intentCandidates queries are independent query units and must not be concatenated. Raw execution fields are forbidden.",
+                "description", "Optional request context for audit only; it never changes the child's fixed template set.",
                 "additionalProperties", true
             ),
             "bilingualIntent", Map.of("type", "array", "items", Map.of("type", "string")),
             "intentZh", Map.of("type", "string"),
             "intentEn", Map.of("type", "string"),
-            "excludeTemplateIds", Map.of("type", "array", "items", Map.of("type", "string")),
             "trace", Map.of("type", "object", "additionalProperties", true),
             "limit", Map.of("type", "integer", "minimum", 1,
                 "maximum", CommandTemplateDiscoveryService.MAX_LIMIT)
@@ -327,39 +262,11 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             "template_query:authorized_discovery",
             "Authorized template discovery",
             List.of("template_discovery", "service_role_scope"),
-            "Search only system templates selected for the authenticated service and caller role.",
-            List.of("Discover an existing authorized template and its parameter contract before execution."),
+            "Return the fixed templates selected for the authenticated service and caller role without semantic search.",
+            List.of("Resolve the bound templates and their current parameter contracts before execution."),
             List.of("Executing templates", "Changing governance", "Expanding publication scope")
         ));
         return Map.copyOf(meta);
-    }
-
-    private int limit(Map<String, Object> arguments) {
-        Object value = arguments == null ? null : arguments.get("limit");
-        try {
-            return value == null ? 10 : Math.max(1, Math.min(CommandTemplateDiscoveryService.MAX_LIMIT,
-                Integer.parseInt(String.valueOf(value))));
-        } catch (NumberFormatException ex) {
-            return 10;
-        }
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
-    }
-
-    private Set<String> stringSet(Object value) {
-        if (!(value instanceof Iterable<?> iterable)) {
-            return Set.of();
-        }
-        Set<String> values = new LinkedHashSet<>();
-        for (Object item : iterable) {
-            String normalized = text(item);
-            if (!normalized.isBlank()) {
-                values.add(normalized);
-            }
-        }
-        return Set.copyOf(values);
     }
 
     private Map<String, Object> mutableMap(Object... values) {

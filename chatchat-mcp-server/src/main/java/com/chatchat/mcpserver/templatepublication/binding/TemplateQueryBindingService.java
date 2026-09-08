@@ -161,6 +161,7 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         Map<String, Set<String>> allowed = new LinkedHashMap<>();
         Map<String, Set<String>> authorizedKeysByRole = new LinkedHashMap<>();
         Set<String> parentToolNames = new TreeSet<>();
+        Set<String> configuredKeys = new LinkedHashSet<>();
         for (TemplateQueryBinding binding : bindings) {
             if (!tenantId.equals(normalize(binding.getTenantId()))) {
                 continue;
@@ -192,7 +193,11 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
                     .map(TemplateAssetCatalogService.TemplateAsset::key)
                     .collect(java.util.stream.Collectors.toUnmodifiableSet()));
             for (String key : readKeys(binding.getTemplateKeysJson())) {
-                if (!key.startsWith(parent.assetType() + ":") || !authorizedKeys.contains(key)) {
+                if (!key.startsWith(parent.assetType() + ":")) {
+                    continue;
+                }
+                configuredKeys.add(key);
+                if (!authorizedKeys.contains(key)) {
                     continue;
                 }
                 int separator = key.indexOf(':');
@@ -204,11 +209,12 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             }
         }
         Map<String, Set<String>> immutable = new LinkedHashMap<>();
-        allowed.forEach((key, value) -> immutable.put(key, Set.copyOf(value)));
-        Map<String, Set<String>> result = Map.copyOf(immutable);
+        allowed.forEach((key, value) -> immutable.put(key,
+            java.util.Collections.unmodifiableSet(new LinkedHashSet<>(value))));
+        Map<String, Set<String>> result = java.util.Collections.unmodifiableMap(immutable);
         PolicyResolution resolution = new PolicyResolution(result, Set.copyOf(parentToolNames),
             policyVersion(result, parentToolNames, cacheKey), false,
-            result.values().stream().mapToInt(Set::size).sum(), Instant.now());
+            configuredKeys.size(), Instant.now());
         policyCache.put(cacheKey, new CachedPolicy(resolution, now + POLICY_CACHE_TTL_MILLIS));
         return resolution;
     }

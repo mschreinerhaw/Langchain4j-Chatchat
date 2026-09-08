@@ -4,10 +4,7 @@ import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingSe
 import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryRouteResolver;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 
-import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
-import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
-import com.chatchat.mcpserver.python.PythonAnalysisBridge;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,12 +21,9 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class TemplateQueryMcpToolPublisherTest {
@@ -39,9 +33,7 @@ class TemplateQueryMcpToolPublisherTest {
         McpSyncServer server = mock(McpSyncServer.class);
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
-            server, bindings, bindings, mock(CommandTemplateDiscoveryService.class),
-            mock(ApiTemplateDiscoveryMcpToolPublisher.class),
-            mock(PythonAnalysisBridge.class),
+            server, bindings, bindings, mock(TemplateAssetCatalogService.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()),
             mock(McpToolConcurrencyManager.class));
         when(bindings.publishedToolNames()).thenReturn(Set.of());
@@ -62,9 +54,7 @@ class TemplateQueryMcpToolPublisherTest {
         when(concurrencyManager.limitMeta("customer_template_query", "discovery"))
             .thenReturn(Map.of("runtime_level", "discovery", "timeout_seconds", 90L));
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
-            server, bindings, bindings, mock(CommandTemplateDiscoveryService.class),
-            mock(ApiTemplateDiscoveryMcpToolPublisher.class),
-            mock(PythonAnalysisBridge.class),
+            server, bindings, bindings, mock(TemplateAssetCatalogService.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()),
             concurrencyManager);
         when(bindings.publishedToolNames()).thenReturn(Set.of("customer_template_query"));
@@ -106,11 +96,13 @@ class TemplateQueryMcpToolPublisherTest {
     @Test
     void returnsNothingWhenServiceAndRoleHaveNoBinding() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
-        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
-        ApiTemplateDiscoveryMcpToolPublisher apiDiscovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
-        TemplateQueryMcpToolPublisher publisher = publisher(bindings, discovery, apiDiscovery);
+        TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(bindings, catalog);
         McpInvocationContext.Context context = context("service-1", "role-1");
         when(bindings.resolvePolicy(context, "customer_template_query")).thenReturn(policy(Map.of()));
+        when(bindings.requireRoute("customer_template_query")).thenReturn(
+            route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
+        when(catalog.listEnabled()).thenReturn(List.of());
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
@@ -119,52 +111,46 @@ class TemplateQueryMcpToolPublisherTest {
 
         assertThat(result.get("templates")).isEqualTo(List.of());
         assertThat(result.toString()).contains("configuredTemplateCount=0");
-        verifyNoInteractions(discovery, apiDiscovery);
+        assertThat(result).containsEntry("searchPerformed", false);
     }
 
     @Test
-    void injectsOnlyServerBoundTemplateIdsIntoApiDiscovery() {
+    void returnsTheFixedBoundTemplatesAndParameterContractsWithoutSearchingAgain() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
-        CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
-        ApiTemplateDiscoveryMcpToolPublisher apiDiscovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
-        TemplateQueryMcpToolPublisher publisher = publisher(bindings, discovery, apiDiscovery);
+        TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(bindings, catalog);
         McpInvocationContext.Context context = context("service-1", "role-1");
         Set<String> allowed = Set.of("customer_query", "excluded_query");
         when(bindings.resolvePolicy(context, "customer_template_query"))
             .thenReturn(policy(Map.of("api_service", allowed)));
         when(bindings.requireRoute("customer_template_query")).thenReturn(
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
-        when(apiDiscovery.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
-            .thenReturn(Map.of("templates", List.of(
-                Map.of("templateId", "customer_query", "name", "Customer query"),
-                Map.of("templateId", "excluded_query", "name", "Explicitly excluded"),
-                Map.of("templateId", "unbound_template", "name", "Must be removed"))));
+        when(catalog.listEnabled()).thenReturn(List.of(
+            asset(TemplateAssetCatalogService.API, "customer_query", Map.of("required", List.of("customer_id"))),
+            asset(TemplateAssetCatalogService.API, "excluded_query", Map.of("type", "object")),
+            asset(TemplateAssetCatalogService.API, "unbound_template", Map.of())));
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
             result = publisher.queryFromParent("customer_template_query", "api_template_query", Map.of(
                 "assetType", "api_service",
-                "templateIds", List.of("unbound_template"),
-                "excludeTemplateIds", List.of("excluded_query"),
                 "limit", 20
             ));
         }
 
-        assertThat(result.get("templates").toString()).contains("customer_query")
-            .doesNotContain("unbound_template", "excluded_query");
-        assertThat(result.get("filterAudit").toString())
-            .contains("filteredUnauthorizedCount=1", "filteredExcludedCount=1");
-        verify(apiDiscovery).queryAuthorized(argThat(arguments ->
-            allowed.equals(Set.copyOf((List<String>) arguments.get("templateIds")))), eq(allowed));
-        verifyNoInteractions(discovery);
+        assertThat(result.get("templates").toString())
+            .contains("customer_query", "excluded_query", "parameterSchema", "customer_id")
+            .doesNotContain("unbound_template");
+        assertThat(result).containsEntry("selectionMode", "FIXED_BINDING")
+            .containsEntry("searchPerformed", false)
+            .containsEntry("bindingComplete", true);
     }
 
     @Test
     void resolvesPolicyFromInvocationArgumentsWhenTransportThreadContextIsLost() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
-        ApiTemplateDiscoveryMcpToolPublisher apiDiscovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
-        TemplateQueryMcpToolPublisher publisher = publisher(
-            bindings, mock(CommandTemplateDiscoveryService.class), apiDiscovery);
+        TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(bindings, catalog);
         Map<String, Object> arguments = Map.of(
             "tenantId", "tenant-1",
             "userId", "user-1",
@@ -176,9 +162,8 @@ class TemplateQueryMcpToolPublisherTest {
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
         when(bindings.resolvePolicy(null, "customer_template_query", arguments))
             .thenReturn(policy(Map.of("api_service", allowed)));
-        when(apiDiscovery.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
-            .thenReturn(Map.of("templates", List.of(
-                Map.of("templateId", "customer_query", "name", "Customer query"))));
+        when(catalog.listEnabled()).thenReturn(List.of(
+            asset(TemplateAssetCatalogService.API, "customer_query", Map.of("type", "object"))));
 
         Map<String, Object> result = publisher.queryFromParent(
             "customer_template_query", "api_template_query", arguments);
@@ -191,8 +176,7 @@ class TemplateQueryMcpToolPublisherTest {
     void rejectsBridgeThatIsNotTheParentPersistedForTheChild() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateQueryMcpToolPublisher publisher = publisher(
-            bindings, mock(CommandTemplateDiscoveryService.class),
-            mock(ApiTemplateDiscoveryMcpToolPublisher.class));
+            bindings, mock(TemplateAssetCatalogService.class));
         when(bindings.requireRoute("customer_template_query")).thenReturn(
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
 
@@ -203,12 +187,10 @@ class TemplateQueryMcpToolPublisherTest {
     }
 
     @Test
-    void delegatesPythonParentAndKeepsOnlyBoundTemplates() {
+    void resolvesPythonTemplatesFromTheSameFixedCatalogContract() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
-        PythonAnalysisBridge python = mock(PythonAnalysisBridge.class);
-        TemplateQueryMcpToolPublisher publisher = publisher(
-            bindings, mock(CommandTemplateDiscoveryService.class),
-            mock(ApiTemplateDiscoveryMcpToolPublisher.class), python);
+        TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(bindings, catalog);
         McpInvocationContext.Context context = context("service-1", "role-1");
         Set<String> allowed = Set.of("python-template-1");
         when(bindings.requireRoute("analytics_template_query")).thenReturn(
@@ -217,11 +199,9 @@ class TemplateQueryMcpToolPublisherTest {
             .thenReturn(new TemplateQueryBindingService.PolicyResolution(
                 Map.of("python_runtime", allowed), Set.of("python_analysis_query"),
                 "policy-v1", false, 1, Instant.parse("2026-08-07T00:00:00Z")));
-        when(python.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
-            .thenReturn(new PythonAnalysisBridge.Result(Map.of("candidates", List.of(
-                Map.of("templateId", "python-template-1", "templateName", "Sales analysis"),
-                Map.of("templateId", "unbound-template", "templateName", "Hidden")
-            )), false));
+        when(catalog.listEnabled()).thenReturn(List.of(
+            asset(TemplateAssetCatalogService.PYTHON, "python-template-1", Map.of("type", "object")),
+            asset(TemplateAssetCatalogService.PYTHON, "unbound-template", Map.of())));
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
@@ -231,23 +211,20 @@ class TemplateQueryMcpToolPublisherTest {
 
         assertThat(result.get("templates").toString()).contains("python-template-1")
             .doesNotContain("unbound-template");
-        verify(python).queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed));
     }
 
     private TemplateQueryMcpToolPublisher publisher(TemplateQueryBindingService bindings,
-                                                     CommandTemplateDiscoveryService discovery,
-                                                     ApiTemplateDiscoveryMcpToolPublisher apiDiscovery) {
-        return publisher(bindings, discovery, apiDiscovery, mock(PythonAnalysisBridge.class));
-    }
-
-    private TemplateQueryMcpToolPublisher publisher(TemplateQueryBindingService bindings,
-                                                     CommandTemplateDiscoveryService discovery,
-                                                     ApiTemplateDiscoveryMcpToolPublisher apiDiscovery,
-                                                     PythonAnalysisBridge pythonAnalysisBridge) {
+                                                     TemplateAssetCatalogService catalog) {
         return new TemplateQueryMcpToolPublisher(
-            mock(McpSyncServer.class), bindings, bindings, discovery, apiDiscovery,
-            pythonAnalysisBridge,
+            mock(McpSyncServer.class), bindings, bindings, catalog,
             mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class));
+    }
+
+    private TemplateAssetCatalogService.TemplateAsset asset(
+        String assetType, String templateId, Map<String, Object> parameterSchema) {
+        return new TemplateAssetCatalogService.TemplateAsset(
+            assetType + ":" + templateId, assetType, templateId, templateId,
+            "", "", "", "", parameterSchema);
     }
 
     private TemplateQueryBindingService.PolicyResolution policy(Map<String, Set<String>> allowed) {

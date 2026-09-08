@@ -1,10 +1,10 @@
 package com.chatchat.mcpserver.templatepublication.publisher;
 
 import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService;
+import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryRouteResolver;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateQueryParentCatalog;
 import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePolicy;
-import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryBridgeRoutingPolicy;
 
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -41,6 +41,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
 
     private final McpSyncServer mcpSyncServer;
     private final TemplateQueryBindingService bindingService;
+    private final TemplateQueryRouteResolver routeResolver;
     private final CommandTemplateDiscoveryService discoveryService;
     private final ApiTemplateDiscoveryMcpToolPublisher apiDiscoveryPublisher;
     private final PythonAnalysisBridge pythonAnalysisBridge;
@@ -73,7 +74,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(toolName)
             .title("Authorized template query")
-            .description("Read-only discovery of system-maintained templates. The result scope is fixed by "
+            .description("Agent-selectable child capability for read-only discovery of system-maintained templates. "
+                + "It is never executed directly: Runtime delegates it to the declared parent toolbox, which "
+                + "executes the query using this child's server-managed template subset. The result scope is fixed by "
                 + "the authenticated MCP service and caller roles. It only returns templates selected in "
                 + "Template Query Publication administration and never returns raw commands, SQL, URLs, headers, "
                 + "request bodies, credentials, or other execution specifications.")
@@ -82,29 +85,25 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> {
-                Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-                return concurrencyManager.execute(toolName, "discovery", arguments, () -> {
-                    try {
-                        Map<String, Object> result = query(toolName, arguments);
-                        return McpSchema.CallToolResult.builder()
-                            .addTextContent("Authorized template query completed")
-                            .structuredContent(result)
-                            .isError(false)
-                            .build();
-                    } catch (Exception ex) {
-                        return McpSchema.CallToolResult.builder()
-                            .addTextContent(ex.getMessage() == null ? "Template query failed" : ex.getMessage())
-                            .structuredContent(Map.of(
-                                "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
-                                "success", false,
-                                "error", ex.getMessage() == null ? "Template query failed" : ex.getMessage()
-                            ))
-                            .isError(true)
-                            .build();
-                    }
-                });
-            })
+            .callHandler((exchange, request) -> directInvocationRejected(toolName))
+            .build();
+    }
+
+    private McpSchema.CallToolResult directInvocationRejected(String toolName) {
+        String parentToolName = routeResolver.requireRoute(toolName).parentToolName();
+        Map<String, Object> evidence = Map.of(
+            "schemaVersion", "mcp_child_capability_delegation.v1",
+            "success", false,
+            "errorCode", "MCP_CHILD_CAPABILITY_REQUIRES_PARENT",
+            "errorMessage", "Child capabilities cannot execute directly; invoke the declared parent toolbox",
+            "childToolName", toolName,
+            "parentToolName", parentToolName,
+            "recoveryAction", "INVOKE_DECLARED_PARENT"
+        );
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(String.valueOf(evidence.get("errorMessage")))
+            .structuredContent(evidence)
+            .isError(true)
             .build();
     }
 
@@ -120,10 +119,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private Map<String, Object> query(String toolName, String invokedParentToolName,
                                       Map<String, Object> arguments) {
         String reviewedName = TemplateQueryToolNamePolicy.requireToolName(toolName);
-        String configuredParent = invokedParentToolName == null
-            ? null : bindingService.parentToolName(reviewedName);
-        if (configuredParent != null && !configuredParent.equals(invokedParentToolName)
-            && !TemplateQueryBridgeRoutingPolicy.publicBridge(configuredParent).equals(invokedParentToolName)) {
+        TemplateQueryRouteResolver.Route route = invokedParentToolName == null
+            ? null : routeResolver.requireRoute(reviewedName);
+        if (route != null && !route.parentToolName().equals(invokedParentToolName)) {
             throw new IllegalArgumentException("Dynamic template query parent mismatch: " + reviewedName);
         }
         McpInvocationContext.Context invocationContext = McpInvocationContext.current();
@@ -131,8 +129,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             ? bindingService.resolvePolicy(null, reviewedName, arguments)
             : bindingService.resolvePolicy(invocationContext, reviewedName);
         if (invokedParentToolName != null && policy.parentToolNames().stream()
-            .noneMatch(parent -> parent.equals(invokedParentToolName)
-                || TemplateQueryBridgeRoutingPolicy.publicBridge(parent).equals(invokedParentToolName))) {
+            .noneMatch(parent -> parent.equals(invokedParentToolName))) {
             log.warn("Dynamic template query authorization rejected tool={} parent={} transportContext={} "
                     + "resolvedParents={} configuredTemplateCount={}",
                 reviewedName, invokedParentToolName, invocationContext != null,
@@ -147,7 +144,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             arguments == null ? null : arguments.get("excludeTemplateIds"));
         List<String> assetTypes;
         if (invokedParentToolName != null) {
-            assetTypes = List.of(parentAssetType(configuredParent));
+            assetTypes = List.of(route.assetType());
         } else {
             assetTypes = requestedType.isBlank()
                 ? List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
@@ -243,22 +240,6 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         return value == null ? "" : String.valueOf(value).trim();
     }
 
-    private String parentAssetType(String parentToolName) {
-        return switch (parentToolName) {
-            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME ->
-                TemplateAssetCatalogService.SSH;
-            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME ->
-                TemplateAssetCatalogService.SQL;
-            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME ->
-                TemplateAssetCatalogService.HTTP;
-            case com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME ->
-                TemplateAssetCatalogService.DATABASE_QUERY;
-            case ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME -> TemplateAssetCatalogService.API;
-            case PythonMcpToolPublisher.ANALYSIS_RUN_TOOL -> TemplateAssetCatalogService.PYTHON;
-            default -> throw new IllegalArgumentException("Unsupported parent template query tool: " + parentToolName);
-        };
-    }
-
     private Map<String, Object> forceTarget(Map<String, Object> arguments, String assetType) {
         Map<String, Object> values = new LinkedHashMap<>(arguments);
         String targetKind = switch (assetType) {
@@ -330,13 +311,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         // The child remains the Agent-visible capability. Transport routing is declared as
         // control-plane metadata so Runtime can invoke the stable parent gateway without
         // leaking this internal discriminator into either public input schema.
-        String persistedParentToolName = bindingService.parentToolName(toolName);
-        if (persistedParentToolName == null || persistedParentToolName.isBlank()) {
-            throw new IllegalStateException("Dynamic template query has no parent gateway: " + toolName);
-        }
-        String parentToolName = TemplateQueryBridgeRoutingPolicy.publicBridge(persistedParentToolName);
+        String persistedParentToolName = routeResolver.requireRoute(toolName).parentToolName();
         meta.put(McpDynamicCapabilityRoute.METADATA_KEY,
-            McpDynamicCapabilityRoute.parentDelegation(parentToolName, CHILD_TOOL_ARGUMENT).toMetadata());
+            McpDynamicCapabilityRoute.parentDelegation(persistedParentToolName, CHILD_TOOL_ARGUMENT).toMetadata());
         meta.put("routingMode", McpDynamicCapabilityRoute.ROUTING_MODE_PARENT_DELEGATION);
         meta.put("readOnly", true);
         meta.put("runtimeAction", "read_only");

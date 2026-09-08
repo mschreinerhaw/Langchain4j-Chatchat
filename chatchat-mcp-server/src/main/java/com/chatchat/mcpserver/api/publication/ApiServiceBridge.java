@@ -104,7 +104,7 @@ public class ApiServiceBridge extends AbstractRuntimeBridge<TemplateServiceCall,
         Map<String, Object> discovery = childToolName.isBlank()
             ? templateDiscovery.query(discoveryArguments(arguments))
             : requireDynamicTemplateQueries().queryFromParent(
-                childToolName, ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME, arguments);
+                childToolName, ApiMcpToolPublisher.BRIDGE_TOOL_NAME, arguments);
         Map<String, Object> body = new LinkedHashMap<>(discovery);
         List<Map<String, Object>> candidates = maps(discovery.get("templates"));
         String query = firstText(text(arguments.get("query")), text(arguments.get("intent")),

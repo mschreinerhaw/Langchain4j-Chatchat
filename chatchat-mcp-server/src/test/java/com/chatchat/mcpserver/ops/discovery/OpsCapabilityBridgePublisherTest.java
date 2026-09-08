@@ -95,7 +95,7 @@ class OpsCapabilityBridgePublisherTest {
         CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
         TemplateQueryMcpToolPublisher dynamic = mock(TemplateQueryMcpToolPublisher.class);
         when(dynamic.queryFromParent(org.mockito.ArgumentMatchers.eq("team_ops_template_query"),
-            org.mockito.ArgumentMatchers.eq(TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.eq(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL),
             org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
                 "templates", java.util.List.of(Map.of("templateId", "disk_check"))));
         OpsCapabilityBridgePublisher publisher = publisher(discovery);
@@ -106,7 +106,7 @@ class OpsCapabilityBridgePublisherTest {
 
         assertThat(result.get("templates").toString()).contains("disk_check");
         verify(dynamic).queryFromParent(org.mockito.ArgumentMatchers.eq("team_ops_template_query"),
-            org.mockito.ArgumentMatchers.eq(TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.eq(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL),
             org.mockito.ArgumentMatchers.anyMap());
         verifyNoInteractions(discovery);
     }

@@ -152,7 +152,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         Map<String, Object> discovered;
         if (!childToolName.isBlank()) {
             discovered = requireDynamicTemplateQueries().queryFromParent(
-                childToolName, persistedParent(domain), normalized);
+                childToolName, domain.toolName(), normalized);
         } else {
             discovered = assetStage ? assetDiscovery.query(normalized) : templateDiscovery.query(normalized);
         }
@@ -178,16 +178,6 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
             throw new IllegalStateException("Dynamic template query routing is unavailable");
         }
         return dynamicTemplateQueries;
-    }
-
-    private String persistedParent(Domain domain) {
-        return switch (domain.toolName()) {
-            case SERVER_QUERY_TOOL -> TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME;
-            case HTTP_QUERY_TOOL -> TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME;
-            case DATABASE_QUERY_TOOL -> TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME;
-            default -> throw new IllegalArgumentException(
-                domain.toolName() + " does not support custom template-query publication");
-        };
     }
 
     private Domain domain(String toolName) {

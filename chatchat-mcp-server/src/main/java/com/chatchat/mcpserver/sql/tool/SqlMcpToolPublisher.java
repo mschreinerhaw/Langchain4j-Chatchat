@@ -165,7 +165,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             }
             Map<String, Object> discovery = dynamicTemplateQueries.queryFromParent(
                 childToolName,
-                com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME,
+                DATA_QUERY_BRIDGE_TOOL,
                 arguments);
             return dataQueryDiscoveryResult(discovery, "business_database_query");
         }

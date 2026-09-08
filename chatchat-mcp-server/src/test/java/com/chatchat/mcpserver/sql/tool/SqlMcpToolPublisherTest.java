@@ -220,8 +220,7 @@ class SqlMcpToolPublisherTest {
         CommandTemplateDiscoveryService discovery = mock(CommandTemplateDiscoveryService.class);
         TemplateQueryMcpToolPublisher dynamic = mock(TemplateQueryMcpToolPublisher.class);
         when(dynamic.queryFromParent(org.mockito.ArgumentMatchers.eq("finance_template_query"),
-            org.mockito.ArgumentMatchers.eq(
-                com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.eq(SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL),
             org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
                 "templates", List.of(Map.of("templateId", "finance_summary_v2"))));
         SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
@@ -241,8 +240,7 @@ class SqlMcpToolPublisherTest {
         assertThat(result.structuredContent().toString())
             .contains("finance_summary_v2", "requiresModelReview=true");
         verify(dynamic).queryFromParent(org.mockito.ArgumentMatchers.eq("finance_template_query"),
-            org.mockito.ArgumentMatchers.eq(
-                com.chatchat.mcpserver.ops.discovery.TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME),
+            org.mockito.ArgumentMatchers.eq(SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL),
             org.mockito.ArgumentMatchers.anyMap());
         verifyNoInteractions(discovery);
     }

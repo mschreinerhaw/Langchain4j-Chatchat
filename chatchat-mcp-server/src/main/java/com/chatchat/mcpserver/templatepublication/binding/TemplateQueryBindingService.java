@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @RequiredArgsConstructor
-public class TemplateQueryBindingService {
+public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
 
     public static final String SUBJECT_ROLE = "ROLE";
     public static final String SUBJECT_USER = "USER";
@@ -240,6 +240,15 @@ public class TemplateQueryBindingService {
                 + requiredToolName);
         }
         return parents.iterator().next();
+    }
+
+    /** Resolves the complete route from the persisted binding and its validated parent catalog entry. */
+    @Override
+    @Transactional(readOnly = true)
+    public Route requireRoute(String toolName) {
+        String childToolName = TemplateQueryToolNamePolicy.requireToolName(toolName);
+        TemplateQueryParentCatalog.ParentTool parent = parentCatalog.require(parentToolName(childToolName));
+        return new Route(childToolName, parent.toolName(), parent.assetType());
     }
 
     private BindingView save(TemplateQueryBinding binding, UpsertRequest request) {

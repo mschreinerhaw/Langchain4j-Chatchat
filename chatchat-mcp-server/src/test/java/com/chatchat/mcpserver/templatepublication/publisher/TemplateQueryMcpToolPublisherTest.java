@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.templatepublication.publisher;
 
 import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService;
+import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryRouteResolver;
+import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 
 import com.chatchat.mcpserver.api.publication.ApiTemplateDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
@@ -21,6 +23,7 @@ import java.util.Set;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -36,7 +39,7 @@ class TemplateQueryMcpToolPublisherTest {
         McpSyncServer server = mock(McpSyncServer.class);
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
-            server, bindings, mock(CommandTemplateDiscoveryService.class),
+            server, bindings, bindings, mock(CommandTemplateDiscoveryService.class),
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
             mock(PythonAnalysisBridge.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()),
@@ -59,13 +62,14 @@ class TemplateQueryMcpToolPublisherTest {
         when(concurrencyManager.limitMeta("customer_template_query", "discovery"))
             .thenReturn(Map.of("runtime_level", "discovery", "timeout_seconds", 90L));
         TemplateQueryMcpToolPublisher publisher = new TemplateQueryMcpToolPublisher(
-            server, bindings, mock(CommandTemplateDiscoveryService.class),
+            server, bindings, bindings, mock(CommandTemplateDiscoveryService.class),
             mock(ApiTemplateDiscoveryMcpToolPublisher.class),
             mock(PythonAnalysisBridge.class),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()),
             concurrencyManager);
         when(bindings.publishedToolNames()).thenReturn(Set.of("customer_template_query"));
-        when(bindings.parentToolName("customer_template_query")).thenReturn("api_template_query");
+        when(bindings.requireRoute("customer_template_query")).thenReturn(
+            route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
 
         publisher.refresh();
 
@@ -82,11 +86,21 @@ class TemplateQueryMcpToolPublisherTest {
             .doesNotContainKeys("parentToolName", "kind");
         assertThat(McpDynamicCapabilityRoute.fromToolMetadata(captor.getValue().tool().meta()).orElseThrow())
             .satisfies(route -> {
-                assertThat(route.parentToolName()).isEqualTo("api_service_query");
+                assertThat(route.parentToolName()).isEqualTo("api_template_query");
                 assertThat(route.implementationIdentityArgument()).isEqualTo("_templateQueryChildToolName");
             });
         assertThat((Map<String, Object>) captor.getValue().tool().inputSchema().get("properties"))
             .doesNotContainKeys("templateIds", "serviceId", "roleId", "governance");
+
+        var directResult = captor.getValue().callHandler().apply(null,
+            new io.modelcontextprotocol.spec.McpSchema.CallToolRequest(
+                "customer_template_query", Map.of("limit", 10), Map.of()));
+        assertThat(directResult.isError()).isTrue();
+        assertThat((Map<String, Object>) directResult.structuredContent())
+            .containsEntry("errorCode", "MCP_CHILD_CAPABILITY_REQUIRES_PARENT")
+            .containsEntry("childToolName", "customer_template_query")
+            .containsEntry("parentToolName", "api_template_query")
+            .containsEntry("recoveryAction", "INVOKE_DECLARED_PARENT");
     }
 
     @Test
@@ -118,7 +132,8 @@ class TemplateQueryMcpToolPublisherTest {
         Set<String> allowed = Set.of("customer_query", "excluded_query");
         when(bindings.resolvePolicy(context, "customer_template_query"))
             .thenReturn(policy(Map.of("api_service", allowed)));
-        when(bindings.parentToolName("customer_template_query")).thenReturn("api_template_query");
+        when(bindings.requireRoute("customer_template_query")).thenReturn(
+            route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
         when(apiDiscovery.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
             .thenReturn(Map.of("templates", List.of(
                 Map.of("templateId", "customer_query", "name", "Customer query"),
@@ -157,7 +172,8 @@ class TemplateQueryMcpToolPublisherTest {
             "limit", 10
         );
         Set<String> allowed = Set.of("customer_query");
-        when(bindings.parentToolName("customer_template_query")).thenReturn("api_template_query");
+        when(bindings.requireRoute("customer_template_query")).thenReturn(
+            route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
         when(bindings.resolvePolicy(null, "customer_template_query", arguments))
             .thenReturn(policy(Map.of("api_service", allowed)));
         when(apiDiscovery.queryAuthorized(org.mockito.ArgumentMatchers.anyMap(), eq(allowed)))
@@ -172,6 +188,21 @@ class TemplateQueryMcpToolPublisherTest {
     }
 
     @Test
+    void rejectsBridgeThatIsNotTheParentPersistedForTheChild() {
+        TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(
+            bindings, mock(CommandTemplateDiscoveryService.class),
+            mock(ApiTemplateDiscoveryMcpToolPublisher.class));
+        when(bindings.requireRoute("customer_template_query")).thenReturn(
+            route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
+
+        assertThatThrownBy(() -> publisher.queryFromParent(
+            "customer_template_query", "api_service_query", Map.of("limit", 10)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("parent mismatch");
+    }
+
+    @Test
     void delegatesPythonParentAndKeepsOnlyBoundTemplates() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         PythonAnalysisBridge python = mock(PythonAnalysisBridge.class);
@@ -180,7 +211,8 @@ class TemplateQueryMcpToolPublisherTest {
             mock(ApiTemplateDiscoveryMcpToolPublisher.class), python);
         McpInvocationContext.Context context = context("service-1", "role-1");
         Set<String> allowed = Set.of("python-template-1");
-        when(bindings.parentToolName("analytics_template_query")).thenReturn("python_analysis_query");
+        when(bindings.requireRoute("analytics_template_query")).thenReturn(
+            route("analytics_template_query", "python_analysis_query", TemplateAssetCatalogService.PYTHON));
         when(bindings.resolvePolicy(context, "analytics_template_query"))
             .thenReturn(new TemplateQueryBindingService.PolicyResolution(
                 Map.of("python_runtime", allowed), Set.of("python_analysis_query"),
@@ -213,7 +245,7 @@ class TemplateQueryMcpToolPublisherTest {
                                                      ApiTemplateDiscoveryMcpToolPublisher apiDiscovery,
                                                      PythonAnalysisBridge pythonAnalysisBridge) {
         return new TemplateQueryMcpToolPublisher(
-            mock(McpSyncServer.class), bindings, discovery, apiDiscovery,
+            mock(McpSyncServer.class), bindings, bindings, discovery, apiDiscovery,
             pythonAnalysisBridge,
             mock(AgentRuntimeGovernanceFactory.class), mock(McpToolConcurrencyManager.class));
     }
@@ -222,6 +254,10 @@ class TemplateQueryMcpToolPublisherTest {
         return new TemplateQueryBindingService.PolicyResolution(
             allowed, Set.of("api_template_query"), "policy-v1", false,
             allowed.values().stream().mapToInt(Set::size).sum(), Instant.parse("2026-08-07T00:00:00Z"));
+    }
+
+    private TemplateQueryRouteResolver.Route route(String child, String parent, String assetType) {
+        return new TemplateQueryRouteResolver.Route(child, parent, assetType);
     }
 
     private McpInvocationContext.Context context(String serviceId, String roles) {

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/** Fixed parent template retrieval tools that dynamic query tools may reuse. */
+/** Executable parent toolboxes that table-backed dynamic child tools may reuse. */
 @Component
 public class TemplateQueryParentCatalog {
 

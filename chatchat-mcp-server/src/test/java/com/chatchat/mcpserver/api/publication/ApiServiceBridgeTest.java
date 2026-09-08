@@ -93,7 +93,7 @@ class ApiServiceBridgeTest {
         ApiTemplateDiscoveryMcpToolPublisher discovery = mock(ApiTemplateDiscoveryMcpToolPublisher.class);
         TemplateQueryMcpToolPublisher dynamic = mock(TemplateQueryMcpToolPublisher.class);
         when(dynamic.queryFromParent(org.mockito.ArgumentMatchers.eq("customer_template_query"),
-            org.mockito.ArgumentMatchers.eq(ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME),
+            org.mockito.ArgumentMatchers.eq(ApiMcpToolPublisher.BRIDGE_TOOL_NAME),
             org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
                 "templates", List.of(Map.of("templateId", "authorized_customer_v1"))));
         ApiServiceBridge bridge = new ApiServiceBridge(discovery);
@@ -105,7 +105,7 @@ class ApiServiceBridgeTest {
 
         assertThat(result.body().get("templates").toString()).contains("authorized_customer_v1");
         verify(dynamic).queryFromParent(org.mockito.ArgumentMatchers.eq("customer_template_query"),
-            org.mockito.ArgumentMatchers.eq(ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME),
+            org.mockito.ArgumentMatchers.eq(ApiMcpToolPublisher.BRIDGE_TOOL_NAME),
             org.mockito.ArgumentMatchers.anyMap());
         verifyNoInteractions(discovery);
     }

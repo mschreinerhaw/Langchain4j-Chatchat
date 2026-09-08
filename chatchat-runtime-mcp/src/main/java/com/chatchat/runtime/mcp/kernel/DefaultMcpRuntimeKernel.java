@@ -103,7 +103,7 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
             return invalidTemplateBinding(call, requestedTemplateId,
                 "binding does not authorize requested templateId/executorTool");
         }
-        McpServiceResult versionMismatch = validateTemplateSnapshot(call, templateBinding);
+        McpServiceResult versionMismatch = validateToolContractSnapshot(call, templateBinding);
         if (versionMismatch != null) return versionMismatch;
         McpContractAuditRequest preflightRequest = new McpContractAuditRequest(
             call.serviceId(), call.toolName(), templateBinding == null ? requestedTemplateId : null,
@@ -181,9 +181,10 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
             "REBUILD_RUNTIME_TEMPLATE_BINDING", metadata, 0);
     }
 
-    private McpServiceResult validateTemplateSnapshot(McpServiceCall call,
-                                                      McpTemplateBindingEvidence binding) {
-        if (binding == null || (binding.templateVersion() == null && binding.contentHash() == null)) return null;
+    private McpServiceResult validateToolContractSnapshot(McpServiceCall call,
+                                                          McpTemplateBindingEvidence binding) {
+        if (binding == null
+            || (binding.toolContractVersion() == null && binding.toolContractHash() == null)) return null;
         McpToolDescriptor current = tools(new McpToolQuery(
             call.serviceId(), null, Set.of(call.toolName()))).stream().findFirst().orElse(null);
         if (current == null) return null;
@@ -192,27 +193,27 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         String currentHash = firstText(
             current.metadata().get("workflowContractChecksum"),
             current.metadata().get("contractChecksum"), current.metadata().get("contentHash"));
-        boolean versionChanged = binding.templateVersion() != null && currentVersion != null
-            && !binding.templateVersion().equals(currentVersion);
-        boolean contentChanged = binding.contentHash() != null && currentHash != null
-            && !binding.contentHash().equals(currentHash);
+        boolean versionChanged = binding.toolContractVersion() != null && currentVersion != null
+            && !binding.toolContractVersion().equals(currentVersion);
+        boolean contentChanged = binding.toolContractHash() != null && currentHash != null
+            && !binding.toolContractHash().equals(currentHash);
         if (!versionChanged && !contentChanged) return null;
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("failureStage", "MCP_KERNEL_PREFLIGHT");
         metadata.put("resourceFailureCategory", "VERSION_MISMATCH");
         metadata.put("templateId", binding.templateId());
-        putIfPresent(metadata, "snapshottedTemplateVersion", binding.templateVersion());
-        putIfPresent(metadata, "currentTemplateVersion", currentVersion);
-        putIfPresent(metadata, "snapshottedContentHash", binding.contentHash());
-        putIfPresent(metadata, "currentContentHash", currentHash);
-        log.warn("MCP invocation rejected because template contract changed after plan preflight: "
+        putIfPresent(metadata, "snapshottedToolContractVersion", binding.toolContractVersion());
+        putIfPresent(metadata, "currentToolContractVersion", currentVersion);
+        putIfPresent(metadata, "snapshottedToolContractHash", binding.toolContractHash());
+        putIfPresent(metadata, "currentToolContractHash", currentHash);
+        log.warn("MCP invocation rejected because executor tool contract changed after plan preflight: "
                 + "requestId={} serviceId={} tool={} templateId={} versionChanged={} contentChanged={} "
                 + "snapshottedVersion={} currentVersion={} snapshottedHash={} currentHash={}",
             call.requestId(), call.serviceId(), call.toolName(), binding.templateId(), versionChanged, contentChanged,
-            binding.templateVersion(), currentVersion, binding.contentHash(), currentHash);
+            binding.toolContractVersion(), currentVersion, binding.toolContractHash(), currentHash);
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
             McpServiceResultStatus.REJECTED, null, null, "RESOURCE_VERSION_MISMATCH",
-            "Template/tool contract changed after plan preflight", false,
+            "Executor tool contract changed after plan preflight", false,
             "REDISCOVER_TEMPLATE_AND_RECOMPILE_PLAN", metadata, 0);
     }
 

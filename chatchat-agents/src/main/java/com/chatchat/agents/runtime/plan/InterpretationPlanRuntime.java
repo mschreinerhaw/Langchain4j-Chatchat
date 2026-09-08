@@ -1814,10 +1814,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("toolName", toolName);
         putSnapshotValue(snapshot, "serviceId", extra.get("serviceId"));
-        putSnapshotValue(snapshot, "templateVersion", firstNonBlankObject(
-            extra.get("workflowContractVersion"), extra.get("contractVersion"),
-            metadata == null ? null : metadata.getVersion()));
-        putSnapshotValue(snapshot, "publishedContentHash", firstNonBlankObject(
+        // Cross-layer pinning may use only identifiers published by both ToolRegistry and
+        // McpToolDescriptor. The local ToolMetadata version/fingerprint remains guarded by
+        // validatePinnedResourceSnapshot and must not masquerade as a child-template version.
+        putSnapshotValue(snapshot, "toolContractVersion", firstNonBlankObject(
+            extra.get("workflowContractVersion"), extra.get("contractVersion")));
+        putSnapshotValue(snapshot, "toolContractHash", firstNonBlankObject(
             extra.get("workflowContractChecksum"), extra.get("contractChecksum"), extra.get("contentHash")));
         snapshot.put("contractFingerprint", sha256(mapOf(
             "toolName", toolName,
@@ -1884,11 +1886,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         McpTemplateBindingEvidence binding = parsed.evidence().orElseThrow();
         String assetId = canonicalTemplateId(firstValueAtAnyPath(input,
             "$.assetId", "$.asset_id", "$.executionContext.assetId", "$.mcpExecutionContext.assetId"));
-        McpTemplateBindingEvidence pinned = binding.withSnapshot(
+        McpTemplateBindingEvidence pinned = binding.withToolSnapshot(
             assetId,
-            stringValue(snapshot.get("templateVersion")),
-            firstText(stringValue(snapshot.get("publishedContentHash")),
-                stringValue(snapshot.get("contractFingerprint")))
+            stringValue(snapshot.get("toolContractVersion")),
+            stringValue(snapshot.get("toolContractHash"))
         );
         input.put(McpTemplateBindingEvidence.CONTEXT_KEY, pinned.toMap());
     }

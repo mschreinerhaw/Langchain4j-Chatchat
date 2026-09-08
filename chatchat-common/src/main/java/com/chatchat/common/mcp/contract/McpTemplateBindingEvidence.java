@@ -12,9 +12,12 @@ public record McpTemplateBindingEvidence(
     String executorTool,
     String assetId,
     String templateVersion,
-    String contentHash
+    String contentHash,
+    String toolContractVersion,
+    String toolContractHash
 ) {
-    public static final String SCHEMA_VERSION = "runtime_template_binding.v2";
+    public static final String SCHEMA_VERSION = "runtime_template_binding.v3";
+    public static final String PREVIOUS_SCHEMA_VERSION = "runtime_template_binding.v2";
     public static final String LEGACY_SCHEMA_VERSION = "runtime_template_binding.v1";
     public static final String CONTEXT_KEY = "runtimeTemplateBinding";
     public static final String INVALID_REASON_KEY = "templateBindingInvalidReason";
@@ -23,7 +26,9 @@ public record McpTemplateBindingEvidence(
 
     public McpTemplateBindingEvidence {
         schemaVersion = required(schemaVersion, "schemaVersion");
-        if (!SCHEMA_VERSION.equals(schemaVersion) && !LEGACY_SCHEMA_VERSION.equals(schemaVersion)) {
+        if (!SCHEMA_VERSION.equals(schemaVersion)
+            && !PREVIOUS_SCHEMA_VERSION.equals(schemaVersion)
+            && !LEGACY_SCHEMA_VERSION.equals(schemaVersion)) {
             throw new IllegalArgumentException("Unsupported MCP template binding schema: " + schemaVersion);
         }
         source = required(source, "source");
@@ -32,11 +37,21 @@ public record McpTemplateBindingEvidence(
         assetId = clean(assetId);
         templateVersion = clean(templateVersion);
         contentHash = clean(contentHash);
+        toolContractVersion = clean(toolContractVersion);
+        toolContractHash = clean(toolContractHash);
     }
 
     public McpTemplateBindingEvidence(String schemaVersion, String source, String templateId,
                                       String executorTool) {
-        this(schemaVersion, source, templateId, executorTool, null, null, null);
+        this(schemaVersion, source, templateId, executorTool, null, null, null, null, null);
+    }
+
+    /** Compatibility constructor for v2 callers, whose snapshot fields represented the tool contract. */
+    public McpTemplateBindingEvidence(String schemaVersion, String source, String templateId,
+                                      String executorTool, String assetId,
+                                      String toolContractVersion, String toolContractHash) {
+        this(schemaVersion, source, templateId, executorTool, assetId,
+            null, null, toolContractVersion, toolContractHash);
     }
 
     public static Optional<McpTemplateBindingEvidence> from(Object value) {
@@ -50,11 +65,18 @@ public record McpTemplateBindingEvidence(
             return ParseResult.invalid("runtimeTemplateBinding must be an object");
         }
         try {
+            String schemaVersion = text(map.get("schemaVersion"));
+            boolean previousV2 = PREVIOUS_SCHEMA_VERSION.equals(schemaVersion);
             return ParseResult.valid(new McpTemplateBindingEvidence(
-                text(map.get("schemaVersion")), text(map.get("source")),
+                schemaVersion, text(map.get("source")),
                 text(map.get("templateId")), text(map.get("executorTool")),
-                text(map.get("assetId")), text(map.get("templateVersion")),
-                text(map.get("contentHash"))));
+                text(map.get("assetId")),
+                previousV2 ? null : text(map.get("templateVersion")),
+                previousV2 ? null : text(map.get("contentHash")),
+                first(text(map.get("toolContractVersion")),
+                    previousV2 ? text(map.get("templateVersion")) : null),
+                first(text(map.get("toolContractHash")),
+                    previousV2 ? text(map.get("contentHash")) : null)));
         } catch (IllegalArgumentException invalid) {
             return ParseResult.invalid(invalid.getMessage());
         }
@@ -74,15 +96,18 @@ public record McpTemplateBindingEvidence(
         putIfPresent(result, "assetId", assetId);
         putIfPresent(result, "templateVersion", templateVersion);
         putIfPresent(result, "contentHash", contentHash);
+        putIfPresent(result, "toolContractVersion", toolContractVersion);
+        putIfPresent(result, "toolContractHash", toolContractHash);
         return Map.copyOf(result);
     }
 
-    public McpTemplateBindingEvidence withSnapshot(String resolvedAssetId,
-                                                   String resolvedTemplateVersion,
-                                                   String resolvedContentHash) {
+    public McpTemplateBindingEvidence withToolSnapshot(String resolvedAssetId,
+                                                       String resolvedToolContractVersion,
+                                                       String resolvedToolContractHash) {
         return new McpTemplateBindingEvidence(SCHEMA_VERSION, source, templateId, executorTool,
-            first(resolvedAssetId, assetId), first(resolvedTemplateVersion, templateVersion),
-            first(resolvedContentHash, contentHash));
+            first(resolvedAssetId, assetId), templateVersion, contentHash,
+            first(resolvedToolContractVersion, toolContractVersion),
+            first(resolvedToolContractHash, toolContractHash));
     }
 
     private static void putIfPresent(Map<String, Object> values, String key, String value) {

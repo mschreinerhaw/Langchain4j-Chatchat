@@ -116,7 +116,7 @@ class DefaultMcpRuntimeKernelTest {
     }
 
     @Test
-    void rejectsTemplateVersionDriftBeforeProviderInvocation() {
+    void rejectsExecutorToolContractDriftBeforeProviderInvocation() {
         McpServiceDirectory directory = mock(McpServiceDirectory.class);
         McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
         when(directory.tools(any())).thenReturn(List.of(new McpToolDescriptor(
@@ -140,10 +140,39 @@ class DefaultMcpRuntimeKernelTest {
         assertThat(result.recoveryAction()).isEqualTo("REDISCOVER_TEMPLATE_AND_RECOMPILE_PLAN");
         assertThat(result.metadata())
             .containsEntry("resourceFailureCategory", "VERSION_MISMATCH")
-            .containsEntry("snapshottedTemplateVersion", "version-3")
-            .containsEntry("currentTemplateVersion", "version-4");
+            .containsEntry("snapshottedToolContractVersion", "version-3")
+            .containsEntry("currentToolContractVersion", "version-4");
         verify(directory, never()).invoke(any());
         verify(contracts, never()).audit(any());
+    }
+
+    @Test
+    void doesNotCompareChildTemplateSnapshotWithParentToolDescriptor() {
+        McpServiceDirectory directory = mock(McpServiceDirectory.class);
+        McpRuntimeContractService contracts = mock(McpRuntimeContractService.class);
+        when(directory.tools(any())).thenReturn(List.of(new McpToolDescriptor(
+            "api", "api_template_execute", "api_template_execute", "", "template_execution",
+            Map.of(), Map.of(), Map.of(), Map.of(
+                "workflowContractVersion", "parent-tool-v4",
+                "workflowContractChecksum", "sha256:parent"))));
+        when(directory.invoke(any())).thenReturn(new McpServiceResult(
+            null, "request-1", "api", "api_template_execute", McpServiceResultStatus.SUCCESS,
+            Map.of("ok", true), null, null, null, false, null, Map.of(), 0));
+        when(contracts.audit(any())).thenReturn(new McpContractAuditReport(
+            null, true, List.of(), List.of(), Map.of(), 0));
+        DefaultMcpRuntimeKernel kernel = new DefaultMcpRuntimeKernel(directory, contracts);
+        McpTemplateBindingEvidence binding = new McpTemplateBindingEvidence(
+            McpTemplateBindingEvidence.SCHEMA_VERSION, "plan_preflight", "child-template-v1",
+            "api_template_execute", null, "child-v7", "sha256:child", null, null);
+        McpServiceCall call = new McpServiceCall(null, "request-1", "api",
+            "api_template_execute", Map.of("templateId", "child-template-v1"),
+            Map.of("templateId", "child-template-v1",
+                McpTemplateBindingEvidence.CONTEXT_KEY, binding.toMap()), 0);
+
+        McpServiceResult result = kernel.execute(call);
+
+        assertThat(result.successful()).isTrue();
+        verify(directory).invoke(call);
     }
 
     @Test

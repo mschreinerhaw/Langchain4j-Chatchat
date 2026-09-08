@@ -126,6 +126,28 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void keepsLocalRegistryFingerprintOutOfPublishedToolSnapshotDomain() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(), null, null, scriptedController(List.of()));
+        ToolMetadata localOnly = ToolMetadata.builder()
+            .id("mcp_api_template_execute")
+            .version("local-registry-v9")
+            .metadata(Map.of("serviceId", "api"))
+            .build();
+        Method snapshotMethod = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "toolContractSnapshot", String.class, ToolMetadata.class);
+        snapshotMethod.setAccessible(true);
+
+        Map<String, Object> snapshot = (Map<String, Object>) snapshotMethod.invoke(
+            runtime, "mcp_api_template_execute", localOnly);
+
+        assertThat(snapshot).containsKey("contractFingerprint");
+        assertThat(snapshot).doesNotContainKeys("toolContractVersion", "toolContractHash");
+    }
+
+    @Test
     void honorsAgentWorkflowAutoExecuteDuringPlanPreflight() {
         String toolName = "mcp_chatchat_mcp_server_http_request_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -7180,7 +7202,7 @@ class InterpretationPlanRuntimeTest {
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(linuxParameters.get("templateId")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(linuxParameters.get("runtimeTemplateBinding").toString())
-            .contains("runtime_template_binding.v2", "CHECK_SYSTEM_OVERVIEW");
+            .contains(McpTemplateBindingEvidence.SCHEMA_VERSION, "CHECK_SYSTEM_OVERVIEW");
     }
 
     @Test

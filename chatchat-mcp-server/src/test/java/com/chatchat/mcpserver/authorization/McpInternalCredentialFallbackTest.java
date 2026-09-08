@@ -1,7 +1,6 @@
 package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
-import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -16,15 +15,6 @@ class McpInternalCredentialFallbackTest {
     @Test
     void authorizationDefaultsDoNotInjectLegacyPlaintextCredentials() {
         McpAuthorizationProperties.Auth auth = new McpAuthorizationProperties().getAuth();
-
-        assertThat(auth.getUsername()).isBlank();
-        assertThat(auth.getPassword()).isBlank();
-        assertThat(auth.getEncryptedPassword()).isBlank();
-    }
-
-    @Test
-    void documentSearchDefaultsDoNotInjectLegacyPlaintextCredentials() {
-        var auth = new ChatChatMcpServerProperties().getDocumentSearch().getAuth();
 
         assertThat(auth.getUsername()).isBlank();
         assertThat(auth.getPassword()).isBlank();

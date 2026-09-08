@@ -69,6 +69,10 @@
             <artifactId>chatchat-runtime-market</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-knowledge-base</artifactId>
+        </dependency>
+        <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-core</artifactId>
         </dependency>

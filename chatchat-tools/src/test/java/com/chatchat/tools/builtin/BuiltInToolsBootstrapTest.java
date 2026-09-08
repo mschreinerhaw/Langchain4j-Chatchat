@@ -4,26 +4,17 @@ import com.chatchat.agents.evidence.sql.SqlState;
 
 import com.chatchat.agents.tool.DefaultToolRegistry;
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.common.security.InternalCredentialProperties;
-import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.InetSocketAddress;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,22 +22,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class BuiltInToolsBootstrapTest {
-
-    private HttpServer server;
-    private int documentLoginCount;
-    private String documentSearchAuthorization;
-    private String documentDetailAuthorization;
-    private String searchEngineQuery;
-    private String siteSearchKeyword;
-    private String siteSearchRawQuery;
-    private int searchLandingCount;
-
-    @AfterEach
-    void tearDown() {
-        if (server != null) {
-            server.stop(0);
-        }
-    }
 
     @Test
     void builtInToolsExposeGovernanceMetadataWithoutLegacyWebSearch() {
@@ -56,8 +31,7 @@ class BuiltInToolsBootstrapTest {
             new DatabaseToolProperties(),
             mock(DynamicJdbcDriverLoader.class),
             new MockEnvironment(),
-            new ObjectMapper(),
-            new InternalCredentialProperties()
+            new ObjectMapper()
         );
 
         bootstrap.initializeBuiltInTools();
@@ -170,52 +144,17 @@ class BuiltInToolsBootstrapTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void documentSearchEnrichesResultsWithDocumentContentExcerpts() throws Exception {
-        startDocumentApi();
+    void genericToolsModuleDoesNotOwnDocumentSearch() {
         DefaultToolRegistry registry = new DefaultToolRegistry();
-        InternalCredentialProperties credentials = new InternalCredentialProperties();
-        credentials.setCryptoKey("test-crypto-key");
-        MockEnvironment environment = new MockEnvironment()
-            .withProperty("chatchat.tools.document-search.api-base-url", "http://localhost:" + server.getAddress().getPort())
-            .withProperty("chatchat.tools.document-search.auth.username", "test-user")
-            .withProperty("chatchat.tools.document-search.auth.encrypted-password",
-                InternalSecretCipher.encrypt("test-password", "test-crypto-key"))
-            .withProperty("chatchat.tools.document-search.default-excerpt-chars", "120")
-            .withProperty("chatchat.tools.document-search.max-excerpt-chars", "200");
-
         BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
             registry,
             new DatabaseToolProperties(),
             mock(DynamicJdbcDriverLoader.class),
-            environment,
-            new ObjectMapper(),
-            credentials
+            new MockEnvironment(),
+            new ObjectMapper()
         );
         bootstrap.initializeBuiltInTools();
-
-        ToolRegistry.EnhancedTool documentSearch = registry.getEnhancedTool("document_search");
-        ToolOutput output = documentSearch.execute(ToolInput.builder()
-            .parameters(Map.of("query", "Studio config file update", "limit", 1))
-            .build());
-
-        assertThat(output.isSuccess()).as(output.getErrorMessage()).isTrue();
-        Map<String, Object> data = (Map<String, Object>) output.getData();
-        assertThat(data).containsEntry("contentMode", "detail_enriched");
-        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
-        assertThat(results).hasSize(1);
-        assertThat(results.get(0))
-            .containsEntry("detailFetched", true)
-            .containsEntry("contentAvailable", true);
-        assertThat((String) results.get(0).get("contentExcerpt"))
-            .contains("application.yml")
-            .contains("livedata-stream");
-        List<Map<String, Object>> evidence = (List<Map<String, Object>>) data.get("evidenceSnippets");
-        assertThat(evidence).hasSize(1);
-        assertThat((String) evidence.get(0).get("excerpt")).contains("application.yml");
-        assertThat(documentLoginCount).isEqualTo(1);
-        assertThat(documentSearchAuthorization).isEqualTo("Bearer doc-token");
-        assertThat(documentDetailAuthorization).isEqualTo("Bearer doc-token");
+        assertThat(registry.getEnhancedTool("document_search")).isNull();
     }
 
     private String validateDatabaseQuerySql(String sql) throws Exception {
@@ -253,61 +192,5 @@ class BuiltInToolsBootstrapTest {
         );
     }
 
-    private void startDocumentApi() throws IOException {
-        documentLoginCount = 0;
-        documentSearchAuthorization = null;
-        documentDetailAuthorization = null;
-        server = HttpServer.create(new InetSocketAddress(0), 0);
-        server.createContext("/api/v1/enterprise/auth/login", exchange -> {
-            documentLoginCount++;
-            String body = """
-                {"code":200,"message":"login success","data":{"token":"doc-token","user":{"username":"admin"}}}
-                """;
-            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-            exchange.sendResponseHeaders(200, bytes.length);
-            exchange.getResponseBody().write(bytes);
-            exchange.close();
-        });
-        server.createContext("/api/v1/search", exchange -> {
-            documentSearchAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
-            if (!"Bearer doc-token".equals(documentSearchAuthorization)) {
-                byte[] bytes = "{\"code\":401,\"message\":\"unauthorized\"}".getBytes(StandardCharsets.UTF_8);
-                exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-                exchange.sendResponseHeaders(401, bytes.length);
-                exchange.getResponseBody().write(bytes);
-                exchange.close();
-                return;
-            }
-            String body = """
-                {"data":{"keyword":"Studio config file update","results":[{"docId":"doc-1","title":"LiveData Studio Deployment","summary":"summary only","detailPath":"/api/v1/search/documents/doc-1"}],"total":1,"limit":1}}
-                """;
-            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-            exchange.sendResponseHeaders(200, bytes.length);
-            exchange.getResponseBody().write(bytes);
-            exchange.close();
-        });
-        server.createContext("/api/v1/search/documents/doc-1", exchange -> {
-            documentDetailAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
-            if (!"Bearer doc-token".equals(documentDetailAuthorization)) {
-                byte[] bytes = "{\"code\":401,\"message\":\"unauthorized\"}".getBytes(StandardCharsets.UTF_8);
-                exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-                exchange.sendResponseHeaders(401, bytes.length);
-                exchange.getResponseBody().write(bytes);
-                exchange.close();
-                return;
-            }
-            String body = """
-                {"data":{"docId":"doc-1","title":"LiveData Studio Deployment","content":"Deployment requires editing Studio config file application.yml, copying livedata-stream to /home/livedata, configuring connection, port, and service path, then restarting Prometheus service."}}
-                """;
-            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-            exchange.sendResponseHeaders(200, bytes.length);
-            exchange.getResponseBody().write(bytes);
-            exchange.close();
-        });
-        server.start();
-    }
 
 }

@@ -14,14 +14,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     "com.chatchat.integration.mcp",
     "com.chatchat.runtime.mcp",
     "com.chatchat.runtime.market",
+    "com.chatchat.knowledgebase",
     "com.chatchat.mcpserver"
 })
 @ConfigurationPropertiesScan(basePackages = {
     "com.chatchat.common",
     "com.chatchat.mcpserver"
 })
-@EntityScan(basePackages = {"com.chatchat.mcpserver", "com.chatchat.integration.mcp"})
-@EnableJpaRepositories(basePackages = {"com.chatchat.mcpserver", "com.chatchat.integration.mcp"})
+@EntityScan(basePackages = {"com.chatchat.mcpserver", "com.chatchat.integration.mcp", "com.chatchat.knowledgebase"})
+@EnableJpaRepositories(basePackages = {"com.chatchat.mcpserver", "com.chatchat.integration.mcp", "com.chatchat.knowledgebase"})
 @EnableScheduling
 public class ChatChatMcpServerApplication {
 

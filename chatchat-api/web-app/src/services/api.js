@@ -996,6 +996,55 @@ export function fetchMcpRegisteredTools() {
   return apiRequest("/mcp/tools");
 }
 
+export function fetchMcpRuntimeTools(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.serviceId) {
+    params.set("serviceId", filters.serviceId);
+  }
+  if (filters.capabilityCode) {
+    params.set("capabilityCode", filters.capabilityCode);
+  }
+  for (const toolName of filters.toolNames || []) {
+    params.append("toolNames", toolName);
+  }
+  const query = params.toString();
+  return apiRequest(`/mcp/runtime/tools${query ? `?${query}` : ""}`);
+}
+
+export async function invokeDiscoveredMcpTool(toolName, argumentsPayload = {}, context = {}) {
+  const normalizedToolName = String(toolName || "").trim();
+  if (!normalizedToolName) {
+    throw new Error("MCP 工具名称不能为空");
+  }
+
+  const candidates = await fetchMcpRuntimeTools({ toolNames: [normalizedToolName] });
+  const exactMatches = (candidates || []).filter((tool) =>
+    tool?.localToolName === normalizedToolName || tool?.remoteToolName === normalizedToolName
+  );
+  if (exactMatches.length === 0) {
+    throw new Error(`未发现 MCP 工具：${normalizedToolName}`);
+  }
+  const serviceIds = [...new Set(exactMatches.map((tool) => tool.serviceId).filter(Boolean))];
+  if (serviceIds.length !== 1) {
+    throw new Error(`MCP 工具 ${normalizedToolName} 的服务归属不唯一`);
+  }
+
+  const result = await apiRequest("/mcp/runtime/invoke", {
+    method: "POST",
+    body: JSON.stringify({
+      serviceId: serviceIds[0],
+      toolName: normalizedToolName,
+      arguments: argumentsPayload,
+      context
+    })
+  });
+  const successfulStatuses = new Set(["SUCCESS", "REPAIRED", "PARTIAL", "EMPTY_RESULT"]);
+  if (!successfulStatuses.has(result?.status)) {
+    throw new Error(result?.errorMessage || `MCP 工具调用失败：${normalizedToolName}`);
+  }
+  return result;
+}
+
 export function fetchMcpToolCards(filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {
@@ -1094,22 +1143,6 @@ export function cancelDocumentSearch(requestId, filters = {}) {
   const query = params.toString();
   return apiRequest(`/search/frontend/${encodeURIComponent(requestId)}/cancel${query ? `?${query}` : ""}`, {
     method: "POST"
-  });
-}
-
-export function debugDocumentDecision(payload = {}) {
-  return apiRequest("/search/document-search", {
-    method: "POST",
-    body: JSON.stringify({
-      query: payload.query || "",
-      topK: payload.topK || 8,
-      filters: payload.filters || null,
-      fileIds: payload.fileIds || [],
-      tenantId: payload.tenantId || "",
-      userId: payload.userId || "",
-      roles: payload.roles || [],
-      debug: payload.debug === true
-    })
   });
 }
 

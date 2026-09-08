@@ -119,19 +119,12 @@ chatchat:
           linux_command_execute:
             max-output-chars: 10485760
       document-search:
-        api-base-url: http://localhost:8080
-        auth:
-          username: chatchat_mcp_internal
-          encrypted-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
-          bearer-token:
+        default-limit: 8
+        max-limit: 20
+        timeout-ms: 300000
+        runtime-level: readonly
+        confirmation-default: ask_before_execute
   tools:
-    document-search:
-      enabled: true
-      api-base-url: http://localhost:8080
-      auth:
-        username: chatchat_mcp_internal
-        encrypted-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
-        bearer-token:
 logging:
   charset:
     console: UTF-8

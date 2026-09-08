@@ -1,6 +1,8 @@
 import "../../styles/pages/evidence-debugger.css";
 import { RefreshCw, Search } from "@lucide/vue";
-import { debugDocumentDecision } from "../../services/api";
+import { invokeDiscoveredMcpTool } from "../../services/api";
+
+const DOCUMENT_SEARCH_TOOL = "document_search";
 
 export default {
   name: "EvidenceDebuggerView",
@@ -96,12 +98,13 @@ export default {
       this.activeAction = action === "refresh" ? "refresh" : "run";
       this.error = "";
       try {
-        this.result = await debugDocumentDecision({
+        const result = await invokeDiscoveredMcpTool(DOCUMENT_SEARCH_TOOL, {
           query: this.form.query,
           topK: Math.max(1, Math.min(Number(this.form.topK) || 8, 20)),
           userId: this.userId,
           debug: this.form.debug
         });
+        this.result = result.data;
       } catch (error) {
         this.error = error?.message || "证据决策调试失败";
       } finally {

@@ -253,24 +253,6 @@ chatchat:
         default: auto_execute
       parameter-policy:
         expression: auto_execute
-    document-search:
-      enabled: true
-      # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.
-      api-base-url: http://localhost:8080
-      search-path: /api/v1/search/document-search
-      detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 300000
-      default-limit: 5
-      max-limit: 20
-      auth:
-        enabled: true
-        login-path: /api/v1/enterprise/auth/login
-        username: chatchat_mcp_internal
-        password:
-        bearer-token:
-      risk-level: medium
-      confirmation:
-        default: ask_before_execute
     database-query:
       risk-level: high
       operation-type: read

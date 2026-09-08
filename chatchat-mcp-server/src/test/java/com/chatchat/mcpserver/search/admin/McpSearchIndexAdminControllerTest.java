@@ -33,7 +33,7 @@ class McpSearchIndexAdminControllerTest {
     private final SqlMetadataSearchService sqlMetadataSearchService = mock(SqlMetadataSearchService.class);
     private final DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
-    private final DocumentSearchAdminClient documentSearchAdminClient = mock(DocumentSearchAdminClient.class);
+    private final DocumentSearchAdminService documentSearchAdminService = mock(DocumentSearchAdminService.class);
     private final FinancialAssetCatalogService financialAssetCatalogService = mock(FinancialAssetCatalogService.class);
     private final EnterpriseMetadataCatalog enterpriseMetadataCatalog = mock(EnterpriseMetadataCatalog.class);
     private final EnterpriseMetadataSearchService enterpriseMetadataSearchService =
@@ -45,7 +45,7 @@ class McpSearchIndexAdminControllerTest {
         sqlMetadataSearchService,
         databaseQueryConfigService,
         datasourceConfigService,
-        documentSearchAdminClient,
+        documentSearchAdminService,
         financialAssetCatalogService,
         enterpriseMetadataCatalog,
         enterpriseMetadataSearchService,

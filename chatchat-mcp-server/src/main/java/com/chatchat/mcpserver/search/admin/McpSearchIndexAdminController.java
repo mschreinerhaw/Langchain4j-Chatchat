@@ -36,7 +36,7 @@ public class McpSearchIndexAdminController {
     private final SqlMetadataSearchService sqlMetadataSearchService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final SqlDatasourceConfigService datasourceConfigService;
-    private final DocumentSearchAdminClient documentSearchAdminClient;
+    private final DocumentSearchAdminService documentSearchAdminService;
     private final FinancialAssetCatalogService financialAssetCatalogService;
     private final EnterpriseMetadataCatalog enterpriseMetadataCatalog;
     private final EnterpriseMetadataSearchService enterpriseMetadataSearchService;
@@ -213,7 +213,7 @@ public class McpSearchIndexAdminController {
         } else if ("document_search".equalsIgnoreCase(indexType)
             || "document-search".equalsIgnoreCase(indexType)
             || "documents".equalsIgnoreCase(indexType)) {
-            result = documentSearchAdminClient.search(input, limit);
+            result = documentSearchAdminService.search(input, limit);
         } else if (isFinancialDataAssetIndex(indexType)) {
             result = financialDataAssetSearchResult(input, limit);
         } else if (isEnterpriseMetadataIndex(indexType)) {

@@ -140,16 +140,11 @@ chatchat:
         # sql_metadata_search text summary field count limit. -1 means unlimited.
         sql-metadata-search-summary-max-columns: 30
       document-search:
-        api-base-url: http://localhost:8080
-        endpoint-path: /api/v1/search/document-search
-        timeout-ms: 60000
-        auth:
-          enabled: true
-          login-path: /api/v1/enterprise/auth/login
-          username: chatchat_mcp_internal
-          encrypted-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
-          password:
-          bearer-token:
+        default-limit: 8
+        max-limit: 20
+        timeout-ms: 300000
+        runtime-level: readonly
+        confirmation-default: ask_before_execute
       concurrency:
         # Enables global/tool/user/agent concurrency guards for MCP tool calls.
         enabled: true
@@ -270,27 +265,6 @@ chatchat:
         default: auto_execute
       parameter-policy:
         expression: auto_execute
-    document-search:
-      # Retrieves documents from the ChatChat runtime/API service.
-      enabled: true
-      # Runtime/API retrieval service address. Set this when MCP Server and Runtime are deployed separately.
-      api-base-url: http://localhost:8080
-      search-path: /api/v1/search/document-search
-      detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 300000
-      default-limit: 5
-      max-limit: 20
-      auth:
-        # Login-based auth is used when bearer-token is empty.
-        enabled: true
-        login-path: /api/v1/enterprise/auth/login
-        username: chatchat_mcp_internal
-        encrypted-password: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
-        password:
-        bearer-token: ""
-      risk-level: medium
-      confirmation:
-        default: ask_before_execute
     database-query:
       # Read-only SQL query tool for configured external databases.
       enabled: true

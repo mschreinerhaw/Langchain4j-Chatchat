@@ -4,7 +4,6 @@ import com.chatchat.api.config.ApiLimitProperties;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.search.CategoryReindexTaskService;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.model.SearchPage;
@@ -34,7 +33,6 @@ class SearchControllerFrontendContractTest {
         SearchController controller = new SearchController(
             searchService,
             mock(SearchFeedbackService.class),
-            mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
             new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
@@ -66,7 +64,6 @@ class SearchControllerFrontendContractTest {
         SearchController controller = new SearchController(
             searchService,
             mock(SearchFeedbackService.class),
-            mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
             new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
@@ -126,7 +123,6 @@ class SearchControllerFrontendContractTest {
         SearchController controller = new SearchController(
             searchService,
             mock(SearchFeedbackService.class),
-            mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
             new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
@@ -231,7 +227,6 @@ class SearchControllerFrontendContractTest {
         SearchController controller = new SearchController(
             searchService,
             mock(SearchFeedbackService.class),
-            mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
             new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
@@ -260,7 +255,6 @@ class SearchControllerFrontendContractTest {
         SearchController controller = new SearchController(
             mock(SearchService.class),
             mock(SearchFeedbackService.class),
-            mock(DocumentSearchEvidenceService.class),
             new DocumentUploadCancellationRegistry(),
             new DocumentSearchCancellationRegistry(),
             mock(CategoryReindexTaskService.class),

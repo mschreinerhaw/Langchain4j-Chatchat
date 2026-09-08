@@ -5,11 +5,6 @@ import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.search.CategoryReindexTaskService;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.document.DocumentFileResource;
-import com.chatchat.knowledgebase.search.document.DocumentSearchExpandRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchExpandResult;
-import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.document.LibraryCategory;
 import com.chatchat.knowledgebase.search.document.LibraryPage;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
@@ -60,7 +55,6 @@ public class SearchController {
 
     private final SearchService searchService;
     private final SearchFeedbackService searchFeedbackService;
-    private final DocumentSearchEvidenceService documentSearchEvidenceService;
     private final DocumentUploadCancellationRegistry uploadCancellationRegistry;
     private final DocumentSearchCancellationRegistry searchCancellationRegistry;
     private final CategoryReindexTaskService categoryReindexTaskService;
@@ -174,32 +168,6 @@ public class SearchController {
             new SearchCancellationResult(requestId, context.tenantId(), cancelled),
             cancelled ? "检索停止信号已发送" : "检索任务已结束或不存在"
         );
-    }
-
-    @PostMapping
-    @Operation(summary = "Compatibility endpoint for document_search evidence requests")
-    public ApiResponse<DocumentSearchResult> documentSearchCompat(@RequestBody DocumentSearchRequest request) {
-        return documentSearch(request);
-    }
-
-    @PostMapping("/document-search")
-    @Operation(summary = "Search documents and return standard evidence chunks")
-    public ApiResponse<DocumentSearchResult> documentSearch(@RequestBody DocumentSearchRequest request) {
-        try {
-            return ApiResponse.success(documentSearchEvidenceService.search(request));
-        } catch (IllegalArgumentException ex) {
-            return ApiResponse.badRequest(ex.getMessage());
-        }
-    }
-
-    @PostMapping("/document-search/expand")
-    @Operation(summary = "Expand one document search hit into evidence-ready chunks")
-    public ApiResponse<DocumentSearchExpandResult> documentSearchExpand(@RequestBody DocumentSearchExpandRequest request) {
-        try {
-            return ApiResponse.success(documentSearchEvidenceService.expand(request));
-        } catch (IllegalArgumentException ex) {
-            return ApiResponse.badRequest(ex.getMessage());
-        }
     }
 
     @PostMapping("/feedback")

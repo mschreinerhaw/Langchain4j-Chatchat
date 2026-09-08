@@ -8,7 +8,7 @@ import com.chatchat.mcpserver.ops.http.HttpEndpointTechnicalType;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
 import com.chatchat.mcpserver.search.query.AssetRelevanceRanker;
-import com.chatchat.mcpserver.search.query.DiscoveryQueryVariants;
+import com.chatchat.mcpserver.search.query.BusinessTermNormalizer;
 import com.chatchat.mcpserver.search.query.DiscoveryQueryPlan;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,12 +97,24 @@ public class AssetDiscoveryService {
     private final AssetMetadataFactory assetMetadataFactory;
     private final LuceneMcpSearchService luceneSearchService;
     private final TargetKindRegistry targetKindRegistry;
+    private final BusinessTermNormalizer businessTermNormalizer;
 
     public AssetDiscoveryService(SshHostConfigService hostConfigService,
                                  SqlDatasourceConfigService datasourceConfigService,
                                  HttpEndpointConfigService httpEndpointConfigService,
                                  AssetMetadataFactory assetMetadataFactory) {
-        this(hostConfigService, datasourceConfigService, httpEndpointConfigService, assetMetadataFactory, null, new TargetKindRegistry());
+        this(hostConfigService, datasourceConfigService, httpEndpointConfigService, assetMetadataFactory,
+            null, new TargetKindRegistry(), null);
+    }
+
+    public AssetDiscoveryService(SshHostConfigService hostConfigService,
+                                 SqlDatasourceConfigService datasourceConfigService,
+                                 HttpEndpointConfigService httpEndpointConfigService,
+                                 AssetMetadataFactory assetMetadataFactory,
+                                 LuceneMcpSearchService luceneSearchService,
+                                 TargetKindRegistry targetKindRegistry) {
+        this(hostConfigService, datasourceConfigService, httpEndpointConfigService, assetMetadataFactory,
+            luceneSearchService, targetKindRegistry, null);
     }
 
     @Autowired
@@ -111,13 +123,15 @@ public class AssetDiscoveryService {
                                  HttpEndpointConfigService httpEndpointConfigService,
                                  AssetMetadataFactory assetMetadataFactory,
                                  LuceneMcpSearchService luceneSearchService,
-                                 TargetKindRegistry targetKindRegistry) {
+                                 TargetKindRegistry targetKindRegistry,
+                                 BusinessTermNormalizer businessTermNormalizer) {
         this.hostConfigService = hostConfigService;
         this.datasourceConfigService = datasourceConfigService;
         this.httpEndpointConfigService = httpEndpointConfigService;
         this.assetMetadataFactory = assetMetadataFactory;
         this.luceneSearchService = luceneSearchService;
         this.targetKindRegistry = targetKindRegistry == null ? new TargetKindRegistry() : targetKindRegistry;
+        this.businessTermNormalizer = businessTermNormalizer;
     }
 
     public Map<String, Object> query(Map<String, Object> arguments) {
@@ -140,15 +154,16 @@ public class AssetDiscoveryService {
         if (target.reviewRequired()) {
             return reviewResult(target, filters, limit, startedAt);
         }
+        DiscoveryQueryPlan retrievalPlan = retrievalPlan(filters);
         List<Map<String, Object>> allAssets = allAssets(assetType, technicalType);
         List<Map<String, Object>> matchedAll = matchingAssetsFromLucene(
-            allAssets, assetType, technicalType, filters, searchLimit(limit, allAssets.size()));
+            allAssets, assetType, technicalType, filters, retrievalPlan,
+            searchLimit(limit, allAssets.size()));
         List<Map<String, Object>> matched = applyLimit(matchedAll, limit);
         List<Map<String, Object>> unavailableMatched = unavailableAssets(assetType, technicalType, filters, limit);
         AssetSelection selection = applyBoundAssetSelection(arguments, allAssets, matched, assetType);
         matched = selection.assets();
         Map<String, Object> compactFilters = compactFilters(filters);
-        DiscoveryQueryPlan retrievalPlan = DiscoveryQueryPlan.from(filters);
 
         Map<String, Object> result = mapOf(
             "schemaVersion", RESULT_SCHEMA_VERSION,
@@ -160,6 +175,9 @@ public class AssetDiscoveryService {
             "technicalType", technicalType,
             "filtersSchemaVersion", target.filtersSchemaVersion(),
             "retrievalPlan", retrievalPlan.metadata(),
+            "businessTermNormalization", businessTermNormalizer == null
+                ? Map.of("enabled", false, "embeddedBusinessTerms", false)
+                : businessTermNormalizer.metadata(),
             "discoveryPolicy", mapOf(
                 "readOnly", true,
                 "requiresContextFilter", false,
@@ -282,6 +300,7 @@ public class AssetDiscoveryService {
                                                                String assetType,
                                                                String technicalType,
                                                                Map<String, Object> filters,
+                                                               DiscoveryQueryPlan retrievalPlan,
                                                                int limit) {
         // The registry is the source of truth for an explicitly named logical asset. Searching the
         // shared asset/metadata index first can let a high-volume table document from another
@@ -307,7 +326,7 @@ public class AssetDiscoveryService {
                 byId.put(id, asset);
             }
         });
-        List<String> retrievalVariants = DiscoveryQueryVariants.from(filters);
+        List<String> retrievalVariants = retrievalPlan == null ? List.of() : retrievalPlan.queries();
         List<String> searchQueries = retrievalVariants.isEmpty() ? java.util.Collections.singletonList(null) : retrievalVariants;
         Map<String, RankedAssetHit> bestByAssetId = new LinkedHashMap<>();
         int hitCount = 0;
@@ -423,7 +442,7 @@ public class AssetDiscoveryService {
             .map(asset -> new AssetRelevanceRanker.Candidate<>(
                 asset, assetIdentityTexts(asset), assetContentTexts(asset, null), 0.0D))
             .toList();
-        List<String> variants = DiscoveryQueryVariants.from(filters);
+        List<String> variants = retrievalPlan(filters).queries();
         List<String> queries = variants.isEmpty() ? java.util.Collections.singletonList(null) : variants;
         Map<String, RankedRegistryAsset> bestByAssetId = new LinkedHashMap<>();
         for (String query : queries) {
@@ -440,6 +459,12 @@ public class AssetDiscoveryService {
             .sorted(Comparator.comparingDouble((RankedRegistryAsset item) -> item.ranked().score()).reversed())
             .map(item -> annotateRegistryQuality(item.ranked().value(), item.ranked(), item.retrievalVariant()))
             .toList(), limit);
+    }
+
+    private DiscoveryQueryPlan retrievalPlan(Map<String, Object> filters) {
+        DiscoveryQueryPlan source = DiscoveryQueryPlan.from(filters);
+        if (businessTermNormalizer == null) return source;
+        return DiscoveryQueryPlan.from(filters, businessTermNormalizer.expandQueries(source.queries()));
     }
 
     @SuppressWarnings("unchecked")

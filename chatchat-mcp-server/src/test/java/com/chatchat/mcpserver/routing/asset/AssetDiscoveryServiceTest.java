@@ -608,6 +608,41 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
+    void addsConfiguredSynonymsAsIndependentRetrievalUnits() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(
+            datasource("db-1", "warehouse", "DEV", null)));
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        com.chatchat.mcpserver.search.engine.LuceneSearchProperties properties =
+            new com.chatchat.mcpserver.search.engine.LuceneSearchProperties();
+        properties.getBusinessTerms().setSynonymGroups(Map.of("完整术语", List.of("简称")));
+        com.chatchat.mcpserver.search.query.BusinessTermNormalizer normalizer =
+            new com.chatchat.mcpserver.search.query.BusinessTermNormalizer(properties);
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService, new AssetMetadataFactory(new ObjectMapper()),
+            searchService, new TargetKindRegistry(), normalizer);
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database", "confidence", 0.95,
+            "filters", Map.of("intent", "简称余额"), "trace", trace(), "limit", 10));
+
+        org.mockito.ArgumentCaptor<LuceneMcpSearchService.AssetSearchRequest> requests =
+            org.mockito.ArgumentCaptor.forClass(LuceneMcpSearchService.AssetSearchRequest.class);
+        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.atLeast(3)).searchAssets(requests.capture());
+        assertThat(requests.getAllValues()).extracting(LuceneMcpSearchService.AssetSearchRequest::queryText)
+            .contains("简称余额", "完整术语", "完整术语余额");
+        assertThat(result.get("retrievalPlan").toString()).contains("generatedSignals", "完整术语余额");
+        assertThat(result.get("businessTermNormalization").toString())
+            .contains("operator_configuration", "embeddedBusinessTerms=false");
+    }
+
+    @Test
     void boundDatabaseAssetIsExclusiveAndNeverActsAsFallback() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

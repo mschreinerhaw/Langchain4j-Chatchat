@@ -12,6 +12,9 @@ import java.util.Locale;
 @Component
 public class EnterpriseMetadataVectorizer {
 
+    /** This representation preserves lexical n-gram similarity; it is not a semantic embedding. */
+    public static final String REPRESENTATION_KIND = "LEXICAL_HASH_SIGNATURE";
+
     private final EnterpriseMetadataProperties properties;
 
     public EnterpriseMetadataVectorizer(EnterpriseMetadataProperties properties) {
@@ -50,6 +53,10 @@ public class EnterpriseMetadataVectorizer {
             result.add(item * scale);
         }
         return List.copyOf(result);
+    }
+
+    public String representationKind() {
+        return REPRESENTATION_KIND;
     }
 
     private List<String> features(String value) {

@@ -73,6 +73,9 @@ class EnterpriseMetadataSearchServiceTest {
             .containsEntry("unmatchedRequirementCount", 1)
             .containsEntry("cardinalityPreserved", true)
             .containsEntry("candidateReturnPolicy", "ONE_OR_ZERO_PER_REQUIREMENT");
+        assertThat(vectorizer.representationKind())
+            .isEqualTo(EnterpriseMetadataVectorizer.REPRESENTATION_KIND)
+            .isEqualTo("LEXICAL_HASH_SIGNATURE");
         assertThat((List<Map<String, Object>>) response.get("requirementMatches"))
             .hasSize(3)
             .extracting(item -> item.get("matched"))

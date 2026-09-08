@@ -172,6 +172,8 @@ public class EnterpriseMetadataCatalog {
                     );
                     if (!vector.isEmpty()) {
                         document.put(properties.getKnn().getVectorField(), vector);
+                        document.put("vectorRepresentation", vectorizer.representationKind());
+                        document.put("semanticEmbedding", false);
                     }
                 }
                 return Map.copyOf(document);

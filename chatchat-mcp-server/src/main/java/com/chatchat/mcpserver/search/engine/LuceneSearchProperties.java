@@ -3,6 +3,10 @@ package com.chatchat.mcpserver.search.engine;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 @Data
 @ConfigurationProperties(prefix = "chatchat.mcp.lucene")
 public class LuceneSearchProperties {
@@ -16,6 +20,9 @@ public class LuceneSearchProperties {
     private int maxResults = 50;
 
     private OpenSearch openSearch = new OpenSearch();
+
+    /** Operator-maintained terminology. No business vocabulary is embedded in code. */
+    private BusinessTerms businessTerms = new BusinessTerms();
 
     public boolean isOpenSearchEngine() {
         return "opensearch".equalsIgnoreCase(engine) || "open-search".equalsIgnoreCase(engine);
@@ -79,5 +86,13 @@ public class LuceneSearchProperties {
             private float bm25Weight = 0.55F;
             private float vectorWeight = 0.45F;
         }
+    }
+
+    @Data
+    public static class BusinessTerms {
+        private boolean enabled = true;
+        private int maxExpansionsPerQuery = 16;
+        /** Concept/canonical term -> equivalent terms. Expansion is bidirectional. */
+        private Map<String, List<String>> synonymGroups = new LinkedHashMap<>();
     }
 }

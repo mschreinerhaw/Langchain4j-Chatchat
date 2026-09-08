@@ -9,8 +9,10 @@ import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
 import com.chatchat.mcpserver.routing.asset.AssetMetadataFactory;
 import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
+import com.chatchat.mcpserver.search.query.BusinessTermNormalizer;
 import com.chatchat.mcpserver.sql.metadata.MetadataIndex;
 import com.chatchat.mcpserver.sql.metadata.MetadataIndexService;
+import com.chatchat.mcpserver.sql.metadata.MetadataColumn;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.resolution.TableLocation;
@@ -45,6 +47,7 @@ public class McpAssetLuceneIndexService {
     private final ApiServiceConfigService apiServiceConfigService;
     private final AssetMetadataFactory assetMetadataFactory;
     private final MetadataIndexService metadataIndexService;
+    private final BusinessTermNormalizer businessTermNormalizer;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -340,7 +343,7 @@ public class McpAssetLuceneIndexService {
         return new LuceneMcpSearchService.AssetDoc(
             doc.id(), assetType, doc.name(), doc.displayName(), doc.toolName(), doc.env(), doc.dbType(),
             doc.labels(), doc.source(), doc.resultId(), doc.databaseName(), doc.tableName(), doc.fullPath(),
-            doc.extraText(), doc.tableComment(), doc.databaseComment());
+            doc.extraText(), doc.tableComment(), doc.databaseComment(), doc.semanticProfileText());
     }
 
     private List<LuceneMcpSearchService.AssetDoc> apiServiceAssetDocs() {
@@ -352,6 +355,10 @@ public class McpAssetLuceneIndexService {
     }
 
     private LuceneMcpSearchService.AssetDoc apiServiceAssetDoc(ApiServiceConfig config) {
+        String semanticProfile = semanticProfileText(AssetSemanticProfile.api(
+            config.getDescription(), config.getBusinessGroup(), config.getBusinessGroupName(),
+            config.getBusinessGroupDescription(), config.getMethod(), config.getInputSchemaJson(),
+            config.getOutputSchemaJson(), config.getCapabilitySpecJson()));
         return new LuceneMcpSearchService.AssetDoc(
             config.getId(),
             "api_service",
@@ -370,7 +377,8 @@ public class McpAssetLuceneIndexService {
             joinPath(config.getDescription(), config.getBusinessGroup(), config.getBusinessGroupName(),
                 config.getBusinessGroupDescription(), config.getMethod()),
             null,
-            null
+            null,
+            semanticProfile
         );
     }
 
@@ -425,17 +433,22 @@ public class McpAssetLuceneIndexService {
             return List.of();
         }
         return index.tables().stream()
-            .map(table -> tableAssetDoc(datasource, table, index.databaseType()))
+            .map(table -> tableAssetDoc(datasource, table, index))
             .toList();
     }
 
-    private LuceneMcpSearchService.AssetDoc tableAssetDoc(SqlDatasourceConfig datasource, TableLocation table, String databaseType) {
+    private LuceneMcpSearchService.AssetDoc tableAssetDoc(SqlDatasourceConfig datasource,
+                                                          TableLocation table,
+                                                          MetadataIndex index) {
         String database = text(table.database());
         String tableName = text(table.table());
         String assetName = firstText(datasource.getTitle(), datasource.getName(), datasource.getToolName(), datasource.getId());
         String fullPath = joinPath(assetName, database, tableName);
         String tableComment = text(table.tableComment());
         String databaseComment = firstText(table.databaseComment(), datasource.getDescription(), datasource.getTitle(), datasource.getName());
+        List<MetadataColumn> columns = tableColumns(index, table);
+        String semanticProfile = semanticProfileText(AssetSemanticProfile.table(
+            table, columns, datasource.getDescription(), datasource.getTitle()));
         return new LuceneMcpSearchService.AssetDoc(
             tableDocId(datasource.getId(), database, tableName),
             "sql_datasource",
@@ -443,7 +456,7 @@ public class McpAssetLuceneIndexService {
             tableName,
             datasource.getToolName(),
             datasource.getEnvironment(),
-            firstText(databaseType, datasource.getDatabaseType()),
+            firstText(index.databaseType(), datasource.getDatabaseType()),
             tableLabels(datasource, database, tableName, fullPath),
             "metadata_table",
             datasource.getId(),
@@ -452,8 +465,40 @@ public class McpAssetLuceneIndexService {
             fullPath,
             joinPath(tableComment, databaseComment),
             tableComment,
-            databaseComment
+            databaseComment,
+            semanticProfile
         );
+    }
+
+    private List<MetadataColumn> tableColumns(MetadataIndex index, TableLocation table) {
+        if (index == null || index.tableColumns() == null) return List.of();
+        String tableName = table == null ? null : table.table();
+        String primaryScope = table == null ? null : firstText(table.database(), table.schema());
+        List<MetadataColumn> columns = index.tableColumns().get(identifierKey(primaryScope, tableName));
+        if ((columns == null || columns.isEmpty()) && table != null
+            && !equalsIdentifier(primaryScope, table.schema())) {
+            columns = index.tableColumns().get(identifierKey(table.schema(), tableName));
+        }
+        return columns == null ? List.of() : columns.stream()
+            .filter(java.util.Objects::nonNull)
+            .limit(AssetSemanticProfile.MAX_PROFILE_FIELDS).toList();
+    }
+
+    private String identifierKey(String scope, String table) {
+        return normalizeIdentifier(scope) + "." + normalizeIdentifier(table);
+    }
+
+    private String normalizeIdentifier(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean equalsIdentifier(String left, String right) {
+        return left != null && right != null && left.trim().equalsIgnoreCase(right.trim());
+    }
+
+    private String semanticProfileText(AssetSemanticProfile profile) {
+        String text = profile == null ? null : profile.indexText();
+        return businessTermNormalizer == null ? text : businessTermNormalizer.enrichIndexText(text);
     }
 
     private List<String> tableLabels(SqlDatasourceConfig datasource, String database, String tableName, String fullPath) {

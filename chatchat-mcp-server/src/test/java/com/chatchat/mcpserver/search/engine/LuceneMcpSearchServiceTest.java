@@ -169,6 +169,23 @@ class LuceneMcpSearchServiceTest {
     }
 
     @Test
+    void searchesAssetByFieldSemanticProfileWithoutExposingItAsDescription() {
+        LuceneMcpSearchService service = service();
+        LuceneMcpSearchService.AssetDoc doc = new LuceneMcpSearchService.AssetDoc(
+            "table-1", "sql_datasource", "opaque_table", "opaque_table", "db_query",
+            "DEV", "mysql", List.of(), "asset_registry", null, "schema", "opaque_table",
+            "schema.opaque_table", "table description", null, null,
+            "market_value securities market value decimal");
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(doc), new LuceneMcpSearchService.AssetSearchRequest(
+                "sql_datasource", "market_value", "DEV", "mysql", List.of(), 10));
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("table-1");
+        assertThat(hits.get(0).description()).isEqualTo("table description");
+    }
+
+    @Test
     void keepsTypedAssetIndexesIsolatedAndClearsOneAssetType() {
         LuceneMcpSearchService service = service();
         service.indexAssets("api_service", List.of(new LuceneMcpSearchService.AssetDoc(

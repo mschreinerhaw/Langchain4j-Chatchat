@@ -724,7 +724,7 @@ public class LuceneMcpSearchService {
         addText(document, FIELD_NAME_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(), doc.fullPath(),
             doc.extraText(), doc.tableComment(), doc.databaseComment()));
         addText(document, FIELD_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(), doc.fullPath(),
-            doc.extraText(), doc.tableComment(), doc.databaseComment(), String.join(" ", doc.labels())));
+            doc.extraText(), doc.tableComment(), doc.databaseComment(), doc.semanticProfileText(), String.join(" ", doc.labels())));
         addText(document, FIELD_KEYWORD_ALIASES, String.join(" ", SearchKeywordAliasGenerator.aliases(
             doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName())));
         addStored(document, "source", doc.source());
@@ -860,7 +860,28 @@ public class LuceneMcpSearchService {
                            String fullPath,
                            String extraText,
                            String tableComment,
-                           String databaseComment) {
+                           String databaseComment,
+                           String semanticProfileText) {
+
+        public AssetDoc(String id,
+                        String assetType,
+                        String name,
+                        String displayName,
+                        String toolName,
+                        String env,
+                        String dbType,
+                        List<String> labels,
+                        String source,
+                        String resultId,
+                        String databaseName,
+                        String tableName,
+                        String fullPath,
+                        String extraText,
+                        String tableComment,
+                        String databaseComment) {
+            this(id, assetType, name, displayName, toolName, env, dbType, labels, source,
+                resultId, databaseName, tableName, fullPath, extraText, tableComment, databaseComment, null);
+        }
 
         public AssetDoc(String id,
                         String assetType,
@@ -871,7 +892,8 @@ public class LuceneMcpSearchService {
                         String dbType,
                         List<String> labels,
                         String source) {
-            this(id, assetType, name, displayName, toolName, env, dbType, labels, source, null, null, null, null, null, null, null);
+            this(id, assetType, name, displayName, toolName, env, dbType, labels, source,
+                null, null, null, null, null, null, null, null);
         }
 
         public AssetDoc(String id,
@@ -887,7 +909,8 @@ public class LuceneMcpSearchService {
                         String databaseName,
                         String tableName,
                         String fullPath) {
-            this(id, assetType, name, displayName, toolName, env, dbType, labels, source, resultId, databaseName, tableName, fullPath, null, null, null);
+            this(id, assetType, name, displayName, toolName, env, dbType, labels, source,
+                resultId, databaseName, tableName, fullPath, null, null, null, null);
         }
 
         public AssetDoc {

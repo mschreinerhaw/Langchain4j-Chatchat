@@ -799,7 +799,8 @@ public class OpenSearchMcpSearchService {
         put(source, FIELD_NAME_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(),
             doc.fullPath(), doc.extraText(), doc.tableComment(), doc.databaseComment()));
         put(source, FIELD_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(),
-            doc.fullPath(), doc.extraText(), doc.tableComment(), doc.databaseComment(), String.join(" ", doc.labels())));
+            doc.fullPath(), doc.extraText(), doc.tableComment(), doc.databaseComment(), doc.semanticProfileText(),
+            String.join(" ", doc.labels())));
         List<String> keywordAliases = SearchKeywordAliasGenerator.aliases(
             doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName());
         if (!keywordAliases.isEmpty()) source.put(FIELD_KEYWORD_ALIASES, keywordAliases);

@@ -239,6 +239,8 @@ public class EnterpriseMetadataSearchService {
         response.put("detectedScenarios", detectedScenarios);
         response.put("backend", backend);
         response.put("retrievalMode", aggregateRetrievalMode(results, backend));
+        response.put("vectorRepresentation", vectorizer.representationKind());
+        response.put("semanticEmbedding", false);
         response.put("count", results.size());
         response.put("countsByType", countsByType);
         if (requiredBundle) {

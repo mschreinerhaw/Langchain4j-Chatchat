@@ -1,5 +1,6 @@
 package com.chatchat.common.mcp.service;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Result envelope that always preserves the original MCP result beside normalized data. */
@@ -35,6 +36,26 @@ public record McpServiceResult(
         if (serviceId == null || serviceId.isBlank()) throw new IllegalArgumentException("serviceId is required");
         if (toolName == null || toolName.isBlank()) throw new IllegalArgumentException("toolName is required");
         status = status == null ? McpServiceResultStatus.FAILED : status;
+        boolean successful = status == McpServiceResultStatus.SUCCESS
+            || status == McpServiceResultStatus.REPAIRED
+            || status == McpServiceResultStatus.PARTIAL
+            || status == McpServiceResultStatus.EMPTY_RESULT;
+        if (!successful) {
+            errorCode = text(errorCode) == null ? "MCP_" + status.name() : errorCode.trim();
+            errorMessage = text(errorMessage) == null
+                ? "MCP invocation failed with status " + status.name() + " (" + errorCode + ")"
+                : errorMessage.trim();
+            if (rawData == null) {
+                Map<String, Object> failure = new LinkedHashMap<>();
+                failure.put("schemaVersion", "mcp_failure_evidence.v1");
+                failure.put("status", status.name());
+                failure.put("errorCode", errorCode);
+                failure.put("errorMessage", errorMessage);
+                failure.put("retryable", retryable);
+                if (text(recoveryAction) != null) failure.put("recoveryAction", recoveryAction.trim());
+                rawData = Map.copyOf(failure);
+            }
+        }
         metadata = McpServiceDescriptor.immutable(metadata);
         resultKind = resultKind == null ? McpResultKind.parse(metadata.get(RESULT_KIND_KEY)) : resultKind;
         if (status == McpServiceResultStatus.EMPTY_RESULT) resultKind = McpResultKind.EMPTY;

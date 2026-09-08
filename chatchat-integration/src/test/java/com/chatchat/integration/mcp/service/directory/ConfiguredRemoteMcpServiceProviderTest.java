@@ -44,6 +44,27 @@ class ConfiguredRemoteMcpServiceProviderTest {
     }
 
     @Test
+    void preservesSuccessfulExecutionStateContainingNullProtocolFields() {
+        McpToolRegistryBridge registry = mock(McpToolRegistryBridge.class);
+        Map<String, Object> executionState = new java.util.LinkedHashMap<>();
+        executionState.put("state", "SUCCEEDED");
+        executionState.put("errorCode", null);
+        executionState.put("action", null);
+        when(registry.invoke(any(McpServiceCall.class))).thenReturn(new McpToolInvokeResult(
+            true, Map.of("templates", List.of()), Map.of("structuredContent", Map.of("templates", List.of())),
+            "ok", null, null, false, null, executionState));
+        ConfiguredRemoteMcpServiceProvider provider = new ConfiguredRemoteMcpServiceProvider(
+            mock(McpServiceConfigService.class), registry, mock(ToolRegistry.class));
+
+        McpServiceResult result = provider.invoke(
+            new McpServiceCall(null, "r-success", "templates", "query", Map.of(), Map.of(), 0));
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.metadata()).containsEntry("state", "SUCCEEDED")
+            .containsEntry("errorCode", null).containsEntry("action", null);
+    }
+
+    @Test
     void exposesContractEvidenceButNotConnectionSecrets() {
         McpToolRegistryBridge registry = mock(McpToolRegistryBridge.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

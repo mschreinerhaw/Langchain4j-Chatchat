@@ -11,10 +11,12 @@ import com.chatchat.integration.mcp.service.routing.McpToolRegistryBridge;
 import com.chatchat.runtime.mcp.kernel.DefaultMcpRuntimeKernel;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.tool.DefaultToolRegistry;
 import com.chatchat.common.mcp.audit.GenericMcpServiceContract;
 import com.chatchat.common.mcp.audit.McpContractAuditRequest;
 import com.chatchat.common.mcp.audit.StandardMcpContractAuditor;
 import com.chatchat.common.mcp.service.McpServiceDescriptor;
+import com.chatchat.common.mcp.service.McpServiceCall;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.common.tool.ToolMetadata;
@@ -574,6 +576,40 @@ class McpToolRegistryBridgeLifecycleTest {
         assertThat(adminArguments.getValue())
             .containsEntry("_templateQueryChildToolName", "customer_service_template_query")
             .containsEntry("limit", 5);
+    }
+
+    @Test
+    void canonicalKernelInvocationPreservesSuccessfulStateWithNullFailureFields() {
+        ToolRegistry registry = new DefaultToolRegistry();
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("service-1", "Service One");
+        McpToolDefinition definition = new McpToolDefinition(
+            "records_query", "query records", Map.of("type", "object"),
+            "discovery", "low", "read", null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null, Map.of());
+        Map<String, Object> executionState = new LinkedHashMap<>();
+        executionState.put("state", "SUCCEEDED");
+        executionState.put("errorCode", null);
+        executionState.put("action", null);
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(configService.getById("service-1")).thenReturn(service);
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        when(gateway.invokeTool(eq(service), eq("records_query"), anyMap(), eq(null)))
+            .thenReturn(new com.chatchat.integration.mcp.model.McpToolInvokeResult(
+                true, Map.of("records", List.of()), Map.of("records", List.of()), "ok",
+                null, null, false, null, executionState));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        bridge.refreshRegistry(0);
+        String localToolName = bridge.listRegisteredTools().get(0).localToolName();
+
+        var result = bridge.invoke(new McpServiceCall(
+            null, "request-1", "service-1", localToolName, Map.of(), Map.of(), 0));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.executionState()).containsEntry("state", "SUCCEEDED")
+            .containsEntry("errorCode", null).containsEntry("action", null);
     }
 
     @Test

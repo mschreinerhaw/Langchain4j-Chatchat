@@ -68,6 +68,19 @@ class McpServiceContractTest {
     }
 
     @Test
+    void materializesTypedEvidenceForEveryFailedResult() {
+        McpServiceResult result = new McpServiceResult(null, "request-failed", "records", "read",
+            McpServiceResultStatus.FAILED, null, null, "MCP_PROVIDER_FAILURE",
+            null, true, "RETRY_OR_REPAIR", Map.of(), 0);
+
+        assertThat(result.errorMessage()).contains("MCP_PROVIDER_FAILURE");
+        assertThat(result.rawData()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("schemaVersion", "mcp_failure_evidence.v1")
+            .containsEntry("errorCode", "MCP_PROVIDER_FAILURE")
+            .containsEntry("retryable", true);
+    }
+
+    @Test
     void augmentsOnlyProtocolPaginationFieldsForDeclaredPagedTools() {
         Map<String, Object> schema = McpPaginationRequest.augmentInputSchema(Map.of(
             "type", "object", "properties", Map.of("query", Map.of("type", "string"))));

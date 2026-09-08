@@ -316,10 +316,10 @@ public class McpToolRegistryBridge {
                 firstText(output.getExceptionType(), "MCP_TOOL_CALL_FAILED"),
                 retryable,
                 action,
-                Map.copyOf(executionState));
+                executionState);
         }
         return new McpToolInvokeResult(output.isSuccess(), output.getData(), rawData, output.getMessage(),
-            output.getErrorMessage(), output.getExceptionType(), retryable, action, Map.copyOf(executionState));
+            output.getErrorMessage(), output.getExceptionType(), retryable, action, executionState);
     }
 
     /**

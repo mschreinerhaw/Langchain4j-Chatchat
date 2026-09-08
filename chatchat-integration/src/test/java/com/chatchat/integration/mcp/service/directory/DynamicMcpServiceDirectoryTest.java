@@ -48,6 +48,28 @@ class DynamicMcpServiceDirectoryTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void preservesProviderExceptionEvidenceWhenMessageIsNull() {
+        McpServiceProvider throwing = throwingProvider("docker", "docker_ps", new NullPointerException());
+        DynamicMcpServiceDirectory directory = directory(List.of(throwing), List.of());
+
+        McpServiceResult result = directory.invoke(
+            new McpServiceCall(null, "r1", "docker", "docker_ps", Map.of(), Map.of(), 0));
+
+        assertThat(result.status()).isEqualTo(McpServiceResultStatus.FAILED);
+        assertThat(result.errorCode()).isEqualTo("MCP_PROVIDER_FAILURE");
+        assertThat(result.recoveryAction()).isEqualTo("RETRY_OR_REPAIR");
+        assertThat(result.retryable()).isTrue();
+        assertThat(result.errorMessage()).isNotBlank();
+        assertThat(result.rawData()).isInstanceOf(Map.class);
+        assertThat((Map<String, Object>) result.rawData())
+            .containsEntry("schemaVersion", "mcp_transport_failure.v1")
+            .containsEntry("errorCode", "MCP_PROVIDER_FAILURE")
+            .containsEntry("exceptionType", NullPointerException.class.getName());
+        assertThat(result.metadata()).containsEntry("failureStage", "MCP_PROVIDER_DISPATCH");
+    }
+
+    @Test
     void injectsDiscoveredOutputSchemaIntoRepairRequest() {
         AtomicReference<McpResultRepairRequest> captured = new AtomicReference<>();
         McpResultRepairer repairer = new McpResultRepairer() {
@@ -83,6 +105,22 @@ class DynamicMcpServiceDirectoryTest {
                 return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
                     McpServiceResultStatus.SUCCESS, raw, raw, null, null, false, null, Map.of(), 0);
             }
+        };
+    }
+
+    private McpServiceProvider throwingProvider(String serviceId, String toolName, RuntimeException failure) {
+        McpToolDescriptor tool = new McpToolDescriptor(serviceId, toolName, "ps", "", "diagnostic",
+            Map.of(), Map.of("type", "object"), Map.of(), Map.of());
+        return new McpServiceProvider() {
+            public String providerId() { return "test"; }
+            public Collection<McpServiceDescriptor> services() {
+                return List.of(new McpServiceDescriptor(serviceId, serviceId, providerId(), "test", true, Map.of()));
+            }
+            public Collection<McpToolDescriptor> tools(McpToolQuery query) { return List.of(tool); }
+            public boolean supports(String requestedService, String requestedTool) {
+                return serviceId.equals(requestedService) && (toolName.equals(requestedTool) || "ps".equals(requestedTool));
+            }
+            public McpServiceResult invoke(McpServiceCall call) { throw failure; }
         };
     }
 

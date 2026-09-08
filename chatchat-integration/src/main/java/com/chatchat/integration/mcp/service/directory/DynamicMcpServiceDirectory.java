@@ -11,6 +11,7 @@ import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpServiceResultStatus;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Runtime implementation that resolves MCP providers and repairers from the live Spring container. */
+@Slf4j
 @Service
 public class DynamicMcpServiceDirectory implements McpServiceDirectory {
     private final ObjectProvider<McpServiceProvider> providerBeans;
@@ -70,8 +72,7 @@ public class DynamicMcpServiceDirectory implements McpServiceDirectory {
         try {
             return matches.get(0).invoke(call);
         } catch (RuntimeException error) {
-            return failure(call, McpServiceResultStatus.FAILED, "MCP_PROVIDER_FAILURE",
-                error.getMessage(), true, "RETRY_OR_REPAIR");
+            return providerFailure(call, error);
         }
     }
 
@@ -114,5 +115,35 @@ public class DynamicMcpServiceDirectory implements McpServiceDirectory {
                                      String message, boolean retryable, String action) {
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(), status,
             null, null, code, message, retryable, action, Map.of(), 0);
+    }
+
+    /**
+     * Converts an unexpected provider exception into a structured MCP failure. A provider that throws
+     * a {@link RuntimeException} with a null message (for example a {@code NullPointerException}) must
+     * never be flattened into an {@code error=null}/{@code rawData=null} result, because the runtime
+     * repair pipeline and contract audit would then have no evidence to act on. This preserves the
+     * exception type and emits a {@code mcp_transport_failure.v1} raw envelope, symmetric with the
+     * normal transport failure path, without encoding any tool- or business-specific knowledge.
+     */
+    private McpServiceResult providerFailure(McpServiceCall call, RuntimeException error) {
+        String exceptionType = error.getClass().getName();
+        String message = error.getMessage() == null || error.getMessage().isBlank()
+            ? "MCP provider dispatch threw " + error.getClass().getSimpleName()
+            : error.getMessage();
+        log.warn("MCP provider dispatch failed requestId={} serviceId={} tool={} exceptionType={} message={}",
+            call.requestId(), call.serviceId(), call.toolName(), exceptionType, message, error);
+        Map<String, Object> rawEvidence = new LinkedHashMap<>();
+        rawEvidence.put("schemaVersion", "mcp_transport_failure.v1");
+        rawEvidence.put("errorCode", "MCP_PROVIDER_FAILURE");
+        rawEvidence.put("errorMessage", message);
+        rawEvidence.put("exceptionType", exceptionType);
+        rawEvidence.put("retryable", true);
+        rawEvidence.put("recoveryAction", "RETRY_OR_REPAIR");
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("failureStage", "MCP_PROVIDER_DISPATCH");
+        metadata.put("exceptionType", exceptionType);
+        return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
+            McpServiceResultStatus.FAILED, null, Map.copyOf(rawEvidence), "MCP_PROVIDER_FAILURE",
+            message, true, "RETRY_OR_REPAIR", Map.copyOf(metadata), 0);
     }
 }

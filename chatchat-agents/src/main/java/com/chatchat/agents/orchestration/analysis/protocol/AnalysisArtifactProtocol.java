@@ -21,6 +21,7 @@ import java.util.Set;
  */
 public final class AnalysisArtifactProtocol {
 
+    // Additive fields and basis-claim admission remain wire-compatible with deployed v1 readers.
     public static final String SCHEMA_VERSION = "analysis_artifact.v1";
     public static final String EVIDENCE_KEY = "analysisArtifacts";
     private static final Set<String> PUBLISHABLE_STATUSES = Set.of(
@@ -59,18 +60,21 @@ public final class AnalysisArtifactProtocol {
                 "OBSERVED_RETURNED_FACT", text(claim.get("claim")), "SUPPORTED",
                 text(claim.get("confidence")), text(claim.get("significance")),
                 strings(claim.get("recordRefs")), strings(claim.get("supportingValues")),
-                List.of(), strings(claim.get("caveats")), List.of());
+                List.of(), strings(claim.get("caveats")), List.of(), claim);
         }
         Set<String> publishableInsightIds = publishableInsightIds(evidence);
         boolean decisionsDeclared = !maps(evidence.get("claimAdmissionDecisions")).isEmpty();
         for (Map<String, Object> claim : maps(evidence.get("insights"))) {
             String claimId = text(claim.get("claimId"));
             if (decisionsDeclared && !publishableInsightIds.contains(claimId)) continue;
-            add(result, sourceStage, sourceScope, claimId, text(claim.get("claimClass")),
+            add(result, sourceStage, sourceScope,
+                text(claim.get("artifactId")).isBlank() ? claimId : text(claim.get("artifactId")),
+                text(claim.get("claimClass")),
                 text(claim.get("claim")), text(claim.get("governanceStatus")),
                 text(claim.get("confidence")), text(claim.get("significance")),
                 strings(claim.get("recordRefs")), strings(claim.get("supportingValues")),
-                List.of(), strings(claim.get("caveats")), strings(claim.get("reviewReasons")));
+                strings(claim.get("basisClaimIds")), strings(claim.get("caveats")),
+                strings(claim.get("reviewReasons")), claim);
         }
         for (Map<String, Object> item : maps(evidence.get("analysisItems"))) {
             String status = text(item.get("status")).toUpperCase(java.util.Locale.ROOT);
@@ -80,7 +84,15 @@ public final class AnalysisArtifactProtocol {
                 text(item.get("businessMeaning")), strings(item.get("basisRecordRefs")),
                 strings(item.get("supportingValues")), List.of(),
                 strings(item.get("limitations")), "REVIEW_REQUIRED".equals(status)
-                    ? strings(item.get("limitations")) : List.of());
+                    ? strings(item.get("limitations")) : List.of(), item);
+        }
+        for (Map<String, Object> finding : maps(evidence.get("questionLevelFindings"))) {
+            add(result, sourceStage, "QUESTION", text(finding.get("artifactId")),
+                "QUESTION_LEVEL_SYNTHESIS", text(finding.get("claim")),
+                text(finding.get("governanceStatus")), text(finding.get("confidence")),
+                text(finding.get("significance")), strings(finding.get("recordRefs")),
+                strings(finding.get("supportingValues")), strings(finding.get("basisClaimIds")),
+                strings(finding.get("caveats")), strings(finding.get("reviewReasons")), finding);
         }
         LinkedHashMap<String, Map<String, Object>> distinct = new LinkedHashMap<>();
         result.forEach(item -> {
@@ -105,7 +117,7 @@ public final class AnalysisArtifactProtocol {
         String governedStatus = status == null || status.isBlank() ? "REVIEW_REQUIRED" : status;
         add(artifacts, sourceStage, sourceScope, artifactId, sourceStage + "_DERIVED_CLAIM",
             text, governedStatus, confidence, significance, recordRefs, supportingValues,
-            basisClaimIds, caveats, caveats);
+            basisClaimIds, caveats, caveats, Map.of());
         return artifacts.isEmpty() ? Map.of() : artifacts.get(0);
     }
 
@@ -118,8 +130,12 @@ public final class AnalysisArtifactProtocol {
                             String claimText, String requestedStatus, String confidence,
                             String significance, List<String> recordRefs,
                             List<String> supportingValues, List<String> basisClaimIds,
-                            List<String> caveats, List<String> reviewReasons) {
-        if (claimText.isBlank() || recordRefs.isEmpty() || supportingValues.isEmpty()) return;
+                            List<String> caveats, List<String> reviewReasons,
+                            Map<String, Object> analyticalContext) {
+        boolean directEvidence = !recordRefs.isEmpty() && !supportingValues.isEmpty();
+        boolean derivedEvidence = !basisClaimIds.isEmpty();
+        boolean observedFact = "OBSERVED_RETURNED_FACT".equals(claimClass);
+        if (claimText.isBlank() || (observedFact ? !directEvidence : !directEvidence && !derivedEvidence)) return;
         String status = requestedStatus == null ? "" : requestedStatus.toUpperCase(java.util.Locale.ROOT);
         if (!PUBLISHABLE_STATUSES.contains(status)) status = "SUPPORTED";
         String id = requestedId == null ? "" : requestedId.trim();
@@ -146,6 +162,7 @@ public final class AnalysisArtifactProtocol {
         artifact.put("basisClaimIds", List.copyOf(basisClaimIds));
         artifact.put("caveats", List.copyOf(caveats));
         artifact.put("reviewReasons", List.copyOf(reviewReasons));
+        copyAnalysisFields(artifact, analyticalContext);
         target.add(Collections.unmodifiableMap(artifact));
     }
 
@@ -157,9 +174,28 @@ public final class AnalysisArtifactProtocol {
         List<String> refs = strings(source.get("recordRefs"));
         List<String> values = strings(source.get("supportingValues"));
         String status = text(source.get("status")).toUpperCase(java.util.Locale.ROOT);
-        if (id.isBlank() || claim.isBlank() || refs.isEmpty() || values.isEmpty()
+        List<String> basis = strings(source.get("basisClaimIds"));
+        boolean directEvidence = !refs.isEmpty() && !values.isEmpty();
+        boolean observedFact = "OBSERVED_RETURNED_FACT".equals(text(source.get("claimClass")));
+        if (id.isBlank() || claim.isBlank() || (observedFact ? !directEvidence : !directEvidence && basis.isEmpty())
             || !PUBLISHABLE_STATUSES.contains(status)) return null;
         return Collections.unmodifiableMap(new LinkedHashMap<>(source));
+    }
+
+    private static void copyAnalysisFields(Map<String, Object> target,
+                                           Map<String, Object> source) {
+        if (source == null || source.isEmpty()) return;
+        for (String key : List.of("observation", "interpretation", "implication",
+            "operation", "method", "outputUnit", "grain", "timeScope",
+            "populationScope", "priority", "findingIndex")) {
+            String value = text(source.get(key));
+            if (!value.isBlank()) target.put(key, value);
+        }
+        for (String key : List.of("inputFields", "semanticBasis",
+            "alternativeExplanations")) {
+            List<String> values = strings(source.get(key));
+            if (!values.isEmpty()) target.put(key, values);
+        }
     }
 
     private static Set<String> publishableInsightIds(Map<String, Object> evidence) {

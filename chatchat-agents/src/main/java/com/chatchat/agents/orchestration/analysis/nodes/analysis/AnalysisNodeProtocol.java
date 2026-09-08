@@ -468,6 +468,9 @@ public final class AnalysisNodeProtocol
         evidence.put("analysisQuality", copy(payload.get("analysisQuality")));
         evidence.put("analysisDepth", analysisDepth(payload.get("analysisDepth")));
         evidence.put("analysisMethodExecution", copy(payload.get("analysisMethodExecution")));
+        evidence.put("questionLevelFindings", maps(payload.get("questionLevelFindings")));
+        evidence.put("analysisJudgments", copy(payload.get("analysisJudgments")));
+        evidence.put("methodologyCoverage", maps(payload.get("methodologyCoverage")));
         evidence.put("analysisDepthContractVersion", "professional_analysis_depth.v1");
         List<Map<String, Object>> proposedInsights = maps(payload.get("insights"));
         InsightValidation insightValidation = validatedInsights(
@@ -805,6 +808,11 @@ public final class AnalysisNodeProtocol
             Map<String, Object> insight = new LinkedHashMap<>();
             insight.put("claimClass", claimClass);
             insight.put("claim", claim);
+            putIfPresent(insight, "artifactId", candidate.get("artifactId"));
+            putIfPresent(insight, "findingIndex", candidate.get("findingIndex"));
+            putIfPresent(insight, "observation", candidate.get("observation"));
+            putIfPresent(insight, "interpretation", candidate.get("interpretation"));
+            putIfPresent(insight, "implication", candidate.get("implication"));
             insight.put("recordRefs", references);
             insight.put("supportingValues", values);
             insight.put("significance", significance);

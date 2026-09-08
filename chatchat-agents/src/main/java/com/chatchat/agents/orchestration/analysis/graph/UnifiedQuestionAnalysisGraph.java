@@ -66,6 +66,9 @@ public final class UnifiedQuestionAnalysisGraph {
                     .enterpriseDefault().toMap().get("analysisAuthorityPolicy"));
                 plan.put("modelReportQualityPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
                     .enterpriseDefault().toMap().get("modelReportQualityPolicy"));
+                plan.put("analysisMethodologyContract",
+                    com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
+                        .enterpriseDefault().toMap());
                 metadata.put("unifiedAnalysisPlan", plan);
                 return AnalysisExecutionGraph.Status.READY;
             }),
@@ -99,12 +102,15 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "You own the analytical choice: decide what the question requires and which supported analysis is meaningful. Runtime does not infer SUM, AVG, ratios, denominators, weights or time comparisons from numeric columns. "
                         + "Select a derived measure only when the supplied semantic contract declares its aggregation, grain, denominator, unit and scope, or request it explicitly as an unverified formula proposal. Runtime executes and audits the declaration; it does not choose the business formula. "
                         + "Interpret Runtime verifiedCalculations; do not invent computed values or units. Refer to other supplied datasets as available, not missing. "
-                        + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],limitations:[],evidenceRequests:[]}. "
+                        + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,observation,interpretation,implication,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],questionLevelFindings:[{claim,observation,interpretation,implication,significance,confidence,caveats,basisFindingIndexes:[]}],ranking:[],conflicts:[],evidenceSufficiency:{},methodologyCoverage:[{method,status,findingIndexes:[],limitation}],limitations:[],evidenceRequests:[]}. "
                         + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE; confidence is HIGH, MEDIUM or LOW. "
                         + "operation must be one of OBSERVE, AGGREGATE, DERIVE, COMPARE, RANK, TREND, INFER, PROXY; do not invent operation names. "
                         + "recordRefs, caveats, inputFields, semanticBasis and alternativeExplanations are JSON arrays of strings. supportingValues is an array of evidence-bound objects, e.g. [{recordRef:'dataset.records[1]',VALUE:17,previous:null}]. "
                         + "For a model-calculated claim, supportingValues must cite every raw input value from its source records; never cite only the calculated output unless Runtime supplied it in verifiedCalculations. String supportingValues are a compatibility fallback and must be exact JSON field fragments such as '\"VALUE\":17', never field=value prose. "
-                        + "Each finding must cite original dataset.records[n] and exact supporting values. A finding belongs to its evidence dataset. "
+                        + "Keep observation, interpretation and implication as distinct fields; claim is their concise conclusion. Each dataset finding must cite original dataset.records[n] and exact supporting values. "
+                        + "questionLevelFindings are cross-source synthesis only: use one-based basisFindingIndexes to cite supporting dataset findings and do not repeat them as dataset findings. "
+                        + "Complete ranking, conflicts and evidenceSufficiency here because this analysis call sees the evidence; the final writer only expresses these judgments. "
+                        + "For every method in the adaptive plan, methodologyCoverage must say EXECUTED with supporting one-based findingIndexes, or NOT_APPLICABLE/LIMITED with a concrete evidence limitation. "
                         + "Cross-dataset implications must stay qualified unless an authorized relationship and computation supports them. "
                         + "Do not emit SQL or executable instructions. Cover material returned facts relevant to the question; explain unsupported questions in limitations.\n"
                         + "For projected data, selectedRecords carry original recordRef values. Never treat scan coverage as semantic review of every row. "
@@ -121,17 +127,16 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
                         + "Without history, explain current state and supported composition instead of asserting trends. Do not replace available analysis with an indicator framework or only a request for more data. "
                         + "Final findings must address the supported parts of the question across sources. Emit material evidence-bound findings for every non-empty question-relevant dataset; this is a coverage floor, not a one-finding-per-dataset limit. Preserve distinct question-relevant measures, comparisons and exceptions as separate findings where their definitions or evidence differ. A limitation may replace a finding only when those returned fields truly cannot answer any part of the question. Build a question-level conclusion from complementary source findings instead of producing one description per dataset. Use returned observations to characterize the observed-period state and behavior; reserve long-term persistence claims for historical-data limitations. Never describe a returned question-relevant dataset as missing. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
-                        + "Make the finding set read as one report: each material finding states the answer, observation, interpretation, implication and boundary; keep one value/unit/period/population definition for each metric. "
+                        + "Keep one value/unit/period/population definition for each metric. "
                         + "Do not make the executive conclusion stronger than the detailed evidence, do not contradict a finding later in limitations, and do not issue an action without the finding that motivates it. Use meaningful prose, remove duplicate findings and expose no runtime IDs. "
                         + "Do not infer intent, motive, strategy, causality or remediation behavior merely because two observations coexist. Describe the observed association and list plausible alternatives when causal evidence is absent. "
                         + "Do not label a value extreme, healthy, excessive, normal, high or low without an explicit comparison baseline in the evidence. Do not translate an observed event into a named domain pattern unless its required evidence and temporal sequence are present. "
                         + "Preserve the producer-declared meaning, measurement basis, period and inclusion/exclusion rules of every field. A request is not a completed outcome, and similarly named measures are not interchangeable. Undeclared definitions or adjustments remain unknown. Use qualified observed-period language for samples and single dates. "
-                        + "Before returning JSON, silently verify QUESTION_ANSWERED, METRIC_DEFINITION_STABLE, TIME_SCOPE_STABLE, POPULATION_SCOPE_STABLE, NO_INTERNAL_CONTRADICTION, NO_UNSUPPORTED_CAUSE, NO_SAMPLE_TO_LONG_TERM_EXPANSION, ACTION_TRACES_TO_FINDING and READABLE_WITHOUT_RUNTIME_CONTEXT. "
                         + "Evidence round " + round + "/" + MAX_EVIDENCE_ROUNDS + ". "
                         + (round == MAX_EVIDENCE_ROUNDS
                             ? "No more requests are available; return bounded conclusions and limitations. " : "")
                         + "Requested evidence: " + ModelProtocolJson.compact(boundedRequests) + "\n"
-                        + "Question plan: " + ModelProtocolJson.compact(evidenceAccess.fitControlContext(plan, 4_000))
+                        + "Question plan: " + ModelProtocolJson.compact(evidenceAccess.fitControlContext(promptPlan(plan), 4_000))
                         + "\nBound evidence: " + ModelProtocolJson.compact(boundedEvidence);
                     var promptSize = TOKENS.estimate(prompt);
                     if (promptSize.tokens() > MAX_INPUT_TOKENS) throw new IllegalStateException(
@@ -197,6 +202,33 @@ public final class UnifiedQuestionAnalysisGraph {
                     metadata.put("unifiedAnalysisEvidenceRounds", round);
                     metadata.put("unifiedAnalysisMaxPromptChars", Math.max(prompt.length(),
                         ((Number) metadata.getOrDefault("unifiedAnalysisMaxPromptChars", 0)).intValue()));
+                    List<String> methodologyGaps = methodologyCoverageGaps(product, adaptivePrompt[0]);
+                    boolean enforcePlannedMethodology = Set.of("MODEL_SYNTHESIZED", "FIXED_GOVERNED")
+                        .contains(adaptivePrompt[0].mode());
+                    boolean methodologyRepairPending = enforcePlannedMethodology
+                        && !maps(product.get("findings")).isEmpty()
+                        && !methodologyGaps.isEmpty()
+                        && round < MAX_EVIDENCE_ROUNDS;
+                    if (methodologyRepairPending) {
+                        generated.clear();
+                        generated.putAll(product);
+                        requestedEvidence.add(Map.of(
+                            "status", "METHODOLOGY_COVERAGE_REQUIRED",
+                            "missingMethods", methodologyGaps,
+                            "instruction", "Preserve all supported prior findings. Execute each missing planned method when the available evidence supports it; otherwise record a concrete NOT_APPLICABLE or LIMITED reason in methodologyCoverage.",
+                            "previousFindings", maps(product.get("findings"))));
+                        metadata.put("unifiedAnalysisMethodologyRepairRequested", true);
+                        metadata.put("unifiedAnalysisMethodologyGaps", methodologyGaps);
+                    } else if (enforcePlannedMethodology && !methodologyGaps.isEmpty()) {
+                        metadata.put("unifiedAnalysisMethodologyGaps", methodologyGaps);
+                        List<Object> limitations = new ArrayList<>();
+                        if (product.get("limitations") instanceof List<?> list) limitations.addAll(list);
+                        limitations.add("Planned analytical methods without an executed finding or an explicit applicability disposition: "
+                            + String.join(", ", methodologyGaps));
+                        product.put("limitations", limitations.stream().distinct().toList());
+                    } else {
+                        metadata.put("unifiedAnalysisMethodologyGaps", List.of());
+                    }
                     var requests = maps(product.get("evidenceRequests"));
                     if (!requests.isEmpty() && round < MAX_EVIDENCE_ROUNDS) {
                         int accepted = 0;
@@ -229,12 +261,18 @@ public final class UnifiedQuestionAnalysisGraph {
                             }
                         }
                         if (!cached) checkpoints.checkpoint(scope, key, hash, ModelProtocolJson.compact(product));
-                        if (accepted > 0 || maps(product.get("findings")).isEmpty()) {
+                        if (methodologyRepairPending || accepted > 0 || maps(product.get("findings")).isEmpty()) {
                             generated.clear();
                             generated.putAll(product);
                             continue;
                         }
                         // Retain usable candidates when every optional read was rejected; validate them normally.
+                    }
+                    if (methodologyRepairPending) {
+                        if (!cached) checkpoints.checkpoint(scope, key, hash, ModelProtocolJson.compact(product));
+                        generated.clear();
+                        generated.putAll(product);
+                        continue;
                     }
                     if (!cached) checkpoints.checkpoint(scope, key, hash, ModelProtocolJson.compact(product));
                     generated.putAll(product);
@@ -254,14 +292,22 @@ public final class UnifiedQuestionAnalysisGraph {
                 Set<String> known = new LinkedHashSet<>();
                 Map<String, Integer> occurrences = new LinkedHashMap<>();
                 for (Dataset dataset : bound) known.add(unique(dataset.reference(), occurrences));
-                for (Map<String, Object> finding : maps(generated.get("findings"))) {
+                List<Map<String, Object>> normalizedFindings = normalizeFindings(
+                    maps(generated.get("findings")));
+                generated.put("findings", normalizedFindings);
+                List<Map<String, Object>> questionFindings = normalizeQuestionFindings(
+                    maps(generated.get("questionLevelFindings")), normalizedFindings);
+                generated.put("questionLevelFindings", questionFindings);
+                for (Map<String, Object> finding : normalizedFindings) {
                     if (!known.contains(finding.get("datasetReference")))
                         throw new IllegalStateException("Finding cites an unbound dataset");
                 }
                 occurrences.clear();
                 List<String> datasetsWithoutFindings = new ArrayList<>();
+                int datasetIndex = 0;
                 for (Dataset dataset : bound) {
                     guard.run();
+                    datasetIndex++;
                     String reference = unique(dataset.reference(), occurrences);
                     var findings = maps(generated.get("findings")).stream()
                         .filter(finding -> reference.equals(finding.get("datasetReference"))).toList();
@@ -280,6 +326,12 @@ public final class UnifiedQuestionAnalysisGraph {
                         "answeredQuestions", findings.isEmpty() ? List.of() : List.of(question),
                         "openQuestions", findings.isEmpty() ? List.of("No validated finding produced for this dataset") : List.of()));
                     payload.put("metricAssociations", List.of());
+                    if (datasetIndex == 1) {
+                        payload.put("questionLevelFindings", questionFindings);
+                        payload.put("analysisJudgments", analysisJudgments(generated));
+                        payload.put("methodologyCoverage",
+                            generated.getOrDefault("methodologyCoverage", List.of()));
+                    }
                     var context = protocol.govern(reference, dataset.analysisContext(), dataset.records());
                     var position = protocol.position(reference, 1, 1, 1, dataset.records().size(), dataset.records().size());
                     var summary = protocol.validateProduct(scope, position, context, dataset.records(), question,
@@ -293,6 +345,14 @@ public final class UnifiedQuestionAnalysisGraph {
                         Map.of("analysisMode", VERSION, "modelTaskCount", 0));
                     outcomes.put(reference, new Outcome(result, "SUCCESS", "unified-validation", 0, ""));
                 }
+                List<AnalysisSummaryResult> validatedSummaries = outcomes.values().stream()
+                    .filter(Outcome::success).map(Outcome::summary)
+                    .map(AnalysisDatasetSummary::datasetSummary).toList();
+                metadata.put("unifiedAnalysisArtifacts",
+                    com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol
+                        .collect(validatedSummaries));
+                metadata.put("unifiedAnalysisJudgments", analysisJudgments(generated));
+                metadata.put("unifiedAnalysisQuestionFindingCount", questionFindings.size());
                 metadata.put("unifiedAnalysisDatasetsWithoutFindings", List.copyOf(datasetsWithoutFindings));
                 return datasetsWithoutFindings.isEmpty() && maps(generated.get("findings")).size() > 0
                     && generated.getOrDefault("limitations", List.of()).equals(List.of())
@@ -335,6 +395,98 @@ public final class UnifiedQuestionAnalysisGraph {
             parsed.putIfAbsent("evidenceRequests", List.of());
             return parsed;
         } catch (Exception invalid) { return Map.of(); }
+    }
+
+    private Map<String, Object> promptPlan(Map<String, Object> plan) {
+        Map<String, Object> view = new LinkedHashMap<>(plan);
+        // The full governance contract remains in runtime metadata. Its selected methods and
+        // constraints are already compiled into the adaptive prompt, so repeating the entire
+        // enterprise contract here only competes with source evidence for model context.
+        view.remove("analysisMethodologyContract");
+        return view;
+    }
+
+    private List<Map<String, Object>> normalizeFindings(List<Map<String, Object>> findings) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        int index = 0;
+        for (Map<String, Object> source : findings) {
+            index++;
+            Map<String, Object> finding = new LinkedHashMap<>(source);
+            String artifactId = "finding:" + com.chatchat.common.runtime.summary.analysis.governance
+                .DataAnalysisLayerGovernanceContract.fingerprint(List.of(
+                    index, finding.getOrDefault("datasetReference", ""),
+                    finding.getOrDefault("claimClass", ""), finding.getOrDefault("claim", ""),
+                    finding.getOrDefault("recordRefs", List.of()),
+                    finding.getOrDefault("supportingValues", List.of())));
+            finding.put("artifactId", artifactId);
+            finding.put("findingIndex", index);
+            result.add(Map.copyOf(finding));
+        }
+        return List.copyOf(result);
+    }
+
+    private List<Map<String, Object>> normalizeQuestionFindings(
+        List<Map<String, Object>> candidates, List<Map<String, Object>> findings) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> source : candidates) {
+            List<Integer> indexes = integerList(source.get("basisFindingIndexes"));
+            List<String> basis = indexes.stream().filter(index -> index > 0 && index <= findings.size())
+                .map(index -> String.valueOf(findings.get(index - 1).get("artifactId"))).distinct().toList();
+            String claim = String.valueOf(source.getOrDefault("claim", "")).trim();
+            if (claim.isBlank() || basis.isEmpty() || basis.size() != indexes.stream().distinct().count()) continue;
+            Map<String, Object> finding = new LinkedHashMap<>(source);
+            finding.put("basisClaimIds", basis);
+            finding.put("artifactId", "question-finding:" + com.chatchat.common.runtime.summary.analysis.governance
+                .DataAnalysisLayerGovernanceContract.fingerprint(List.of(claim, basis)));
+            finding.putIfAbsent("governanceStatus", "SUPPORTED");
+            result.add(Map.copyOf(finding));
+        }
+        return List.copyOf(result);
+    }
+
+    private Map<String, Object> analysisJudgments(Map<String, Object> product) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ranking", product.getOrDefault("ranking", List.of()));
+        result.put("conflicts", product.getOrDefault("conflicts", List.of()));
+        result.put("evidenceSufficiency", product.getOrDefault("evidenceSufficiency", Map.of()));
+        return Map.copyOf(result);
+    }
+
+    private List<String> methodologyCoverageGaps(Map<String, Object> product,
+        AdaptiveBusinessAnalysisPromptSynthesizer.Result adaptive) {
+        if (adaptive == null) return List.of();
+        List<String> planned = strings(adaptive.contract().toMap().get("methodology"));
+        if (planned.isEmpty()) return List.of();
+        int findingCount = maps(product.get("findings")).size();
+        Set<String> covered = new LinkedHashSet<>();
+        for (Map<String, Object> item : maps(product.get("methodologyCoverage"))) {
+            String method = String.valueOf(item.getOrDefault("method", "")).trim().toUpperCase(Locale.ROOT);
+            String status = String.valueOf(item.getOrDefault("status", "")).trim().toUpperCase(Locale.ROOT);
+            List<Integer> indexes = integerList(item.get("findingIndexes"));
+            boolean executed = "EXECUTED".equals(status) && !indexes.isEmpty()
+                && indexes.stream().allMatch(index -> index > 0 && index <= findingCount);
+            boolean limited = Set.of("NOT_APPLICABLE", "LIMITED").contains(status)
+                && !String.valueOf(item.getOrDefault("limitation", "")).isBlank();
+            if (executed || limited) covered.add(method);
+        }
+        return planned.stream().map(value -> value.toUpperCase(Locale.ROOT))
+            .filter(method -> !covered.contains(method)).distinct().toList();
+    }
+
+    private List<Integer> integerList(Object value) {
+        if (!(value instanceof Collection<?> collection)) return List.of();
+        List<Integer> result = new ArrayList<>();
+        for (Object item : collection) {
+            try { result.add(Integer.parseInt(String.valueOf(item))); }
+            catch (NumberFormatException ignored) { }
+        }
+        return List.copyOf(result);
+    }
+
+    private List<String> strings(Object value) {
+        if (!(value instanceof Collection<?> collection)) return List.of();
+        return collection.stream().filter(Objects::nonNull).map(String::valueOf)
+            .map(String::trim).filter(item -> !item.isBlank()).distinct().toList();
     }
     private String boundedRawResponse(String raw) {
         String text = raw == null ? "" : raw.trim();

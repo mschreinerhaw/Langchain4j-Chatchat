@@ -66,14 +66,9 @@ public final class ReportFactBindingAudit {
             checks.add(Map.of("line", i + 1, "status", status, "sourceRefs", List.copyOf(candidates),
                 "verificationScope", "EXACT_RETURNED_ROW_ONLY"));
         }
-        StringBuilder output = new StringBuilder();
-        for (int i = 0; i < lines.length; i++) {
-            output.append(lines[i]);
-            if (warnings.contains(i)) output.append("\n\n> 核验提示：上表存在无法与原始记录逐行对应的数据，请核对对象、指标、期间及数值后使用。\n");
-            if (proseWarnings.contains(i)) output.append("\n\n> 核验提示：该段的明确数值陈述与可定位的原始记录存在差异，需结合口径复核。\n");
-            if (i < lines.length - 1) output.append('\n');
-        }
-        return new Result(output.toString(), List.copyOf(checks));
+        // This heuristic audit is advisory metadata. Injecting generic warnings into an otherwise
+        // coherent model-authored report dilutes the deliverable and cannot repair its semantics.
+        return new Result(markdown, List.copyOf(checks));
     }
 
     private List<String> cells(String line) {

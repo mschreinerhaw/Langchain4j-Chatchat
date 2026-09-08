@@ -44,6 +44,11 @@ final class AnalysisSynthesisContext {
         result.put("adaptiveAnalysisPrompt", value(metadata,
             "adaptiveAnalysisPromptContract", Map.of()));
         result.put("modelAnalysisInputs", modelAnalysisInputs(reducers.isEmpty() ? workers : reducers));
+        result.put("completedAnalysisJudgments", value(metadata,
+            "unifiedAnalysisJudgments", collectFirst(reducers.isEmpty() ? workers : reducers,
+                "analysisJudgments", Map.of())));
+        result.put("methodologyCoverage", collectFirst(reducers.isEmpty() ? workers : reducers,
+            "methodologyCoverage", List.of()));
         result.put("nodeInputs", Map.of(
             "analysisProducts", reducers.isEmpty() ? reports(workers) : workerReferences(workers),
             "validation", value(metadata, "analysisWorkerSupervision", Map.of()),
@@ -155,6 +160,13 @@ final class AnalysisSynthesisContext {
             result.addAll(iterable(report.evidence().get(key)));
         }
         return List.copyOf(result);
+    }
+
+    private Object collectFirst(List<AnalysisSummaryResult> reports, String key, Object fallback) {
+        for (AnalysisSummaryResult report : reports) {
+            if (report != null && report.evidence().containsKey(key)) return report.evidence().get(key);
+        }
+        return fallback;
     }
 
     private List<AnalysisSummaryResult> concat(List<AnalysisSummaryResult> first,

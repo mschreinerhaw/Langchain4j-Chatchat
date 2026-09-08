@@ -98,6 +98,7 @@ final class BoundedAnalysisEvidence {
                 Map<String, Object> view = new LinkedHashMap<>();
                 view.put("datasetReference", ref);
                 view.put("recordCount", dataset.recordCount());
+                view.put("textAnchors", textAnchors(ref, dataset, selected, perDataset / 6));
                 int catalogRows = (int) Math.min(100, dataset.recordCount());
                 view.put("nestedCollections", fit(NestedRecordReader.catalog(
                     catalogRows == 0 ? List.of() : dataset.handle().readPage(0, catalogRows).rows()), perDataset / 5));
@@ -165,7 +166,7 @@ final class BoundedAnalysisEvidence {
     private Map<String, Object> boundDatasetView(Map<String, Object> view, int budget) {
         Map<String, Object> result = datasetIdentity(view, false);
         int optionalBudget = Math.max(60, budget - ModelProtocolJson.compact(result).length() - 32);
-        for (String key : List.of("nestedCollections", "profile", "context", "selectedRecords", "limitations")) {
+        for (String key : List.of("textAnchors", "nestedCollections", "profile", "context", "selectedRecords", "limitations")) {
             Object value = view.get(key);
             if (value == null) continue;
             result.put(key, fit(value, Math.max(60, optionalBudget / 5)));
@@ -358,7 +359,9 @@ final class BoundedAnalysisEvidence {
     Object fitViews(List<Map<String, Object>> views, int budget) {
         if (views == null || views.isEmpty()) return List.of();
         int share = Math.max(500, budget / views.size());
-        return views.stream().map(view -> fit(view, share)).toList();
+        return views.stream().map(view -> view.containsKey("records")
+            ? fit(view, share)
+            : boundDatasetView(view, share)).toList();
     }
 
     Object fitRequestedEvidence(List<Map<String, Object>> evidence, int budget) {
@@ -387,6 +390,43 @@ final class BoundedAnalysisEvidence {
             result.add(row); used += chars;
         }
         return result;
+    }
+
+    /**
+     * Keeps exact, bounded navigation evidence from long text fields visible in the first
+     * analysis round. The excerpts are structural source windows, not summaries: Runtime
+     * assigns no domain meaning and the model can request the intervening text explicitly.
+     */
+    private List<Map<String, Object>> textAnchors(String ref, Dataset dataset,
+                                                   Collection<Integer> indices, int budget) {
+        if (budget < 400 || indices.isEmpty()) return List.of();
+        List<Map<String, Object>> anchors = new ArrayList<>();
+        int remaining = budget - 64;
+        for (int index : indices) {
+            List<Map<String, Object>> page = dataset.handle().readPage(index - 1L, 1).rows();
+            if (page.isEmpty()) continue;
+            for (var field : page.get(0).entrySet()) {
+                if (!(field.getValue() instanceof String source) || source.length() <= 256) continue;
+                int excerptChars = Math.min(768, Math.max(96, remaining / 4));
+                List<int[]> windows = source.length() <= excerptChars * 2
+                    ? List.of(new int[]{0, source.length()})
+                    : List.of(new int[]{0, excerptChars}, new int[]{source.length() - excerptChars, source.length()});
+                for (int[] window : windows) {
+                    Map<String, Object> anchor = new LinkedHashMap<>();
+                    anchor.put("recordRef", ref + ".records[" + index + "]");
+                    anchor.put("field", field.getKey());
+                    anchor.put("fromChar", window[0]);
+                    anchor.put("toChar", window[1]);
+                    anchor.put("sourceLength", source.length());
+                    anchor.put("text", source.substring(window[0], window[1]));
+                    int size = ModelProtocolJson.compact(anchor).length() + 1;
+                    if (size > remaining) return List.copyOf(anchors);
+                    anchors.add(anchor);
+                    remaining -= size;
+                }
+            }
+        }
+        return List.copyOf(anchors);
     }
 
     /** Omission is explicit and never substitutes a shortened scalar for an exact value. */

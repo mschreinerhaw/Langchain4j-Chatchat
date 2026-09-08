@@ -485,13 +485,13 @@ public final class FinalSynthesisNode {
         boundedContext.put("rawRecordAccess", "BOUNDED_VERIFIED_REPORT_DATASETS_ONLY");
         String question = String.valueOf(request.metadata().getOrDefault(
             "analysisAcceptanceQuestion", ""));
-        return "You are the final analytical report author. Review the evidence and reasoning internally, "
-            + "then write one coherent, decision-useful Markdown "
-            + "report from the model analysis inputs and declared source semantics, using the Claim ledger "
-            + "as an evidence provenance index rather than a report outline. Preserve each "
-            + "Claim's sample, period, confidence and caveats; do not replay raw tool output or execution "
+        return "You are the final analytical report author. Write one coherent, decision-useful Markdown "
+            + "report that expresses the completed analysis artifacts and analysis-layer judgments. Do not redo "
+            + "the analysis, invent stronger conclusions, or replace the supplied ranking, conflicts or evidence-sufficiency judgment. "
+            + "Preserve each artifact's observation, interpretation, implication, method, sample, period, confidence, "
+            + "alternative explanations and caveats; do not replay raw tool output or execution "
             + "chronology. Use the supplied analysis and evidence, and verify any calculation you present. "
-            + "Your task is to organize supported findings, explain their business meaning and expose material "
+            + "Your task is to organize the already-supported findings, explain their business meaning and expose material "
             + "limitations. Use adaptiveAnalysisPrompt.output as the ordered H2 section plan, with natural "
             + "headings from adaptiveAnalysisPrompt.sectionTitles in the user's language and business vocabulary. Combine overlapping sections and omit "
             + "empty sections; explicit user formatting requests take precedence. When no adaptive plan is "

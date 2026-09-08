@@ -5,6 +5,7 @@ import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -622,6 +623,69 @@ class GovernedFinalClaimContractTest {
         assertThat(audit.reason()).isEqualTo("DRIVER_REVIEW_CLAIM_COVERAGE_INCOMPLETE");
         assertThat(audit.review()).containsEntry("missingClaimIds", List.of("claim-1"))
             .containsEntry("expectedClaimCount", 1).containsEntry("assessmentCount", 0);
+    }
+
+    @Test
+    void carriesLosslessFieldsAndAdmitsQuestionSynthesisThroughBasisClaims() {
+        Map<String, Object> first = artifact("fact:first", "First returned value is 1",
+            List.of("first.records[1]"), List.of("\"VALUE\":1"), List.of());
+        first = new LinkedHashMap<>(first);
+        first.put("observation", "The returned field is 1");
+        first.put("interpretation", "This is a bounded current-state observation");
+        first.put("implication", "Use it without population extrapolation");
+        first.put("method", "direct observation");
+        first.put("grain", "returned record");
+        first.put("timeScope", "returned snapshot");
+        first.put("populationScope", "returned records");
+        first.put("alternativeExplanations", List.of("No historical comparison"));
+        Map<String, Object> question = artifact("question:comparison",
+            "The two returned observations differ", List.of(), List.of(),
+            List.of("fact:first", "fact:second"));
+        question = new LinkedHashMap<>(question);
+        question.put("claimClass", "QUESTION_LEVEL_SYNTHESIS");
+        question.put("sourceScope", "QUESTION");
+        question.put("interpretation", "This is cross-source synthesis, not an implicit join");
+        AnalysisSummaryResult firstSummary = artifactSummary("first", List.of(first, question));
+        AnalysisSummaryResult secondSummary = artifactSummary("second", List.of(artifact(
+            "fact:second", "Second returned value is 2", List.of("second.records[1]"),
+            List.of("\"VALUE\":2"), List.of())));
+
+        var compilation = contract.compile(List.of(firstSummary, secondSummary));
+        String prompt = contract.appendNarrativeInstruction("write", compilation);
+
+        assertThat(compilation.claims()).containsKeys("fact:first", "fact:second", "question:comparison");
+        assertThat(prompt).contains("The returned field is 1",
+            "This is a bounded current-state observation", "Use it without population extrapolation",
+            "direct observation", "returned snapshot", "No historical comparison",
+            "QUESTION_LEVEL_SYNTHESIS", "fact:first", "fact:second");
+    }
+
+    private AnalysisSummaryResult artifactSummary(String dataset, List<Map<String, Object>> artifacts) {
+        return AnalysisSummaryResult.chunk(
+            GovernanceIsolationScope.runtime("tenant", "user", "run", "request", "conversation"),
+            Map.of("datasetReference", dataset, "chunkIndex", 1), Map.of(), "analysis",
+            "MODEL_SUMMARY", Map.of("analysisArtifacts", artifacts));
+    }
+
+    private Map<String, Object> artifact(String id, String text, List<String> refs,
+                                         List<String> values, List<String> basis) {
+        Map<String, Object> artifact = new LinkedHashMap<>();
+        artifact.put("schemaVersion", com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol.SCHEMA_VERSION);
+        artifact.put("artifactId", id);
+        artifact.put("artifactType", "BUSINESS_CLAIM");
+        artifact.put("sourceStage", "WORKER");
+        artifact.put("sourceScope", "dataset");
+        artifact.put("claimClass", "OBSERVED_RETURNED_FACT");
+        artifact.put("text", text);
+        artifact.put("status", "SUPPORTED");
+        artifact.put("confidence", "HIGH");
+        artifact.put("significance", "question relevant");
+        artifact.put("recordRefs", refs);
+        artifact.put("supportingValues", values);
+        artifact.put("basisClaimIds", basis);
+        artifact.put("caveats", List.of());
+        artifact.put("reviewReasons", List.of());
+        return Map.copyOf(artifact);
     }
 
     private AnalysisSummaryResult factSummary(String dataset, String claimId,

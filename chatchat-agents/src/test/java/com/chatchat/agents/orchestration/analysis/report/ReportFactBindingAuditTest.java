@@ -25,7 +25,7 @@ class ReportFactBindingAuditTest {
             "|001|2026-09|10|万元|", "|001|2026-09|20|元|", "|1|2026-09|10|元|")) {
             var result = audit.audit(table(row), catalog(true));
             assertThat(result.checks().get(0)).containsEntry("status", "ROW_BINDING_MISMATCH");
-            assertThat(result.markdown()).contains("核验提示", row);
+            assertThat(result.markdown()).isEqualTo(table(row));
         }
     }
     @Test void incompleteProjectionDoesNotCertifyContradictions() {
@@ -45,7 +45,7 @@ class ReportFactBindingAuditTest {
         assertThat(audit.audit("客户001在2026-09的金额为10元。", catalog(true)).checks().get(0))
             .containsEntry("status", "EXPLICIT_VALUE_MATCH");
         assertThat(audit.audit("金额为10元。", catalog(true)).checks()).isEmpty();
-        assertThat(conflict.markdown()).contains("核验提示");
+        assertThat(conflict.markdown()).isEqualTo("客户001在2026-09的金额为20元。");
         assertThat(audit.audit("客户001在2026-09-01的金额为10元。", catalog(true)).checks()).isEmpty();
     }
     @Test void malformedTablesAndCompetingSourcesDoNotInventBindings() {

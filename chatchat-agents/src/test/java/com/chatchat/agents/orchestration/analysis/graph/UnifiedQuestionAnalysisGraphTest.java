@@ -325,6 +325,89 @@ class UnifiedQuestionAnalysisGraphTest {
         assertThat(calls.get()).isEqualTo(2);
     }
 
+    @Test void preservesCompletedAnalysisAndRepairsDeclaredMethodologyCoverage() {
+        List<Dataset> datasets = List.of(
+            new Dataset("first", Map.of("source", Map.of("displayName", "first")),
+                List.of(Map.<String, Object>of("VALUE", 1))),
+            new Dataset("second", Map.of("source", Map.of("displayName", "second")),
+                List.of(Map.<String, Object>of("VALUE", 2))));
+        AtomicInteger calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                int call = calls.incrementAndGet();
+                if (call == 1) return com.chatchat.agents.orchestration.analysis.prompt
+                    .AdaptiveBusinessAnalysisPromptSynthesizerTest.response();
+                List<Map<String, Object>> findings = List.of(
+                    detailedFinding("first", 1, "First observation"),
+                    detailedFinding("second", 2, "Second observation"));
+                Map<String, Object> product = new LinkedHashMap<>();
+                product.put("schemaVersion", "unified_question_analysis.v1");
+                product.put("findings", findings);
+                product.put("limitations", List.of());
+                if (call == 2) return ModelProtocolJson.compact(product);
+                assertThat(prompt).contains("METHODOLOGY_COVERAGE_REQUIRED", "COMPARE", "CONTRIBUTION",
+                    "previousFindings");
+                product.put("methodologyCoverage", List.of(
+                    Map.of("method", "COMPARE", "status", "LIMITED", "findingIndexes", List.of(),
+                        "limitation", "No declared comparable baseline"),
+                    Map.of("method", "CONTRIBUTION", "status", "LIMITED", "findingIndexes", List.of(),
+                        "limitation", "No authorized contribution formula")));
+                product.put("questionLevelFindings", List.of(Map.of(
+                    "claim", "The two returned observations differ",
+                    "observation", "The returned values are 1 and 2",
+                    "interpretation", "The observations are not equal",
+                    "implication", "The difference needs a declared comparison basis",
+                    "significance", "Answers the cross-source part of the question",
+                    "confidence", "MEDIUM", "caveats", List.of("No causal conclusion"),
+                    "basisFindingIndexes", List.of(1, 2))));
+                product.put("ranking", List.of(Map.of("findingIndex", 2, "priority", "PRIMARY")));
+                product.put("conflicts", List.of());
+                product.put("evidenceSufficiency", Map.of("status", "PARTIAL"));
+                return ModelProtocolJson.compact(product);
+            }
+        };
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        new UnifiedQuestionAnalysisGraph().execute("compare", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> { });
+
+        assertThat(calls.get()).isEqualTo(3);
+        assertThat(metadata).containsEntry("unifiedAnalysisMethodologyRepairRequested", true)
+            .containsEntry("unifiedAnalysisMethodologyGaps", List.of())
+            .containsEntry("unifiedAnalysisQuestionFindingCount", 1);
+        assertThat(metadata.get("unifiedAnalysisArtifacts").toString()).contains(
+            "observation=The returned field is 1", "interpretation=The value is directly observed",
+            "implication=Use it as bounded evidence", "method=direct field observation",
+            "grain=returned record", "timeScope=returned snapshot",
+            "alternativeExplanations=[No longitudinal evidence]", "QUESTION_LEVEL_SYNTHESIS",
+            "basisClaimIds=[finding:");
+        assertThat(metadata.get("unifiedAnalysisJudgments").toString()).contains("PRIMARY", "PARTIAL");
+    }
+
+    private static Map<String, Object> detailedFinding(String dataset, int value, String claim) {
+        Map<String, Object> finding = new LinkedHashMap<>();
+        finding.put("datasetReference", dataset);
+        finding.put("claimClass", "OBSERVED_RETURNED_FACT");
+        finding.put("claim", claim);
+        finding.put("observation", "The returned field is " + value);
+        finding.put("interpretation", "The value is directly observed");
+        finding.put("implication", "Use it as bounded evidence");
+        finding.put("significance", "Answers the current-state question");
+        finding.put("operation", "OBSERVE");
+        finding.put("method", "direct field observation");
+        finding.put("inputFields", List.of("VALUE"));
+        finding.put("grain", "returned record");
+        finding.put("timeScope", "returned snapshot");
+        finding.put("populationScope", "returned records");
+        finding.put("semanticBasis", List.of("producer-returned field"));
+        finding.put("alternativeExplanations", List.of("No longitudinal evidence"));
+        finding.put("recordRefs", List.of(dataset + ".records[1]"));
+        finding.put("supportingValues", List.of("\"VALUE\":" + value));
+        finding.put("confidence", "HIGH");
+        finding.put("caveats", List.of());
+        return Map.copyOf(finding);
+    }
+
     private static String product(String dataset) {
         var finding = new LinkedHashMap<String, Object>();
         finding.put("datasetReference", dataset);

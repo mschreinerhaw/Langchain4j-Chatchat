@@ -65,14 +65,17 @@ final class GovernedFinalClaimContract {
                         String claimClass = text(artifact.get("claimClass"));
                         List<String> recordRefs = strings(artifact.get("recordRefs"));
                         List<String> supportingValues = strings(artifact.get("supportingValues"));
-                        if (claimId.isBlank() || claim.isBlank() || recordRefs.isEmpty()
-                            || supportingValues.isEmpty()) continue;
+                        List<String> basisClaimIds = strings(artifact.get("basisClaimIds"));
+                        boolean directEvidence = !recordRefs.isEmpty() && !supportingValues.isEmpty();
+                        if (claimId.isBlank() || claim.isBlank()
+                            || ("OBSERVED_RETURNED_FACT".equals(claimClass)
+                                ? !directEvidence : !directEvidence && basisClaimIds.isEmpty())) continue;
                         Claim admitted = new Claim(
                             claimId, claim, claimClass, text(artifact.get("confidence")),
                             text(artifact.get("significance")), strings(artifact.get("caveats")),
                             text(artifact.get("status")), strings(artifact.get("reviewReasons")),
                             text(artifact.get("sourceScope")), recordRefs, supportingValues,
-                            strings(artifact.get("basisClaimIds")));
+                            basisClaimIds, analysisFields(artifact));
                         claims.putIfAbsent(claimId, admitted);
                         if (admitted.observedFact()) {
                             observedEvidenceSignatures.add(evidenceSignature(
@@ -110,7 +113,8 @@ final class GovernedFinalClaimContract {
                         strings(insight.get("caveats")),
                         text(insight.get("governanceStatus")),
                         strings(insight.get("reviewReasons")),
-                        claimSource(summary, insight), recordRefs, supportingValues, List.of());
+                        claimSource(summary, insight), recordRefs, supportingValues, List.of(),
+                        analysisFields(insight));
                     claims.putIfAbsent(claimId, admitted);
                     if ("OBSERVED_RETURNED_FACT".equals(claimClass)) {
                         observedEvidenceSignatures.add(evidenceSignature(
@@ -132,7 +136,7 @@ final class GovernedFinalClaimContract {
                         claimId, claim, "OBSERVED_RETURNED_FACT",
                         text(factClaim.get("confidence")), text(factClaim.get("significance")),
                         strings(factClaim.get("caveats")), "SUPPORTED", List.of(),
-                        source, recordRefs, supportingValues, List.of()));
+                        source, recordRefs, supportingValues, List.of(), analysisFields(factClaim)));
                 }
                 // Dynamic analysis agenda items are the Worker's principal analytical work
                 // product. They already passed record-reference and exact-value validation in
@@ -164,10 +168,15 @@ final class GovernedFinalClaimContract {
                         claimId, finding, "GOVERNED_ANALYSIS_ITEM",
                         text(item.get("confidence")), text(item.get("businessMeaning")),
                         limitations, status, reviewReasons, source,
-                        recordRefs, supportingValues, List.of()));
+                        recordRefs, supportingValues, List.of(), analysisFields(item)));
                 }
             }
         }
+        boolean changed;
+        do {
+            changed = claims.entrySet().removeIf(entry -> entry.getValue().basisClaimIds().stream()
+                .anyMatch(id -> id.equals(entry.getKey()) || !claims.containsKey(id)));
+        } while (changed);
         return new Compilation(claims, claimContractObserved);
     }
 
@@ -337,7 +346,7 @@ final class GovernedFinalClaimContract {
                 derived.derivedClaimId(), derived.text(), "DRIVER_DERIVED_CLAIM", "MEDIUM",
                 "Management-level synthesis derived from admitted lower-layer Claims.",
                 derived.caveats(), "REVIEW_REQUIRED", derived.caveats(), "DRIVER",
-                recordRefs, values, derived.basisClaimIds()));
+                recordRefs, values, derived.basisClaimIds(), Map.of()));
         }
         return new Compilation(claims, compilation.claimContractObserved());
     }
@@ -476,8 +485,12 @@ final class GovernedFinalClaimContract {
             + "Runtime will publish this body without composing sections or filling business conclusions. "
             + AnalysisSynthesisContract.narrativeCoherenceInstruction()
             + com.chatchat.agents.orchestration.analysis.report.ReportVisualizationAudit.instruction()
-            + "The ledger below supplies evidence, not a required outline or a list to copy. "
-            + "Evidence provenance ledger: " + ModelProtocolJson.compact(ledger);
+            + "The Evidence provenance ledger below is the lossless completed-analysis hand-off and not a required outline; "
+            + "it is not raw material for a new analysis. "
+            + "Preserve its separate observation, interpretation and implication fields and its method/scope semantics. "
+            + "Question-level synthesis artifacts are valid only through their basisClaimIds. Use the analysis-layer "
+            + "ranking, conflict and sufficiency judgments from the pipeline context; focus this call on clear expression. "
+            + "Completed analysis artifact ledger: " + ModelProtocolJson.compact(ledger);
     }
 
     Projection publishNarrative(String body, Compilation compilation) {
@@ -599,6 +612,24 @@ final class GovernedFinalClaimContract {
             source == null ? "" : source,
             recordRefs == null ? List.of() : recordRefs.stream().sorted().toList(),
             supportingValues == null ? List.of() : supportingValues.stream().sorted().toList()));
+    }
+
+    private Map<String, Object> analysisFields(Map<String, Object> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (String key : List.of("observation", "interpretation", "implication",
+            "operation", "method", "inputFields", "outputUnit", "grain", "timeScope",
+            "populationScope", "semanticBasis", "alternativeExplanations", "priority",
+            "findingIndex")) {
+            Object value = source.get(key);
+            if (value instanceof Collection<?> collection) {
+                List<String> values = collection.stream().filter(java.util.Objects::nonNull)
+                    .map(String::valueOf).map(String::trim).filter(item -> !item.isBlank()).toList();
+                if (!values.isEmpty()) result.put(key, values);
+            } else if (!text(value).isBlank()) {
+                result.put(key, text(value));
+            }
+        }
+        return Map.copyOf(result);
     }
 
     private List<String> boundedStrings(Object value, int maximumItems, int maximumChars) {
@@ -855,12 +886,14 @@ final class GovernedFinalClaimContract {
                          String confidence, String significance, List<String> caveats,
                          String governanceStatus, List<String> reviewReasons,
                          String sourceScope, List<String> recordRefs,
-                         List<String> supportingValues, List<String> basisClaimIds) {
+                         List<String> supportingValues, List<String> basisClaimIds,
+                         Map<String, Object> analysis) {
         private Claim {
             recordRefs = recordRefs == null ? List.of() : List.copyOf(recordRefs);
             supportingValues = supportingValues == null ? List.of() : List.copyOf(supportingValues);
             reviewReasons = reviewReasons == null ? List.of() : List.copyOf(reviewReasons);
             basisClaimIds = basisClaimIds == null ? List.of() : List.copyOf(basisClaimIds);
+            analysis = analysis == null ? Map.of() : Map.copyOf(analysis);
         }
 
         private boolean observedFact() {
@@ -883,6 +916,7 @@ final class GovernedFinalClaimContract {
             if (!recordRefs.isEmpty()) result.put("recordRefs", recordRefs);
             if (!supportingValues.isEmpty()) result.put("supportingValues", supportingValues);
             if (!basisClaimIds.isEmpty()) result.put("basisClaimIds", basisClaimIds);
+            result.putAll(analysis);
             return Map.copyOf(result);
         }
 
@@ -905,6 +939,7 @@ final class GovernedFinalClaimContract {
             result.put("basisClaimIds", basisClaimIds);
             result.put("caveats", caveats == null ? List.of() : caveats);
             result.put("reviewReasons", reviewReasons);
+            result.putAll(analysis);
             return Map.copyOf(result);
         }
     }

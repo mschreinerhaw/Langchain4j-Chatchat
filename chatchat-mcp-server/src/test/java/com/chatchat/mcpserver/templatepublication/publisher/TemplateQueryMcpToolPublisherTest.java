@@ -74,7 +74,8 @@ class TemplateQueryMcpToolPublisherTest {
                 "runtime_level=discovery", "timeout_seconds=90");
         assertThat(captor.getValue().tool().meta())
             .containsKey(McpDynamicCapabilityRoute.METADATA_KEY)
-            .containsEntry("selectionMode", "FIXED_BINDING")
+            .containsEntry("scopeMode", "FIXED_BINDING")
+            .containsEntry("selectionMode", "BOUND_SCOPE_RECALL")
             .containsEntry("assetType", TemplateAssetCatalogService.API)
             .containsKey(McpTemplateSelectionScope.METADATA_KEY)
             .doesNotContainKeys("parentToolName", "kind");
@@ -121,7 +122,8 @@ class TemplateQueryMcpToolPublisherTest {
 
         assertThat(result.get("templates")).isEqualTo(List.of());
         assertThat(result.toString()).contains("configuredTemplateCount=0");
-        assertThat(result).containsEntry("searchPerformed", false);
+        assertThat(result).containsEntry("globalSearchPerformed", false)
+            .containsEntry("boundScopeRecallPerformed", true);
     }
 
     @Test
@@ -151,8 +153,11 @@ class TemplateQueryMcpToolPublisherTest {
         assertThat(result.get("templates").toString())
             .contains("customer_query", "excluded_query", "parameterSchema", "customer_id")
             .doesNotContain("unbound_template");
-        assertThat(result).containsEntry("selectionMode", "FIXED_BINDING")
-            .containsEntry("searchPerformed", false)
+        assertThat(result).containsEntry("scopeMode", "FIXED_BINDING")
+            .containsEntry("selectionMode", "BOUND_SCOPE_RECALL")
+            .containsEntry("semanticReviewRequired", true)
+            .containsEntry("globalSearchPerformed", false)
+            .containsEntry("boundScopeRecallPerformed", true)
             .containsEntry("bindingComplete", true);
     }
 

@@ -676,7 +676,7 @@ public final class AgentPlannerPromptBuilder {
             .filter(McpTemplateSelectionScope::fixedBindingAuthority)
             .ifPresent(scope -> prompt.append("  Authoritative template scope: FIXED_BINDING for assetType=")
                 .append(scope.assetType())
-                .append(". If this child capability is selected, it is the only template-selection source for that asset family in the current plan. Do not add a generic template-discovery step, do not semantically reselect or reject returned templates, and do not mutate its bound set. Additional discovery is permitted only in a later Runtime-authorized evidence-recovery iteration and remains separate evidence.\n"));
+                .append(". If this child capability is selected, it is the only template-candidate source for that asset family in the current plan. Do not add a generic template-discovery step or expand its bound set. Semantically review only the bounded, paged candidates it returns and execute only the candidates matching the user request. Additional discovery is permitted only in a later Runtime-authorized evidence-recovery iteration and remains separate evidence.\n"));
         List<String> allowedFilterFields = stringList(routingProtocol.get("allowedFilterFields"));
         if (!allowedFilterFields.isEmpty()) {
             prompt.append("  MCP-declared allowed logical filter fields: ")

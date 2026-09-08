@@ -1220,7 +1220,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void admitsEveryFixedBindingTemplateWithoutSemanticReselection() throws Exception {
+    void fixedBindingDefinesCandidateScopeButDoesNotAutoAdmitEveryTemplate() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
             new InterpretationPlanValidator(),
@@ -1234,7 +1234,8 @@ class InterpretationPlanRuntimeTest {
             2, "mcp_tool", step.toolName(), true,
             Map.of(
                 "success", true,
-                "selectionMode", "FIXED_BINDING",
+                "scopeMode", "FIXED_BINDING",
+                "selectionMode", "BOUND_SCOPE_RECALL",
                 "bindingComplete", true,
                 "returnedCount", 2,
                 "templates", List.of(
@@ -1260,13 +1261,9 @@ class InterpretationPlanRuntimeTest {
 
         assertThat(reviewed.success()).isTrue();
         assertThat(reviewed.metadata())
-            .containsEntry("toolResultReviewSkipped", true)
-            .containsEntry("toolResultReviewSatisfied", true)
-            .containsEntry("semanticCandidateReviewSatisfied", true)
-            .containsEntry("semanticCandidateReviewSource", "FIXED_BINDING")
-            .containsEntry("runtimeTemplateCandidateCount", 2)
-            .containsEntry("runtimeTemplateSelectedCount", 2)
-            .containsEntry("runtimeSelectedTemplateIds", List.of("CUSTOMER_TRADES", "CUSTOMER_ASSETS"));
+            .doesNotContainKeys("toolResultReviewSkipped", "runtimeSelectedTemplateIds",
+                "semanticCandidateReviewSource");
+        assertThat(reviewed.output().toString()).contains("CUSTOMER_TRADES", "CUSTOMER_ASSETS");
     }
 
     @Test
@@ -1279,12 +1276,13 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.StepExecution fixed = new InterpretationPlanRuntime.StepExecution(
             1, "mcp_tool", "mcp_service_customer_template_query", true,
             Map.of(
-                "selectionMode", "FIXED_BINDING",
+                "scopeMode", "FIXED_BINDING",
+                "selectionMode", "BOUND_SCOPE_RECALL",
                 "templates", List.of(
                     Map.of("templateId", "BOUND_A"),
                     Map.of("templateId", "BOUND_B")
                 )),
-            null, null, null, 5, Map.of("semanticCandidateReviewSource", "FIXED_BINDING")
+            null, null, null, 5, Map.of()
         );
         InterpretationPlanRuntime.StepExecution generic = new InterpretationPlanRuntime.StepExecution(
             2, "mcp_tool", "mcp_service_api_service_query", true,

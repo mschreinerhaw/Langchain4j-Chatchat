@@ -2850,7 +2850,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             metadata.putAll(localReview.metadata() == null ? Map.of() : localReview.metadata());
             if (localReview.satisfied()
                 && "template_discovery".equals(metadata.get("localFactCheckEvidenceType"))
-                && isFixedBindingTemplateSet(evidenceReviewExecution.output())) {
+                && isBoundTemplateScope(evidenceReviewExecution.output())) {
                 if (!isCompleteFixedBindingTemplateSet(evidenceReviewExecution.output())) {
                     metadata.put("toolResultReviewSatisfied", false);
                     metadata.put("semanticCandidateReviewSatisfied", false);
@@ -2862,7 +2862,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                         execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
                     );
                 }
-                return admitFixedBindingTemplates(execution, evidenceReviewExecution, metadata, startedAt);
             }
             if (localReview.satisfied() && stepResultReviewer == null) {
                 return execution.withMetadata(metadata, elapsed(startedAt));
@@ -3032,44 +3031,19 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         );
     }
 
-    /**
-     * A FIXED_BINDING response is an authorization-scoped contract projection, not a
-     * semantic search result. The relation table has already selected the complete
-     * child-tool template set; Runtime only verifies the returned records and then
-     * transports every bound id to execution.
-     */
-    private StepExecution admitFixedBindingTemplates(StepExecution execution,
-                                                      StepExecution evidenceExecution,
-                                                      Map<String, Object> metadata,
-                                                      long startedAt) {
-        List<String> selectedIds = templateCandidates(evidenceExecution.output()).stream()
-            .map(this::canonicalTemplateId)
-            .filter(Objects::nonNull)
-            .distinct()
-            .toList();
-        metadata.put("toolResultReviewSkipped", true);
-        metadata.put("toolResultReviewSkipReason",
-            "fixed binding contract returned an existence-checked, authorization-scoped template set");
-        metadata.put("toolResultReviewSatisfied", true);
-        metadata.put("runtimeTemplateSelectionApplied", true);
-        metadata.put("runtimeTemplateCandidateCount", selectedIds.size());
-        metadata.put("runtimeTemplateSelectedCount", selectedIds.size());
-        metadata.put("runtimeSelectedTemplateIds", selectedIds);
-        metadata.put("runtimeTemplateCandidateEvaluations", List.of());
-        metadata.put("runtimeTemplateSelectionReason",
-            "all templates are selected by the persisted child-parent-template binding");
-        metadata.put("semanticCandidateReviewSatisfied", true);
-        metadata.put("semanticCandidateReviewSource", "FIXED_BINDING");
-        return execution.withMetadata(metadata, elapsed(startedAt));
-    }
-
-    private boolean isFixedBindingTemplateSet(Object output) {
+    private boolean isBoundTemplateScope(Object output) {
         Object mode = firstValueAtAnyPath(output,
+            "$.scopeMode",
+            "$.scope_mode",
             "$.selectionMode",
             "$.selection_mode",
+            "$.data.scopeMode",
             "$.data.selectionMode",
+            "$.structuredContent.scopeMode",
             "$.structuredContent.selectionMode",
+            "$.result.scopeMode",
             "$.result.selectionMode",
+            "$.payload.scopeMode",
             "$.payload.selectionMode");
         return mode != null && "FIXED_BINDING".equalsIgnoreCase(String.valueOf(mode).trim());
     }
@@ -5797,9 +5771,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     .limit(2)
                     .count() >= 2) {
                 latest = execution;
-                if (isFixedBindingTemplateSet(execution.output())
-                    || "FIXED_BINDING".equalsIgnoreCase(String.valueOf(
-                        execution.metadata().get("semanticCandidateReviewSource")))) {
+                if (isBoundTemplateScope(execution.output())) {
                     fixedBinding = execution;
                 }
             }

@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryRouteReso
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateQueryParentCatalog;
 import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePolicy;
+import com.chatchat.mcpserver.templatepublication.retrieval.BoundTemplateCandidateRetriever;
 
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -43,6 +44,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     private final TemplateAssetCatalogService assetCatalogService;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+    private final BoundTemplateCandidateRetriever candidateRetriever = new BoundTemplateCandidateRetriever();
     private final Set<String> publishedToolNames = new LinkedHashSet<>();
 
     public synchronized void refresh() {
@@ -138,12 +140,11 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         assetCatalogService.listEnabled().stream()
             .filter(asset -> route.assetType().equals(asset.assetType()))
             .forEach(asset -> enabledAssets.put(asset.templateId(), asset));
+        int limit = recallLimit(arguments);
+        BoundTemplateCandidateRetriever.Recall recall = candidateRetriever.recall(
+            List.copyOf(enabledAssets.values()), templateIds, arguments, limit, policy.policyVersion());
         List<Map<String, Object>> templates = new ArrayList<>();
-        for (String templateId : templateIds) {
-            TemplateAssetCatalogService.TemplateAsset asset = enabledAssets.get(templateId);
-            if (asset == null) {
-                continue;
-            }
+        for (TemplateAssetCatalogService.TemplateAsset asset : recall.templates()) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("templateId", asset.templateId());
             item.put("title", asset.title());
@@ -165,9 +166,20 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             Map.entry("toolName", reviewedName),
             Map.entry("returnedCount", templates.size()),
             Map.entry("templates", List.copyOf(templates)),
-            Map.entry("selectionMode", "FIXED_BINDING"),
-            Map.entry("searchPerformed", false),
+            Map.entry("scopeMode", McpTemplateSelectionScope.FIXED_BINDING),
+            Map.entry("selectionMode", McpTemplateSelectionScope.BOUND_SCOPE_RECALL),
+            Map.entry("semanticReviewRequired", true),
+            Map.entry("globalSearchPerformed", false),
+            Map.entry("boundScopeRecallPerformed", true),
             Map.entry("bindingComplete", unavailableCount == 0),
+            Map.entry("candidateUniverseCount", recall.candidateUniverseCount()),
+            Map.entry("hasMore", recall.hasMore()),
+            Map.entry("pagination", mutableMap(
+                "offset", recall.offset(),
+                "limit", limit,
+                "hasMore", recall.hasMore(),
+                "nextCursor", recall.nextCursor()
+            )),
             Map.entry("publicationScope", Map.of(
                 "serviceId", context == null || context.clientId() == null || context.clientId().isBlank()
                     ? TemplateQueryParentCatalog.SERVICE_ID : context.clientId(),
@@ -180,12 +192,21 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             Map.entry("filterAudit", Map.of(
                 "candidateCount", policy.configuredTemplateCount(),
                 "returnedCount", templates.size(),
+                "retrievalSignalCount", recall.retrievalSignalCount(),
                 "unavailableOrUnauthorizedCount", unavailableCount,
                 "policyCacheHit", policy.cacheHit(),
                 "policyResolvedAt", policy.resolvedAt().toString()
             )),
             Map.entry("rawExecutionSpecReturned", false)
         );
+    }
+
+    private int recallLimit(Map<String, Object> arguments) {
+        Object raw = arguments == null ? null : arguments.get("limit");
+        if (raw instanceof Number number) {
+            return Math.max(1, Math.min(CommandTemplateDiscoveryService.MAX_LIMIT, number.intValue()));
+        }
+        return Math.min(20, CommandTemplateDiscoveryService.MAX_LIMIT);
     }
 
     public static String childToolName(Map<String, Object> arguments) {
@@ -212,7 +233,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             "intentEn", Map.of("type", "string"),
             "trace", Map.of("type", "object", "additionalProperties", true),
             "limit", Map.of("type", "integer", "minimum", 1,
-                "maximum", CommandTemplateDiscoveryService.MAX_LIMIT)
+                "maximum", CommandTemplateDiscoveryService.MAX_LIMIT),
+            "cursor", Map.of("type", "string",
+                "description", "Opaque cursor returned by the previous bound-scope recall page.")
         ), List.of(), false, null, null);
     }
 
@@ -253,7 +276,8 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             McpDynamicCapabilityRoute.parentDelegation(persistedParentToolName, CHILD_TOOL_ARGUMENT).toMetadata());
         meta.put(McpTemplateSelectionScope.METADATA_KEY,
             McpTemplateSelectionScope.fixedBinding(persistedRoute.assetType()).toMetadata());
-        meta.put("selectionMode", McpTemplateSelectionScope.FIXED_BINDING);
+        meta.put("scopeMode", McpTemplateSelectionScope.FIXED_BINDING);
+        meta.put("selectionMode", McpTemplateSelectionScope.BOUND_SCOPE_RECALL);
         meta.put("assetType", persistedRoute.assetType());
         meta.put("routingMode", McpDynamicCapabilityRoute.ROUTING_MODE_PARENT_DELEGATION);
         meta.put("readOnly", true);
@@ -268,8 +292,8 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             "template_query:authorized_discovery",
             "Authorized template discovery",
             List.of("template_discovery", "service_role_scope"),
-            "Return the fixed templates selected for the authenticated service and caller role without semantic search.",
-            List.of("Resolve the bound templates and their current parameter contracts before execution."),
+            "Recall relevant candidates only inside the fixed templates bound to the authenticated service and caller role.",
+            List.of("Resolve a bounded page of bound templates and their current parameter contracts for Runtime review."),
             List.of("Executing templates", "Changing governance", "Expanding publication scope")
         ));
         return Map.copyOf(meta);

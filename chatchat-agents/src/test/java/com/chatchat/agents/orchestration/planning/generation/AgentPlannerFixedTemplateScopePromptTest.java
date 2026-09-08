@@ -34,8 +34,8 @@ class AgentPlannerFixedTemplateScopePromptTest {
 
         assertThat(tools)
             .contains("Authoritative template scope: FIXED_BINDING for assetType=api_service")
-            .contains("only template-selection source")
-            .contains("do not semantically reselect or reject returned templates")
+            .contains("only template-candidate source")
+            .contains("Semantically review only the bounded, paged candidates")
             .contains("later Runtime-authorized evidence-recovery iteration");
     }
 }

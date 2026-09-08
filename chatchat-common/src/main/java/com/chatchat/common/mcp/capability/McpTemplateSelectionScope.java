@@ -21,6 +21,7 @@ public record McpTemplateSelectionScope(
     public static final String METADATA_KEY = "templateSelectionScope";
     public static final String CURRENT_VERSION = "mcp.template-selection-scope.v1";
     public static final String FIXED_BINDING = "FIXED_BINDING";
+    public static final String BOUND_SCOPE_RECALL = "BOUND_SCOPE_RECALL";
 
     public McpTemplateSelectionScope {
         contractVersion = required(contractVersion, "contractVersion");

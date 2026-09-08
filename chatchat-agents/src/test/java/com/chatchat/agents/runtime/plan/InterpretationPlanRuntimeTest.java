@@ -63,6 +63,7 @@ class InterpretationPlanRuntimeTest {
             .id(toolName).riskLevel("low").categories(List.of("mcp"))
             .metadata(Map.of("serviceId", "dynamic-service")).build());
         ToolRuntimeService tools = mock(ToolRuntimeService.class);
+        when(tools.refreshMcpContractsForPlanPreflight()).thenReturn(true);
         McpContractFinding finding = new McpContractFinding(McpContractSeverity.ERROR,
             "MCP_OUTPUT_SCHEMA_MISSING", "dynamic-service", toolName, "generic",
             McpContractSource.OUTPUT_SCHEMA, "type", "missing", "absent", "PUBLISH_OUTPUT_SCHEMA");
@@ -84,8 +85,10 @@ class InterpretationPlanRuntimeTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.status()).isEqualTo("RESOURCE_PREFLIGHT_FAILED");
-        assertThat(result.metadata().toString()).contains("MCP_OUTPUT_SCHEMA_MISSING");
+        assertThat(result.metadata().toString())
+            .contains("MCP_OUTPUT_SCHEMA_MISSING", "registryRefreshBarrierApplied=true");
         assertThat(calls.get()).isZero();
+        verify(tools).refreshMcpContractsForPlanPreflight();
         verify(tools).preflightMcpContract(toolName, null);
     }
 
@@ -1264,6 +1267,44 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("runtimeTemplateCandidateCount", 2)
             .containsEntry("runtimeTemplateSelectedCount", 2)
             .containsEntry("runtimeSelectedTemplateIds", List.of("CUSTOMER_TRADES", "CUSTOMER_ASSETS"));
+    }
+
+    @Test
+    void fixedBindingSelectionCannotBeOverriddenByLaterGenericDiscovery() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlanRuntime.StepExecution fixed = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "mcp_service_customer_template_query", true,
+            Map.of(
+                "selectionMode", "FIXED_BINDING",
+                "templates", List.of(
+                    Map.of("templateId", "BOUND_A"),
+                    Map.of("templateId", "BOUND_B")
+                )),
+            null, null, null, 5, Map.of("semanticCandidateReviewSource", "FIXED_BINDING")
+        );
+        InterpretationPlanRuntime.StepExecution generic = new InterpretationPlanRuntime.StepExecution(
+            2, "mcp_tool", "mcp_service_api_service_query", true,
+            Map.of("templates", List.of(
+                Map.of("templateId", "SEARCH_A"),
+                Map.of("templateId", "SEARCH_B")
+            )),
+            null, null, null, 5
+        );
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed = new LinkedHashMap<>();
+        completed.put(1, fixed);
+        completed.put(2, generic);
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "reviewedTemplateSelectionExecution", Map.class);
+        method.setAccessible(true);
+
+        InterpretationPlanRuntime.StepExecution selected =
+            (InterpretationPlanRuntime.StepExecution) method.invoke(runtime, completed);
+
+        assertThat(selected).isSameAs(fixed);
     }
 
     @Test

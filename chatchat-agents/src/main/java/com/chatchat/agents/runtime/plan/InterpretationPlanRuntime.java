@@ -1744,8 +1744,26 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         List<Map<String, Object>> audits = new ArrayList<>();
         List<Map<String, Object>> failures = new ArrayList<>();
         boolean deferred = false;
-        for (InterpretationPlan.Step step : plan == null ? List.<InterpretationPlan.Step>of() : plan.steps()) {
-            if (step == null || step.id() == null || !step.mcpToolAction()) continue;
+        boolean registryRefreshed = false;
+        List<InterpretationPlan.Step> resourceSteps = plan == null
+            ? List.of()
+            : plan.steps().stream()
+                .filter(Objects::nonNull)
+                .filter(InterpretationPlan.Step::mcpToolAction)
+                .toList();
+        if (!resourceSteps.isEmpty()) {
+            try {
+                registryRefreshed = toolRuntimeService != null
+                    && toolRuntimeService.refreshMcpContractsForPlanPreflight();
+            } catch (RuntimeException refreshFailure) {
+                failures.add(mapOf(
+                    "errorCode", "MCP_PREFLIGHT_REFRESH_FAILED",
+                    "message", firstText(refreshFailure.getMessage(), refreshFailure.getClass().getSimpleName())
+                ));
+            }
+        }
+        for (InterpretationPlan.Step step : resourceSteps) {
+            if (step.id() == null) continue;
             ToolMetadata metadata = request == null || request.toolRegistry() == null
                 ? null : request.toolRegistry().getToolMetadata(step.toolName());
             if (metadata == null) {
@@ -1783,6 +1801,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         result.put("valid", failures.isEmpty());
         result.put("status", failures.isEmpty() ? (deferred ? "PASSED_WITH_DEFERRED_LOCAL_CHECKS" : "PASSED") : "REJECTED");
         result.put("snapshottedAt", Instant.now().toString());
+        result.put("registryRefreshBarrierApplied", registryRefreshed);
         result.put("snapshots", snapshots);
         result.put("audits", audits);
         result.put("failures", failures);
@@ -5766,6 +5785,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return null;
         }
         StepExecution latest = null;
+        StepExecution fixedBinding = null;
         for (StepExecution execution : completed.values()) {
             if (execution != null && execution.success() && isTemplateDiscoveryTool(execution.toolName())
                 && templateCandidates(execution.output()).stream()
@@ -5777,9 +5797,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     .limit(2)
                     .count() >= 2) {
                 latest = execution;
+                if (isFixedBindingTemplateSet(execution.output())
+                    || "FIXED_BINDING".equalsIgnoreCase(String.valueOf(
+                        execution.metadata().get("semanticCandidateReviewSource")))) {
+                    fixedBinding = execution;
+                }
             }
         }
-        return latest;
+        return fixedBinding == null ? latest : fixedBinding;
     }
 
     @SuppressWarnings("unchecked")

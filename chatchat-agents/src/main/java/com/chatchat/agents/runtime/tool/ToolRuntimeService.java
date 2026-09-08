@@ -159,6 +159,23 @@ public class ToolRuntimeService {
     }
 
     /**
+     * Establishes one authoritative MCP directory generation before a plan pins
+     * resource contracts. Without this barrier a run can snapshot the previous
+     * scheduled-discovery generation and then be rejected when the scheduler
+     * publishes the already-available generation while the model is reasoning.
+     *
+     * @return {@code true} when an MCP kernel was present and refreshed
+     */
+    public boolean refreshMcpContractsForPlanPreflight() {
+        McpRuntimeKernel kernel = mcpRuntimeKernel;
+        if (kernel == null) {
+            return false;
+        }
+        kernel.refresh();
+        return true;
+    }
+
+    /**
      * Creates a new ToolRuntimeService instance.
      *
      * @param toolRegistry the tool registry value

@@ -4,6 +4,7 @@ import com.chatchat.agents.tool.DefaultToolRegistry;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpCapabilityNode;
+import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -90,6 +91,49 @@ class InterpretationPlanOptimizerTest {
     }
 
     @Test
+    void fixedBindingScopeReplacesGenericDiscoveryForTheSameAssetFamily() {
+        String generic = "mcp_chatchat_mcp_server_api_service_query";
+        String transportParent = "mcp_chatchat_mcp_server_api_template_query";
+        String child = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(generic, transportParent, child, execute));
+        when(registry.getToolMetadata(generic)).thenReturn(templateDiscoveryMetadata(
+            generic, "api_service_query", "api_service", null));
+        when(registry.getToolMetadata(transportParent)).thenReturn(templateDiscoveryMetadata(
+            transportParent, "api_template_query", "api_service", null));
+        when(registry.getToolMetadata(child)).thenReturn(templateDiscoveryMetadata(
+            child, "customer_service_template_query", "api_service", "api_template_query"));
+        when(registry.getWorkflowRole(generic)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(transportParent)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(child)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "customer analysis", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", generic, Map.of("query", "analysis"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", child, Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", execute, Map.of(), List.of(1, 2), null, null),
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of(), List.of(3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, false, List.of(generic, child, execute), List.of(), 30_000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.9, 0.1, false, List.of()), List.of())
+        );
+
+        InterpretationPlan executable = new InterpretationPlanOptimizer(registry).optimize(plan).plan();
+
+        assertThat(executable.steps()).extracting(InterpretationPlan.Step::toolName)
+            .doesNotContain(generic)
+            .contains(child, execute);
+        assertThat(stepByTool(executable, child).dependsOn()).isEmpty();
+        assertThat(stepByTool(executable, execute).dependsOn())
+            .containsExactly(stepByTool(executable, child).id());
+    }
+
+    @Test
     void canonicalizesAuthoritativeParentChildWorkflowAndAddsRuntimeTemplateBinding() {
         String parent = "mcp_chatchat_mcp_server_api_service_query";
         String child = "mcp_chatchat_mcp_server_customer_service_template_query";
@@ -163,6 +207,26 @@ class InterpretationPlanOptimizerTest {
             "serviceId", "chatchat-mcp-server",
             "remoteToolName", remoteName,
             McpCapabilityHierarchy.METADATA_KEY, node
+        )).build();
+    }
+
+    private ToolMetadata templateDiscoveryMetadata(String localName, String remoteName,
+                                                   String assetType, String parentRemoteName) {
+        Map<String, Object> mcpMeta = new LinkedHashMap<>();
+        mcpMeta.put("assetType", assetType);
+        if (parentRemoteName != null) {
+            mcpMeta.put(McpTemplateSelectionScope.METADATA_KEY,
+                McpTemplateSelectionScope.fixedBinding(assetType).toMetadata());
+        }
+        Map<String, Object> node = new LinkedHashMap<>();
+        node.put("serviceId", "chatchat-mcp-server");
+        node.put("toolName", localName);
+        if (parentRemoteName != null) node.put("parentToolName", parentRemoteName);
+        return ToolMetadata.builder().metadata(Map.of(
+            "serviceId", "chatchat-mcp-server",
+            "remoteToolName", remoteName,
+            "mcpToolMeta", Map.copyOf(mcpMeta),
+            McpCapabilityHierarchy.METADATA_KEY, Map.copyOf(node)
         )).build();
     }
 

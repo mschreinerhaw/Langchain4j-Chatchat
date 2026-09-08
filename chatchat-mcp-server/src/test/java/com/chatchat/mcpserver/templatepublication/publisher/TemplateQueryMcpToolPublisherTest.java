@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
+import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.Test;
@@ -73,11 +74,20 @@ class TemplateQueryMcpToolPublisherTest {
                 "runtime_level=discovery", "timeout_seconds=90");
         assertThat(captor.getValue().tool().meta())
             .containsKey(McpDynamicCapabilityRoute.METADATA_KEY)
+            .containsEntry("selectionMode", "FIXED_BINDING")
+            .containsEntry("assetType", TemplateAssetCatalogService.API)
+            .containsKey(McpTemplateSelectionScope.METADATA_KEY)
             .doesNotContainKeys("parentToolName", "kind");
         assertThat(McpDynamicCapabilityRoute.fromToolMetadata(captor.getValue().tool().meta()).orElseThrow())
             .satisfies(route -> {
                 assertThat(route.parentToolName()).isEqualTo("api_template_query");
                 assertThat(route.implementationIdentityArgument()).isEqualTo("_templateQueryChildToolName");
+            });
+        assertThat(McpTemplateSelectionScope.fromToolMetadata(
+            captor.getValue().tool().meta()).orElseThrow())
+            .satisfies(scope -> {
+                assertThat(scope.assetType()).isEqualTo(TemplateAssetCatalogService.API);
+                assertThat(scope.fixedBindingAuthority()).isTrue();
             });
         assertThat((Map<String, Object>) captor.getValue().tool().inputSchema().get("properties"))
             .doesNotContainKeys("templateIds", "serviceId", "roleId", "governance");

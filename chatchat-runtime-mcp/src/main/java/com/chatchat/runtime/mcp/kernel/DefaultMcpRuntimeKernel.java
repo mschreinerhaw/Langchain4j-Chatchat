@@ -206,8 +206,10 @@ public class DefaultMcpRuntimeKernel implements McpRuntimeKernel {
         putIfPresent(metadata, "snapshottedContentHash", binding.contentHash());
         putIfPresent(metadata, "currentContentHash", currentHash);
         log.warn("MCP invocation rejected because template contract changed after plan preflight: "
-                + "requestId={} serviceId={} tool={} templateId={} versionChanged={} contentChanged={}",
-            call.requestId(), call.serviceId(), call.toolName(), binding.templateId(), versionChanged, contentChanged);
+                + "requestId={} serviceId={} tool={} templateId={} versionChanged={} contentChanged={} "
+                + "snapshottedVersion={} currentVersion={} snapshottedHash={} currentHash={}",
+            call.requestId(), call.serviceId(), call.toolName(), binding.templateId(), versionChanged, contentChanged,
+            binding.templateVersion(), currentVersion, binding.contentHash(), currentHash);
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
             McpServiceResultStatus.REJECTED, null, null, "RESOURCE_VERSION_MISMATCH",
             "Template/tool contract changed after plan preflight", false,

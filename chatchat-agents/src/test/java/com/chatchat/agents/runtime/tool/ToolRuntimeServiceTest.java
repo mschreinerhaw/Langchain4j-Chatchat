@@ -46,6 +46,20 @@ import org.mockito.ArgumentCaptor;
 class ToolRuntimeServiceTest {
 
     @Test
+    void refreshesKernelBeforePlanResourceSnapshotsAreCreated() {
+        ToolRuntimeService service = new ToolRuntimeService(
+            mock(ToolRegistry.class), new ObjectMapper(), properties(), List.of(), List.of());
+        McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
+        service.setMcpRuntimeKernel(kernel);
+        try {
+            assertThat(service.refreshMcpContractsForPlanPreflight()).isTrue();
+            verify(kernel).refresh();
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void routesMcpThroughKernelAndExposesLosslessAnalysisPayload() {
         String toolName = "mcp_docker_docker_ps";
         ToolRegistry registry = mock(ToolRegistry.class);

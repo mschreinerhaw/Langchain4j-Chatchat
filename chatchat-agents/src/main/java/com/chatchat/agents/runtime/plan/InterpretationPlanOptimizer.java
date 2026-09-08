@@ -9,7 +9,9 @@ import com.chatchat.agents.runtime.plan.transformation.PlanTransformationContext
 import com.chatchat.agents.runtime.plan.transformation.PlanTransformationWorkspace;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -835,6 +837,25 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
                 redirects.put(parent.id(), implementations.get(0).id());
             }
         }
+        Map<String, List<InterpretationPlan.Step>> fixedAuthorities = steps.stream()
+            .filter(Objects::nonNull)
+            .filter(InterpretationPlan.Step::mcpToolAction)
+            .filter(this::isTemplateDiscoveryStep)
+            .filter(step -> fixedTemplateSelectionScope(step.toolName()).isPresent())
+            .collect(java.util.stream.Collectors.groupingBy(
+                step -> normalize(fixedTemplateSelectionScope(step.toolName()).orElseThrow().assetType()),
+                LinkedHashMap::new,
+                java.util.stream.Collectors.toList()));
+        for (InterpretationPlan.Step candidate : steps) {
+            if (candidate == null || candidate.id() == null || !isTemplateDiscoveryStep(candidate)) continue;
+            if (fixedTemplateSelectionScope(candidate.toolName()).isPresent()) continue;
+            String assetType = templateDiscoveryAssetType(candidate.toolName());
+            List<InterpretationPlan.Step> authorities = assetType == null
+                ? List.of() : fixedAuthorities.getOrDefault(assetType, List.of());
+            if (authorities.size() == 1 && authorities.get(0).id() != null) {
+                redirects.put(candidate.id(), authorities.get(0).id());
+            }
+        }
         if (redirects.isEmpty()) {
             return new CapabilityScopeRewrite(
                 steps, edgeContracts, dependencyContracts, bindings, false);
@@ -876,6 +897,36 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             .toList();
         return new CapabilityScopeRewrite(
             rewritten, rewrittenEdges, rewrittenDependencies, rewrittenBindings, true);
+    }
+
+    private java.util.Optional<McpTemplateSelectionScope> fixedTemplateSelectionScope(String toolName) {
+        if (toolRegistry == null || toolName == null) return java.util.Optional.empty();
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> mcpMeta = metadataMap(extra.get("mcpToolMeta"));
+        return McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
+            .filter(McpTemplateSelectionScope::fixedBindingAuthority);
+    }
+
+    private String templateDiscoveryAssetType(String toolName) {
+        if (toolRegistry == null || toolName == null) return null;
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> mcpMeta = metadataMap(extra.get("mcpToolMeta"));
+        String value = mapValue(mcpMeta, "assetType", "asset_type");
+        if (value != null) return normalize(value);
+        return McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
+            .map(McpTemplateSelectionScope::assetType)
+            .map(this::normalize)
+            .orElse(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> metadataMap(Object value) {
+        return value instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
     }
 
     private OrderingResult policyAwareOrdering(InterpretationPlan plan, List<InterpretationPlan.Step> steps) {

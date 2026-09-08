@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePo
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute;
+import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
@@ -246,9 +247,14 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         // The child remains the Agent-visible capability. Transport routing is declared as
         // control-plane metadata so Runtime can invoke the stable parent gateway without
         // leaking this internal discriminator into either public input schema.
-        String persistedParentToolName = routeResolver.requireRoute(toolName).parentToolName();
+        TemplateQueryRouteResolver.Route persistedRoute = routeResolver.requireRoute(toolName);
+        String persistedParentToolName = persistedRoute.parentToolName();
         meta.put(McpDynamicCapabilityRoute.METADATA_KEY,
             McpDynamicCapabilityRoute.parentDelegation(persistedParentToolName, CHILD_TOOL_ARGUMENT).toMetadata());
+        meta.put(McpTemplateSelectionScope.METADATA_KEY,
+            McpTemplateSelectionScope.fixedBinding(persistedRoute.assetType()).toMetadata());
+        meta.put("selectionMode", McpTemplateSelectionScope.FIXED_BINDING);
+        meta.put("assetType", persistedRoute.assetType());
         meta.put("routingMode", McpDynamicCapabilityRoute.ROUTING_MODE_PARENT_DELEGATION);
         meta.put("readOnly", true);
         meta.put("runtimeAction", "read_only");

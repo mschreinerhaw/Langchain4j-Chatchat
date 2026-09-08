@@ -127,6 +127,8 @@ class ApiMcpToolPublisherTest {
             .map(com.chatchat.mcpserver.tool.ToolPublication::specification)
             .filter(item -> ApiMcpToolPublisher.BRIDGE_TOOL_NAME.equals(item.tool().name()))
             .findFirst().orElseThrow();
+        assertThat(publisher.retiredToolNames())
+            .doesNotContain(ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME);
         McpSchema.CallToolResult result = specification.callHandler().apply(null,
             new McpSchema.CallToolRequest(ApiMcpToolPublisher.BRIDGE_TOOL_NAME, Map.of(
                 TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, "tenant_template_query", "limit", 5), Map.of()));

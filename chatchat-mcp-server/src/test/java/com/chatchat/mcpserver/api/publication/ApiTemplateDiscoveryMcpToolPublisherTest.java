@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 
 import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.search.engine.LuceneMcpSearchService;
+import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -27,6 +28,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiTemplateDiscoveryMcpToolPublisherTest {
+
+    @Test
+    void contributesTheParentToolboxAndDeclaresTheRuntimeChildIdentityField() {
+        ApiTemplateDiscoveryMcpToolPublisher publisher = publisher(
+            mock(ApiServiceConfigService.class), mock(LuceneMcpSearchService.class));
+
+        var publications = publisher.contribute();
+
+        assertThat(publications).singleElement().satisfies(publication -> {
+            assertThat(publication.toolName()).isEqualTo(ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME);
+            assertThat((Map<?, ?>) publication.specification().tool().inputSchema().get("properties"))
+                .satisfies(properties -> assertThat(properties.containsKey(
+                    TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT)).isTrue());
+        });
+        assertThat(publisher.retiredToolNames()).isEmpty();
+    }
 
     @Test
     void searchesEveryKeywordIndependentlyInsteadOfConcatenatingThem() {

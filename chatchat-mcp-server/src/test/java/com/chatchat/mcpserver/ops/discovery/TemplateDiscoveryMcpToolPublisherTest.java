@@ -98,15 +98,29 @@ class TemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void refreshKeepsTypedTemplateDiscoveryInternal() {
+    void refreshPublishesEveryParentToolboxReferencedByTheBindingCatalog() {
         McpSyncServer server = mock(McpSyncServer.class);
+        org.mockito.Mockito.when(server.listTools()).thenReturn(List.of());
         TemplateDiscoveryMcpToolPublisher publisher = publisher(server);
 
         publisher.refresh();
 
-        verify(server, never()).addTool(org.mockito.ArgumentMatchers.any());
+        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> specifications =
+            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
+        verify(server, times(4)).addTool(specifications.capture());
+        assertThat(specifications.getAllValues().stream().map(item -> item.tool().name()))
+            .containsExactlyInAnyOrder(
+                TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME,
+                TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
+                TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
+                TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        assertThat(specifications.getAllValues()).allSatisfy(spec ->
+            assertThat((Map<?, ?>) spec.tool().inputSchema().get("properties"))
+                .satisfies(properties -> assertThat(properties.containsKey(
+                    com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT))
+                    .isTrue()));
         verify(server).removeTool(TemplateDiscoveryMcpToolPublisher.JMX_TEMPLATE_TOOL_NAME);
-        verify(server).removeTool(TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        verify(server, never()).removeTool(TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
     }
 
     private TemplateDiscoveryMcpToolPublisher publisher(McpSyncServer server) {

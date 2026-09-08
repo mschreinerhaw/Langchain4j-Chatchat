@@ -53,12 +53,8 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         AssetDiscoveryMcpToolPublisher.LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME,
         AssetDiscoveryMcpToolPublisher.HTTP_ENDPOINT_ASSET_TOOL_NAME,
         AssetDiscoveryMcpToolPublisher.MICROSERVICE_ASSET_TOOL_NAME,
-        TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME,
-        TemplateDiscoveryMcpToolPublisher.SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
         TemplateDiscoveryMcpToolPublisher.LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-        TemplateDiscoveryMcpToolPublisher.HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
-        TemplateDiscoveryMcpToolPublisher.JMX_TEMPLATE_TOOL_NAME,
-        TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        TemplateDiscoveryMcpToolPublisher.JMX_TEMPLATE_TOOL_NAME);
 
     private final McpSyncServer server;
     private final AssetDiscoveryService assetDiscovery;

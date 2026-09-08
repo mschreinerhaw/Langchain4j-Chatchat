@@ -37,16 +37,33 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
 
     public synchronized void refresh() {
         refreshPublication();
-        log.info("Operations template discovery is internal to the domain-specific server, HTTP, JMX and database capability queries");
+        log.info("Operations template parent toolboxes published: {}", contribute().stream()
+            .map(com.chatchat.mcpserver.tool.ToolPublication::toolName).toList());
     }
 
     @Override public String contributorId() { return "operations_template_discovery_legacy"; }
     @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
-    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() { return List.of(); }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return List.of(
+            publication(SSH_TEMPLATE_TOOL_NAME, "SSH command template discovery",
+                "Read-only parent toolbox for SSH command templates.", "ssh_host", "host", "host command templates"),
+            publication(SQL_DATASOURCE_TEMPLATE_TOOL_NAME, "Database operations template discovery",
+                "Read-only parent toolbox for database operations templates.", "sql_datasource", "database", "database operations templates"),
+            publication(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME, "HTTP endpoint template discovery",
+                "Read-only parent toolbox for HTTP endpoint templates.", "http_endpoint", "http", "HTTP endpoint templates"),
+            publication(DATABASE_QUERY_TEMPLATE_TOOL_NAME, "Categorized database query template discovery",
+                "Read-only parent toolbox for governed business database query templates.", "database_query",
+                "business_database_query", "categorized database query templates")
+        );
+    }
     @Override public Set<String> retiredToolNames() {
-        return Set.of(SSH_TEMPLATE_TOOL_NAME, SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-            LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME, HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
-            JMX_TEMPLATE_TOOL_NAME, DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        return Set.of(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME, JMX_TEMPLATE_TOOL_NAME);
+    }
+
+    private com.chatchat.mcpserver.tool.ToolPublication publication(
+        String toolName, String title, String description, String assetType, String targetKind, String domainLabel) {
+        return com.chatchat.mcpserver.tool.ToolPublication.from(domainTemplateQueryTool(
+            toolName, title, description, assetType, targetKind, domainLabel));
     }
 
     private McpServerFeatures.SyncToolSpecification domainTemplateQueryTool(String toolName,
@@ -298,7 +315,11 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                 "maximum", CommandTemplateDiscoveryService.MAX_LIMIT,
                 "description", "Maximum number of templates returned; capped at 20."
             ),
-            "view", Map.of("type", "string", "description", "Optional response view: model or system.")
+            "view", Map.of("type", "string", "description", "Optional response view: model or system."),
+            TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
+                "type", "string",
+                "description", "Runtime-managed child capability identity; user input is not authoritative."
+            )
         ), List.of("filters"), false, null, null);
     }
 

@@ -35,7 +35,7 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     @Deprecated
     public static final String EXECUTE_TOOL_NAME = "api_template_execute";
     static final List<String> LEGACY_PROTOCOL_TOOLS = List.of(
-        "api_asset_query", "api_template_query", "api_requirement_analyze", EXECUTE_TOOL_NAME);
+        "api_asset_query", "api_requirement_analyze", EXECUTE_TOOL_NAME);
 
     private final McpSyncServer mcpSyncServer;
     private final TemplateServicePort bridge;

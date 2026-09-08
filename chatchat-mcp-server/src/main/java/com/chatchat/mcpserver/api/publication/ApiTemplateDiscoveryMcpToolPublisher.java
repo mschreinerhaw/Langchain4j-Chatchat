@@ -54,13 +54,15 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
 
     public synchronized void refresh() {
         refreshPublication();
-        log.info("API template discovery is internal to {}", ApiMcpToolPublisher.BRIDGE_TOOL_NAME);
+        log.info("API template parent toolbox published: {}", TOOL_NAME);
     }
 
     @Override public String contributorId() { return "api_template_discovery_legacy"; }
     @Override public McpSyncServer publicationServer() { return mcpSyncServer; }
-    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() { return List.of(); }
-    @Override public Set<String> retiredToolNames() { return Set.of(TOOL_NAME); }
+    @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
+        return List.of(com.chatchat.mcpserver.tool.ToolPublication.from(apiTemplateQueryTool()));
+    }
+    @Override public Set<String> retiredToolNames() { return Set.of(); }
 
     private McpServerFeatures.SyncToolSpecification apiTemplateQueryTool() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -287,6 +289,10 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
                 "type", "array",
                 "description", "Authorized template ids returned by prior asset discovery. When present, discovery is restricted to this exact candidate set.",
                 "items", Map.of("type", "string")
+            ),
+            TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
+                "type", "string",
+                "description", "Runtime-managed child capability identity; user input is not authoritative."
             )
         ), List.of("filters"), false, null, null);
     }

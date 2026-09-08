@@ -7,6 +7,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpCapabilityNode;
+import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -76,6 +77,66 @@ class AgentWorkflowDecisionEngineTest {
     }
 
     @Test
+    void fixedBindingChildIsTheOnlyCandidateAuthorityForItsAssetFamily() {
+        String generic = "mcp_chatchat_mcp_server_api_service_query";
+        String child = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(generic, child, execute));
+        when(registry.getToolMetadata(generic)).thenReturn(templateScopeMetadata("api_service", false));
+        when(registry.getToolMetadata(child)).thenReturn(templateScopeMetadata("api_service", true));
+        when(registry.getWorkflowRole(generic)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(child)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        AgentWorkflowDecisionEngine scoped = new AgentWorkflowDecisionEngine(registry);
+        Map<String, Object> workflow = Map.of("steps", List.of(
+            Map.of("step", "generic_query", "tool", generic, "required", true),
+            Map.of("step", "customer_query", "tool", child, "required", true),
+            Map.of("step", "execute", "tool", execute, "required", true,
+                "dependsOn", List.of("generic_query"))
+        ));
+
+        WorkflowMandatoryResolution resolution = scoped.resolveWorkflowMandatoryTools(
+            List.of(generic, child, execute), Map.of("mcpWorkflow", workflow), "customer analysis");
+
+        assertThat(resolution.tools()).containsExactly(child, execute).doesNotContain(generic);
+        assertThat(resolution.authoritativeDag()).extracting(WorkflowDagNode::toolName)
+            .containsExactly(child, execute);
+        assertThat(resolution.authoritativeDag().get(1).dependsOnTools()).containsExactly(child);
+    }
+
+    @Test
+    void everyFixedBindingChildReplacesGenericDiscoveryForTheSameAssetFamily() {
+        String generic = "mcp_vendor_api_service_query";
+        String customer = "mcp_vendor_customer_template_query";
+        String account = "mcp_vendor_account_template_query";
+        String execute = "mcp_vendor_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(generic)).thenReturn(templateScopeMetadata("api_service", false));
+        when(registry.getToolMetadata(customer)).thenReturn(templateScopeMetadata("api_service", true));
+        when(registry.getToolMetadata(account)).thenReturn(templateScopeMetadata("api_service", true));
+        when(registry.getWorkflowRole(generic)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(customer)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(account)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        AgentWorkflowDecisionEngine scoped = new AgentWorkflowDecisionEngine(registry);
+        Map<String, Object> workflow = Map.of("steps", List.of(
+            Map.of("step", "generic", "tool", generic, "required", true),
+            Map.of("step", "customer", "tool", customer, "required", true),
+            Map.of("step", "account", "tool", account, "required", true),
+            Map.of("step", "execute", "tool", execute, "required", true,
+                "dependsOn", List.of("generic"))
+        ));
+
+        WorkflowMandatoryResolution resolution = scoped.resolveWorkflowMandatoryTools(
+            List.of(generic, customer, account, execute), Map.of("mcpWorkflow", workflow), "analysis");
+
+        assertThat(resolution.tools()).containsExactly(customer, account, execute).doesNotContain(generic);
+        assertThat(resolution.authoritativeDag().get(2).dependsOnTools())
+            .containsExactly(customer, account);
+    }
+
+    @Test
     void abstractParentIsSuppressedForEverySelectedBusinessImplementation() {
         String parent = "mcp_chatchat_mcp_server_api_service_query";
         String customer = "mcp_chatchat_mcp_server_customer_service_template_query";
@@ -125,6 +186,16 @@ class AgentWorkflowDecisionEngineTest {
             "remoteToolName", remoteName,
             McpCapabilityHierarchy.METADATA_KEY, node
         )).build();
+    }
+
+    private ToolMetadata templateScopeMetadata(String assetType, boolean fixed) {
+        Map<String, Object> mcpMeta = new java.util.LinkedHashMap<>();
+        mcpMeta.put("assetType", assetType);
+        if (fixed) {
+            mcpMeta.put(McpTemplateSelectionScope.METADATA_KEY,
+                McpTemplateSelectionScope.fixedBinding(assetType).toMetadata());
+        }
+        return ToolMetadata.builder().metadata(Map.of("mcpToolMeta", mcpMeta)).build();
     }
 
     @Test

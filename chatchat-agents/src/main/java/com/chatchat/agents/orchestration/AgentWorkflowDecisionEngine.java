@@ -8,7 +8,9 @@ import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.protocol.McpToolProtocolRole;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
+import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
 import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -112,7 +114,8 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         }
 
         List<WorkflowToolStep> specializedSteps = preferBusinessImplementations(declaredSteps);
-        List<WorkflowToolStep> resolvedSteps = withTemplateProtocolDependencies(specializedSteps);
+        List<WorkflowToolStep> scopedSteps = preferFixedTemplateScopeAuthorities(specializedSteps);
+        List<WorkflowToolStep> resolvedSteps = withTemplateProtocolDependencies(scopedSteps);
         List<WorkflowToolStep> dependencyOrdered = dependencyOrderedSteps(resolvedSteps);
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
         dependencyOrdered.stream()
@@ -198,9 +201,55 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
                 .filter(candidate -> !suppressedParents.contains(candidate))
                 .toList()));
 
+        return replaceWorkflowSteps(steps, replacements);
+    }
+
+    /**
+     * Fixed-binding template queries are the candidate authorities for their asset family.
+     * A generic discovery node in the same configured workflow must therefore be treated as
+     * the same logical step and redirected to that authority. Otherwise mandatory recovery can
+     * execute the generic node after plan validation and leak candidates outside the child scope.
+     */
+    private List<WorkflowToolStep> preferFixedTemplateScopeAuthorities(List<WorkflowToolStep> steps) {
+        if (toolRegistry == null || steps == null || steps.size() < 2) {
+            return steps == null ? List.of() : steps;
+        }
+        Map<String, List<WorkflowToolStep>> authorities = steps.stream()
+            .filter(WorkflowToolStep::executable)
+            .filter(step -> workflowRole(step.toolName()) == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+            .filter(step -> fixedTemplateSelectionScope(step.toolName()).isPresent())
+            .collect(java.util.stream.Collectors.groupingBy(
+                step -> normalizedAssetType(fixedTemplateSelectionScope(step.toolName())
+                    .orElseThrow().assetType()),
+                LinkedHashMap::new,
+                java.util.stream.Collectors.toList()));
+        if (authorities.isEmpty()) return steps;
+
+        Map<WorkflowToolStep, List<WorkflowToolStep>> replacements = new LinkedHashMap<>();
+        for (WorkflowToolStep candidate : steps) {
+            if (!candidate.executable()
+                || workflowRole(candidate.toolName()) != ToolWorkflowRole.TEMPLATE_DISCOVERY
+                || fixedTemplateSelectionScope(candidate.toolName()).isPresent()) {
+                continue;
+            }
+            String assetType = templateDiscoveryAssetType(candidate.toolName());
+            List<WorkflowToolStep> matches = assetType == null
+                ? List.of() : authorities.getOrDefault(normalizedAssetType(assetType), List.of());
+            if (!matches.isEmpty()) {
+                replacements.put(candidate, matches);
+            }
+        }
+        return replacements.isEmpty() ? steps : replaceWorkflowSteps(steps, replacements);
+    }
+
+    private List<WorkflowToolStep> replaceWorkflowSteps(
+        List<WorkflowToolStep> steps,
+        Map<WorkflowToolStep, List<WorkflowToolStep>> replacements
+    ) {
+        Set<WorkflowToolStep> suppressedSteps = replacements.keySet();
         List<WorkflowToolStep> result = new ArrayList<>();
         for (WorkflowToolStep step : steps) {
-            if (suppressedParents.contains(step)) continue;
+            if (suppressedSteps.contains(step)) continue;
             List<WorkflowToolStep> abstractParents = replacements.entrySet().stream()
                 .filter(entry -> entry.getValue().contains(step))
                 .map(Map.Entry::getKey)
@@ -218,6 +267,31 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
                 new ArrayList<>(aliases), new ArrayList<>(dependencies), step.executable()));
         }
         return result;
+    }
+
+    private java.util.Optional<McpTemplateSelectionScope> fixedTemplateSelectionScope(String toolName) {
+        if (toolRegistry == null || toolName == null) return java.util.Optional.empty();
+        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
+        Map<String, Object> metadata = asMap(toolMetadata == null ? null : toolMetadata.getMetadata());
+        Map<String, Object> mcpMeta = asMap(metadata.get("mcpToolMeta"));
+        return McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
+            .filter(McpTemplateSelectionScope::fixedBindingAuthority);
+    }
+
+    private String templateDiscoveryAssetType(String toolName) {
+        if (toolRegistry == null || toolName == null) return null;
+        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
+        Map<String, Object> metadata = asMap(toolMetadata == null ? null : toolMetadata.getMetadata());
+        Map<String, Object> mcpMeta = asMap(metadata.get("mcpToolMeta"));
+        String explicit = stringValue(firstObject(mcpMeta, "assetType", "asset_type"));
+        return explicit == null
+            ? McpTemplateSelectionScope.fromToolMetadata(mcpMeta)
+                .map(McpTemplateSelectionScope::assetType).orElse(null)
+            : explicit;
+    }
+
+    private String normalizedAssetType(String assetType) {
+        return assetType == null ? "" : assetType.trim().toLowerCase(Locale.ROOT);
     }
 
     private LinkedHashSet<String> expandSuppressedCapabilityDependencies(

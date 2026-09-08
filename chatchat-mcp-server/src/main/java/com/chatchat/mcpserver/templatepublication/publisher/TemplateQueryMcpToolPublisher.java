@@ -158,7 +158,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             item.put("selectionSource", "template_query_binding");
             templates.add(Map.copyOf(item));
         }
-        int unavailableCount = Math.max(0, policy.configuredTemplateCount() - templates.size());
+        // Completeness belongs to the entire persisted binding, never to the current page.
+        // Using templates.size() here makes every legitimate paged response look incomplete.
+        int unavailableCount = Math.max(0, templateIds.size() - recall.candidateUniverseCount());
         McpInvocationContext.Context context = McpInvocationContext.current();
         return Map.ofEntries(
             Map.entry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
@@ -225,7 +227,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             ),
             "filters", Map.of(
                 "type", "object",
-                "description", "Optional request context for audit only; it never changes the child's fixed template set.",
+                "description", "Optional recall signals used only to rank candidates inside the child's fixed template set.",
                 "additionalProperties", true
             ),
             "bilingualIntent", Map.of("type", "array", "items", Map.of("type", "string")),

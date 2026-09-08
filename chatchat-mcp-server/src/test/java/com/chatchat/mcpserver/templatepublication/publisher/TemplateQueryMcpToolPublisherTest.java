@@ -162,6 +162,36 @@ class TemplateQueryMcpToolPublisherTest {
     }
 
     @Test
+    void pagingDoesNotMarkTheCompleteBindingAsUnavailable() {
+        TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
+        TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
+        TemplateQueryMcpToolPublisher publisher = publisher(bindings, catalog);
+        McpInvocationContext.Context context = context("service-1", "role-1");
+        Set<String> allowed = Set.of("template-1", "template-2", "template-3");
+        when(bindings.resolvePolicy(context, "customer_template_query"))
+            .thenReturn(policy(Map.of("api_service", allowed)));
+        when(bindings.requireRoute("customer_template_query")).thenReturn(
+            route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
+        when(catalog.listEnabled()).thenReturn(List.of(
+            asset(TemplateAssetCatalogService.API, "template-1", Map.of()),
+            asset(TemplateAssetCatalogService.API, "template-2", Map.of()),
+            asset(TemplateAssetCatalogService.API, "template-3", Map.of())));
+
+        Map<String, Object> result;
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            result = publisher.queryFromParent("customer_template_query", "api_template_query",
+                Map.of("limit", 1));
+        }
+
+        assertThat(result).containsEntry("returnedCount", 1)
+            .containsEntry("candidateUniverseCount", 3)
+            .containsEntry("hasMore", true)
+            .containsEntry("bindingComplete", true);
+        assertThat(result.get("filterAudit").toString())
+            .contains("unavailableOrUnauthorizedCount=0");
+    }
+
+    @Test
     void resolvesPolicyFromInvocationArgumentsWhenTransportThreadContextIsLost() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);

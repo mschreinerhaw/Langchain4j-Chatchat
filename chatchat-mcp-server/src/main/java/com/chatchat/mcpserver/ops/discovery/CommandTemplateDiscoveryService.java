@@ -34,6 +34,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -69,7 +72,6 @@ public class CommandTemplateDiscoveryService {
     private static final double TEMPLATE_STRONG_SEMANTIC_FLOOR = 0.60;
     private static final double TEMPLATE_MIN_QUERY_COVERAGE = 0.08;
     private static final int TEMPLATE_RETRIEVAL_LIMIT = 100;
-    private static final String RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT = "DEV";
     private static final double INTENT_WEIGHT = 0.40;
     private static final double LEXICAL_WEIGHT = 0.30;
     private static final double TYPE_WEIGHT = 0.20;
@@ -234,22 +236,120 @@ public class CommandTemplateDiscoveryService {
         }
         NormalizedIntent intent = normalizeIntent(filters);
         Map<String, Object> retrievalFilters = filtersWithNormalizedIntent(filters, intent);
+        PageRequest page = pageRequest(arguments, assetType, retrievalFilters, allowedTemplateIds, limit);
+        int retrievalLimit = Math.min(page.offset() + limit, maxCandidateCount());
         Map<String, Object> result;
         if ("sql_datasource".equals(assetType)) {
-            result = querySqlTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
+            result = querySqlTemplates(assetType, filters, retrievalFilters, intent, retrievalLimit, allowedTemplateIds);
         } else if ("jmx_endpoint".equals(assetType)) {
-            result = queryJmxTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
+            result = queryJmxTemplates(assetType, filters, retrievalFilters, intent, retrievalLimit, allowedTemplateIds);
         } else if ("http_endpoint".equals(assetType)) {
-            result = queryHttpTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
+            result = queryHttpTemplates(assetType, filters, retrievalFilters, intent, retrievalLimit, allowedTemplateIds);
         } else if ("database_query".equals(assetType)) {
-            result = queryDatabaseQueryTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
+            result = queryDatabaseQueryTemplates(assetType, filters, retrievalFilters, intent, retrievalLimit, allowedTemplateIds);
         } else if (!"ssh_host".equals(assetType)) {
-            result = result(assetType, filters, intent, List.of(), limit, List.of(), false, false);
+            result = result(assetType, filters, intent, List.of(), retrievalLimit, List.of(), false, false);
         } else {
-            result = querySshTemplates(assetType, filters, retrievalFilters, intent, limit, allowedTemplateIds);
+            result = querySshTemplates(assetType, filters, retrievalFilters, intent, retrievalLimit, allowedTemplateIds);
         }
+        applyPage(result, page, limit);
         result.put("routingDecision", routingDecision(target, startedAt));
         return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyPage(Map<String, Object> result, PageRequest page, int publicLimit) {
+        List<Map<String, Object>> recalled = result.get("templates") instanceof List<?> raw
+            ? (List<Map<String, Object>>) raw : List.of();
+        int start = Math.min(page.offset(), recalled.size());
+        int end = Math.min(recalled.size(), start + publicLimit);
+        List<Map<String, Object>> templates = List.copyOf(recalled.subList(start, end));
+        boolean upstreamHasMore = Boolean.TRUE.equals(result.get("possiblyTruncated"));
+        boolean sourceHasMore = end < recalled.size() || upstreamHasMore;
+        String stopReason = null;
+        // The configured session ceiling is an intentional terminal condition, not a promise
+        // that more authorized candidates can be reached by repeatedly changing exclusions.
+        if (sourceHasMore && end >= maxCandidateCount()) stopReason = "MAX_CANDIDATES";
+        if (sourceHasMore && page.pageIndex() + 1 >= maxPages()) stopReason = "MAX_PAGES";
+        boolean hasMore = sourceHasMore && stopReason == null;
+        result.put("limit", publicLimit);
+        result.put("returnedCount", templates.size());
+        result.put("templates", templates);
+        result.put("hasMore", hasMore);
+        result.put("possiblyTruncated", sourceHasMore);
+        result.put("retrievalStopReason", stopReason);
+        result.put("nextCursor", hasMore ? encodeCursor(end, page.queryHash()) : null);
+        result.put("pageIndex", page.pageIndex());
+        result.put("maxPages", maxPages());
+        result.put("scannedCandidateCount", end);
+        result.put("maxCandidateCount", maxCandidateCount());
+        result.put("policyVersion", policyVersion());
+        result.put("queryHash", page.queryHash());
+        result.put("pageFloorScore", pageFloorScore(templates));
+    }
+
+    private PageRequest pageRequest(Map<String, Object> arguments,
+                                    String assetType,
+                                    Map<String, Object> filters,
+                                    Set<String> allowedTemplateIds,
+                                    int limit) {
+        String hash = queryHash(assetType, filters, allowedTemplateIds, limit);
+        Object raw = arguments == null ? null : arguments.get("cursor");
+        if (raw == null || String.valueOf(raw).isBlank()) return new PageRequest(0, 0, hash);
+        try {
+            String decoded = new String(Base64.getUrlDecoder().decode(String.valueOf(raw)), StandardCharsets.UTF_8);
+            String[] parts = decoded.split("\\|", -1);
+            int offset = Integer.parseInt(parts[0]);
+            int pageIndex = offset / limit;
+            if (parts.length != 2 || offset < 0 || offset >= maxCandidateCount()
+                || pageIndex >= maxPages()
+                || !hash.equals(parts[1])) {
+                throw new IllegalArgumentException("cursor does not match the current template query/policy");
+            }
+            return new PageRequest(offset, pageIndex, hash);
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException("Invalid template discovery cursor", invalid);
+        }
+    }
+
+    private String encodeCursor(int offset, String queryHash) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(
+            (offset + "|" + queryHash).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String queryHash(String assetType, Map<String, Object> filters,
+                             Set<String> allowedTemplateIds, int limit) {
+        try {
+            List<String> allowed = allowedTemplateIds == null ? List.of()
+                : allowedTemplateIds.stream().sorted().toList();
+            String canonical = policyVersion() + "|" + maxPages() + "|" + maxCandidateCount()
+                + "|" + assetType + "|" + limit + "|"
+                + objectMapper.writeValueAsString(filters) + "|" + objectMapper.writeValueAsString(allowed);
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest, 0, 12);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to fingerprint template discovery query", ex);
+        }
+    }
+
+    private Object pageFloorScore(List<Map<String, Object>> templates) {
+        if (templates == null || templates.isEmpty()) return null;
+        Map<String, Object> last = templates.get(templates.size() - 1);
+        return firstValue(last, "decisionScore", "score", "relevanceScore");
+    }
+
+    private int maxCandidateCount() {
+        return Math.max(MAX_LIMIT, properties == null ? 60 : properties.getMaxCandidateCount());
+    }
+
+    private int maxPages() {
+        return Math.max(1, properties == null ? 3 : properties.getMaxPages());
+    }
+
+    private String policyVersion() {
+        String configured = properties == null ? null : properties.getPolicyVersion();
+        return configured == null || configured.isBlank() ? RESULT_SCHEMA_VERSION : configured.trim();
     }
 
     private Map<String, Object> queryJmxTemplates(String assetType,
@@ -1541,7 +1641,7 @@ public class CommandTemplateDiscoveryService {
 
     private String databaseQueryEnvironment(DatabaseQueryConfig config, SqlDatasourceConfig datasource) {
         return isRuntimeManagedDatabaseQuery(config)
-            ? RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT
+            ? runtimeManagedEnvironment()
             : datasource == null ? null : datasource.getEnvironment();
     }
 
@@ -1566,10 +1666,15 @@ public class CommandTemplateDiscoveryService {
         runtime.setName("financial-market-runtime");
         runtime.setTitle("Financial Market Runtime");
         runtime.setToolName("financial_market_data");
-        runtime.setEnvironment(RUNTIME_MANAGED_TEMPLATE_ENVIRONMENT);
+        runtime.setEnvironment(runtimeManagedEnvironment());
         runtime.setDatabaseType(SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()));
         runtime.setEnabled(true);
         return java.util.Optional.of(runtime);
+    }
+
+    private String runtimeManagedEnvironment() {
+        String configured = properties == null ? null : properties.getRuntimeManagedEnvironment();
+        return configured == null || configured.isBlank() ? null : configured.trim();
     }
 
     private boolean hasExecutableDatabaseQueryBinding(DatabaseQueryConfig config) {
@@ -3843,6 +3948,8 @@ public class CommandTemplateDiscoveryService {
 
     private record ScoredTemplate<T>(T template, Relevance relevance) {
     }
+
+    private record PageRequest(int offset, int pageIndex, String queryHash) { }
 
     private record Relevance(int score, List<String> reasons, double finalScore, Map<String, Object> features) {
 

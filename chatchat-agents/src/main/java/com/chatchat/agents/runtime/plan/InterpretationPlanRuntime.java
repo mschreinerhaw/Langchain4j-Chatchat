@@ -3142,6 +3142,24 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             evaluation.selectedIds(), evaluation.applied(), evaluation.reason());
         if (!evaluation.templateMatchAnalysis().isEmpty()) {
             metadata.put(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY, evaluation.templateMatchAnalysis());
+            String coverageDecision = stringValue(
+                evaluation.templateMatchAnalysis().get("coverageDecision"));
+            String retrievalOutcome = stringValue(
+                evaluation.templateMatchAnalysis().get("retrievalOutcome"));
+            metadata.put("templateCoverageDecision", coverageDecision);
+            metadata.put("templateRetrievalOutcome", retrievalOutcome);
+            Map<String, Object> pageRef = asStringMap(
+                evaluation.templateMatchAnalysis().get("pageRef"));
+            String nextCursor = stringValue(pageRef.get("nextCursor"));
+            boolean continueRetrieval = "PAGE_EXHAUSTED_HAS_MORE".equals(retrievalOutcome)
+                && nextCursor != null;
+            metadata.put("templateDiscoveryContinuationRequired", continueRetrieval);
+            if (continueRetrieval) {
+                metadata.put("templateDiscoveryRetryInputChanges", Map.of("cursor", nextCursor));
+                metadata.put("templateReselectionRequired", true);
+            }
+            metadata.put("templateDiscoveryTerminal", !continueRetrieval
+                && evaluation.selectedIds().isEmpty());
             recordTemplateRequirementMatchingEvent(request, evaluation.templateMatchAnalysis());
         }
         if (!evaluation.applied()) {

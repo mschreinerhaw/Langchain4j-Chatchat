@@ -30,6 +30,11 @@ chatchat:
   audit:
     default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
   mcp:
+    template-discovery:
+      runtime-managed-environment: ${CHATCHAT_RUNTIME_ENVIRONMENT:}
+      policy-version: ${CHATCHAT_TEMPLATE_POLICY_VERSION:template_query_result.v1}
+      max-candidate-count: ${CHATCHAT_TEMPLATE_MAX_CANDIDATES:60}
+      max-pages: ${CHATCHAT_TEMPLATE_MAX_PAGES:3}
     grpc:
       client:
         enabled: false

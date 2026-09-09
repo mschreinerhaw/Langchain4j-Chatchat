@@ -2,9 +2,11 @@ package com.chatchat.agents.runtime.plan.selection;
 
 import com.chatchat.common.knowledge.template.BusinessAnalysisIntent;
 import com.chatchat.common.knowledge.template.TemplateAnalysisRole;
+import com.chatchat.common.knowledge.template.TemplateCoverageDecision;
 import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
 import com.chatchat.common.knowledge.template.TemplateRelationship;
 import com.chatchat.common.knowledge.template.TemplateRequirementMatchEvaluation;
+import com.chatchat.common.knowledge.template.TemplateRetrievalOutcome;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -54,6 +56,19 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .toList();
         }
         selectedIds = narrowToNecessaryTemplates(selectedIds, evaluations);
+        Set<String> parameterBlocked = unresolvedParameterTemplateIds(
+            evaluations, metadata.get("parameterProtocols"));
+        if (!parameterBlocked.isEmpty()) {
+            selectedIds = selectedIds.stream()
+                .filter(id -> !parameterBlocked.contains(normalize(id))).toList();
+            List<String> augmentedRejected = new ArrayList<>(rejectedIds);
+            evaluations.stream()
+                .map(item -> text(first(item, "templateId", "template_id")))
+                .filter(Objects::nonNull)
+                .filter(id -> parameterBlocked.contains(normalize(id)))
+                .forEach(augmentedRejected::add);
+            rejectedIds = List.copyOf(new LinkedHashSet<>(augmentedRejected));
+        }
         Projection projection = project(output, selectedIds, rejectedIds, evaluations, 0);
         if (!projection.applied()) {
             return Evaluation.notApplied(output,
@@ -71,7 +86,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             : attachReviewedInvocations(projection.output(), reviewedInvocations, 0);
         Map<String, Object> requirementMatch = requirementMatch(
             metadata, projection.selectedIds(), rejectedIds, evaluations,
-            "RUNTIME_EVIDENCE_MODEL_REVIEW");
+            projection.output(), parameterBlocked, "RUNTIME_EVIDENCE_MODEL_REVIEW");
         Object projectedOutput = requirementMatch.isEmpty()
             ? invocationProjectedOutput
             : attachRequirementMatch(invocationProjectedOutput, requirementMatch, 0);
@@ -139,9 +154,11 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                                                  List<String> selectedIds,
                                                  List<String> rejectedIds,
                                                  List<Map<String, Object>> evaluations,
+                                                 Object projectedOutput,
+                                                 Set<String> parameterBlocked,
                                                  String authority) {
         String question = text(metadata.get("originalUserQuestion"));
-        if (question == null || selectedIds == null || selectedIds.isEmpty()) return Map.of();
+        if (question == null) return Map.of();
         Map<String, Object> context = metadata.get("templateRequirementAnalysisContext") instanceof Map<?, ?> raw
             ? cast(raw) : Map.of();
         List<TemplateRequirementMatchEvaluation> typedEvaluations = evaluations.stream()
@@ -159,9 +176,114 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             businessIntent(metadata.get("businessAnalysisIntent"), question, completeEvaluations),
             completeEvaluations,
             relationships(metadata.get("templateRelationships"), selectedIds),
+            coverageDecision(metadata, selectedIds, projectedOutput),
+            retrievalOutcome(metadata, selectedIds, projectedOutput, parameterBlocked),
+            strings(first(metadata, "evidenceGaps", "missingAspects", "missingEvidence")),
+            pageRef(projectedOutput),
             text(metadata.get("toolResultReviewReason")),
             authority
         ).toMap();
+    }
+
+    private TemplateCoverageDecision coverageDecision(Map<String, Object> metadata,
+                                                       List<String> selectedIds,
+                                                       Object output) {
+        String declared = text(first(metadata, "coverageDecision", "coverage_decision"));
+        TemplateCoverageDecision parsed = enumValue(TemplateCoverageDecision.class, declared);
+        if (selectedIds != null && !selectedIds.isEmpty()) return TemplateCoverageDecision.SUFFICIENT;
+        if (parsed == TemplateCoverageDecision.SUFFICIENT) parsed = null;
+        if (parsed != null) return parsed;
+        return booleanIn(output, "hasMore")
+            ? TemplateCoverageDecision.NEED_NEXT_PAGE
+            : TemplateCoverageDecision.SCOPE_INSUFFICIENT;
+    }
+
+    private TemplateRetrievalOutcome retrievalOutcome(Map<String, Object> metadata,
+                                                       List<String> selectedIds,
+                                                       Object output,
+                                                       Set<String> parameterBlocked) {
+        if (selectedIds != null && !selectedIds.isEmpty()) return TemplateRetrievalOutcome.SELECTED;
+        if (parameterBlocked != null && !parameterBlocked.isEmpty()) {
+            return TemplateRetrievalOutcome.PARAMS_UNRESOLVABLE;
+        }
+        if (textIn(output, "retrievalStopReason") != null) {
+            return TemplateRetrievalOutcome.CAPABILITY_EXCEEDED;
+        }
+        TemplateRetrievalOutcome declared = enumValue(TemplateRetrievalOutcome.class,
+            text(first(metadata, "retrievalOutcome", "retrieval_outcome")));
+        if (declared != null && declared != TemplateRetrievalOutcome.SELECTED) return declared;
+        return booleanIn(output, "hasMore")
+            ? TemplateRetrievalOutcome.PAGE_EXHAUSTED_HAS_MORE
+            : TemplateRetrievalOutcome.SCOPE_EXHAUSTED_NO_MATCH;
+    }
+
+    private Map<String, Object> pageRef(Object output) {
+        Map<String, Object> source = findMapContaining(output, "hasMore", 0);
+        if (source.isEmpty()) return Map.of();
+        Map<String, Object> ref = new LinkedHashMap<>();
+        for (String key : List.of("nextCursor", "pageIndex", "hasMore", "pageFloorScore",
+            "maxPages", "scannedCandidateCount", "maxCandidateCount", "policyVersion", "queryHash")) {
+            if (source.get(key) != null) ref.put(key, source.get(key));
+        }
+        return Map.copyOf(ref);
+    }
+
+    private Set<String> unresolvedParameterTemplateIds(List<Map<String, Object>> evaluations,
+                                                        Object rawProtocols) {
+        Set<String> resolvedByProtocol = new LinkedHashSet<>();
+        for (Map<String, Object> protocol : maps(rawProtocols)) {
+            String id = text(first(protocol, "template_id", "templateId"));
+            if (id != null && strings(first(protocol, "unresolved_parameters", "unresolvedParameters")).isEmpty()) {
+                resolvedByProtocol.add(normalize(id));
+            }
+        }
+        Set<String> blocked = new LinkedHashSet<>();
+        for (Map<String, Object> item : evaluations) {
+            String id = text(first(item, "templateId", "template_id"));
+            if (id != null
+                && !strings(first(item, "missingParameters", "missing_parameters")).isEmpty()
+                && !resolvedByProtocol.contains(normalize(id))) {
+                blocked.add(normalize(id));
+            }
+        }
+        return Set.copyOf(blocked);
+    }
+
+    private boolean booleanIn(Object value, String key) {
+        Object found = findMapContaining(value, key, 0).get(key);
+        return Boolean.TRUE.equals(found) || "true".equalsIgnoreCase(String.valueOf(found));
+    }
+
+    private String textIn(Object value, String key) {
+        return text(findMapContaining(value, key, 0).get(key));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findMapContaining(Object value, String key, int depth) {
+        if (value == null || depth > 8) return Map.of();
+        if (value instanceof Map<?, ?> raw) {
+            Map<String, Object> map = (Map<String, Object>) raw;
+            if (map.containsKey(key)) return map;
+            for (Object nested : map.values()) {
+                Map<String, Object> found = findMapContaining(nested, key, depth + 1);
+                if (!found.isEmpty()) return found;
+            }
+        } else if (value instanceof Iterable<?> values) {
+            for (Object nested : values) {
+                Map<String, Object> found = findMapContaining(nested, key, depth + 1);
+                if (!found.isEmpty()) return found;
+            }
+        }
+        return Map.of();
+    }
+
+    private <E extends Enum<E>> E enumValue(Class<E> type, String value) {
+        if (value == null) return null;
+        try {
+            return Enum.valueOf(type, value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private List<TemplateRequirementMatchEvaluation> completeEvaluations(

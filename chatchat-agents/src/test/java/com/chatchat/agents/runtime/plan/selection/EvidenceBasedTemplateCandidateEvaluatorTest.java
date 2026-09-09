@@ -10,6 +10,72 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EvidenceBasedTemplateCandidateEvaluatorTest {
 
     @Test
+    void representsRejectedPageAsNeedNextPageWithoutForcingASelection() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of(
+                    "hasMore", true,
+                    "nextCursor", "opaque-next",
+                    "pageIndex", 0,
+                    "templates", List.of(Map.of("templateId", "wrong-scope"))),
+                Map.of(
+                    "originalUserQuestion", "find customer exposure",
+                    "coverageDecision", "NEED_NEXT_PAGE",
+                    "selectedTemplateIds", List.of(),
+                    "rejectedTemplateIds", List.of("wrong-scope"),
+                    "evidenceGaps", List.of("customer exposure"),
+                    "templateEvaluations", List.of(Map.of(
+                        "templateId", "wrong-scope", "decision", "REJECT",
+                        "totalScore", 0.1, "reasons", List.of("wrong business scope"))))) ;
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedIds()).isEmpty();
+        assertThat(evaluation.templateMatchAnalysis())
+            .containsEntry("coverageDecision", "NEED_NEXT_PAGE")
+            .containsEntry("retrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE");
+        assertThat(evaluation.templateMatchAnalysis().toString())
+            .contains("opaque-next", "customer exposure");
+    }
+
+    @Test
+    void reportsCapabilityExceededWhenTheProgrammaticPageBudgetStopsRetrieval() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of(
+                    "hasMore", false,
+                    "possiblyTruncated", true,
+                    "retrievalStopReason", "MAX_PAGES",
+                    "templates", List.of(Map.of("templateId", "wrong-scope"))),
+                Map.of(
+                    "originalUserQuestion", "find customer exposure",
+                    "rejectedTemplateIds", List.of("wrong-scope")));
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.templateMatchAnalysis())
+            .containsEntry("retrievalOutcome", "CAPABILITY_EXCEEDED")
+            .containsEntry("coverageDecision", "SCOPE_INSUFFICIENT");
+    }
+
+    @Test
+    void blocksSelectedTemplateWhoseRequiredParametersRemainUnresolved() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("hasMore", false, "templates", List.of(
+                    Map.of("templateId", "account-detail"))),
+                Map.of(
+                    "originalUserQuestion", "show account detail",
+                    "selectedTemplateIds", List.of("account-detail"),
+                    "templateEvaluations", List.of(Map.of(
+                        "templateId", "account-detail", "decision", "ACCEPT",
+                        "totalScore", 0.9, "missingParameters", List.of("accountId")))));
+
+        assertThat(evaluation.applied()).isTrue();
+        assertThat(evaluation.selectedIds()).isEmpty();
+        assertThat(evaluation.templateMatchAnalysis())
+            .containsEntry("retrievalOutcome", "PARAMS_UNRESOLVABLE");
+    }
+
+    @Test
     void dropsRedundantAcceptedContextWhenTargetsAlreadyCoverItsQuestionAspects() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(

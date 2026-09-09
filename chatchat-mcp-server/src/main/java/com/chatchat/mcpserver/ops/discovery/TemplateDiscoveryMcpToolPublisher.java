@@ -264,6 +264,10 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                 "description", "Template ids rejected by semantic review; excluded from this bounded retry.",
                 "items", Map.of("type", "string")
             ),
+            "cursor", Map.of(
+                "type", "string",
+                "description", "Opaque nextCursor from the immediately preceding page of the identical query."
+            ),
             "limit", Map.of(
                 "type", "integer",
                 "minimum", 1,
@@ -309,6 +313,10 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                 "description", "Template ids rejected by semantic review; excluded from this bounded retry.",
                 "items", Map.of("type", "string")
             ),
+            "cursor", Map.of(
+                "type", "string",
+                "description", "Opaque nextCursor from the immediately preceding page of the identical query."
+            ),
             "limit", Map.of(
                 "type", "integer",
                 "minimum", 1,
@@ -338,7 +346,10 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                 "canonical", "templates[]",
                 "templateIdPath", "templates[].templateId",
                 "queryIrPath", "queryIr",
-                "decisionTracePath", "resolutionTrace"
+                "decisionTracePath", "resolutionTrace",
+                "nextCursorPath", "nextCursor",
+                "hasMorePath", "hasMore",
+                "pageFloorScorePath", "pageFloorScore"
             ),
             "decisionEngine", "mcp_template_lucene_decision_v2_no_vector",
             "languageSupport", mapOf(
@@ -447,7 +458,10 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                 "canonical", "templates[]",
                 "templateIdPath", "templates[].templateId",
                 "queryIrPath", "queryIr",
-                "decisionTracePath", "resolutionTrace"
+                "decisionTracePath", "resolutionTrace",
+                "nextCursorPath", "nextCursor",
+                "hasMorePath", "hasMore",
+                "pageFloorScorePath", "pageFloorScore"
             ),
             "indexPolicy", mapOf(
                 "logicalIndex", "template:" + assetType,

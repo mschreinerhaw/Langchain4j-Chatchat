@@ -17,6 +17,10 @@ public record TemplateMatchAnalysis(
     BusinessAnalysisIntent analysisIntent,
     List<TemplateRequirementMatchEvaluation> templateMatches,
     List<TemplateRelationship> templateRelationships,
+    TemplateCoverageDecision coverageDecision,
+    TemplateRetrievalOutcome retrievalOutcome,
+    List<String> evidenceGaps,
+    Map<String, Object> pageRef,
     String decisionReason,
     String selectionAuthority
 ) {
@@ -39,6 +43,21 @@ public record TemplateMatchAnalysis(
                 List.of(), null, List.of()) : analysisIntent;
         templateMatches = templateMatches == null ? List.of() : List.copyOf(templateMatches);
         templateRelationships = templateRelationships == null ? List.of() : List.copyOf(templateRelationships);
+        coverageDecision = coverageDecision == null
+            ? (selectedTemplateIds(templateMatches).isEmpty()
+                ? TemplateCoverageDecision.SCOPE_INSUFFICIENT : TemplateCoverageDecision.SUFFICIENT)
+            : coverageDecision;
+        if (coverageDecision == TemplateCoverageDecision.SUFFICIENT
+            && selectedTemplateIds(templateMatches).isEmpty()) {
+            throw new IllegalArgumentException("SUFFICIENT coverage requires at least one selected template");
+        }
+        retrievalOutcome = retrievalOutcome == null
+            ? (selectedTemplateIds(templateMatches).isEmpty()
+                ? TemplateRetrievalOutcome.SCOPE_EXHAUSTED_NO_MATCH : TemplateRetrievalOutcome.SELECTED)
+            : retrievalOutcome;
+        evidenceGaps = strings(evidenceGaps);
+        pageRef = pageRef == null ? Map.of()
+            : Collections.unmodifiableMap(new LinkedHashMap<>(pageRef));
         decisionReason = clean(decisionReason);
         selectionAuthority = clean(selectionAuthority);
         // An evidence review is allowed to reject every authorized candidate.  Empty selection is
@@ -74,6 +93,10 @@ public record TemplateMatchAnalysis(
             .map(TemplateRequirementMatchEvaluation::toMap).toList());
         value.put("templateRelationships", templateRelationships.stream()
             .map(TemplateRelationship::toMap).toList());
+        value.put("coverageDecision", coverageDecision.name());
+        value.put("retrievalOutcome", retrievalOutcome.name());
+        value.put("evidenceGaps", evidenceGaps);
+        value.put("pageRef", pageRef);
         value.put("selectedTemplateIds", selectedTemplateIds());
         value.put("excludedTemplateIds", excludedTemplateIds());
         value.put("decisionReason", decisionReason == null ? "" : decisionReason);

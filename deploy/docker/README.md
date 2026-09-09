@@ -56,6 +56,12 @@ use a reviewed migration; deleting a volume is not an upgrade procedure.
 
 ## 3. Application connection contract
 
+Set `CHATCHAT_RUNTIME_ENVIRONMENT` to the deployment's governed environment label
+(for example the label registered in the control plane). Runtime-managed template discovery
+does not guess this business value from the host operating system or a Spring profile. Set
+`CHATCHAT_TEMPLATE_POLICY_VERSION` whenever the authorized template-binding policy is
+published, so outstanding discovery cursors fail closed after a policy change.
+
 For applications running on the Docker host, set `CHATCHAT_REDIS_NODE=127.0.0.1:6379`
 in `.env.production` **before the first MySQL initialization**. For application containers
 joined to `chatchat-backend`, keep the default `redis:6379`.

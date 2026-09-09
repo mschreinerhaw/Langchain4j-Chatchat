@@ -73,6 +73,58 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void pagesDeterministicallyAndRejectsCursorAfterPolicyChange() {
+        JmxTemplateService jmxTemplateService = mock(JmxTemplateService.class);
+        JmxTemplateConfig firstTemplate = new JmxTemplateConfig();
+        firstTemplate.setCode("JMX_ALPHA_METRICS");
+        firstTemplate.setTitle("JVM alpha metrics");
+        firstTemplate.setDescription("JVM memory metrics");
+        firstTemplate.setIntentSignalsJson("[\"jvm\",\"metrics\"]");
+        firstTemplate.setEnabled(true);
+        JmxTemplateConfig secondTemplate = new JmxTemplateConfig();
+        secondTemplate.setCode("JMX_BETA_METRICS");
+        secondTemplate.setTitle("JVM beta metrics");
+        secondTemplate.setDescription("JVM memory metrics");
+        secondTemplate.setIntentSignalsJson("[\"jvm\",\"metrics\"]");
+        secondTemplate.setEnabled(true);
+        when(jmxTemplateService.listEnabled()).thenReturn(List.of(firstTemplate, secondTemplate));
+        TemplateDiscoveryProperties properties = new TemplateDiscoveryProperties();
+        properties.setPolicyVersion("policy-7");
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class), mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class), mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class), jmxTemplateService,
+            mock(DatabaseQueryConfigService.class), null, new ObjectMapper(),
+            properties, null, new TargetKindRegistry());
+        Map<String, Object> query = Map.of(
+            "targetKind", "java", "confidence", 0.95,
+            "filters", Map.of("intent", "jvm metrics"), "trace", trace(), "limit", 1);
+
+        Map<String, Object> first = service.query(query);
+        assertThat(first)
+            .containsEntry("hasMore", true)
+            .containsEntry("pageIndex", 0)
+            .containsEntry("returnedCount", 1)
+            .containsEntry("policyVersion", "policy-7");
+        assertThat(first.get("nextCursor")).isNotNull();
+        assertThat(first.get("pageFloorScore")).isNotNull();
+
+        Map<String, Object> secondQuery = new java.util.LinkedHashMap<>(query);
+        secondQuery.put("cursor", first.get("nextCursor"));
+        Map<String, Object> second = service.query(secondQuery);
+        assertThat(second)
+            .containsEntry("hasMore", false)
+            .containsEntry("pageIndex", 1)
+            .containsEntry("returnedCount", 1);
+        assertThat(second.get("templates")).isNotEqualTo(first.get("templates"));
+
+        properties.setPolicyVersion("policy-8");
+        assertThatThrownBy(() -> service.query(secondQuery))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid template discovery cursor");
+    }
+
+    @Test
     void rejectsUnresolvedAgentRuntimeBindingPlaceholder() {
         CommandTemplateDiscoveryService service = service(
             mock(CommandTemplateService.class),

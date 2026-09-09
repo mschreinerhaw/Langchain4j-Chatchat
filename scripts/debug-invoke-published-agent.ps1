@@ -4,6 +4,7 @@ param(
     [string]$AgentId = "financial_indicator",
     [string]$Question,
     [string]$TaskId,
+    [string]$RequiredWorkerVersion,
     [string]$AgentToken = $env:AGENT_TOKEN,
     [string]$SessionId = ("jar-debug-" + [guid]::NewGuid().ToString("N")),
     [string]$LogPath,
@@ -61,7 +62,14 @@ if ([string]::IsNullOrWhiteSpace($TaskId)) {
         sessionId = $SessionId
         question = $Question
         idempotencyKey = "jar-debug:$SessionId"
-    } | ConvertTo-Json -Depth 5
+    }
+    if (-not [string]::IsNullOrWhiteSpace($RequiredWorkerVersion)) {
+        $SubmitBody.parameters = @{
+            requiredWorkerVersion = $RequiredWorkerVersion.Trim()
+        }
+        Write-RunLog "submission is pinned to requiredWorkerVersion=$($RequiredWorkerVersion.Trim())"
+    }
+    $SubmitBody = $SubmitBody | ConvertTo-Json -Depth 5
 
     $Submit = Invoke-RestMethod `
         -Method Post `

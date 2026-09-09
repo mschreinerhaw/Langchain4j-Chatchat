@@ -82,4 +82,25 @@ class StructuredDataProjectorTest {
         assertThat(datasets).anySatisfy(dataset ->
             assertThat(dataset.path()).isEqualTo("$.canonical[].rows"));
     }
+
+    @Test
+    void excludesProtocolCollectionsFromArbitraryMcpEnvelope() {
+        Object output = Map.of("data", Map.of(
+            "holdings", List.of(Map.of("symbol", "600000", "marketValue", 1200)),
+            "analysisContext", Map.of("schema", Map.of("fields", List.of(
+                Map.of("name", "symbol", "type", "string")))),
+            "execution", Map.of("steps", List.of(Map.of("id", "fetch", "status", "SUCCESS"))),
+            "executionGraph", Map.of("nodes", List.of(Map.of("id", "node-1"))),
+            "commandContext", Map.of("commands", List.of(Map.of("method", "GET"))),
+            "preflightAudit", Map.of("evidence", List.of(Map.of("code", "AUTHORIZED"))),
+            "postflight_audit", Map.of("findings", List.of(Map.of("code", "COMPLETE")))
+        ));
+
+        List<StructuredDataProjector.Dataset> datasets = projector.projectForAnalysis(output);
+
+        assertThat(datasets).extracting(StructuredDataProjector.Dataset::path)
+            .containsExactly("$.data.holdings");
+        assertThat(datasets.get(0).rows()).containsExactly(
+            Map.of("symbol", "600000", "marketValue", 1200));
+    }
 }

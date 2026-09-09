@@ -503,6 +503,7 @@ public final class FinalSynthesisNode {
             + "During your internal consistency review, qualify statements that infer intent, causality or persistent behavior from co-occurrence alone; use comparative labels without an evidence baseline; change a producer field's measurement basis; or expand a sample into a population claim. "
             + "Preserve producer-declared labels, definitions, units, measurement bases and inclusion/exclusion rules. "
             + "When any of these is undeclared, leave it unknown; never import a domain convention or reuse a definition from a similarly named field. "
+            + "Never turn a returned row count into a population count. State truncation, omission, or 'at least N' only when an admitted artifact explicitly says truncated=true, sourceComplete=false, or pagination.hasMore=true. UNKNOWN completeness or paginationAssessed=false means unknown, not truncated. "
             + "Do not repeat a summary paragraph as a section body; each section must add evidence, comparison, interpretation, or a bounded implication. "
             + "Keep useful observed-period conclusions after narrowing them. Ensure any summary and its supporting detail use the same scope and claim strength.\n"
             + "User question: " + question + "\n"

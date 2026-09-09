@@ -12,6 +12,7 @@ param(
     [string]$NewsProfile = "h2",
     [int]$ApiPort = 8080,
     [int]$McpPort = 8090,
+    [int]$GrpcPort = 9091,
     [int]$NewsPort = 8091,
     [int]$StartupTimeoutSeconds = 120,
 
@@ -156,11 +157,14 @@ function Get-AppProcesses {
 }
 
 function Test-PortOpen {
-    param([int]$Port)
+    param(
+        [int]$Port,
+        [string]$HostName = "127.0.0.1"
+    )
 
     $Client = [System.Net.Sockets.TcpClient]::new()
     try {
-        $ConnectTask = $Client.ConnectAsync("127.0.0.1", $Port)
+        $ConnectTask = $Client.ConnectAsync($HostName, $Port)
         if (-not $ConnectTask.Wait(500)) {
             return $false
         }
@@ -228,9 +232,24 @@ function Sync-LocalMySqlInfrastructure {
 
 function Initialize-LocalMySqlInfrastructure {
     if ($SkipInfrastructure) {
-        if (-not (Test-PortOpen -Port 3306)) {
-            throw "MySQL is not reachable on 127.0.0.1:3306. Start the external database or omit -SkipInfrastructure."
+        $DatabaseHost = if ([string]::IsNullOrWhiteSpace($env:CHATCHAT_MYSQL_HOST)) {
+            "127.0.0.1"
+        } else {
+            $env:CHATCHAT_MYSQL_HOST.Trim()
         }
+        $DatabasePort = 3306
+        if (-not [string]::IsNullOrWhiteSpace($env:CHATCHAT_MYSQL_PORT)) {
+            $ParsedPort = 0
+            if (-not [int]::TryParse($env:CHATCHAT_MYSQL_PORT, [ref]$ParsedPort) -or
+                $ParsedPort -lt 1 -or $ParsedPort -gt 65535) {
+                throw "CHATCHAT_MYSQL_PORT must be an integer between 1 and 65535."
+            }
+            $DatabasePort = $ParsedPort
+        }
+        if (-not (Test-PortOpen -HostName $DatabaseHost -Port $DatabasePort)) {
+            throw "MySQL is not reachable on ${DatabaseHost}:$DatabasePort. Start the external database or omit -SkipInfrastructure."
+        }
+        Write-Host "External MySQL is reachable on ${DatabaseHost}:$DatabasePort."
         return
     }
 
@@ -320,9 +339,9 @@ function Invoke-Build {
         "-am"
     )
 
-    if ($Clean) {
-        $MavenArgs += "clean"
-    }
+    # This script is the published-JAR debugging entry point. Always clean so
+    # stale classes/resources cannot make a local run differ from the sources.
+    $MavenArgs += "clean"
 
     $MavenArgs += "package"
 
@@ -419,11 +438,44 @@ function Get-NewsExtraArgs {
 }
 
 function Get-McpExtraArgs {
-    $Arguments = @("--chatchat.mcp.news-runtime.base-url=http://localhost:$NewsPort")
+    $Arguments = @(
+        "--chatchat.mcp.news-runtime.base-url=http://localhost:$NewsPort",
+        "--chatchat.mcp.grpc.client.enabled=false",
+        "--chatchat.mcp.grpc.server.enabled=true",
+        "--chatchat.mcp.grpc.server.port=$GrpcPort",
+        "--chatchat.mcp.grpc.server.plaintext=true"
+    )
     if (-not [string]::IsNullOrWhiteSpace($McpArgs)) {
         $Arguments += $McpArgs
     }
     return ($Arguments -join " ")
+}
+
+function Get-ApiExtraArgs {
+    $Arguments = @(
+        "--chatchat.mcp.grpc.client.enabled=true",
+        "--chatchat.mcp.grpc.client.host=localhost",
+        "--chatchat.mcp.grpc.client.port=$GrpcPort",
+        "--chatchat.mcp.grpc.client.plaintext=true",
+        "--chatchat.agent.task.database-queue-enabled=false"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($ApiArgs)) {
+        $Arguments += $ApiArgs
+    }
+    return ($Arguments -join " ")
+}
+
+function Wait-PortOpen {
+    param([string]$Name, [int]$Port)
+
+    for ($Second = 1; $Second -le $StartupTimeoutSeconds; $Second++) {
+        if (Test-PortOpen -Port $Port) {
+            Write-Host "$Name is ready on port $Port."
+            return
+        }
+        Start-Sleep -Seconds 1
+    }
+    throw "$Name did not open port $Port within $StartupTimeoutSeconds seconds."
 }
 
 function Start-ManagedApp {
@@ -530,6 +582,8 @@ switch ($Action) {
     "status" {
         Write-ManagedStatus -Name "chatchat-runtime-news" -PidFile $NewsPidFile -Port $NewsPort
         Write-ManagedStatus -Name "chatchat-mcp-server" -PidFile $McpPidFile -Port $McpPort
+        $GrpcStatus = if (Test-PortOpen -Port $GrpcPort) { "open" } else { "closed" }
+        Write-Host "chatchat-mcp-server gRPC: port $GrpcPort is $GrpcStatus"
         Write-ManagedStatus -Name "chatchat-api" -PidFile $ApiPidFile -Port $ApiPort
         break
     }
@@ -556,8 +610,9 @@ switch ($Action) {
 
         $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
         Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs (Get-McpExtraArgs) -LoaderPath $McpPluginPath
+        Wait-PortOpen -Name "chatchat-mcp-server gRPC" -Port $GrpcPort
         Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs (Get-NewsExtraArgs) -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
-        Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
+        Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs (Get-ApiExtraArgs) -WorkingDirectory (Join-Path $ProjectRoot "chatchat-api")
 
         Write-Host ""
         Write-Host "Ready:"
@@ -567,6 +622,7 @@ switch ($Action) {
         Write-Host "  API: http://localhost:$ApiPort"
         Write-Host "  MCP admin: http://localhost:$McpPort/admin"
         Write-Host "  MCP endpoint: http://localhost:$McpPort/mcp"
+        Write-Host "  MCP gRPC: localhost:$GrpcPort"
         break
     }
     "start" {
@@ -588,8 +644,9 @@ switch ($Action) {
 
         $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
         Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs (Get-McpExtraArgs) -LoaderPath $McpPluginPath
+        Wait-PortOpen -Name "chatchat-mcp-server gRPC" -Port $GrpcPort
         Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs (Get-NewsExtraArgs) -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
-        Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
+        Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs (Get-ApiExtraArgs) -WorkingDirectory (Join-Path $ProjectRoot "chatchat-api")
 
         Write-Host ""
         Write-Host "Ready:"
@@ -599,6 +656,7 @@ switch ($Action) {
         Write-Host "  API: http://localhost:$ApiPort"
         Write-Host "  MCP admin: http://localhost:$McpPort/admin"
         Write-Host "  MCP endpoint: http://localhost:$McpPort/mcp"
+        Write-Host "  MCP gRPC: localhost:$GrpcPort"
         break
     }
 }

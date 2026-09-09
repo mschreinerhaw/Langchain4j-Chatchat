@@ -18,6 +18,8 @@ import com.chatchat.common.knowledge.template.TemplateWorkerAnalysisContext;
 import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,6 +34,8 @@ import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
 
 /** Projects arbitrary Runtime evidence into governed, relationship-aware analysis datasets. */
 public final class AnalysisEvidenceCoordinator {
+
+    private static final Logger log = LoggerFactory.getLogger(AnalysisEvidenceCoordinator.class);
 
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeService toolRuntimeService;
@@ -114,7 +118,12 @@ public final class AnalysisEvidenceCoordinator {
                 AgentRoleAnalysisContext.attach(dataset.analysisContext(), runtimeAttributes),
                 dataset.handle()))
             .toList();
-        return new Projection(deduplicateRepeatedExecutions(scopedDatasets), List.copyOf(excluded));
+        List<Dataset> projected = deduplicateRepeatedExecutions(scopedDatasets);
+        log.info("Runtime business dataset projection: successfulStepCount={}, datasetCount={}, "
+                + "excludedCount={}, datasetReferences={}",
+            result.steps().stream().filter(step -> step != null && step.success()).count(),
+            projected.size(), excluded.size(), projected.stream().map(Dataset::reference).toList());
+        return new Projection(projected, List.copyOf(excluded));
     }
 
     /** Removes replayed copies of the same execution evidence while retaining distinct datasets. */

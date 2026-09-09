@@ -107,6 +107,35 @@ class McpEvidenceGovernanceBridgeTest {
     }
 
     @Test
+    void ignoresProtocolCollectionsThatAreNestedInsideTheCanonicalBody() {
+        List<Map<String, Object>> businessRecords = List.of(
+            Map.of("KHH", "070200046604", "ZZC", 847174.25));
+        Map<String, Object> body = Map.of(
+            "records", businessRecords,
+            "analysisContext", Map.of("schema", Map.of("fields", List.of(
+                Map.of("name", "KHH"), Map.of("name", "ZZC")))),
+            "commandContext", Map.of("commands", List.of(Map.of("name", "query"))),
+            "execution", Map.of("steps", List.of(Map.of("status", "SUCCESS"))),
+            "executionGraph", Map.of("nodes", List.of(Map.of("id", "execute"))),
+            "preflightAudit", List.of(Map.of("status", "PASSED")),
+            "postflightAudit", List.of(Map.of("status", "PASSED")));
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", "mcp_analysis_payload.v1",
+            "data", Map.of("data", Map.of("body", body)),
+            "rawData", Map.of("content", List.of(Map.of("type", "text", "text", body))));
+
+        Map<String, Object> projection = new McpResultAnalysisBridge()
+            .protocolAnalysisProjection("asset-template", payload, 10_000);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> datasets = (List<Map<String, Object>>) projection.get("datasets");
+        assertThat(datasets).singleElement().satisfies(dataset ->
+            assertThat(dataset.get("records")).isEqualTo(businessRecords));
+        assertThat(projection.toString()).doesNotContain(
+            "fields", "commands", "executionGraph", "preflightAudit", "postflightAudit");
+    }
+
+    @Test
     void keepsSuccessfulEmptyCanonicalBodyOutOfGenericMetadataAnalysis() {
         Map<String, Object> payload = Map.of(
             "schemaVersion", "mcp_analysis_payload.v1",

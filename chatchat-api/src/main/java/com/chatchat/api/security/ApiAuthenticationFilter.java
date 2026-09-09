@@ -73,7 +73,7 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         try {
             if (agentApiTokenService.looksLikeApiToken(token)) {
                 String path = applicationPath(request);
-                if (!isAgentApiInvocationPath(path)) {
+                if (!isAgentApiInvocationPath(path, request.getMethod())) {
                     writeUnauthorized(request, response, "Agent API Token 只能用于已发布 Agent 的问答接口");
                     return;
                 }
@@ -143,8 +143,10 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         return request.getRequestURI().substring(request.getContextPath().length());
     }
 
-    private boolean isAgentApiInvocationPath(String path) {
+    private boolean isAgentApiInvocationPath(String path, String method) {
         return path.matches("/api/v1/published-agents/[^/]+/questions/?")
-            || path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/(status|answer)/?");
+            || path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/(status|answer)/?")
+            || ("DELETE".equalsIgnoreCase(method)
+                && path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/?"));
     }
 }

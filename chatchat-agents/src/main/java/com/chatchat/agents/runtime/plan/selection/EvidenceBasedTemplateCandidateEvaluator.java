@@ -53,6 +53,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .filter(Objects::nonNull)
                 .toList();
         }
+        selectedIds = narrowToNecessaryTemplates(selectedIds, evaluations);
         Projection projection = project(output, selectedIds, rejectedIds, evaluations, 0);
         if (!projection.applied()) {
             return Evaluation.notApplied(output,
@@ -85,6 +86,53 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             true,
             "Runtime projected evidence-reviewed templates before dependency binding and execution."
         );
+    }
+
+    /**
+     * Resolves an internally inconsistent reviewer response conservatively. The strongest
+     * accepted tier forms the primary evidence set. A lower-scored selection remains only when it
+     * covers a question aspect not already covered by that set. This remains effective when a
+     * reviewer incorrectly labels every accepted candidate TARGET, while retaining complementary
+     * templates and explicit selections for which no evaluation was returned.
+     */
+    private List<String> narrowToNecessaryTemplates(List<String> selectedIds,
+                                                     List<Map<String, Object>> evaluations) {
+        if (selectedIds == null || selectedIds.isEmpty() || evaluations == null || evaluations.isEmpty()) {
+            return selectedIds == null ? List.of() : selectedIds;
+        }
+        Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
+        evaluations.forEach(item -> {
+            String id = text(first(item, "templateId", "template_id"));
+            if (id != null) byId.putIfAbsent(normalize(id), item);
+        });
+        List<String> ranked = selectedIds.stream()
+            .filter(id -> {
+                Map<String, Object> item = byId.get(normalize(id));
+                return item != null && acceptedEvaluation(item);
+            })
+            .sorted(Comparator.comparingDouble(
+                (String id) -> evaluationScore(byId.get(normalize(id)))).reversed())
+            .toList();
+        if (ranked.isEmpty()) return selectedIds;
+
+        double strongestScore = evaluationScore(byId.get(normalize(ranked.get(0))));
+        Set<String> coveredAspects = new LinkedHashSet<>();
+        List<String> narrowed = new ArrayList<>();
+        for (String id : ranked) {
+            Map<String, Object> item = byId.get(normalize(id));
+            List<String> aspects = strings(first(item,
+                "matchedQuestionAspects", "matched_question_aspects"));
+            boolean contributesNewAspect = aspects.stream().map(this::normalize)
+                .anyMatch(aspect -> !coveredAspects.contains(aspect));
+            boolean strongestTier = Math.abs(evaluationScore(item) - strongestScore) < 0.000001d;
+            if (strongestTier || aspects.isEmpty() || contributesNewAspect) {
+                narrowed.add(id);
+                aspects.stream().map(this::normalize).forEach(coveredAspects::add);
+            }
+        }
+        // Do not discard an explicit selection when the reviewer omitted its evaluation.
+        selectedIds.stream().filter(id -> !byId.containsKey(normalize(id))).forEach(narrowed::add);
+        return List.copyOf(new LinkedHashSet<>(narrowed));
     }
 
     private Map<String, Object> requirementMatch(Map<String, Object> metadata,

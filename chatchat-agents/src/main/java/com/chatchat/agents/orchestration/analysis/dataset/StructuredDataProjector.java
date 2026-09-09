@@ -30,6 +30,17 @@ public final class StructuredDataProjector {
     private static final Set<String> RAW_DUPLICATE_FIELDS = Set.of(
         "rawBody", "raw_body", "rawPayload", "raw_payload"
     );
+    /**
+     * Runtime/protocol collections describe how a tool call was executed; they are not
+     * business rows.  Arbitrary MCP envelopes can contain these next to the actual response,
+     * so the generic projector must exclude them before discovering record sets.
+     */
+    private static final Set<String> NON_BUSINESS_PROTOCOL_FIELDS = Set.of(
+        "analysiscontext", "workeranalysiscontext", "templatematchanalysis",
+        "commandcontext", "execution", "executiongraph", "runtimemetadata",
+        "preflightaudit", "postflightaudit", "audit", "auditevidence",
+        "provenance", "diagnostics", "trace", "routingtrace", "schema"
+    );
 
     private final Gson gson = new Gson();
 
@@ -107,7 +118,7 @@ public final class StructuredDataProjector {
             Map<String, Object> scalarFacts = new LinkedHashMap<>();
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 String key = entry.getKey();
-                if (RAW_DUPLICATE_FIELDS.contains(key)) {
+                if (excludedField(key)) {
                     continue;
                 }
                 Object child = normalizeJsonString(entry.getValue());
@@ -176,7 +187,7 @@ public final class StructuredDataProjector {
             return;
         }
         for (Map.Entry<String, Object> entry : source.entrySet()) {
-            if (RAW_DUPLICATE_FIELDS.contains(entry.getKey())) {
+            if (excludedField(entry.getKey())) {
                 continue;
             }
             String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
@@ -188,6 +199,15 @@ public final class StructuredDataProjector {
                 target.put(key, child);
             }
         }
+    }
+
+    private boolean excludedField(String key) {
+        if (key == null || RAW_DUPLICATE_FIELDS.contains(key)) {
+            return true;
+        }
+        String normalized = key.replace("_", "").replace("-", "")
+            .toLowerCase(java.util.Locale.ROOT);
+        return NON_BUSINESS_PROTOCOL_FIELDS.contains(normalized);
     }
 
     private boolean scalarCollection(Object value) {

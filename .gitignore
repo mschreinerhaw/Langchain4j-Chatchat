@@ -16,13 +16,16 @@ target/
 /.env.production
 **/internal-credential.key
 /chatchat-api/data/
+/chatchat-api/src/main/resources/static
 /chatchat-api/h2/
 /chatchat-api/src/resources/static/
 /chatchat-api/logs/
 /chatchat-mcp-server/data/
+/chatchat-mcp-server/src/main/resources/static
 /chatchat-mcp-server/h2/
 /chatchat-mcp-server/logs/
-
+/lib
+/tmp
 ### Local browser/runtime caches ###
 /playwright-browsers/
 
@@ -60,3 +63,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+/deploy/chatchat-1.0.0-SNAPSHOT
+/deploy/chatchat-mcp-server-1.0.0-SNAPSHOT
+/deploy/chatchat-runtime-news-1.0.0-SNAPSHOT

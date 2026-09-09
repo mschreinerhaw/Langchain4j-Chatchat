@@ -43,6 +43,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
@@ -65,6 +66,30 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentTaskServiceTest {
+
+    @Test
+    void latestStateUpdateRetriesAConcurrentLeaseHeartbeatConflict() {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentTaskLatestEntity firstSnapshot = new AgentTaskLatestEntity();
+        firstSnapshot.setTaskId("task-heartbeat-race");
+        AgentTaskLatestEntity refreshedSnapshot = new AgentTaskLatestEntity();
+        refreshedSnapshot.setTaskId("task-heartbeat-race");
+        when(latestRepository.findById("task-heartbeat-race"))
+            .thenReturn(Optional.of(firstSnapshot), Optional.of(refreshedSnapshot));
+        when(latestRepository.save(firstSnapshot)).thenThrow(
+            new ObjectOptimisticLockingFailureException(AgentTaskLatestEntity.class, "task-heartbeat-race"));
+        when(latestRepository.save(refreshedSnapshot)).thenReturn(refreshedSnapshot);
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), latestRepository,
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+
+        service.updateLatest("task-heartbeat-race", "WAIT_MODEL", null, null);
+
+        assertThat(refreshedSnapshot.getStatus()).isEqualTo("WAIT_MODEL");
+        verify(latestRepository, times(2)).findById("task-heartbeat-race");
+        verify(latestRepository).save(firstSnapshot);
+        verify(latestRepository).save(refreshedSnapshot);
+    }
 
     @Test
     void databaseHeartbeatKeepsMultipleRenewalWindowsInsideTheLease() {
@@ -271,6 +296,7 @@ class AgentTaskServiceTest {
 
         assertThat(replayResponse.taskId()).isEqualTo(firstResponse.taskId());
         assertThat(firstResponse.taskId()).isEqualTo(persisted.getTaskId());
+        assertThat(persisted.getRequiredWorkerVersion()).startsWith("in-process-");
         verify(eventBus, times(1)).publish(any(AgentEvent.class));
         verify(eventStore, times(1)).save(any(AgentEvent.class));
     }

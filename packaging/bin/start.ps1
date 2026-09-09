@@ -18,6 +18,7 @@ $PidFile = Join-Path $RunDir "$AppName.pid"
 $StdoutLog = Join-Path $LogsDir "$AppName.out"
 $StderrLog = Join-Path $LogsDir "$AppName.err"
 $ConfigDir = Join-Path $AppHome "config"
+$InternalCredentialKey = Join-Path $ConfigDir "internal-credential.key"
 
 New-Item -ItemType Directory -Force -Path $LogsDir, $RunDir, $DataDir, $ExtLibDir, $DriversDir | Out-Null
 
@@ -43,6 +44,11 @@ if (Test-Path $PidFile) {
 
 if (-not (Test-Path $AppJar)) {
     Write-Error "Application jar not found: $AppJar"
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $InternalCredentialKey -PathType Leaf)) {
+    Write-Error "Internal credential key not found: $InternalCredentialKey. Provision the deployment key before starting $AppName."
     exit 1
 }
 

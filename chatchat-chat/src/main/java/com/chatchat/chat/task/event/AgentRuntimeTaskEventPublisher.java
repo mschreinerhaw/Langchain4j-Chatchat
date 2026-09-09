@@ -70,6 +70,16 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             .build();
         eventStore.save(taskEvent);
         eventBus.publishResult(taskEvent);
+        if (event.type() == AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING) {
+            log.info("Business template selection bridged to task flow. taskId={} candidateCount={} "
+                    + "selectedCount={} selectedTemplateIds={} rejectedTemplateIds={} fallbackUsed={}",
+                latest.getTaskId(),
+                event.payload().get("candidateCount"),
+                event.payload().get("selectedCount"),
+                event.payload().get("selectedTemplateIds"),
+                event.payload().get("rejectedTemplateIds"),
+                event.payload().get("fallbackUsed"));
+        }
         log.info("Agent runtime event bridged to task flow. taskId={} runId={} runtimeEventType={} taskEventType={} status={} message={}",
             latest.getTaskId(),
             event.runId(),
@@ -279,11 +289,16 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             "sourceCount", 0,
             "toolTraceCount", intValue(payload.get("toolTraceCount"))
         ));
-        result.put("debug", Map.of(
-            "errorCode", firstText(stringValue(payload.get("errorCode")), ""),
-            "errorMessage", firstText(stringValue(payload.get("errorMessage")), "")
-        ));
+        Map<String, Object> debug = new LinkedHashMap<>();
+        debug.put("errorCode", nonNullText(payload.get("errorCode")));
+        debug.put("errorMessage", nonNullText(payload.get("errorMessage")));
+        result.put("debug", debug);
         return result;
+    }
+
+    private String nonNullText(Object value) {
+        String text = stringValue(value);
+        return text == null ? "" : text.trim();
     }
 
     private Map<String, Object> asMap(Object value) {

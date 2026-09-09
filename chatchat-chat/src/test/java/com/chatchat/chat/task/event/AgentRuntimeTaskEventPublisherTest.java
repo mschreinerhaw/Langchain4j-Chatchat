@@ -194,6 +194,29 @@ class AgentRuntimeTaskEventPublisherTest {
     }
 
     @Test
+    void bridgesRuntimeFailedEventWhenOptionalErrorFieldsAreAbsent() throws Exception {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository, eventStore, eventBus, objectMapper);
+        AgentTaskLatestEntity task = task("task-runtime-failed-without-details");
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+
+        publisher.publish(AgentRunEvent.of(
+            task.getTaskId(), AgentRunEventType.RUN_FAILED, "Agent run failed", Map.of()));
+
+        AgentEvent failedEvent = eventStore.listByTask(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), 10).get(0);
+        Map<String, Object> payload = objectMapper.readValue(failedEvent.getPayload(), Map.class);
+        assertThat(failedEvent.getType()).isEqualTo("RUNTIME_FAILED");
+        assertThat(payload.get("executionResult"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsKey("debug");
+        verify(eventBus).publishResult(failedEvent);
+    }
+
+    @Test
     void concurrentRuntimeCompletionRemainsNonTerminalUntilFinalTaskAnswerIsPublished() throws Exception {
         AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
         InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();

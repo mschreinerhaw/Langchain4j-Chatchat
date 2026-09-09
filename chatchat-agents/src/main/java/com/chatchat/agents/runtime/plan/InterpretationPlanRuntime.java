@@ -3136,6 +3136,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         metadata.put("runtimeSelectedTemplateIds", evaluation.selectedIds());
         metadata.put("runtimeTemplateCandidateEvaluations", evaluation.candidateEvaluations());
         metadata.put("runtimeTemplateSelectionReason", evaluation.reason());
+        log.info("InterpretationPlan runtime template selection: traceId={}, candidateCount={}, "
+                + "selectedCount={}, selectedTemplateIds={}, applied={}, reason={}",
+            runId(request), evaluation.candidateCount(), evaluation.selectedCount(),
+            evaluation.selectedIds(), evaluation.applied(), evaluation.reason());
         if (!evaluation.templateMatchAnalysis().isEmpty()) {
             metadata.put(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY, evaluation.templateMatchAnalysis());
             recordTemplateRequirementMatchingEvent(request, evaluation.templateMatchAnalysis());

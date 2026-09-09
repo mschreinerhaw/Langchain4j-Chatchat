@@ -29,6 +29,10 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
     private static final List<String> BODY_KEYS = List.of(
         "body", "parsedBody", "responseBody", "response_body");
     private static final List<String> RECORD_KEYS = List.of("records", "rows", "results");
+    private static final java.util.Set<String> NON_BUSINESS_COLLECTION_KEYS = java.util.Set.of(
+        "analysiscontext", "commandcontext", "execution", "executiongraph", "rawdata",
+        "runtimemetadata", "preflightaudit", "postflightaudit", "audit", "auditevidence",
+        "provenance", "schema", "diagnostics", "trace", "routingtrace");
     private final Gson gson = new Gson();
 
     @Override
@@ -227,6 +231,7 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         Map<String, Object> current = map(normalized);
         if (current.isEmpty()) return;
         for (Map.Entry<String, Object> entry : current.entrySet()) {
+            if (NON_BUSINESS_COLLECTION_KEYS.contains(normalizeKey(entry.getKey()))) continue;
             Object child = normalizeJson(entry.getValue());
             String childPath = path + "." + entry.getKey();
             if (objectRows(child) != null) {
@@ -235,6 +240,11 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
                 collectBusinessCollections(child, childPath, depth + 1, records);
             }
         }
+    }
+
+    private String normalizeKey(String value) {
+        return value == null ? "" : value.replace("_", "")
+            .replace("-", "").toLowerCase(java.util.Locale.ROOT);
     }
 
     private List<Candidate> deduplicate(List<Candidate> candidates) {

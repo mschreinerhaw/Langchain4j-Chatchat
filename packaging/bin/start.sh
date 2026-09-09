@@ -7,6 +7,7 @@ APP_JAR="$APP_HOME/lib/app/$APP_NAME.jar"
 PID_FILE="$APP_HOME/run/$APP_NAME.pid"
 STDOUT_LOG="$APP_HOME/logs/$APP_NAME.out"
 CONFIG_DIR="$APP_HOME/config/"
+INTERNAL_CREDENTIAL_KEY="$APP_HOME/config/internal-credential.key"
 LIB_DIR="$APP_HOME/lib"
 EXT_LIB_DIR="$LIB_DIR/ext"
 DRIVERS_DIR="$LIB_DIR/drivers"
@@ -45,6 +46,11 @@ fi
 
 if [ ! -f "$APP_JAR" ]; then
   echo "Application jar not found: $APP_JAR" >&2
+  exit 1
+fi
+
+if [ ! -f "$INTERNAL_CREDENTIAL_KEY" ]; then
+  echo "Internal credential key not found: $INTERNAL_CREDENTIAL_KEY. Provision the deployment key before starting $APP_NAME." >&2
   exit 1
 fi
 

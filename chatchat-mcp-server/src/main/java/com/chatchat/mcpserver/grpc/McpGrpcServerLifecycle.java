@@ -10,8 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +36,6 @@ public final class McpGrpcServerLifecycle implements SmartLifecycle {
         this.properties = properties;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
     @Override public synchronized void start() {
         if (running || !properties.isEnabled()) return;
         McpRuntimeGrpcService service = new McpRuntimeGrpcService(
@@ -78,6 +75,8 @@ public final class McpGrpcServerLifecycle implements SmartLifecycle {
     }
 
     @Override public boolean isRunning() { return running; }
-    @Override public boolean isAutoStartup() { return false; }
+    // Start as a late SmartLifecycle phase. Relying only on ApplicationReadyEvent left the
+    // HTTP port healthy while the required gRPC transport was never opened.
+    @Override public boolean isAutoStartup() { return true; }
     @Override public int getPhase() { return Integer.MAX_VALUE - 100; }
 }

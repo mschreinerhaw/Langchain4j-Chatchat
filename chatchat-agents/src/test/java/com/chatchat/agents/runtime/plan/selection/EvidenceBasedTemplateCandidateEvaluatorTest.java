@@ -10,6 +10,75 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EvidenceBasedTemplateCandidateEvaluatorTest {
 
     @Test
+    void dropsRedundantAcceptedContextWhenTargetsAlreadyCoverItsQuestionAspects() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "customer-overview"),
+                    Map.of("templateId", "trade-overview"),
+                    Map.of("templateId", "holding-detail"),
+                    Map.of("templateId", "order-detail")
+                )),
+                Map.of(
+                    "originalUserQuestion", "查询客户交易、资产、盈亏并总结交易偏好",
+                    "selectedTemplateIds", List.of(
+                        "customer-overview", "trade-overview", "holding-detail", "order-detail"),
+                    "templateEvaluations", List.of(
+                        Map.of("templateId", "customer-overview", "decision", "ACCEPT",
+                            "totalScore", 1.0, "analysisRole", "TARGET",
+                            "matchedQuestionAspects", List.of("资产", "盈亏")),
+                        Map.of("templateId", "trade-overview", "decision", "ACCEPT",
+                            "totalScore", 1.0, "analysisRole", "TARGET",
+                            "matchedQuestionAspects", List.of("交易", "交易偏好")),
+                        Map.of("templateId", "holding-detail", "decision", "ACCEPT",
+                            "totalScore", 0.6, "analysisRole", "CONTEXT",
+                            "matchedQuestionAspects", List.of("资产", "盈亏")),
+                        Map.of("templateId", "order-detail", "decision", "ACCEPT",
+                            "totalScore", 0.6, "analysisRole", "CONTEXT",
+                            "matchedQuestionAspects", List.of("交易", "交易偏好"))
+                    )
+                ));
+
+        assertThat(evaluation.selectedIds())
+            .containsExactly("customer-overview", "trade-overview");
+        Map<?, ?> projected = (Map<?, ?>) evaluation.output();
+        assertThat((List<?>) projected.get("templates")).extracting(String::valueOf)
+            .containsExactly(
+                "{templateId=customer-overview}", "{templateId=trade-overview}");
+    }
+
+    @Test
+    void dropsWeakerRedundantCandidatesEvenWhenReviewerLabelsEverythingTarget() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset-summary"),
+                    Map.of("templateId", "trade-summary"),
+                    Map.of("templateId", "asset-detail"),
+                    Map.of("templateId", "trade-detail"))),
+                Map.of(
+                    "originalUserQuestion", "customer asset, profit, trade and preference",
+                    "selectedTemplateIds", List.of(
+                        "asset-summary", "trade-summary", "asset-detail", "trade-detail"),
+                    "templateEvaluations", List.of(
+                        Map.of("templateId", "asset-summary", "decision", "ACCEPT",
+                            "totalScore", 1.0, "analysisRole", "TARGET",
+                            "matchedQuestionAspects", List.of("asset", "profit")),
+                        Map.of("templateId", "trade-summary", "decision", "ACCEPT",
+                            "totalScore", 1.0, "analysisRole", "TARGET",
+                            "matchedQuestionAspects", List.of("trade", "preference")),
+                        Map.of("templateId", "asset-detail", "decision", "ACCEPT",
+                            "totalScore", 0.6, "analysisRole", "TARGET",
+                            "matchedQuestionAspects", List.of("asset", "profit")),
+                        Map.of("templateId", "trade-detail", "decision", "ACCEPT",
+                            "totalScore", 0.6, "analysisRole", "TARGET",
+                            "matchedQuestionAspects", List.of("trade", "preference"))
+                    )));
+
+        assertThat(evaluation.selectedIds()).containsExactly("asset-summary", "trade-summary");
+    }
+
+    @Test
     void rejectsToolDeclaredSelectionWhenContextAwareReviewerIsUnavailable() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(

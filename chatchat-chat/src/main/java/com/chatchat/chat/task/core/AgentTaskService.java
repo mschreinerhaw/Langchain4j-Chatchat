@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
@@ -68,6 +69,11 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 public class AgentTaskService {
+
+    private static final int LATEST_STATE_OPTIMISTIC_RETRIES = 5;
+
+    /** Prevents a shared database worker from claiming tasks owned by this in-process queue. */
+    private static final String IN_PROCESS_WORKER_VERSION = "in-process-" + UUID.randomUUID();
 
     private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM");
     private static final List<String> RECOVERABLE_STATUSES = List.of(
@@ -1768,7 +1774,12 @@ public class AgentTaskService {
     @Transactional
     protected void updateLatest(String taskId, String status, String answerSummary, String errorMessage,
                                 String finalNotificationJson) {
-        latestRepository.findById(taskId).ifPresent(entity -> {
+        for (int attempt = 1; attempt <= LATEST_STATE_OPTIMISTIC_RETRIES; attempt++) {
+            Optional<AgentTaskLatestEntity> latest = latestRepository.findById(taskId);
+            if (latest.isEmpty()) {
+                return;
+            }
+            AgentTaskLatestEntity entity = latest.get();
             AgentTaskQueueCoordinator.ClaimedTask claim = activeDatabaseClaim.get();
             if (claim != null && claim.taskId().equals(taskId)
                 && !claim.claimToken().equals(entity.getClaimToken())) {
@@ -1786,8 +1797,17 @@ public class AgentTaskService {
                 entity.setFinalNotificationJson(finalNotificationJson);
             }
             entity.setUpdateTime(Instant.now());
-            latestRepository.save(entity);
-        });
+            try {
+                latestRepository.save(entity);
+                return;
+            } catch (ObjectOptimisticLockingFailureException conflict) {
+                if (attempt == LATEST_STATE_OPTIMISTIC_RETRIES) {
+                    throw conflict;
+                }
+                log.debug("Retrying Agent latest-state update after concurrent lease heartbeat. taskId={} status={} attempt={}",
+                    taskId, status, attempt + 1);
+            }
+        }
     }
 
     private String finalNotificationPayload(ExecutionResultContract resultContract) {
@@ -1844,6 +1864,11 @@ public class AgentTaskService {
         latest.setClaimToken(null);
         latest.setHeartbeatAt(null);
         latest.setLeaseExpiresAt(null);
+        if (!databaseQueueEnabled()) {
+            // PENDING rows remain durable in local-queue mode, but must not be visible to
+            // database workers belonging to another deployment that shares the database.
+            latest.setRequiredWorkerVersion(IN_PROCESS_WORKER_VERSION);
+        }
         AgentTaskLatestEntity queued = saveTask(latest);
         if (databaseQueueEnabled()) {
             try {

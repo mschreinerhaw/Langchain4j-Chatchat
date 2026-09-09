@@ -41,9 +41,9 @@ public record TemplateMatchAnalysis(
         templateRelationships = templateRelationships == null ? List.of() : List.copyOf(templateRelationships);
         decisionReason = clean(decisionReason);
         selectionAuthority = clean(selectionAuthority);
-        if (selectedTemplateIds(templateMatches).isEmpty()) {
-            throw new IllegalArgumentException("at least one non-irrelevant template match is required");
-        }
+        // An evidence review is allowed to reject every authorized candidate.  Empty selection is
+        // a meaningful, auditable outcome; forcing one candidate here turns "no match" into an
+        // unauthorized execution and makes the reviewer protocol unable to express dissatisfaction.
     }
 
     public List<String> selectedTemplateIds() {

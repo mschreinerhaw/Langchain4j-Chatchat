@@ -36,6 +36,9 @@ public final class GovernedRecordFinalPromptBuilder {
             5. Explain what the evidence means for the user's question. Trace each recommendation to a finding,
                its conditions and the next decision it supports. Mention each material gap once, qualifying the
                affected claim where it first appears. Keep internal review and execution details out of the report.
+               Never convert a returned record count into a population count. Claim truncation, omission, or
+               "at least N" only when evidence explicitly says truncated=true, sourceComplete=false, or
+               pagination.hasMore=true. UNKNOWN completeness or paginationAssessed=false means unknown, not truncated.
 
             Presentation:
             Use adaptiveAnalysisPrompt.output as the ordered H2 section plan when supplied; translate headings

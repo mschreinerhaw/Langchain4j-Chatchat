@@ -16,6 +16,45 @@ import static org.mockito.Mockito.when;
 class AnalysisRefinementCoordinatorTest {
 
     @Test
+    void admitsSameDiscoveryToolWhenRuntimeRequiresNextPage() {
+        AnalysisRefinementCoordinator coordinator = new AnalysisRefinementCoordinator(
+            mock(AgentToolNameResolver.class), 3);
+        InterpretationPlanRuntime.StepExecution discovery = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "mcp_runtime_api_template_query", true, Map.of(), null,
+            null, null, 1L, Map.of("templateDiscoveryContinuationRequired", true));
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "DAG_REWRITE_REQUESTED", false, false, "next page required", null,
+            List.of(discovery), Map.of(
+                "templateDiscoveryContinuationRequired", true,
+                "templateDiscoveryRetryInputChanges", Map.of("cursor", "next-page"),
+                "templateCoverageDecision", "NEED_NEXT_PAGE",
+                "templateRetrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE"), 1L);
+
+        assertThat(coordinator.admitRefinement(result, List.of(result), List.of(),
+            List.of("mcp_runtime_api_template_query"), 0))
+            .isEqualTo(new AnalysisRefinementCoordinator.RefinementAdmission(
+                true, false, "template_discovery_next_page"));
+        assertThat(coordinator.rewriteReason(result, List.of()))
+            .contains("TEMPLATE_DISCOVERY_CONTINUATION_REQUIRED", "next-page");
+        assertThat(coordinator.templateDiscoveryRewriteLimit(result)).isEqualTo(2);
+
+        InterpretationPlan original = plan(List.of(new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_runtime_api_template_query",
+            Map.of("query", "customer trading", "limit", 10), List.of(), null, null)));
+        InterpretationPlan modelRewrite = plan(List.of(new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_runtime_api_template_query",
+            Map.of("query", "changed by model", "excludeTemplateIds", List.of("old")),
+            List.of(), null, null)));
+
+        InterpretationPlan enforced = coordinator.enforceTemplateDiscoveryContinuation(
+            original, modelRewrite, result);
+
+        assertThat(enforced.steps().get(0).input()).containsExactlyInAnyOrderEntriesOf(Map.of(
+            "query", "customer trading", "limit", 10, "cursor", "next-page"));
+        assertThat(coordinator.templateDiscoveryContinuationSatisfied(enforced, result)).isTrue();
+    }
+
+    @Test
     void executionFailuresAndGenericGapTextDoNotAuthorizeGraphRewriting() {
         var coordinator = new AnalysisRefinementCoordinator(mock(AgentToolNameResolver.class), 3);
         for (String status : List.of("STEP_FAILED", "NODE_ATTEMPT_PERSISTENCE_FAILED",

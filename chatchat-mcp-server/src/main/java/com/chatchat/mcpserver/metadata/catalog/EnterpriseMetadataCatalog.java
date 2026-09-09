@@ -72,7 +72,16 @@ public class EnterpriseMetadataCatalog {
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         if (properties.isEnabled() && properties.isRefreshOnStartup()) {
-            refresh();
+            try {
+                refresh();
+            } catch (RuntimeException ex) {
+                // Enterprise metadata enriches discovery but is not a prerequisite
+                // for serving the Runtime's already-published business tools. A
+                // slow or unavailable metadata table must not terminate MCP after
+                // the web and gRPC transports have become ready.
+                log.error("Enterprise metadata startup refresh failed; retaining the previous "
+                    + "in-memory snapshot and keeping MCP Runtime available: {}", ex.getMessage(), ex);
+            }
         }
     }
 

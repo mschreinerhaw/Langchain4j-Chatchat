@@ -27,6 +27,14 @@ public final class AnalysisRefinementCoordinator {
 
     public String rewriteReason(InterpretationPlanRuntime.ExecutionResult result,
                                 List<Map<String, Object>> evidenceHistory) {
+        if (templateDiscoveryContinuationRequired(result)) {
+            return "TEMPLATE_DISCOVERY_CONTINUATION_REQUIRED: retryInputChanges="
+                + result.metadata().getOrDefault("templateDiscoveryRetryInputChanges", Map.of())
+                + "; coverageDecision="
+                + result.metadata().getOrDefault("templateCoverageDecision", "NEED_NEXT_PAGE")
+                + "; retrievalOutcome="
+                + result.metadata().getOrDefault("templateRetrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE");
+        }
         Map<String, Object> latest = evidenceHistory == null || evidenceHistory.isEmpty()
             ? Map.of() : evidenceHistory.get(evidenceHistory.size() - 1);
         return "EVIDENCE_REFINEMENT_REQUIRED: conclusion="
@@ -51,6 +59,9 @@ public final class AnalysisRefinementCoordinator {
             return new RefinementAdmission(rewrites == 0, true,
                 rewrites == 0 ? "invalid_plan" : "structural_repair_already_attempted");
         }
+        if (templateDiscoveryContinuationRequired(result)) {
+            return new RefinementAdmission(true, false, "template_discovery_next_page");
+        }
         List<String> attempted = new ArrayList<>();
         for (var attempt : attempts == null ? List.<InterpretationPlanRuntime.ExecutionResult>of() : attempts) {
             if (attempt != null && attempt.steps() != null) {
@@ -72,6 +83,90 @@ public final class AnalysisRefinementCoordinator {
     }
 
     public record RefinementAdmission(boolean allowed, boolean structuralRepair, String reason) {}
+
+    public boolean templateDiscoveryContinuationRequired(
+        InterpretationPlanRuntime.ExecutionResult result
+    ) {
+        if (result == null) return false;
+        if (result.metadata() != null && Boolean.TRUE.equals(
+            result.metadata().get("templateDiscoveryContinuationRequired"))) {
+            return true;
+        }
+        return result.steps() != null && result.steps().stream()
+            .filter(Objects::nonNull)
+            .map(InterpretationPlanRuntime.StepExecution::metadata)
+            .filter(Objects::nonNull)
+            .anyMatch(metadata -> Boolean.TRUE.equals(
+                metadata.get("templateDiscoveryContinuationRequired")));
+    }
+
+    /** Keeps protocol-requested paging inside the global Runtime attempt ceiling. */
+    public int templateDiscoveryRewriteLimit(InterpretationPlanRuntime.ExecutionResult result) {
+        return templateDiscoveryContinuationRequired(result) ? maximumAttempts - 1 : 0;
+    }
+
+    /**
+     * Applies the Runtime-issued continuation input deterministically. The model may
+     * repair the surrounding DAG, but it cannot change the discovery query, replace
+     * cursor paging with an exclusion list, or omit the next cursor.
+     */
+    public InterpretationPlan enforceTemplateDiscoveryContinuation(
+        InterpretationPlan original,
+        InterpretationPlan rewritten,
+        InterpretationPlanRuntime.ExecutionResult result
+    ) {
+        if (!templateDiscoveryContinuationRequired(result)
+            || original == null || rewritten == null || rewritten.plan() == null) {
+            return rewritten;
+        }
+        Integer stepId = continuationStepId(result);
+        Map<String, Object> inputChanges = continuationInputChanges(result);
+        if (stepId == null || inputChanges.isEmpty()) return rewritten;
+        InterpretationPlan.Step originalStep = original.steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> Objects.equals(step.id(), stepId))
+            .findFirst().orElse(null);
+        if (originalStep == null || originalStep.input() == null) return rewritten;
+
+        boolean changed = false;
+        List<InterpretationPlan.Step> steps = new ArrayList<>();
+        for (InterpretationPlan.Step step : rewritten.steps()) {
+            if (step == null || !Objects.equals(step.id(), stepId)) {
+                steps.add(step);
+                continue;
+            }
+            Map<String, Object> input = new LinkedHashMap<>(originalStep.input());
+            input.putAll(inputChanges);
+            steps.add(new InterpretationPlan.Step(
+                step.id(), step.actionType(), originalStep.toolName(), input,
+                step.dependsOn(), step.outputContract(), step.validation()));
+            changed = true;
+        }
+        if (!changed) return rewritten;
+        InterpretationPlan.Plan plan = rewritten.plan();
+        return new InterpretationPlan(
+            rewritten.version(), rewritten.intent(), rewritten.context(),
+            new InterpretationPlan.Plan(
+                List.copyOf(steps), plan.edgeContracts(), plan.dependencyContracts(),
+                plan.bindings(), plan.stability(), plan.diagnosticProfile(),
+                plan.conditionalEdges(), plan.branchGroups()),
+            rewritten.executionPolicy(), rewritten.review());
+    }
+
+    public boolean templateDiscoveryContinuationSatisfied(
+        InterpretationPlan plan,
+        InterpretationPlanRuntime.ExecutionResult result
+    ) {
+        if (!templateDiscoveryContinuationRequired(result)) return true;
+        if (plan == null || result == null || result.metadata() == null) return false;
+        Integer stepId = continuationStepId(result);
+        Map<String, Object> changes = continuationInputChanges(result);
+        if (stepId == null || changes.isEmpty()) return false;
+        return plan.steps().stream().filter(Objects::nonNull)
+            .filter(step -> Objects.equals(step.id(), stepId))
+            .anyMatch(step -> changes.entrySet().stream()
+                .allMatch(change -> Objects.equals(step.input().get(change.getKey()), change.getValue())));
+    }
 
     public List<InterpretationPlanRewriter.RequiredToolExecution> requiredTools(
         List<Map<String, Object>> evidenceHistory,
@@ -171,6 +266,39 @@ public final class AnalysisRefinementCoordinator {
 
     private int boundedRewriteCount(int configured) {
         return Math.max(0, Math.min(maximumAttempts - 1, configured));
+    }
+
+    private Integer continuationStepId(InterpretationPlanRuntime.ExecutionResult result) {
+        if (result == null) return null;
+        Integer stepId = result.metadata() == null
+            ? null : integerValue(result.metadata().get("failedStepId"));
+        if (stepId != null) return stepId;
+        return result.steps() == null ? null : result.steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> step.metadata() != null && Boolean.TRUE.equals(
+                step.metadata().get("templateDiscoveryContinuationRequired")))
+            .map(InterpretationPlanRuntime.StepExecution::stepId)
+            .filter(Objects::nonNull)
+            .findFirst().orElse(null);
+    }
+
+    private Map<String, Object> continuationInputChanges(
+        InterpretationPlanRuntime.ExecutionResult result
+    ) {
+        if (result == null) return Map.of();
+        Object direct = result.metadata() == null ? null
+            : result.metadata().get("templateDiscoveryRetryInputChanges");
+        if (direct instanceof Map<?, ?> raw) return asStringMap(raw);
+        if (result.steps() == null) return Map.of();
+        return result.steps().stream()
+            .filter(Objects::nonNull)
+            .map(InterpretationPlanRuntime.StepExecution::metadata)
+            .filter(Objects::nonNull)
+            .map(metadata -> metadata.get("templateDiscoveryRetryInputChanges"))
+            .filter(Map.class::isInstance)
+            .map(Map.class::cast)
+            .map(this::asStringMap)
+            .findFirst().orElse(Map.of());
     }
 
     private Map<String, Object> asStringMap(Map<?, ?> source) {

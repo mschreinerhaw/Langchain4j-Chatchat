@@ -24,6 +24,7 @@ public class DefaultToolRegistry implements ToolRegistry {
     private final Map<String, Tool> simpleTools = new ConcurrentHashMap<>();
     private final Map<String, EnhancedTool> enhancedTools = new ConcurrentHashMap<>();
     private final Map<String, ToolMetadata> toolMetadata = new ConcurrentHashMap<>();
+    private final Map<String, Long> toolRevisions = new ConcurrentHashMap<>();
     private final AtomicLong revision = new AtomicLong();
 
     /**
@@ -43,7 +44,7 @@ public class DefaultToolRegistry implements ToolRegistry {
 
         log.info("Registering simple tool: {}", toolName);
         Tool previous = simpleTools.put(toolName, tool);
-        if (previous != tool) revision.incrementAndGet();
+        if (previous != tool) toolRevisions.put(toolName, revision.incrementAndGet());
     }
 
     /**
@@ -69,7 +70,9 @@ public class DefaultToolRegistry implements ToolRegistry {
         log.info("Registering enhanced tool: {} (v{})", toolName, metadata.getVersion());
         ToolMetadata previousMetadata = toolMetadata.put(toolName, metadata);
         enhancedTools.put(toolName, tool);
-        if (!samePublishedContract(previousMetadata, metadata)) revision.incrementAndGet();
+        if (!samePublishedContract(previousMetadata, metadata)) {
+            toolRevisions.put(toolName, revision.incrementAndGet());
+        }
     }
 
     /**
@@ -244,6 +247,12 @@ public class DefaultToolRegistry implements ToolRegistry {
         return revision.get();
     }
 
+    @Override
+    public long getToolRevision(String toolName) {
+        if (toolName == null || toolName.isBlank()) return 0L;
+        return toolRevisions.getOrDefault(toolName, 0L);
+    }
+
     /**
      * Performs the unregister tool operation.
      *
@@ -256,7 +265,9 @@ public class DefaultToolRegistry implements ToolRegistry {
         boolean changed = simpleTools.remove(toolName) != null;
         changed |= enhancedTools.remove(toolName) != null;
         changed |= toolMetadata.remove(toolName) != null;
-        if (changed) revision.incrementAndGet();
+        if (changed) {
+            toolRevisions.put(toolName, revision.incrementAndGet());
+        }
     }
 
     private boolean samePublishedContract(ToolMetadata left, ToolMetadata right) {

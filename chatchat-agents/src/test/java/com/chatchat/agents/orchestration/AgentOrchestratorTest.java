@@ -3783,6 +3783,71 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void incompleteSecondPassAuditPreservesPaginationAndRequestsNextPage() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+                + "\"rejected_template_ids\":[\"trade\"],\"coverage_decision\":\"SUFFICIENT\"}",
+            "{\"coverage_complete\":false,\"requested_aspects\":[\"assets\",\"transactions\"],"
+                + "\"corrected_selected_template_ids\":[\"asset\"],"
+                + "\"missing_aspects\":[\"transactions\"],\"reason\":\"next page is required\"}"
+        );
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+                Map.of(
+                    "hasMore", true,
+                    "nextCursor", "opaque-next",
+                    "templates", List.of(
+                        Map.of("templateId", "asset", "title", "Asset snapshot"),
+                        Map.of("templateId", "trade", "title", "Unrelated trade aggregate"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze assets and transactions", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1));
+
+        assertThat(review.metadata())
+            .containsEntry("coverageDecision", "NEED_NEXT_PAGE")
+            .containsEntry("retrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE");
+        assertThat(review.metadata().get("missingAspects"))
+            .isEqualTo(List.of("transactions"));
+        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
+    }
+
+    @Test
+    void secondPassAuditMayRejectEveryCurrentPageCandidateAndStillRequestNextPage() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"snapshot\"],"
+                + "\"rejected_template_ids\":[\"aggregate\"],\"coverage_decision\":\"SUFFICIENT\"}",
+            "{\"coverage_complete\":false,\"coverage_decision\":\"NEED_NEXT_PAGE\","
+                + "\"requested_aspects\":[\"transactions\"],"
+                + "\"corrected_selected_template_ids\":[],"
+                + "\"missing_aspects\":[\"transactions\"],\"reason\":\"no suitable candidate on page\"}"
+        );
+        AgentOrchestrator orchestrator = newOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+                Map.of("hasMore", true, "nextCursor", "page-2", "templates", List.of(
+                    Map.of("templateId", "snapshot", "title", "Snapshot"),
+                    Map.of("templateId", "aggregate", "title", "Aggregate"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "show transaction details", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution, Map.of(), 1, 1));
+
+        assertThat(review.metadata())
+            .containsEntry("selectedTemplateIds", List.of())
+            .containsEntry("coverageDecision", "NEED_NEXT_PAGE")
+            .containsEntry("retrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE");
+    }
+
+    @Test
     void terminalWebDiscoveryIsAdmittedWithoutRedundantModelReview() {
         ChatModel model = mock(ChatModel.class);
         AgentOrchestrator orchestrator = newOrchestrator(model);

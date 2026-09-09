@@ -36,7 +36,11 @@ public class McpToolPublicationCoordinator {
         }
     }
 
-    @Order(Ordered.LOWEST_PRECEDENCE)
+    // Publish Runtime tools before optional startup enrichments (for example an
+    // enterprise metadata refresh) are allowed to contact external systems.
+    // A slow enrichment must never leave an already-listening MCP transport
+    // with only its statically registered tools.
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void publishOnStartup() {
         refreshAll("application_ready");

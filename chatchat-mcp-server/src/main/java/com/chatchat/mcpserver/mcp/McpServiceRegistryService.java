@@ -18,6 +18,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class McpServiceRegistryService {
 
+    private static final String LOCAL_SERVICE_TYPE = "LOCAL";
+
     private final McpServiceRegistrationRepository repository;
     private final McpTokenGenerator tokenGenerator;
     private final ObjectMapper objectMapper;
@@ -82,10 +84,33 @@ public class McpServiceRegistryService {
     @Transactional
     public McpServiceRegistration create(McpServiceRegistration draft) {
         validate(draft);
+        if (isLocal(draft)) {
+            return repository.findFirstByServiceTypeIgnoreCaseOrderByCreatedAtAsc(LOCAL_SERVICE_TYPE)
+                .map(current -> updateFromRepeatedLocalRegistration(current, draft))
+                .orElseGet(() -> saveNew(draft));
+        }
+        return saveNew(draft);
+    }
+
+    private McpServiceRegistration saveNew(McpServiceRegistration draft) {
         if (draft.getServiceToken() == null || draft.getServiceToken().isBlank()) {
             draft.setServiceToken(generateUniqueToken());
         }
         return repository.save(draft);
+    }
+
+    /**
+     * A Runtime may announce itself again after restart or endpoint rotation.
+     * Keep its registry identity and credential stable and update the mutable
+     * registration attributes instead of creating another LOCAL row.
+     */
+    private McpServiceRegistration updateFromRepeatedLocalRegistration(McpServiceRegistration current,
+                                                                        McpServiceRegistration draft) {
+        String stableToken = current.getServiceToken();
+        copyMutableFields(current, draft);
+        current.setServiceToken(stableToken);
+        validate(current);
+        return repository.save(current);
     }
 
     /**
@@ -98,20 +123,35 @@ public class McpServiceRegistryService {
     @Transactional
     public McpServiceRegistration update(String id, McpServiceRegistration draft) {
         McpServiceRegistration current = getById(id);
-        current.setName(draft.getName());
-        current.setEndpoint(draft.getEndpoint());
-        current.setServiceToken(draft.getServiceToken());
-        current.setServiceType(draft.getServiceType());
-        current.setPermissionGroup(draft.getPermissionGroup());
-        current.setEnvironment(draft.getEnvironment());
-        current.setRoutingLabelsJson(draft.getRoutingLabelsJson());
-        current.setRoutingLabels(draft.getRoutingLabels());
-        current.setCapabilitiesJson(draft.getCapabilitiesJson());
-        current.setCapabilities(draft.getCapabilities());
-        current.setEnabled(draft.isEnabled());
-        current.setStatus(draft.getStatus());
+        copyMutableFields(current, draft);
         validate(current);
+        if (isLocal(current)) {
+            repository.findFirstByServiceTypeIgnoreCaseOrderByCreatedAtAsc(LOCAL_SERVICE_TYPE)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("Only one LOCAL Runtime registration is allowed");
+                });
+        }
         return repository.save(current);
+    }
+
+    private void copyMutableFields(McpServiceRegistration target, McpServiceRegistration source) {
+        target.setName(source.getName());
+        target.setEndpoint(source.getEndpoint());
+        target.setServiceToken(source.getServiceToken());
+        target.setServiceType(source.getServiceType());
+        target.setPermissionGroup(source.getPermissionGroup());
+        target.setEnvironment(source.getEnvironment());
+        target.setRoutingLabelsJson(source.getRoutingLabelsJson());
+        target.setRoutingLabels(source.getRoutingLabels());
+        target.setCapabilitiesJson(source.getCapabilitiesJson());
+        target.setCapabilities(source.getCapabilities());
+        target.setEnabled(source.isEnabled());
+        target.setStatus(source.getStatus());
+    }
+
+    private boolean isLocal(McpServiceRegistration service) {
+        return LOCAL_SERVICE_TYPE.equalsIgnoreCase(service.getServiceType());
     }
 
     /**

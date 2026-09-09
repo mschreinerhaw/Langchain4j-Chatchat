@@ -1,6 +1,11 @@
 package com.chatchat.mcpserver.tool;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+
+import java.lang.reflect.Method;
 
 import java.util.List;
 
@@ -12,6 +17,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class McpToolPublicationCoordinatorTest {
+
+    @Test
+    void publishesRuntimeToolsBeforeOptionalApplicationReadyListeners() throws Exception {
+        Method listener = McpToolPublicationCoordinator.class.getMethod("publishOnStartup");
+
+        assertThat(listener.getAnnotation(EventListener.class)).isNotNull();
+        assertThat(listener.getAnnotation(Order.class).value()).isEqualTo(Ordered.HIGHEST_PRECEDENCE);
+    }
 
     @Test
     void isolatesContributorFailureAndPublishesTheRemainingContributors() {

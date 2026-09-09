@@ -10,6 +10,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EvidenceBasedTemplateCandidateEvaluatorTest {
 
     @Test
+    void preservesNeedNextPageWhenCurrentPageHasUsefulButIncompleteCandidates() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of(
+                    "hasMore", true,
+                    "nextCursor", "opaque-next",
+                    "templates", List.of(Map.of("templateId", "asset-snapshot"))),
+                Map.of(
+                    "originalUserQuestion", "analyze assets and transactions",
+                    "coverageDecision", "NEED_NEXT_PAGE",
+                    "retrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE",
+                    "selectedTemplateIds", List.of("asset-snapshot")));
+
+        assertThat(evaluation.selectedIds()).containsExactly("asset-snapshot");
+        assertThat(evaluation.templateMatchAnalysis())
+            .containsEntry("coverageDecision", "NEED_NEXT_PAGE")
+            .containsEntry("retrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE");
+    }
+
+    @Test
     void representsRejectedPageAsNeedNextPageWithoutForcingASelection() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(

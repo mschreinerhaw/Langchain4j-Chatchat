@@ -190,9 +190,15 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                                                        Object output) {
         String declared = text(first(metadata, "coverageDecision", "coverage_decision"));
         TemplateCoverageDecision parsed = enumValue(TemplateCoverageDecision.class, declared);
+        // A page may contain useful best-so-far candidates without covering the complete
+        // question. Preserve the reviewer's explicit NEED_NEXT_PAGE/SCOPE_INSUFFICIENT
+        // decision instead of treating any non-empty selection as complete coverage.
+        if (parsed != null
+            && (parsed != TemplateCoverageDecision.SUFFICIENT
+                || (selectedIds != null && !selectedIds.isEmpty()))) {
+            return parsed;
+        }
         if (selectedIds != null && !selectedIds.isEmpty()) return TemplateCoverageDecision.SUFFICIENT;
-        if (parsed == TemplateCoverageDecision.SUFFICIENT) parsed = null;
-        if (parsed != null) return parsed;
         return booleanIn(output, "hasMore")
             ? TemplateCoverageDecision.NEED_NEXT_PAGE
             : TemplateCoverageDecision.SCOPE_INSUFFICIENT;
@@ -202,6 +208,16 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                                                        List<String> selectedIds,
                                                        Object output,
                                                        Set<String> parameterBlocked) {
+        TemplateRetrievalOutcome declared = enumValue(TemplateRetrievalOutcome.class,
+            text(first(metadata, "retrievalOutcome", "retrieval_outcome")));
+        // PAGE_EXHAUSTED_HAS_MORE is compatible with a non-empty best-so-far set. It
+        // means execution must wait for bounded cross-page comparison, not that the
+        // selected candidates should be discarded.
+        if (declared != null
+            && (declared != TemplateRetrievalOutcome.SELECTED
+                || (selectedIds != null && !selectedIds.isEmpty()))) {
+            return declared;
+        }
         if (selectedIds != null && !selectedIds.isEmpty()) return TemplateRetrievalOutcome.SELECTED;
         if (parameterBlocked != null && !parameterBlocked.isEmpty()) {
             return TemplateRetrievalOutcome.PARAMS_UNRESOLVABLE;
@@ -209,9 +225,6 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         if (textIn(output, "retrievalStopReason") != null) {
             return TemplateRetrievalOutcome.CAPABILITY_EXCEEDED;
         }
-        TemplateRetrievalOutcome declared = enumValue(TemplateRetrievalOutcome.class,
-            text(first(metadata, "retrievalOutcome", "retrieval_outcome")));
-        if (declared != null && declared != TemplateRetrievalOutcome.SELECTED) return declared;
         return booleanIn(output, "hasMore")
             ? TemplateRetrievalOutcome.PAGE_EXHAUSTED_HAS_MORE
             : TemplateRetrievalOutcome.SCOPE_EXHAUSTED_NO_MATCH;

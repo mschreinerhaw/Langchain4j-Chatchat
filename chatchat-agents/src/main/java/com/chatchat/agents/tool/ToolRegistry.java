@@ -82,6 +82,14 @@ public interface ToolRegistry {
     }
 
     /**
+     * Monotonic revision of one published tool contract. Implementations that
+     * do not track per-tool revisions retain the legacy global behavior.
+     */
+    default long getToolRevision(String toolName) {
+        return getRevision();
+    }
+
+    /**
      * Unregister a tool
      */
     void unregisterTool(String toolName);

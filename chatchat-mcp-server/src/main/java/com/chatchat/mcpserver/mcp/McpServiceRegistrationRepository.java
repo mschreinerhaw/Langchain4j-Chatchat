@@ -23,6 +23,12 @@ public interface McpServiceRegistrationRepository extends JpaRepository<McpServi
     Optional<McpServiceRegistration> findByServiceToken(String serviceToken);
 
     /**
+     * Finds the canonical registration for a service class. Used to make the
+     * platform-owned LOCAL Runtime registration idempotent.
+     */
+    Optional<McpServiceRegistration> findFirstByServiceTypeIgnoreCaseOrderByCreatedAtAsc(String serviceType);
+
+    /**
      * Returns whether exists by service token.
      *
      * @param serviceToken the service token value

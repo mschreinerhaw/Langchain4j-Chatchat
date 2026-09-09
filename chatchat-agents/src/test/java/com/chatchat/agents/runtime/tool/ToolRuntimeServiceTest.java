@@ -253,6 +253,34 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void permitsUnrelatedRegistryChangesWhenTheInvokedToolContractIsStillPinned() {
+        String toolName = "opaque-tool";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getRevision()).thenReturn(12L);
+        when(registry.getToolRevision(toolName)).thenReturn(7L);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName).title("Opaque tool").metadata(Map.of()).build());
+        when(registry.executeEnhancedTool(eq(toolName), any()))
+            .thenReturn(ToolOutput.success(Map.of("status", "ok")));
+        ToolRuntimeService service = new ToolRuntimeService(
+            registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName(toolName)
+                .attributes(Map.of(
+                    "toolRegistryRevision", 11L,
+                    "toolRegistryRevisions", Map.of(toolName, 7L)))
+                .toolInput(ToolInput.builder().parameters(Map.of()).build())
+                .build());
+
+            assertThat(execution.outcome()).isNotEqualTo("denied");
+            verify(registry).executeEnhancedTool(eq(toolName), any());
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void runtimeCompilesPublishedToolContractForEveryExecutionPath() {
         String toolName = "mcp_dynamic_metadata_search";
         ToolRegistry registry = mock(ToolRegistry.class);

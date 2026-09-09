@@ -387,11 +387,23 @@ public class ToolRuntimeService {
 
     private ToolRuntimeExecution registryRevisionConflict(ToolRuntimeRequest request) {
         if (request == null || request.getAttributes() == null) return null;
+        String toolName = normalizeText(request.getToolName());
+        Object rawPerTool = request.getAttributes().get("toolRegistryRevisions");
+        if (rawPerTool instanceof Map<?, ?> revisions && revisions.containsKey(toolName)) {
+            Object rawExpectedTool = revisions.get(toolName);
+            if (rawExpectedTool instanceof Number expectedTool
+                && expectedTool.longValue() == toolRegistry.getToolRevision(toolName)) {
+                return null;
+            }
+            return deniedExecution(
+                firstText(toolName, "tool_call"), request, toolRegistry.getToolMetadata(toolName),
+                "Tool contract changed during this workflow; retry against its published contract snapshot.",
+                "TOOL_REGISTRY_SNAPSHOT_STALE", null, null);
+        }
         Object rawExpected = request.getAttributes().get("toolRegistryRevision");
         if (!(rawExpected instanceof Number expected)) return null;
         long actual = toolRegistry.getRevision();
         if (expected.longValue() == actual) return null;
-        String toolName = normalizeText(request.getToolName());
         return deniedExecution(
             firstText(toolName, "tool_call"), request, toolRegistry.getToolMetadata(toolName),
             "Tool registry changed during this workflow; retry against one published contract snapshot.",

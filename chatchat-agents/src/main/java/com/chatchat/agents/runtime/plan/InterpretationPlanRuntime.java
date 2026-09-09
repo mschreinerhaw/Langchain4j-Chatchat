@@ -693,6 +693,37 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 }
             }
             persistSuccessfulStepCheckpoints(runId, executableRequest, stepsById, completed, waveResults);
+            StepExecution continuation = templateDiscoveryContinuation(waveResults);
+            if (continuation != null) {
+                Map<String, Object> continuationMetadata = new LinkedHashMap<>();
+                continuationMetadata.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
+                continuationMetadata.put("executionTraceId", executionTraceId);
+                continuationMetadata.put("failedStepId", continuation.stepId());
+                continuationMetadata.put("remainingStepIds", new ArrayList<>(remaining));
+                continuationMetadata.put("completedStepIds", new ArrayList<>(completed.keySet()));
+                continuationMetadata.put("templateDiscoveryContinuationRequired", true);
+                copyMetadataValue(continuation.metadata(), continuationMetadata,
+                    "templateDiscoveryRetryInputChanges");
+                copyMetadataValue(continuation.metadata(), continuationMetadata,
+                    "templateCoverageDecision");
+                copyMetadataValue(continuation.metadata(), continuationMetadata,
+                    "templateRetrievalOutcome");
+                copyMetadataValue(continuation.metadata(), continuationMetadata,
+                    "runtimeSelectedTemplateIds");
+                log.info("InterpretationPlan paused dependent execution for bounded template discovery continuation: "
+                        + "traceId={}, discoveryStepId={}, retryInputChanges={}, remainingStepIds={}",
+                    executionTraceId, continuation.stepId(),
+                    continuationMetadata.get("templateDiscoveryRetryInputChanges"),
+                    new ArrayList<>(remaining));
+                return withDiagnosticRun(ExecutionResult.failed(
+                    "DAG_REWRITE_REQUESTED",
+                    "Template discovery coverage is incomplete; request the next candidate page before dependent execution",
+                    executions,
+                    continuationMetadata,
+                    finalAnswer,
+                    elapsed(startedAt)
+                ), executableRequest, remaining);
+            }
             StepExecution failed = waveResults.stream()
                 .filter(step -> !step.success())
                 .findFirst()
@@ -1735,6 +1766,26 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             idempotencyKey,
             toolRequest
         ));
+    }
+
+    private StepExecution templateDiscoveryContinuation(List<StepExecution> executions) {
+        if (executions == null) return null;
+        return executions.stream()
+            .filter(Objects::nonNull)
+            .filter(StepExecution::success)
+            .filter(execution -> execution.metadata() != null)
+            .filter(execution -> Boolean.TRUE.equals(
+                execution.metadata().get("templateDiscoveryContinuationRequired")))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private void copyMetadataValue(Map<String, Object> source,
+                                   Map<String, Object> target,
+                                   String key) {
+        if (source != null && source.get(key) != null) {
+            target.put(key, source.get(key));
+        }
     }
 
     private Map<String, Object> preflightPlanResources(InterpretationPlan plan,

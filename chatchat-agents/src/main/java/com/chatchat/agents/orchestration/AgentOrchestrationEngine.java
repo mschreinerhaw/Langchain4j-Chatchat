@@ -1537,6 +1537,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> executionAttributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         executionAttributes.put("requireTemplateParameterProtocol", true);
         executionAttributes.put("toolRegistryRevision", toolRegistry == null ? 0L : toolRegistry.getRevision());
+        Map<String, Long> toolRegistryRevisions = new LinkedHashMap<>();
+        if (toolRegistry != null && tools != null) {
+            tools.stream().filter(Objects::nonNull).map(String::trim).filter(name -> !name.isEmpty())
+                .distinct().forEach(name -> toolRegistryRevisions.put(name, toolRegistry.getToolRevision(name)));
+        }
+        executionAttributes.put("toolRegistryRevisions", Map.copyOf(toolRegistryRevisions));
         return new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
@@ -3488,8 +3494,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (!rejectedAssetIds.isEmpty()) metadata.put("rejectedAssetIds", rejectedAssetIds);
         Object assetEvaluations = firstObject(payload, "asset_evaluations", "assetEvaluations");
         if (assetEvaluations instanceof Iterable<?>) metadata.put("assetEvaluations", assetEvaluations);
-        List<String> selectedTemplateIds = stringList(firstObject(payload, "selected_template_ids", "selectedTemplateIds"));
-        if (!selectedTemplateIds.isEmpty()) {
+        Object selectedTemplateIdsValue = firstObject(
+            payload, "selected_template_ids", "selectedTemplateIds");
+        List<String> selectedTemplateIds = stringList(selectedTemplateIdsValue);
+        // An explicit empty selection is protocol data, not an omitted field. Runtime
+        // needs it to distinguish "none on this page" from a malformed review.
+        if (selectedTemplateIdsValue != null) {
             metadata.put("selectedTemplateIds", selectedTemplateIds);
         }
         List<String> rejectedTemplateIds = stringList(firstObject(payload, "rejected_template_ids", "rejectedTemplateIds"));
@@ -3506,8 +3516,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         String retrievalOutcome = stringValue(firstObject(payload,
             "retrieval_outcome", "retrievalOutcome"));
         if (retrievalOutcome != null) metadata.put("retrievalOutcome", retrievalOutcome);
+        List<String> missingAspects = stringList(firstObject(payload,
+            "missing_aspects", "missingAspects"));
+        if (!missingAspects.isEmpty()) metadata.put("missingAspects", missingAspects);
         List<String> evidenceGaps = stringList(firstObject(payload,
-            "evidence_gaps", "evidenceGaps", "missingAspects", "missing_evidence"));
+            "evidence_gaps", "evidenceGaps", "missing_aspects", "missingAspects", "missing_evidence"));
         if (!evidenceGaps.isEmpty()) metadata.put("evidenceGaps", evidenceGaps);
         Object parameterProtocols = firstObject(payload, "parameter_protocols", "parameterProtocols");
         if (parameterProtocols instanceof Iterable<?>) {
@@ -3630,7 +3643,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "are material evidence candidates; a snapshot alone cannot answer that facet. Treat a "
             + "provisional rejection as internally contradictory when its reason says a candidate contains "
             + "the very behavior, activity or measure explicitly requested by the user. Return strict JSON only: "
-            + "{\"coverage_complete\":true,\"requested_aspects\":[],"
+            + "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"requested_aspects\":[],"
             + "\"corrected_selected_template_ids\":[],\"missing_aspects\":[],\"reason\":\"\"}.\n"
             + "Current-turn query:\n" + (query == null ? "" : query) + "\n"
             + "Returned candidates:\n" + ModelProtocolJson.compact(candidateProjection) + "\n"
@@ -3648,7 +3661,27 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         List<String> auditedSelected = corrected.stream()
             .filter(returned::contains).distinct().toList();
-        if (auditedSelected.isEmpty()) return provisional;
+        Boolean coverageComplete = booleanValue(firstObject(
+            audit, "coverage_complete", "coverageComplete"));
+        String coverageDecision = stringValue(firstObject(
+            audit, "coverage_decision", "coverageDecision"));
+        boolean hasMore = Boolean.TRUE.equals(booleanValue(firstObject(
+            findCandidatePage(candidateProjection, 0), "hasMore", "has_more")));
+        if (coverageDecision == null && coverageComplete != null) {
+            coverageDecision = coverageComplete
+                ? "SUFFICIENT"
+                : (hasMore ? "NEED_NEXT_PAGE" : "SCOPE_INSUFFICIENT");
+        }
+        if ("NEED_NEXT_PAGE".equalsIgnoreCase(coverageDecision) && !hasMore) {
+            coverageDecision = "SCOPE_INSUFFICIENT";
+        }
+        // An empty corrected selection is a valid and required semantic result when
+        // the current page does not cover the question. Only SUFFICIENT is required
+        // to retain at least one authorized candidate.
+        if (auditedSelected.isEmpty()
+            && (coverageDecision == null || "SUFFICIENT".equalsIgnoreCase(coverageDecision))) {
+            return provisional;
+        }
         Map<String, Object> revised = new LinkedHashMap<>(provisional);
         revised.put("selected_template_ids", auditedSelected);
         revised.put("rejected_template_ids", returned.stream()
@@ -3657,6 +3690,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             audit, "requested_aspects", "requestedAspects")));
         revised.put("missingAspects", stringList(firstObject(
             audit, "missing_aspects", "missingAspects")));
+        if (coverageDecision != null) {
+            coverageDecision = coverageDecision.toUpperCase(Locale.ROOT);
+            revised.put("coverage_decision", coverageDecision);
+            revised.put("retrieval_outcome", switch (coverageDecision) {
+                case "NEED_NEXT_PAGE" -> "PAGE_EXHAUSTED_HAS_MORE";
+                case "SCOPE_INSUFFICIENT" -> "SCOPE_EXHAUSTED_NO_MATCH";
+                default -> "SELECTED";
+            });
+        }
         revised.put("templateSelectionCoverageAudit", audit);
         return Map.copyOf(revised);
     }
@@ -3818,12 +3860,30 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         result.put("candidateType", templates ? "TEMPLATE" : "ASSET");
         result.put("candidateCount", projected.size());
         result.put(collectionName, List.copyOf(projected));
+        Map<String, Object> page = findCandidatePage(output, 0);
+        for (String field : List.of("hasMore", "nextCursor", "pageIndex", "pageFloorScore",
+            "maxPages", "scannedCandidateCount", "maxCandidateCount", "policyVersion", "queryHash")) {
+            if (page.get(field) != null) result.put(field, page.get(field));
+        }
         result.put("projectionContract", Map.of(
             "allCandidateIdentitiesPreserved", true,
             "selectionFieldsPreserved", true,
             "executionDetailsRetainedByRuntime", true
         ));
         return Map.copyOf(result);
+    }
+
+    private Map<String, Object> findCandidatePage(Object value, int depth) {
+        if (value == null || depth > 10) return Map.of();
+        if (value instanceof Map<?, ?> raw) {
+            Map<String, Object> map = asMap(raw);
+            if (map.containsKey("hasMore") || map.containsKey("nextCursor")) return map;
+            for (String nestedKey : List.of("data", "result", "payload", "structuredContent", "body", "preview")) {
+                Map<String, Object> nested = findCandidatePage(map.get(nestedKey), depth + 1);
+                if (!nested.isEmpty()) return nested;
+            }
+        }
+        return Map.of();
     }
 
     private List<Map<String, Object>> findCandidateMaps(Object value, String key, int depth) {

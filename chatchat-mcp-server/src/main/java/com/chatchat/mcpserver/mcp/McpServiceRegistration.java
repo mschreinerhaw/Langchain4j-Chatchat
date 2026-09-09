@@ -18,6 +18,8 @@ import java.util.UUID;
 @Table(name = "mcp_service")
 public class McpServiceRegistration {
 
+    public static final String LOCAL_SINGLETON_SCOPE = "internal-runtime";
+
     @Id
     @Column(length = 64)
     private String id;
@@ -33,6 +35,13 @@ public class McpServiceRegistration {
 
     @Column(length = 64)
     private String serviceType;
+
+    /**
+     * Database-backed singleton guard for the platform-owned local Runtime.
+     * Remote and gateway registrations keep this column null and remain multi-valued.
+     */
+    @Column(name = "singleton_scope", unique = true, length = 64)
+    private String singletonScope;
 
     @Column(length = 128)
     private String permissionGroup;
@@ -78,6 +87,7 @@ public class McpServiceRegistration {
             id = UUID.randomUUID().toString();
         }
         Instant now = Instant.now();
+        refreshSingletonScope();
         createdAt = now;
         updatedAt = now;
     }
@@ -87,7 +97,12 @@ public class McpServiceRegistration {
      */
     @PreUpdate
     public void preUpdate() {
+        refreshSingletonScope();
         updatedAt = Instant.now();
+    }
+
+    private void refreshSingletonScope() {
+        singletonScope = "LOCAL".equalsIgnoreCase(serviceType) ? LOCAL_SINGLETON_SCOPE : null;
     }
 
     /**

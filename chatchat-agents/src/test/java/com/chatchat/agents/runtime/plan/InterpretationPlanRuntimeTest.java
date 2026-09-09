@@ -1570,6 +1570,77 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void incompleteTemplateCoverageRequestsRewriteBeforeDependentExecution() {
+        String discoveryTool = "mcp_runtime_api_template_query";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(discoveryTool)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(
+            ToolMetadata.builder().id(discoveryTool).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "template_query_result.v1",
+                "success", true,
+                "returnedCount", 1,
+                "hasMore", true,
+                "nextCursor", "opaque-next-page",
+                "templates", List.of(Map.of(
+                    "templateId", "asset-summary",
+                    "parameterSchema", Map.of("type", "object"),
+                    "invocationExample", Map.of("template", "asset-summary")))
+            )),
+            ToolMetadata.builder().id(discoveryTool).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("analysis", "assets and transactions", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", discoveryTool,
+                    Map.of("query", "assets and transactions"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "must not run yet"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of(discoveryTool), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            new InMemoryAgentRunStore(),
+            request -> InterpretationPlanRuntime.StepReview.accepted(
+                "assets found but transaction evidence requires next page",
+                Map.of(
+                    "selectedTemplateIds", List.of("asset-summary"),
+                    "coverageDecision", "NEED_NEXT_PAGE",
+                    "retrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE",
+                    "missingAspects", List.of("transactions")
+                )),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(discoveryTool), "tenant-1",
+                "req-template-next-page", "conv-template-next-page", "user-1",
+                Map.of("originalUserQuery", "analyze assets and transactions")));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.status()).isEqualTo("DAG_REWRITE_REQUESTED");
+        assertThat(result.steps()).hasSize(1);
+        assertThat(result.metadata())
+            .containsEntry("templateDiscoveryContinuationRequired", true)
+            .containsEntry("templateCoverageDecision", "NEED_NEXT_PAGE")
+            .containsEntry("templateRetrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE");
+        assertThat(result.metadata().get("templateDiscoveryRetryInputChanges").toString())
+            .contains("opaque-next-page");
+        verify(toolRuntimeService, times(1)).execute(any());
+    }
+
+    @Test
     void authoritativeWorkflowStillRequiresSemanticAssetReview() {
         String assetTool = "mcp_runtime_api_asset_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

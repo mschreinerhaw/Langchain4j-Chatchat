@@ -26,14 +26,15 @@ public final class AgentWorkflowApprovalPolicy {
         if (approved.isEmpty()) {
             return plan;
         }
-        LinkedHashSet<String> allowTools = new LinkedHashSet<>(
-            plan.executionPolicy().allowTool() == null ? List.of() : plan.executionPolicy().allowTool());
+        List<String> configuredAllowTools = plan.executionPolicy().allowTool() == null
+            ? List.of() : plan.executionPolicy().allowTool();
+        LinkedHashSet<String> allowTools = new LinkedHashSet<>(configuredAllowTools);
         plan.steps().stream()
             .filter(step -> step != null && step.mcpToolAction())
             .map(InterpretationPlan.Step::toolName)
             .filter(tool -> approved.stream().anyMatch(configured -> sameTool(configured, tool)))
             .forEach(allowTools::add);
-        if (allowTools.equals(new LinkedHashSet<>(plan.executionPolicy().allowTool()))) {
+        if (allowTools.equals(new LinkedHashSet<>(configuredAllowTools))) {
             return plan;
         }
         InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();

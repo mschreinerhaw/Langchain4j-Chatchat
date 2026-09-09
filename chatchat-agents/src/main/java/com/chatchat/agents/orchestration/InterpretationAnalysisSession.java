@@ -440,6 +440,15 @@ final class InterpretationAnalysisSession {
                     + ". Existing evidence and unresolved execution failures will be retained.");
             return FINALIZE;
         }
+        int templateDiscoveryRewriteLimit =
+                host.analysisRefinementCoordinator.templateDiscoveryRewriteLimit(firstResult);
+        if (templateDiscoveryRewriteLimit > maxRewriteTimes) {
+            maxRewriteTimes = templateDiscoveryRewriteLimit;
+            metadata.put("templateDiscoveryRewriteBudgetApplied", true);
+            metadata.put("templateDiscoveryRewriteLimit", templateDiscoveryRewriteLimit);
+            metadata.put("templateDiscoveryRewriteBudgetReason",
+                    "Runtime requested bounded cursor continuation before dependent execution.");
+        }
         if (rewriteCount >= maxRewriteTimes) return FINALIZE;
         rewriteCount++;
         return REFINEMENT_PLAN;
@@ -509,6 +518,26 @@ final class InterpretationAnalysisSession {
                                 AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes)));
         rewrittenPlan = rewrite.rewrittenPlan();
         InterpretationPlanValidator.ValidationResult rewrittenValidation = rewrite.validation();
+        boolean templateContinuationRequired =
+                host.analysisRefinementCoordinator.templateDiscoveryContinuationRequired(
+                        currentResult);
+        rewrittenPlan = host.analysisRefinementCoordinator.enforceTemplateDiscoveryContinuation(
+                currentPlan, rewrittenPlan, currentResult);
+        boolean templateContinuationSatisfied =
+                host.analysisRefinementCoordinator.templateDiscoveryContinuationSatisfied(
+                        rewrittenPlan, currentResult);
+        metadata.put("templateDiscoveryContinuationContractSatisfied", templateContinuationSatisfied);
+        if (templateContinuationRequired && rewrittenPlan != null
+                && templateContinuationSatisfied
+                && rewrittenValidation != null && rewrittenValidation.valid()) {
+            // Preserve failures produced by the rewriter's stronger validation (for
+            // example required-tool checks). Only validate the deterministically
+            // patched plan when the model rewrite was already valid.
+            rewrittenValidation = validator.validate(
+                rewrittenPlan,
+                host.toolRegistry,
+                new LinkedHashSet<>(tools == null ? List.of() : tools));
+        }
         List<String> authoritativeRewritePasses = List.of();
         Map<String, Object> authoritativeRewriteRepair = Map.of();
         rewriteWorkflowDag =
@@ -533,7 +562,8 @@ final class InterpretationAnalysisSession {
                             authoritativeWorkflowTaskId);
         }
         boolean rewrittenValid =
-                rewrittenPlan != null && rewrittenValidation != null && rewrittenValidation.valid();
+                rewrittenPlan != null && rewrittenValidation != null
+                        && rewrittenValidation.valid() && templateContinuationSatisfied;
         metadata.put("interpretationPlanRewriteAttempted", true);
         metadata.put("interpretationPlanRewriteCount", rewriteCount);
         metadata.put("interpretationPlanRewriteValid", rewrittenValid);

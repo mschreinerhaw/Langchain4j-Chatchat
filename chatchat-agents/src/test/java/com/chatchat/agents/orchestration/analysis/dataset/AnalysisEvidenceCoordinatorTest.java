@@ -2,6 +2,8 @@ package com.chatchat.agents.orchestration.analysis.dataset;
 
 import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.batch.ToolCallBatchResult;
+import com.chatchat.agents.runtime.batch.ToolCallResult;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.protocol.RuntimeAnalysisContextProtocol;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisProtocol;
@@ -99,6 +101,26 @@ class AnalysisEvidenceCoordinatorTest {
         });
     }
 
+    @Test
+    void keepsRepeatedTemplateEntityBindingsInSeparateDatasetPartitions() {
+        ToolCallResult first = new ToolCallResult(
+            "binding-one", "api_template_execute", "shared-template", null,
+            "SUCCESS", 1, "evidence-1", Map.of("records", List.of(Map.of("value", 1))), Map.of());
+        ToolCallResult second = new ToolCallResult(
+            "binding-two", "api_template_execute", "shared-template", null,
+            "SUCCESS", 1, "evidence-2", Map.of("records", List.of(Map.of("value", 2))), Map.of());
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "batch", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(2, 2, 0, 0, 0, 2), List.of(first, second));
+
+        AnalysisEvidenceCoordinator.Projection projection = coordinator().project(stepResult(batch));
+
+        assertThat(projection.datasets()).extracting(AnalysisEvidenceCoordinator.Dataset::reference)
+            .containsExactly("shared-template#binding-one", "shared-template#binding-two");
+        assertThat(projection.datasets()).extracting(AnalysisEvidenceCoordinator.Dataset::recordCount)
+            .containsExactly(1L, 1L);
+    }
+
     private AnalysisEvidenceCoordinator coordinator() {
         RuntimeAnalysisContextProtocol context = mock(RuntimeAnalysisContextProtocol.class);
         when(context.adapt(anyString(), any(), any())).thenReturn(Map.of());
@@ -106,7 +128,10 @@ class AnalysisEvidenceCoordinatorTest {
         RuntimeResultAnalysisProtocol result = mock(RuntimeResultAnalysisProtocol.class);
         when(result.protocolAnalysisProjection(anyString(), any(), anyInt())).thenReturn(Map.of());
         when(result.analysisProjection(anyString(), any(), anyInt())).thenReturn(Map.of());
-        return new AnalysisEvidenceCoordinator(mock(ToolRegistry.class), mock(ToolRuntimeService.class),
+        ToolRuntimeService toolRuntime = mock(ToolRuntimeService.class);
+        when(toolRuntime.resolveBatchOutputForEvidenceReview(any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        return new AnalysisEvidenceCoordinator(mock(ToolRegistry.class), toolRuntime,
             new StructuredDataProjector(), new AnalysisRecordChunkPlanner(new ObjectMapper()), 20_000,
             context, result, SemanticInsightContractProvider.disabled());
     }
@@ -120,5 +145,9 @@ class AnalysisEvidenceCoordinatorTest {
         InterpretationPlanRuntime.StepExecution step) {
         return new InterpretationPlanRuntime.ExecutionResult(
             "completed", true, false, null, null, List.of(step), Map.of(), 1);
+    }
+
+    private InterpretationPlanRuntime.ExecutionResult stepResult(Object output) {
+        return result(step("api_template_execute", output));
     }
 }

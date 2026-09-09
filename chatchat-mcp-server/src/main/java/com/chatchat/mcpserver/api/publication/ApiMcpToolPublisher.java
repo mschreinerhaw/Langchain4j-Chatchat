@@ -1,15 +1,8 @@
 package com.chatchat.mcpserver.api.publication;
 
-import com.chatchat.common.bridge.BridgeResponse;
-import com.chatchat.common.kernel.KernelDataScope;
-import com.chatchat.common.knowledge.template.TemplateServiceCall;
-import com.chatchat.common.knowledge.template.TemplateServicePort;
-import com.chatchat.common.knowledge.template.TemplateServiceResult;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
-import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
-import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -17,14 +10,11 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 @Slf4j
 @Component
@@ -38,24 +28,21 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         "api_asset_query", "api_requirement_analyze", EXECUTE_TOOL_NAME);
 
     private final McpSyncServer mcpSyncServer;
-    private final TemplateServicePort bridge;
+    private final ApiAssetDiscoveryMcpToolPublisher assetDiscovery;
     private final ApiToolSpecFactory toolSpecFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
-    private final ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher;
 
     public ApiMcpToolPublisher(McpSyncServer mcpSyncServer,
-                               @Qualifier("apiServiceBridge") TemplateServicePort bridge,
+                               ApiAssetDiscoveryMcpToolPublisher assetDiscovery,
                                ApiToolSpecFactory toolSpecFactory,
                                McpToolConcurrencyManager concurrencyManager,
-                               ObjectMapper objectMapper,
-                               ObjectProvider<TemplateQueryMcpToolPublisher> dynamicQueryPublisher) {
+                               ObjectMapper objectMapper) {
         this.mcpSyncServer = mcpSyncServer;
-        this.bridge = bridge;
+        this.assetDiscovery = assetDiscovery;
         this.toolSpecFactory = toolSpecFactory;
         this.concurrencyManager = concurrencyManager;
         this.objectMapper = objectMapper;
-        this.dynamicQueryPublisher = dynamicQueryPublisher;
     }
 
     /**
@@ -83,48 +70,23 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
 
     private McpServerFeatures.SyncToolSpecification bridgeTool() {
         Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("query", Map.of("type", "string", "description", "The user's complete API business request"));
-        properties.put("templateIds", Map.of("type", "array", "items", Map.of("type", "string")));
-        properties.put("excludeTemplateIds", Map.of("type", "array", "items", Map.of("type", "string")));
+        properties.put("query", Map.of("type", "string",
+            "description", "The user's complete API service discovery request"));
         properties.put("filters", Map.of("type", "object", "additionalProperties", true,
-            "description", "Optional logical discovery filters; raw URL and HTTP definitions are forbidden"));
-        // Dynamic template-query tools are invoked through this stable parent. The MCP SDK
-        // validates the delegated request against the parent's schema before the bridge can
-        // inspect the child identity, so the parent must declare the complete safe discovery
-        // envelope as well as the server-discovered routing field.
-        properties.put("assetType", Map.of("type", "string"));
-        properties.put("bilingualIntent", Map.of("type", "array", "items", Map.of("type", "string")));
-        properties.put("intentZh", Map.of("type", "string"));
-        properties.put("intentEn", Map.of("type", "string"));
-        properties.put("trace", Map.of("type", "object", "additionalProperties", true));
-        properties.put("limit", Map.of("type", "integer", "minimum", 1,
-            "maximum", CommandTemplateDiscoveryService.MAX_LIMIT));
-        properties.put("purpose", Map.of("type", "string"));
-        properties.put("sourceTaskId", Map.of("type", "string"));
-        properties.put(TemplateQueryMcpToolPublisher.CHILD_TOOL_ARGUMENT, Map.of(
-            "type", "string",
-            "description", "Server-managed dynamic capability identity; caller values are overwritten by Runtime routing"
-        ));
+            "description", "Optional logical filters for API service assets; raw URL and HTTP definitions are forbidden"));
+        properties.put("executionContext", Map.of("type", "object", "additionalProperties", true));
+        properties.put("limit", Map.of("type", "integer", "minimum", 1, "maximum", 20));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(BRIDGE_TOOL_NAME)
-            .title("API 服务模板查询")
-            .description("Return all authorized API template candidates for model review. This facade never executes templates; execution remains owned by api_template_execute and Agent Runtime batch governance.")
+            .title("API 服务资产查询")
+            .description("Query redacted API service assets and their routing metadata. "
+                + "This tool returns services, not template candidates; use a template_query capability for templates.")
             .inputSchema(new McpSchema.JsonSchema("object", properties, List.of(), false, null, null))
             .meta(meta()).build();
         return McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
             Map<String, Object> arguments = request.arguments() == null ? Map.of() : request.arguments();
-            return concurrencyManager.execute(BRIDGE_TOOL_NAME, "discovery", arguments, () -> {
-                String childToolName = TemplateQueryMcpToolPublisher.childToolName(arguments);
-                if (!childToolName.isBlank()) {
-                    return dynamicQueryResult(dynamicQueryPublisher.getObject().queryFromParent(
-                        childToolName, BRIDGE_TOOL_NAME, arguments));
-                }
-                KernelDataScope scope = scope(arguments);
-                TemplateServiceCall call = TemplateServiceCall.search(
-                    firstText(text(arguments.get("query")), text(arguments.get("intent"))),
-                    map(arguments.get("filters")), scope.attributes(), arguments);
-                return callResult(bridge.invoke(call, scope));
-            });
+            return concurrencyManager.execute(BRIDGE_TOOL_NAME, "discovery", arguments,
+                () -> dynamicQueryResult(assetDiscovery.query(arguments)));
         }).build();
     }
 
@@ -139,76 +101,29 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     private Map<String, Object> meta() {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("schemaVersion", "api_service_query.v1");
-        meta.put("communicationInputSchemaVersion", TemplateServicePayloadMapper.WIRE_CALL_SCHEMA_VERSION);
-        meta.put("communicationOutputSchemaVersion", TemplateServicePayloadMapper.WIRE_RESULT_SCHEMA_VERSION);
-        meta.put("kernelInputSchemaVersion", TemplateServiceCall.SCHEMA_VERSION);
-        meta.put("kernelOutputSchemaVersion", TemplateServiceResult.SCHEMA_VERSION);
+        meta.put("resultKind", "RAW_RECORDS");
+        meta.put("resultSchemaRef", "asset_query_result.v1");
         meta.put("assetType", "api_service");
+        meta.put("targetKind", "api_service");
+        meta.put("resultEntityKind", "service_asset");
         meta.put("runtime_action", "read_only");
         meta.put("runtimeAction", "read_only");
         meta.put("runtime_level", "discovery");
         meta.put("runtimeLevel", "discovery");
-        meta.put("templateGoverned", true);
+        meta.put("templateGoverned", false);
         meta.put("bridgeManaged", true);
-        meta.put("executionTool", EXECUTE_TOOL_NAME);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(BRIDGE_TOOL_NAME, "discovery"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-template.v1", "intent+filters"));
+            ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-service-asset.v1", "filters", "service_asset"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
-            "mcp.api-service-bridge.v1",
+            "mcp.api-service-asset.v1",
             List.of(
-                "Call api_service_query with the complete intent and review every returned candidate semantically.",
-                "Execute accepted candidates through api_template_execute. For multiple candidates use Agent Runtime's standard ordered batch envelope with one child call per template.",
-                "Retrieval ranking is evidence, not semantic acceptance; the query bridge never executes or silently chooses one candidate."),
+                "Call api_service_query only when API service asset discovery is required.",
+                "Treat assets[] as service assets, never as template candidates.",
+                "Use a declared template_query capability when template selection is required."),
             List.of(
-                "Preserve the selected templateId and evidence-backed parameters during retry.",
                 "Never invent or pass raw URL, HTTP method, headers or body templates.",
-                "Do not bypass the governed API bridge.")));
+                "Do not reinterpret service assets as executable templates.")));
         return Map.copyOf(meta);
-    }
-
-    private McpSchema.CallToolResult callResult(BridgeResponse<TemplateServiceResult> response) {
-        Map<String, Object> body;
-        if (response.successful()) {
-            body = TemplateServicePayloadMapper.payload(response.data());
-        } else {
-            Map<String, Object> failure = new LinkedHashMap<>();
-            failure.put("communicationSchemaVersion", TemplateServicePayloadMapper.WIRE_RESULT_SCHEMA_VERSION);
-            failure.put("communicationRequestId", response.requestId());
-            failure.put("communicationStatus", "FAILED");
-            if (response.errorCode() != null) failure.put("errorCode", response.errorCode());
-            if (response.errorMessage() != null) failure.put("errorMessage", response.errorMessage());
-            body = Map.copyOf(failure);
-        }
-        String text;
-        try { text = objectMapper.writeValueAsString(body); }
-        catch (Exception ex) { text = String.valueOf(body); }
-        return McpSchema.CallToolResult.builder().addTextContent(text).structuredContent(body)
-            .isError(!response.successful()).build();
-    }
-
-    private KernelDataScope scope(Map<String, Object> arguments) {
-        String requestId = firstText(text(arguments.get("requestId")), UUID.randomUUID().toString());
-        return new KernelDataScope(firstText(text(arguments.get("tenantId")), "system"),
-            text(arguments.get("userId")), requestId, text(arguments.get("conversationId")),
-            text(arguments.get("runId")), firstText(text(arguments.get("environment")), text(arguments.get("env"))),
-            Map.of("source", "mcp-api-tool"));
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> map(Object value) {
-        return value instanceof Map<?, ?> source
-            ? new LinkedHashMap<>((Map<String, Object>) source) : Map.of();
-    }
-
-    private String firstText(String... values) {
-        for (String value : values) if (value != null && !value.isBlank()) return value.trim();
-        return null;
-    }
-
-    private String text(Object value) {
-        if (value == null) return null;
-        String valueText = String.valueOf(value).trim();
-        return valueText.isEmpty() ? null : valueText;
     }
 }

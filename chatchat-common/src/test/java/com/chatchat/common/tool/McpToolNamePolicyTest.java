@@ -35,7 +35,6 @@ class McpToolNamePolicyTest {
     @Test
     void classifiesEveryPublicDomainBridgeAsTemplateDiscoveryAcrossTransportNames() {
         assertThat(List.of(
-            "api_service_query",
             "server_capability_query",
             "http_capability_query",
             "jmx_capability_query",
@@ -47,6 +46,14 @@ class McpToolNamePolicyTest {
             assertThat(McpToolNamePolicy.isTemplateDiscovery("mcp_chatchat_mcp_server_" + name)).isTrue();
             assertThat(McpToolNamePolicy.isTemplateDiscoveryBridge(name)).isTrue();
         });
+    }
+
+    @Test
+    void doesNotGuessApiServiceQueryRoleFromItsName() {
+        assertThat(McpToolNamePolicy.isAssetDiscovery("api_service_query")).isFalse();
+        assertThat(McpToolNamePolicy.isTemplateDiscovery("api_service_query")).isFalse();
+        assertThat(McpToolNamePolicy.isTemplateDiscovery(
+            "customer_service_template_query")).isTrue();
     }
 
     @Test

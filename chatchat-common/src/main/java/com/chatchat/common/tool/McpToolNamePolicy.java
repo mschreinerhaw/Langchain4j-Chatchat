@@ -20,7 +20,6 @@ public final class McpToolNamePolicy {
         "xxx_"
     };
     private static final Set<String> TEMPLATE_DISCOVERY_BRIDGES = Set.of(
-        "api_service_query",
         "server_capability_query",
         "http_capability_query",
         "jmx_capability_query",

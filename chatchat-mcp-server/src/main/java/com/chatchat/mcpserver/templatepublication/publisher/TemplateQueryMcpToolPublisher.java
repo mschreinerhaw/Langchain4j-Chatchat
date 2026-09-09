@@ -164,6 +164,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         McpInvocationContext.Context context = McpInvocationContext.current();
         return Map.ofEntries(
             Map.entry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
+            Map.entry("resultKind", "RAW_RECORDS"),
+            Map.entry("resultSchemaRef", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
+            Map.entry("resultEntityKind", "template"),
             Map.entry("success", true),
             Map.entry("toolName", reviewedName),
             Map.entry("returnedCount", templates.size()),
@@ -190,6 +193,16 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 "configuredTemplateCount", policy.configuredTemplateCount(),
                 "parentToolNames", policy.parentToolNames(),
                 "policyVersion", policy.policyVersion()
+            )),
+            Map.entry("provenance", Map.of(
+                "sourceRef", "mcp://" + (context == null || context.clientId() == null
+                    || context.clientId().isBlank() ? TemplateQueryParentCatalog.SERVICE_ID : context.clientId())
+                    + "/" + reviewedName,
+                "dataVersion", policy.policyVersion(),
+                "asOf", policy.resolvedAt().toString(),
+                "rowRange", Map.of("offset", recall.offset(), "count", templates.size()),
+                "filterSummary", Map.of("scopeMode", McpTemplateSelectionScope.FIXED_BINDING,
+                    "candidateUniverseCount", recall.candidateUniverseCount())
             )),
             Map.entry("filterAudit", Map.of(
                 "candidateCount", policy.configuredTemplateCount(),
@@ -269,6 +282,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta(
             "template_query_publication", "system-managed", governance));
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);
+        meta.put("resultKind", "RAW_RECORDS");
+        meta.put("resultSchemaRef", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION);
+        meta.put("resultEntityKind", "template");
         // The child remains the Agent-visible capability. Transport routing is declared as
         // control-plane metadata so Runtime can invoke the stable parent gateway without
         // leaking this internal discriminator into either public input schema.
@@ -289,7 +305,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         meta.put("rawExecutionSpecReturned", false);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, "discovery"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.authorized-template-query.v1", "filters"));
+            ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.authorized-template-query.v1", "filters", "template"));
         meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
             "template_query:authorized_discovery",
             "Authorized template discovery",

@@ -45,7 +45,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         this.capabilityHierarchy = toolRegistry == null
             ? McpCapabilityHierarchy.empty()
             : new RegistryMcpCapabilityHierarchy(toolRegistry);
-        this.toolNames = new AgentToolNameResolver(this.capabilityHierarchy);
+        this.toolNames = new AgentToolNameResolver(this.capabilityHierarchy, toolRegistry);
     }
 
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";

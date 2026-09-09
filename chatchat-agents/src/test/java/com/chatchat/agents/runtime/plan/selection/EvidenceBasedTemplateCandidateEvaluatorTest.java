@@ -165,6 +165,34 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
+    void preservesComplementarySetCorrectedBySecondPassCoverageAudit() {
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset-summary"),
+                    Map.of("templateId", "trade-history"),
+                    Map.of("templateId", "holding-detail"))),
+                Map.of(
+                    "selectedTemplateIds", List.of(
+                        "asset-summary", "trade-history", "holding-detail"),
+                    "templateSelectionCoverageAudited", true,
+                    "coverageDecision", "SUFFICIENT",
+                    "templateEvaluations", List.of(
+                        Map.of("templateId", "asset-summary", "decision", "ACCEPT",
+                            "totalScore", 1.0,
+                            "matchedQuestionAspects", List.of("assets", "profit")),
+                        Map.of("templateId", "trade-history", "decision", "ACCEPT",
+                            "totalScore", 0.6,
+                            "matchedQuestionAspects", List.of("trades", "preference")),
+                        Map.of("templateId", "holding-detail", "decision", "ACCEPT",
+                            "totalScore", 0.6,
+                            "matchedQuestionAspects", List.of("assets", "profit")))));
+
+        assertThat(evaluation.selectedIds()).containsExactly(
+            "asset-summary", "trade-history", "holding-detail");
+    }
+
+    @Test
     void rejectsToolDeclaredSelectionWhenContextAwareReviewerIsUnavailable() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
@@ -300,6 +328,35 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
         assertThat(evaluation.output().toString())
             .contains("reviewedInvocations", "parameterProtocol", "070200046604",
                 "asset-summary", "trade-flow");
+    }
+
+    @Test
+    void preservesRepeatedBindingsForEachSelectedTemplate() {
+        List<Map<String, Object>> protocols = new java.util.ArrayList<>();
+        for (String templateId : List.of("asset-summary", "trade-flow")) {
+            for (String subject : List.of("070200046604", "070200046605")) {
+                protocols.add(Map.of(
+                    "protocol_version", "template_parameter_protocol_v2",
+                    "template_id", templateId,
+                    "binding_id", templateId + "-" + subject,
+                    "arguments", Map.of("khh", Map.of(
+                        "value", subject, "source", "user_query",
+                        "evidence", Map.of("quote", subject))),
+                    "unresolved_parameters", List.of()));
+            }
+        }
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset-summary"),
+                    Map.of("templateId", "trade-flow"))),
+                Map.of("selectedTemplateIds", List.of("asset-summary", "trade-flow"),
+                    "parameterProtocols", protocols));
+
+        assertThat(evaluation.output().toString()).contains("reviewedInvocations");
+        assertThat(evaluation.output().toString()).containsSubsequence(
+            "asset-summary-070200046604", "asset-summary-070200046605",
+            "trade-flow-070200046604", "trade-flow-070200046605");
     }
 
     @Test

@@ -170,6 +170,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
@@ -434,7 +435,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig, agentRuntimeProperties);
         this.analysisDatasetActivityExecutor = new AnalysisDatasetActivityExecutor(
             this.chatModelResolver, this.analysisDatasetWorker);
-        this.toolNames = new AgentToolNameResolver(new RegistryMcpCapabilityHierarchy(toolRegistry));
+        this.toolNames = new AgentToolNameResolver(
+            new RegistryMcpCapabilityHierarchy(toolRegistry), toolRegistry);
         this.analysisRefinementCoordinator = new AnalysisRefinementCoordinator(
             this.toolNames, MAX_INTERPRETATION_PLAN_ATTEMPTS);
         this.planExecutionResultCoordinator = new PlanExecutionResultCoordinator();
@@ -3458,6 +3460,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         if (toolNames.isTemplateDiscoveryToolName(request.execution().toolName())) {
             payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
+            payload = bindSelectedTemplateParameters(
+                activeChatModel, query, request.execution().output(), payload);
         }
         boolean satisfied = booleanValue(firstObject(payload, "satisfied", "accepted", "sufficient"));
         String reason = firstNonBlank(
@@ -3513,6 +3517,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         String coverageDecision = stringValue(firstObject(payload,
             "coverage_decision", "coverageDecision"));
         if (coverageDecision != null) metadata.put("coverageDecision", coverageDecision);
+        Object coverageAudit = firstObject(payload,
+            "templateSelectionCoverageAudit", "template_selection_coverage_audit");
+        if (coverageAudit instanceof Map<?, ?>) {
+            metadata.put("templateSelectionCoverageAudit", coverageAudit);
+            metadata.put("templateSelectionCoverageAudited", true);
+        }
         String retrievalOutcome = stringValue(firstObject(payload,
             "retrieval_outcome", "retrievalOutcome"));
         if (retrievalOutcome != null) metadata.put("retrievalOutcome", retrievalOutcome);
@@ -3525,6 +3535,17 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Object parameterProtocols = firstObject(payload, "parameter_protocols", "parameterProtocols");
         if (parameterProtocols instanceof Iterable<?>) {
             metadata.put("parameterProtocols", parameterProtocols);
+        }
+        Object parameterBindingMode = firstObject(payload,
+            "parameter_binding_mode", "parameterBindingMode");
+        if (parameterBindingMode != null) {
+            metadata.put("parameterBindingMode", parameterBindingMode);
+            metadata.put("parameterBindingCount", firstObject(payload,
+                "parameter_binding_count", "parameterBindingCount"));
+            metadata.put("parameterBindingMetrics", firstObject(payload,
+                "parameter_binding_metrics", "parameterBindingMetrics"));
+            metadata.put("parameterBindingToolCallId", firstObject(payload,
+                "parameter_binding_tool_call_id", "parameterBindingToolCallId"));
         }
         Map<String, Object> businessAnalysisIntent = asMap(firstObject(payload,
             "analysis_intent", "analysisIntent", "business_analysis_intent", "businessAnalysisIntent"));
@@ -3610,6 +3631,48 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             : InterpretationPlanRuntime.StepReview.rejected(reason, metadata);
     }
 
+    /**
+     * Runs parameter generation as a separate schema-driven native Function Call after semantic
+     * template admission. Discovery remains authoritative for selected ids and schemas. Providers
+     * without native calls retain the reviewer's protocol for the existing fail-closed bridge.
+     */
+    private Map<String, Object> bindSelectedTemplateParameters(ChatModel activeChatModel,
+                                                                String query,
+                                                                Object discoveryOutput,
+                                                                Map<String, Object> reviewedPayload) {
+        List<String> selectedIds = stringList(firstObject(
+            reviewedPayload, "selected_template_ids", "selectedTemplateIds"));
+        if (selectedIds.isEmpty()) return reviewedPayload;
+        List<Map<String, Object>> templates = findCandidateMaps(discoveryOutput, "templates", 0);
+        SchemaDrivenTemplateParameterBinder binder =
+            new SchemaDrivenTemplateParameterBinder(objectMapper);
+        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> nativeBinding =
+            binder.bind(activeChatModel, query, templates, selectedIds);
+        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> schemaCompleted =
+            binder.completeFromReviewedProtocols(templates, selectedIds,
+                firstObject(reviewedPayload, "parameter_protocols", "parameterProtocols"));
+        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> binding;
+        if (nativeBinding.isPresent() && (schemaCompleted.isEmpty()
+            || nativeBinding.get().protocols().size() >= schemaCompleted.get().protocols().size())) {
+            binding = nativeBinding;
+        } else {
+            binding = schemaCompleted;
+        }
+        if (binding.isEmpty()) return reviewedPayload;
+        Map<String, Object> result = new LinkedHashMap<>(reviewedPayload);
+        result.put("parameter_protocols", binding.get().protocols());
+        result.put("parameter_binding_mode", binding.get().mode());
+        result.put("parameter_binding_count", binding.get().protocols().size());
+        result.put("parameter_binding_metrics", binding.get().metrics());
+        if (binding.get().nativeToolCallId() != null
+            && !binding.get().nativeToolCallId().isBlank()) {
+            result.put("parameter_binding_tool_call_id", binding.get().nativeToolCallId());
+        }
+        log.info("Schema-driven template parameters bound: mode={}, selectedTemplates={}, bindings={}",
+            binding.get().mode(), selectedIds.size(), binding.get().protocols().size());
+        return Map.copyOf(result);
+    }
+
     private Map<String, Object> auditTemplateSelectionCoverage(
         ChatModel activeChatModel,
         String query,
@@ -3641,6 +3704,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "candidates merely to increase count. If the user asks to characterize behavior, preference, "
             + "pattern or activity, returned sources that record actions, events, transactions or history "
             + "are material evidence candidates; a snapshot alone cannot answer that facet. Treat a "
+            + "template ID as an opaque identifier: never infer capability from its letters, abbreviations "
+            + "or suffix. Use the candidate's declared title, description and parameter contract only; when "
+            + "a title conflicts with a guessed meaning of the ID, the title is authoritative. A generic or "
+            + "shared description cannot turn a balance/snapshot source into transaction-history evidence. Treat a "
             + "provisional rejection as internally contradictory when its reason says a candidate contains "
             + "the very behavior, activity or measure explicitly requested by the user. Return strict JSON only: "
             + "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"requested_aspects\":[],"
@@ -3700,6 +3767,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             });
         }
         revised.put("templateSelectionCoverageAudit", audit);
+        revised.put("templateSelectionCoverageAudited", true);
         return Map.copyOf(revised);
     }
 
@@ -3795,7 +3863,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("- Selection completeness is semantic coverage, not a fixed template count. Select all and only complementary candidates required for the requested facets, and state an explicit missingAspects entry for any requested facet left uncovered.\n");
             prompt.append("- First decide coverage_decision: SUFFICIENT, NEED_NEXT_PAGE, or SCOPE_INSUFFICIENT. SUFFICIENT requires at least one selected returned template. An empty selection is valid and required when the current page has no suitable candidate; use NEED_NEXT_PAGE only when the tool result says hasMore=true.\n");
             prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, rejected_template_ids, evidence_gaps, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role.\n");
-            prompt.append("- Return exactly one parameter_protocols entry for every selected template. Include only schema-declared overrides proven by an exact user-query quote or completed tool-result path. Keep arguments={} when defaults are sufficient; do not copy defaults as model values.\n");
+            prompt.append("- Return at least one parameter_protocols entry for every selected template. When the user supplies a collection of entities, repeat the template_id with one binding_id and one scalar argument set per distinct entity; the Runtime will compile the bounded entity-by-template batch. Include only schema-declared overrides proven by an exact user-query quote or completed tool-result path. Keep arguments={} when defaults are sufficient; do not copy defaults as model values.\n");
             prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
             prompt.append("- Evaluate every returned asset identity from authoritative routing metadata. Select only returned IDs; discovery proves routing eligibility, not business health.\n");
@@ -3819,7 +3887,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("Template-discovery fields:\n")
                 .append("{\"selected_template_ids\":[],\"rejected_template_ids\":[],\"parameter_protocols\":[{\"protocol_version\":\"")
                 .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
-                .append("\",\"template_id\":\"returned-id\",\"arguments\":{\"declared_field\":{\"value\":\"evidence-backed value\",\"source\":\"user_query\",\"evidence\":{\"quote\":\"exact query excerpt\"}}},\"unresolved_parameters\":[]}],\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"evidence_gaps\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
+                .append("\",\"template_id\":\"returned-id\",\"binding_id\":\"stable-binding-id\",\"arguments\":{\"declared_field\":{\"value\":\"evidence-backed scalar value\",\"source\":\"user_query\",\"evidence\":{\"quote\":\"exact query excerpt\"}}},\"unresolved_parameters\":[]}],\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"evidence_gaps\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
             prompt.append("Asset-discovery fields: {\"selected_asset_ids\":[],\"rejected_asset_ids\":[],\"asset_evaluations\":[{\"asset_id\":\"returned-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[]}]}\n");
         } else if (isWebDiscoveryTool(toolName)) {

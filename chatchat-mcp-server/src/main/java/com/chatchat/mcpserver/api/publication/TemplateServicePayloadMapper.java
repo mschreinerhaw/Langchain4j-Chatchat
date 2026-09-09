@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.api.publication;
 
 import com.chatchat.common.knowledge.template.TemplateServiceResult;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,6 +24,20 @@ final class TemplateServicePayloadMapper {
             case EXECUTE -> "api.service/execute";
         });
         payload.put("communicationStatus", result.status().name());
+        payload.put("resultKind", "RAW_RECORDS");
+        payload.put("resultSchemaRef", "tool_execution_result.v1");
+        payload.put("resultEntityKind", "execution_result");
+        String templateId = result.metadata().get("templateId") == null ? null
+            : String.valueOf(result.metadata().get("templateId"));
+        Map<String, Object> provenance = new LinkedHashMap<>();
+        provenance.put("sourceRef", "mcp://api_template_execute"
+            + (templateId == null || templateId.isBlank() ? "" : "/" + templateId));
+        provenance.put("dataVersion", "tool_execution_result.v1");
+        provenance.put("asOf", Instant.ofEpochMilli(result.completedAt()).toString());
+        if (templateId != null && !templateId.isBlank()) {
+            provenance.put("filterSummary", Map.of("templateId", templateId));
+        }
+        payload.put("provenance", Map.copyOf(provenance));
         payload.put("events", result.events());
         payload.put("retryable", result.retryable());
         return Collections.unmodifiableMap(payload);

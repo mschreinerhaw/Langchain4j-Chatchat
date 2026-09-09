@@ -27,6 +27,7 @@ public record McpCapabilityNode(
     public static final String RELATION_ROOT = "root";
     public static final String RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY =
         "implements_abstract_capability";
+    public static final String RELATION_SCOPED_SUBSET_OF = "scoped_subset_of";
     /** Legacy transport-oriented relationship value accepted during rolling upgrades. */
     @Deprecated(forRemoval = false)
     public static final String RELATION_DELEGATES_TO_PARENT = "delegates_to_parent";
@@ -37,7 +38,7 @@ public record McpCapabilityNode(
         parentToolName = normalized(parentToolName);
         nodeKind = nodeKind == null
             ? (parentToolName == null ? McpCapabilityNodeKind.STANDALONE
-            : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION)
+            : McpCapabilityNodeKind.SCOPED_SUBSET)
             : nodeKind;
         fallbackPolicy = fallbackPolicy == null
             ? (nodeKind == McpCapabilityNodeKind.ABSTRACT_CAPABILITY
@@ -47,7 +48,7 @@ public record McpCapabilityNode(
         relationType = normalized(relationType);
         if (relationType == null) {
             relationType = parentToolName == null
-                ? RELATION_ROOT : RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY;
+                ? RELATION_ROOT : RELATION_SCOPED_SUBSET_OF;
         }
         routingMode = normalized(routingMode);
         attributes = attributes == null ? Map.of()
@@ -68,7 +69,12 @@ public record McpCapabilityNode(
     }
 
     public boolean businessImplementation() {
-        return nodeKind == McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION;
+        return nodeKind == McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION
+            || nodeKind == McpCapabilityNodeKind.SCOPED_SUBSET;
+    }
+
+    public boolean scopedSubset() {
+        return nodeKind == McpCapabilityNodeKind.SCOPED_SUBSET;
     }
 
     public Map<String, Object> toMetadata() {

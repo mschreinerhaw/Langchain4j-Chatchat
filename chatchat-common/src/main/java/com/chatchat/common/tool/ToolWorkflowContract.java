@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Publisher-owned workflow contract. Declared metadata is authoritative;
- * tool-name inference exists only for one-time migration of pre-v1 catalogs.
+ * Publisher-owned workflow contract. Declared MCP metadata is the only
+ * authoritative source; Runtime never infers workflow semantics from names.
  */
 public final class ToolWorkflowContract {
 
@@ -24,12 +24,20 @@ public final class ToolWorkflowContract {
     public static Map<String, Object> declaration(ToolWorkflowRole role,
                                                    String protocolFamily,
                                                    String inputEnvelope) {
+        return declaration(role, protocolFamily, inputEnvelope, null);
+    }
+
+    public static Map<String, Object> declaration(ToolWorkflowRole role,
+                                                   String protocolFamily,
+                                                   String inputEnvelope,
+                                                   String resultEntityKind) {
         if (role == null) throw new IllegalArgumentException("workflow role is required");
         Map<String, Object> contract = new LinkedHashMap<>();
         contract.put("schemaVersion", SCHEMA_VERSION);
         contract.put("workflowRole", role.name());
         if (text(protocolFamily) != null) contract.put("protocolFamily", text(protocolFamily));
         if (text(inputEnvelope) != null) contract.put("inputEnvelope", text(inputEnvelope));
+        if (text(resultEntityKind) != null) contract.put("resultEntityKind", text(resultEntityKind));
         return Map.copyOf(contract);
     }
 
@@ -39,12 +47,12 @@ public final class ToolWorkflowContract {
     }
 
     public static ToolWorkflowRole resolveRole(String toolName, ToolMetadata metadata) {
-        return declaredRole(metadata).orElseGet(() -> legacyRole(toolName));
+        return declaredRole(metadata).orElse(ToolWorkflowRole.DIRECT);
     }
 
     /** Resolves workflow role from the canonical MCP descriptor metadata envelope. */
     public static ToolWorkflowRole resolveDescriptorRole(String toolName, Map<String, Object> metadata) {
-        return declaredDescriptorRole(metadata).orElseGet(() -> legacyRole(toolName));
+        return declaredDescriptorRole(metadata).orElse(ToolWorkflowRole.DIRECT);
     }
 
     public static Optional<ToolWorkflowRole> declaredDescriptorRole(Map<String, Object> metadata) {
@@ -63,6 +71,11 @@ public final class ToolWorkflowContract {
         return Optional.ofNullable(text(first(contractMap(metadata), "inputEnvelope", "input_envelope")));
     }
 
+    public static Optional<String> declaredResultEntityKind(ToolMetadata metadata) {
+        return Optional.ofNullable(text(first(contractMap(metadata),
+            "resultEntityKind", "result_entity_kind")));
+    }
+
     public static void validate(String toolName, ToolMetadata metadata) {
         Map<String, Object> contract = contractMap(metadata);
         if (contract.isEmpty()) {
@@ -75,13 +88,6 @@ public final class ToolWorkflowContract {
         }
         declaredRole(metadata).orElseThrow(() ->
             new IllegalArgumentException("Tool workflowContract.workflowRole is required: " + toolName));
-    }
-
-    private static ToolWorkflowRole legacyRole(String toolName) {
-        if (McpToolNamePolicy.isAssetDiscovery(toolName)) return ToolWorkflowRole.ASSET_DISCOVERY;
-        if (McpToolNamePolicy.isTemplateDiscovery(toolName)) return ToolWorkflowRole.TEMPLATE_DISCOVERY;
-        if (McpToolNamePolicy.isTemplateExecution(toolName)) return ToolWorkflowRole.TEMPLATE_EXECUTION;
-        return ToolWorkflowRole.DIRECT;
     }
 
     private static Map<String, Object> contractMap(ToolMetadata metadata) {

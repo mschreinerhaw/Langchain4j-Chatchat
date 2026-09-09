@@ -65,7 +65,15 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
     @Override
     public McpServiceResult invoke(McpServiceCall call) {
         McpToolInvokeResult result = registryBridge.invoke(call);
-        Map<String, Object> declaration = result.executionState();
+        Map<String, Object> declaration = new LinkedHashMap<>(result.executionState());
+        Map<String, Object> payload = map(result.data());
+        // Result semantics belong to the MCP producer. Preserve declarations returned in
+        // structuredContent instead of making Runtime infer them from tool names or payload shape.
+        for (String key : List.of(McpServiceResult.RESULT_KIND_KEY,
+            McpServiceResult.RESULT_SCHEMA_REF_KEY, McpServiceResult.PROVENANCE_KEY,
+            McpServiceResult.PAGINATION_KEY)) {
+            if (payload.get(key) != null) declaration.putIfAbsent(key, payload.get(key));
+        }
         return new McpServiceResult(null, call.requestId(), call.serviceId(), call.toolName(),
             result.success() ? McpServiceResultStatus.SUCCESS : McpServiceResultStatus.FAILED,
             result.data(), result.rawData(), result.errorCode(), result.errorMessage(), result.retryable(), result.action(),
@@ -117,7 +125,7 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         metadata.put("workflowContractChecksum", extra.get("workflowContractChecksum"));
         metadata.put("contractMeta", safeContractMeta(extra.get("mcpToolMeta")));
         for (String key : List.of(McpServiceResult.RESULT_KIND_KEY, McpServiceResult.RESULT_SCHEMA_REF_KEY,
-            "paginationSupported")) {
+            McpServiceResult.PROVENANCE_KEY, "resultEntityKind", "paginationSupported")) {
             if (extra.get(key) != null) metadata.put(key, extra.get(key));
         }
         Map<String, Object> workflowContract = map(extra.get(ToolWorkflowContract.METADATA_KEY));
@@ -126,6 +134,8 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         }
         if (!workflowContract.isEmpty()) {
             metadata.put(ToolWorkflowContract.METADATA_KEY, workflowContract);
+            Object resultEntityKind = workflowContract.get("resultEntityKind");
+            if (resultEntityKind != null) metadata.put("resultEntityKind", resultEntityKind);
         }
         metadata.put(McpCapabilityHierarchy.METADATA_KEY, tool.capabilityNode() == null
             ? map(extra.get(McpCapabilityHierarchy.METADATA_KEY))
@@ -147,7 +157,7 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
         List.of("capabilityCode", "providerModule", "contractVersion", "runtimeAction", "readOnly",
             "technicalType", "backendServiceType", "templateRegistryRequired", "templateSelectionPolicy",
             "templates", "resultSchema", "outputSchema", "toolResultInstruction", "tags",
-            "resultKind", "resultSchemaRef", "paginationSupported")
+            "resultKind", "resultSchemaRef", "provenance", "resultEntityKind", "paginationSupported")
             .forEach(key -> { if (source.containsKey(key)) safe.put(key, source.get(key)); });
         return safe;
     }

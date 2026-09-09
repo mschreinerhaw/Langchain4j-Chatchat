@@ -37,9 +37,11 @@ class ToolWorkflowContractTest {
     }
 
     @Test
-    void legacyToolsRemainCompatibleDuringMigration() {
+    void missingMcpDeclarationNeverFallsBackToToolNameInference() {
         assertThat(ToolWorkflowContract.resolveRole("server_capability_query", null))
-            .isEqualTo(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+            .isEqualTo(ToolWorkflowRole.DIRECT);
+        assertThat(ToolWorkflowContract.resolveRole("customer_service_template_query", null))
+            .isEqualTo(ToolWorkflowRole.DIRECT);
         assertThat(ToolWorkflowContract.resolveRole("plain_calculator", null))
             .isEqualTo(ToolWorkflowRole.DIRECT);
     }
@@ -49,7 +51,7 @@ class ToolWorkflowContractTest {
         ToolMetadata metadata = ToolMetadata.builder().metadata(Map.of(
             ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,
-                "vendor.protocol.v3", "executionContext")
+                "vendor.protocol.v3", "executionContext", "template_execution_result")
         )).build();
 
         ToolWorkflowContract.validate("arbitrary_new_tool", metadata);
@@ -57,5 +59,7 @@ class ToolWorkflowContractTest {
             .contains(ToolWorkflowRole.TEMPLATE_EXECUTION);
         assertThat(ToolWorkflowContract.declaredProtocolFamily(metadata)).contains("vendor.protocol.v3");
         assertThat(ToolWorkflowContract.declaredInputEnvelope(metadata)).contains("executionContext");
+        assertThat(ToolWorkflowContract.declaredResultEntityKind(metadata))
+            .contains("template_execution_result");
     }
 }

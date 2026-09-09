@@ -1,6 +1,5 @@
 package com.chatchat.agents.routing;
 
-import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolWorkflowRole;
 
 import java.util.LinkedHashMap;
@@ -15,8 +14,6 @@ public class McpToolRouter {
 
     public static final String ASSET_DISCOVERY = "asset_discovery";
     public static final String TEMPLATE_DISCOVERY = "template_discovery";
-    private static final String LEGACY_ASSET_QUERY = "asset_query";
-    private static final String LEGACY_TEMPLATE_QUERY = "template_query";
     private static final Map<String, String> TARGET_KIND_TO_ASSET_TYPE = Map.of(
         "api", "api_service",
         "api_service", "api_service",
@@ -72,31 +69,13 @@ public class McpToolRouter {
         return decision.routed() && decision.allowed() ? decision.resolvedToolName() : requestedToolName;
     }
 
-    public boolean isTypedAssetQuery(String toolName) {
-        return McpToolNamePolicy.isAssetDiscovery(toolName);
-    }
-
-    public boolean isTypedTemplateQuery(String toolName) {
-        return McpToolNamePolicy.isTemplateDiscovery(toolName);
-    }
-
     private String requestedCapability(String requestedToolName,
                                        Map<String, Object> arguments,
                                        ToolWorkflowRole publishedRole) {
-        String explicit = normalizeCapability(firstText(arguments, "routerCapability", "capability"));
-        if (explicit != null) {
-            return explicit;
-        }
         if (publishedRole == ToolWorkflowRole.ASSET_DISCOVERY) {
             return ASSET_DISCOVERY;
         }
         if (publishedRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            return TEMPLATE_DISCOVERY;
-        }
-        if (isTypedAssetQuery(requestedToolName)) {
-            return ASSET_DISCOVERY;
-        }
-        if (isTypedTemplateQuery(requestedToolName)) {
             return TEMPLATE_DISCOVERY;
         }
         return null;
@@ -135,22 +114,6 @@ public class McpToolRouter {
         return level == null ? "read" : level;
     }
 
-    private String semantic(String toolName) {
-        if (toolName == null || toolName.isBlank()) {
-            return "";
-        }
-        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        while (normalized.startsWith("mcp_")) {
-            normalized = normalized.substring(4);
-        }
-        for (String prefix : List.of("chatchat_mcp_server_", "chatchat_", "xxx_")) {
-            if (normalized.startsWith(prefix)) {
-                normalized = normalized.substring(prefix.length());
-            }
-        }
-        return normalized;
-    }
-
     private Object firstValue(Map<String, Object> values, String... keys) {
         if (values == null) {
             return null;
@@ -184,17 +147,6 @@ public class McpToolRouter {
 
     private String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private String normalizeCapability(String value) {
-        String normalized = normalize(value);
-        if (ASSET_DISCOVERY.equals(normalized) || LEGACY_ASSET_QUERY.equals(normalized)) {
-            return ASSET_DISCOVERY;
-        }
-        if (TEMPLATE_DISCOVERY.equals(normalized) || LEGACY_TEMPLATE_QUERY.equals(normalized)) {
-            return TEMPLATE_DISCOVERY;
-        }
-        return null;
     }
 
     public record RoutingDecision(

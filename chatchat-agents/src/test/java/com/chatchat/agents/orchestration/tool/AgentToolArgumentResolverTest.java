@@ -1854,6 +1854,41 @@ class AgentToolArgumentResolverTest {
             .doesNotContainKey("query");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void compilesRepeatedTemplateBindingsAsFailureIsolatedEntityTemplateBatch() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_runtime_customer_template_query")
+            .success(true)
+            .output("""
+                {"runtimeTemplateSelection":{
+                  "selectedTemplateIds":["assets","trades"],
+                  "reviewedInvocations":[
+                    {"templateId":"assets","bindingId":"assets-one","arguments":{"templateId":"assets","parameterProtocol":{"protocol_version":"template_parameter_protocol_v2","template_id":"assets","binding_id":"assets-one","arguments":{"subject":{"value":"070200046604","source":"user_query","evidence":{"quote":"070200046604"}}},"unresolved_parameters":[]}}},
+                    {"templateId":"assets","bindingId":"assets-two","arguments":{"templateId":"assets","parameterProtocol":{"protocol_version":"template_parameter_protocol_v2","template_id":"assets","binding_id":"assets-two","arguments":{"subject":{"value":"070200046605","source":"user_query","evidence":{"quote":"070200046605"}}},"unresolved_parameters":[]}}},
+                    {"templateId":"trades","bindingId":"trades-one","arguments":{"templateId":"trades","parameterProtocol":{"protocol_version":"template_parameter_protocol_v2","template_id":"trades","binding_id":"trades-one","arguments":{"subject":{"value":"070200046604","source":"user_query","evidence":{"quote":"070200046604"}}},"unresolved_parameters":[]}}},
+                    {"templateId":"trades","bindingId":"trades-two","arguments":{"templateId":"trades","parameterProtocol":{"protocol_version":"template_parameter_protocol_v2","template_id":"trades","binding_id":"trades-two","arguments":{"subject":{"value":"070200046605","source":"user_query","evidence":{"quote":"070200046605"}}},"unresolved_parameters":[]}}}
+                  ]},
+                  "templates":[
+                    {"templateId":"assets","parameterContract":{"executionTool":"api_template_execute"},"parameterSchema":{"type":"object","properties":{"subject":{"type":"string"}},"required":["subject"]}},
+                    {"templateId":"trades","parameterContract":{"executionTool":"api_template_execute"},"parameterSchema":{"type":"object","properties":{"subject":{"type":"string"}},"required":["subject"]}}
+                  ]}
+                """).build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_runtime_api_template_execute",
+            Map.of("calls", List.of(Map.of("callId", "placeholder", "toolName",
+                "mcp_runtime_api_template_execute", "arguments", Map.of()))),
+            List.of(discovery),
+            "分析070200046604和070200046605");
+
+        assertThat((List<Map<String, Object>>) result.get("calls")).hasSize(4)
+            .allSatisfy(call -> assertThat(call).doesNotContainKey("preflightErrorCode"));
+        assertThat(result.get("calls").toString())
+            .contains("assets-one", "assets-two", "trades-one", "trades-two",
+                "070200046604", "070200046605");
+    }
+
     private Map<String, Object> trace() {
         return Map.of("plannerVersion", "v1.0", "model", "unit-test");
     }

@@ -3,6 +3,9 @@ package com.chatchat.agents.orchestration.tool;
 import com.chatchat.agents.routing.McpToolRouter;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.tool.McpToolNamePolicy;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
+import com.chatchat.agents.tool.ToolRegistry;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -18,14 +21,20 @@ public class AgentToolNameResolver {
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
     private final McpToolRouter mcpToolRouter = new McpToolRouter();
     private final McpCapabilityHierarchy capabilityHierarchy;
+    private final ToolRegistry toolRegistry;
 
     public AgentToolNameResolver() {
-        this(McpCapabilityHierarchy.empty());
+        this(McpCapabilityHierarchy.empty(), null);
     }
 
     public AgentToolNameResolver(McpCapabilityHierarchy capabilityHierarchy) {
+        this(capabilityHierarchy, null);
+    }
+
+    public AgentToolNameResolver(McpCapabilityHierarchy capabilityHierarchy, ToolRegistry toolRegistry) {
         this.capabilityHierarchy = capabilityHierarchy == null
             ? McpCapabilityHierarchy.empty() : capabilityHierarchy;
+        this.toolRegistry = toolRegistry;
     }
 
     public String resolveDocumentSearchTool(List<String> tools) {
@@ -119,11 +128,22 @@ public class AgentToolNameResolver {
     }
 
     public boolean isAssetDiscoveryToolName(String toolName) {
-        return McpToolRouter.ASSET_DISCOVERY.equals(toolSemanticKey(toolName));
+        return workflowRole(toolName) == ToolWorkflowRole.ASSET_DISCOVERY;
     }
 
     public boolean isTemplateDiscoveryToolName(String toolName) {
-        return McpToolRouter.TEMPLATE_DISCOVERY.equals(toolSemanticKey(toolName));
+        return workflowRole(toolName) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+    }
+
+    private ToolWorkflowRole workflowRole(String toolName) {
+        if (toolRegistry == null || toolName == null || toolName.isBlank()) {
+            return ToolWorkflowRole.DIRECT;
+        }
+        try {
+            return ToolWorkflowContract.resolveRole(toolName, toolRegistry.getToolMetadata(toolName));
+        } catch (RuntimeException registryRefreshRace) {
+            return ToolWorkflowRole.DIRECT;
+        }
     }
 
     /**
@@ -225,18 +245,6 @@ public class AgentToolNameResolver {
         }
         if (normalized.contains(WEB_SEARCH_TOOL)) {
             return WEB_SEARCH_TOOL;
-        }
-        if ("asset_query".equals(normalized) || "asset_discovery".equals(normalized)) {
-            return McpToolRouter.ASSET_DISCOVERY;
-        }
-        if ("template_query".equals(normalized) || "template_discovery".equals(normalized)) {
-            return McpToolRouter.TEMPLATE_DISCOVERY;
-        }
-        if (mcpToolRouter.isTypedAssetQuery(normalized)) {
-            return McpToolRouter.ASSET_DISCOVERY;
-        }
-        if (mcpToolRouter.isTypedTemplateQuery(normalized)) {
-            return McpToolRouter.TEMPLATE_DISCOVERY;
         }
         return normalized;
     }

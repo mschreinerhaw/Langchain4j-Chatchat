@@ -34,14 +34,10 @@ public final class RegistryMcpCapabilityHierarchy implements McpCapabilityHierar
             String routingMode = text(first(declared.get("routingMode"), extra.get("routingMode")));
             String relationType = text(declared.get("relationType"));
             String resolvedParent = parent == null ? null : registeredName(serviceId, parent);
-            boolean inferredAbstractCapability = parent == null
-                && hasBusinessImplementations(serviceId, registeredName);
             McpCapabilityNodeKind nodeKind = McpCapabilityNodeKind.parse(
                 declared.get("nodeKind"), parent == null
-                    ? (inferredAbstractCapability
-                        ? McpCapabilityNodeKind.ABSTRACT_CAPABILITY
-                        : McpCapabilityNodeKind.STANDALONE)
-                    : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION);
+                    ? McpCapabilityNodeKind.STANDALONE
+                    : McpCapabilityNodeKind.SCOPED_SUBSET);
             McpCapabilityFallbackPolicy fallbackPolicy = McpCapabilityFallbackPolicy.parse(
                 declared.get("fallbackPolicy"), nodeKind == McpCapabilityNodeKind.ABSTRACT_CAPABILITY
                     ? McpCapabilityFallbackPolicy.DENY_WHEN_NO_IMPLEMENTATION
@@ -72,32 +68,12 @@ public final class RegistryMcpCapabilityHierarchy implements McpCapabilityHierar
         }
     }
 
-    private boolean hasBusinessImplementations(String serviceId, String parentToolName) {
-        var names = registry.getAllToolNames();
-        if (names == null) return false;
-        String parentSemantic = McpToolNamePolicy.workflowSemanticKey(parentToolName);
-        for (String candidate : names) {
-            ToolMetadata metadata = registry.getToolMetadata(candidate);
-            Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
-                ? Map.of() : metadata.getMetadata();
-            if (serviceId != null && !serviceId.equals(text(extra.get("serviceId")))) continue;
-            Map<String, Object> declared = map(extra.get(METADATA_KEY));
-            String declaredParent = text(first(declared.get("parentToolName"), extra.get("parentRemoteToolName")));
-            if (declaredParent != null
-                && McpToolNamePolicy.workflowSemanticKey(declaredParent).equals(parentSemantic)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private String registeredName(String requested) {
         return registeredName(null, requested);
     }
 
     private String registeredName(String serviceId, String requested) {
         if (registry == null || requested == null || requested.isBlank()) return null;
-        String semantic = McpToolNamePolicy.workflowSemanticKey(requested);
         var names = registry.getAllToolNames();
         if (names == null || names.isEmpty()) return null;
         for (String candidate : names) {
@@ -107,8 +83,7 @@ public final class RegistryMcpCapabilityHierarchy implements McpCapabilityHierar
             if (serviceId != null && !serviceId.equals(text(extra.get("serviceId")))) continue;
             String remoteName = text(extra.get("remoteToolName"));
             if (candidate.equals(requested)
-                || McpToolNamePolicy.workflowSemanticKey(candidate).equals(semantic)
-                || (remoteName != null && McpToolNamePolicy.workflowSemanticKey(remoteName).equals(semantic))) {
+                || (remoteName != null && remoteName.equals(requested))) {
                 return candidate;
             }
         }

@@ -121,6 +121,7 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
             "targetKind", "api_service",
             "assetType", "api_service",
+            "resultEntityKind", "service_asset",
             "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
             "filters", filters,
             "limit", limit,

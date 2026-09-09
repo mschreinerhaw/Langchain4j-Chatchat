@@ -141,6 +141,9 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<TemplateServiceCal
     private Map<String, Object> apiTemplateGatewayMeta() {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("schemaVersion", "api_template_execute.v1");
+        meta.put("resultKind", "RAW_RECORDS");
+        meta.put("resultSchemaRef", "tool_execution_result.v1");
+        meta.put("resultEntityKind", "execution_result");
         meta.put("communicationInputSchemaVersion", TemplateServicePayloadMapper.WIRE_CALL_SCHEMA_VERSION);
         meta.put("communicationOutputSchemaVersion", TemplateServicePayloadMapper.WIRE_RESULT_SCHEMA_VERSION);
         meta.put("kernelInputSchemaVersion", TemplateServiceCall.SCHEMA_VERSION);
@@ -150,7 +153,8 @@ public class ApiToolSpecFactory extends AbstractRuntimeBridge<TemplateServiceCal
         meta.put("templateGoverned", true);
         meta.put("templateDiscoveryTool", ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME);
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.api-template.v1", "templateId+parameters"));
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.api-template.v1", "templateId+parameters",
+            "execution_result"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
             "mcp.api-template.v1",
             List.of(

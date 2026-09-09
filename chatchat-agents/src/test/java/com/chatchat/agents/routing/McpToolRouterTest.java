@@ -2,23 +2,13 @@ package com.chatchat.agents.routing;
 
 import org.junit.jupiter.api.Test;
 
+import com.chatchat.common.tool.ToolWorkflowRole;
 import java.util.List;
 import java.util.Map;
-import com.chatchat.common.tool.ToolWorkflowRole;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpToolRouterTest {
-
-    private static final List<String> PUBLIC_TEMPLATE_DISCOVERY_BRIDGES = List.of(
-        "api_service_query",
-        "server_capability_query",
-        "http_capability_query",
-        "jmx_capability_query",
-        "database_capability_query",
-        "data_query_query",
-        "python_analysis_query"
-    );
 
     private final McpToolRouter router = new McpToolRouter();
 
@@ -38,7 +28,8 @@ class McpToolRouterTest {
                 "mcp_chatchat_mcp_server_database_query_template_query"
             ),
             "tenant-a",
-            List.of()
+            List.of(),
+            ToolWorkflowRole.TEMPLATE_DISCOVERY
         );
 
         assertThat(decision.allowed()).isTrue();
@@ -56,7 +47,8 @@ class McpToolRouterTest {
             Map.of("routerCapability", "template_discovery", "assetType", "database_query"),
             List.of(other, requested),
             "tenant-a",
-            List.of()
+            List.of(),
+            ToolWorkflowRole.TEMPLATE_DISCOVERY
         );
 
         assertThat(decision.resolvedToolName()).isEqualTo(requested);
@@ -71,7 +63,8 @@ class McpToolRouterTest {
             Map.of("capability", "template_discovery"),
             List.of("mcp_chatchat_mcp_server_database_ops_template_search"),
             "tenant-a",
-            List.of()
+            List.of(),
+            ToolWorkflowRole.TEMPLATE_DISCOVERY
         );
 
         assertThat(decision.allowed()).isFalse();
@@ -94,22 +87,18 @@ class McpToolRouterTest {
     }
 
     @Test
-    void routesEveryPublicCapabilityBridgeAsTemplateDiscovery() {
-        for (String bridge : PUBLIC_TEMPLATE_DISCOVERY_BRIDGES) {
-            String requested = "mcp_chatchat_mcp_server_" + bridge;
-            McpToolRouter.RoutingDecision decision = router.route(
-                requested,
-                Map.of("query", "inspect target"),
-                List.of(requested),
-                "tenant-a",
-                List.of()
-            );
+    void doesNotInferCapabilityFromToolNameOrCallerArguments() {
+        String requested = "mcp_chatchat_mcp_server_customer_service_template_query";
+        McpToolRouter.RoutingDecision decision = router.route(
+            requested,
+            Map.of("routerCapability", "template_discovery"),
+            List.of(requested),
+            "tenant-a",
+            List.of()
+        );
 
-            assertThat(router.isTypedTemplateQuery(requested)).as(requested).isTrue();
-            assertThat(decision.allowed()).as(requested).isTrue();
-            assertThat(decision.routed()).as(requested).isTrue();
-            assertThat(decision.capability()).as(requested).isEqualTo("template_discovery");
-        }
+        assertThat(decision.routed()).isFalse();
+        assertThat(decision.resolvedToolName()).isEqualTo(requested);
     }
 
     @Test

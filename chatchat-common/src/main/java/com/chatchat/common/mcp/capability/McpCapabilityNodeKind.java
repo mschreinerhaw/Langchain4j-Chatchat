@@ -2,10 +2,12 @@ package com.chatchat.common.mcp.capability;
 
 /** Semantic position of a tool in the Runtime OS MCP capability tree. */
 public enum McpCapabilityNodeKind {
-    /** Stable protocol and routing abstraction; not preferred as business evidence. */
+    /** Legacy protocol abstraction retained for reading older catalog snapshots. */
     ABSTRACT_CAPABILITY,
-    /** Governed domain implementation published below an abstract capability. */
+    /** Legacy child kind retained for reading older catalog snapshots. */
     BUSINESS_IMPLEMENTATION,
+    /** A governed intersection/subset of its directly invocable parent capability. */
+    SCOPED_SUBSET,
     /** Independent capability with no declared implementation relationship. */
     STANDALONE;
 

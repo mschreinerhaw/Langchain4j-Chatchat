@@ -56,9 +56,9 @@ public class McpRuntimeBridgeController {
     @GetMapping("/tools")
     @Operation(summary = "Search the unified MCP tool contract directory")
     public ApiResponse<List<McpToolDescriptor>> tools(
-        @RequestParam(required = false) String serviceId,
-        @RequestParam(required = false) String capabilityCode,
-        @RequestParam(required = false) Set<String> toolNames) {
+        @RequestParam(name = "serviceId", required = false) String serviceId,
+        @RequestParam(name = "capabilityCode", required = false) String capabilityCode,
+        @RequestParam(name = "toolNames", required = false) Set<String> toolNames) {
         return ApiResponse.success(runtime.tools(new McpToolQuery(serviceId, capabilityCode, toolNames)));
     }
 

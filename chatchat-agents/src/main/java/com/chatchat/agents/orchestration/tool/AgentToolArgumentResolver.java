@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.runtime.toolcall.TemplateExecutionContractSelector;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
@@ -665,7 +666,7 @@ public class AgentToolArgumentResolver {
                                                         List<Map<String, Object>> candidates,
                                                         Object output) {
         List<Map<String, Object>> invocations = reviewedTemplateInvocations(output);
-        if (invocations.isEmpty() || candidates == null || candidates.size() < 2) {
+        if (invocations.isEmpty() || candidates == null || candidates.isEmpty()) {
             return null;
         }
         Map<String, Map<String, Object>> admitted = new LinkedHashMap<>();
@@ -673,8 +674,11 @@ public class AgentToolArgumentResolver {
             String id = templateId(candidate);
             if (id != null) admitted.putIfAbsent(id.toLowerCase(Locale.ROOT), candidate);
         }
-        Map<String, Map<String, Object>> callsByTemplate = new LinkedHashMap<>();
+        List<Map<String, Object>> reviewedCalls = new ArrayList<>();
+        Set<String> coveredTemplates = new LinkedHashSet<>();
+        Set<String> bindingFingerprints = new LinkedHashSet<>();
         for (Map<String, Object> invocation : invocations) {
+            if (reviewedCalls.size() >= ToolCallBatchSchema.DEFAULT_MAX_CALLS) return null;
             String id = scalarText(firstPresent(invocation,
                 "templateId", "template_id", "template", "commandTemplate", "command_template"));
             String actionTool = scalarText(firstPresent(invocation, "toolName", "tool_name", "tool"));
@@ -691,18 +695,24 @@ public class AgentToolArgumentResolver {
             call.put("arguments", arguments);
             String intent = scalarText(firstPresent(invocation, "intent", "purpose"));
             if (intent != null) call.put("purpose", intent);
-            if (callsByTemplate.putIfAbsent(id.toLowerCase(Locale.ROOT), call) != null) {
-                return null;
-            }
+            String bindingId = scalarText(firstPresent(invocation, "bindingId", "binding_id"));
+            String fingerprint = id.toLowerCase(Locale.ROOT) + "|" + (bindingId == null
+                ? String.valueOf(arguments) : bindingId);
+            if (!bindingFingerprints.add(fingerprint)) continue;
+            if (bindingId != null) call.put("bindingId", bindingId);
+            reviewedCalls.add(call);
+            coveredTemplates.add(id.toLowerCase(Locale.ROOT));
         }
-        if (!callsByTemplate.keySet().equals(admitted.keySet())) {
+        if (!coveredTemplates.equals(admitted.keySet()) || reviewedCalls.isEmpty()) {
             return null;
         }
         List<Map<String, Object>> calls = new ArrayList<>();
         int index = 1;
-        for (String id : admitted.keySet()) {
-            Map<String, Object> call = new LinkedHashMap<>(callsByTemplate.get(id));
-            call.put("callId", "reviewed-template-" + index++);
+        for (Map<String, Object> reviewedCall : reviewedCalls) {
+            Map<String, Object> call = new LinkedHashMap<>(reviewedCall);
+            String bindingId = scalarText(call.remove("bindingId"));
+            call.put("callId", bindingId == null
+                ? "reviewed-template-" + index++ : boundedCallId(bindingId, index++));
             calls.add(call);
         }
         Map<String, Object> batch = new LinkedHashMap<>();
@@ -711,6 +721,14 @@ public class AgentToolArgumentResolver {
         log.info("Agent batch placeholders replaced by evidence-reviewed invocations: tool={}, callCount={}",
             toolName, calls.size());
         return batch;
+    }
+
+    private String boundedCallId(String bindingId, int ordinal) {
+        String normalized = bindingId == null ? "" : bindingId.trim()
+            .replaceAll("[^A-Za-z0-9._:-]", "-");
+        if (normalized.isBlank()) return "reviewed-template-" + ordinal;
+        String prefixed = "reviewed-template-" + ordinal + "-" + normalized;
+        return prefixed.length() <= 128 ? prefixed : prefixed.substring(0, 128);
     }
 
     @SuppressWarnings("unchecked")

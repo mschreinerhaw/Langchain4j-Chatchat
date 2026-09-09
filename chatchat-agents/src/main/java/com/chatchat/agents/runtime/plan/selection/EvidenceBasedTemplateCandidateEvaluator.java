@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.plan.selection;
 
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.common.knowledge.template.BusinessAnalysisIntent;
 import com.chatchat.common.knowledge.template.TemplateAnalysisRole;
 import com.chatchat.common.knowledge.template.TemplateCoverageDecision;
@@ -55,7 +56,12 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .filter(Objects::nonNull)
                 .toList();
         }
-        selectedIds = narrowToNecessaryTemplates(selectedIds, evaluations);
+        // A second-pass coverage audit has already compared the complete selected set
+        // against the literal question. Reapplying the first-pass score reducer here can
+        // silently collapse complementary detail/history templates back to one aggregate.
+        if (!Boolean.TRUE.equals(metadata.get("templateSelectionCoverageAudited"))) {
+            selectedIds = narrowToNecessaryTemplates(selectedIds, evaluations);
+        }
         Set<String> parameterBlocked = unresolvedParameterTemplateIds(
             evaluations, metadata.get("parameterProtocols"));
         if (!parameterBlocked.isEmpty()) {
@@ -520,29 +526,35 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             .map(this::normalize)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
         if (admitted.isEmpty() || !(value instanceof Iterable<?> protocols)) return List.of();
-        Map<String, Map<String, Object>> byTemplate = new LinkedHashMap<>();
-        Set<String> duplicateIds = new LinkedHashSet<>();
+        List<Map<String, Object>> invocations = new ArrayList<>();
+        Set<String> coveredTemplates = new LinkedHashSet<>();
+        Set<String> bindingFingerprints = new LinkedHashSet<>();
+        int ordinal = 0;
         for (Object raw : protocols) {
+            if (invocations.size() >= ToolCallBatchSchema.DEFAULT_MAX_CALLS) break;
             if (!(raw instanceof Map<?, ?> rawProtocol)) continue;
             Map<String, Object> protocol = cast(rawProtocol);
             String templateId = text(first(protocol, "template_id", "templateId"));
             String normalizedId = normalize(templateId);
             if (!admitted.contains(normalizedId)) continue;
+            String bindingId = text(first(protocol, "binding_id", "bindingId"));
+            String fingerprint = normalizedId + "|" + (bindingId == null
+                ? String.valueOf(protocol.get("arguments")) : bindingId);
+            if (!bindingFingerprints.add(fingerprint)) continue;
             Map<String, Object> arguments = new LinkedHashMap<>();
             arguments.put("templateId", templateId);
             arguments.put("parameterProtocol",
                 java.util.Collections.unmodifiableMap(new LinkedHashMap<>(protocol)));
-            Map<String, Object> invocation = Map.of(
-                "templateId", templateId,
-                "arguments", Map.copyOf(arguments));
-            if (byTemplate.putIfAbsent(normalizedId, invocation) != null) {
-                duplicateIds.add(normalizedId);
-            }
+            Map<String, Object> invocation = new LinkedHashMap<>();
+            invocation.put("templateId", templateId);
+            invocation.put("bindingId", bindingId == null ? "binding-" + (++ordinal) : bindingId);
+            invocation.put("arguments", Map.copyOf(arguments));
+            invocations.add(Map.copyOf(invocation));
+            coveredTemplates.add(normalizedId);
         }
-        duplicateIds.forEach(byTemplate::remove);
         // A partial protocol set must never discard selected siblings whose defaults may be
         // sufficient. Fall back to the normal deterministic batch compiler in that case.
-        return byTemplate.keySet().equals(admitted) ? List.copyOf(byTemplate.values()) : List.of();
+        return coveredTemplates.equals(admitted) ? List.copyOf(invocations) : List.of();
     }
 
     @SuppressWarnings("unchecked")

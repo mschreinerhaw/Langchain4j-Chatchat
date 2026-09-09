@@ -174,6 +174,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
             .toList();
         return mapOf(
             "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
+            "resultEntityKind", "template",
             "querySchemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
             "success", true,
             "targetKind", "api_service",
@@ -300,6 +301,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
     private Map<String, Object> meta() {
         return mapOf(
             "schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
+            "resultKind", "RAW_RECORDS",
+            "resultSchemaRef", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
+            "resultEntityKind", "template",
             "kind", "api_template_discovery_tool",
             "runtime_action", "read_only",
             "runtimeAction", "read_only",
@@ -310,7 +314,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
             "targetKind", "api_service",
             "assetType", "api_service",
             ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-template-discovery.v1", "filters"),
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-template-discovery.v1", "filters", "template"),
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
             "resultShape", mapOf(
                 "canonical", "templates[]",

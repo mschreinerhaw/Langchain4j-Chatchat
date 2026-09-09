@@ -53,7 +53,6 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -4439,7 +4438,72 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (step == null || !isTemplateExecutionTool(step.toolName())) {
             return false;
         }
-        return reviewedSelectedTemplateIds(completed).size() >= 2;
+        StepExecution selection = reviewedTemplateSelectionExecution(completed);
+        return reviewedSelectedTemplateIds(completed).size() >= 2
+            || reviewedInvocationCount(selection == null ? null : selection.output(), 0) >= 2;
+    }
+
+    @SuppressWarnings("unchecked")
+    private int reviewedInvocationCount(Object value, int depth) {
+        if (value == null || depth > 8) return 0;
+        if (value instanceof Iterable<?> iterable) {
+            int count = 0;
+            for (Object item : iterable) count += reviewedInvocationCount(item, depth + 1);
+            return count;
+        }
+        if (!(value instanceof Map<?, ?> raw)) return 0;
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        Object selection = map.get("runtimeTemplateSelection");
+        if (selection instanceof Map<?, ?> rawSelection) {
+            Object reviewed = new LinkedHashMap<>((Map<String, Object>) rawSelection)
+                .get("reviewedInvocations");
+            if (reviewed instanceof Collection<?> collection) return collection.size();
+        }
+        int count = 0;
+        for (Object nested : map.values()) count += reviewedInvocationCount(nested, depth + 1);
+        return count;
+    }
+
+    private List<Map<String, Object>> reviewedTemplateInvocations(Object value) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        collectReviewedTemplateInvocations(value, result, 0);
+        return result.size() <= ToolCallBatchSchema.DEFAULT_MAX_CALLS
+            ? List.copyOf(result) : List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectReviewedTemplateInvocations(Object value,
+                                                     List<Map<String, Object>> result,
+                                                     int depth) {
+        if (value == null || depth > 8) return;
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) collectReviewedTemplateInvocations(item, result, depth + 1);
+            return;
+        }
+        if (!(value instanceof Map<?, ?> raw)) return;
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        Object selection = map.get("runtimeTemplateSelection");
+        if (selection instanceof Map<?, ?> rawSelection) {
+            Object reviewed = new LinkedHashMap<>((Map<String, Object>) rawSelection)
+                .get("reviewedInvocations");
+            if (reviewed instanceof Iterable<?> iterable) {
+                for (Object item : iterable) {
+                    if (item instanceof Map<?, ?> rawInvocation) {
+                        result.add(new LinkedHashMap<>((Map<String, Object>) rawInvocation));
+                    }
+                }
+            }
+            return;
+        }
+        for (Object nested : map.values()) collectReviewedTemplateInvocations(nested, result, depth + 1);
+    }
+
+    private String boundedReviewedCallId(String bindingId, int ordinal) {
+        String normalized = bindingId == null ? "" : bindingId.trim()
+            .replaceAll("[^A-Za-z0-9._:-]", "-");
+        if (normalized.isBlank()) return "template-binding-" + ordinal;
+        String value = "template-binding-" + ordinal + "-" + normalized;
+        return value.length() <= 128 ? value : value.substring(0, 128);
     }
 
     private boolean declaresBatchTransport(Map<String, Object> input) {
@@ -5573,6 +5637,19 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         List<Map<String, Object>> selectedTemplates = selectedIds.stream()
             .map(templateId -> completedTemplateMetadata(completed, templateId))
             .toList();
+        StepExecution reviewedSelection = reviewedTemplateSelectionExecution(completed);
+        List<Map<String, Object>> reviewedBindings = reviewedTemplateInvocations(
+            reviewedSelection == null ? null : reviewedSelection.output());
+        Set<String> reviewedCoverage = reviewedBindings.stream()
+            .map(binding -> canonicalTemplateId(firstMapValue(binding,
+                "templateId", "template_id", "template")))
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<Map<String, Object>> compilationBindings = reviewedBindings.size() >= 2
+            && reviewedCoverage.equals(new LinkedHashSet<>(selectedIds))
+            ? reviewedBindings
+            : selectedIds.stream().map(templateId -> Map.<String, Object>of(
+                "templateId", templateId)).toList();
         List<InterpretationPlan.DiagnosticCheck> checks = requiredChecksForStep(step, plan);
         Map<Integer, Integer> assignments = checks.isEmpty()
             ? Map.of()
@@ -5596,8 +5673,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         hydrateDiagnosticBatchAssetContext(completed, batchInput);
         List<Map<String, Object>> calls = new ArrayList<>();
         String outerTool = null;
-        for (int templateIndex = 0; templateIndex < selectedIds.size(); templateIndex++) {
-            String templateId = selectedIds.get(templateIndex);
+        for (int bindingIndex = 0; bindingIndex < compilationBindings.size(); bindingIndex++) {
+            Map<String, Object> reviewedBinding = compilationBindings.get(bindingIndex);
+            String templateId = canonicalTemplateId(firstMapValue(reviewedBinding,
+                "templateId", "template_id", "template"));
+            int templateIndex = selectedIds.indexOf(templateId);
+            if (templateIndex < 0) continue;
             Map<String, Object> template = selectedTemplates.get(templateIndex);
             TemplateExecutionContractSelector.Selection contractAdmission =
                 TEMPLATE_CONTRACT_SELECTOR.select(
@@ -5605,12 +5686,36 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             String declaredExecutor = firstText(templateExecutorTool(template), step.toolName());
             String childTool = resolveExecutionToolName(declaredExecutor, allowedTools);
             Map<String, Object> arguments = diagnosticBatchArguments(batchInput, template, templateId);
+            Object reviewedArguments = firstMapValue(reviewedBinding,
+                "arguments", "input", "inputChanges", "input_changes");
+            if (reviewedArguments instanceof Map<?, ?> rawReviewedArguments) {
+                Map<String, Object> proposed = new LinkedHashMap<>((Map<String, Object>) rawReviewedArguments);
+                for (String key : List.of("parameterProtocol", "parameter_protocol", "parameters")) {
+                    Object proposedValue = proposed.get(key);
+                    if (proposedValue instanceof Map<?, ?> rawProtocol
+                        && ("parameterProtocol".equals(key) || "parameter_protocol".equals(key))) {
+                        Map<String, Object> runtimeBoundProtocol =
+                            new LinkedHashMap<>((Map<String, Object>) rawProtocol);
+                        // The protocol is authored while reviewing discovery, before the future
+                        // execution step is scheduled. Runtime, not the model, owns this binding.
+                        runtimeBoundProtocol.put("step_id", step.id());
+                        arguments.put("parameterProtocol", Map.copyOf(runtimeBoundProtocol));
+                    } else if (proposedValue != null) {
+                        arguments.put(key, proposedValue);
+                    }
+                }
+            }
             if (templateId != null && childTool != null) {
                 putRuntimeTemplateBinding(arguments, templateId, childTool,
                     "reviewed_template_discovery_batch");
             }
             Map<String, Object> call = new LinkedHashMap<>();
-            call.put("callId", firstText(checkIdByTemplateIndex.get(templateIndex), templateId));
+            String bindingId = stringValue(firstMapValue(reviewedBinding, "bindingId", "binding_id"));
+            call.put("callId", firstText(
+                bindingId == null ? null : boundedReviewedCallId(bindingId, bindingIndex + 1),
+                firstText(checkIdByTemplateIndex.get(templateIndex),
+                    compilationBindings.size() == selectedIds.size() ? templateId
+                        : "template-binding-" + (bindingIndex + 1))));
             call.put("toolName", firstText(childTool, step.toolName()));
             call.put("arguments", arguments);
             applyTemplateEvidenceContract(call, template);
@@ -7340,8 +7445,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
         }
         sanitizeDiscoveryFilters(step, request, input);
-        if (isDomainTemplateDiscoveryBridge(step.toolName())
-            || isTemplateDiscoveryTool(step.toolName(), request)) {
+        if (isTemplateDiscoveryTool(step.toolName(), request)) {
             normalizeTemplateDiscoveryCandidateLimit(input);
             String searchText = discoverySearchText(request);
             if (searchText != null && !searchText.isBlank()) {
@@ -8285,10 +8389,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     private ToolWorkflowRole workflowRole(String toolName, ExecutionRequest request) {
         return optimizer.workflowRoleFor(toolName);
-    }
-
-    private boolean isDomainTemplateDiscoveryBridge(String toolName) {
-        return McpToolNamePolicy.isTemplateDiscoveryBridge(toolName);
     }
 
     private boolean isPythonAnalysisQueryTool(String toolName) {

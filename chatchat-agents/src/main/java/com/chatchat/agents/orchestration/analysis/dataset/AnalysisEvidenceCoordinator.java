@@ -92,8 +92,14 @@ public final class AnalysisEvidenceCoordinator {
             if (resolved instanceof ToolCallBatchResult batch) {
                 for (ToolCallResult child : batch.results()) {
                     if (!"SUCCESS".equalsIgnoreCase(child.status()) || !child.evidenceUsable()) continue;
-                    String reference = firstNonBlank(child.templateId(),
-                        firstNonBlank(child.templateCode(), firstNonBlank(child.callId(), "result")));
+                    String templateReference = firstNonBlank(child.templateId(),
+                        firstNonBlank(child.templateCode(), "result"));
+                    // One template may be invoked for multiple entity bindings. A template-only
+                    // reference would collapse those datasets during deduplication and allow facts
+                    // from different subjects to contaminate one another. Batch call identity is
+                    // therefore part of the dataset partition, without interpreting business fields.
+                    String reference = child.callId() == null || child.callId().isBlank()
+                        ? templateReference : templateReference + "#" + child.callId();
                     List<Dataset> childDatasets = outputDatasets(
                         child.output(), reference, toolMetadata(child.toolName()));
                     if (childDatasets.isEmpty()) {

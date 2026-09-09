@@ -74,11 +74,13 @@ class ConfiguredRemoteMcpServiceProviderTest {
             .riskLevel("low").operationType("read").runtimeLevel("readonly")
             .metadata(Map.of(
                 "contractVersion", "mcp_tool_contract.v1",
+                "resultEntityKind", "template",
                 "inputSchema", Map.of("type", "object"),
                 "outputSchema", Map.of("type", "object"),
                 "mcpToolMeta", Map.of(
                     ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
                         ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.ssh-template.v1", "intent+filters"),
+                    "resultEntityKind", "template",
                     "templates", List.of(Map.of("templateId", "CHECK_DOCKER_IMAGES")),
                     "authToken", "must-not-leak",
                     "password", "must-not-leak")))
@@ -89,6 +91,8 @@ class ConfiguredRemoteMcpServiceProviderTest {
         Map<String, Object> metadata = provider.tools(McpToolQuery.all()).iterator().next().metadata();
 
         assertThat(metadata).containsEntry("contractVersion", "mcp_tool_contract.v1");
+        assertThat(metadata).containsEntry("resultEntityKind", "template");
+        assertThat(String.valueOf(metadata.get("contractMeta"))).contains("resultEntityKind=template");
         assertThat(ToolWorkflowContract.declaredDescriptorRole(metadata))
             .contains(ToolWorkflowRole.TEMPLATE_DISCOVERY);
         assertThat(String.valueOf(metadata.get("contractMeta"))).contains("CHECK_DOCKER_IMAGES")

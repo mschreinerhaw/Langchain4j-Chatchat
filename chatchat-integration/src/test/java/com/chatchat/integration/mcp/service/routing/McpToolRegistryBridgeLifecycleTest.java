@@ -248,7 +248,7 @@ class McpToolRegistryBridgeLifecycleTest {
         assertThat((Map<String, Object>) metadata.getValue().getMetadata()
             .get(McpCapabilityHierarchy.METADATA_KEY))
             .containsEntry("parentToolName", "api_service_query")
-            .containsEntry("nodeKind", "BUSINESS_IMPLEMENTATION");
+            .containsEntry("nodeKind", "SCOPED_SUBSET");
         assertThat(bridge.listRegisteredTools()).singleElement().satisfies(tool ->
             assertThat(tool.capabilityNode().parentToolName()).isEqualTo("api_service_query"));
     }
@@ -553,8 +553,8 @@ class McpToolRegistryBridgeLifecycleTest {
         assertThat((Map<String, Object>) metadataCaptor.getValue().getMetadata()
             .get(McpCapabilityHierarchy.METADATA_KEY))
             .containsEntry("parentToolName", "api_service_query")
-            .containsEntry("nodeKind", "BUSINESS_IMPLEMENTATION")
-            .containsEntry("relationType", "implements_abstract_capability")
+            .containsEntry("nodeKind", "SCOPED_SUBSET")
+            .containsEntry("relationType", "scoped_subset_of")
             .containsEntry("routingMode", "api_parent_mcp_policy_filter");
         toolCaptor.getValue().execute(com.chatchat.common.tool.ToolInput.builder()
             .parameters(Map.of("limit", 10, "_templateQueryChildToolName", "spoofed_template_query"))
@@ -651,7 +651,7 @@ class McpToolRegistryBridgeLifecycleTest {
     }
 
     @Test
-    void catalogProjectsParentAsAbstractAndPublishedChildAsBusinessImplementation() {
+    void catalogKeepsParentUsableAndProjectsChildAsScopedSubset() {
         ToolRegistry registry = mock(ToolRegistry.class);
         McpServiceConfigService configService = mock(McpServiceConfigService.class);
         McpGatewayClient gateway = mock(McpGatewayClient.class);
@@ -680,9 +680,9 @@ class McpToolRegistryBridgeLifecycleTest {
                 McpToolRegistryBridge.RegisteredMcpTool::remoteToolName,
                 tool -> tool.capabilityNode().nodeKind()));
         assertThat(kinds).containsEntry("api_service_query",
-                com.chatchat.common.mcp.capability.McpCapabilityNodeKind.ABSTRACT_CAPABILITY)
+                com.chatchat.common.mcp.capability.McpCapabilityNodeKind.STANDALONE)
             .containsEntry("customer_service_template_query",
-                com.chatchat.common.mcp.capability.McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION);
+                com.chatchat.common.mcp.capability.McpCapabilityNodeKind.SCOPED_SUBSET);
     }
 
     @Test

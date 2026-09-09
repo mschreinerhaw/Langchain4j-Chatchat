@@ -93,10 +93,16 @@ class ApiToolSpecFactoryTest {
         assertThat(response.successful()).isTrue();
         assertThat(response.data().status()).isEqualTo(TemplateServiceResultStatus.SUCCESS);
         assertThat(response.data().data().get("payload")).isEqualTo(invoked.body());
-        assertThat(TemplateServicePayloadMapper.payload(response.data()))
+        Map<String, Object> payload = TemplateServicePayloadMapper.payload(response.data());
+        assertThat(payload)
             .containsEntry("communicationRequestId", "execute-request")
             .containsEntry("communicationSchemaVersion", "mcp_api_result.v1")
-            .containsEntry("communicationOperation", "api.service/execute");
+            .containsEntry("communicationOperation", "api.service/execute")
+            .containsEntry("resultKind", "RAW_RECORDS")
+            .containsEntry("resultSchemaRef", "tool_execution_result.v1")
+            .containsEntry("resultEntityKind", "execution_result");
+        Map<?, ?> provenance = (Map<?, ?>) payload.get("provenance");
+        assertThat(provenance.get("dataVersion")).isEqualTo("tool_execution_result.v1");
     }
 
     private void assertResolution(McpSchema.CallToolResult result,

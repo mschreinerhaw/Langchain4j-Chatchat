@@ -25,13 +25,13 @@ class McpCapabilityHierarchyTest {
     void preservesChildIdentityAndBuildsLineage() {
         McpCapabilityNode parent = new McpCapabilityNode(
             "service", "mcp_service_api_service_query", null,
-            McpCapabilityNodeKind.ABSTRACT_CAPABILITY,
-            McpCapabilityFallbackPolicy.DENY_WHEN_NO_IMPLEMENTATION, null, null, Map.of());
+            McpCapabilityNodeKind.STANDALONE,
+            McpCapabilityFallbackPolicy.ALLOW_STANDALONE, null, null, Map.of());
         McpCapabilityNode child = new McpCapabilityNode(
             "service", "mcp_service_customer_service_template_query", parent.toolName(),
-            McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION,
+            McpCapabilityNodeKind.SCOPED_SUBSET,
             McpCapabilityFallbackPolicy.ALLOW_STANDALONE,
-            McpCapabilityNode.RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY,
+            McpCapabilityNode.RELATION_SCOPED_SUBSET_OF,
             "api_parent_mcp_policy_filter", Map.of());
         McpCapabilityHierarchy hierarchy = tool -> {
             if (parent.toolName().equals(tool)) return Optional.of(parent);
@@ -44,7 +44,7 @@ class McpCapabilityHierarchyTest {
         assertThat(hierarchy.isImplementationOf(child.toolName(), parent.toolName())).isTrue();
         assertThat(hierarchy.mostSpecific(java.util.List.of(parent.toolName(), child.toolName())))
             .containsExactly(child.toolName());
-        assertThat(hierarchy.directlyInvocable(parent.toolName())).isFalse();
+        assertThat(hierarchy.directlyInvocable(parent.toolName())).isTrue();
         assertThat(hierarchy.directlyInvocable(child.toolName())).isTrue();
     }
 }

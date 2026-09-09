@@ -21,7 +21,6 @@ import com.chatchat.common.mcp.service.McpServiceResult;
 import com.chatchat.common.mcp.service.McpPaginationRequest;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
-import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -44,7 +43,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -209,34 +207,8 @@ public class McpToolRegistryBridge {
      */
     public List<RegisteredMcpTool> listRegisteredTools() {
         return registeredTools.values().stream()
-            .map(this::withInferredCapabilityKind)
             .sorted(Comparator.comparing(RegisteredMcpTool::localToolName))
             .toList();
-    }
-
-    private RegisteredMcpTool withInferredCapabilityKind(RegisteredMcpTool tool) {
-        McpCapabilityNode node = tool.capabilityNode();
-        if (node == null || node.child() || node.abstractCapability()) return tool;
-        String parentSemantic = McpToolNamePolicy.workflowSemanticKey(tool.remoteToolName());
-        boolean hasImplementation = registeredTools.values().stream()
-            .filter(candidate -> candidate != tool)
-            .filter(candidate -> tool.serviceId().equals(candidate.serviceId()))
-            .map(RegisteredMcpTool::capabilityNode)
-            .filter(Objects::nonNull)
-            .map(McpCapabilityNode::parentToolName)
-            .filter(Objects::nonNull)
-            .map(McpToolNamePolicy::workflowSemanticKey)
-            .anyMatch(parentSemantic::equals);
-        if (!hasImplementation) return tool;
-        McpCapabilityNode abstractNode = new McpCapabilityNode(
-            node.serviceId(), node.toolName(), null,
-            McpCapabilityNodeKind.ABSTRACT_CAPABILITY,
-            node.fallbackPolicy(),
-            node.relationType(), node.routingMode(), node.attributes());
-        return new RegisteredMcpTool(
-            tool.localToolName(), tool.serviceId(), tool.serviceName(), tool.remoteToolName(),
-            tool.description(), tool.backendServiceType(), tool.category(), tool.categories(),
-            tool.tags(), tool.applicability(), abstractNode);
     }
 
     /**
@@ -432,10 +404,10 @@ public class McpToolRegistryBridge {
             service.getId(), localName,
             route == null ? null : route.parentToolName(),
             route == null ? declaredKind
-                : McpCapabilityNodeKind.BUSINESS_IMPLEMENTATION,
+                : McpCapabilityNodeKind.SCOPED_SUBSET,
             route == null ? declaredFallback : McpCapabilityFallbackPolicy.ALLOW_STANDALONE,
             route == null ? McpCapabilityNode.RELATION_ROOT
-                : McpCapabilityNode.RELATION_IMPLEMENTS_ABSTRACT_CAPABILITY,
+                : McpCapabilityNode.RELATION_SCOPED_SUBSET_OF,
             route == null ? null : route.routingMode(),
             route == null
                 ? Map.of("remoteToolName", definition.name())

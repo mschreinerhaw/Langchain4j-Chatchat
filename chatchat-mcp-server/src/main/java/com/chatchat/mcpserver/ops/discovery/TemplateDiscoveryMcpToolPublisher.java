@@ -334,6 +334,7 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
     private Map<String, Object> meta() {
         return mapOf(
             "schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
+            "resultEntityKind", "template",
             "kind", "template_discovery_tool",
             "runtime_action", "read_only",
             "runtimeAction", "read_only",
@@ -438,7 +439,7 @@ public class TemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
             "targetKind", targetKind,
             "assetType", assetType,
             ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
-                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.template-discovery.v1", "filters"),
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.template-discovery.v1", "filters", "template"),
             McpToolApplicability.META_KEY, McpToolApplicability.of(
                 assetType + ":template_discovery",
                 domainLabel + " template discovery",

@@ -4,6 +4,8 @@ export const AUTH_REQUIRED_EVENT = "chatchat:auth-required";
 let lastAuthRequiredEventAt = 0;
 const BATCH_UPLOAD_MAX_FILES = 5;
 const BATCH_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+const WORKBENCH_REQUEST_REUSE_MS = 5000;
+const workbenchRequests = new Map();
 
 export function getStoredAuthSession() {
   try {
@@ -731,7 +733,18 @@ export function fetchWorkbenchShortcuts(filters = {}) {
     params.set("keyword", filters.keyword);
   }
   const query = params.toString();
-  return apiRequest(`/data/workbench${query ? `?${query}` : ""}`);
+  const path = `/data/workbench${query ? `?${query}` : ""}`;
+  const now = Date.now();
+  const cached = workbenchRequests.get(path);
+  if (cached && now < cached.expiresAt) {
+    return cached.promise;
+  }
+  const promise = apiRequest(path).catch((error) => {
+    workbenchRequests.delete(path);
+    throw error;
+  });
+  workbenchRequests.set(path, { promise, expiresAt: now + WORKBENCH_REQUEST_REUSE_MS });
+  return promise;
 }
 
 export function recordUserActivity(payload) {

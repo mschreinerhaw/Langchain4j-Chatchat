@@ -43,7 +43,7 @@ public class McpCenterRecoveryService {
 
     @Scheduled(
         initialDelayString = "${chatchat.mcp.center.heartbeat-initial-delay-ms:10000}",
-        fixedDelayString = "${chatchat.mcp.center.heartbeat-interval-ms:15000}"
+        fixedDelayString = "${chatchat.mcp.center.heartbeat-interval-ms:60000}"
     )
     public synchronized void heartbeat() {
         if (!properties.isEnabled() || !properties.isAutoRecoveryEnabled()) {

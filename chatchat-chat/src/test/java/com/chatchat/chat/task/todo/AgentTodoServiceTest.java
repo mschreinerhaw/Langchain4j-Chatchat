@@ -27,7 +27,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -56,13 +55,8 @@ class AgentTodoServiceTest {
         TodoTaskEntity duplicate = todo("todo-2", "PENDING");
         when(latestRepository.findByTenantIdOrderByCreateTimeDesc(eq("admin"), any(Pageable.class)))
             .thenReturn(List.of(task));
-        when(todoTaskRepository.findByTenantIdAndTaskIdAndTodoTypeOrderByCreatedAtAsc(anyString(), anyString(), anyString()))
-            .thenReturn(List.of());
-        when(todoTaskRepository.findByTenantIdAndTaskIdAndTodoTypeOrderByCreatedAtAsc(
-            "admin",
-            "task-1",
-            "FEEDBACK_REQUIRED"
-        )).thenReturn(List.of(first, duplicate));
+        when(todoTaskRepository.findByTenantIdAndTaskIdInOrderByCreatedAtAsc(eq("admin"), anyCollection()))
+            .thenReturn(List.of(first, duplicate));
         when(todoTaskRepository.save(any(TodoTaskEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(todoTaskRepository.findByTenantIdAndStatusInOrderByPriorityDescCreatedAtAsc(
             eq("admin"),
@@ -71,6 +65,7 @@ class AgentTodoServiceTest {
         )).thenReturn(List.of(first));
 
         AgentTodoService.TodoTaskPayload payload = service.listTodos("admin", null, 20);
+        service.listTodos("admin", null, 20);
 
         assertThat(payload.total()).isEqualTo(1);
         assertThat(first.getStatus()).isEqualTo("PENDING");
@@ -78,6 +73,7 @@ class AgentTodoServiceTest {
         ArgumentCaptor<Iterable<TodoTaskEntity>> captor = ArgumentCaptor.forClass(Iterable.class);
         verify(todoTaskRepository).saveAll(captor.capture());
         assertThat(captor.getValue()).containsExactly(duplicate);
+        verify(latestRepository).findByTenantIdOrderByCreateTimeDesc(eq("admin"), any(Pageable.class));
     }
 
     private AgentTaskLatestEntity latestTask(String taskId, String status) {

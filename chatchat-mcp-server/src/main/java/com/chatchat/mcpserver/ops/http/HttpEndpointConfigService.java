@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +42,13 @@ public class HttpEndpointConfigService {
 
     public List<HttpEndpointConfig> listEnabled() {
         return repository.findByEnabledTrueOrderByNameAsc();
+    }
+
+    public List<HttpEndpointConfig> findAllById(Collection<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllById(ids);
     }
 
     public java.util.Optional<HttpEndpointConfig> findByToolName(String toolName) {

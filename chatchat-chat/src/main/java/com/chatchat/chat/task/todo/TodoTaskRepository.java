@@ -12,6 +12,9 @@ public interface TodoTaskRepository extends JpaRepository<TodoTaskEntity, String
                                                                                String taskId,
                                                                                String todoType);
 
+    List<TodoTaskEntity> findByTenantIdAndTaskIdInOrderByCreatedAtAsc(String tenantId,
+                                                                      Collection<String> taskIds);
+
     List<TodoTaskEntity> findByTenantIdAndStatusInOrderByPriorityDescCreatedAtAsc(
         String tenantId,
         Collection<String> statuses,

@@ -288,7 +288,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
      * @param token the bearer token value
      * @return the cached user snapshot
      */
-    @Transactional(readOnly = true)
     public Optional<UserView> resolveSessionByToken(String token) {
         if (token == null || token.isBlank()) {
             return Optional.empty();
@@ -1024,6 +1023,14 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return resolveUser(userId)
             .map(this::hasAllAgentAccess)
             .orElse(false);
+    }
+
+    /** Returns whether an already resolved user snapshot has unrestricted Agent access. */
+    public boolean hasAllAgentAccess(UserView user) {
+        return user != null
+            && "admin".equalsIgnoreCase(user.username())
+            && user.tenantNo() != null
+            && user.tenantNo().longValue() == PLATFORM_TENANT_NO;
     }
 
     /**

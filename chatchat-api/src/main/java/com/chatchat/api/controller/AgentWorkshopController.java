@@ -40,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Business-facing Agent workshop APIs backed by the persistent skill catalog.
@@ -87,10 +88,12 @@ public class AgentWorkshopController {
                                                     @RequestParam(value = "pageSize", required = false) Integer pageSize,
                                                     HttpServletRequest request) {
         List<String> availableTools = availableTools();
-        Map<String, List<String>> mcpToolsByServiceId = mcpToolsByServiceId();
+        List<McpToolCatalogQueryPort.RegisteredTool> registeredMcpTools = mcpCatalog.registeredTools();
+        Map<String, List<String>> mcpToolsByServiceId = mcpToolsByServiceId(registeredMcpTools);
+        AgentVisibility visibility = agentVisibility(request);
         List<AgentCard> allAgents = skillCatalogService.list().stream()
+            .filter(skill -> visibility.canView(skill.id(), skill.marketStatus()))
             .map(skill -> toAgentCard(skill, availableTools, mcpToolsByServiceId))
-            .filter(agent -> canCurrentUserViewAgent(request, agent.id(), agent.marketStatus()))
             .toList();
         List<AgentCard> filteredAgents = allAgents.stream()
             .filter(agent -> matchesAgentFilters(agent, keyword, category, status, model))
@@ -118,13 +121,13 @@ public class AgentWorkshopController {
             (int) allAgents.stream().filter(agent -> "published".equalsIgnoreCase(agent.marketStatus())).count(),
             (int) allAgents.stream().filter(agent -> !"published".equalsIgnoreCase(agent.marketStatus())).count(),
             availableTools.size(),
-            mcpCatalog.registeredTools().size()
+            registeredMcpTools.size()
         );
         return ApiResponse.success(new WorkshopPayload(
             summary,
             agents,
             availableTools,
-            mcpCatalog.registeredTools(),
+            registeredMcpTools,
             modelOptions(),
             modelsConfig.getDefaultChatModel(),
             searchService.listLibrary("all", null, 1, 500, documentPermissionContext(request)).documents(),
@@ -241,7 +244,7 @@ public class AgentWorkshopController {
     private AgentCard toAgentCard(SkillDefinition skill,
                                   List<String> availableTools,
                                   Map<String, List<String>> mcpToolsByServiceId) {
-        List<String> resolvedTools = skillCatalogService.resolveTools(skill.id(), availableTools, mcpToolsByServiceId);
+        List<String> resolvedTools = skillCatalogService.resolveTools(skill, availableTools, mcpToolsByServiceId);
         LinkedHashSet<String> explicitlyBoundTools = new LinkedHashSet<>();
         if (skill.boundMcpToolNames() != null) {
             explicitlyBoundTools.addAll(skill.boundMcpToolNames());
@@ -506,6 +509,17 @@ public class AgentWorkshopController {
         return enterpriseAdminService.canAccessAgent(currentUserId, agentId);
     }
 
+    private AgentVisibility agentVisibility(HttpServletRequest request) {
+        String currentUserId = currentUserId(request);
+        EnterpriseAdminService.UserView currentUser = currentUserView(request);
+        if (currentUserId == null
+            || (currentUser != null && enterpriseAdminService.hasAllAgentAccess(currentUser))
+            || (currentUser == null && enterpriseAdminService.hasAllAgentAccess(currentUserId))) {
+            return AgentVisibility.allAccess();
+        }
+        return AgentVisibility.restricted(enterpriseAdminService.accessibleAgentIds(currentUserId));
+    }
+
     private String currentUserId(HttpServletRequest request) {
         if (request == null) {
             return null;
@@ -520,12 +534,23 @@ public class AgentWorkshopController {
         if (userId == null) {
             return SearchPermissionContext.of(tenantId, null, List.of());
         }
-        EnterpriseAdminService.UserView user = enterpriseAdminService.getUserView(userId);
+        EnterpriseAdminService.UserView user = currentUserView(request);
+        if (user == null) {
+            user = enterpriseAdminService.getUserView(userId);
+        }
         return SearchPermissionContext.of(
             tenantId == null ? user.tenantId() : tenantId,
             userId,
             user.roleIds()
         );
+    }
+
+    private EnterpriseAdminService.UserView currentUserView(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+        return value instanceof EnterpriseAdminService.UserView user ? user : null;
     }
 
     private String requestAttribute(HttpServletRequest request, String name) {
@@ -553,8 +578,14 @@ public class AgentWorkshopController {
      * @return the operation result
      */
     private Map<String, List<String>> mcpToolsByServiceId() {
+        return mcpToolsByServiceId(mcpCatalog.registeredTools());
+    }
+
+    private Map<String, List<String>> mcpToolsByServiceId(
+        List<McpToolCatalogQueryPort.RegisteredTool> registeredTools
+    ) {
         Map<String, List<String>> toolsByService = new LinkedHashMap<>();
-        for (McpToolCatalogQueryPort.RegisteredTool tool : mcpCatalog.registeredTools()) {
+        for (McpToolCatalogQueryPort.RegisteredTool tool : registeredTools == null ? List.<McpToolCatalogQueryPort.RegisteredTool>of() : registeredTools) {
             if (tool.serviceId() == null || tool.localToolName() == null) {
                 continue;
             }
@@ -562,6 +593,20 @@ public class AgentWorkshopController {
         }
         toolsByService.replaceAll((serviceId, tools) -> tools.stream().distinct().sorted().toList());
         return toolsByService;
+    }
+
+    private record AgentVisibility(boolean unrestricted, Set<String> accessibleAgentIds) {
+        private static AgentVisibility allAccess() {
+            return new AgentVisibility(true, Set.of());
+        }
+
+        private static AgentVisibility restricted(Set<String> accessibleAgentIds) {
+            return new AgentVisibility(false, accessibleAgentIds == null ? Set.of() : Set.copyOf(accessibleAgentIds));
+        }
+
+        private boolean canView(String agentId, String marketStatus) {
+            return unrestricted || ("published".equalsIgnoreCase(marketStatus) && accessibleAgentIds.contains(agentId));
+        }
     }
 
     /**

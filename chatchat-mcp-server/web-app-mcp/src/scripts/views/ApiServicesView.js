@@ -294,9 +294,7 @@ export default {
   methods: {
     async loadCategories() {
       try {
-        const [categories, services] = await Promise.all([api.listCategories(), api.list()]);
-        this.categories = categories || [];
-        this.allServices = services || [];
+        this.categories = await api.listCategories() || [];
       } catch (error) {
         this.$emit('error', error);
       }
@@ -304,6 +302,9 @@ export default {
     async listServices() {
       const services = await api.list() || [];
       this.allServices = services;
+      return this.servicesForSelectedCategory(services);
+    },
+    servicesForSelectedCategory(services = this.allServices) {
       if (!this.selectedCategory) return services;
       return services.filter(service => service.categoryId === this.selectedCategory
         || service.businessGroup === this.selectedCategory);
@@ -312,7 +313,7 @@ export default {
       this.selectedCategory = category.id || category.code || '';
       this.activeTab = 'services';
       await this.$nextTick();
-      await this.$refs.catalog?.load?.();
+      this.$refs.catalog?.replaceItems?.(this.servicesForSelectedCategory());
     },
     async loadGatewayAssets() {
       try {

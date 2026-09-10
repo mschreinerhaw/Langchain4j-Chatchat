@@ -72,8 +72,8 @@ chatchat:
       import-standalone-server: true
       auto-recovery-enabled: true
       heartbeat-initial-delay-ms: 10000
-      heartbeat-interval-ms: 15000
-      heartbeat-timeout-ms: 5000
+      heartbeat-interval-ms: 60000
+      heartbeat-timeout-ms: ${CHATCHAT_MCP_HEARTBEAT_TIMEOUT_MS:15000}
       max-auto-sync-attempts: 5
     stdio-proxy:
       enabled: true

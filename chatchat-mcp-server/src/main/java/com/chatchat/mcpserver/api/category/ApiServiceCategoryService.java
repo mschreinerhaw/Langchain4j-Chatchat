@@ -129,6 +129,13 @@ public class ApiServiceCategoryService {
 
     public void applyExplicit(ApiServiceConfig config, String categoryIdOrCode) {
         BusinessCategory category = require(categoryIdOrCode);
+        applyExplicit(config, category);
+    }
+
+    public void applyExplicit(ApiServiceConfig config, BusinessCategory category) {
+        if (category == null) {
+            throw new IllegalArgumentException("API service category is required");
+        }
         if (!category.isEnabled()) {
             throw new IllegalArgumentException("API service category is disabled: " + category.getCode());
         }

@@ -78,7 +78,7 @@
                 :title="categoryReindexButtonTitle(category)"
                 @click="openCategoryReindexDialog(category)"
               >
-                <RefreshCw :size="14" :class="{ 'spin-icon': categoryReindexRunning }" />
+                <RefreshCw :size="14" :class="{ 'spin-icon': isCategoryReindexTarget(category.name) }" />
                 <span>{{ categoryReindexButtonLabel(category) }}</span>
               </button>
               <button v-if="isMutableCategory(category.name)" type="button" @click="renameCategory(category)">

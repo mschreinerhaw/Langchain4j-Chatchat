@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,8 @@ public class NewsSourcePresetSeeder {
     private final NewsRuntimeClient runtime;
     private final NewsSourcePresetCatalog catalog;
     private volatile boolean initialSynchronizationCompleted;
+    @Value("${chatchat.mcp.news-runtime.preset-sync-enabled:true}")
+    private boolean presetSynchronizationEnabled = true;
 
     public NewsSourcePresetSeeder(NewsRuntimeClient runtime, NewsSourcePresetCatalog catalog) {
         this.runtime = runtime; this.catalog = catalog;
@@ -34,13 +37,14 @@ public class NewsSourcePresetSeeder {
 
     @EventListener(ApplicationReadyEvent.class)
     public void synchronizeWhenMcpIsReady() {
+        if (!presetSynchronizationEnabled) return;
         seedMissingPresets();
     }
 
     @Scheduled(initialDelayString = "${chatchat.mcp.news-runtime.preset-retry-initial-delay-millis:10000}",
         fixedDelayString = "${chatchat.mcp.news-runtime.preset-retry-delay-millis:60000}")
     public void retryInitialSynchronization() {
-        if (!initialSynchronizationCompleted) seedMissingPresets();
+        if (presetSynchronizationEnabled && !initialSynchronizationCompleted) seedMissingPresets();
     }
 
     public synchronized boolean seedMissingPresets() {

@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.api.category.ApiServiceCategoryService;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.tool.ProducerSemanticMetadataPolicy;
@@ -16,11 +17,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.function.Function;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 @Service
@@ -43,8 +46,9 @@ public class ApiServiceConfigService {
      */
     @Transactional(readOnly = true)
     public List<ApiServiceConfig> listAll() {
-        return repository.findAll().stream()
-            .peek(this::inheritGatewayParameterContract)
+        List<ApiServiceConfig> configs = repository.findAll();
+        inheritGatewayParameterContracts(configs);
+        return configs.stream()
             .sorted((a, b) -> a.getToolName().compareToIgnoreCase(b.getToolName()))
             .toList();
     }
@@ -56,9 +60,9 @@ public class ApiServiceConfigService {
      */
     @Transactional(readOnly = true)
     public List<ApiServiceConfig> listEnabled() {
-        return repository.findByEnabledTrueOrderByToolNameAsc().stream()
-            .peek(this::inheritGatewayParameterContract)
-            .toList();
+        List<ApiServiceConfig> configs = repository.findByEnabledTrueOrderByToolNameAsc();
+        inheritGatewayParameterContracts(configs);
+        return configs;
     }
 
     /**
@@ -374,6 +378,46 @@ public class ApiServiceConfigService {
             }
         } catch (IllegalArgumentException ignored) {
             // Preserve list/read behavior for a stale gateway reference; normal validation still rejects it on save.
+        }
+    }
+
+    private void inheritGatewayParameterContracts(List<ApiServiceConfig> configs) {
+        if (configs == null || configs.isEmpty()) {
+            return;
+        }
+        List<String> gatewayIds = configs.stream()
+            .map(ApiServiceConfig::getGatewayId)
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        Map<String, HttpEndpointConfig> gateways = gatewayConfigService.findAllById(gatewayIds).stream()
+            .collect(Collectors.toMap(HttpEndpointConfig::getId, Function.identity()));
+        Map<String, BusinessCategory> categories = categoryService.listAll().stream()
+            .collect(Collectors.toMap(BusinessCategory::getId, Function.identity()));
+        configs.forEach(config -> inheritGatewayParameterContract(
+            config,
+            gateways.get(config.getGatewayId()),
+            categories
+        ));
+    }
+
+    private void inheritGatewayParameterContract(ApiServiceConfig config,
+                                                 HttpEndpointConfig gateway,
+                                                 Map<String, BusinessCategory> categories) {
+        if (config == null || gateway == null) {
+            return;
+        }
+        if (!hasDeclaredParameters(config.getInputSchemaJson())
+            && hasDeclaredParameters(gateway.getInputSchemaJson())) {
+            config.setInputSchemaJson(gateway.getInputSchemaJson());
+        }
+        if ((config.getCategoryId() == null || config.getCategoryId().isBlank()
+            || "default".equalsIgnoreCase(config.getBusinessGroup()))
+            && gateway.getCategoryId() != null && !gateway.getCategoryId().isBlank()) {
+            BusinessCategory category = categories.get(gateway.getCategoryId());
+            if (category != null) {
+                categoryService.applyExplicit(config, category);
+            }
         }
     }
 

@@ -303,6 +303,11 @@ export default {
     this.load();
   },
   methods: {
+    replaceItems(items) {
+      this.items = Array.isArray(items) ? items : [];
+      this.selectedIds = new Set([...this.selectedIds].filter(id => this.items.some(item => item.id === id)));
+      this.page = 1;
+    },
     matchesListFilter(item, filter) {
       const rawValue = this.listFilterValues[filter.key];
       const value = rawValue === null || rawValue === undefined

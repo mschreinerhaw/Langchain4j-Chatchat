@@ -98,6 +98,7 @@ chatchat:
         plaintext: true
         trust-certificate-path: 
         deadline-ms: 1800000
+        catalog-cache-ttl-ms: 60000
         max-inbound-message-bytes: 4194304
         max-response-bytes: 536870912
     capabilities:
@@ -115,8 +116,8 @@ chatchat:
       import-standalone-server: true
       auto-recovery-enabled: true
       heartbeat-initial-delay-ms: 10000
-      heartbeat-interval-ms: 15000
-      heartbeat-timeout-ms: 5000
+      heartbeat-interval-ms: 60000
+      heartbeat-timeout-ms: 15000
       max-auto-sync-attempts: 5
     stdio-proxy:
       enabled: true

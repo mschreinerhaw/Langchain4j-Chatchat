@@ -92,6 +92,7 @@ export default {
       categoryReindexDialogOpen: false,
       categoryReindexItem: null,
       categoryReindexSubmitting: false,
+      libraryActivatedOnce: false,
       documentCategorySavingIds: {},
       documentReindexingIds: {},
       error: "",
@@ -231,6 +232,10 @@ export default {
     }
   },
   activated() {
+    if (!this.libraryActivatedOnce) {
+      this.libraryActivatedOnce = true;
+      return;
+    }
     this.loadLibrary();
     this.refreshCategoryReindexStatus({ silent: true });
   },

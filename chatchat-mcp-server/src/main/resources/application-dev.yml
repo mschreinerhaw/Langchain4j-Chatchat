@@ -81,6 +81,7 @@ chatchat:
         cron: "0 30 2 * * SUN"
         zone-id: Asia/Shanghai
     news-runtime:
+      preset-sync-enabled: false
       base-url: http://localhost:8091
       timeout-millis: 20000
     capabilities:

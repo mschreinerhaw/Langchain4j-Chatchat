@@ -633,8 +633,7 @@ export default {
         const payload = await fetchWorkbenchShortcuts({
           tenantId: this.tenantId,
           userId: this.userId,
-          targetType: "SESSION",
-          limit: 100
+          limit: 6
         });
         const favorites = Array.isArray(payload?.favorites) ? payload.favorites : [];
         this.favoriteConversationIds = favorites

@@ -143,7 +143,6 @@ public class SkillCatalogService {
      * @param skillId the skill id value
      * @return whether the condition is satisfied
      */
-    @Transactional(readOnly = true)
     public synchronized boolean isBuiltinSkill(String skillId) {
         return false;
     }
@@ -154,7 +153,6 @@ public class SkillCatalogService {
      * @param skillId the skill id value
      * @return the operation result
      */
-    @Transactional(readOnly = true)
     public synchronized List<String> editableFields(String skillId) {
         return CUSTOM_EDITABLE_FIELDS;
     }
@@ -183,7 +181,16 @@ public class SkillCatalogService {
     public synchronized List<String> resolveTools(String skillId,
                                                   Collection<String> allTools,
                                                   Map<String, List<String>> mcpToolsByServiceId) {
-        SkillDefinition skill = resolve(skillId);
+        return resolveTools(resolve(skillId), allTools, mcpToolsByServiceId);
+    }
+
+    /** Resolves tools for an already loaded definition without querying the catalog again. */
+    public synchronized List<String> resolveTools(SkillDefinition skill,
+                                                  Collection<String> allTools,
+                                                  Map<String, List<String>> mcpToolsByServiceId) {
+        if (skill == null) {
+            return List.of();
+        }
         if (InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()) {
             return List.of();
         }

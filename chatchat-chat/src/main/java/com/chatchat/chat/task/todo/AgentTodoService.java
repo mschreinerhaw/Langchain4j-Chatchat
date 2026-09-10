@@ -29,9 +29,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +45,7 @@ public class AgentTodoService {
     private static final String TOOL_CONFIRMATION = "TOOL_CONFIRMATION";
     private static final String FAILURE_RETRY = "FAILURE_RETRY";
     private static final String FEEDBACK_REQUIRED = "FEEDBACK_REQUIRED";
+    private static final long RUNTIME_SYNCHRONIZATION_INTERVAL_MS = 60_000L;
 
     private final AgentTaskLatestRepository latestRepository;
     private final TodoTaskRepository todoTaskRepository;
@@ -49,13 +53,14 @@ public class AgentTodoService {
     private final AgentEventStore eventStore;
     private final ObjectMapper objectMapper;
     private final TaskConfirmRepository taskConfirmRepository;
+    private final Map<String, Long> lastRuntimeSynchronization = new ConcurrentHashMap<>();
 
     @Transactional
     public TodoTaskPayload listTodos(String tenantId, String userId, int limit) {
         String normalizedTenant = requireText(tenantId, "Tenant ID cannot be empty");
         String normalizedUser = normalizeText(userId);
         int normalizedLimit = Math.max(1, Math.min(limit <= 0 ? 20 : limit, 50));
-        synchronizeFromRuntime(normalizedTenant);
+        synchronizeFromRuntimeIfDue(normalizedTenant);
         List<TodoTaskEntity> items = normalizedUser == null
             ? todoTaskRepository.findByTenantIdAndStatusInOrderByPriorityDescCreatedAtAsc(
                 normalizedTenant,
@@ -97,36 +102,85 @@ public class AgentTodoService {
         return new TodoActionResult(action, toView(refreshed), result);
     }
 
+    private void synchronizeFromRuntimeIfDue(String tenantId) {
+        long now = System.currentTimeMillis();
+        Long previous = lastRuntimeSynchronization.putIfAbsent(tenantId, now);
+        if (previous != null) {
+            if (now - previous < RUNTIME_SYNCHRONIZATION_INTERVAL_MS
+                || !lastRuntimeSynchronization.replace(tenantId, previous, now)) {
+                return;
+            }
+        }
+        try {
+            synchronizeFromRuntime(tenantId);
+        } catch (RuntimeException ex) {
+            lastRuntimeSynchronization.remove(tenantId, now);
+            throw ex;
+        }
+    }
+
     private void synchronizeFromRuntime(String tenantId) {
         List<AgentTaskLatestEntity> tasks = latestRepository.findByTenantIdOrderByCreateTimeDesc(
             tenantId,
             PageRequest.of(0, 100)
         );
+        Map<String, Map<String, List<TodoTaskEntity>>> existingTodos = existingTodosByTaskAndType(tenantId, tasks);
         for (AgentTaskLatestEntity task : tasks) {
             String status = normalizeStatus(task.getStatus());
             if ("WAIT_CONFIRMATION".equals(status) || "WAITING_CONFIRM".equals(status)) {
-                upsertTodo(task, TOOL_CONFIRMATION, "HIGH", confirmationTitle(task), confirmationPayload(task));
+                upsertTodo(task, TOOL_CONFIRMATION, "HIGH", confirmationTitle(task), confirmationPayload(task),
+                    matchingTodos(existingTodos, task, TOOL_CONFIRMATION));
             } else {
-                closeOpenTodo(task, TOOL_CONFIRMATION, "DONE");
+                closeOpenTodo(task, TOOL_CONFIRMATION, "DONE", matchingTodos(existingTodos, task, TOOL_CONFIRMATION));
             }
             if ("FAILED".equals(status)) {
-                upsertTodo(task, FAILURE_RETRY, "HIGH", failureTitle(task), failurePayload(task));
+                upsertTodo(task, FAILURE_RETRY, "HIGH", failureTitle(task), failurePayload(task),
+                    matchingTodos(existingTodos, task, FAILURE_RETRY));
             }
             if ("SUCCESS".equals(status) && task.getFeedbackTime() == null) {
-                upsertTodo(task, FEEDBACK_REQUIRED, "MEDIUM", feedbackTitle(task), feedbackPayload(task));
+                upsertTodo(task, FEEDBACK_REQUIRED, "MEDIUM", feedbackTitle(task), feedbackPayload(task),
+                    matchingTodos(existingTodos, task, FEEDBACK_REQUIRED));
             } else if (task.getFeedbackTime() != null) {
-                closeOpenTodo(task, FEEDBACK_REQUIRED, "DONE");
+                closeOpenTodo(task, FEEDBACK_REQUIRED, "DONE", matchingTodos(existingTodos, task, FEEDBACK_REQUIRED));
             }
         }
+    }
+
+    private Map<String, Map<String, List<TodoTaskEntity>>> existingTodosByTaskAndType(
+        String tenantId,
+        List<AgentTaskLatestEntity> tasks
+    ) {
+        List<String> taskIds = tasks.stream()
+            .map(AgentTaskLatestEntity::getTaskId)
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Map<String, List<TodoTaskEntity>>> grouped = new HashMap<>();
+        todoTaskRepository.findByTenantIdAndTaskIdInOrderByCreatedAtAsc(tenantId, taskIds).forEach(todo ->
+            grouped.computeIfAbsent(todo.getTaskId(), ignored -> new HashMap<>())
+                .computeIfAbsent(todo.getTodoType(), ignored -> new ArrayList<>())
+                .add(todo)
+        );
+        return grouped;
+    }
+
+    private List<TodoTaskEntity> matchingTodos(
+        Map<String, Map<String, List<TodoTaskEntity>>> existingTodos,
+        AgentTaskLatestEntity task,
+        String todoType
+    ) {
+        return existingTodos.getOrDefault(task.getTaskId(), Map.of()).getOrDefault(todoType, List.of());
     }
 
     private TodoTaskEntity upsertTodo(AgentTaskLatestEntity task,
                                       String todoType,
                                       String priority,
                                       String title,
-                                      Map<String, Object> payload) {
-        List<TodoTaskEntity> matches = todoTaskRepository
-            .findByTenantIdAndTaskIdAndTodoTypeOrderByCreatedAtAsc(task.getTenantId(), task.getTaskId(), todoType);
+                                      Map<String, Object> payload,
+                                      List<TodoTaskEntity> matches) {
         Optional<TodoTaskEntity> existing = canonicalTodo(matches);
         if (existing.isPresent()
             && CLOSED_STATUSES.contains(normalizeStatus(existing.get().getStatus()))
@@ -155,9 +209,10 @@ public class AgentTodoService {
         return saved;
     }
 
-    private void closeOpenTodo(AgentTaskLatestEntity task, String todoType, String status) {
-        List<TodoTaskEntity> matches = todoTaskRepository
-            .findByTenantIdAndTaskIdAndTodoTypeOrderByCreatedAtAsc(task.getTenantId(), task.getTaskId(), todoType);
+    private void closeOpenTodo(AgentTaskLatestEntity task,
+                               String todoType,
+                               String status,
+                               List<TodoTaskEntity> matches) {
         matches.stream()
             .filter(todo -> OPEN_STATUSES.contains(normalizeStatus(todo.getStatus())))
             .forEach(todo -> {

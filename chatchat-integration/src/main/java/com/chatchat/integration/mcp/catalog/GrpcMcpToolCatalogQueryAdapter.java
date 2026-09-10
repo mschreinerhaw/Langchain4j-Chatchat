@@ -7,6 +7,7 @@ import com.chatchat.common.mcp.capability.McpCapabilityNode;
 import com.chatchat.common.mcp.service.McpToolQuery;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -19,11 +20,15 @@ import java.util.Map;
     havingValue = "true", matchIfMissing = true)
 public class GrpcMcpToolCatalogQueryAdapter implements McpToolCatalogQueryPort {
     private final McpRuntimeTransportPort transport;
+    private final long cacheTtlMs;
+    private volatile CatalogSnapshot snapshot = CatalogSnapshot.empty();
 
     public GrpcMcpToolCatalogQueryAdapter(
-        @Qualifier("mcpRuntimeTransportPort") McpRuntimeTransportPort transport
+        @Qualifier("mcpRuntimeTransportPort") McpRuntimeTransportPort transport,
+        @Value("${chatchat.mcp.grpc.client.catalog-cache-ttl-ms:60000}") long cacheTtlMs
     ) {
         this.transport = transport;
+        this.cacheTtlMs = Math.max(1000L, cacheTtlMs);
     }
 
     @Override
@@ -36,6 +41,23 @@ public class GrpcMcpToolCatalogQueryAdapter implements McpToolCatalogQueryPort {
 
     @Override
     public List<RegisteredTool> registeredTools() {
+        CatalogSnapshot current = snapshot;
+        long now = System.currentTimeMillis();
+        if (current.expiresAt() > now) {
+            return current.tools();
+        }
+        synchronized (this) {
+            current = snapshot;
+            if (current.expiresAt() > now) {
+                return current.tools();
+            }
+            List<RegisteredTool> tools = loadRegisteredTools();
+            snapshot = new CatalogSnapshot(tools, now + cacheTtlMs);
+            return tools;
+        }
+    }
+
+    private List<RegisteredTool> loadRegisteredTools() {
         return transport.tools(McpToolQuery.all()).stream().map(tool -> {
             Map<String, Object> metadata = tool.metadata();
             return new RegisteredTool(tool.localToolName(), tool.serviceId(),
@@ -47,6 +69,12 @@ public class GrpcMcpToolCatalogQueryAdapter implements McpToolCatalogQueryPort {
                     map(metadata.get(McpCapabilityHierarchy.METADATA_KEY)),
                     tool.serviceId(), tool.localToolName()).orElse(null));
         }).toList();
+    }
+
+    private record CatalogSnapshot(List<RegisteredTool> tools, long expiresAt) {
+        private static CatalogSnapshot empty() {
+            return new CatalogSnapshot(List.of(), 0L);
+        }
     }
 
     private Instant instant(Object value) {

@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.api.category.ApiServiceCategoryService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
+import com.chatchat.mcpserver.category.BusinessCategory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -35,14 +36,21 @@ class ApiServiceConfigServiceTest {
             {"type":"object","properties":{"orderId":{"type":"string","default":"A001"}},"required":[]}
             """);
         when(repository.findAll()).thenReturn(List.of(serviceConfig));
-        when(gateways.getById("gateway-1")).thenReturn(gateway);
+        when(gateways.findAllById(List.of("gateway-1"))).thenReturn(List.of(gateway));
         ApiServiceCategoryService categories = mock(ApiServiceCategoryService.class);
+        BusinessCategory category = new BusinessCategory();
+        category.setId("market-id");
+        category.setCode("market_data");
+        category.setName("Market data");
+        category.setEnabled(true);
+        when(categories.listAll()).thenReturn(List.of(category));
         doAnswer(invocation -> {
             ApiServiceConfig target = invocation.getArgument(0);
-            target.setCategoryId(invocation.getArgument(1));
+            BusinessCategory resolved = invocation.getArgument(1);
+            target.setCategoryId(resolved.getId());
             target.setBusinessGroup("market_data");
             return null;
-        }).when(categories).applyExplicit(serviceConfig, "market-id");
+        }).when(categories).applyExplicit(serviceConfig, category);
         ApiServiceConfigService service = new ApiServiceConfigService(
             repository,
             mock(ToolRegistry.class),

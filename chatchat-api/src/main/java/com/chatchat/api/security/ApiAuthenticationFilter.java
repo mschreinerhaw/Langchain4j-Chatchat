@@ -30,6 +30,7 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
     public static final String CURRENT_USER_ID = "chatchat.currentUserId";
     public static final String CURRENT_USERNAME = "chatchat.currentUsername";
     public static final String CURRENT_TENANT_ID = "chatchat.currentTenantId";
+    public static final String CURRENT_USER_VIEW = "chatchat.currentUserView";
     public static final String AUTHENTICATION_TYPE = "chatchat.authenticationType";
     public static final String AGENT_API_TOKEN_ID = "chatchat.agentApiTokenId";
 
@@ -103,6 +104,7 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         request.setAttribute(CURRENT_USER_ID, user.id());
         request.setAttribute(CURRENT_USERNAME, user.username());
         request.setAttribute(CURRENT_TENANT_ID, user.tenantId());
+        request.setAttribute(CURRENT_USER_VIEW, user);
         filterChain.doFilter(request, response);
     }
 

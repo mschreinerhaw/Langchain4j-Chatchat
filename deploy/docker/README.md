@@ -35,11 +35,11 @@ Provision the OpenSearch certificates described in
 
 ```powershell
 Copy-Item .env.production.example .env.production
-docker compose --env-file .env.production config --quiet
-docker compose --env-file .env.production pull
-docker compose --env-file .env.production up -d
-docker compose --env-file .env.production ps
-docker inspect chatchat-opensearch-security-init --format '{{.State.ExitCode}}'
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml config --quiet
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml pull
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml up -d
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml ps
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml ps --all opensearch-security-init
 ```
 
 Before a release window, mirror all three images into the approved registry, scan them,
@@ -93,10 +93,10 @@ inline Redis passwords remain compatible but should be migrated to a secret refe
 Before application release, archive evidence for:
 
 ```powershell
-docker compose --env-file .env.production ps
-docker compose --env-file .env.production exec mysql sh -c 'MYSQL_PWD="$$(cat /run/secrets/mysql_root_password)" mysqladmin ping -uroot'
-docker compose --env-file .env.production exec redis sh -c 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli --user chatchat --no-auth-warning ping'
-docker compose --env-file .env.production exec opensearch sh -c 'curl --fail --cacert config/certs/root-ca.pem -u admin:"$$(cat /run/secrets/opensearch_admin_password)" https://localhost:9200/_cluster/health'
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml ps
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml exec mysql sh -c 'MYSQL_PWD="$$(cat /run/secrets/mysql_root_password)" mysqladmin ping -uroot'
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml exec redis sh -c 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli --user chatchat --no-auth-warning ping'
+docker compose --env-file .env.production -f deploy/docker/docker-compose.yaml exec opensearch sh -c 'curl --fail --cacert config/certs/root-ca.pem -u admin:"$$(cat /run/secrets/opensearch_admin_password)" https://localhost:9200/_cluster/health'
 ```
 
 Also verify backup restore, disk-full alarms, slow-query alarms, OpenSearch snapshot restore,
@@ -110,6 +110,23 @@ The repeatable infrastructure smoke check is:
 ```
 
 CI jobs that use an isolated Compose project add `-ProjectName <name>` to the command.
+
+## Knowledge Runtime limits
+
+The production environment exposes bounded concurrency and timeout controls through
+`CHATCHAT_KNOWLEDGE_SKILL_TIMEOUT_MS`, `CHATCHAT_KNOWLEDGE_TOTAL_TIMEOUT_MS`,
+`CHATCHAT_KNOWLEDGE_MAX_CONCURRENCY`, and `CHATCHAT_KNOWLEDGE_QUEUE_CAPACITY`.
+An individual agent can set its knowledge budget and per-skill timeout within the
+application safety bounds by storing this fragment in `workflowConfig`:
+
+```json
+{
+  "runtimePolicy": {
+    "knowledgeTokenBudget": 1500,
+    "knowledgeSkillTimeoutMs": 3000
+  }
+}
+```
 
 ### Role-chat Runtime smoke check
 

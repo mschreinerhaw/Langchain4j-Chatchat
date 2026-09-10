@@ -50,7 +50,13 @@ class RoleChatModeHandlerTest {
         when(skillCatalog.resolve("table-product-advisor")).thenReturn(role);
         when(modelFactory.create("role-model")).thenReturn(boundModel);
         when(boundModel.chat(org.mockito.ArgumentMatchers.anyString())).thenReturn(
-            "这张表适合用于了解客户最新持仓及相关盈亏情况；若要查询实时行情，应优先使用行情类数据。"
+            """
+            这张表主要反映客户在某一统计日期的股票期权证券持仓及盈亏快照。
+            它可支持客户画像、持仓结构分析、盈亏识别和业务人员跟进。用户通常可据此筛选重点客户、了解风险与收益状态并准备客户沟通。
+            当问题关注指定统计日的客户最新持仓及盈亏情况时，应优先使用这张表。
+            例如：1. 筛选期权持仓亏损较大的客户；2. 分析某日客户持仓集中情况；3. 为客户回访准备持仓与盈亏概览。
+            表名虽含“流水”，但简介将其定义为最新持仓快照；若要查询盘中实时行情、历史逐笔交易或完整收益归因，这张表不适合，应改用行情、成交明细或收益归因数据。
+            """
         );
 
         String question = """
@@ -88,7 +94,9 @@ class RoleChatModeHandlerTest {
             .containsEntry("executionMode", "ROLE_CHAT")
             .containsEntry("toolPlanningSkipped", true)
             .containsEntry("knowledgeRetrieval", "not_configured");
-        assertThat(response.getAnswer()).contains("客户最新持仓", "实时行情");
+        assertThat(response.getAnswer())
+            .contains("持仓及盈亏快照", "客户画像", "应优先使用", "例如")
+            .contains("表名虽含“流水”", "这张表不适合", "实时行情", "历史逐笔交易");
     }
     @Test
     void retrievesKnowledgeOnlyInsideTheDocumentsBoundToTheRole() {

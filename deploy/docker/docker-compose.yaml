@@ -1,0 +1,145 @@
+name: chatchat-production
+
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    restart: unless-stopped
+    command:
+      - --max-connections=${MYSQL_MAX_CONNECTIONS:-300}
+      - --innodb-buffer-pool-size=${MYSQL_INNODB_BUFFER_POOL_SIZE:-1G}
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      CHATCHAT_REDIS_NODE: ${CHATCHAT_REDIS_NODE:-redis:6379}
+    ports:
+      - 127.0.0.1:${MYSQL_PORT:-3306}:3306
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init/01-init-chatchat.sh:/docker-entrypoint-initdb.d/01-init-chatchat.sh:ro
+      - ../../database/init/mysql:/opt/chatchat-schema:ro
+    secrets:
+      - mysql_root_password
+      - mysql_api_password
+      - mysql_mcp_password
+      - mysql_news_password
+      - redis_password
+    deploy:
+      resources:
+        limits:
+          memory: ${MYSQL_MEMORY_LIMIT:-3G}
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$(cat /run/secrets/mysql_root_password) mysqladmin ping -uroot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [chatchat-backend]
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    restart: unless-stopped
+    environment:
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY:-768mb}
+    ports:
+      - 127.0.0.1:${REDIS_PORT:-6379}:6379
+    volumes:
+      - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./redis/entrypoint.sh:/usr/local/bin/chatchat-redis-entrypoint.sh:ro
+    secrets: [redis_password]
+    entrypoint: ["/usr/local/bin/chatchat-redis-entrypoint.sh"]
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY_LIMIT:-1G}
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli --user chatchat --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [chatchat-backend]
+
+  opensearch:
+    image: ${OPENSEARCH_IMAGE:-opensearchproject/opensearch:2.12.0}
+    restart: unless-stopped
+    environment:
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+    ports:
+      - 127.0.0.1:${OPENSEARCH_PORT:-9200}:9200
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:ro
+      - ./opensearch/certs:/usr/share/opensearch/config/certs:ro
+    secrets: [opensearch_admin_password]
+    ulimits:
+      memlock: {soft: -1, hard: -1}
+      nofile: {soft: 65536, hard: 65536}
+    deploy:
+      resources:
+        limits:
+          memory: ${OPENSEARCH_MEMORY_LIMIT:-2G}
+    healthcheck:
+      test: ["CMD-SHELL", "code=$$(curl --silent --output /dev/null --write-out '%{http_code}' --cacert config/certs/root-ca.pem https://localhost:9200); test \"$$code\" = 200 || test \"$$code\" = 401"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks: [chatchat-backend]
+
+  opensearch-security-init:
+    image: ${OPENSEARCH_IMAGE:-opensearchproject/opensearch:2.12.0}
+    restart: "no"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - >-
+        password=$$(tr -d '\r\n' </run/secrets/opensearch_admin_password);
+        hash=$$(plugins/opensearch-security/tools/hash.sh -p "$$password" | grep '^[$]2' | tail -n 1);
+        test -n "$$hash";
+        cp -R config/opensearch-security /tmp/opensearch-security;
+        awk -v hash="$$hash" '
+        BEGIN { in_admin=0 }
+        /^admin:/ { in_admin=1 }
+        in_admin && /^[[:space:]]*hash:/ { sub(/hash:.*/, "hash: \"" hash "\""); in_admin=0 }
+        { print }
+        ' /tmp/opensearch-security/internal_users.yml >/tmp/internal_users.yml;
+        mv /tmp/internal_users.yml /tmp/opensearch-security/internal_users.yml;
+        unset password hash;
+        plugins/opensearch-security/tools/securityadmin.sh
+        -cd /tmp/opensearch-security
+        -cacert config/certs/root-ca.pem
+        -cert config/certs/admin.pem
+        -key config/certs/admin-key.pem
+        -icl -nhnv
+    volumes:
+      - ./opensearch/certs:/usr/share/opensearch/config/certs:ro
+    secrets: [opensearch_admin_password]
+    networks: [chatchat-backend]
+
+networks:
+  chatchat-backend:
+
+volumes:
+  mysql-data:
+  redis-data:
+  opensearch-data:
+
+secrets:
+  mysql_root_password:
+    file: ../secrets/mysql_root_password.txt
+  mysql_api_password:
+    file: ../secrets/mysql_api_password.txt
+  mysql_mcp_password:
+    file: ../secrets/mysql_mcp_password.txt
+  mysql_news_password:
+    file: ../secrets/mysql_news_password.txt
+  redis_password:
+    file: ../secrets/redis_password.txt
+  opensearch_admin_password:
+    file: ../secrets/opensearch_admin_password.txt

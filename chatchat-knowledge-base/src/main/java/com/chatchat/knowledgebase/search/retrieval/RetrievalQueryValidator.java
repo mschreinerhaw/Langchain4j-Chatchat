@@ -57,7 +57,7 @@ public class RetrievalQueryValidator {
             return true;
         }
         return filters != null
-            && (hasText(filters.tag())
+            && (!filters.allTags().isEmpty()
             || hasText(filters.company())
             || hasText(filters.industry())
             || hasText(filters.fileType())

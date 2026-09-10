@@ -14,6 +14,7 @@ import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.AgentRuntimePolicy;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.chat.task.learning.AgentLearningService;
@@ -54,7 +55,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private final RoleChatModeHandler roleChatModeHandler;
     private final KnowledgeRuntimePort knowledgeRuntime;
 
-    private static final int DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
+    private static final int DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
 
     @Autowired
     public AgentChatModeHandler(AgentRuntime agentRuntime,
@@ -132,7 +133,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
-        if (isRoleChatMode(skill.defaultMode()) && roleChatModeHandler != null) {
+        if (InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()
+            && roleChatModeHandler != null) {
             log.info("agentChatCompatibilityRoute skillId={} configuredMode={} resolvedMode=role_chat",
                 skill.id(), skill.defaultMode());
             return roleChatModeHandler.handle(request, context);
@@ -234,10 +236,6 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .toolTraces(result.toolTraces())
             .metadata(metadata)
             .build();
-    }
-
-    private boolean isRoleChatMode(String mode) {
-        return "role_chat".equalsIgnoreCase(mode) || "llm_chat".equalsIgnoreCase(mode);
     }
 
     private AgentRunResult executeThroughRuntime(InteractionRequest request,
@@ -423,26 +421,31 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private KnowledgeContext retrieveDomainKnowledge(InteractionRequest request, SkillDefinition skill) {
         List<String> documentIds = cleanList(skill == null ? null : skill.boundDocumentIds());
         List<String> documentTags = cleanList(skill == null ? null : skill.boundDocumentTags());
+        AgentRuntimePolicy runtimePolicy = skill == null
+            ? AgentRuntimePolicy.from(Map.of(), DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET)
+            : AgentRuntimePolicy.from(skill.workflowConfig(), DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
+        int knowledgeTokenBudget = runtimePolicy.knowledgeTokenBudget();
         if (documentIds.isEmpty() && documentTags.isEmpty()) {
-            return KnowledgeContext.empty("not_configured", DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
+            return KnowledgeContext.empty("not_configured", knowledgeTokenBudget);
         }
         if (knowledgeRuntime == null) {
-            return KnowledgeContext.empty("unavailable", DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
+            return KnowledgeContext.empty("unavailable", knowledgeTokenBudget);
         }
         try {
             String modelName = skill != null && skill.modelName() != null && !skill.modelName().isBlank()
                 ? skill.modelName() : request.getModelName();
             return knowledgeRuntime.retrieveKnowledge(new KnowledgeRequest(
                 KnowledgeRequest.SCHEMA_VERSION, request.getQuery(), "TOOL_ANALYSIS",
-                DOMAIN_KNOWLEDGE_TOKEN_BUDGET,
+                knowledgeTokenBudget,
                 new KnowledgeScope(skill == null ? request.getSkillId() : skill.id(),
                     request.getTenantId(), request.getUserId(), documentIds, documentTags, List.of()),
                 null, Map.of("modelName", modelName == null ? "" : modelName,
-                    "executionMode", "TOOL_AGENT")));
+                    "executionMode", "TOOL_AGENT",
+                    "knowledgeSkillTimeoutMs", runtimePolicy.knowledgeSkillTimeoutMs())));
         } catch (RuntimeException ex) {
             log.warn("agentDomainKnowledgeRetrievalFailed skillId={} error={}",
                 skill == null ? null : skill.id(), ex.getMessage());
-            return KnowledgeContext.empty("failed", DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
+            return KnowledgeContext.empty("failed", knowledgeTokenBudget);
         }
     }
 

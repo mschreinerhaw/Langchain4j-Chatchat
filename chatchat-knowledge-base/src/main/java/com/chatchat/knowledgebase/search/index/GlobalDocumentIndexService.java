@@ -18,7 +18,7 @@ public class GlobalDocumentIndexService {
         DocumentSearchFilters filters = plan.filters();
         return searchService.frontendQuickSearch(
             plan.query(),
-            filters == null ? null : filters.tag(),
+            indexTag(filters),
             filters == null ? null : filters.company(),
             filters == null ? null : filters.industry(),
             plan.joinedVisibilityScopeIds(),
@@ -26,5 +26,9 @@ public class GlobalDocumentIndexService {
             Math.max(1, limit),
             plan.permissionContext()
         );
+    }
+
+    private String indexTag(DocumentSearchFilters filters) {
+        return filters == null || filters.allTags().size() != 1 ? null : filters.allTags().get(0);
     }
 }

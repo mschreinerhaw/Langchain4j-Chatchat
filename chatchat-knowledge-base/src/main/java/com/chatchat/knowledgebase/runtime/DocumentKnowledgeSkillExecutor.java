@@ -39,13 +39,15 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
             ? "" : "；检索提示：" + String.join("、", skill.queryHints()));
         List<String> documentIds = context.request().scope().documentIds();
         List<String> tags = context.request().scope().tags();
+        int topK = Math.max(1, Math.min(8, (skill.tokenBudget() + 299) / 300));
         DocumentSearchResult result = documentSearchService.search(new DocumentSearchRequest(
-            query, 3, documentIds, documentIds, documentIds, true,
-            new DocumentSearchFilters(null, null, tags.isEmpty() ? null : tags.get(0), null, null),
+            query, topK, documentIds, documentIds, documentIds, true,
+            new DocumentSearchFilters(null, null, null, null, null, tags),
             context.request().scope().tenantId(), context.request().scope().userId(), List.of(), false));
         List<KnowledgeIR> units = toUnits(context, result);
         return new KnowledgeSkillResult(skill.instanceId(), skill.skillType(), units,
-            units.isEmpty() ? "empty" : "used", Map.of("adapter", "document-index"));
+            units.isEmpty() ? "empty" : "used",
+            Map.of("adapter", "document-index", "topK", topK, "tokenBudget", skill.tokenBudget()));
     }
 
     private List<KnowledgeIR> toUnits(KnowledgeSkillExecutionContext context, DocumentSearchResult result) {

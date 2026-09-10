@@ -6,22 +6,11 @@ package com.chatchat.chat.interaction.model;
 public enum InteractionMode {
     /** Role-based model conversation without tool planning or execution. */
     ROLE_CHAT("role_chat"),
-    /**
-     * Creates a new InteractionMode instance.
-     *
-     * @param AGENT_CHAT the agent chat value
-     * @param TOOL_DIRECT the tool direct value
-     */
+    /** Plain model conversation without a maintained Agent configuration. */
     LLM_CHAT("llm_chat"),
-    /**
-     * Creates a new InteractionMode instance.
-     *
-     * @param TOOL_DIRECT the tool direct value
-     */
+    /** Maintained Agent execution with planning and optional tools. */
     AGENT_CHAT("agent_chat"),
-    /**
-     * Creates a new InteractionMode instance.
-     */
+    /** Direct invocation of one explicitly selected tool. */
     TOOL_DIRECT("tool_direct");
 
     private final String code;
@@ -44,6 +33,10 @@ public enum InteractionMode {
         return code;
     }
 
+    public boolean isRoleConversation() {
+        return this == ROLE_CHAT || this == LLM_CHAT;
+    }
+
     /**
      * Creates the value from from.
      *
@@ -63,5 +56,10 @@ public enum InteractionMode {
             return AGENT_CHAT;
         }
         throw new IllegalArgumentException("Unsupported interaction mode: " + value);
+    }
+
+    /** Maintained Agents historically default to tool-agent execution when no mode is persisted. */
+    public static InteractionMode fromAgentConfiguration(String value) {
+        return value == null || value.isBlank() ? AGENT_CHAT : from(value);
     }
 }

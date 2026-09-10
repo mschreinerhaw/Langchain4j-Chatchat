@@ -1555,7 +1555,8 @@ public class DocumentSearchEvidenceService {
                 return false;
             }
         }
-        if (hasText(filters.tag()) && !containsIgnoreCase(document.getTags(), filters.tag())) {
+        if (!filters.allTags().isEmpty()
+            && filters.allTags().stream().noneMatch(tag -> containsIgnoreCase(document.getTags(), tag))) {
             return false;
         }
         if (hasText(filters.company()) && !containsIgnoreCase(document.getCompanies(), filters.company())) {

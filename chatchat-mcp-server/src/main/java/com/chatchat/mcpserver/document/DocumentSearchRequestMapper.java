@@ -27,7 +27,8 @@ public class DocumentSearchRequestMapper {
                 text(filters.get("chunkType")),
                 text(filters.get("tag")),
                 text(filters.get("company")),
-                text(filters.get("industry"))
+                text(filters.get("industry")),
+                strings(first(filters, "tags", "documentTags", "document_tags"))
             ),
             text(input.get("tenantId")),
             text(input.get("userId")),

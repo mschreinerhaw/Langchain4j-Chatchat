@@ -1,5 +1,7 @@
 package com.chatchat.chat.skills;
 
+import com.chatchat.chat.interaction.model.InteractionMode;
+
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +32,14 @@ public record SkillDefinition(
     String marketStatus,
     Boolean defaultAgent
 ) {
+    public InteractionMode executionMode() {
+        return InteractionMode.fromAgentConfiguration(defaultMode);
+    }
+
+    public AgentRuntimePolicy runtimePolicy(int defaultKnowledgeBudget) {
+        return AgentRuntimePolicy.from(workflowConfig, defaultKnowledgeBudget);
+    }
+
     public SkillDefinition(String id,
                            String label,
                            String description,

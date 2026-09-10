@@ -35,6 +35,32 @@ class BudgetedKnowledgeContextCompilerTest {
         assertThat(result.compiledContext()).contains("[RULE]");
     }
 
+    @Test
+    void estimatesChineseByCodePointInsteadOfUtf8Bytes() {
+        assertThat(compiler.conservativeTokenEstimate("股票期权证券盈亏")).isEqualTo(8);
+        assertThat(compiler.conservativeTokenEstimate("abcdefgh")).isEqualTo(2);
+    }
+
+    @Test
+    void prioritizesRulesOverExamplesWhenBudgetIsTight() {
+        KnowledgeRequest request = new KnowledgeRequest(
+            "v", "判断适用场景", "GUIDANCE", 18,
+            new KnowledgeScope("advisor", "tenant", "user", List.of("doc-1"), List.of(), List.of()),
+            null, Map.of());
+        KnowledgeSkillPlan plan = new DefaultKnowledgeSkillSynthesizer().synthesize(request);
+        KnowledgeIR example = new KnowledgeIR("example", "product", KnowledgeType.EXAMPLE, "示例",
+            "这是历史示例，不能作为当前事实。", List.of(), List.of(), List.of(), List.of(),
+            "这是历史示例，不能作为当前事实。", null, 0.95D);
+        KnowledgeIR rule = new KnowledgeIR("rule", "product", KnowledgeType.RULE, "规则",
+            "优先说明适用边界和数据时点。", List.of(), List.of(), List.of(), List.of(),
+            "优先说明适用边界和数据时点。", null, 0.60D);
+
+        var result = compiler.compile(request, plan, List.of(example, rule));
+
+        assertThat(result.knowledgeUnits()).isNotEmpty();
+        assertThat(result.knowledgeUnits().get(0).knowledgeId()).isEqualTo("rule");
+    }
+
     private KnowledgeIR unit(String id, String content, double relevance) {
         return new KnowledgeIR(id, "securities.risk", KnowledgeType.RULE, "集中度规则", content,
             List.of(), List.of(), List.of("RISK"), List.of(), content, null, relevance);

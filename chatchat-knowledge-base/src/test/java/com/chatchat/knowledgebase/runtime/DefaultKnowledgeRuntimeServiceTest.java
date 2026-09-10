@@ -25,6 +25,32 @@ import static org.mockito.Mockito.when;
 class DefaultKnowledgeRuntimeServiceTest {
 
     @Test
+    void timesOutOneSlowSkillWithoutBlockingTheKnowledgeResponse() {
+        KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
+        KnowledgeSkillExecutorPort slowExecutor = mock(KnowledgeSkillExecutorPort.class);
+        KnowledgeSkillInstance skill = new KnowledgeSkillInstance(
+            "slow", KnowledgeSkillType.RULE_LOOKUP, "risk", "slow lookup", List.of(), 1, 200, Map.of());
+        when(planner.synthesize(any())).thenReturn(new KnowledgeSkillPlan("v", "RISK", List.of(skill), 200));
+        when(slowExecutor.supports(KnowledgeSkillType.RULE_LOOKUP)).thenReturn(true);
+        when(slowExecutor.execute(any())).thenAnswer(invocation -> {
+            Thread.sleep(500L);
+            return KnowledgeSkillResult.empty(skill, "late");
+        });
+        DefaultKnowledgeRuntimeService runtime = new DefaultKnowledgeRuntimeService(
+            planner, List.of(slowExecutor), new BudgetedKnowledgeContextCompiler());
+        long startedAt = System.nanoTime();
+
+        var result = runtime.retrieveKnowledge(new KnowledgeRequest(
+            "v", "analyze risk", "RISK", 200,
+            new KnowledgeScope("agent", "tenant", "user", List.of("doc"), List.of(), List.of()),
+            null, Map.of("knowledgeSkillTimeoutMs", 100)));
+
+        long elapsedMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+        assertThat(elapsedMs).isLessThan(450L);
+        assertThat(result.used()).isFalse();
+    }
+
+    @Test
     void prefersNativeIrAndDoesNotQueryLegacyDocumentsWhenKnowledgeExists() {
         KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
         KnowledgeSkillExecutorPort nativeIr = mock(KnowledgeSkillExecutorPort.class);

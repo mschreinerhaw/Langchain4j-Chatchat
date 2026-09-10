@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$composeFile = Join-Path $repositoryRoot "docker-compose.yaml"
+$composeFile = Join-Path $repositoryRoot "deploy/docker/docker-compose.yaml"
 $resolvedEnvFile = Join-Path $repositoryRoot $EnvFile
 $projectArguments = if ([string]::IsNullOrWhiteSpace($ProjectName)) { @() } else { @("-p", $ProjectName) }
 
@@ -21,10 +21,19 @@ function Invoke-Compose([string[]]$Arguments) {
     }
 }
 
-function Assert-Healthy([string]$ContainerName) {
-    $status = (& docker inspect $ContainerName --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}').Trim()
+function Get-ContainerId([string]$Service) {
+    $containerId = (& docker compose @projectArguments --env-file $resolvedEnvFile -f $composeFile ps -q $Service).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($containerId)) {
+        throw "Compose service is not running: $Service"
+    }
+    return $containerId
+}
+
+function Assert-Healthy([string]$Service) {
+    $containerId = Get-ContainerId $Service
+    $status = (& docker inspect $containerId --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}').Trim()
     if ($LASTEXITCODE -ne 0 -or $status -ne "healthy") {
-        throw "$ContainerName is not healthy (status=$status)"
+        throw "$Service is not healthy (status=$status)"
     }
 }
 
@@ -41,11 +50,16 @@ function Invoke-ComposeScript([string]$Service, [string]$Shell, [string]$Script)
 Push-Location $repositoryRoot
 try {
     Invoke-Compose @("config", "--quiet")
-    Assert-Healthy "chatchat-mysql"
-    Assert-Healthy "chatchat-redis"
-    Assert-Healthy "chatchat-opensearch"
+    Assert-Healthy "mysql"
+    Assert-Healthy "redis"
+    Assert-Healthy "opensearch"
 
-    $securityExit = (& docker inspect chatchat-opensearch-security-init --format '{{.State.ExitCode}}').Trim()
+    $securityContainerId = (& docker compose @projectArguments --env-file $resolvedEnvFile -f $composeFile `
+        ps -q --all opensearch-security-init).Trim()
+    if ([string]::IsNullOrWhiteSpace($securityContainerId)) {
+        throw "OpenSearch security initialization container does not exist"
+    }
+    $securityExit = (& docker inspect $securityContainerId --format '{{.State.ExitCode}}').Trim()
     if ($LASTEXITCODE -ne 0 -or $securityExit -ne "0") {
         throw "OpenSearch security initialization did not complete successfully (exit=$securityExit)"
     }

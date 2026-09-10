@@ -27,7 +27,7 @@ public class GlobalChunkIndexService {
         try {
             return searchService.search(
                 plan.query(),
-                filters == null ? null : filters.tag(),
+                indexTag(filters),
                 filters == null ? null : filters.company(),
                 filters == null ? null : filters.industry(),
                 plan.joinedVisibilityScopeIds(),
@@ -39,6 +39,10 @@ public class GlobalChunkIndexService {
             log.warn("document_search_global_chunk_recall_failed query='{}' error={}", safeLogQuery(plan.query()), ex.getMessage(), ex);
             return null;
         }
+    }
+
+    private String indexTag(DocumentSearchFilters filters) {
+        return filters == null || filters.allTags().size() != 1 ? null : filters.allTags().get(0);
     }
 
     private String safeLogQuery(String query) {

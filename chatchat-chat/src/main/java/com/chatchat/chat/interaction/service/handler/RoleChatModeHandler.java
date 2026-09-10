@@ -9,6 +9,7 @@ import com.chatchat.chat.interaction.model.InteractionSource;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.AgentRuntimePolicy;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.knowledge.KnowledgeRequest;
 import com.chatchat.common.knowledge.KnowledgeRuntimePort;
@@ -35,7 +36,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class RoleChatModeHandler implements InteractionModeHandler {
 
-    private static final int KNOWLEDGE_TOKEN_BUDGET = 1200;
+    private static final int DEFAULT_KNOWLEDGE_TOKEN_BUDGET = 1200;
 
     private final ChatModel defaultChatModel;
     private final ConfigurableChatModelFactory chatModelFactory;
@@ -60,7 +61,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
-        if (!isRoleChatMode(skill.defaultMode())) {
+        if (!InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()) {
             throw new IllegalArgumentException(
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
@@ -168,21 +169,25 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         InteractionRequest request, SkillDefinition skill) {
         List<String> documentIds = clean(skill.boundDocumentIds());
         List<String> documentTags = clean(skill.boundDocumentTags());
+        AgentRuntimePolicy runtimePolicy = AgentRuntimePolicy.from(
+            skill.workflowConfig(), DEFAULT_KNOWLEDGE_TOKEN_BUDGET);
+        int knowledgeTokenBudget = runtimePolicy.knowledgeTokenBudget();
         if (documentIds.isEmpty() && documentTags.isEmpty()) {
             return com.chatchat.common.knowledge.KnowledgeContext.empty(
-                "not_configured", KNOWLEDGE_TOKEN_BUDGET);
+                "not_configured", knowledgeTokenBudget);
         }
         try {
             return knowledgeRuntime.retrieveKnowledge(new KnowledgeRequest(
                 KnowledgeRequest.SCHEMA_VERSION, request.getQuery(), "ROLE_CHAT",
-                KNOWLEDGE_TOKEN_BUDGET,
+                knowledgeTokenBudget,
                 new KnowledgeScope(skill.id(), request.getTenantId(), request.getUserId(),
                     documentIds, documentTags, List.of()),
-                null, Map.of("modelName", resolvedModelName(request, skill), "executionMode", "ROLE_CHAT")));
+                null, Map.of("modelName", resolvedModelName(request, skill), "executionMode", "ROLE_CHAT",
+                    "knowledgeSkillTimeoutMs", runtimePolicy.knowledgeSkillTimeoutMs())));
         } catch (RuntimeException ex) {
             log.warn("roleChatKnowledgeRetrievalFailed skillId={} error={}", skill.id(), ex.getMessage());
             return com.chatchat.common.knowledge.KnowledgeContext.empty(
-                "failed", KNOWLEDGE_TOKEN_BUDGET);
+                "failed", knowledgeTokenBudget);
         }
     }
 
@@ -229,10 +234,6 @@ public class RoleChatModeHandler implements InteractionModeHandler {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
-    }
-
-    private boolean isRoleChatMode(String mode) {
-        return "role_chat".equalsIgnoreCase(mode) || "llm_chat".equalsIgnoreCase(mode);
     }
 
 }

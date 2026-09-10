@@ -1,5 +1,6 @@
 package com.chatchat.chat.skills;
 
+import com.chatchat.chat.interaction.model.InteractionMode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -183,7 +184,7 @@ public class SkillCatalogService {
                                                   Collection<String> allTools,
                                                   Map<String, List<String>> mcpToolsByServiceId) {
         SkillDefinition skill = resolve(skillId);
-        if (isRoleChatMode(skill.defaultMode())) {
+        if (InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()) {
             return List.of();
         }
         if (allTools == null || allTools.isEmpty()) {
@@ -248,10 +249,6 @@ public class SkillCatalogService {
         return List.copyOf(selected);
     }
 
-    private boolean isRoleChatMode(String mode) {
-        return "role_chat".equalsIgnoreCase(mode) || "llm_chat".equalsIgnoreCase(mode);
-    }
-
     /**
      * Performs the upsert operation.
      *
@@ -275,7 +272,7 @@ public class SkillCatalogService {
             defaultMode = "agent_chat";
         }
 
-        boolean roleChatMode = isRoleChatMode(defaultMode);
+        boolean roleChatMode = InteractionMode.fromAgentConfiguration(defaultMode).isRoleConversation();
         List<SkillToolConfig> toolConfigs = roleChatMode
             ? List.of()
             : normalizeToolConfigs(draft.toolConfigs());
@@ -313,7 +310,7 @@ public class SkillCatalogService {
             normalizeList(draft.boundDocumentTags()),
             toolConfigs,
             normalizeRoutingSettings(draft.routingSettings()),
-            roleChatMode ? Map.of() : normalizeWorkflowConfig(draft.workflowConfig()),
+            roleChatMode ? normalizeRoleRuntimePolicy(draft.workflowConfig()) : normalizeWorkflowConfig(draft.workflowConfig()),
             roleChatMode ? null : normalizeDefaultDataAsset(draft.defaultDataAsset()),
             normalizeAssetSelectionPolicy(draft.assetSelectionPolicy()),
             normalizeList(draft.quickQuestions()),
@@ -514,7 +511,7 @@ public class SkillCatalogService {
         String mode = normalizeText(entity.getDefaultMode()) == null
             ? "agent_chat"
             : normalizeText(entity.getDefaultMode());
-        boolean roleChatMode = isRoleChatMode(mode);
+        boolean roleChatMode = InteractionMode.fromAgentConfiguration(mode).isRoleConversation();
         return new SkillDefinition(
             entity.getId(),
             normalizeText(entity.getLabel()),
@@ -532,7 +529,8 @@ public class SkillCatalogService {
             readListJson(entity.getBoundDocumentTagsJson()),
             roleChatMode ? List.of() : readToolConfigsJson(entity.getToolConfigsJson()),
             readRoutingSettingsJson(entity.getRoutingSettingsJson()),
-            roleChatMode ? Map.of() : readWorkflowConfigJson(entity.getWorkflowConfigJson()),
+            roleChatMode ? normalizeRoleRuntimePolicy(readWorkflowConfigJson(entity.getWorkflowConfigJson()))
+                : readWorkflowConfigJson(entity.getWorkflowConfigJson()),
             roleChatMode ? null : readDefaultDataAssetJson(entity.getDefaultDataAssetJson()),
             readAssetSelectionPolicyJson(entity.getAssetSelectionPolicyJson()),
             readListJson(entity.getQuickQuestionsJson()),
@@ -1169,6 +1167,27 @@ public class SkillCatalogService {
         );
     }
 
+    private Map<String, Object> normalizeRoleRuntimePolicy(Map<String, Object> config) {
+        return normalizeRuntimePolicy(config, 1200);
+    }
+
+    private Map<String, Object> normalizeRuntimePolicy(Map<String, Object> config, int defaultBudget) {
+        if (config == null || config.isEmpty()) {
+            return Map.of();
+        }
+        Object nested = config.get("runtimePolicy");
+        Map<?, ?> source = nested instanceof Map<?, ?> map ? map : config;
+        if (!source.containsKey("knowledgeTokenBudget")
+            && !source.containsKey("knowledgeSkillTimeoutMs")) {
+            return Map.of();
+        }
+        AgentRuntimePolicy policy = AgentRuntimePolicy.from(config, defaultBudget);
+        return Map.of("runtimePolicy", Map.of(
+            "knowledgeTokenBudget", policy.knowledgeTokenBudget(),
+            "knowledgeSkillTimeoutMs", policy.knowledgeSkillTimeoutMs()
+        ));
+    }
+
     /**
      * Normalizes the workflow config.
      *
@@ -1179,6 +1198,7 @@ public class SkillCatalogService {
     private Map<String, Object> normalizeWorkflowConfig(Map<String, Object> config) {
         Map<String, Object> source = upgradeLegacySqlWorkflow(config == null ? Map.of() : config);
         Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.putAll(normalizeRuntimePolicy(source, 1500));
         Object enabled = source.get("enabled");
         normalized.put("enabled", !(enabled instanceof Boolean bool) || bool);
         Object configuredEnvironment = firstObject(source, "runtimeEnvironment", "runtime_environment");

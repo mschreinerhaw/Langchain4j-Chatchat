@@ -33,3 +33,14 @@ having active_count > 1;
 ```
 
 The query must return no rows. Do not delete RETIRED versions; they are the rollback history.
+
+## Knowledge IR Runtime migration
+
+Before enabling native Knowledge Runtime retrieval, apply:
+
+- MySQL: `mysql/V20260910_01__knowledge_ir_runtime.sql`
+- H2: `h2/V20260910_01__knowledge_ir_runtime.sql`
+
+The application populates `knowledge_ir_unit` when a document is created, updated, uploaded,
+or reindexed. Existing installations should run the document reindex operation once after this
+migration. Runtime falls back to the legacy document index while a document has no Knowledge IR.

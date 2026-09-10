@@ -14,12 +14,14 @@ import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 
 import java.util.List;
 import java.util.Map;
 
 /** Current document-index adapter. It can later be replaced by a native Knowledge IR index. */
 @Component
+@Order(100)
 @RequiredArgsConstructor
 public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPort {
 

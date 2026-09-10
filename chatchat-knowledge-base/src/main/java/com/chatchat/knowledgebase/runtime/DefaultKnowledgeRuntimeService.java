@@ -33,22 +33,28 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
         KnowledgeSkillPlan plan = skillSynthesizer.synthesize(request);
         List<KnowledgeIR> units = new ArrayList<>();
         for (KnowledgeSkillInstance skill : plan.skills()) {
-            findExecutor(skill).ifPresentOrElse(executor -> {
+            boolean handled = false;
+            for (KnowledgeSkillExecutorPort executor : findExecutors(skill)) {
                 try {
                     KnowledgeSkillResult result = executor.execute(
                         new KnowledgeSkillExecutionContext(request, skill));
-                    if (result != null) units.addAll(result.knowledgeUnits());
+                    if (result != null && !result.knowledgeUnits().isEmpty()) {
+                        units.addAll(result.knowledgeUnits());
+                        handled = true;
+                        break;
+                    }
                 } catch (RuntimeException ex) {
-                    log.warn("knowledgeSkillExecutionFailed instanceId={} type={} error={}",
-                        skill.instanceId(), skill.skillType(), ex.getMessage());
+                    log.warn("knowledgeSkillExecutionFailed instanceId={} type={} executor={} error={}",
+                        skill.instanceId(), skill.skillType(), executor.getClass().getSimpleName(), ex.getMessage());
                 }
-            }, () -> log.warn("knowledgeSkillExecutorMissing instanceId={} type={}",
-                skill.instanceId(), skill.skillType()));
+            }
+            if (!handled) log.warn("knowledgeSkillEvidenceMissing instanceId={} type={}",
+                skill.instanceId(), skill.skillType());
         }
         return contextCompiler.compile(request, plan, units);
     }
 
-    private java.util.Optional<KnowledgeSkillExecutorPort> findExecutor(KnowledgeSkillInstance skill) {
-        return skillExecutors.stream().filter(executor -> executor.supports(skill.skillType())).findFirst();
+    private List<KnowledgeSkillExecutorPort> findExecutors(KnowledgeSkillInstance skill) {
+        return skillExecutors.stream().filter(executor -> executor.supports(skill.skillType())).toList();
     }
 }

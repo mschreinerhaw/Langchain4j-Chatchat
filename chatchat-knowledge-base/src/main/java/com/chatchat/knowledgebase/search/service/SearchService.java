@@ -25,6 +25,7 @@ import com.chatchat.knowledgebase.search.query.QueryExpander;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.chatchat.knowledgebase.search.query.TitleAwareTerms;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.runtime.extraction.KnowledgeDocumentIngestionService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -104,6 +105,7 @@ public class SearchService {
     private final KeywordExtractor keywordExtractor;
     private final QueryExpander queryExpander;
     private final SearchProperties properties;
+    private final KnowledgeDocumentIngestionService knowledgeIngestionService;
 
     /**
      * Performs the rebuild lucene index operation.
@@ -156,6 +158,7 @@ public class SearchService {
         SearchIndexData indexData = buildIndexData(document);
         store.put(document, indexData, oldIndexData);
         syncLuceneIndex(document);
+        syncKnowledgeIndex(document);
         log.info(
             "search_document_save_complete docId={} title={} keywords={} tags={} durationMs={}",
             document.getDocId(),
@@ -1488,6 +1491,7 @@ public class SearchService {
         List<SearchDocument> family = listVersionDocuments(target);
         store.delete(target, buildIndexData(target));
         luceneStore.deleteDocument(target.getDocId());
+        deleteKnowledgeIndex(target.getDocId());
         deleteOriginalFile(target);
 
         String promotedDocId = null;
@@ -1554,6 +1558,7 @@ public class SearchService {
             target.setErrorMessage(null);
             store.put(target, buildIndexData(target), oldIndexData);
             syncLuceneIndex(target);
+            syncKnowledgeIndex(target);
             log.info(
                 "search_reindex_document_complete docId={} title={} fileName={} contentChars={} keywords={} durationMs={}",
                 target.getDocId(),
@@ -1750,6 +1755,25 @@ public class SearchService {
         document.setErrorMessage(null);
         store.put(document, buildIndexData(document), oldIndexData);
         syncLuceneIndex(document);
+        syncKnowledgeIndex(document);
+    }
+
+    private void syncKnowledgeIndex(SearchDocument document) {
+        if (document == null) return;
+        try {
+            knowledgeIngestionService.extractAndIndex(document);
+        } catch (RuntimeException ex) {
+            log.warn("knowledge_document_index_failed docId={} error={}",
+                document.getDocId(), ex.getMessage(), ex);
+        }
+    }
+
+    private void deleteKnowledgeIndex(String documentId) {
+        try {
+            knowledgeIngestionService.delete(documentId);
+        } catch (RuntimeException ex) {
+            log.warn("knowledge_document_delete_failed docId={} error={}", documentId, ex.getMessage(), ex);
+        }
     }
 
     /**

@@ -42,13 +42,24 @@ never returns a compiled context above the request budget.
 Agent model. Its JSON result is validated against the static enum and plan budget; malformed,
 unknown or disallowed capabilities fall back to the deterministic planner.
 
-`DocumentKnowledgeSkillExecutor` is a compatibility adapter over the existing governed document
-index. It enforces Agent document scope and converts search results into `KnowledgeIR`. It is not
-part of the common contract and can be replaced by a native Knowledge IR/vector/graph index.
+Documents are normalized offline by `KnowledgeDocumentIngestionService` whenever they are created,
+updated or reindexed. The default `DeterministicKnowledgeExtractor` chunks content, classifies
+knowledge types, compacts each unit and preserves source lineage. A domain-specific or model-backed
+extractor can replace it through `KnowledgeExtractionPort` without changing Agent Runtime.
+
+`JpaKnowledgeIRIndex` persists the extracted units in `knowledge_ir_unit`. Runtime first searches
+this native, tenant-scoped IR index. `DocumentKnowledgeSkillExecutor` remains a compatibility
+fallback over the governed document index while old documents are being reindexed. Even on that
+path, only ranked chunks selected inside the Agent's scope enter the budgeted compiler; the complete
+raw document is never appended to the prompt.
 
 Role Chat uses a 1200-token knowledge budget. Tool Agent uses 1500 tokens. Runtime metadata reports
 the selected Skill count, estimated knowledge tokens, budget and whether compilation truncated the
 result.
+
+Existing installations must apply `V20260910_01__knowledge_ir_runtime.sql` and reindex existing
+documents once to populate native IR. New and modified documents are synchronized automatically;
+document deletion removes the corresponding IR units.
 
 ## Evidence boundary
 

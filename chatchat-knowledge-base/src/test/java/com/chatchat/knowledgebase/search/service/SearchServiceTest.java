@@ -24,6 +24,7 @@ import com.chatchat.knowledgebase.search.query.QueryIntentClassifier;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.chatchat.knowledgebase.search.query.TextChunker;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.runtime.extraction.KnowledgeDocumentIngestionService;
 
 import com.chatchat.knowledgebase.search.rule.RetrievalRuleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +41,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SearchServiceTest {
@@ -49,6 +51,7 @@ class SearchServiceTest {
 
     private RocksDbSearchStore store;
     private LuceneDocumentIndexService luceneStore;
+    private KnowledgeDocumentIngestionService knowledgeIngestionService;
 
     @AfterEach
     void closeStore() {
@@ -87,6 +90,18 @@ class SearchServiceTest {
         assertThat(page.results()).hasSize(1);
         assertThat(page.results().get(0).detailPath()).isEqualTo("/api/v1/search/documents/doc-001");
         assertThat(page.results().get(0).matchedKeywords()).contains("semiconductor", "localization");
+    }
+
+    @Test
+    void extractsKnowledgeAfterDocumentIndexing() {
+        SearchService service = newSearchService();
+        SearchDocument document = service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-knowledge-hook")
+            .title("Risk rules")
+            .content("A risk decision must combine multiple indicators.")
+            .build());
+
+        verify(knowledgeIngestionService).extractAndIndex(document);
     }
 
     @Test
@@ -1461,6 +1476,7 @@ class SearchServiceTest {
             mock(SearchFeedbackService.class)
         );
         luceneStore.open();
+        knowledgeIngestionService = mock(KnowledgeDocumentIngestionService.class);
         return new SearchService(
             store,
             luceneStore,
@@ -1468,7 +1484,8 @@ class SearchServiceTest {
             new DocumentTextExtractor(properties),
             keywordExtractor,
             queryExpander,
-            properties
+            properties,
+            knowledgeIngestionService
         );
     }
 

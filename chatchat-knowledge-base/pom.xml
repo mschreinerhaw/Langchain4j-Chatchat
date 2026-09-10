@@ -17,6 +17,10 @@
 
     <dependencies>
         <!-- Internal -->
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-common</artifactId>
+        </dependency>
 
         <!-- LangChain4j core -->
         <dependency>

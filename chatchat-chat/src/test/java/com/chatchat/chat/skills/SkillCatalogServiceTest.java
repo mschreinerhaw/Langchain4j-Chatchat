@@ -21,6 +21,36 @@ import static org.mockito.Mockito.when;
 class SkillCatalogServiceTest {
 
     @Test
+    void roleChatPersistenceRemovesToolAndDatabaseExecutionConfiguration() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);
+        when(repository.findById("role_advisor")).thenReturn(Optional.empty());
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.save(any(SkillConfigVersionEntity.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+        String toolName = "mcp_customer_position_query";
+
+        SkillDefinition saved = service.upsert(new SkillDefinition(
+            "role_advisor", "数据产品顾问", null, List.of(), List.of(), "role_chat",
+            "role-model", "直接回答业务问题", null,
+            List.of("mcp_"), List.of("customer-service"), List.of(toolName), List.of(), List.of(),
+            List.of(new SkillToolConfig(toolName, "客户持仓", "mcp", null, List.of(), "read", 5, true)),
+            null, Map.of("enabled", true, "steps", List.of(Map.of("tool", toolName))),
+            new SkillDefinition.DefaultDataAsset("asset-1", "客户库", "database", null, true),
+            null, List.of(), SkillCatalogService.MARKET_STATUS_DRAFT, false));
+
+        assertThat(saved.defaultMode()).isEqualTo("role_chat");
+        assertThat(saved.preferredToolPrefixes()).isEmpty();
+        assertThat(saved.boundMcpServiceIds()).isEmpty();
+        assertThat(saved.boundMcpToolNames()).isEmpty();
+        assertThat(saved.toolConfigs()).isEmpty();
+        assertThat(saved.workflowConfig()).isEmpty();
+        assertThat(saved.defaultDataAsset()).isNull();
+    }
+
+    @Test
     void persistsAndReadsBackRuntimeEnvironment() {
         SkillConfigRepository repository = mock(SkillConfigRepository.class);
         SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);

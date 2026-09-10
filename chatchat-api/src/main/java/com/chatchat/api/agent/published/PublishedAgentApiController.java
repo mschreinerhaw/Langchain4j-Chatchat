@@ -96,7 +96,7 @@ public class PublishedAgentApiController {
         taskRequest.setSkillId(agent.id());
         taskRequest.setSessionId(hasText(request.sessionId()) ? request.sessionId().trim() : UUID.randomUUID().toString());
         taskRequest.setQuery(request.question().trim());
-        taskRequest.setMode("agent_chat");
+        taskRequest.setMode(publishedExecutionMode(agent));
         taskRequest.setStream(false);
         taskRequest.setHistoryWindow(normalizeHistoryWindow(request.historyWindow()));
         taskRequest.setIdempotencyKey(scopedIdempotencyKey(identity.userId(), agent.id(), request.idempotencyKey()));
@@ -116,6 +116,13 @@ public class PublishedAgentApiController {
         } catch (IllegalArgumentException ex) {
             return badRequest(ex.getMessage());
         }
+    }
+
+    private String publishedExecutionMode(SkillDefinition agent) {
+        String configured = agent == null ? null : agent.defaultMode();
+        return "role_chat".equalsIgnoreCase(configured) || "llm_chat".equalsIgnoreCase(configured)
+            ? "role_chat"
+            : "agent_chat";
     }
 
     @GetMapping("/{agentId}/questions/{taskId}/status")

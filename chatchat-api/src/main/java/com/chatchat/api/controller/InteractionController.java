@@ -144,6 +144,7 @@ public class InteractionController {
      */
     private String describe(InteractionMode mode) {
         return switch (mode) {
+            case ROLE_CHAT -> "Role-based model conversation without MCP tool planning";
             case LLM_CHAT -> "General LLM conversation with short-term memory";
             case AGENT_CHAT -> "Agent loop with dynamic tool orchestration";
             case TOOL_DIRECT -> "Direct tool invocation without agent planning";
@@ -229,7 +230,11 @@ public class InteractionController {
     }
 
     private void authorizeAgentAccess(InteractionRequest request, HttpServletRequest servletRequest) {
-        if (request == null || InteractionMode.from(request.getMode()) != InteractionMode.AGENT_CHAT) {
+        if (request == null) {
+            return;
+        }
+        InteractionMode mode = InteractionMode.from(request.getMode());
+        if (mode != InteractionMode.AGENT_CHAT && mode != InteractionMode.ROLE_CHAT) {
             return;
         }
         String skillId = request.getSkillId() == null ? null : request.getSkillId().trim();

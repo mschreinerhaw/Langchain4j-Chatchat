@@ -246,21 +246,24 @@ public final class AgentPlannerPromptBuilder {
             prompt.append("- Do not use placeholder inputs such as {\"url\":\"\"} or template strings such as ${step1.results[0].url}; use plan.bindings instead.\n\n");
         }
         if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {
-            prompt.append("Knowledge document recall hints:\n");
+            prompt.append("Bound domain knowledge scope:\n");
             if (!boundDocumentIds.isEmpty()) {
                 prompt.append("- document_ids: ").append(boundDocumentIds).append("\n");
             }
             if (!boundDocumentTags.isEmpty()) {
                 prompt.append("- tags: ").append(boundDocumentTags).append("\n");
             }
-            prompt.append("Document workflow:\n");
-            prompt.append("1. If the user asks about research material, reports, files, or document-backed facts, call ")
-                .append(resolvedDocumentSearchTool)
-                .append(" first.\n");
-            prompt.append("2. Keep ").append(resolvedDocumentSearchTool)
-                .append(" open-recall by default. Use tags as soft context when useful; do not use document_ids as a hard input filter unless the user explicitly requested exact document-id scoping.\n");
-            prompt.append("3. Use retrieved evidence as the basis of the final answer; if evidence is insufficient, say what is missing.\n");
-            prompt.append("4. Do not invent facts beyond retrieved documents and tool observations.\n\n");
+            if (containsTool(availableTools, resolvedDocumentSearchTool)) {
+                prompt.append("Explicit document workflow:\n");
+                prompt.append("1. The Runtime has already supplied relevant bound knowledge in <domain_knowledge>. ")
+                    .append("Call ").append(resolvedDocumentSearchTool)
+                    .append(" only when the user explicitly requests document-level evidence or the supplied knowledge is insufficient.\n");
+                prompt.append("2. Keep retrieval inside the authorized Agent knowledge scope and state when evidence is insufficient.\n");
+            } else {
+                prompt.append("The Runtime pre-retrieves relevant content from this scope into <domain_knowledge>; ")
+                    .append("do not invent a document-search tool call.\n");
+            }
+            prompt.append("Use domain knowledge for interpretation and tool observations for current facts.\n\n");
         }
         if (requireDocumentWebVerification) {
             prompt.append("Document-web verification workflow:\n");

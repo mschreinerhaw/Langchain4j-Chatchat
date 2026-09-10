@@ -94,3 +94,53 @@ describe("AgentWorkshopView published Agent curl access", () => {
     expect(textarea.remove).toHaveBeenCalledOnce();
   });
 });
+
+describe("AgentWorkshopView knowledge document selection", () => {
+  it("filters existing documents by keyword, category and type", () => {
+    const context = {
+      documents: [
+        {
+          docId: "doc-options",
+          title: "股票期权业务指南",
+          category: "两融业务人员",
+          documentType: "PDF",
+          lifecycleStatus: "INDEXED",
+          tags: ["期权"]
+        },
+        {
+          docId: "doc-risk",
+          title: "客户风险制度",
+          category: "风险管理",
+          documentType: "DOCX",
+          lifecycleStatus: "INDEXED"
+        }
+      ],
+      selectedDocumentIds: [],
+      documentSearchQuery: "期权",
+      documentCategoryFilter: "两融业务人员",
+      documentTypeFilter: "PDF",
+      documentSearchText: AgentWorkshopView.methods.documentSearchText
+    };
+    context.normalizedDocuments = AgentWorkshopView.computed.normalizedDocuments.call(context);
+
+    const result = AgentWorkshopView.computed.filteredDocuments.call(context);
+
+    expect(result.map((document) => document.docId)).toEqual(["doc-options"]);
+  });
+
+  it("adds and removes a bound document without affecting runtime mode", () => {
+    const context = {
+      form: { defaultMode: "role_chat", boundDocumentIds: [] }
+    };
+    Object.defineProperty(context, "selectedDocumentIds", {
+      get: () => AgentWorkshopView.computed.selectedDocumentIds.call(context)
+    });
+
+    AgentWorkshopView.methods.toggleDocument.call(context, "doc-options");
+    expect(context.form.boundDocumentIds).toEqual(["doc-options"]);
+    expect(context.form.defaultMode).toBe("role_chat");
+
+    AgentWorkshopView.methods.toggleDocument.call(context, "doc-options");
+    expect(context.form.boundDocumentIds).toEqual([]);
+  });
+});

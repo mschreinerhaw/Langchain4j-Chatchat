@@ -3,6 +3,18 @@ import { describe, expect, it } from "vitest";
 import ChatAssistantView, { collapseDuplicateAssistantResults } from "./ChatAssistantView";
 
 describe("restored assistant result deduplication", () => {
+  it("routes a role Agent to the tool-free role-chat mode", () => {
+    expect(ChatAssistantView.methods.agentInteractionMode.call({}, { defaultMode: "role_chat" }))
+      .toBe("role_chat");
+    expect(ChatAssistantView.methods.agentInteractionMode.call({}, { defaultMode: "llm_chat" }))
+      .toBe("role_chat");
+  });
+
+  it("keeps tool Agents on the agent Runtime", () => {
+    expect(ChatAssistantView.methods.agentInteractionMode.call({}, { defaultMode: "agent_chat" }))
+      .toBe("agent_chat");
+  });
+
   it("opens the product confirmation dialog before deleting an answer", () => {
     const message = { id: "answer-1", role: "assistant", content: "回答内容" };
     const context = {

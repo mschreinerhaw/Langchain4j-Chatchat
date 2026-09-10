@@ -3003,9 +3003,54 @@
 
 .agent-workshop-view .agent-document-searchbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 150px auto;
+  grid-template-columns: minmax(240px, 1fr) 170px 150px;
   align-items: end;
   gap: 10px;
+}
+
+.agent-workshop-view .agent-document-selected {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(47, 124, 246, 0.24);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(47, 124, 246, 0.05);
+}
+
+.agent-workshop-view .agent-document-selected > strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.agent-workshop-view .agent-document-selected > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.agent-workshop-view .agent-document-selected button {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(47, 124, 246, 0.28);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #fff;
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .agent-document-selected button span {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workshop-view .agent-document-selected button em {
+  font-style: normal;
 }
 
 .agent-workshop-view .agent-document-batchbar {
@@ -3464,6 +3509,11 @@
   font-weight: 850;
   line-height: 1;
   white-space: nowrap;
+}
+
+.agent-workshop-view .agent-document-check.disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 .agent-workshop-view .agent-curl-dialog {

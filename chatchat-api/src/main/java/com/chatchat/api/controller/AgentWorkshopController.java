@@ -3,6 +3,7 @@ package com.chatchat.api.controller;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.knowledgebase.search.service.SearchService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
@@ -126,7 +127,7 @@ public class AgentWorkshopController {
             mcpCatalog.registeredTools(),
             modelOptions(),
             modelsConfig.getDefaultChatModel(),
-            searchService.listLibrary("all", null, 1, 500).documents(),
+            searchService.listLibrary("all", null, 1, 500, documentPermissionContext(request)).documents(),
             pageInfo,
             agentCategories(allAgents)
         ));
@@ -297,6 +298,9 @@ public class AgentWorkshopController {
      * @return the resolved status
      */
     private String resolveStatus(SkillDefinition skill, List<String> resolvedTools, LinkedHashSet<String> explicitlyBoundTools) {
+        if ("role_chat".equalsIgnoreCase(skill.defaultMode()) || "llm_chat".equalsIgnoreCase(skill.defaultMode())) {
+            return "角色问答";
+        }
         if (!"agent_chat".equalsIgnoreCase(skill.defaultMode())) {
             return "提示词助手";
         }
@@ -508,6 +512,28 @@ public class AgentWorkshopController {
         }
         Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
         return value == null ? null : String.valueOf(value);
+    }
+
+    private SearchPermissionContext documentPermissionContext(HttpServletRequest request) {
+        String userId = currentUserId(request);
+        String tenantId = requestAttribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        if (userId == null) {
+            return SearchPermissionContext.of(tenantId, null, List.of());
+        }
+        EnterpriseAdminService.UserView user = enterpriseAdminService.getUserView(userId);
+        return SearchPermissionContext.of(
+            tenantId == null ? user.tenantId() : tenantId,
+            userId,
+            user.roleIds()
+        );
+    }
+
+    private String requestAttribute(HttpServletRequest request, String name) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(name);
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
     }
 
     /**

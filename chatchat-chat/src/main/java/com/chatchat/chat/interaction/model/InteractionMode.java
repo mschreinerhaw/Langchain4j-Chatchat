@@ -4,6 +4,8 @@ package com.chatchat.chat.interaction.model;
  * Unified interaction modes aligned with ChatChat product interaction patterns.
  */
 public enum InteractionMode {
+    /** Role-based model conversation without tool planning or execution. */
+    ROLE_CHAT("role_chat"),
     /**
      * Creates a new InteractionMode instance.
      *
@@ -57,7 +59,9 @@ public enum InteractionMode {
                 return mode;
             }
         }
+        if ("tool_agent".equalsIgnoreCase(value)) {
+            return AGENT_CHAT;
+        }
         throw new IllegalArgumentException("Unsupported interaction mode: " + value);
     }
 }
-

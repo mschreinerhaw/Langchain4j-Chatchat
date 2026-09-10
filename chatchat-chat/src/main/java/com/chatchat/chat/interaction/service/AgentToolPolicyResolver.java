@@ -54,7 +54,7 @@ public class AgentToolPolicyResolver {
 
         WorkflowToolResolution workflowTools = resolveRequiredWorkflowTools(skill, availableTools);
 
-        boolean documentWorkflowRequested = isDocumentWorkflowRequested(request, skill);
+        boolean documentWorkflowRequested = isDocumentWorkflowRequested(request);
         if (documentWorkflowRequested) {
             availableTools = withAvailableTool(availableTools, DOCUMENT_SEARCH_TOOL);
         }
@@ -140,22 +140,8 @@ public class AgentToolPolicyResolver {
      * @param skill the skill value
      * @return whether the condition is satisfied
      */
-    private boolean isDocumentWorkflowRequested(InteractionRequest request, SkillDefinition skill) {
-        return isIntentRequested(request, DOCUMENT_WORKFLOW_INPUT) || hasDocumentScope(skill);
-    }
-
-    /**
-     * Returns whether has document scope.
-     *
-     * @param skill the skill value
-     * @return whether the condition is satisfied
-     */
-    private boolean hasDocumentScope(SkillDefinition skill) {
-        if (skill == null) {
-            return false;
-        }
-        return (skill.boundDocumentIds() != null && skill.boundDocumentIds().stream().anyMatch(this::hasText))
-            || (skill.boundDocumentTags() != null && skill.boundDocumentTags().stream().anyMatch(this::hasText));
+    private boolean isDocumentWorkflowRequested(InteractionRequest request) {
+        return isIntentRequested(request, DOCUMENT_WORKFLOW_INPUT);
     }
 
     /**

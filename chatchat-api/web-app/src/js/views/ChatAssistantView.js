@@ -1784,7 +1784,7 @@ export default {
         conversationId: this.conversationId || undefined,
         tenantId: this.effectiveTenantId(),
         userId: this.userId,
-        mode: this.selectedAgentId || payload?.webSearch ? "agent_chat" : "llm_chat",
+        mode: this.selectedAgentId ? this.agentInteractionMode() : (payload?.webSearch ? "agent_chat" : "llm_chat"),
         skillId: this.selectedAgentId || undefined,
         modelName: this.selectedAgent?.modelName || this.defaultModelName || undefined,
         query,
@@ -2317,7 +2317,7 @@ export default {
         selectedAgentId: this.selectedAgentId || "",
         agentName: this.selectedAgent?.name || "",
         modelName: this.selectedAgent?.modelName || this.defaultModelName || "",
-        mode: this.selectedAgentId ? "agent_chat" : "llm_chat",
+        mode: this.selectedAgentId ? this.agentInteractionMode() : "llm_chat",
         status: this.conversationStatus,
         messages: [...this.messages],
         analysisNodeId: analysisNode?.id || "",
@@ -2330,6 +2330,11 @@ export default {
     },
     isActiveRun(context) {
       return !!context && this.activeRunId === context.runId && this.historyId === context.historyId;
+    },
+    agentInteractionMode(agent = this.selectedAgent) {
+      return ["role_chat", "llm_chat"].includes(String(agent?.defaultMode || "").toLowerCase())
+        ? "role_chat"
+        : "agent_chat";
     },
     isRunTracked(context) {
       return !!context?.runId && Object.values(this.runningContexts).some((candidate) => candidate?.runId === context.runId);
@@ -3094,7 +3099,7 @@ export default {
         id: this.historyId,
         question: restoredQuestion,
         conversationId: this.conversationId,
-        mode: this.selectedAgentId ? "agent_chat" : "llm_chat",
+        mode: this.selectedAgentId ? this.agentInteractionMode() : "llm_chat",
         skillId: this.selectedAgentId || "",
         modelName: conversation.modelName || lastAssistantMessage?.modelName || "",
         agentName: lastAssistantMessage?.agentName || "",

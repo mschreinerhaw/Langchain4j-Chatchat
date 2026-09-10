@@ -110,3 +110,31 @@ The repeatable infrastructure smoke check is:
 ```
 
 CI jobs that use an isolated Compose project add `-ProjectName <name>` to the command.
+
+### Role-chat Runtime smoke check
+
+Role-based Agents use the persisted `defaultMode=role_chat`. This mode needs no MCP
+service, tool registration, or tool permission. It still needs a configured chat model;
+bound knowledge documents are retrieved internally when present.
+
+After creating and publishing a role-chat Agent, verify the deployed API with an
+authorized token:
+
+```powershell
+$body = @{
+  conversationId = "role-chat-smoke"
+  mode = "role_chat"
+  skillId = "table-product-advisor"
+  query = "请从业务角度说明股票期权证券盈亏流水表的用途和适用场景"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "$env:AGENT_BASE_URL/api/v1/interactions/chat" `
+  -Headers @{ Authorization = "Bearer $env:AGENT_TOKEN" } `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+The response metadata must contain `executionMode=ROLE_CHAT` and
+`toolPlanningSkipped=true`; `toolTraces` must be empty.

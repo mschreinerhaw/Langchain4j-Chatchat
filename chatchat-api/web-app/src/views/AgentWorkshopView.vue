@@ -442,12 +442,15 @@
             <input v-model.trim="form.name" placeholder="行业研究助手" required>
           </label>
           <label>
-            <span>默认模式</span>
+            <span>运行模式</span>
             <select v-model="form.defaultMode">
-              <option value="agent_chat">agent_chat</option>
-              <option value="llm_chat">llm_chat</option>
-              <option value="knowledge_chat">knowledge_chat</option>
+              <option value="role_chat">角色问答（不调用 MCP 工具）</option>
+              <option value="agent_chat">工具智能体（MCP / API / SQL）</option>
             </select>
+            <small v-if="form.defaultMode === 'role_chat'">
+              Runtime 将加载角色、会话、响应规则和可选知识上下文，直接调用模型，不进入工具规划与执行链路。
+            </small>
+            <small v-else>Runtime 将根据当前 Agent 绑定的工具执行规划、调用和证据汇总。</small>
           </label>
           <label class="checkbox-row default-agent-row">
             <input v-model="form.defaultAgent" type="checkbox">
@@ -463,7 +466,7 @@
             </select>
             <small>候选项由后端从 defaultChatModel、availableChatModels 和 chatModels 配置合并返回。</small>
           </label>
-          <label class="runtime-environment-field">
+          <label v-if="form.defaultMode === 'agent_chat'" class="runtime-environment-field">
             <span>运行环境</span>
             <select v-model="form.workflowConfig.runtimeEnvironment">
               <option value="">未指定（跟随资产）</option>
@@ -498,7 +501,91 @@
             <span>快捷问题</span>
             <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个问题"></textarea>
           </label>
-          <section class="default-data-asset-settings wide-field">
+          <section class="agent-document-picker wide-field">
+            <div class="agent-tool-picker-head">
+              <div>
+                <strong>知识文档</strong>
+                <span>回答前仅在已勾选文档范围内检索；知识检索与 MCP 工具配置相互独立。</span>
+              </div>
+              <button
+                v-if="selectedDocumentIds.length"
+                type="button"
+                class="secondary-button compact-button"
+                @click="clearSelectedDocuments"
+              >
+                清空已选
+              </button>
+            </div>
+            <div v-if="selectedDocuments.length" class="agent-document-selected">
+              <strong>已选文档（{{ selectedDocuments.length }}）</strong>
+              <div>
+                <button
+                  v-for="document in selectedDocuments"
+                  :key="`selected-${document.docId}`"
+                  type="button"
+                  :title="`移除 ${document.title}`"
+                  @click="toggleDocument(document.docId)"
+                >
+                  <span>{{ document.title }}</span>
+                  <em>×</em>
+                </button>
+              </div>
+            </div>
+            <div v-if="documents.length" class="agent-document-searchbar">
+              <label>
+                <span>搜索已有文档</span>
+                <input
+                  v-model.trim="documentSearchQuery"
+                  type="search"
+                  placeholder="搜索文档名称、标签、来源或 ID"
+                >
+              </label>
+              <label>
+                <span>业务分类</span>
+                <select v-model="documentCategoryFilter">
+                  <option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                <span>文档类型</span>
+                <select v-model="documentTypeFilter">
+                  <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+            </div>
+            <div v-if="documents.length" class="agent-document-batchbar">
+              <span>只允许新绑定已解析文档；解析中或失败的文档会保留展示但不可勾选。</span>
+              <strong>{{ documentResultLabel }}</strong>
+            </div>
+            <div v-if="filteredDocuments.length" class="agent-document-checklist">
+              <label
+                v-for="document in filteredDocuments"
+                :key="document.docId"
+                class="agent-document-check"
+                :class="{ active: selectedDocumentIds.includes(document.docId), disabled: !documentSelectable(document) }"
+                :title="document.title"
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedDocumentIds.includes(document.docId)"
+                  :disabled="!documentSelectable(document)"
+                  @change="toggleDocument(document.docId)"
+                >
+                <span>
+                  <strong>{{ document.title }}</strong>
+                  <small>{{ document.category }} · {{ document.documentType }} · {{ documentStatusLabel(document.lifecycleStatus) }}</small>
+                  <em>{{ document.source || document.fileName || document.docId }} · {{ documentUpdatedLabel(document) }}</em>
+                </span>
+              </label>
+            </div>
+            <p v-else-if="documents.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p>
+            <p v-else class="agent-tool-empty">文档库暂无可选文档，请先上传并完成解析。</p>
+          </section>
+          <section v-if="form.defaultMode === 'agent_chat'" class="default-data-asset-settings wide-field">
             <div class="default-data-asset-heading">
               <strong>数据库资产绑定</strong>
               <span>仅支持绑定数据库资产；启用后，Agent 的数据库检索与执行将固定使用该资产，不会切换到其他数据库。</span>
@@ -516,7 +603,7 @@
               >
             </label>
           </section>
-          <section class="agent-tool-picker wide-field">
+          <section v-if="form.defaultMode === 'agent_chat'" class="agent-tool-picker wide-field">
             <div class="agent-tool-picker-head">
               <div>
                 <strong>已注册MCP工具</strong>
@@ -601,7 +688,7 @@
             <p v-else class="agent-tool-empty">请先在 MCP服务 完成服务接入和工具注册。</p>
           </section>
 
-          <section v-if="selectedToolNames.length" class="agent-workflow-builder wide-field">
+          <section v-if="form.defaultMode === 'agent_chat' && selectedToolNames.length" class="agent-workflow-builder wide-field">
             <div class="agent-tool-picker-head">
               <div>
                 <strong>MCP 工具编排</strong>
@@ -742,7 +829,7 @@
             </div>
           </section>
 
-          <section class="routing-settings wide-field">
+          <section v-if="form.defaultMode === 'agent_chat'" class="routing-settings wide-field">
             <label class="checkbox-row">
               <input v-model="form.routingSettings.smartSelectionEnabled" type="checkbox">
               <span>启用智能工具选择</span>

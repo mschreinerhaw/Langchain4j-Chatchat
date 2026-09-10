@@ -9,6 +9,7 @@ import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
+import com.chatchat.chat.interaction.model.InteractionSource;
 import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
@@ -17,6 +18,11 @@ import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.chat.task.learning.AgentLearningService;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.knowledge.KnowledgeContext;
+import com.chatchat.common.knowledge.KnowledgeRequest;
+import com.chatchat.common.knowledge.KnowledgeRuntimePort;
+import com.chatchat.common.knowledge.KnowledgeScope;
+import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +30,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,18 +51,26 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private final SkillCatalogService skillCatalogService;
     private final AgentToolPolicyResolver toolPolicyResolver;
     private final AgentLearningService learningService;
+    private final RoleChatModeHandler roleChatModeHandler;
+    private final KnowledgeRuntimePort knowledgeRuntime;
+
+    private static final int DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
 
     @Autowired
     public AgentChatModeHandler(AgentRuntime agentRuntime,
                                 AgentOrchestrator agentOrchestrator,
                                 SkillCatalogService skillCatalogService,
                                 AgentToolPolicyResolver toolPolicyResolver,
-                                AgentLearningService learningService) {
+                                AgentLearningService learningService,
+                                RoleChatModeHandler roleChatModeHandler,
+                                KnowledgeRuntimePort knowledgeRuntime) {
         this.agentRuntime = agentRuntime;
         this.agentOrchestrator = agentOrchestrator;
         this.skillCatalogService = skillCatalogService;
         this.toolPolicyResolver = toolPolicyResolver;
         this.learningService = learningService;
+        this.roleChatModeHandler = roleChatModeHandler;
+        this.knowledgeRuntime = knowledgeRuntime;
     }
 
     public AgentChatModeHandler(AgentOrchestrator agentOrchestrator,
@@ -66,6 +81,35 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         this.skillCatalogService = skillCatalogService;
         this.toolPolicyResolver = toolPolicyResolver;
         this.learningService = null;
+        this.roleChatModeHandler = null;
+        this.knowledgeRuntime = null;
+    }
+
+    AgentChatModeHandler(AgentOrchestrator agentOrchestrator,
+                         SkillCatalogService skillCatalogService,
+                         AgentToolPolicyResolver toolPolicyResolver,
+                         KnowledgeRuntimePort knowledgeRuntime) {
+        this.agentRuntime = null;
+        this.agentOrchestrator = agentOrchestrator;
+        this.skillCatalogService = skillCatalogService;
+        this.toolPolicyResolver = toolPolicyResolver;
+        this.learningService = null;
+        this.roleChatModeHandler = null;
+        this.knowledgeRuntime = knowledgeRuntime;
+    }
+
+    public AgentChatModeHandler(AgentRuntime agentRuntime,
+                                AgentOrchestrator agentOrchestrator,
+                                SkillCatalogService skillCatalogService,
+                                AgentToolPolicyResolver toolPolicyResolver,
+                                AgentLearningService learningService) {
+        this.agentRuntime = agentRuntime;
+        this.agentOrchestrator = agentOrchestrator;
+        this.skillCatalogService = skillCatalogService;
+        this.toolPolicyResolver = toolPolicyResolver;
+        this.learningService = learningService;
+        this.roleChatModeHandler = null;
+        this.knowledgeRuntime = null;
     }
 
     /**
@@ -88,10 +132,16 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
+        if (isRoleChatMode(skill.defaultMode()) && roleChatModeHandler != null) {
+            log.info("agentChatCompatibilityRoute skillId={} configuredMode={} resolvedMode=role_chat",
+                skill.id(), skill.defaultMode());
+            return roleChatModeHandler.handle(request, context);
+        }
         String resolvedSkillId = resolvedSkillId(request, skill);
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
         Map<String, Object> agentRoleContext = agentRoleContext(skill);
+        KnowledgeContext domainKnowledge = retrieveDomainKnowledge(request, skill);
         AgentLearningService.RuntimeExperienceContext runtimeExperience = learningService == null
             ? AgentLearningService.RuntimeExperienceContext.empty()
             : learningService.resolveRuntimeExperience(
@@ -107,8 +157,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         String systemPrompt = appendResponseContract(
             appendDefaultDataAssetPolicy(
                 appendMcpExecutionContext(
-                    appendExperienceContext(AgentRoleAnalysisContext.appendPrompt(
-                        resolveSystemPrompt(request, skill, context), agentRoleContext), experienceContext),
+                    appendDomainKnowledgeContext(
+                        appendExperienceContext(AgentRoleAnalysisContext.appendPrompt(
+                            resolveSystemPrompt(request, skill, context), agentRoleContext), experienceContext),
+                        domainKnowledge),
                     executionContext
                 ),
                 skill
@@ -160,6 +212,14 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("conversationEvidenceUsed",
             context.conversationEvidence() != null && !context.conversationEvidence().isBlank());
         metadata.put("experienceHintsUsed", !experienceContext.isBlank());
+        metadata.put("knowledgeRetrieval", domainKnowledge.status());
+        metadata.put("domainKnowledgeUsed", domainKnowledge.used());
+        metadata.put("domainKnowledgeSourceCount", domainKnowledge.sources().size());
+        metadata.put("domainKnowledgeTokens", domainKnowledge.estimatedTokens());
+        metadata.put("domainKnowledgeTokenBudget", domainKnowledge.maxTokens());
+        metadata.put("domainKnowledgeTruncated", domainKnowledge.truncated());
+        metadata.put("domainKnowledgeSkillCount",
+            domainKnowledge.plan() == null ? 0 : domainKnowledge.plan().skills().size());
         metadata.put("matchedExperienceIds", runtimeExperience.matchedExperienceIds());
         if (!runtimeExperience.plannerPrior().isEmpty()) {
             metadata.put("experiencePrior", runtimeExperience.plannerPrior());
@@ -170,9 +230,14 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
         return InteractionResponse.builder()
             .answer(result.answer())
+            .sources(domainKnowledgeSources(domainKnowledge.sources()))
             .toolTraces(result.toolTraces())
             .metadata(metadata)
             .build();
+    }
+
+    private boolean isRoleChatMode(String mode) {
+        return "role_chat".equalsIgnoreCase(mode) || "llm_chat".equalsIgnoreCase(mode);
     }
 
     private AgentRunResult executeThroughRuntime(InteractionRequest request,
@@ -333,6 +398,81 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         }
         builder.append(experienceContext);
         return builder.toString();
+    }
+
+    private String appendDomainKnowledgeContext(String systemPrompt, KnowledgeContext knowledge) {
+        if (knowledge == null || !knowledge.used() || knowledge.compiledContext().isBlank()) {
+            return systemPrompt;
+        }
+        StringBuilder builder = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            builder.append(systemPrompt.trim()).append("\n\n");
+        }
+        builder.append("<domain_knowledge>\n")
+            .append(knowledge.compiledContext().trim())
+            .append("\n</domain_knowledge>\n\n")
+            .append("Knowledge and tool evidence contract:\n")
+            .append("1. Treat domain_knowledge only as definitions, policies, business rules, and interpretation guidance.\n")
+            .append("2. Treat observations returned by MCP/API/SQL tools in this run as <tool_evidence> for current facts.\n")
+            .append("3. Current factual conclusions and calculations must be grounded primarily in tool_evidence.\n")
+            .append("4. Never treat example numbers, historical cases, or sample customers in domain_knowledge as current facts.\n")
+            .append("5. If a knowledge rule cannot be mapped to the retrieved data, state the limitation explicitly.\n");
+        return builder.toString();
+    }
+
+    private KnowledgeContext retrieveDomainKnowledge(InteractionRequest request, SkillDefinition skill) {
+        List<String> documentIds = cleanList(skill == null ? null : skill.boundDocumentIds());
+        List<String> documentTags = cleanList(skill == null ? null : skill.boundDocumentTags());
+        if (documentIds.isEmpty() && documentTags.isEmpty()) {
+            return KnowledgeContext.empty("not_configured", DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
+        }
+        if (knowledgeRuntime == null) {
+            return KnowledgeContext.empty("unavailable", DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
+        }
+        try {
+            String modelName = skill != null && skill.modelName() != null && !skill.modelName().isBlank()
+                ? skill.modelName() : request.getModelName();
+            return knowledgeRuntime.retrieveKnowledge(new KnowledgeRequest(
+                KnowledgeRequest.SCHEMA_VERSION, request.getQuery(), "TOOL_ANALYSIS",
+                DOMAIN_KNOWLEDGE_TOKEN_BUDGET,
+                new KnowledgeScope(skill == null ? request.getSkillId() : skill.id(),
+                    request.getTenantId(), request.getUserId(), documentIds, documentTags, List.of()),
+                null, Map.of("modelName", modelName == null ? "" : modelName,
+                    "executionMode", "TOOL_AGENT")));
+        } catch (RuntimeException ex) {
+            log.warn("agentDomainKnowledgeRetrievalFailed skillId={} error={}",
+                skill == null ? null : skill.id(), ex.getMessage());
+            return KnowledgeContext.empty("failed", DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
+        }
+    }
+
+    private List<InteractionSource> domainKnowledgeSources(
+        List<KnowledgeSourceReference> references) {
+        if (references == null || references.isEmpty()) {
+            return List.of();
+        }
+        List<InteractionSource> sources = new ArrayList<>();
+        for (int index = 0; index < references.size(); index++) {
+            KnowledgeSourceReference reference = references.get(index);
+            sources.add(InteractionSource.builder()
+                .rank(index + 1)
+                .source(reference.documentName() == null || reference.documentName().isBlank()
+                    ? reference.documentId() : reference.documentName())
+                .snippet(reference.citation())
+                .build());
+        }
+        return List.copyOf(sources);
+    }
+
+    private List<String> cleanList(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
     }
 
     private String appendResponseContract(String systemPrompt, InteractionRequest request) {

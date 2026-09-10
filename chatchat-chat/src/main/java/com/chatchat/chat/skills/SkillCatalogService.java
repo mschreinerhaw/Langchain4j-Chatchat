@@ -183,6 +183,9 @@ public class SkillCatalogService {
                                                   Collection<String> allTools,
                                                   Map<String, List<String>> mcpToolsByServiceId) {
         SkillDefinition skill = resolve(skillId);
+        if (isRoleChatMode(skill.defaultMode())) {
+            return List.of();
+        }
         if (allTools == null || allTools.isEmpty()) {
             return List.of();
         }
@@ -202,7 +205,7 @@ public class SkillCatalogService {
         if ((boundMcpServiceIds.isEmpty() && boundMcpToolNames.isEmpty() && enabledToolConfigs.isEmpty())
             || mcpToolsByServiceId == null
             || mcpToolsByServiceId.isEmpty()) {
-            return withDocumentWorkflowTool(applyPrefixSelection(sortedAllTools, prefixes), sortedAllTools, skill);
+            return applyPrefixSelection(sortedAllTools, prefixes);
         }
 
         Set<String> registeredMcpTools = new LinkedHashSet<>();
@@ -242,7 +245,11 @@ public class SkillCatalogService {
             .map(SkillToolConfig::toolName)
             .forEach(selected::add);
 
-        return withDocumentWorkflowTool(List.copyOf(selected), sortedAllTools, skill);
+        return List.copyOf(selected);
+    }
+
+    private boolean isRoleChatMode(String mode) {
+        return "role_chat".equalsIgnoreCase(mode) || "llm_chat".equalsIgnoreCase(mode);
     }
 
     /**
@@ -268,7 +275,10 @@ public class SkillCatalogService {
             defaultMode = "agent_chat";
         }
 
-        List<SkillToolConfig> toolConfigs = normalizeToolConfigs(draft.toolConfigs());
+        boolean roleChatMode = isRoleChatMode(defaultMode);
+        List<SkillToolConfig> toolConfigs = roleChatMode
+            ? List.of()
+            : normalizeToolConfigs(draft.toolConfigs());
         List<String> boundMcpToolNames = !toolConfigs.isEmpty()
             ? toolConfigs.stream()
                 .filter(config -> Boolean.TRUE.equals(config.enabled()))
@@ -296,15 +306,15 @@ public class SkillCatalogService {
             normalizeText(draft.modelName()),
             normalizeText(draft.systemPrompt()),
             normalizeText(draft.firstUseGreeting()),
-            normalizeList(draft.preferredToolPrefixes()),
-            normalizeList(draft.boundMcpServiceIds()),
-            boundMcpToolNames,
+            roleChatMode ? List.of() : normalizeList(draft.preferredToolPrefixes()),
+            roleChatMode ? List.of() : normalizeList(draft.boundMcpServiceIds()),
+            roleChatMode ? List.of() : boundMcpToolNames,
             normalizeList(draft.boundDocumentIds()),
             normalizeList(draft.boundDocumentTags()),
             toolConfigs,
             normalizeRoutingSettings(draft.routingSettings()),
-            normalizeWorkflowConfig(draft.workflowConfig()),
-            normalizeDefaultDataAsset(draft.defaultDataAsset()),
+            roleChatMode ? Map.of() : normalizeWorkflowConfig(draft.workflowConfig()),
+            roleChatMode ? null : normalizeDefaultDataAsset(draft.defaultDataAsset()),
             normalizeAssetSelectionPolicy(draft.assetSelectionPolicy()),
             normalizeList(draft.quickQuestions()),
             marketStatus,
@@ -501,25 +511,29 @@ public class SkillCatalogService {
      * @return the converted definition
      */
     private SkillDefinition toDefinition(SkillConfigEntity entity) {
+        String mode = normalizeText(entity.getDefaultMode()) == null
+            ? "agent_chat"
+            : normalizeText(entity.getDefaultMode());
+        boolean roleChatMode = isRoleChatMode(mode);
         return new SkillDefinition(
             entity.getId(),
             normalizeText(entity.getLabel()),
             normalizeText(entity.getDescription()),
             readListJson(entity.getUsageScenariosJson()),
             readListJson(entity.getSkillTagsJson()),
-            normalizeText(entity.getDefaultMode()) == null ? "agent_chat" : normalizeText(entity.getDefaultMode()),
+            mode,
             normalizeText(entity.getModelName()),
             normalizeText(entity.getSystemPrompt()),
             normalizeText(entity.getFirstUseGreeting()),
-            readListJson(entity.getPreferredToolPrefixesJson()),
-            readListJson(entity.getBoundMcpServiceIdsJson()),
-            normalizeSqlGatewayToolNames(readListJson(entity.getBoundMcpToolNamesJson())),
+            roleChatMode ? List.of() : readListJson(entity.getPreferredToolPrefixesJson()),
+            roleChatMode ? List.of() : readListJson(entity.getBoundMcpServiceIdsJson()),
+            roleChatMode ? List.of() : normalizeSqlGatewayToolNames(readListJson(entity.getBoundMcpToolNamesJson())),
             readListJson(entity.getBoundDocumentIdsJson()),
             readListJson(entity.getBoundDocumentTagsJson()),
-            readToolConfigsJson(entity.getToolConfigsJson()),
+            roleChatMode ? List.of() : readToolConfigsJson(entity.getToolConfigsJson()),
             readRoutingSettingsJson(entity.getRoutingSettingsJson()),
-            readWorkflowConfigJson(entity.getWorkflowConfigJson()),
-            readDefaultDataAssetJson(entity.getDefaultDataAssetJson()),
+            roleChatMode ? Map.of() : readWorkflowConfigJson(entity.getWorkflowConfigJson()),
+            roleChatMode ? null : readDefaultDataAssetJson(entity.getDefaultDataAssetJson()),
             readAssetSelectionPolicyJson(entity.getAssetSelectionPolicyJson()),
             readListJson(entity.getQuickQuestionsJson()),
             normalizeMarketStatus(entity.getMarketStatus()) == null
@@ -1420,27 +1434,6 @@ public class SkillCatalogService {
             .sorted()
             .toList();
         return selected.isEmpty() ? candidates.stream().sorted().toList() : selected;
-    }
-
-    /**
-     * Performs the with document workflow tool operation.
-     *
-     * @param selectedTools the selected tools value
-     * @param allTools the all tools value
-     * @param skill the skill value
-     * @return the operation result
-     */
-    private List<String> withDocumentWorkflowTool(List<String> selectedTools,
-                                                  List<String> allTools,
-                                                  SkillDefinition skill) {
-        boolean hasDocumentScope = !normalizeList(skill.boundDocumentIds()).isEmpty()
-            || !normalizeList(skill.boundDocumentTags()).isEmpty();
-        if (!hasDocumentScope || allTools == null || !allTools.contains("document_search")) {
-            return selectedTools == null ? List.of() : selectedTools;
-        }
-        LinkedHashSet<String> selected = new LinkedHashSet<>(selectedTools == null ? List.of() : selectedTools);
-        selected.add("document_search");
-        return List.copyOf(selected);
     }
 
     /**

@@ -766,7 +766,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         if (observations == null || observations.isEmpty()) {
             prompt.append("No external tool observation is available.\n");
         } else {
+            prompt.append("<tool_evidence>\n");
             observations.forEach(ob -> prompt.append("- ").append(ob).append("\n"));
+            prompt.append("</tool_evidence>\n");
         }
         prompt.append("\nUser question: ").append(query);
         String promptText = prompt.toString();

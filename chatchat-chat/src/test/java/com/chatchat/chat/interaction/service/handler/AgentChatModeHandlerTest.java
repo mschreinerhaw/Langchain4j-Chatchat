@@ -11,6 +11,9 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillRoutingSettings;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.knowledge.KnowledgeContext;
+import com.chatchat.common.knowledge.KnowledgeRequest;
+import com.chatchat.common.knowledge.KnowledgeRuntimePort;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -32,6 +35,70 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+
+    @Test
+    void preloadsBoundDomainKnowledgeBeforeToolPlanningAndKeepsEvidenceSeparated() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
+        KnowledgeRuntimePort knowledgeRuntime = mock(KnowledgeRuntimePort.class);
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator,
+            skillCatalogService,
+            new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge),
+            knowledgeRuntime
+        );
+        SkillDefinition configured = skill(List.of("mcp_customer_assets"), List.of("doc-risk-policy"));
+        when(skillCatalogService.resolve("ops")).thenReturn(configured);
+        when(knowledgeRuntime.retrieveKnowledge(any())).thenReturn(new KnowledgeContext(
+            KnowledgeContext.SCHEMA_VERSION, null, List.of(),
+            "高仓位定义：证券市值占总资产比例超过内部阈值。示例客户资产为 100 万元。",
+            List.of(), 60, 1500, false, "used"));
+        when(orchestrator.executeAgent(
+            any(), any(), any(), any(), any(), any(), any(),
+            any(), any(), any(), any(), anyInt(), any(), anyBoolean(), any()
+        )).thenReturn(agentResult("风险分析完成"));
+
+        var response = handler.handle(
+            InteractionRequest.builder()
+                .mode("agent_chat")
+                .skillId("ops")
+                .query("分析客户 070200046604 的账户风险")
+                .tenantId("tenant-a")
+                .userId("user-a")
+                .availableTools(List.of("mcp_customer_assets"))
+                .toolInput(Map.of("mcpExecutionContext", Map.of("env", "TEST")))
+                .build(),
+            InteractionContext.builder()
+                .requestId("req-domain-tool")
+                .conversationId("conv-domain-tool")
+                .mode(InteractionMode.AGENT_CHAT)
+                .history(List.of())
+                .build());
+
+        ArgumentCaptor<KnowledgeRequest> retrieval = ArgumentCaptor.forClass(KnowledgeRequest.class);
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<List<String>> availableTools = ArgumentCaptor.forClass(List.class);
+        verify(knowledgeRuntime).retrieveKnowledge(retrieval.capture());
+        verify(orchestrator).executeAgent(
+            any(), eq("tenant-a"), availableTools.capture(), systemPrompt.capture(), any(), any(), any(),
+            any(), any(), any(), eq("user-a"), anyInt(), any(), anyBoolean(), any()
+        );
+
+        assertThat(retrieval.getValue().scope().documentIds()).containsExactly("doc-risk-policy");
+        assertThat(retrieval.getValue().scope().tenantId()).isEqualTo("tenant-a");
+        assertThat(retrieval.getValue().maxTokens()).isEqualTo(1500);
+        assertThat(availableTools.getValue()).containsExactly("mcp_customer_assets");
+        assertThat(systemPrompt.getValue())
+            .contains("<domain_knowledge>", "</domain_knowledge>", "<tool_evidence>")
+            .contains("Current factual conclusions and calculations must be grounded primarily in tool_evidence")
+            .contains("Never treat example numbers, historical cases, or sample customers in domain_knowledge as current facts");
+        assertThat(response.getMetadata())
+            .containsEntry("knowledgeRetrieval", "used")
+            .containsEntry("domainKnowledgeUsed", true)
+            .containsEntry("domainKnowledgeTokenBudget", 1500);
+    }
 
     @Test
     @SuppressWarnings("unchecked")

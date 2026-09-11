@@ -2708,6 +2708,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         prompt.append("- Review notes and shortened previews are not factual evidence. When they conflict with authoritativeToolResultEvidence, use authoritativeToolResultEvidence and omit the conflicting review claim.\n\n");
         prompt.append("- Evidence-insufficient deliverable contract: state the incomplete assessment once and briefly, then present usable returned evidence, clearly labeled evidence-backed inferences or review checkpoints, and the smallest concrete evidence-recovery action. Do not turn the final answer into a tool trace or repeat 'cannot determine' for every requested dimension.\n");
         prompt.append("- Standard/reference evidence may support a clearly labeled possible business interpretation and conditional design checkpoints, but it must never be presented as the target object's observed schema or as a confirmed defect. Separate Observed facts, Inference/checkpoints, and Missing evidence.\n");
+        prompt.append(com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract.promptSection());
         if (compressionEnabled) {
             prompt.append("- Context compression is active because cumulative evidence exceeded the final-synthesis quality budget. Compressed evidence is a semantic projection of authoritative Runtime records, not proof that omitted details were absent.\n");
         }

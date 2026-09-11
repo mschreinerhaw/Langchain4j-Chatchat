@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraph;
+import com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.logging.AnalysisReportLogProjection;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisExecutionOutcome;
@@ -539,8 +540,8 @@ public final class FinalSynthesisNode {
         return "You are the final analytical report author. Write one coherent, decision-useful Markdown "
             + "report that expresses the completed analysis artifacts and analysis-layer judgments. Do not redo "
             + "the analysis, invent stronger conclusions, or replace the supplied ranking, conflicts or evidence-sufficiency judgment. "
-            + "Preserve each artifact's observation, interpretation, implication, method, sample, period, confidence, "
-            + "alternative explanations and caveats; do not replay raw tool output or execution "
+            + "Preserve each artifact's material evidence and reasoning; do not mechanically reproduce optional "
+            + "confidence fields, alternative lists or caveats when they add no decision value. Do not replay raw tool output or execution "
             + "chronology. Use the supplied analysis and evidence, and verify any calculation you present. "
             + "Your task is to organize the already-supported findings, explain their business meaning and expose material "
             + "limitations. Use adaptiveAnalysisPrompt.output as the ordered H2 section plan, with natural "
@@ -560,6 +561,7 @@ public final class FinalSynthesisNode {
             + "Never turn a returned row count into a population count. State truncation, omission, or 'at least N' only when an admitted artifact explicitly says truncated=true, sourceComplete=false, or pagination.hasMore=true. UNKNOWN completeness or paginationAssessed=false means unknown, not truncated. "
             + "Do not repeat a summary paragraph as a section body; each section must add evidence, comparison, interpretation, or a bounded implication. "
             + "Keep useful observed-period conclusions after narrowing them. Ensure any summary and its supporting detail use the same scope and claim strength.\n"
+            + RuntimeAnalysisResponsibilityContract.promptSection()
             + "User question: " + question + "\n"
             + "Bounded composition context (not factual evidence): "
             + ModelProtocolJson.compact(boundedContext);
@@ -593,23 +595,11 @@ public final class FinalSynthesisNode {
     }
 
     private String finalReportCalibrationRules() {
-        return "\nFinal report calibration rules (apply these rules after reviewing all supplied context): "
-            + "Evidence carrying an explicit customer, account, organization or other subject identifier different "
-            + "from the current question's target must not be attributed to that target unless an authorized relationship "
-            + "in the supplied evidence explicitly links them. Do not invent an associated-account hypothesis; exclude "
-            + "mismatched evidence and state the resulting coverage limitation. Describe preferences and behavior only "
-            + "as tendencies in the observed sample and period. Do not infer persistent investment philosophy, risk "
-            + "tolerance, sophistication, motive, emotional behavior, strategy, permissions or causality from a snapshot "
-            + "or short transaction sample. Do not say the customer maximizes capital deployment, captures price spreads, "
-            + "uses a high-frequency strategy, or needs a product merely from invested share or same-day trades. Do not "
-            + "label a value or performance as high, low, good, excellent, concentrated, full-position or otherwise "
-            + "evaluative unless supplied evidence contains an explicit comparison baseline; report the number and scope "
-            + "neutrally instead. Do not infer personal consumption needs, liquidity shortage, margin-call capacity or "
-            + "recommend Level-2, conditional orders, channels or other products without evidence of customer goals and "
-            + "constraints. Do not turn co-movement, arithmetic reconciliation or a single-period snapshot into causal "
-            + "attribution unless the semantic contract explicitly declares that accounting identity or causal relationship. "
-            + "Do not speculate why an order was cancelled, why a trade was placed, or why an asset changed when the returned evidence contains only the event or amount. "
-            + "Preserve useful numeric detail, sample limitations, alternative explanations and unresolved attribution.";
+        return "\nFinal report policy resolution: use the user request, active Agent analysis contract, producer "
+            + "semantics and relevant domain knowledge as the authority for analytical style and inference boundaries. "
+            + "Runtime contributes evidence scope and provenance, but introduces no customer, product, metric, threshold, "
+            + "causality or recommendation rules of its own. Preserve material source identity and values, then allow the "
+            + "model to express the strongest useful analysis supported by that resolved policy and evidence.";
     }
 
     private Object omitPresentationDirectives(Object source, Set<String> omittedKeys) {

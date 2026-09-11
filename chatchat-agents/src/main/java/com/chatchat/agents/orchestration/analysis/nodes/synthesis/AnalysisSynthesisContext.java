@@ -5,7 +5,6 @@ import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProto
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract;
 import com.chatchat.common.knowledge.KnowledgeContext;
 
 import java.util.ArrayList;
@@ -29,17 +28,13 @@ final class AnalysisSynthesisContext {
         result.put("operatingModelVersion", DataAnalysisDecisionOperatingModel.SCHEMA_VERSION);
         Map<String, Object> objective = analysisObjective(workers, reducers);
         result.put("analysisObjective", objective);
-        result.put("analysisMethodology", objective.getOrDefault("analysisMethodologyContract",
-            AnalysisMethodologyContract.enterpriseDefault().toMap()));
+        result.put("analysisMethodology", objective.getOrDefault("analysisMethodologyContract", Map.of()));
         result.put("analysisTree", objective.getOrDefault("analysisTree", Map.of()));
         result.put("methodologyExecutionPolicy", Map.of(
+            "source", "ACTIVE_AGENT_ANALYSIS_CONTRACT",
             "planningSelectsMethods", true,
             "analysisInterpretsVerifiedResults", true,
-            "mergePreservesEvidence", true,
-            "requiredReasoningOrder", List.of(
-                "QUESTION", "BASELINE", "OVERALL", "DECOMPOSITION", "CONTRIBUTION",
-                "EXPLANATION", "VALIDATION", "IMPACT", "CONCLUSION", "ACTION"),
-            "missingBaselineEffect", "QUALIFY_DEPENDENT_CLAIMS_DO_NOT_SUPPRESS_SUPPORTED_FINDINGS"));
+            "mergePreservesEvidence", true));
         result.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
             AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes));
         result.put(KnowledgeContext.RUNTIME_ATTRIBUTE,

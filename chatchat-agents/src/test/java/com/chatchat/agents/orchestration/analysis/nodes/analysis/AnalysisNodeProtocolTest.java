@@ -228,6 +228,9 @@ class AnalysisNodeProtocolTest {
             && prompt.contains("missing historical series limits trend or stability claims")
             && prompt.contains("a gap list is not a substitute")
             && prompt.contains("observed fact; quoting it is OBSERVE, not AGGREGATE or DERIVE")
+            && prompt.contains("The model owns analytical reasoning")
+            && prompt.contains("not a requirement to expose a confidence label")
+            && prompt.contains("does not censor supported analytical breadth")
             && prompt.contains("agent_role_analysis_context")
             && prompt.contains("Analyze service quality")
             && prompt.contains("Daily review")));
@@ -242,12 +245,9 @@ class AnalysisNodeProtocolTest {
                 && prompt.contains("ETF_SCALE")
                 && prompt.contains("按基金代码关联相邻交易日")
                 && prompt.contains("analysis_objective_contract.v1")
-                && prompt.contains("professional_data_analysis.v1")
-                && prompt.contains("professional_analysis_depth.v1")
-                && prompt.contains("analysis_methodology.v1")
                 && prompt.contains("analysis_tree.v1")
-                && prompt.contains("reason from total to component")
-                && prompt.contains("CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE")
+                && prompt.contains("APPLY_ONLY_CONFIGURED_AGENT_ANALYSIS_POLICY")
+                && prompt.contains("Runtime does not supply a default baseline")
                 && prompt.contains("analysis_semantic_contract.v1")
                 && prompt.contains("analysis_record_scope_profile.v1")
                 && prompt.contains("DO_NOT_INFER_UNDECLARED_AGGREGATION_OR_RELATIONSHIPS")
@@ -295,8 +295,9 @@ class AnalysisNodeProtocolTest {
             .contains("addressedAspects=[规模]", "unsupportedAspects=[精确净资金流]")
             .contains("规模变化仅作为代理指标");
         assertThat(result.evidence().get("analysisObjectiveContract").toString())
-            .contains("professional_data_analysis.v1", "CALIBRATED_INFERENCE",
-                "analysis_methodology.v1", "analysis_tree.v1");
+            .contains("analysis_objective_contract.v1", "analysis_tree.v1",
+                "APPLY_ONLY_CONFIGURED_AGENT_ANALYSIS_POLICY")
+            .doesNotContain("professional_data_analysis.v1", "analysis_methodology.v1");
         assertThat(result.evidence().get("analysisMethodExecution").toString())
             .contains("相邻交易日", "规模上升", "PRIMARY");
         assertThat(result.evidence().get("demandAnalysis").toString())

@@ -38,8 +38,8 @@ server:
 chatchat:
   knowledge:
     runtime:
-      skill-timeout-ms: ${CHATCHAT_KNOWLEDGE_SKILL_TIMEOUT_MS:3000}
-      total-timeout-ms: ${CHATCHAT_KNOWLEDGE_TOTAL_TIMEOUT_MS:5000}
+      skill-timeout-ms: ${CHATCHAT_KNOWLEDGE_SKILL_TIMEOUT_MS:15000}
+      total-timeout-ms: ${CHATCHAT_KNOWLEDGE_TOTAL_TIMEOUT_MS:18000}
       max-concurrency: ${CHATCHAT_KNOWLEDGE_MAX_CONCURRENCY:8}
       queue-capacity: ${CHATCHAT_KNOWLEDGE_QUEUE_CAPACITY:64}
   data-science:

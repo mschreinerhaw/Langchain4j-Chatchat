@@ -5,6 +5,7 @@ import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProto
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresentationContract;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisObjectiveContractCompiler;
+import com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisSemanticContractCompiler;
 import com.chatchat.agents.orchestration.analysis.contract.CapabilityEvidenceClaimCompiler;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisRecordScopeProfiler;
@@ -263,12 +264,10 @@ public final class AnalysisNodeProtocol
             + "executive summary, risk chapter or full troubleshooting procedure; the synthesis node composes those from validated findings. "
             + "Establish scope and grain, answer every supported objective aspect, connect "
             + "related returned metrics, identify material patterns and exceptions, explain why they matter, and "
-            + "execute analysisMethodologyContract and the assigned analysisTree. Establish an explicit baseline "
-            + "before comparison, trend or abnormality claims, then reason from total to component, contribution, "
-            + "driver, validation and business impact. If baseline evidence is missing, retain the supported current "
-            + "state and qualify only baseline-dependent extensions. Keep decomposition dimensions non-overlapping "
-            + "where possible and rank findings by objective relevance, materiality and confidence. "
-            + "state precise evidence gaps. When the returned records form a metric catalog (one field identifies "
+            + "apply any configured Agent analysisMethodologyContract and assigned analysisTree. If none is configured, "
+            + "choose the reasoning approach from the question, Agent role, domain knowledge and returned evidence; "
+            + "Runtime does not supply a default baseline, decomposition sequence, ranking formula or confidence ritual. "
+            + "State precise evidence gaps only when they materially affect the answer. When the returned records form a metric catalog (one field identifies "
             + "a metric or state and another carries its returned value), select and analyze the material metrics "
             + "across every objective-relevant dimension instead of describing the catalog or its row count. Tool "
             + "or gateway success, routing, environment, result completeness, truncation and transport status are "
@@ -285,8 +284,10 @@ public final class AnalysisNodeProtocol
             + "Do not let openQuestions, limitations, missingEvidence or follow-up requests occupy more analytical "
             + "attention than the supported findings. A value already returned by the producer at its declared grain is an "
             + "observed fact; quoting it is OBSERVE, not AGGREGATE or DERIVE. Derived values require an explicit "
-            + "formula and semantic authorization. Calibrated inferences require caveats. Never infer undeclared "
-            + "joins, aggregation, causality, completeness or long-term behavior.\n"
+            + "formula and semantic authorization. Store model interpretations as interpretation artifacts; the "
+            + "active Agent analysis contract decides their depth, language and whether caveats are useful. Never "
+            + "invent a data relationship or calculation authority that Runtime did not supply.\n"
+            + RuntimeAnalysisResponsibilityContract.promptSection()
             + "Return one JSON object. Required fields: summary; demandAnalysis with decisionGoal, "
             + "answeredQuestions and openQuestions; metricAssociations (empty when none); objectiveAlignment; "
             + "analysisItems (one disposition for every analysisAgenda item applicable to this dataset); "
@@ -295,8 +296,8 @@ public final class AnalysisNodeProtocol
             + "missingEvidence; recommendedFollowupRequests; "
             + "rawReplayRecommended. Each fact cites recordRefs and exactValues. Each insight contains claimClass "
             + "(OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE), claim, significance, "
-            + "operation, recordRefs, supportingValues, confidence (HIGH|MEDIUM|LOW) and caveats. Include method, inputFields, outputUnit, "
-            + "grain, timeScope, populationScope, semanticBasis and alternativeExplanations when applicable. Preserve a complete, decision-useful summary "
+            + "operation, recordRefs and supportingValues. confidence (HIGH|MEDIUM|LOW), caveats, method, inputFields, outputUnit, "
+            + "grain, timeScope, populationScope, semanticBasis and alternativeExplanations are optional and should be included only when useful under the active analysis contract. Preserve a complete, decision-useful summary "
             + "even when some candidate analysis remains pending validation. Every objective-relevant returned "
             + "dataset must contribute its material current-state facts to summary/facts/insights; a gap list is not "
             + "a substitute for analyzing the supplied records. analysisItems shape: [{itemId, analysisType, status "

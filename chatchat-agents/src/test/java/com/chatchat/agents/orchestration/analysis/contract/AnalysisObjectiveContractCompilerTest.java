@@ -11,39 +11,49 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AnalysisObjectiveContractCompilerTest {
 
     @Test
-    void buildsSourceNeutralDynamicAnalysisAgendaFromMaintainedIntent() {
+    void derivesAgendaFromMaintainedIntentWithoutInstallingRuntimeMethodology() {
         Map<String, Object> intent = Map.of(
-            "metrics", List.of("资产规模", "盈亏"),
-            "dimensions", List.of("证券", "日期"),
-            "analysisFocus", List.of("交易行为与偏好"),
-            "expectedRelationships", List.of("资产结构与交易行为关联"));
+            "metrics", List.of("asset scale", "profit and loss"),
+            "dimensions", List.of("security", "date"),
+            "analysisFocus", List.of("trading behavior"),
+            "expectedRelationships", List.of("asset structure and trading behavior"));
         Map<String, Object> context = Map.of("workerAnalysisContext", Map.of(
             "businessIntent", intent,
             "currentTemplate", Map.of(
                 "templateId", "dynamic-template",
                 "analysisRole", "provide one part of the customer analysis",
-                "matchedQuestionAspects", List.of("当前资产与盈亏"))));
+                "matchedQuestionAspects", List.of("current assets and profit"))));
 
         Map<String, Object> contract = new AnalysisObjectiveContractCompiler().compile(
-            "分析客户资产、盈亏和交易偏好",
+            "analyze customer assets, profit and trading preference",
             new DataAnalysisPosition("dataset-a", 1, 1, 1, 20, 20), context);
 
         assertThat(contract.get("analysisAgenda").toString())
-            .contains("dynamic_analysis_agenda.v1", "SUPPORTED_FIRST_ADVISORY_GAPS_LAST")
-            .contains("CURRENT_STATE", "STRUCTURE_AND_DISTRIBUTION")
-            .contains("PERFORMANCE_AND_CONTRIBUTION", "BEHAVIOR_OR_PATTERN")
-            .contains("CROSS_METRIC_OR_DATASET_RELATIONSHIP")
-            .contains("资产规模", "交易行为与偏好", "资产结构与交易行为关联");
+            .contains("dynamic_analysis_agenda.v1", "AGENT_AND_REQUEST_CONTEXT")
+            .contains("USER_OBJECTIVE", "DECLARED_FOCUS", "DECLARED_RELATIONSHIP")
+            .contains("asset scale", "trading behavior", "asset structure and trading behavior");
         assertThat(contract.get("workerObligations").toString())
-            .contains("COMPLETE_DYNAMIC_ANALYSIS_AGENDA_BEFORE_REPORTING_GAPS")
-            .contains("EXECUTE_THE_ANALYSIS_TREE_USING_TOTAL_TO_COMPONENT_TO_DRIVER_REASONING")
-            .contains("DECLARE_THE_BASELINE_OR_LIMIT_ONLY_BASELINE_DEPENDENT_CLAIMS");
-        assertThat(contract.get("analysisMethodologyContract").toString())
-            .contains("analysis_methodology.v1", "ESTABLISH_BASELINE", "ATTRIBUTE_CONTRIBUTION")
-            .contains("OBJECTIVE_RELEVANCE_X_MATERIALITY_X_CONFIDENCE")
-            .contains("EXECUTIVE_SUMMARY", "KEY_DRIVERS", "LIMITATIONS");
+            .contains("BIND_ANALYSIS_ARTIFACTS_TO_SOURCE_REFERENCES")
+            .contains("APPLY_ONLY_CONFIGURED_AGENT_ANALYSIS_POLICY");
+        assertThat(contract).doesNotContainKeys(
+            "analysisMethodologyContract", "professionalAnalysisContract",
+            "professionalAnalysisDepthContract");
         assertThat(contract.get("analysisTree").toString())
-            .contains("analysis_tree.v1", "Q0", "MECE_WHERE_POSSIBLE")
-            .contains("TOTAL", "COMPONENT", "CONTRIBUTION", "DRIVER", "IMPACT");
+            .contains("analysis_tree.v1", "Q0")
+            .doesNotContain("MECE_WHERE_POSSIBLE", "TOTAL", "COMPONENT", "CONTRIBUTION");
+    }
+
+    @Test
+    void passesThroughExplicitAgentMethodology() {
+        Map<String, Object> configured = Map.of("schemaVersion", "agent_methodology.v1",
+            "style", "scenario exploration");
+        Map<String, Object> context = Map.of("workerAnalysisContext", Map.of(
+            "analysisMethodologyContract", configured));
+
+        Map<String, Object> contract = new AnalysisObjectiveContractCompiler().compile(
+            "analyze the returned evidence",
+            new DataAnalysisPosition("dataset-a", 1, 1, 1, 1, 1), context);
+
+        assertThat(contract.get("analysisMethodologyContract")).isEqualTo(configured);
     }
 }

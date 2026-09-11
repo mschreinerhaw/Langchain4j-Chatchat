@@ -54,11 +54,11 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
         this.knowledgeExecutor = knowledgeExecutor;
     }
 
-    @Value("${chatchat.knowledge.runtime.skill-timeout-ms:3000}")
-    private long skillTimeoutMs = 3000L;
+    @Value("${chatchat.knowledge.runtime.skill-timeout-ms:15000}")
+    private long skillTimeoutMs = 15_000L;
 
-    @Value("${chatchat.knowledge.runtime.total-timeout-ms:5000}")
-    private long totalTimeoutMs = 5000L;
+    @Value("${chatchat.knowledge.runtime.total-timeout-ms:18000}")
+    private long totalTimeoutMs = 18_000L;
 
     @Override
     public KnowledgeContext retrieveKnowledge(KnowledgeRequest request) {

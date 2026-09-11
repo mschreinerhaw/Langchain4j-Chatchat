@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.prompt;
 
+import com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract;
+
 /** Builds the compact reduce-stage prompt used after every returned dataset has been analyzed. */
 public final class GovernedRecordFinalPromptBuilder {
 
@@ -23,16 +25,15 @@ public final class GovernedRecordFinalPromptBuilder {
                Use workerAnalysisContext and templateMatchAnalysis to preserve scope and authorized relationships.
                Each relevant dataset with supported findings should contribute substantive analysis. Reconcile
                conflicts and overlapping populations before combining findings; retain unresolved differences.
-            3. Lead with supported findings, then develop observation -> comparison/decomposition -> explanation
-               -> business implication -> conditional action. Apply the shared analysisMethodologyContract and
-               analysisTree where evidence supports them. Rank findings by decision relevance, materiality and
-               confidence; give the most important questions deeper analysis instead of listing every field.
+            3. Lead with useful findings and develop the business analysis selected by the current Agent contract.
+               Apply analysisMethodologyContract and analysisTree only when they were explicitly supplied. In their
+               absence, choose the reasoning structure from the question, role, knowledge and returned evidence.
+               Give the most important questions deeper analysis instead of listing every field.
             4. Preserve the exact values, definitions, units, measurement bases, periods and populations supplied
                by the analyses. Use a producer-returned metric directly at its declared grain. For derived measures,
                retain formula, inputs and scope from validated calculations. Proposed calculations with missing
-               inputs or semantics belong in follow-up analysis. Distinguish facts, calculations and hypotheses.
-               Current-period levels, composition, rankings and outcomes remain useful without history; history
-               is required for change or persistence claims. Comparative judgments require a declared baseline.
+               inputs or semantics belong in follow-up analysis. Evidence artifacts distinguish source values,
+               calculations and model interpretations without prescribing repetitive labels in the report.
             5. Explain what the evidence means for the user's question. Trace each recommendation to a finding,
                its conditions and the next decision it supports. Mention each material gap once, qualifying the
                affected claim where it first appears. Keep internal review and execution details out of the report.
@@ -56,7 +57,8 @@ public final class GovernedRecordFinalPromptBuilder {
             evidence provenance and audit metadata are handled separately, not as a model-written review form.
 
             Original user question:
-            """).append(userQuestion == null ? "" : userQuestion)
+            """).append("\n").append(RuntimeAnalysisResponsibilityContract.promptSection())
+            .append("\n").append(userQuestion == null ? "" : userQuestion)
             .append("\n\nGoverned dataset analysis and coverage contract:\n")
             .append(governedRecordEvidence == null ? "" : governedRecordEvidence);
         return prompt.toString();

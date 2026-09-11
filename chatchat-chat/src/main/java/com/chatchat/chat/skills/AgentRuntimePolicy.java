@@ -7,7 +7,8 @@ import java.util.Map;
 /** Typed projection of stable Agent Runtime policy values stored in workflowConfig. */
 public record AgentRuntimePolicy(int knowledgeTokenBudget, long knowledgeSkillTimeoutMs) {
 
-    public static final long DEFAULT_KNOWLEDGE_SKILL_TIMEOUT_MS = 3000L;
+    /** Allows a cold local document-index read to finish without making knowledge unbounded. */
+    public static final long DEFAULT_KNOWLEDGE_SKILL_TIMEOUT_MS = 15_000L;
 
     public static AgentRuntimePolicy from(Map<String, Object> workflowConfig, int defaultKnowledgeBudget) {
         Map<?, ?> policy = nestedPolicy(workflowConfig);

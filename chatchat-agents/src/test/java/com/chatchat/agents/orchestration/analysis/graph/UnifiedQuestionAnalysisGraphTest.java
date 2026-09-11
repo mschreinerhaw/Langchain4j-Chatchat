@@ -237,7 +237,12 @@ class UnifiedQuestionAnalysisGraphTest {
                     "supportingValues must cite every raw input value",
                     "Emit material evidence-bound findings for every non-empty question-relevant dataset",
                     "Never describe a returned question-relevant dataset as missing",
-                    "not a one-finding-per-dataset limit");
+                    "not a one-finding-per-dataset limit",
+                    "Runtime supplies scoped evidence, provenance, declared semantics",
+                    "The model owns analytical reasoning",
+                    "does not censor supported analytical breadth")
+                    .doesNotContain("claimBoundaryPolicy", "baselinePolicy",
+                        "OBJECTIVE_RELEVANCE_X_MATERIALITY_X_CONFIDENCE");
                 return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"bounded\"]}";
             }
         };

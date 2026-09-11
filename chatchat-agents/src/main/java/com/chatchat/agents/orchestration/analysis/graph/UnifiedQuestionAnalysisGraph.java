@@ -6,6 +6,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveBusinessAnalysisPromptSynthesizer;
+import com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -69,17 +70,6 @@ public final class UnifiedQuestionAnalysisGraph {
                     "dataHandle", dataset.handle().descriptor())).toList());
                 plan.put("calculationPolicy", "MODEL_SELECTS_ANALYSIS_RUNTIME_EXECUTES_ONLY_DECLARED_OR_RESOLVED_SEMANTICS");
                 plan.put("formulaInferencePolicy", "RUNTIME_NEVER_INFERS_AGGREGATION_DENOMINATOR_WEIGHTING_OR_TIME_COMPARISON");
-                plan.put("claimBoundaryPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
-                    .enterpriseDefault().toMap().get("claimBoundaryPolicy"));
-                plan.put("partialEvidencePolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
-                    .enterpriseDefault().toMap().get("partialEvidencePolicy"));
-                plan.put("analysisAuthorityPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
-                    .enterpriseDefault().toMap().get("analysisAuthorityPolicy"));
-                plan.put("modelReportQualityPolicy", com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
-                    .enterpriseDefault().toMap().get("modelReportQualityPolicy"));
-                plan.put("analysisMethodologyContract",
-                    com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract
-                        .enterpriseDefault().toMap());
                 metadata.put("unifiedAnalysisPlan", plan);
                 return AnalysisExecutionGraph.Status.READY;
             }),
@@ -90,6 +80,7 @@ public final class UnifiedQuestionAnalysisGraph {
                 metadata.put("adaptiveAnalysisPromptModelEnabled", adaptivePromptModelEnabled);
                 plan.put("adaptivePromptContractSha256", metadata.get("adaptiveAnalysisPromptSha256"));
                 plan.put("adaptivePromptMode", metadata.get("adaptiveAnalysisPromptMode"));
+                plan.put("activeAgentAnalysisContract", adaptivePrompt[0].contract().toMap());
                 return AnalysisExecutionGraph.Status.READY;
             }),
             new AnalysisExecutionGraph.Step("data_computation", () -> {
@@ -115,8 +106,9 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "You own the analytical choice: decide what the question requires and which supported analysis is meaningful. Runtime does not infer SUM, AVG, ratios, denominators, weights or time comparisons from numeric columns. "
                         + "Select a derived measure only when the supplied semantic contract declares its aggregation, grain, denominator, unit and scope, or request it explicitly as an unverified formula proposal. Runtime executes and audits the declaration; it does not choose the business formula. "
                         + "Interpret Runtime verifiedCalculations; do not invent computed values or units. Refer to other supplied datasets as available, not missing. "
+                        + RuntimeAnalysisResponsibilityContract.promptSection()
                         + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,observation,interpretation,implication,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],questionLevelFindings:[{claim,observation,interpretation,implication,significance,confidence,caveats,basisFindingIndexes:[]}],ranking:[],conflicts:[],evidenceSufficiency:{},methodologyCoverage:[{method,status,findingIndexes:[],limitation}],limitations:[],evidenceRequests:[],reportMarkdown:''}. "
-                        + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE; confidence is HIGH, MEDIUM or LOW. "
+                        + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE. Optional confidence values are HIGH, MEDIUM or LOW. "
                         + "operation must be one of OBSERVE, AGGREGATE, DERIVE, COMPARE, RANK, TREND, INFER, PROXY; do not invent operation names. "
                         + "recordRefs, caveats, inputFields, semanticBasis and alternativeExplanations are JSON arrays of strings. supportingValues is an array of evidence-bound objects, e.g. [{recordRef:'dataset.records[1]',VALUE:17,previous:null}]. "
                         + "For a model-calculated claim, supportingValues must cite every raw input value from its source records; never cite only the calculated output unless Runtime supplied it in verifiedCalculations. String supportingValues are a compatibility fallback and must be exact JSON field fragments such as '\"VALUE\":17', never field=value prose. "
@@ -138,18 +130,14 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "For long string fields request {operation:'EXTRACT_TEXT',datasetReference,record:1,field:'text',fromChar:0}. Runtime extracts source-quoted candidates in bounded partitions; nextChar indicates continuation. This is not exhaustive event counting. "
                         + "Analyze all available question-relevant evidence even when coverage is partial. Missing history or fields block only dependent claims, never the entire analysis. "
                         + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
-                        + "Without history, explain current state and supported composition instead of asserting trends. Do not replace available analysis with an indicator framework or only a request for more data. "
+                        + "Do not replace available analysis with an indicator framework or only a request for more data. "
                         + "Final findings must address the supported parts of the question across sources. Emit material evidence-bound findings for every non-empty question-relevant dataset; this is a coverage floor, not a one-finding-per-dataset limit. Preserve distinct question-relevant measures, comparisons and exceptions as separate findings where their definitions or evidence differ. A limitation may replace a finding only when those returned fields truly cannot answer any part of the question. Build a question-level conclusion from complementary source findings instead of producing one description per dataset. Use returned observations to characterize the observed-period state and behavior; reserve long-term persistence claims for historical-data limitations. Never describe a returned question-relevant dataset as missing. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
                         + "Keep one value/unit/period/population definition for each metric. "
                         + "Do not make the executive conclusion stronger than the detailed evidence, do not contradict a finding later in limitations, and do not issue an action without the finding that motivates it. Use meaningful prose, remove duplicate findings and expose no runtime IDs. "
-                        + "Do not infer intent, motive, strategy, causality or remediation behavior merely because two observations coexist. Describe the observed association and list plausible alternatives when causal evidence is absent. "
-                        + "Do not label a value extreme, healthy, excessive, normal, high or low without an explicit comparison baseline in the evidence. Do not translate an observed event into a named domain pattern unless its required evidence and temporal sequence are present. "
-                        + "Preserve the producer-declared meaning, measurement basis, period and inclusion/exclusion rules of every field. A request is not a completed outcome, and similarly named measures are not interchangeable. Undeclared definitions or adjustments remain unknown. Use qualified observed-period language for samples and single dates. "
-                        + "If a product name implies history or flows but its description/evidence describes a point-in-time snapshot, explicitly identify the semantic conflict and say which history/transaction questions this product cannot reliably answer. "
-                        + "Infer no persistent investment preference, philosophy, motive, or strategy from a current snapshot or short sample. Use calibrated wording such as 'the current sample shows a short-term tendency' and state what longitudinal evidence is required. "
-                        + "An empty transaction result does not prove low-frequency or inactive trading; report only that no qualifying records were returned for the queried scope. A low cash balance in one snapshot does not prove a habit of rapidly investing cash. Never label either observation as a behavioral preference without repeated longitudinal evidence. "
+                        + "Apply the supplied adaptive Agent analysis contract and relevant domain knowledge when deciding how far to interpret the evidence. Runtime adds no domain-specific inference bans, thresholds or mandatory caveat pattern. "
+                        + "Preserve source identity, values and producer-declared semantics in the structured evidence links, while allowing the report to develop useful model reasoning beyond literal field descriptions. "
                         + (reportDraftEnabled
-                            ? "Also write reportMarkdown as the final user-facing answer in the user's language. It must directly answer every requested item, lead with supported facts, preserve caveats and suitability limits, avoid runtime identifiers, and stay focused (normally within 3200 Chinese characters or 2200 English words; never omit a material supported finding merely to meet this guidance). Do not merely restate the JSON fields. "
+                            ? "Also write reportMarkdown as the final user-facing answer in the user's language. It must directly answer every requested item, lead with supported facts, preserve caveats and suitability limits, avoid runtime identifiers, and stay focused (normally within 6000 Chinese characters or 3200 English words; use less for sparse evidence and never omit a material supported finding merely to meet this guidance). Do not merely restate the JSON fields. "
                             : "Set reportMarkdown to an empty string. ")
                         + "Evidence round " + round + "/" + maximumEvidenceRounds + ". "
                         + (round == maximumEvidenceRounds
@@ -506,9 +494,8 @@ public final class UnifiedQuestionAnalysisGraph {
 
     private Map<String, Object> promptPlan(Map<String, Object> plan) {
         Map<String, Object> view = new LinkedHashMap<>(plan);
-        // The full governance contract remains in runtime metadata. Its selected methods and
-        // constraints are already compiled into the adaptive prompt, so repeating the entire
-        // enterprise contract here only competes with source evidence for model context.
+        // Legacy callers may still attach a methodology object. The active Agent contract is
+        // carried separately; never reintroduce the former Runtime enterprise default here.
         view.remove("analysisMethodologyContract");
         return view;
     }

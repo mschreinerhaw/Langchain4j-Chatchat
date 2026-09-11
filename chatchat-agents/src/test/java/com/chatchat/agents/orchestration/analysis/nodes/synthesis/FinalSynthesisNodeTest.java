@@ -111,10 +111,10 @@ class FinalSynthesisNodeTest {
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
             String prompt = invocation.getArgument(0);
             assertThat(prompt).contains(
-                "Presentation is free-form, but facts, evidence scope and reasoning order are constrained",
-                "decision question and evidence scope",
-                "same definition, unit, period, population and value",
-                "Any summary may compress the supporting analysis",
+                "Presentation and analytical reasoning are owned by the model under the active Agent contract",
+                "Preserve the evidence links and producer-declared identities",
+                "not to impose a domain-specific reasoning style",
+                "Confidence labels, alternatives and qualifications are optional",
                 "Do not expose this internal checklist");
             return "model answer";
         });
@@ -654,10 +654,10 @@ class FinalSynthesisNodeTest {
         Map<?, ?> driverContext = (Map<?, ?>) metadata.get("analysisDriverPipelineContext");
         assertThat(driverContext.get("evidenceGapCount")).isEqualTo(36);
         assertThat((List<?>) driverContext.get("evidenceGaps")).hasSize(8);
-        assertThat(driverContext.get("analysisMethodology").toString())
-            .contains("analysis_methodology.v1", "ESTABLISH_BASELINE", "KEY_DRIVERS");
+        assertThat(driverContext.get("analysisMethodology")).isEqualTo(Map.of());
         assertThat(driverContext.get("methodologyExecutionPolicy").toString())
-            .contains("planningSelectsMethods=true", "QUALIFY_DEPENDENT_CLAIMS");
+            .contains("planningSelectsMethods=true", "ACTIVE_AGENT_ANALYSIS_CONTRACT")
+            .doesNotContain("QUALIFY_DEPENDENT_CLAIMS");
     }
 
     @Test
@@ -971,9 +971,9 @@ class FinalSynthesisNodeTest {
             String prompt = invocation.getArgument(0);
             assertThat(prompt).contains("producerDeclaredSemantics", "calibration and adjustment rules are undeclared",
                 "complete model-authored Markdown report", "Do not return JSON",
-                "decision question and evidence scope",
-                "same definition, unit, period, population and value",
-                "Any summary may compress the supporting analysis",
+                "Preserve the evidence links and producer-declared identities",
+                "not to impose a domain-specific reasoning style",
+                "Confidence labels, alternatives and qualifications are optional",
                 "Resolve them", "before returning",
                 "Do not expose this internal checklist")
                 .doesNotContain("当日盈亏", "trading strategy", "asset, holding", "Trading turnover",

@@ -1,9 +1,6 @@
 package com.chatchat.agents.orchestration.analysis.contract;
 
 import com.chatchat.common.runtime.summary.analysis.model.DataAnalysisPosition;
-import com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract;
-import com.chatchat.common.runtime.summary.analysis.contract.ProfessionalAnalysisDepthContract;
-import com.chatchat.common.runtime.summary.analysis.contract.ProfessionalDataAnalysisContract;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,12 +53,9 @@ public final class AnalysisObjectiveContractCompiler {
         ));
         contract.put("analysisAgenda", analysisAgenda(originalQuestion, intent,
             businessQuestions));
-        contract.put("professionalAnalysisContract",
-            ProfessionalDataAnalysisContract.enterpriseDefault().toMap());
-        contract.put("professionalAnalysisDepthContract",
-            ProfessionalAnalysisDepthContract.enterpriseDefault().toMap());
-        contract.put("analysisMethodologyContract",
-            AnalysisMethodologyContract.enterpriseDefault().toMap());
+        copyConfiguredContract(contract, "professionalAnalysisContract", currentTemplate, worker, context);
+        copyConfiguredContract(contract, "professionalAnalysisDepthContract", currentTemplate, worker, context);
+        copyConfiguredContract(contract, "analysisMethodologyContract", currentTemplate, worker, context);
         contract.put("analysisTree", analysisTree(originalQuestion, businessQuestions,
             strings(intent.get("dimensions"))));
         contract.put("workerObligations", List.of(
@@ -71,16 +65,8 @@ public final class AnalysisObjectiveContractCompiler {
             "SEPARATE_OBSERVED_SCOPE_FROM_EXPLICITLY_DECLARED_SCOPE",
             "REPORT_UNSUPPORTED_OBJECTIVE_ASPECTS",
             "PRESERVE_EXACT_VALUES_AND_RECORD_REFERENCES",
-            "COMPLETE_EVERY_PROFESSIONAL_ANALYSIS_STAGE",
-            "CLASSIFY_THE_OBJECTIVE_MODE_AND_SATISFY_ITS_MINIMUM_REASONING_DEPTH",
-            "TURN_EACH_UNSUPPORTED_REQUIRED_DEPTH_DIMENSION_INTO_A_DECLARATIVE_EVIDENCE_GAP",
-            "SEPARATE_OBSERVATION_DERIVATION_AND_INFERENCE",
-            "COMPLETE_DYNAMIC_ANALYSIS_AGENDA_BEFORE_REPORTING_GAPS",
-            "BIND_EACH_SUPPORTED_ANALYSIS_ITEM_TO_FACTS_OR_CLAIMS",
-            "EXECUTE_THE_ANALYSIS_TREE_USING_TOTAL_TO_COMPONENT_TO_DRIVER_REASONING",
-            "DECLARE_THE_BASELINE_OR_LIMIT_ONLY_BASELINE_DEPENDENT_CLAIMS",
-            "RANK_FINDINGS_BY_RELEVANCE_MATERIALITY_AND_CONFIDENCE",
-            "CALIBRATE_CONCLUSION_STRENGTH_TO_EVIDENCE_SCOPE"));
+            "BIND_ANALYSIS_ARTIFACTS_TO_SOURCE_REFERENCES",
+            "APPLY_ONLY_CONFIGURED_AGENT_ANALYSIS_POLICY"));
         return Collections.unmodifiableMap(contract);
     }
 
@@ -88,10 +74,7 @@ public final class AnalysisObjectiveContractCompiler {
                                              List<String> businessQuestions,
                                              List<String> dimensions) {
         List<Map<String, Object>> children = new ArrayList<>();
-        List<String> questions = businessQuestions.isEmpty()
-            ? List.of("Establish the overall state", "Identify material components and contributors",
-                "Explain supported drivers and business impact")
-            : businessQuestions;
+        List<String> questions = businessQuestions;
         int index = 1;
         for (String question : questions.stream().distinct().limit(12).toList()) {
             children.add(Map.of(
@@ -103,38 +86,26 @@ public final class AnalysisObjectiveContractCompiler {
         return Map.of(
             "schemaVersion", "analysis_tree.v1",
             "root", Map.of("questionId", "Q0", "question", originalQuestion.trim()),
-            "children", List.copyOf(children),
-            "decompositionPolicy", "MECE_WHERE_POSSIBLE",
-            "reasoningOrder", List.of("TOTAL", "COMPONENT", "CONTRIBUTION", "DRIVER", "IMPACT"));
+            "children", List.copyOf(children));
     }
 
     private Map<String, Object> analysisAgenda(String originalQuestion,
                                                Map<String, Object> intent,
                                                List<String> businessQuestions) {
         List<Map<String, Object>> items = new ArrayList<>();
-        addItem(items, "CURRENT_STATE", originalQuestion, strings(intent.get("metrics")),
+        addItem(items, "USER_OBJECTIVE", originalQuestion, strings(intent.get("metrics")),
             strings(intent.get("dimensions")), List.of());
-        if (!strings(intent.get("dimensions")).isEmpty()) {
-            addItem(items, "STRUCTURE_AND_DISTRIBUTION",
-                "Analyze composition, distribution and concentration across requested dimensions",
-                strings(intent.get("metrics")), strings(intent.get("dimensions")), List.of());
-        }
-        if (!strings(intent.get("metrics")).isEmpty()) {
-            addItem(items, "PERFORMANCE_AND_CONTRIBUTION",
-                "Analyze material metric levels, outcomes, contribution and exceptions",
-                strings(intent.get("metrics")), strings(intent.get("dimensions")), List.of());
-        }
         for (String focus : strings(intent.get("analysisFocus"))) {
-            addItem(items, "BEHAVIOR_OR_PATTERN", focus, strings(intent.get("metrics")),
+            addItem(items, "DECLARED_FOCUS", focus, strings(intent.get("metrics")),
                 strings(intent.get("dimensions")), List.of());
         }
         for (String relationship : strings(intent.get("expectedRelationships"))) {
-            addItem(items, "CROSS_METRIC_OR_DATASET_RELATIONSHIP", relationship,
+            addItem(items, "DECLARED_RELATIONSHIP", relationship,
                 strings(intent.get("metrics")), strings(intent.get("dimensions")),
                 List.of(relationship));
         }
         for (String question : businessQuestions) {
-            addItem(items, "REQUIREMENT_SPECIFIC", question, strings(intent.get("metrics")),
+            addItem(items, "DECLARED_ASPECT", question, strings(intent.get("metrics")),
                 strings(intent.get("dimensions")), List.of());
         }
         List<Map<String, Object>> distinct = items.stream()
@@ -144,7 +115,7 @@ public final class AnalysisObjectiveContractCompiler {
                 LinkedHashMap::new)).values().stream().toList();
         return Map.of(
             "schemaVersion", "dynamic_analysis_agenda.v1",
-            "completionPolicy", "SUPPORTED_FIRST_ADVISORY_GAPS_LAST",
+            "policySource", "AGENT_AND_REQUEST_CONTEXT",
             "items", distinct);
     }
 
@@ -166,6 +137,18 @@ public final class AnalysisObjectiveContractCompiler {
 
     private void put(Map<String, Object> target, String key, Object value) {
         if (value != null && !String.valueOf(value).isBlank()) target.put(key, value);
+    }
+
+    @SafeVarargs
+    private final void copyConfiguredContract(Map<String, Object> target, String key,
+                                              Map<String, Object>... sources) {
+        for (Map<String, Object> source : sources) {
+            Map<String, Object> configured = map(source.get(key));
+            if (!configured.isEmpty()) {
+                target.put(key, configured);
+                return;
+            }
+        }
     }
 
     private Map<String, Object> map(Object value) {

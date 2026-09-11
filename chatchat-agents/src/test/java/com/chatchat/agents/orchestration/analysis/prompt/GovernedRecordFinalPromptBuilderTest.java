@@ -12,14 +12,16 @@ class GovernedRecordFinalPromptBuilderTest {
         assertThat(prompt).contains(
             "workerAnalysisContext and templateMatchAnalysis", "agent_role_analysis_context",
             "every successful non-empty dataset", "objective-aspect coverage matrix",
-            "observation -> comparison/decomposition -> explanation",
+            "develop the business analysis selected by the current Agent contract",
             "producer-returned metric directly at its declared grain",
-            "formula, inputs and scope", "Distinguish facts, calculations and hypotheses",
+            "formula, inputs and scope", "without prescribing repetitive labels",
+            "The model owns analytical reasoning", "active Agent role",
+            "not a requirement to expose a confidence label",
             "adaptiveAnalysisPrompt.output", "ordered H2 section plan",
             "Explicit user formatting takes precedence", "evidence-backed Markdown tables",
             "complete user-facing Markdown report", "orders summary", "遵守业务口径")
             .doesNotContain("machine-readable output shape", "claimAssessments", "anomaly degree multiplied");
-        assertThat(prompt.length()).isLessThan(4500);
+        assertThat(prompt.length()).isLessThan(7500);
     }
 
     @Test

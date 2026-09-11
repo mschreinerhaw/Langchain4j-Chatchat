@@ -93,6 +93,9 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
             prompt.append("If any material statement is unsupported, inferred from naming conventions, or substitutes general practice for the user's requested standard, set accepted=false and produce a complete revisedAnswer based only on the executed evidence.\n");
             prompt.append("The revisedAnswer must still analyze all usable returned results; do not replace analysis with a generic refusal or a Runtime-authored conclusion.\n");
             prompt.append("Preserve supported facts, distinguish unresolved questions, and do not add facts from model memory.\n");
+            prompt.append("Allow rich interpretation, hypotheses and scenarios. Reject and revise only when the answer presents a hypothesis as an observed fact, promotes an observed-period pattern into a persistent customer trait, changes a metric definition or scope, attributes causality without evidence, or lets a recommendation assume an unverified hypothesis is true. Preserve the analysis by rewriting its epistemic status instead of deleting it.\n");
+            prompt.append("A revisedAnswer is an edited edition of the candidate, not a newly shortened report. Preserve its supported structure, evidence, calculations, analytical depth and useful implications. Make the smallest changes needed to correct material issues; do not introduce new factual or derived claims during review.\n");
+            prompt.append("Before asserting all/none/100%, a rate, a win rate, frequency, persistence or preference, inspect the complete applicable records and their contrary statuses. Keep the observation window explicit.\n");
         } else {
             prompt.append("Your authority is diagnostic only. Do not rewrite the answer, change the task type, or replace a generated business result.\n");
         }

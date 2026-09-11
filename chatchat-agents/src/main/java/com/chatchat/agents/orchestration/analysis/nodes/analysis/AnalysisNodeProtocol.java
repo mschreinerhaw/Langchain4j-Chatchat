@@ -475,6 +475,7 @@ public final class AnalysisNodeProtocol
         evidence.put("analysisMethodExecution", copy(payload.get("analysisMethodExecution")));
         evidence.put("questionLevelFindings", maps(payload.get("questionLevelFindings")));
         evidence.put("analysisJudgments", copy(payload.get("analysisJudgments")));
+        evidence.put("reasoningArc", maps(payload.get("reasoningArc")));
         evidence.put("methodologyCoverage", maps(payload.get("methodologyCoverage")));
         evidence.put("analysisDepthContractVersion", "professional_analysis_depth.v1");
         List<Map<String, Object>> proposedInsights = maps(payload.get("insights"));
@@ -758,13 +759,15 @@ public final class AnalysisNodeProtocol
             CapabilityEvidenceClaimContract.Admission admission = semanticClaimAdmissionPolicy.evaluate(
                 capability, boundEvidence, proposedClaim);
             List<String> rejectionCodes = new ArrayList<>(admission.rejectionCodes());
+            boolean confidenceValid = confidence == null
+                || Set.of("HIGH", "MEDIUM", "LOW").contains(confidence);
             boolean shapeValid = claimClass != null && allowedClasses.contains(claimClass) && claim != null && !claim.isBlank()
                 && significance != null && !significance.isBlank()
-                && confidence != null && Set.of("HIGH", "MEDIUM", "LOW").contains(confidence)
+                && confidenceValid
                 && !references.isEmpty() && !values.isEmpty() && operation != null;
             if (!shapeValid
                 || significance == null || significance.isBlank()
-                || confidence == null || !Set.of("HIGH", "MEDIUM", "LOW").contains(confidence)
+                || !confidenceValid
                 || references.isEmpty() || values.isEmpty()) rejectionCodes.add("CLAIM_SHAPE_INVALID");
             rejectionCodes = rejectionCodes.stream().distinct().toList();
             Map<String, Object> decision = new LinkedHashMap<>();
@@ -828,7 +831,7 @@ public final class AnalysisNodeProtocol
             putIfPresent(insight, "grain", candidate.get("grain"));
             putIfPresent(insight, "timeScope", candidate.get("timeScope"));
             putIfPresent(insight, "populationScope", candidate.get("populationScope"));
-            insight.put("confidence", confidence);
+            if (confidence != null) insight.put("confidence", confidence);
             insight.put("caveats", caveats);
             insight.put("semanticBasis", semanticBasis);
             insight.put("alternativeExplanations", alternatives);

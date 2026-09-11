@@ -59,6 +59,24 @@ class SemanticClaimAdmissionPolicyTest {
         assertThat(policy.evaluate(capability, evidence, claim).admitted()).isTrue();
     }
 
+    @Test
+    void inferenceDoesNotRequirePresentationMetadataForAdmission() {
+        var capability = capability(Set.of(SemanticOperation.OBSERVE));
+        var evidence = evidence("cap-1");
+        var claim = new CapabilityEvidenceClaimContract.Claim(
+            "CALIBRATED_INFERENCE", SemanticOperation.INFER, Set.of("dataset.records[1]"),
+            Set.of("10", "20"), Set.of(), Set.of(), "", "account",
+            "2026-08-31", "returned accounts", "pattern interpretation",
+            List.of(), List.of());
+
+        assertThat(policy.evaluate(capability, evidence, claim))
+            .satisfies(admission -> {
+                assertThat(admission.admitted()).isTrue();
+                assertThat(admission.rejectionCodes()).doesNotContain(
+                    "INFERENCE_CAVEAT_MISSING", "ALTERNATIVE_EXPLANATION_MISSING");
+            });
+    }
+
     private CapabilityEvidenceClaimContract.Capability capability(Set<SemanticOperation> operations) {
         return new CapabilityEvidenceClaimContract.Capability(
             "cap-1", "PRODUCER_DECLARED", operations,

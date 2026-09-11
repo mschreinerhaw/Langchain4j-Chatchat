@@ -35,6 +35,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         Map<String, Object> metadata = reviewMetadata == null ? Map.of() : reviewMetadata;
         List<String> selectedIds = strings(metadata.get("selectedTemplateIds"));
         List<String> rejectedIds = strings(metadata.get("rejectedTemplateIds"));
+        List<String> deferredIds = strings(metadata.get("deferredTemplateIds"));
         List<Map<String, Object>> evaluations = maps(metadata.get("templateEvaluations"));
         boolean reviewerUnavailable = Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))
             || Boolean.TRUE.equals(metadata.get("toolResultReviewSkipped"));
@@ -75,7 +76,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .forEach(augmentedRejected::add);
             rejectedIds = List.copyOf(new LinkedHashSet<>(augmentedRejected));
         }
-        Projection projection = project(output, selectedIds, rejectedIds, evaluations, 0);
+        Projection projection = project(output, selectedIds, deferredIds, rejectedIds, evaluations, 0);
         if (!projection.applied()) {
             return Evaluation.notApplied(output,
                 "model-selected template ids were not present in the authorized MCP candidate set");
@@ -560,6 +561,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
     @SuppressWarnings("unchecked")
     private Projection project(Object output,
                                List<String> selectedIds,
+                               List<String> deferredIds,
                                List<String> rejectedIds,
                                List<Map<String, Object>> evaluations,
                                int depth) {
@@ -573,7 +575,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             List<String> projectedIds = new ArrayList<>();
             boolean applied = false;
             for (Object item : list) {
-                Projection nested = project(item, selectedIds, rejectedIds, evaluations, depth + 1);
+                Projection nested = project(item, selectedIds, deferredIds, rejectedIds, evaluations, depth + 1);
                 projectedItems.add(nested.output());
                 if (nested.applied()) {
                     applied = true;
@@ -626,6 +628,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                     "candidateCount", templates.size(),
                     "selectedCount", 0,
                     "selectedTemplateIds", List.of(),
+                    "deferredTemplateIds", deferredIds,
                     "rejectedTemplateIds", rejectedIds,
                     "candidateEvaluations", evaluations,
                     "selectionAuthority", "runtime_evidence_model_review",
@@ -644,6 +647,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 "candidateCount", templates.size(),
                 "selectedCount", selected.size(),
                 "selectedTemplateIds", projectedIds,
+                "deferredTemplateIds", deferredIds,
                 "rejectedTemplateIds", rejectedIds,
                 "candidateEvaluations", evaluations,
                 "selectionAuthority", admission.authority(),
@@ -656,7 +660,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             "routingProjection", "coverage", "preview"
         )) {
             Projection nested = project(
-                map.get(key), selectedIds, rejectedIds, evaluations, depth + 1);
+                map.get(key), selectedIds, deferredIds, rejectedIds, evaluations, depth + 1);
             if (nested.applied()) {
                 map.put(key, nested.output());
                 return new Projection(

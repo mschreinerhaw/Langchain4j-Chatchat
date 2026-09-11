@@ -145,7 +145,9 @@ class AgentOrchestratorTest {
             "TOOL_RESULT_REVIEW_AND_TEMPLATE_SELECTION", "Prioritize service reliability", "run-role",
             "literal current-turn user query as the immutable coverage contract",
             "decompose every explicit user-requested subject and analysis facet",
-            "Selection completeness is semantic coverage, not a fixed template count");
+            "Selection completeness is semantic coverage, not a fixed template count",
+            "Optimize for answer quality and evidence breadth, not the fewest calls",
+            "overlapping descriptions do not prove redundancy");
     }
 
     @Test
@@ -3783,6 +3785,41 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void unselectedTemplatesAreDeferredUnlessAuditExplicitlyRejectsThem() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+                + "\"rejected_template_ids\":[\"trade\",\"balance\"],"
+                + "\"template_evaluations\":[{\"template_id\":\"asset\",\"decision\":\"accept\"}]}",
+            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+                + "\"requested_aspects\":[\"assets\"],"
+                + "\"corrected_selected_template_ids\":[\"asset\"],"
+                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[],"
+                + "\"reason\":\"asset is sufficient; other candidates remain available\"}"
+        );
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+                    Map.of("templateId", "trade", "title", "Transaction history"),
+                    Map.of("templateId", "balance", "title", "Balance history"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze assets", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1, "run-three-state-disposition"));
+
+        assertThat(review.metadata())
+            .containsEntry("selectedTemplateIds", List.of("asset"))
+            .containsEntry("deferredTemplateIds", List.of("trade", "balance"))
+            .doesNotContainKey("rejectedTemplateIds");
+        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
+    }
+
+    @Test
     void completeFirstPassTemplateReviewIsReusedWithoutAQualityReducingSecondSelection() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn(
@@ -3823,7 +3860,9 @@ class AgentOrchestratorTest {
                 "\"rejected_template_ids\":[\"irrelevant\"]," +
                 "\"template_evaluations\":[" +
                 "{\"template_id\":\"asset\",\"decision\":\"accept\"}," +
-                "{\"template_id\":\"trade\",\"decision\":\"accept\"}]}"
+                "{\"template_id\":\"trade\",\"decision\":\"accept\"}," +
+                "{\"template_id\":\"irrelevant\",\"decision\":\"reject\","
+                + "\"reasons\":[\"does not cover a requested aspect\"]}]}"
         );
         AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
         InterpretationPlanRuntime.StepExecution execution =

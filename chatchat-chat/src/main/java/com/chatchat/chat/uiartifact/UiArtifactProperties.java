@@ -18,7 +18,7 @@ public class UiArtifactProperties {
     private boolean migrateLegacyOnRead = true;
     private boolean alwaysExternalize = true;
     private int externalizeThresholdBytes = 131_072;
-    private int answerPreviewCharacters = 4_000;
+    private int answerPreviewCharacters = 20_000;
     private long ttlSeconds = 2_592_000;
     private long cleanupIntervalMs = 3_600_000;
 }

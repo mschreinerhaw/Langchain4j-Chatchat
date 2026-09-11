@@ -43,11 +43,12 @@ public final class SemanticClaimAdmissionPolicy {
         if ("CALIBRATED_INFERENCE".equals(claimClass)) {
             // Inference is model-owned reasoning over bound evidence. Producer capability metadata
             // cannot authorize or reject that reasoning; Runtime checks its evidence and shape.
+            // Caveats, confidence labels and alternative explanations are presentation metadata,
+            // not admission tickets. Requiring them for every inference turns evidence governance
+            // into an analysis veto and systematically collapses reports into field transcription.
             if (claim.operation() != SemanticOperation.INFER && claim.operation() != SemanticOperation.PROXY) {
                 rejected.add("OPERATION_CLASS_MISMATCH");
             }
-            if (claim.caveats().isEmpty()) rejected.add("INFERENCE_CAVEAT_MISSING");
-            if (claim.alternativeExplanations().isEmpty()) rejected.add("ALTERNATIVE_EXPLANATION_MISSING");
             if (evidence != null) {
                 matchEvidenceValue("EVIDENCE_GRAIN_MISMATCH", claim.grain(), evidence.grain(), rejected);
                 matchEvidenceValue("EVIDENCE_TIME_SCOPE_MISMATCH", claim.timeScope(), evidence.timeScope(), rejected);

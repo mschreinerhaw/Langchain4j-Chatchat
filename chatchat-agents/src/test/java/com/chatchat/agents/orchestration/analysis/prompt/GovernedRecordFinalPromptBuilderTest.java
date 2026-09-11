@@ -17,11 +17,14 @@ class GovernedRecordFinalPromptBuilderTest {
             "formula, inputs and scope", "without prescribing repetitive labels",
             "The model owns analytical reasoning", "active Agent role",
             "not a requirement to expose a confidence label",
-            "adaptiveAnalysisPrompt.output", "ordered H2 section plan",
-            "Explicit user formatting takes precedence", "evidence-backed Markdown tables",
+            "adaptiveAnalysisPrompt", "not a mandatory",
+            "Choose the report structure, headings, order, depth and narrative flow yourself",
+            "Write at a depth", "proportionate to the usable evidence",
+            "inspect contrary records before using words such as all",
+            "explicit user", "formatting takes precedence", "evidence-backed Markdown tables",
             "complete user-facing Markdown report", "orders summary", "遵守业务口径")
             .doesNotContain("machine-readable output shape", "claimAssessments", "anomaly degree multiplied");
-        assertThat(prompt.length()).isLessThan(7500);
+        assertThat(prompt.length()).isLessThan(8000);
     }
 
     @Test

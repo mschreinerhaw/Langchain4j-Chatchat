@@ -23,6 +23,6 @@ public final class RuntimeAnalysisResponsibilityContract {
               active Agent/knowledge/policy context rather than from a Runtime hard-coded example.
             - Produce a coherent, decision-useful analysis with depth appropriate to the available evidence. Runtime
               validates protocol integrity and execution authority; it does not censor supported analytical breadth.
-            """;
+            """ + AnalyticalReasoningArcContract.promptSection();
     }
 }

@@ -108,10 +108,9 @@ public final class DynamicAnalysisPromptContract {
             + (value.containsKey("domainFocus") ? "Type-specific analytical questions: " + compact(value.get("domainFocus")) + "\n" : "")
             + "Analytical constraints: " + compact(value.get("constraints")) + "\n"
             + "Evidence requirements: " + compact(value.get("evidenceRequirements")) + "\n"
-            + "Requested report structure: " + compact(value.get("output")) + "\n"
+            + "Suggested report content: " + compact(value.get("output")) + "\n"
             + "Suggested business headings: " + compact(value.getOrDefault("sectionTitles", Map.of())) + "\n"
-            + "Use the requested report structure as ordered H2 guidance, localizing headings to the user's language and business context. "
-            + "Explicit user formatting takes precedence; combine overlapping sections and omit empty ones. "
+            + "These are content requirements and suggestions, not a fixed outline. Choose the structure, order, headings and depth that best answer the question; explicit user formatting takes precedence. "
             + "Apply methods supported by the evidence; explain each material finding through fact, reasoning and bounded business implication. ";
     }
 

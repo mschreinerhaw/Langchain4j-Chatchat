@@ -1,10 +1,18 @@
 spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: "${CHATCHAT_API_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/live_runtime_api?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    url: "${CHATCHAT_API_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/live_runtime_api?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=30000&socketTimeout=60000&tcpKeepAlive=true}"
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${CHATCHAT_API_MYSQL_USERNAME:chatchat_api}
     password: ${CHATCHAT_API_MYSQL_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${CHATCHAT_API_DB_MAX_POOL_SIZE:20}
+      minimum-idle: ${CHATCHAT_API_DB_MIN_IDLE:5}
+      connection-timeout: ${CHATCHAT_API_DB_CONNECTION_TIMEOUT_MS:30000}
+      validation-timeout: ${CHATCHAT_API_DB_VALIDATION_TIMEOUT_MS:3000}
+      idle-timeout: ${CHATCHAT_API_DB_IDLE_TIMEOUT_MS:30000}
+      max-lifetime: ${CHATCHAT_API_DB_MAX_LIFETIME_MS:35000}
+      keepalive-time: ${CHATCHAT_API_DB_KEEPALIVE_MS:30000}
   h2:
     console:
       enabled: false

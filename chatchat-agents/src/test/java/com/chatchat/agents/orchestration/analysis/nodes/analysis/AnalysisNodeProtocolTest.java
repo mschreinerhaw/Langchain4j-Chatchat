@@ -22,6 +22,26 @@ import static org.mockito.Mockito.when;
 class AnalysisNodeProtocolTest {
 
     @Test
+    void preservesEvidenceBoundInferenceWithoutConfidenceOrQualificationRitual() {
+        var rows = List.<Map<String, Object>>of(Map.of("CURRENT", 10, "PREVIOUS", 20));
+        var result = bridge.validateProduct(isolationScope,
+            bridge.position("sample", 1, 1, 1, 1, 1),
+            bridge.govern("sample", Map.of(), rows), rows, "Interpret the observed pattern", """
+            {"summary":"The observed pair suggests a lower current level.","insights":[{
+              "claimClass":"CALIBRATED_INFERENCE","operation":"INFER",
+              "claim":"The observed pair suggests a lower current level",
+              "significance":"Interprets the relationship in the returned evidence",
+              "recordRefs":["sample.records[1]"],
+              "supportingValues":["10","20"]}]}
+            """);
+
+        assertThat(result.evidence()).containsEntry("rejectedInsightCount", 0);
+        assertThat(result.evidence().get("insights").toString())
+            .contains("CALIBRATED_INFERENCE", "governanceStatus=SUPPORTED")
+            .doesNotContain("confidence=");
+    }
+
+    @Test
     void validatesStructuredFactValuesUsingTheSameRecordFieldBindingAsInsights() {
         var rows = List.<Map<String, Object>>of(Map.of("MEASURE", "42.00"), Map.of("MEASURE", "99.00"));
         for (String values : List.of(

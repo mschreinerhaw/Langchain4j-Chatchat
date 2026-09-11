@@ -61,6 +61,23 @@ public class AnswerDecisionEngine {
             metadata.put("answerReviewSuggestedAnswerPreview", shortText(review.answer(), 1000));
         }
 
+        if (modelEvidenceRepairAllowed(request == null ? null : request.metadata())
+            && review != null
+            && AgentAnswerReview.REVISED.equals(review.status())
+            && review.answer() != null
+            && !review.answer().isBlank()
+            && quality == null) {
+            metadata.put("answerReviewAuthority", "evidence_analysis_repair");
+            metadata.put("answerReviewRewriteApplied", true);
+            return decision(
+                review.answer(),
+                REVIEWER_REWRITE,
+                "model_reanalyzed_complete_executed_evidence",
+                "evidence_analysis_reviewer",
+                metadata
+            );
+        }
+
         if (protectedBusinessCandidate(request == null ? null : request.metadata())
             && !candidate.isBlank()
             && (evidence == null || !evidence.shouldReplaceWithGroundedEvidence())) {
@@ -77,23 +94,6 @@ public class AnswerDecisionEngine {
                 NO_REWRITE,
                 governedAnalysis ? "governed_analysis_report_retained" : "protected_business_result_retained",
                 governedAnalysis ? "analysis_runtime" : "planner_candidate",
-                metadata
-            );
-        }
-
-        if (modelEvidenceRepairAllowed(request == null ? null : request.metadata())
-            && review != null
-            && AgentAnswerReview.REVISED.equals(review.status())
-            && review.answer() != null
-            && !review.answer().isBlank()
-            && quality == null) {
-            metadata.put("answerReviewAuthority", "evidence_analysis_repair");
-            metadata.put("answerReviewRewriteApplied", true);
-            return decision(
-                review.answer(),
-                REVIEWER_REWRITE,
-                "model_reanalyzed_complete_executed_evidence",
-                "evidence_analysis_reviewer",
                 metadata
             );
         }

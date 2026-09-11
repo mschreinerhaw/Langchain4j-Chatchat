@@ -7,6 +7,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveBusinessAnalysisPromptSynthesizer;
 import com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract;
+import com.chatchat.agents.orchestration.analysis.contract.AnalyticalReasoningArcContract;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -70,6 +71,7 @@ public final class UnifiedQuestionAnalysisGraph {
                     "dataHandle", dataset.handle().descriptor())).toList());
                 plan.put("calculationPolicy", "MODEL_SELECTS_ANALYSIS_RUNTIME_EXECUTES_ONLY_DECLARED_OR_RESOLVED_SEMANTICS");
                 plan.put("formulaInferencePolicy", "RUNTIME_NEVER_INFERS_AGGREGATION_DENOMINATOR_WEIGHTING_OR_TIME_COMPARISON");
+                plan.put("analyticalReasoningArc", AnalyticalReasoningArcContract.toMap());
                 metadata.put("unifiedAnalysisPlan", plan);
                 return AnalysisExecutionGraph.Status.READY;
             }),
@@ -107,7 +109,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Select a derived measure only when the supplied semantic contract declares its aggregation, grain, denominator, unit and scope, or request it explicitly as an unverified formula proposal. Runtime executes and audits the declaration; it does not choose the business formula. "
                         + "Interpret Runtime verifiedCalculations; do not invent computed values or units. Refer to other supplied datasets as available, not missing. "
                         + RuntimeAnalysisResponsibilityContract.promptSection()
-                        + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,observation,interpretation,implication,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],questionLevelFindings:[{claim,observation,interpretation,implication,significance,confidence,caveats,basisFindingIndexes:[]}],ranking:[],conflicts:[],evidenceSufficiency:{},methodologyCoverage:[{method,status,findingIndexes:[],limitation}],limitations:[],evidenceRequests:[],reportMarkdown:''}. "
+                        + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,observation,interpretation,implication,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],questionLevelFindings:[{claim,observation,interpretation,implication,significance,confidence,caveats,basisFindingIndexes:[]}],reasoningArc:[{stage,findingIndexes:[],narrative}],ranking:[],conflicts:[],evidenceSufficiency:{},methodologyCoverage:[{method,status,findingIndexes:[],limitation}],limitations:[],evidenceRequests:[],reportMarkdown:''}. "
                         + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE. Optional confidence values are HIGH, MEDIUM or LOW. "
                         + "operation must be one of OBSERVE, AGGREGATE, DERIVE, COMPARE, RANK, TREND, INFER, PROXY; do not invent operation names. "
                         + "recordRefs, caveats, inputFields, semanticBasis and alternativeExplanations are JSON arrays of strings. supportingValues is an array of evidence-bound objects, e.g. [{recordRef:'dataset.records[1]',VALUE:17,previous:null}]. "
@@ -115,6 +117,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Keep observation, interpretation and implication as distinct fields; claim is their concise conclusion. Each dataset finding must cite original dataset.records[n] and exact supporting values. "
                         + "questionLevelFindings are cross-source synthesis only: use one-based basisFindingIndexes to cite supporting dataset findings and do not repeat them as dataset findings. "
                         + "Complete ranking, conflicts and evidenceSufficiency here because this analysis call sees the evidence; the final writer only expresses these judgments. "
+                        + "Use reasoningArc to record only the analytical lenses you actually chose because they add decision value. It is not a coverage checklist: select, combine, reorder or omit stages freely and never manufacture NOT_APPLICABLE entries. Develop hypotheses or conditional scenarios when they improve the answer, while keeping them distinct from observed facts. "
                         + "For every method in the adaptive plan, methodologyCoverage must say EXECUTED with supporting one-based findingIndexes, or NOT_APPLICABLE/LIMITED with a concrete evidence limitation. "
                         + "Cross-dataset implications must stay qualified unless an authorized relationship and computation supports them. "
                         + "Do not emit SQL or executable instructions. Cover material returned facts relevant to the question; explain unsupported questions in limitations.\n"
@@ -133,6 +136,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Do not replace available analysis with an indicator framework or only a request for more data. "
                         + "Final findings must address the supported parts of the question across sources. Emit material evidence-bound findings for every non-empty question-relevant dataset; this is a coverage floor, not a one-finding-per-dataset limit. Preserve distinct question-relevant measures, comparisons and exceptions as separate findings where their definitions or evidence differ. A limitation may replace a finding only when those returned fields truly cannot answer any part of the question. Build a question-level conclusion from complementary source findings instead of producing one description per dataset. Use returned observations to characterize the observed-period state and behavior; reserve long-term persistence claims for historical-data limitations. Never describe a returned question-relevant dataset as missing. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
                         + "Keep one value/unit/period/population definition for each metric. "
+                        + "Do not attribute an observed outcome to a behavior, strategy or mechanism unless the evidence establishes that relationship. Where the relationship is plausible but unverified, retain it as an explicit hypothesis and use scenarios to show what would follow if it holds or does not hold. "
                         + "Do not make the executive conclusion stronger than the detailed evidence, do not contradict a finding later in limitations, and do not issue an action without the finding that motivates it. Use meaningful prose, remove duplicate findings and expose no runtime IDs. "
                         + "Apply the supplied adaptive Agent analysis contract and relevant domain knowledge when deciding how far to interpret the evidence. Runtime adds no domain-specific inference bans, thresholds or mandatory caveat pattern. "
                         + "Preserve source identity, values and producer-declared semantics in the structured evidence links, while allowing the report to develop useful model reasoning beyond literal field descriptions. "
@@ -177,7 +181,7 @@ public final class UnifiedQuestionAnalysisGraph {
                                     + "Return exactly one JSON object with schemaVersion='" + VERSION + "', "
                                     + "findings as an array, limitations as an array, and evidenceRequests as an array. "
                                     + "Each finding must retain datasetReference, claimClass, claim, operation, recordRefs, "
-                                    + "supportingValues, confidence and caveats. JSON only.\nPrevious response:\n"
+                                    + "supportingValues and operation. Preserve confidence and caveats when present, but do not invent them merely to satisfy shape. JSON only.\nPrevious response:\n"
                                     + boundedRawResponse(rawProduct);
                                 product = parse(model.chat(repairPrompt));
                                 metadata.put("unifiedAnalysisContractRepairSucceeded", valid(product));
@@ -370,6 +374,7 @@ public final class UnifiedQuestionAnalysisGraph {
                     payload.put("metricAssociations", List.of());
                     if (datasetIndex == 1) {
                         payload.put("questionLevelFindings", questionFindings);
+                        payload.put("reasoningArc", generated.getOrDefault("reasoningArc", List.of()));
                         payload.put("analysisJudgments", analysisJudgments(generated));
                         payload.put("methodologyCoverage",
                             generated.getOrDefault("methodologyCoverage", List.of()));

@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.prompt;
 
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresentationContract;
+import com.chatchat.agents.orchestration.analysis.contract.AnalyticalReasoningArcContract;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisObjectiveContractCompiler;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset;
 import com.chatchat.agents.protocol.ModelProtocolJson;
@@ -180,8 +181,8 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
             + "Derive question-specific business lenses from configuredRoleContext and producer-declared dataset semantics. "
             + "Put concrete business questions in focus and analytical responsibilities in role.responsibilities, "
             + "rather than repeating generic statistical verbs. Use these lenses to select an ordered, non-redundant output plan. "
-            + "Organize the reasoning as observed facts, supported structure and comparisons, business implications, "
-            + "then conditional actions. Let the selected Agent role and domain knowledge determine useful inference depth and presentation; do not impose a Runtime-wide confidence or alternative-hypothesis ritual. "
+            + "Treat the supplied analyticalReasoningArc as a menu of quality lenses, not a required outline. Design the question-specific analysis method and output plan yourself: select, combine, reorder or omit lenses according to their decision value, and do not add empty sections or applicability statements merely for coverage. Treat interpretation, hypotheses and scenarios as model-owned analysis grounded in evidence, not as producer facts and not as forbidden work. "
+            + "Let the selected Agent role and domain knowledge determine useful inference depth and presentation; do not impose a Runtime-wide confidence or alternative-hypothesis ritual. "
             + "For multiple non-empty datasets, plan distinct dataset-level findings plus authorized cross-dataset reconciliation, with analytical depth proportional to the useful records rather than a one-finding-per-dataset ceiling. "
             + "Treat domain knowledge as a source of questions, interpretations and hypotheses, not current-case evidence or undeclared metric definitions. "
             + "The contract only guides how the later model reasons; Runtime alone decides legal execution. "
@@ -196,7 +197,8 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
             + "methodology values must come from OBSERVE, BASELINE, COMPARE, DECOMPOSE, CONTRIBUTION, RANK, TREND, DISTRIBUTION, CORRELATION, CROSS_VALIDATE, EXPLAIN, ASSESS_IMPACT. "
             + "output values must come from EXECUTIVE_SUMMARY, OVERALL_PERFORMANCE, KEY_FINDINGS, KEY_DRIVERS, DEEP_DIVE, RISKS_AND_OPPORTUNITIES, RECOMMENDED_ACTIONS, LIMITATIONS. "
             + "Require the later model to analyze every supported part even with partial evidence, calibrate claims to sample/time/population, preserve metric definitions, prevent cross-section contradictions, and trace actions to findings. "
-            + "Planning input:\n" + compact;
+            + "Analytical reasoning arc:\n" + ModelProtocolJson.compact(AnalyticalReasoningArcContract.toMap())
+            + "\nPlanning input:\n" + compact;
     }
 
     private Optional<DynamicAnalysisPromptContract> fixedContract(List<Dataset> datasets) {

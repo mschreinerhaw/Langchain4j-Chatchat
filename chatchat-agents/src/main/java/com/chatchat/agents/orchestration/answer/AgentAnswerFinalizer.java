@@ -218,10 +218,16 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         selectedAnswer = answerQualityCoordinator.applyTargetedRepair(
             activeChatModel, query, systemPrompt, selectedAnswer, values, observations,
             this::sanitizeFinalMarkdown);
-        if (governedAnalysisReport && !policyCompliantCandidate.equals(selectedAnswer)) {
+        boolean governedReviewerRepair = governedAnalysisReport
+            && AnswerDecisionEngine.REVIEWER_REWRITE.equals(decision.action())
+            && Boolean.TRUE.equals(values.get("modelEvidenceReviewRewriteAllowed"));
+        if (governedAnalysisReport && !governedReviewerRepair
+            && !policyCompliantCandidate.equals(selectedAnswer)) {
             values.put("postAnalysisRewriteRejected", true);
             values.put("postAnalysisRewriteRejectedReason", "governed_analysis_report_is_authoritative");
             selectedAnswer = policyCompliantCandidate;
+        } else if (governedReviewerRepair) {
+            values.put("governedAnalysisPublicationRepairApplied", true);
         }
         String finalAnswer = sanitizeFinalMarkdown(selectedAnswer);
         if (values.containsKey("analysisReportContract")) {
@@ -548,10 +554,19 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                                                    String answer,
                                                    Map<String, Object> metadata) {
         if (isGovernedAnalysisReport(metadata)) {
-            metadata.put("answerReviewAuthority", "advisory_only");
-            metadata.put("answerReviewSkippedReason", "analysis_runtime_owns_claim_logic");
-            return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer,
-                "Governed analysis claims were already validated before report composition.");
+            if (!Boolean.TRUE.equals(metadata.get("governedAnalysisPublicationReviewEnabled"))) {
+                metadata.put("answerReviewAuthority", "advisory_only");
+                metadata.put("answerReviewSkippedReason", "governed_publication_review_disabled");
+                return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer,
+                    "Governed publication review is disabled.");
+            }
+            // Structured claim admission validates analysis artifacts, but the final model can still
+            // accidentally promote a hypothesis to a fact while turning those artifacts into prose.
+            // Review the rendered report against the complete governed evidence and allow a model
+            // repair. This preserves analytical freedom while enforcing the fact/inference boundary
+            // at the actual publication surface.
+            metadata.put("answerReviewAuthority", "evidence_analysis_repair");
+            metadata.remove("answerReviewSkippedReason");
         }
         return answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
             observations, answer, metadata);

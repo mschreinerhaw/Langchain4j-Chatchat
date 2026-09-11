@@ -38,10 +38,10 @@ server:
 chatchat:
   knowledge:
     runtime:
-      skill-timeout-ms: ${CHATCHAT_KNOWLEDGE_SKILL_TIMEOUT_MS:15000}
-      total-timeout-ms: ${CHATCHAT_KNOWLEDGE_TOTAL_TIMEOUT_MS:18000}
-      max-concurrency: ${CHATCHAT_KNOWLEDGE_MAX_CONCURRENCY:8}
-      queue-capacity: ${CHATCHAT_KNOWLEDGE_QUEUE_CAPACITY:64}
+      skill-timeout-ms: 15000
+      total-timeout-ms: 18000
+      max-concurrency: 8
+      queue-capacity: 64
   data-science:
     workspace-root: ./data/python-assets
     max-data-file-bytes: 52428800
@@ -66,7 +66,7 @@ chatchat:
     always-externalize: true
     # Used only when always-externalize is false.
     externalize-threshold-bytes: 131072
-    answer-preview-characters: 4000
+    answer-preview-characters: 20000
     ttl-seconds: 2592000
     cleanup-interval-ms: 3600000
   http:
@@ -206,6 +206,7 @@ chatchat:
     answer-quality-pipeline-enabled: true
     answer-critic-enabled: true
     answer-repair-enabled: true
+    governed-analysis-publication-review-enabled: true
     answer-critic-timeout-ms: 45000
     # Lossless processing boundaries; these values never truncate returned evidence.
     record-analysis-chunk-max-chars: 12000

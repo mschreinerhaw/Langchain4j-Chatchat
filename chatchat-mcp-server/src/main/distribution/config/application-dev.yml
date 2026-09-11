@@ -24,48 +24,48 @@ chatchat:
     server-id-file: ./data/license/server.id
     public-key-path: ./data/license/license-public.pem
   audit:
-    default-query-window-days: ${CHATCHAT_AUDIT_DEFAULT_QUERY_WINDOW_DAYS:7}
+    default-query-window-days: 7
   mcp:
     grpc:
       client:
         enabled: false
       server:
-        enabled: ${CHATCHAT_MCP_GRPC_SERVER_ENABLED:true}
-        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
-        chunk-bytes: ${CHATCHAT_MCP_GRPC_CHUNK_BYTES:1048576}
-        max-inbound-message-bytes: ${CHATCHAT_MCP_GRPC_MAX_REQUEST_BYTES:67108864}
-        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:true}
-        certificate-chain-path: ${CHATCHAT_MCP_GRPC_CERT_CHAIN:}
-        private-key-path: ${CHATCHAT_MCP_GRPC_PRIVATE_KEY:}
+        enabled: true
+        port: 9091
+        chunk-bytes: 1048576
+        max-inbound-message-bytes: 67108864
+        plaintext: true
+        certificate-chain-path: 
+        private-key-path: 
     python:
-      workspace-root: ${CHATCHAT_MCP_PYTHON_WORKSPACE_ROOT:./data/python-assets}
-      data-root: ${CHATCHAT_MCP_PYTHON_DATA_ROOT:./data/python-user-data}
-      max-data-file-bytes: ${CHATCHAT_MCP_PYTHON_MAX_DATA_FILE_BYTES:52428800}
-      docker-command: ${CHATCHAT_MCP_PYTHON_DOCKER_COMMAND:docker}
-      output-limit-bytes: ${CHATCHAT_MCP_PYTHON_OUTPUT_LIMIT_BYTES:1000000}
+      workspace-root: ./data/python-assets
+      data-root: ./data/python-user-data
+      max-data-file-bytes: 52428800
+      docker-command: docker
+      output-limit-bytes: 1000000
     market:
       require-dedicated-storage: true
-      query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_TIMEOUT_SECONDS:15}
-      max-concurrent-queries: ${CHATCHAT_MARKET_MAX_CONCURRENT_QUERIES:4}
-      query-queue-timeout-ms: ${CHATCHAT_MARKET_QUERY_QUEUE_TIMEOUT_MS:100}
+      query-timeout-seconds: 15
+      max-concurrent-queries: 4
+      query-queue-timeout-ms: 100
       query-pool:
-        enabled: ${CHATCHAT_MARKET_QUERY_POOL_ENABLED:true}
-        storage: ${CHATCHAT_MARKET_STORAGE:LOCAL_H2}
-        local-jdbc-url: "${CHATCHAT_MARKET_H2_JDBC_URL:jdbc:h2:file:./data/h2/financial-market;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_ON_EXIT=FALSE}"
-        local-username: ${CHATCHAT_MARKET_H2_USERNAME:sa}
-        local-password: ${CHATCHAT_MARKET_H2_PASSWORD:}
-        snapshot-root: ${CHATCHAT_MARKET_H2_SNAPSHOT_ROOT:./data/h2/financial-snapshots}
-        snapshot-database-name: ${CHATCHAT_MARKET_H2_SNAPSHOT_DB:financial-market}
-        write-pool-size: ${CHATCHAT_MARKET_WRITE_POOL_SIZE:1}
-        maximum-pool-size: ${CHATCHAT_MARKET_QUERY_POOL_SIZE:4}
-        minimum-idle: ${CHATCHAT_MARKET_QUERY_POOL_MIN_IDLE:0}
-        connection-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_CONNECTION_TIMEOUT_MS:2000}
-        query-timeout-seconds: ${CHATCHAT_MARKET_QUERY_POOL_QUERY_TIMEOUT_SECONDS:15}
-        network-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_NETWORK_TIMEOUT_MS:17000}
-        server-execution-timeout-ms: ${CHATCHAT_MARKET_QUERY_POOL_SERVER_EXECUTION_TIMEOUT_MS:15000}
+        enabled: true
+        storage: LOCAL_H2
+        local-jdbc-url: "jdbc:h2:file:./data/h2/financial-market;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_ON_EXIT=FALSE"
+        local-username: sa
+        local-password: 
+        snapshot-root: ./data/h2/financial-snapshots
+        snapshot-database-name: financial-market
+        write-pool-size: 1
+        maximum-pool-size: 4
+        minimum-idle: 0
+        connection-timeout-ms: 2000
+        query-timeout-seconds: 15
+        network-timeout-ms: 17000
+        server-execution-timeout-ms: 15000
     news-runtime:
       base-url: http://localhost:8091
-      timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:20000}
+      timeout-millis: 20000
     capabilities:
       news:
         enabled: true
@@ -83,7 +83,7 @@ chatchat:
       api-base-url: http://localhost:8080
       auth:
         username: chatchat_mcp_internal
-        encrypted-password: "${CHATCHAT_MCP_API_ENCRYPTED_PASSWORD:${chatchat.internal-credential.encrypted-secret:}}"
+        encrypted-password: ""
         bearer-token:
     command-templates:
       seed-defaults-enabled: true
@@ -120,7 +120,7 @@ chatchat:
           request-timeout-ms: 300000
           enabled: true
           endpoint: https://tokenhub.tencentmaas.com/v1/embeddings
-          api-key: ${CHATCHAT_EMBEDDING_API_KEY:}
+          api-key: 
           model: kinfra-text-embedding-4b
           dimension: 1024
           vector-field: mcpContentVector

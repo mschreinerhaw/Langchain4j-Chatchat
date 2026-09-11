@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.nodes.synthesis;
 
+import com.chatchat.agents.orchestration.analysis.contract.AnalyticalReasoningArcContract;
+
 /** Semantic instructions supplementing the runtime finding structure and numeric admission checks. */
 final class AnalysisSynthesisContract {
     private AnalysisSynthesisContract() { }
@@ -10,8 +12,9 @@ final class AnalysisSynthesisContract {
     static String narrativeCoherenceInstruction() {
         return """
             Presentation and analytical reasoning are owned by the model under the active Agent contract.
-            Use adaptiveAnalysisPrompt.output and sectionTitles when present as an ordered business scaffold.
-            Develop useful business meaning from the supplied findings and put the most decision-relevant analysis first.
+            Treat adaptiveAnalysisPrompt as a question-specific analytical brief, not a mandatory outline.
+            Choose and organize the report yourself, develop useful business meaning from the supplied findings,
+            and put the most decision-relevant analysis first.
             Optional visualizationSpec blocks are presentation declarations; Runtime independently recomputes and
             validates their selected data. Their acceptance does not certify the report's business interpretation.
             Preserve the evidence links and producer-declared identities, values and semantics in analysis artifacts.
@@ -20,7 +23,7 @@ final class AnalysisSynthesisContract {
             Before returning, silently check the whole report for contradictions, unsupported reasoning jumps,
             duplicate conclusions, arithmetic inconsistency and broken transitions. Resolve them
             before returning. Do not expose this internal checklist or use it as a required report outline.
-            """;
+            """ + AnalyticalReasoningArcContract.promptSection();
     }
 
 }

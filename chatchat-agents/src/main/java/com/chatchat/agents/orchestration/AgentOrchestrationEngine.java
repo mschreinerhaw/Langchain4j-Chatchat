@@ -1399,8 +1399,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("answerReviewSkipReason", directPublication);
             return answerFinalizer.finishExecution(synthesizedAnswer, traces, metadata, observations);
         }
-        if (hasBatchExecutionTrace(traces)
-            || Boolean.TRUE.equals(metadata.get("cumulativeBatchEvidencePresent"))) {
+        boolean governedAnalysisReport = metadata != null && metadata.get("analysisReportContract") != null;
+        boolean governedPublicationReview = governedAnalysisReport
+            && agentRuntimeProperties.isGovernedAnalysisPublicationReviewEnabled();
+        if ((hasBatchExecutionTrace(traces)
+            || Boolean.TRUE.equals(metadata.get("cumulativeBatchEvidencePresent")))
+            && !governedPublicationReview) {
             metadata.put("stopReason", stopReason);
             metadata.put("reservedFinalizationCalls", 1);
             metadata.put("batchFinalizationModelCalls", 1);
@@ -1408,6 +1412,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("answerReviewSkipReason",
                 "batch diagnostics reserve the single post-execution model call for final synthesis");
             return answerFinalizer.finishExecution(synthesizedAnswer, traces, metadata, observations);
+        }
+        if (governedPublicationReview && (hasBatchExecutionTrace(traces)
+            || Boolean.TRUE.equals(metadata.get("cumulativeBatchEvidencePresent")))) {
+            metadata.put("batchFinalizationModelCalls", 2);
+            metadata.put("batchAnswerReviewRequired", true);
+            metadata.put("governedAnalysisPublicationReviewEnabled", true);
         }
         return answerFinalizer.finishReviewedAnswer(
             activeChatModel,
@@ -3608,21 +3618,13 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             );
         }
         if (toolNames.isTemplateDiscoveryToolName(request.execution().toolName())) {
-            if (templateSelectionReviewIsComplete(request.execution().output(), payload)) {
-                Map<String, Object> completed = new LinkedHashMap<>(payload);
-                completed.put("templateSelectionCoverageAudit", Map.of(
-                    "mode", "FIRST_PASS_COMPLETE",
-                    "coverageDecision", firstNonBlank(stringValue(firstObject(
-                        payload, "coverage_decision", "coverageDecision")), "SUFFICIENT"),
-                    "candidateCount", findCandidateMaps(
-                        request.execution().output(), "templates", 0).size()));
-                payload = completed;
-                log.info("Template selection coverage audit reused complete first-pass review runId={} selectedCount={}",
-                    firstNonBlank(request.runId(), ""), stringList(firstObject(
-                        payload, "selected_template_ids", "selectedTemplateIds")).size());
-            } else {
-                payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
-            }
+            payload = normalizeTemplateCandidateDispositions(request.execution().output(), payload);
+            // Relevance selection and coverage verification are distinct model decisions. A first-pass
+            // self-declaration of completeness can be internally consistent while still overlooking a
+            // complementary source for one part of a multi-facet question. Always run the independent
+            // coverage audit whenever unselected candidates remain; the auditor still decides by semantic
+            // relevance and returned capability metadata, never by hard-coded template identities.
+            payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
             payload = bindSelectedTemplateParameters(
                 activeChatModel, query, request.execution().output(), payload);
         }
@@ -3672,6 +3674,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         List<String> rejectedTemplateIds = stringList(firstObject(payload, "rejected_template_ids", "rejectedTemplateIds"));
         if (!rejectedTemplateIds.isEmpty()) {
             metadata.put("rejectedTemplateIds", rejectedTemplateIds);
+        }
+        List<String> deferredTemplateIds = stringList(firstObject(payload, "deferred_template_ids", "deferredTemplateIds"));
+        if (!deferredTemplateIds.isEmpty()) {
+            metadata.put("deferredTemplateIds", deferredTemplateIds);
         }
         Object templateEvaluations = firstObject(payload, "template_evaluations", "templateEvaluations");
         if (templateEvaluations instanceof Iterable<?>) {
@@ -3849,6 +3855,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             reviewedPayload, "template_evaluations", "templateEvaluations"));
         List<String> rejected = stringList(firstObject(
             reviewedPayload, "rejected_template_ids", "rejectedTemplateIds"));
+        List<String> deferred = stringList(firstObject(
+            reviewedPayload, "deferred_template_ids", "deferredTemplateIds"));
         Set<String> candidateIds = candidates.stream()
             .map(candidate -> stringValue(firstObject(candidate,
                 "templateId", "template_id", "id", "code", "template")))
@@ -3856,6 +3864,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         Set<String> classifiedIds = new LinkedHashSet<>(selected);
         classifiedIds.addAll(rejected);
+        classifiedIds.addAll(deferred);
         Set<String> evaluatedIds = evaluations.stream()
             .map(evaluation -> stringValue(firstObject(evaluation,
                 "template_id", "templateId", "id", "code", "template")))
@@ -3865,19 +3874,68 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "missing_aspects", "missingAspects", "evidence_gaps", "evidenceGaps"));
         boolean explicitDecisionAllowsReuse = coverageDecision == null
             || "SUFFICIENT".equalsIgnoreCase(coverageDecision);
-        // A first-pass review is also complete when it explicitly partitions every
-        // returned candidate into selected/rejected and evaluates every selected item.
-        // Requiring a verbose evaluation object for every rejected candidate caused a
-        // redundant second LLM audit even though the model had already made a complete
-        // coverage decision.
+        // A first-pass review is complete only when every returned candidate has a
+        // candidate-level evaluation. Merely placing unexamined ids in a list cannot
+        // prove either rejection or safe deferral and therefore requires coverage audit.
         boolean completeClassification = !candidateIds.isEmpty()
             && classifiedIds.containsAll(candidateIds)
-            && evaluatedIds.containsAll(selected);
+            && evaluatedIds.containsAll(candidateIds);
         return booleanValue(firstObject(reviewedPayload, "satisfied", "accepted", "sufficient"))
             && !selected.isEmpty()
             && explicitDecisionAllowsReuse
             && missingAspects.isEmpty()
             && (evaluations.size() >= candidates.size() || completeClassification);
+    }
+
+    /**
+     * Preserves the difference between an explicit semantic rejection and a candidate that was
+     * merely not selected for immediate execution. A model may reject a candidate only through a
+     * candidate-level evaluation; list subtraction is not rejection evidence.
+     */
+    private Map<String, Object> normalizeTemplateCandidateDispositions(
+        Object discoveryOutput,
+        Map<String, Object> reviewedPayload
+    ) {
+        List<Map<String, Object>> candidates = findCandidateMaps(discoveryOutput, "templates", 0);
+        if (candidates.isEmpty()) return reviewedPayload;
+        Set<String> returned = candidates.stream()
+            .map(candidate -> stringValue(firstObject(candidate,
+                "templateId", "template_id", "id", "code", "template")))
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> selected = new LinkedHashSet<>(stringList(firstObject(
+            reviewedPayload, "selected_template_ids", "selectedTemplateIds")));
+        Map<String, Map<String, Object>> evaluationsById = objectMapList(firstObject(
+            reviewedPayload, "template_evaluations", "templateEvaluations")).stream()
+            .filter(item -> stringValue(firstObject(item,
+                "template_id", "templateId", "id", "code", "template")) != null)
+            .collect(java.util.stream.Collectors.toMap(
+                item -> stringValue(firstObject(item,
+                    "template_id", "templateId", "id", "code", "template")),
+                item -> item,
+                (left, right) -> left,
+                LinkedHashMap::new));
+        Set<String> explicitlyRejected = stringList(firstObject(
+            reviewedPayload, "rejected_template_ids", "rejectedTemplateIds")).stream()
+            .filter(returned::contains)
+            .filter(id -> {
+                Map<String, Object> evaluation = evaluationsById.get(id);
+                String decision = evaluation == null ? null : stringValue(firstObject(
+                    evaluation, "decision", "disposition"));
+                return "reject".equalsIgnoreCase(decision)
+                    || "irrelevant".equalsIgnoreCase(decision);
+            })
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> deferred = new LinkedHashSet<>(stringList(firstObject(
+            reviewedPayload, "deferred_template_ids", "deferredTemplateIds")));
+        returned.stream()
+            .filter(id -> !selected.contains(id) && !explicitlyRejected.contains(id))
+            .forEach(deferred::add);
+
+        Map<String, Object> normalized = new LinkedHashMap<>(reviewedPayload);
+        normalized.put("rejected_template_ids", List.copyOf(explicitlyRejected));
+        normalized.put("deferred_template_ids", List.copyOf(deferred));
+        return Map.copyOf(normalized);
     }
 
     private Map<String, Object> auditTemplateSelectionCoverage(
@@ -3911,6 +3969,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "candidates merely to increase count. If the user asks to characterize behavior, preference, "
             + "pattern or activity, returned sources that record actions, events, transactions or history "
             + "are material evidence candidates; a snapshot alone cannot answer that facet. Treat a "
+            + "candidate as required when it addresses an explicit facet through a distinct declared source, "
+            + "grain, record type, dimension or validation perspective. Do not defer it merely because another "
+            + "selected candidate has a broad overlapping description; only authoritative equivalence or "
+            + "duplication metadata proves redundancy. Optimize for evidence breadth and answer quality, not "
+            + "the fewest executions. Treat a "
             + "coverage facet as supported only when you can quote an exact title, description, capability "
             + "or output-schema element from a selected candidate for it. A broad business-group description "
             + "or your own paraphrase is not candidate evidence. In particular, an asset/profit snapshot does "
@@ -3920,10 +3983,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "a title conflicts with a guessed meaning of the ID, the title is authoritative. A generic or "
             + "shared description cannot turn a balance/snapshot source into transaction-history evidence. Treat a "
             + "provisional rejection as internally contradictory when its reason says a candidate contains "
-            + "the very behavior, activity or measure explicitly requested by the user. Return strict JSON only: "
+            + "the very behavior, activity or measure explicitly requested by the user. Candidate disposition is "
+            + "three-state: selected means execute now, deferred means potentially useful but not required or not "
+            + "assessable, and rejected requires explicit evidence that the candidate is irrelevant. Never compute "
+            + "rejected as all returned ids minus selected ids. If the query text is visibly damaged by replacement "
+            + "characters or repeated question marks, do not infer hidden intent and do not reject candidates because "
+            + "of the missing text. Return strict JSON only: "
             + "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"requested_aspects\":[],"
             + "\"aspect_evidence\":[{\"aspect\":\"\",\"template_id\":\"\",\"declared_evidence\":\"exact candidate text/schema\"}],"
-            + "\"corrected_selected_template_ids\":[],\"missing_aspects\":[],\"reason\":\"\"}.\n"
+            + "\"corrected_selected_template_ids\":[],\"corrected_deferred_template_ids\":[],"
+            + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[],\"reason\":\"\"}.\n"
             + "Current-turn query:\n" + (query == null ? "" : query) + "\n"
             + "Returned candidates:\n" + ModelProtocolJson.compact(candidateProjection) + "\n"
             + "Provisional selection:\n" + ModelProtocolJson.compact(provisionalProjection);
@@ -3940,6 +4009,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         List<String> auditedSelected = corrected.stream()
             .filter(returned::contains).distinct().toList();
+        List<String> auditedRejected = stringList(firstObject(
+            audit, "corrected_rejected_template_ids", "correctedRejectedTemplateIds")).stream()
+            .filter(returned::contains)
+            .filter(id -> !auditedSelected.contains(id))
+            .distinct()
+            .toList();
         Boolean coverageComplete = booleanValue(firstObject(
             audit, "coverage_complete", "coverageComplete"));
         String coverageDecision = stringValue(firstObject(
@@ -3963,8 +4038,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         Map<String, Object> revised = new LinkedHashMap<>(provisional);
         revised.put("selected_template_ids", auditedSelected);
-        revised.put("rejected_template_ids", returned.stream()
-            .filter(id -> !auditedSelected.contains(id)).toList());
+        revised.put("rejected_template_ids", auditedRejected);
+        revised.put("deferred_template_ids", returned.stream()
+            .filter(id -> !auditedSelected.contains(id))
+            .filter(id -> !auditedRejected.contains(id)).toList());
         revised.put("supportsQuestionAspect", stringList(firstObject(
             audit, "requested_aspects", "requestedAspects")));
         revised.put("missingAspects", stringList(firstObject(
@@ -4074,8 +4151,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("- Treat every template ID as opaque. Never infer capability from ID letters, abbreviations or suffixes; the declared title, description and parameter contract are authoritative.\n");
             prompt.append("- Before selecting, decompose every explicit user-requested subject and analysis facet into supportsQuestionAspect entries. The selected complementary set must cover each facet for which a returned template declares relevant evidence; do not let a general snapshot or aggregate template displace a returned transaction, history, detail, composition, or comparison template needed for a separately requested facet.\n");
             prompt.append("- Selection completeness is semantic coverage, not a fixed template count. Select all and only complementary candidates required for the requested facets, and state an explicit missingAspects entry for any requested facet left uncovered.\n");
+            prompt.append("- Optimize for answer quality and evidence breadth, not the fewest calls. Before execution, overlapping descriptions do not prove redundancy. A candidate that addresses an explicit question facet through a distinct declared source, grain, record type, dimension, or validation perspective must be selected, not deferred, unless authoritative candidate metadata explicitly establishes equivalence or duplication; resolve actual redundancy after observing results.\n");
+            prompt.append("- Candidate disposition is three-state: selected means execute for this request; deferred means potentially relevant but not currently required or not assessable from intact evidence; rejected means explicitly irrelevant to the literal request. Never derive rejected candidates by subtracting selected ids.\n");
+            prompt.append("- If the current-turn query contains replacement characters or repeated question marks that may have destroyed substantive text, do not infer the missing intent and do not reject candidates on that basis. Put unassessable candidates in deferred_template_ids and report the damaged input as a missing aspect.\n");
             prompt.append("- First decide coverage_decision: SUFFICIENT, NEED_NEXT_PAGE, or SCOPE_INSUFFICIENT. SUFFICIENT requires at least one selected returned template. An empty selection is valid and required when the current page has no suitable candidate; use NEED_NEXT_PAGE only when the tool result says hasMore=true.\n");
-            prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, rejected_template_ids, evidence_gaps, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role.\n");
+            prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, deferred_template_ids, rejected_template_ids, evidence_gaps, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role. Every rejection requires its own evaluation with decision=reject and an evidence-based reason.\n");
             prompt.append("- Return at least one parameter_protocols entry for every selected template. When the user supplies a collection of entities, repeat the template_id with one binding_id and one scalar argument set per distinct entity; the Runtime will compile the bounded entity-by-template batch. Include only schema-declared overrides proven by an exact user-query quote or completed tool-result path. Keep arguments={} when defaults are sufficient; do not copy defaults as model values.\n");
             prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
@@ -4099,9 +4179,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .append("{\"satisfied\":true,\"iteration_sufficient\":false,\"reason\":\"short evidence-based reason\",\"evidence_used\":[],\"missing_evidence\":[],\"conflicts\":[],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[],\"missingAspects\":[],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":false,\"confidence\":0.0}\n");
         if (toolNames.isTemplateDiscoveryToolName(toolName)) {
             prompt.append("Template-discovery fields:\n")
-                .append("{\"selected_template_ids\":[],\"rejected_template_ids\":[],\"parameter_protocols\":[{\"protocol_version\":\"")
+                .append("{\"selected_template_ids\":[],\"deferred_template_ids\":[],\"rejected_template_ids\":[],\"parameter_protocols\":[{\"protocol_version\":\"")
                 .append(InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION)
-                .append("\",\"template_id\":\"returned-id\",\"binding_id\":\"stable-binding-id\",\"arguments\":{\"declared_field\":{\"value\":\"evidence-backed scalar value\",\"source\":\"user_query\",\"evidence\":{\"quote\":\"exact query excerpt\"}}},\"unresolved_parameters\":[]}],\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"evidence_gaps\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
+                .append("\",\"template_id\":\"returned-id\",\"binding_id\":\"stable-binding-id\",\"arguments\":{\"declared_field\":{\"value\":\"evidence-backed scalar value\",\"source\":\"user_query\",\"evidence\":{\"quote\":\"exact query excerpt\"}}},\"unresolved_parameters\":[]}],\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"evidence_gaps\":[],\"analysis_intent\":{\"business_goal\":\"\",\"analysis_subject\":\"\",\"core_entities\":[],\"metrics\":[],\"dimensions\":[],\"analysis_focus\":[],\"time_scope\":\"\",\"expected_relationships\":[]},\"template_relationships\":[],\"template_evaluations\":[{\"template_id\":\"returned-id\",\"business_group\":\"\",\"relevance\":0.0,\"evidence_fit\":0.0,\"parameter_readiness\":0.0,\"total_score\":0.0,\"decision\":\"accept|defer|reject\",\"analysis_role\":\"TARGET|CAUSE|CONTEXT|DIMENSION|VALIDATION|EXPLANATION|IRRELEVANT\",\"reasons\":[],\"missing_parameters\":[],\"matched_question_aspects\":[],\"relationship_hints\":[]}],\"refined_intent\":\"\"}\n");
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
             prompt.append("Asset-discovery fields: {\"selected_asset_ids\":[],\"rejected_asset_ids\":[],\"asset_evaluations\":[{\"asset_id\":\"returned-id\",\"relevance\":0.0,\"decision\":\"accept|reject\",\"reasons\":[]}]}\n");
         } else if (isWebDiscoveryTool(toolName)) {

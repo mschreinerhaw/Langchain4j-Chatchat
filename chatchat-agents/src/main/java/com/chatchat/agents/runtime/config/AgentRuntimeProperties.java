@@ -47,6 +47,8 @@ public class AgentRuntimeProperties {
     private boolean answerQualityPipelineEnabled = true;
     private boolean answerCriticEnabled = true;
     private boolean answerRepairEnabled = true;
+    /** Reviews the rendered governed report against complete evidence before publication. */
+    private boolean governedAnalysisPublicationReviewEnabled = false;
     private long answerCriticTimeoutMs = 45_000;
     /** Hard wall-clock budget for one Agent execution; zero keeps the legacy unlimited behavior. */
     private long executionTimeoutMs = 0L;

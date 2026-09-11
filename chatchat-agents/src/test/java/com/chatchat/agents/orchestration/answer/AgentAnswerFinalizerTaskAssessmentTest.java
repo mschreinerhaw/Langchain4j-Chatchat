@@ -112,6 +112,49 @@ class AgentAnswerFinalizerTaskAssessmentTest {
     }
 
     @Test
+    void publishesEvidenceRepairForGovernedAnalysisInsteadOfRestoringOriginalDraft() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(
+                AgentAnswerReview.REVISED,
+                "## Reviewed report\n\nThe observed day suggests active trading; it does not establish a persistent trait.",
+                "A one-day hypothesis was presented as a persistent fact."
+            );
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisReportContract", Map.of(
+            "reportType", "DRIVER_REPORT",
+            "renderedText", "## Original report\n\nThe customer is always an aggressive trader."
+        ));
+        metadata.put("governedAnalysisPublicationReviewEnabled", true);
+        metadata.put("modelEvidenceReviewRewriteAllowed", true);
+        metadata.put("modelAnalysisReviewContext", "One observed trading day with returned records.");
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "Analyze trading preference",
+            null,
+            List.of(),
+            metadata,
+            List.of("one-day records"),
+            "## Original report\n\nThe customer is always an aggressive trader.",
+            () -> false,
+            "final_answer"
+        );
+
+        assertThat(result.answer())
+            .contains("suggests active trading")
+            .doesNotContain("always an aggressive trader");
+        assertThat(result.metadata())
+            .containsEntry("answerDecision", AnswerDecisionEngine.REVIEWER_REWRITE)
+            .containsEntry("answerReviewRewriteApplied", true)
+            .containsEntry("governedAnalysisPublicationRepairApplied", true)
+            .doesNotContainKey("postAnalysisRewriteRejected");
+    }
+
+    @Test
     void attachesPublicAssessmentContractToFinalExecutionMetadata() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");

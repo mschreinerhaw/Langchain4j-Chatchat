@@ -19,15 +19,26 @@ import java.util.function.Supplier;
 /** Question-scoped interpretation with bounded evidence reads; no per-dataset model reports. */
 public final class UnifiedQuestionAnalysisGraph {
     private final com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider profiles;
+    private final boolean adaptivePromptModelEnabled;
+    private final int maximumEvidenceRounds;
+    private final boolean reportDraftEnabled;
     public UnifiedQuestionAnalysisGraph() { this(com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider.empty()); }
     public UnifiedQuestionAnalysisGraph(com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider profiles) {
+        this(profiles, true, MAX_EVIDENCE_ROUNDS, false);
+    }
+    public UnifiedQuestionAnalysisGraph(
+        com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider profiles,
+        boolean adaptivePromptModelEnabled, int maximumEvidenceRounds, boolean reportDraftEnabled) {
         this.profiles = profiles;
+        this.adaptivePromptModelEnabled = adaptivePromptModelEnabled;
+        this.maximumEvidenceRounds = Math.max(1, Math.min(MAX_EVIDENCE_ROUNDS, maximumEvidenceRounds));
+        this.reportDraftEnabled = reportDraftEnabled;
     }
     private static final String VERSION = "unified_question_analysis.v1";
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final int MAX_INPUT_TOKENS = 12_000;
+    private static final int MAX_INPUT_TOKENS = 20_000;
     private static final int MAX_EVIDENCE_ROUNDS = 2;
-    private static final int INITIAL_EVIDENCE_CHARS = 24_000;
+    private static final int INITIAL_EVIDENCE_CHARS = 42_000;
     private static final int REQUESTED_EVIDENCE_CHARS = 10_000;
     private static final ContextTokenEstimator TOKENS = new ContextTokenEstimator();
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(UnifiedQuestionAnalysisGraph.class);
@@ -74,7 +85,9 @@ public final class UnifiedQuestionAnalysisGraph {
             }),
             new AnalysisExecutionGraph.Step("prompt_synthesis", () -> {
                 adaptivePrompt[0] = new AdaptiveBusinessAnalysisPromptSynthesizer(profiles).synthesize(
-                    question, sources, model, scope, checkpoints, metadata, guard);
+                    question, sources, adaptivePromptModelEnabled ? model : null,
+                    scope, checkpoints, metadata, guard);
+                metadata.put("adaptiveAnalysisPromptModelEnabled", adaptivePromptModelEnabled);
                 plan.put("adaptivePromptContractSha256", metadata.get("adaptiveAnalysisPromptSha256"));
                 plan.put("adaptivePromptMode", metadata.get("adaptiveAnalysisPromptMode"));
                 return AnalysisExecutionGraph.Status.READY;
@@ -93,7 +106,7 @@ public final class UnifiedQuestionAnalysisGraph {
                 List<Map<String, Object>> requestedEvidence = new ArrayList<>();
                 int modelCalls = 0;
                 boolean allRestored = true;
-                for (int round = 1; round <= MAX_EVIDENCE_ROUNDS; round++) {
+                for (int round = 1; round <= maximumEvidenceRounds; round++) {
                     Object boundedEvidence = evidenceAccess.fitViews(evidence, INITIAL_EVIDENCE_CHARS);
                     Object boundedRequests = evidenceAccess.fitRequestedEvidence(requestedEvidence, REQUESTED_EVIDENCE_CHARS);
                     String prompt = adaptivePrompt[0].compiledPrompt() + "\n"
@@ -102,7 +115,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "You own the analytical choice: decide what the question requires and which supported analysis is meaningful. Runtime does not infer SUM, AVG, ratios, denominators, weights or time comparisons from numeric columns. "
                         + "Select a derived measure only when the supplied semantic contract declares its aggregation, grain, denominator, unit and scope, or request it explicitly as an unverified formula proposal. Runtime executes and audits the declaration; it does not choose the business formula. "
                         + "Interpret Runtime verifiedCalculations; do not invent computed values or units. Refer to other supplied datasets as available, not missing. "
-                        + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,observation,interpretation,implication,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],questionLevelFindings:[{claim,observation,interpretation,implication,significance,confidence,caveats,basisFindingIndexes:[]}],ranking:[],conflicts:[],evidenceSufficiency:{},methodologyCoverage:[{method,status,findingIndexes:[],limitation}],limitations:[],evidenceRequests:[]}. "
+                        + "Return JSON {schemaVersion:'" + VERSION + "',findings:[{datasetReference,claimClass,claim,observation,interpretation,implication,significance,operation,recordRefs,supportingValues,confidence,caveats,method,inputFields,outputUnit,grain,timeScope,populationScope,semanticBasis,alternativeExplanations}],questionLevelFindings:[{claim,observation,interpretation,implication,significance,confidence,caveats,basisFindingIndexes:[]}],ranking:[],conflicts:[],evidenceSufficiency:{},methodologyCoverage:[{method,status,findingIndexes:[],limitation}],limitations:[],evidenceRequests:[],reportMarkdown:''}. "
                         + "claimClass is OBSERVED_RETURNED_FACT, AUTHORIZED_DERIVED_MEASURE or CALIBRATED_INFERENCE; confidence is HIGH, MEDIUM or LOW. "
                         + "operation must be one of OBSERVE, AGGREGATE, DERIVE, COMPARE, RANK, TREND, INFER, PROXY; do not invent operation names. "
                         + "recordRefs, caveats, inputFields, semanticBasis and alternativeExplanations are JSON arrays of strings. supportingValues is an array of evidence-bound objects, e.g. [{recordRef:'dataset.records[1]',VALUE:17,previous:null}]. "
@@ -132,8 +145,14 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Do not infer intent, motive, strategy, causality or remediation behavior merely because two observations coexist. Describe the observed association and list plausible alternatives when causal evidence is absent. "
                         + "Do not label a value extreme, healthy, excessive, normal, high or low without an explicit comparison baseline in the evidence. Do not translate an observed event into a named domain pattern unless its required evidence and temporal sequence are present. "
                         + "Preserve the producer-declared meaning, measurement basis, period and inclusion/exclusion rules of every field. A request is not a completed outcome, and similarly named measures are not interchangeable. Undeclared definitions or adjustments remain unknown. Use qualified observed-period language for samples and single dates. "
-                        + "Evidence round " + round + "/" + MAX_EVIDENCE_ROUNDS + ". "
-                        + (round == MAX_EVIDENCE_ROUNDS
+                        + "If a product name implies history or flows but its description/evidence describes a point-in-time snapshot, explicitly identify the semantic conflict and say which history/transaction questions this product cannot reliably answer. "
+                        + "Infer no persistent investment preference, philosophy, motive, or strategy from a current snapshot or short sample. Use calibrated wording such as 'the current sample shows a short-term tendency' and state what longitudinal evidence is required. "
+                        + "An empty transaction result does not prove low-frequency or inactive trading; report only that no qualifying records were returned for the queried scope. A low cash balance in one snapshot does not prove a habit of rapidly investing cash. Never label either observation as a behavioral preference without repeated longitudinal evidence. "
+                        + (reportDraftEnabled
+                            ? "Also write reportMarkdown as the final user-facing answer in the user's language. It must directly answer every requested item, lead with supported facts, preserve caveats and suitability limits, avoid runtime identifiers, and stay focused (normally within 3200 Chinese characters or 2200 English words; never omit a material supported finding merely to meet this guidance). Do not merely restate the JSON fields. "
+                            : "Set reportMarkdown to an empty string. ")
+                        + "Evidence round " + round + "/" + maximumEvidenceRounds + ". "
+                        + (round == maximumEvidenceRounds
                             ? "No more requests are available; return bounded conclusions and limitations. " : "")
                         + "Requested evidence: " + ModelProtocolJson.compact(boundedRequests) + "\n"
                         + "Question plan: " + ModelProtocolJson.compact(evidenceAccess.fitControlContext(promptPlan(plan), 4_000))
@@ -208,7 +227,36 @@ public final class UnifiedQuestionAnalysisGraph {
                     boolean methodologyRepairPending = enforcePlannedMethodology
                         && !maps(product.get("findings")).isEmpty()
                         && !methodologyGaps.isEmpty()
-                        && round < MAX_EVIDENCE_ROUNDS;
+                        && round < maximumEvidenceRounds;
+                    var requests = maps(product.get("evidenceRequests"));
+                    // A missing methodology disposition is a small protocol gap, not a reason
+                    // to replay the complete evidence and regenerate every accepted finding.
+                    // Keep the independent model review, but constrain it to coverage statuses.
+                    if (methodologyRepairPending && requests.isEmpty() && model != null) {
+                        guard.run();
+                        modelCalls++;
+                        metadata.put("unifiedAnalysisMethodologyRepairRequested", true);
+                        metadata.put("unifiedAnalysisMethodologyRepairMode", "FOCUSED_COVERAGE_REVIEW");
+                        try {
+                            Map<String, Object> repaired = parseMethodologyCoverage(model.chat(methodologyCoverageRepairPrompt(
+                                product, methodologyGaps, adaptivePrompt[0], evidenceAccess)));
+                            List<Map<String, Object>> coverage = maps(repaired.get("methodologyCoverage"));
+                            if (!coverage.isEmpty()) {
+                                product.put("methodologyCoverage", coverage);
+                                methodologyGaps = methodologyCoverageGaps(product, adaptivePrompt[0]);
+                                methodologyRepairPending = !methodologyGaps.isEmpty();
+                                metadata.put("unifiedAnalysisMethodologyRepairSucceeded", !methodologyRepairPending);
+                            }
+                        } catch (RuntimeException focusedRepairFailure) {
+                            if (focusedRepairFailure instanceof java.util.concurrent.CancellationException
+                                || focusedRepairFailure instanceof com.chatchat.agents.orchestration.model.AgentDeadlineExceededException) {
+                                throw focusedRepairFailure;
+                            }
+                            metadata.put("unifiedAnalysisMethodologyRepairFailure",
+                                focusedRepairFailure.getClass().getSimpleName());
+                        }
+                        metadata.put("unifiedAnalysisModelCalls", modelCalls);
+                    }
                     if (methodologyRepairPending) {
                         generated.clear();
                         generated.putAll(product);
@@ -229,8 +277,7 @@ public final class UnifiedQuestionAnalysisGraph {
                     } else {
                         metadata.put("unifiedAnalysisMethodologyGaps", List.of());
                     }
-                    var requests = maps(product.get("evidenceRequests"));
-                    if (!requests.isEmpty() && round < MAX_EVIDENCE_ROUNDS) {
+                    if (!requests.isEmpty() && round < maximumEvidenceRounds) {
                         int accepted = 0;
                         for (var evidenceRequest : requests) {
                             guard.run();
@@ -298,6 +345,13 @@ public final class UnifiedQuestionAnalysisGraph {
                 List<Map<String, Object>> questionFindings = normalizeQuestionFindings(
                     maps(generated.get("questionLevelFindings")), normalizedFindings);
                 generated.put("questionLevelFindings", questionFindings);
+                if (reportDraftEnabled) {
+                    String reportDraft = String.valueOf(generated.getOrDefault("reportMarkdown", "")).trim();
+                    if (!reportDraft.isBlank() && !"null".equalsIgnoreCase(reportDraft)) {
+                        metadata.put("unifiedAnalysisReportDraft", reportDraft);
+                        metadata.put("unifiedAnalysisReportDraftChars", reportDraft.length());
+                    }
+                }
                 for (Map<String, Object> finding : normalizedFindings) {
                     if (!known.contains(finding.get("datasetReference")))
                         throw new IllegalStateException("Finding cites an unbound dataset");
@@ -406,6 +460,23 @@ public final class UnifiedQuestionAnalysisGraph {
         return Map.of();
     }
 
+    private Map<String, Object> parseMethodologyCoverage(String raw) {
+        String text = raw == null ? "" : raw.trim();
+        List<String> candidates = new ArrayList<>();
+        candidates.add(text);
+        candidates.addAll(jsonObjectCandidates(text));
+        for (String candidate : candidates) {
+            try {
+                Map<String, Object> parsed = JSON.readValue(candidate,
+                    new TypeReference<Map<String, Object>>() {});
+                if (parsed.get("methodologyCoverage") instanceof List<?>) return parsed;
+            } catch (Exception ignored) {
+                // Try the next balanced JSON object.
+            }
+        }
+        return Map.of();
+    }
+
     private List<String> jsonObjectCandidates(String text) {
         if (text == null || text.isBlank()) return List.of();
         List<String> candidates = new ArrayList<>();
@@ -507,6 +578,31 @@ public final class UnifiedQuestionAnalysisGraph {
         }
         return planned.stream().map(value -> value.toUpperCase(Locale.ROOT))
             .filter(method -> !covered.contains(method)).distinct().toList();
+    }
+
+    private String methodologyCoverageRepairPrompt(Map<String, Object> product,
+        List<String> gaps, AdaptiveBusinessAnalysisPromptSynthesizer.Result adaptive,
+        BoundedAnalysisEvidence evidenceAccess) {
+        List<Map<String, Object>> findings = maps(product.get("findings")).stream()
+            .map(finding -> {
+                Map<String, Object> item = new LinkedHashMap<>();
+                for (String key : List.of("datasetReference", "claimClass", "claim", "operation",
+                    "method", "recordRefs", "supportingValues", "confidence", "caveats")) {
+                    if (finding.get(key) != null) item.put(key, finding.get(key));
+                }
+                return Map.copyOf(item);
+            }).toList();
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("plannedMethodology", adaptive.contract().toMap().getOrDefault("methodology", List.of()));
+        input.put("missingMethodology", gaps);
+        input.put("existingCoverage", product.getOrDefault("methodologyCoverage", List.of()));
+        input.put("acceptedFindings", findings);
+        return "Review only the methodology-coverage protocol for an already completed evidence-bound analysis. "
+            + "Do not rewrite, add, remove or strengthen findings. For every planned method return exactly one disposition: "
+            + "EXECUTED with valid one-based findingIndexes when an accepted finding actually performs it, otherwise "
+            + "NOT_APPLICABLE or LIMITED with a concrete evidence-based limitation. Return JSON only: "
+            + "{methodologyCoverage:[{method,status,findingIndexes:[],limitation}]}. Input: "
+            + ModelProtocolJson.compact(evidenceAccess.fitControlContext(input, 14_000));
     }
 
     private List<Integer> integerList(Object value) {

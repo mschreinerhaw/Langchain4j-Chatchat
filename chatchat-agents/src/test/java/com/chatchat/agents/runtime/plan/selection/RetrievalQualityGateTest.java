@@ -35,4 +35,25 @@ class RetrievalQualityGateTest {
         assertThat(RetrievalQualityGate.preferFallback(enhanced, fallback)).isTrue();
         assertThat(RetrievalQualityGate.preferFallback(fallback, enhanced)).isFalse();
     }
+
+    @Test
+    void resolvesPublishedCountPathAcrossGovernedMcpEnvelope() {
+        RetrievalQualityGate.Evaluation evaluation = RetrievalQualityGate.evaluate(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "mcp_analysis_payload.v1",
+                "data", Map.of(
+                    "schemaVersion", "sql_metadata_search_result.v1",
+                    "totalMatched", 285,
+                    "tableCatalog", List.of(Map.of("table", "target_table"))
+                )
+            )),
+            Map.of(
+                "minimumResultCount", 1,
+                "countPaths", List.of("totalMatched", "tableCatalog")
+            )
+        );
+
+        assertThat(evaluation.resultCount()).isEqualTo(285);
+        assertThat(evaluation.sufficient()).isTrue();
+    }
 }

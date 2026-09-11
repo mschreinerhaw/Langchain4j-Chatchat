@@ -315,7 +315,8 @@ public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         meta.put("environment", host.getEnvironment());
         meta.put("templateRegistryRequired", true);
         meta.put("allowedCommands", allowedCommands(host));
-        meta.put("authorizedCommandTemplates", authorizedCommandTemplates(host));
+        meta.put("authorizedCommandTemplates",
+            authorizedCommandTemplates(host, commandTemplateService.listEnabled()));
         meta.put("templateSelectionPolicy", templateSelectionPolicy());
         meta.put("assetMetadata", assetMetadataFactory.sshAsset(host));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(host.getToolName(), "ssh"));
@@ -323,6 +324,8 @@ public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     }
 
     private Map<String, Object> linuxCommandGatewayMeta() {
+        List<CommandTemplateConfig> enabledCommandTemplates = commandTemplateService.listEnabled();
+        List<SshHostConfig> enabledHosts = hostConfigService.listEnabled();
         Map<String, Object> governance = new LinkedHashMap<>();
         governance.put("category", "host_gateway");
         governance.put("operation_type", "execute_template");
@@ -341,12 +344,13 @@ public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         meta.put("runtimeAction", "confirm_required");
         meta.put("templateRegistryRequired", true);
         meta.put("targetRoutingRequired", true);
-        meta.put("authorizedCommandTemplatesByAsset", authorizedCommandTemplatesByAsset());
+        meta.put("authorizedCommandTemplatesByAsset",
+            authorizedCommandTemplatesByAsset(enabledHosts, enabledCommandTemplates));
         meta.put("templateSelectionPolicy", templateSelectionPolicy());
         meta.put("forbiddenTargetFields", List.of("hostId", "host", "hostname", "ip", "ipAddress", "address"));
         meta.put("assetMetadata", assetMetadataFactory.gateway(
             "ssh_host",
-            hostConfigService.listEnabled().stream().map(assetMetadataFactory::sshAsset).toList(),
+            enabledHosts.stream().map(assetMetadataFactory::sshAsset).toList(),
             List.of("hostId", "host", "hostname", "ip", "ipAddress", "address")
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("linux_command_execute", "ssh"));
@@ -494,24 +498,30 @@ public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         }
     }
 
-    private List<Map<String, Object>> authorizedCommandTemplatesByAsset() {
-        return hostConfigService.listEnabled().stream()
+    private List<Map<String, Object>> authorizedCommandTemplatesByAsset(
+        List<SshHostConfig> enabledHosts,
+        List<CommandTemplateConfig> enabledCommandTemplates
+    ) {
+        return enabledHosts.stream()
             .map(host -> mutableMap(
                 "assetId", host.getId(),
                 "assetName", host.getName(),
                 "toolName", host.getToolName(),
                 "environment", host.getEnvironment(),
-                "templates", authorizedCommandTemplates(host)
+                "templates", authorizedCommandTemplates(host, enabledCommandTemplates)
             ))
             .toList();
     }
 
-    private List<Map<String, Object>> authorizedCommandTemplates(SshHostConfig host) {
+    private List<Map<String, Object>> authorizedCommandTemplates(
+        SshHostConfig host,
+        List<CommandTemplateConfig> enabledCommandTemplates
+    ) {
         Set<String> allowed = Set.copyOf(allowedCommandCodes(host));
         if (allowed.isEmpty()) {
             return List.of();
         }
-        return commandTemplateService.listEnabled().stream()
+        return enabledCommandTemplates.stream()
             .filter(template -> allowed.contains(template.getCode() == null ? "" : template.getCode().trim().toUpperCase()))
             .map(this::templateSummary)
             .toList();

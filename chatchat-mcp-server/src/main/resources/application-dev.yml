@@ -30,6 +30,13 @@ chatchat:
   audit:
     default-query-window-days: 7
   mcp:
+    remote-provider:
+      enabled: false
+    # This process is the MCP publisher/center itself. Client-side center import
+    # would recursively mirror its own tools and periodically rebuild the live registry.
+    center:
+      enabled: false
+      auto-recovery-enabled: false
     grpc:
       client:
         enabled: false
@@ -98,7 +105,7 @@ chatchat:
     authorization:
       enabled: true
       fail-open: false
-      unavailable-retry-interval-ms: 1000
+      unavailable-retry-interval-ms: 15000
       require-tenant-context: true
       api-base-url: http://localhost:8080
       auth:

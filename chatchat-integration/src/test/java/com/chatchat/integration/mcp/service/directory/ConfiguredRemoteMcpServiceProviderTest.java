@@ -24,6 +24,28 @@ import static org.mockito.ArgumentMatchers.any;
 
 class ConfiguredRemoteMcpServiceProviderTest {
     @Test
+    void recoversServiceDescriptorFromLiveRegistryWhenConfigurationSnapshotIsEmpty() {
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpToolRegistryBridge registry = mock(McpToolRegistryBridge.class);
+        when(configService.listAll()).thenReturn(List.of());
+        when(registry.listRegisteredTools()).thenReturn(List.of(
+            new McpToolRegistryBridge.RegisteredMcpTool(
+                "mcp_chatchat_mcp_server_sql_schema_context_query",
+                "chatchat-mcp-server",
+                "ChatChat MCP Server",
+                "sql_schema_context_query",
+                "schema context")));
+        ConfiguredRemoteMcpServiceProvider provider = new ConfiguredRemoteMcpServiceProvider(
+            configService, registry, mock(ToolRegistry.class));
+
+        assertThat(provider.services()).singleElement().satisfies(service -> {
+            assertThat(service.serviceId()).isEqualTo("chatchat-mcp-server");
+            assertThat(service.enabled()).isTrue();
+            assertThat(service.metadata()).containsEntry("recoveredFromLiveRegistry", true);
+        });
+    }
+
+    @Test
     void projectsNormalizedAndRawGatewayDataIntoCommonResult() {
         McpToolRegistryBridge registry = mock(McpToolRegistryBridge.class);
         when(registry.listRegisteredTools()).thenReturn(List.of(

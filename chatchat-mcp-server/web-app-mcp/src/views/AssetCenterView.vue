@@ -26,7 +26,8 @@
     </el-card>
 
     <CrudCatalog
-      v-if="activeTab === 'ssh'"
+      v-if="visitedTabs.includes('ssh')"
+      v-show="activeTab === 'ssh'"
       title="服务器资产"
       subtitle="维护 Linux/SSH 运维工具可用的主机资产。"
       search-placeholder="搜索名称、工具、Host、用户、标签或环境"
@@ -50,7 +51,8 @@
     />
 
     <CrudCatalog
-      v-if="activeTab === 'sql'"
+      v-if="visitedTabs.includes('sql')"
+      v-show="activeTab === 'sql'"
       title="数据库资产"
       subtitle="维护数据库连接、元数据范围、模板白名单和安全治理配置。"
       search-placeholder="搜索名称、工具、JDBC、账号、数据库类型或环境"
@@ -75,7 +77,8 @@
     />
 
     <CrudCatalog
-      v-if="activeTab === 'http'"
+      v-if="visitedTabs.includes('http')"
+      v-show="activeTab === 'http'"
       title="API 网关资产"
       subtitle="维护可复用的 HTTP/API 网关资产。"
       search-placeholder="搜索名称、工具、URL、环境、方法或标签"
@@ -99,7 +102,7 @@
       @result="$emit('result', $event)"
     />
 
-    <section v-if="activeTab === 'templates'" class="workspace-panel">
+    <section v-if="visitedTabs.includes('templates')" v-show="activeTab === 'templates'" class="workspace-panel">
       <header class="panel-heading">
         <div>
           <h2>执行模板</h2>
@@ -114,7 +117,7 @@
       <el-tabs v-model="activeTemplateTab" class="workspace-tabs">
         <el-tab-pane label="SSH 命令模板" name="ssh-template" lazy>
           <CrudCatalog
-            v-if="activeTemplateTab === 'ssh-template'"
+            v-if="visitedTemplateTabs.includes('ssh-template')"
             key="ssh-command-template-catalog"
             title="SSH 命令模板"
             subtitle="维护 Linux 命令模板、参数 Schema、风险等级和意图信号。"
@@ -125,6 +128,8 @@
             :list-filters="commandTemplateListFilters"
             :searchable-fields="['code', 'title', 'description', 'category', 'riskLevel', 'intentSignalsJson']"
             :list-action="api.listCommandTemplates"
+            :initial-items="sshCommandTemplates"
+            :load-on-mount="false"
             :save-action="api.saveCommandTemplate"
               :remove-action="api.deleteCommandTemplate"
               :rebuild-action="api.rebuildSelectedCommandTemplateIndexes"
@@ -137,7 +142,7 @@
         </el-tab-pane>
         <el-tab-pane label="SQL 运维模板" name="sql-template" lazy>
           <CrudCatalog
-            v-if="activeTemplateTab === 'sql-template'"
+            v-if="visitedTemplateTabs.includes('sql-template')"
             key="sql-ops-template-catalog"
             title="SQL 运维模板"
             subtitle="维护 SQL 运维查询模板、数据库类型、路由标签和意图信号。"
@@ -148,6 +153,8 @@
             :list-filters="sqlTemplateListFilters"
             :searchable-fields="['code', 'title', 'description', 'category', 'databaseType', 'datasourceId', 'intentSignalsJson']"
             :list-action="api.listSqlTemplates"
+            :initial-items="sqlOpsTemplates"
+            :load-on-mount="false"
             :save-action="api.saveSqlTemplate"
             :remove-action="api.deleteSqlTemplate"
             :rebuild-action="api.rebuildSelectedSqlTemplateIndexes"
@@ -160,7 +167,7 @@
         </el-tab-pane>
         <el-tab-pane label="JMX 协议模板" name="jmx-template" lazy>
           <CrudCatalog
-            v-if="activeTemplateTab === 'jmx-template'"
+            v-if="visitedTemplateTabs.includes('jmx-template')"
             key="jmx-template-catalog"
             title="JMX 协议模板"
             subtitle="维护 Java/Kafka 的只读 JMX 连接地址、MBean 属性清单和监控意图。"
@@ -187,7 +194,7 @@
       </el-tabs>
     </section>
 
-    <section v-if="activeTab === 'index-search'" class="workspace-panel">
+    <section v-if="visitedTabs.includes('index-search')" v-show="activeTab === 'index-search'" class="workspace-panel">
       <header class="panel-heading">
         <div>
           <h2>索引检索测试</h2>

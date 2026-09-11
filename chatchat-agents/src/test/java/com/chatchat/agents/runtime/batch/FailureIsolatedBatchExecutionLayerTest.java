@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,6 +53,34 @@ class FailureIsolatedBatchExecutionLayerTest {
             assertThat(attempt.errorCode()).isEqualTo("BATCH_DEADLINE_EXHAUSTED");
             assertThat(attempt.message()).isEqualTo("not executed after deadline");
         });
+    }
+
+    @Test
+    void parallelReadOnlyExecutionStartsIndependentChildrenTogetherAndKeepsOrder() throws Exception {
+        List<ToolCallRequest> calls = List.of(call("first"), call("second"), call("third"));
+        CountDownLatch started = new CountDownLatch(calls.size());
+        CountDownLatch release = new CountDownLatch(1);
+
+        var future = java.util.concurrent.CompletableFuture.supplyAsync(() ->
+            layer.executeParallelReadOnly(calls, (call, index) -> {
+                started.countDown();
+                try {
+                    if (!release.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("parallel siblings did not start");
+                    }
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                }
+                return FailureIsolatedBatchExecutionLayer.Invocation.completed(execution(call.callId()));
+            }));
+
+        assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
+        release.countDown();
+        assertThat(future.get(2, TimeUnit.SECONDS))
+            .extracting(FailureIsolatedBatchExecutionLayer.Attempt::call)
+            .extracting(ToolCallRequest::callId)
+            .containsExactly("first", "second", "third");
     }
 
     private ToolCallRequest call(String callId) {

@@ -508,9 +508,7 @@ public class ToolRuntimeService {
         int remoteToolInvocations = 0;
         int resultCount = 0;
         boolean timeBudgetExhausted = false;
-        List<TemplateExecutionLayer.Attempt> attempts = templateExecutionLayer.execute(
-            calls,
-            (call, index) -> {
+        TemplateExecutionLayer.TemplateInvoker batchInvoker = (call, index) -> {
                 String callId = firstText(call == null ? null : call.callId(), "call-" + (index + 1));
                 String toolName = normalizeText(call == null ? null : call.toolName());
                 Map<String, Object> arguments = call == null || call.arguments() == null
@@ -543,8 +541,11 @@ public class ToolRuntimeService {
                 ToolRuntimeRequest childRequest = batchChildRequest(
                     context, batchId, callId, toolName, arguments, index);
                 return TemplateExecutionLayer.Invocation.completed(execute(childRequest));
-            }
-        );
+            };
+        List<TemplateExecutionLayer.Attempt> attempts =
+            batch.executionMode() == BatchExecutionMode.PARALLEL_READ_ONLY
+                ? templateExecutionLayer.executeParallelReadOnly(calls, batchInvoker)
+                : templateExecutionLayer.execute(calls, batchInvoker);
 
         for (TemplateExecutionLayer.Attempt attempt : attempts) {
             int index = attempt.index();
@@ -696,7 +697,7 @@ public class ToolRuntimeService {
         long completedAt = System.currentTimeMillis();
         return new ToolCallBatchResult(
             batchId,
-            BatchExecutionMode.SEQUENTIAL.name(),
+            batch.executionMode().name(),
             startedAtText,
             Instant.ofEpochMilli(completedAt).toString(),
             status,
@@ -1927,8 +1928,17 @@ public class ToolRuntimeService {
             stringValue(firstPresent(parameters.get("executionMode"), parameters.get("execution_mode"))),
             BatchExecutionMode.SEQUENTIAL.name()
         );
-        if (!BatchExecutionMode.SEQUENTIAL.name().equalsIgnoreCase(mode)) {
-            throw new IllegalArgumentException("Only SEQUENTIAL tool call batches are supported");
+        BatchExecutionMode executionMode;
+        try {
+            executionMode = BatchExecutionMode.valueOf(mode.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException invalidMode) {
+            throw new IllegalArgumentException("Unsupported tool call batch execution mode: " + mode);
+        }
+        if (executionMode == BatchExecutionMode.PARALLEL_READ_ONLY
+            && (request.getAttributes() == null
+                || !Boolean.TRUE.equals(request.getAttributes().get("runtimeParallelReadOnlyBatchAuthorized")))) {
+            throw new IllegalArgumentException(
+                "PARALLEL_READ_ONLY requires Runtime-owned read-only batch authorization");
         }
         boolean stopOnFailure = Boolean.TRUE.equals(booleanValue(firstPresent(
             parameters.get("stopOnFailure"), parameters.get("stop_on_failure")
@@ -1937,7 +1947,7 @@ public class ToolRuntimeService {
             stringValue(firstPresent(parameters.get("batchId"), parameters.get("batch_id"))),
             firstText(request.getRequestId(), UUID.randomUUID().toString()) + "-batch"
         );
-        return new ToolCallBatch(batchId, BatchExecutionMode.SEQUENTIAL, stopOnFailure, parsedCalls);
+        return new ToolCallBatch(batchId, executionMode, stopOnFailure, parsedCalls);
     }
 
     private String resolveBatchChildToolName(ToolRuntimeRequest request, String declaredTool) {
@@ -2113,9 +2123,11 @@ public class ToolRuntimeService {
             return BatchValidation.invalid("BATCH_CALLS_REQUIRED",
                 "Tool call batch calls must be a non-empty array");
         }
-        if (batch.executionMode() != BatchExecutionMode.SEQUENTIAL) {
+        if (batch.executionMode() == BatchExecutionMode.PARALLEL_READ_ONLY
+            && (context == null || context.getAttributes() == null
+                || !Boolean.TRUE.equals(context.getAttributes().get("runtimeParallelReadOnlyBatchAuthorized")))) {
             return BatchValidation.invalid("BATCH_MODE_NOT_ALLOWED",
-                "Only SEQUENTIAL tool call batches are supported");
+                "PARALLEL_READ_ONLY requires Runtime-owned read-only batch authorization");
         }
         if (batch.calls().size() > properties.safeMaxBatchCalls()) {
             return BatchValidation.invalid("BATCH_CALL_LIMIT_EXCEEDED",

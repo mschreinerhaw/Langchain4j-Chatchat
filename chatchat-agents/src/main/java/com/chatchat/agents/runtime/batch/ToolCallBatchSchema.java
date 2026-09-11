@@ -49,6 +49,7 @@ public final class ToolCallBatchSchema {
             "capability", ToolExecutionCapabilities.BATCH_EXECUTION,
             "governance", ToolExecutionCapabilities.TEMPLATE_EXECUTION,
             "executionMode", "SEQUENTIAL",
+            "supportedExecutionModes", List.of("SEQUENTIAL", "PARALLEL_READ_ONLY"),
             "maxCalls", DEFAULT_MAX_CALLS,
             "maxPayloadBytes", DEFAULT_MAX_PAYLOAD_BYTES,
             "nestedBatchAllowed", false,
@@ -116,7 +117,7 @@ public final class ToolCallBatchSchema {
         schema.put("required", List.of("executionMode", "calls"));
         schema.put("properties", Map.of(
             "batchId", Map.of("type", "string", "minLength", 1, "maxLength", 128),
-            "executionMode", Map.of("type", "string", "enum", List.of("SEQUENTIAL")),
+            "executionMode", Map.of("type", "string", "enum", List.of("SEQUENTIAL", "PARALLEL_READ_ONLY")),
             "stopOnFailure", Map.of(
                 "type", "boolean",
                 "default", false,

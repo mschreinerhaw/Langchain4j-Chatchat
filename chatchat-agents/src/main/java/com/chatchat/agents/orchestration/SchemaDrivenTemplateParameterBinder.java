@@ -157,13 +157,28 @@ final class SchemaDrivenTemplateParameterBinder {
             Map<String, Object> schema = parameterSchema(selectedEntry.getValue());
             Map<String, Object> properties = map(schema.get("properties"));
             Set<String> requiredWithoutDefaults = requiredWithoutDefaults(schema, properties);
-            for (Map<String, Object> sourceProtocol : sourceProtocols) {
+            List<Map<String, Object>> exactTemplateProtocols = sourceProtocols.stream()
+                .filter(protocol -> selectedEntry.getKey().equalsIgnoreCase(
+                    Objects.toString(protocol.get("template_id"), "")))
+                .toList();
+            boolean reusingExactTemplateProtocol = !exactTemplateProtocols.isEmpty();
+            List<Map<String, Object>> candidateProtocols = reusingExactTemplateProtocol
+                ? exactTemplateProtocols : sourceProtocols;
+            for (Map<String, Object> sourceProtocol : candidateProtocols) {
                 Map<String, Object> projected = new LinkedHashMap<>();
                 map(sourceProtocol.get("arguments")).forEach((name, evidence) -> {
                     if (properties.containsKey(name) && evidence instanceof Map<?, ?>) {
                         projected.put(name, evidence);
                     }
                 });
+                // A cross-template projection that carries no reviewed user evidence must not
+                // silently fall back to a template's example/default entity. This previously
+                // caused a request for one customer to execute added templates for the customer
+                // embedded in their catalog defaults. Exact-template protocols remain eligible
+                // for deliberate default-only templates.
+                if (!reusingExactTemplateProtocol && projected.isEmpty() && !properties.isEmpty()) {
+                    continue;
+                }
                 if (!projected.keySet().containsAll(requiredWithoutDefaults)) continue;
                 String fingerprint = selectedEntry.getKey() + "|" + projected;
                 if (!fingerprints.add(fingerprint)) continue;

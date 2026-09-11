@@ -3,6 +3,7 @@ package com.chatchat.enterprise.repository.identity;
 import com.chatchat.enterprise.entity.identity.SysRolePermission;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface SysRolePermissionRepository extends JpaRepository<SysRolePermission, String> {
@@ -13,6 +14,8 @@ public interface SysRolePermissionRepository extends JpaRepository<SysRolePermis
      * @return the matching by role id
      */
     List<SysRolePermission> findByRoleId(String roleId);
+
+    List<SysRolePermission> findByRoleIdIn(Collection<String> roleIds);
 
     /**
      * Deletes the by role id.

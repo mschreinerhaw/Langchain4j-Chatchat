@@ -82,11 +82,23 @@ public final class McpToolPublicationPipeline {
                 .filter(item -> item.descriptor().status().publishable())
                 .map(ToolPublication::toolName)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-            Set<String> obsolete = new LinkedHashSet<>(previous.keySet());
-            obsolete.addAll(retired);
             Set<String> priorPending = pendingByContributor.getOrDefault(
                 contributor.contributorId(), Set.of());
+            Set<String> obsolete = new LinkedHashSet<>(previous.keySet());
             obsolete.addAll(priorPending);
+            // A contributor may declare a large legacy namespace as retired (for
+            // example one historical tool per host or datasource). On a fresh
+            // process most of those names are not present in the SDK registry.
+            // Calling removeTool for every absent name is expensive because the
+            // SDK serializes registry mutations and notification bookkeeping.
+            // Previous/pending publications must still be removed even if the
+            // SDK snapshot has drifted; declaration-only retirements are limited
+            // to names that are actually live.
+            Set<String> liveToolNames = server.listTools().stream()
+                .map(McpSchema.Tool::name)
+                .filter(name -> name != null && !name.isBlank())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            retired.stream().filter(liveToolNames::contains).forEach(obsolete::add);
             obsolete.removeAll(retained);
             Set<String> removed = obsolete.stream().filter(name -> remove(server, name))
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));

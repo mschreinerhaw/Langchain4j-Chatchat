@@ -80,16 +80,14 @@ public class McpTemplateLuceneIndexService {
             refreshTemplateIndex();
             refreshed = true;
         }
-        // The database-query index is intentionally rebuilt on startup. It is a
-        // compact per-template identity index and older releases stored
-        // datasource-level aggregate documents under the same index name.
-        refreshDatabaseQueryTemplateIndex();
-        refreshed = true;
-        // API categories are configuration-driven and may be migrated or edited
-        // without changing the template id. Rebuild this compact index so category
-        // metadata can never lag behind the service registry.
-        refreshApiServiceTemplateIndex();
-        refreshed = true;
+        if (!luceneSearchService.databaseQueryTemplateIndexExists()) {
+            refreshDatabaseQueryTemplateIndex();
+            refreshed = true;
+        }
+        if (!luceneSearchService.apiServiceTemplateIndexExists()) {
+            refreshApiServiceTemplateIndex();
+            refreshed = true;
+        }
         if (!refreshed) {
             log.info("MCP template index startup check skipped rebuild because all template indexes already exist");
         }

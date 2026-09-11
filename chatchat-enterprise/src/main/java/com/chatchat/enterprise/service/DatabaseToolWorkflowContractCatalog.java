@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /** Database-authoritative implementation of the versioned tool contract catalog. */
@@ -65,8 +66,34 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
                                                                        Map<String, Object> outputSchema,
                                                                        Map<String, Object> discoveredMeta,
                                                                        boolean autoPublish) {
+        Map<String, Object> metadataMap = new LinkedHashMap<>();
+        metadataMap.put("mcpToolMeta", discoveredMeta == null ? Map.of() : discoveredMeta);
+        ToolMetadata metadata = ToolMetadata.builder().metadata(metadataMap).build();
+        ToolWorkflowContract.validate(localToolName, metadata);
+        String inputSchemaJson = json(inputSchema);
+        String outputSchemaJson = json(outputSchema);
         Optional<McpToolAsset> stored = tools.findByLocalToolName(localToolName);
         boolean existingCatalogTool = stored.isPresent();
+
+        // The heartbeat and tools/list_changed paths rediscover the same contracts often.
+        // Do not issue an UPDATE+flush and acquire a write lock for every unchanged tool:
+        // with a remote database that made a read-only registry refresh take tens of seconds
+        // and exposed a partially populated registry to Agent requests.
+        if (stored.isPresent() && toolAssetMatches(stored.get(), serviceId, serviceName,
+            remoteToolName, description, inputSchemaJson, outputSchemaJson)) {
+            List<McpToolWorkflowContract> currentHistory =
+                contracts.findByToolIdOrderByContractVersionDesc(stored.get().getId());
+            DiscoveryContract current = discoveryContract(localToolName, discoveredMeta,
+                inputSchema, outputSchema, true, currentHistory, metadata);
+            Optional<McpToolWorkflowContract> sameActive = contracts
+                .findFirstByToolIdAndContractChecksumOrderByContractVersionDesc(
+                    stored.get().getId(), current.checksum())
+                .filter(value -> ACTIVE.equals(value.getStatus()));
+            if (sameActive.isPresent()) {
+                return sameActive.map(this::snapshot);
+            }
+        }
+
         McpToolAsset tool = stored.orElseGet(McpToolAsset::new);
         tool.setLocalToolName(localToolName);
         tool.setServiceId(serviceId);
@@ -74,8 +101,8 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         tool.setRemoteToolName(remoteToolName);
         tool.setDescription(description);
         tool.setResourceType("tool");
-        tool.setInputSchemaJson(json(inputSchema));
-        tool.setOutputSchemaJson(json(outputSchema));
+        tool.setInputSchemaJson(inputSchemaJson);
+        tool.setOutputSchemaJson(outputSchemaJson);
         tool.setEnabled(true);
         tool.setStatus("online");
         tool = tools.saveAndFlush(tool);
@@ -84,29 +111,14 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         tools.findLockedById(synchronizedToolId).orElseThrow(() ->
             new IllegalStateException("MCP tool disappeared during contract synchronization: " + synchronizedToolId));
 
-        Map<String, Object> metadataMap = new LinkedHashMap<>();
-        metadataMap.put("mcpToolMeta", discoveredMeta == null ? Map.of() : discoveredMeta);
-        ToolMetadata metadata = ToolMetadata.builder().metadata(metadataMap).build();
-        ToolWorkflowContract.validate(localToolName, metadata);
         List<McpToolWorkflowContract> history = contracts.findByToolIdOrderByContractVersionDesc(tool.getId());
-        ToolWorkflowRole role = ToolWorkflowContract.declaredRole(metadata).orElseGet(() ->
-            history.stream()
-                .filter(item -> ACTIVE.equals(item.getStatus()))
-                .findFirst()
-                .map(item -> ToolWorkflowRole.valueOf(item.getWorkflowRole()))
-                .orElseGet(() -> existingCatalogTool && history.isEmpty()
-                    ? ToolWorkflowContract.resolveRole(localToolName, metadata)
-                    : ToolWorkflowRole.DIRECT));
-        Map<String, Object> published = publishedContract(discoveredMeta);
-        if (published.isEmpty() && existingCatalogTool && history.isEmpty()
-            && discoveredMeta != null && !discoveredMeta.isEmpty()) {
-            // One-time migration copies the publisher's old routing metadata into the
-            // versioned snapshot so legacy dynamic routes do not change behavior.
-            published = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(discoveredMeta));
-        }
-        String family = text(published.get("protocolFamily"));
-        String envelope = text(published.get("inputEnvelope"));
-        String checksum = checksum(role, family, envelope, inputSchema, outputSchema, published);
+        DiscoveryContract discovery = discoveryContract(localToolName, discoveredMeta,
+            inputSchema, outputSchema, existingCatalogTool, history, metadata);
+        ToolWorkflowRole role = discovery.role();
+        Map<String, Object> published = discovery.published();
+        String family = discovery.family();
+        String envelope = discovery.envelope();
+        String checksum = discovery.checksum();
 
         Optional<McpToolWorkflowContract> same = contracts
             .findFirstByToolIdAndContractChecksumOrderByContractVersionDesc(tool.getId(), checksum);
@@ -148,6 +160,58 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         return contracts.findFirstByToolIdAndStatusOrderByContractVersionDesc(tool.getId(), ACTIVE)
             .filter(active -> checksum.equals(active.getContractChecksum()))
             .map(this::snapshot);
+    }
+
+    private DiscoveryContract discoveryContract(String localToolName,
+                                                 Map<String, Object> discoveredMeta,
+                                                 Map<String, Object> inputSchema,
+                                                 Map<String, Object> outputSchema,
+                                                 boolean existingCatalogTool,
+                                                 List<McpToolWorkflowContract> history,
+                                                 ToolMetadata metadata) {
+        ToolWorkflowRole role = ToolWorkflowContract.declaredRole(metadata).orElseGet(() ->
+            history.stream()
+                .filter(item -> ACTIVE.equals(item.getStatus()))
+                .findFirst()
+                .map(item -> ToolWorkflowRole.valueOf(item.getWorkflowRole()))
+                .orElseGet(() -> existingCatalogTool && history.isEmpty()
+                    ? ToolWorkflowContract.resolveRole(localToolName, metadata)
+                    : ToolWorkflowRole.DIRECT));
+        Map<String, Object> published = publishedContract(discoveredMeta);
+        if (published.isEmpty() && existingCatalogTool && history.isEmpty()
+            && discoveredMeta != null && !discoveredMeta.isEmpty()) {
+            published = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(discoveredMeta));
+        }
+        String family = text(published.get("protocolFamily"));
+        String envelope = text(published.get("inputEnvelope"));
+        return new DiscoveryContract(role, published, family, envelope,
+            checksum(role, family, envelope, inputSchema, outputSchema, published));
+    }
+
+    private boolean toolAssetMatches(McpToolAsset tool,
+                                     String serviceId,
+                                     String serviceName,
+                                     String remoteToolName,
+                                     String description,
+                                     String inputSchemaJson,
+                                     String outputSchemaJson) {
+        return tool != null
+            && Objects.equals(tool.getServiceId(), serviceId)
+            && Objects.equals(tool.getServiceName(), serviceName)
+            && Objects.equals(tool.getRemoteToolName(), remoteToolName)
+            && Objects.equals(tool.getDescription(), description)
+            && Objects.equals(tool.getResourceType(), "tool")
+            && Objects.equals(tool.getInputSchemaJson(), inputSchemaJson)
+            && Objects.equals(tool.getOutputSchemaJson(), outputSchemaJson)
+            && tool.isEnabled()
+            && Objects.equals(tool.getStatus(), "online");
+    }
+
+    private record DiscoveryContract(ToolWorkflowRole role,
+                                     Map<String, Object> published,
+                                     String family,
+                                     String envelope,
+                                     String checksum) {
     }
 
     private void retireActive(String toolId) {

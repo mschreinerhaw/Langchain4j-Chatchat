@@ -14,12 +14,14 @@ import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RestController
 @RequiredArgsConstructor
@@ -33,11 +35,34 @@ public class EnterpriseMcpAuthorizationSyncController {
     private final McpToolAssetRepository toolAssetRepository;
     private final McpToolPermissionRepository toolPermissionRepository;
     private final InternalCredentialProperties internalCredentialProperties;
+    private final AtomicReference<CachedSnapshot> cachedSnapshot = new AtomicReference<>();
+    private final Object snapshotMonitor = new Object();
+
+    @Value("${chatchat.mcp.authorization.snapshot-cache-ttl-ms:300000}")
+    private long snapshotCacheTtlMs;
 
     @GetMapping("/snapshot")
     @Operation(summary = "Pull the current MCP authorization snapshot")
     public ApiResponse<McpAuthorizationSnapshot> snapshot() {
-        return ApiResponse.success(new McpAuthorizationSnapshot(
+        CachedSnapshot cached = cachedSnapshot.get();
+        long now = System.currentTimeMillis();
+        if (cached != null && cached.validAt(now, snapshotCacheTtlMs)) {
+            return ApiResponse.success(cached.snapshot());
+        }
+        synchronized (snapshotMonitor) {
+            cached = cachedSnapshot.get();
+            now = System.currentTimeMillis();
+            if (cached != null && cached.validAt(now, snapshotCacheTtlMs)) {
+                return ApiResponse.success(cached.snapshot());
+            }
+            McpAuthorizationSnapshot rebuilt = buildSnapshot();
+            cachedSnapshot.set(new CachedSnapshot(rebuilt, now));
+            return ApiResponse.success(rebuilt);
+        }
+    }
+
+    private McpAuthorizationSnapshot buildSnapshot() {
+        return new McpAuthorizationSnapshot(
             Instant.now(),
             adminService.listUserViews(null).stream()
                 .filter(user -> user.username() == null
@@ -52,7 +77,7 @@ public class EnterpriseMcpAuthorizationSyncController {
                 .toList(),
             toolAssetRepository.findAllByOrderByLocalToolNameAsc(),
             toolPermissionRepository.findAll()
-        ));
+        );
     }
 
     private RoleView toRoleView(SysRole role) {
@@ -93,5 +118,11 @@ public class EnterpriseMcpAuthorizationSyncController {
         String roleType,
         String status
     ) {
+    }
+
+    private record CachedSnapshot(McpAuthorizationSnapshot snapshot, long createdAtMs) {
+        private boolean validAt(long nowMs, long ttlMs) {
+            return ttlMs > 0L && nowMs - createdAtMs < ttlMs;
+        }
     }
 }

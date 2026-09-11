@@ -10,12 +10,34 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CommandTemplateServiceTest {
 
     private final CommandTemplateConfigRepository repository = mock(CommandTemplateConfigRepository.class);
+
+    @Test
+    void listAllSynchronizesDefaultsFromOneBulkRead() {
+        CommandTemplateSeedProperties properties = new CommandTemplateSeedProperties();
+        CommandTemplateService service = new CommandTemplateService(repository, new ObjectMapper(), properties);
+        List<CommandTemplateConfig> templates = java.util.stream.IntStream.range(0, 10)
+            .mapToObj(index -> {
+                CommandTemplateConfig config = new CommandTemplateConfig();
+                config.setCode("CUSTOM_" + index);
+                config.setTitle(config.getCode());
+                config.setCommandTemplate("echo " + index);
+                return config;
+            })
+            .toList();
+        when(repository.findAll()).thenReturn(templates);
+
+        assertThat(service.listAll()).hasSize(20);
+
+        verify(repository).findAll();
+        verify(repository, never()).findByCode(anyString());
+    }
 
     @Test
     void onlyRequiredManagedTemplatesSeedWhenBulkDefaultsAreDisabled() {

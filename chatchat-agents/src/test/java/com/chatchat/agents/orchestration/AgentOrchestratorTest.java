@@ -3761,7 +3761,7 @@ class AgentOrchestratorTest {
                 + "\"corrected_selected_template_ids\":[\"asset\",\"trade\"],"
                 + "\"missing_aspects\":[],\"reason\":\"both clauses are covered\"}"
         );
-        AgentOrchestrator orchestrator = newOrchestrator(model);
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
         InterpretationPlanRuntime.StepExecution execution =
             new InterpretationPlanRuntime.StepExecution(
                 1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
@@ -3783,6 +3783,72 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void completeFirstPassTemplateReviewIsReusedWithoutAQualityReducingSecondSelection() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"coverage_decision\":\"SUFFICIENT\"," +
+                "\"selected_template_ids\":[\"asset\",\"trade\"]," +
+                "\"rejected_template_ids\":[]," +
+                "\"template_evaluations\":[" +
+                "{\"template_id\":\"asset\",\"decision\":\"accept\"}," +
+                "{\"template_id\":\"trade\",\"decision\":\"accept\"}]}"
+        );
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+                    Map.of("templateId", "trade", "title", "Transaction history"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze assets and transactions", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1, "run-complete-first-pass"));
+
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata().get("selectedTemplateIds"))
+            .isEqualTo(List.of("asset", "trade"));
+        assertThat(review.metadata().get("templateSelectionCoverageAudit").toString())
+            .contains("FIRST_PASS_COMPLETE");
+        verify(model, org.mockito.Mockito.times(1)).chat(anyString());
+    }
+
+    @Test
+    void completeFirstPassCandidatePartitionDoesNotRequireVerboseRejectedEvaluations() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\",\"trade\"]," +
+                "\"rejected_template_ids\":[\"irrelevant\"]," +
+                "\"template_evaluations\":[" +
+                "{\"template_id\":\"asset\",\"decision\":\"accept\"}," +
+                "{\"template_id\":\"trade\",\"decision\":\"accept\"}]}"
+        );
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+                    Map.of("templateId", "trade", "title", "Transaction history"),
+                    Map.of("templateId", "irrelevant", "title", "Unrelated data"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze assets and transactions", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1, "run-complete-partition"));
+
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata().get("selectedTemplateIds"))
+            .isEqualTo(List.of("asset", "trade"));
+        assertThat(review.metadata().get("templateSelectionCoverageAudit").toString())
+            .contains("FIRST_PASS_COMPLETE");
+        verify(model, org.mockito.Mockito.times(1)).chat(anyString());
+    }
+
+    @Test
     void incompleteSecondPassAuditPreservesPaginationAndRequestsNextPage() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn(
@@ -3792,7 +3858,7 @@ class AgentOrchestratorTest {
                 + "\"corrected_selected_template_ids\":[\"asset\"],"
                 + "\"missing_aspects\":[\"transactions\"],\"reason\":\"next page is required\"}"
         );
-        AgentOrchestrator orchestrator = newOrchestrator(model);
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
         InterpretationPlanRuntime.StepExecution execution =
             new InterpretationPlanRuntime.StepExecution(
                 1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
@@ -3828,7 +3894,7 @@ class AgentOrchestratorTest {
                 + "\"corrected_selected_template_ids\":[],"
                 + "\"missing_aspects\":[\"transactions\"],\"reason\":\"no suitable candidate on page\"}"
         );
-        AgentOrchestrator orchestrator = newOrchestrator(model);
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
         InterpretationPlanRuntime.StepExecution execution =
             new InterpretationPlanRuntime.StepExecution(
                 1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
@@ -6104,6 +6170,18 @@ class AgentOrchestratorTest {
 
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {
         return newOrchestrator(chatModel, mock(ToolRegistry.class));
+    }
+
+    private AgentOrchestrator newTemplateDiscoveryOrchestrator(ChatModel chatModel) {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("mcp_chatchat_mcp_server_customer_service_template_query"))
+            .thenReturn(ToolMetadata.builder()
+                .metadata(Map.of(com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "customer_service_template_query", "template_query.v1")))
+                .build());
+        return newOrchestrator(chatModel, registry);
     }
 
     private AgentOrchestrator newOrchestrator(ChatModel chatModel, ToolRegistry toolRegistry) {

@@ -142,6 +142,58 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void exposesBoundedDomainKnowledgeProvenanceInPersistedResultPayload() throws Exception {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        Map<String, Object> source = Map.of(
+            "documentId", "doc-ids-metrics",
+            "documentName", "iDS3.0数据指标清单.xlsx",
+            "chunkId", "chunk-1",
+            "citation", "iDS3.0数据指标清单.xlsx#chunk: 1");
+        InteractionResponse response = InteractionResponse.builder()
+            .metadata(Map.of(
+                "knowledgeRetrieval", "compiled",
+                "domainKnowledgeUsed", true,
+                "domainKnowledgeSourceCount", 1,
+                "domainKnowledgeTokens", 768,
+                "domainKnowledgeTokenBudget", 1500,
+                "domainKnowledgeTruncated", false,
+                "domainKnowledgeSkillCount", 4,
+                "domainKnowledgeContext", Map.of(
+                    "schemaVersion", "knowledge_context.v1",
+                    "status", "compiled",
+                    "used", true,
+                    "compiledContext", "large private prompt body",
+                    "estimatedTokens", 768,
+                    "maxTokens", 1500,
+                    "truncated", false,
+                    "skillTypes", List.of("CONCEPT", "METRIC"),
+                    "sources", List.of(source))))
+            .build();
+        Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
+        compile.setAccessible(true);
+        Object contract = compile.invoke(service, response);
+        Method payloadMethod = contract.getClass().getDeclaredMethod("payload", InteractionResponse.class);
+        payloadMethod.setAccessible(true);
+
+        Map<String, Object> payload = (Map<String, Object>) payloadMethod.invoke(contract, response);
+        Map<String, Object> metadata = (Map<String, Object>) payload.get("metadata");
+        Map<String, Object> knowledge = (Map<String, Object>) metadata.get("domainKnowledgeContext");
+
+        assertThat(metadata)
+            .containsEntry("domainKnowledgeUsed", true)
+            .containsEntry("domainKnowledgeSourceCount", 1)
+            .containsEntry("domainKnowledgeTokens", 768)
+            .containsEntry("domainKnowledgeSkillCount", 4);
+        assertThat(knowledge)
+            .containsEntry("used", true)
+            .containsEntry("sources", List.of(source))
+            .doesNotContainKey("compiledContext");
+    }
+
+    @Test
     void failedToolResultDoesNotOverrideLaterPartialTaskCompletion() throws Exception {
         AgentTaskService service = taskService(
             mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
@@ -1005,6 +1057,32 @@ class AgentTaskServiceTest {
             .containsEntry("publisher", "示例财经")
             .containsEntry("publishDate", "2026-07-20T10:00:00+08:00")
             .containsEntry("url", "https://example.com/news/1");
+    }
+
+    @Test
+    void citationsRecoverAttachedDomainKnowledgeFromDurableRuntimeMetadata() {
+        AgentTaskService service = taskService(
+            mock(AgentEventBus.class), mock(AgentEventStore.class), mock(AgentTaskLatestRepository.class),
+            mock(TaskConfirmRepository.class), new ObjectMapper());
+        InteractionResponse response = InteractionResponse.builder()
+            .metadata(Map.of("domainKnowledgeContext", Map.of(
+                "used", true,
+                "sources", List.of(Map.of(
+                    "documentId", "doc-risk-policy",
+                    "documentName", "风险分析规范",
+                    "section", "持仓口径",
+                    "version", "v1",
+                    "citation", "风险分析规范 / 持仓口径")))))
+            .build();
+
+        List<Map<String, Object>> citations = service.citations(response, Map.of());
+
+        assertThat(citations).hasSize(1);
+        assertThat(citations.get(0))
+            .containsEntry("sourceRef", "doc-risk-policy")
+            .containsEntry("title", "风险分析规范")
+            .containsEntry("section", "持仓口径")
+            .containsEntry("version", "v1");
     }
 
     @Test

@@ -10,6 +10,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.ArrayList;
 
 /** Shared, multi-instance-safe authoritative event store for Agent task projections. */
 @Component
@@ -20,6 +23,57 @@ public class DatabaseAgentEventStore implements AgentEventStore {
 
     private final DatabaseAgentEventRepository repository;
     private final AgentTaskLatestRepository taskRepository;
+
+    @Override
+    public boolean supportsDeferredAppend() {
+        return true;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String append(AgentEvent event) {
+        // This proxy entry point owns the transaction. Calling save() below is a
+        // self-invocation, so its annotation alone would not open the transaction.
+        return save(event);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<String> appendAll(List<AgentEvent> events) {
+        if (events == null || events.isEmpty()) return List.of();
+        List<AgentEvent> ordered = events.stream().filter(java.util.Objects::nonNull).toList();
+        if (ordered.isEmpty()) return List.of();
+        AgentEvent first = ordered.get(0);
+        for (AgentEvent event : ordered) {
+            if (!java.util.Objects.equals(first.getTaskId(), event.getTaskId())
+                || !java.util.Objects.equals(first.getTenantId(), event.getTenantId())
+                || !java.util.Objects.equals(first.getSessionId(), event.getSessionId())) {
+                throw new IllegalArgumentException("Agent event batch must belong to one task stream");
+            }
+            if (event.getCreateTime() <= 0) event.setCreateTime(System.currentTimeMillis());
+        }
+        Set<String> existingIds = new HashSet<>();
+        repository.findAllById(ordered.stream().map(AgentEvent::getEventId).toList())
+            .forEach(entity -> existingIds.add(entity.getEventId()));
+        taskRepository.findByTaskIdForUpdate(first.getTaskId());
+        long current = repository.findTopByTenantIdAndSessionIdAndTaskIdOrderBySequenceDesc(
+                first.getTenantId(), first.getSessionId(), first.getTaskId())
+            .map(DatabaseAgentEventEntity::getSequence).orElse(0L);
+        List<DatabaseAgentEventEntity> entities = new ArrayList<>();
+        List<String> ids = new ArrayList<>();
+        for (AgentEvent event : ordered) {
+            ids.add(event.getEventId());
+            if (existingIds.contains(event.getEventId())) continue;
+            if (event.getSequence() == null || event.getSequence() <= current) {
+                event.setSequence(++current);
+            } else {
+                current = event.getSequence();
+            }
+            entities.add(toEntity(event));
+        }
+        if (!entities.isEmpty()) repository.saveAllAndFlush(entities);
+        return List.copyOf(ids);
+    }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)

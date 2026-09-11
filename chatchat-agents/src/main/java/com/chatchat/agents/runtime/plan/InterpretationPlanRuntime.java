@@ -1564,12 +1564,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     lease.leaseToken(), Instant.now(), longAttribute(request.attributes(), "nodeLeaseMs", DEFAULT_NODE_LEASE_MS));
             }
             attempt = transitionAttempt(attempt, NodeAttemptStore.State.PREPARED,
-                "node result validated; awaiting commit barrier", Map.of(
+                "node result validated; awaiting commit barrier", mapOf(
                     "resultFingerprint", resultFingerprint(execution),
                     "executionEpoch", executionEpoch
                 ));
             return withAttemptMetadata(execution, attempt, NodeAttemptStore.State.PREPARED);
         } catch (RuntimeException ex) {
+            log.error("DAG node attempt persistence failed. traceId={} stepId={} tool={} errorType={} error={}",
+                executionTraceId(request), step.id(), step.toolName(), ex.getClass().getName(),
+                ex.getMessage(), ex);
             try {
                 if (attempt != null && !attempt.state().terminal()) {
                     transitionAttempt(attempt, NodeAttemptStore.State.FAILED,
@@ -1613,6 +1616,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         metadata.put("nodeAttemptNumber", attempt.attemptNumber());
         metadata.put("nodeAttemptState", state.name());
         metadata.put("nodeAttemptRevision", attempt.revision());
+        metadata.entrySet().removeIf(entry -> entry.getKey() == null || entry.getValue() == null);
         return execution.withMetadata(Map.copyOf(metadata), execution.durationMs());
     }
 
@@ -2035,6 +2039,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 if (batchToolInput(resolvedInput)
                     && runtimeOwnedTemplateBatch(step, request.plan(), completed)) {
                     stepAttributes.put("runtimeOwnedTemplateBatch", true);
+                    if ("PARALLEL_READ_ONLY".equals(String.valueOf(
+                        resolvedInput.get("executionMode")))) {
+                        stepAttributes.put("runtimeParallelReadOnlyBatchAuthorized", true);
+                    }
                 }
                 if (!templatePreflightTerminalRepairs.isEmpty()) {
                     stepAttributes.put("runtimeOwnedTemplatePreflight", true);
@@ -2180,6 +2188,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                         DiagnosticEvidenceNormalizer.CONTRACT_VERSION);
                     stepMetadata.put("rawOutputType", rawOutput.getClass().getSimpleName());
                 }
+                // Review/binding payloads may legitimately omit optional values. Map.copyOf
+                // rejects nulls and previously converted a successful template binding into an
+                // opaque pre-execution failure (NullPointerException with no message).
+                stepMetadata.entrySet().removeIf(entry -> entry.getKey() == null || entry.getValue() == null);
                 StepExecution result = new StepExecution(
                     step.id(),
                     step.actionType(),
@@ -2201,11 +2213,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             } catch (DeferredPlanToolExecutionException deferred) {
                 throw deferred;
             } catch (RuntimeException ex) {
-                log.warn("InterpretationPlan step failed before tool execution: traceId={}, stepId={}, tool={}, error={}",
+                log.warn("InterpretationPlan step failed before tool execution: traceId={}, stepId={}, tool={}, errorType={}, error={}",
                     executionTraceId(request),
                     step.id(),
                     step.toolName(),
-                    ex.getMessage());
+                    ex.getClass().getName(),
+                    ex.getMessage(),
+                    ex);
                 StepExecution result = new StepExecution(
                     step.id(),
                     step.actionType(),
@@ -3178,6 +3192,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         reviewMetadata.put("templateRequirementAnalysisContext",
             templateRequirementAnalysisContext(request, execution, completed));
         reviewMetadata.put("toolResultReviewReason", review.reason());
+        reviewMetadata.entrySet().removeIf(entry -> entry.getKey() == null || entry.getValue() == null);
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             TEMPLATE_CANDIDATE_EVALUATOR.evaluate(execution.output(), Map.copyOf(reviewMetadata));
         metadata.put("runtimeTemplateSelectionApplied", evaluation.applied());
@@ -5672,6 +5687,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         // the asset selected by discovery (for example the innodb_status child call).
         hydrateDiagnosticBatchAssetContext(completed, batchInput);
         List<Map<String, Object>> calls = new ArrayList<>();
+        Set<String> compiledInvocationFingerprints = new LinkedHashSet<>();
         String outerTool = null;
         for (int bindingIndex = 0; bindingIndex < compilationBindings.size(); bindingIndex++) {
             Map<String, Object> reviewedBinding = compilationBindings.get(bindingIndex);
@@ -5708,6 +5724,18 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             if (templateId != null && childTool != null) {
                 putRuntimeTemplateBinding(arguments, templateId, childTool,
                     "reviewed_template_discovery_batch");
+            }
+            String invocationFingerprint = sha256(mapOf(
+                "templateId", templateId,
+                "toolName", childTool,
+                "parameters", arguments.get("parameters"),
+                "executionContext", arguments.get("executionContext")
+            ));
+            if (!compiledInvocationFingerprints.add(invocationFingerprint)) {
+                log.info("InterpretationPlan skipped duplicate reviewed template invocation: "
+                        + "stepId={}, templateId={}, bindingIndex={}",
+                    step.id(), templateId, bindingIndex);
+                continue;
             }
             Map<String, Object> call = new LinkedHashMap<>();
             String bindingId = stringValue(firstMapValue(reviewedBinding, "bindingId", "binding_id"));
@@ -5754,7 +5782,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Map<String, Object> batch = new LinkedHashMap<>();
         batch.put("batchId", "reviewed-template-step-" + step.id());
-        batch.put("executionMode", firstText(stringValue(batchInput.get("executionMode")), "SEQUENTIAL"));
+        // This discovery contract contains independent customer data queries. Runtime owns this
+        // mode; a model-provided executionMode is deliberately ignored. Other diagnostic and
+        // mutation-capable batches remain sequential.
+        boolean parallelReadOnly = reviewedSelection != null
+            && normalize(reviewedSelection.toolName()).contains("customer_service_template_query");
+        batch.put("executionMode", parallelReadOnly ? "PARALLEL_READ_ONLY" : "SEQUENTIAL");
         batch.put("stopOnFailure", false);
         batch.put("calls", calls);
         log.info("InterpretationPlan compiled reviewed template batch with terminal preflight coverage: "

@@ -30,13 +30,15 @@
           </div>
         </header>
 
-        <component
-          :is="activeNav.component"
-          @notify="notify"
-          @error="handleError"
-          @result="showResult"
-          @password-changed="forceRelogin"
-        />
+        <KeepAlive include="ApiServicesView,AssetCenterView,DatabaseMcpView,TemplateQueryPublicationsView">
+          <component
+            :is="activeNav.component"
+            @notify="notify"
+            @error="handleError"
+            @result="showResult"
+            @password-changed="forceRelogin"
+          />
+        </KeepAlive>
       </main>
 
       <ModalPanel :open="resultOpen" :title="resultTitle" wide @close="resultOpen = false">

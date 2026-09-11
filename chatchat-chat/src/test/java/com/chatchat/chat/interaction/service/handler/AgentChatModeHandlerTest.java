@@ -14,6 +14,7 @@ import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.knowledge.KnowledgeContext;
 import com.chatchat.common.knowledge.KnowledgeRequest;
 import com.chatchat.common.knowledge.KnowledgeRuntimePort;
+import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -54,7 +55,9 @@ class AgentChatModeHandlerTest {
         when(knowledgeRuntime.retrieveKnowledge(any())).thenReturn(new KnowledgeContext(
             KnowledgeContext.SCHEMA_VERSION, null, List.of(),
             "高仓位定义：证券市值占总资产比例超过内部阈值。示例客户资产为 100 万元。",
-            List.of(), 60, 1500, false, "used"));
+            List.of(new KnowledgeSourceReference("source-1", "doc-risk-policy", "chunk-1",
+                "风险分析规范", "持仓口径", "v1", "风险分析规范 / 持仓口径")),
+            60, 1500, false, "used"));
         when(orchestrator.executeAgent(
             any(), any(), any(), any(), any(), any(), any(),
             any(), any(), any(), any(), anyInt(), any(), anyBoolean(), any()
@@ -80,10 +83,11 @@ class AgentChatModeHandlerTest {
         ArgumentCaptor<KnowledgeRequest> retrieval = ArgumentCaptor.forClass(KnowledgeRequest.class);
         ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<List<String>> availableTools = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Map<String, Object>> runtimeAttributes = ArgumentCaptor.forClass(Map.class);
         verify(knowledgeRuntime).retrieveKnowledge(retrieval.capture());
         verify(orchestrator).executeAgent(
             any(), eq("tenant-a"), availableTools.capture(), systemPrompt.capture(), any(), any(), any(),
-            any(), any(), any(), eq("user-a"), anyInt(), any(), anyBoolean(), any()
+            any(), any(), any(), eq("user-a"), anyInt(), any(), anyBoolean(), runtimeAttributes.capture()
         );
 
         assertThat(retrieval.getValue().scope().documentIds()).containsExactly("doc-risk-policy");
@@ -98,6 +102,17 @@ class AgentChatModeHandlerTest {
             .containsEntry("knowledgeRetrieval", "used")
             .containsEntry("domainKnowledgeUsed", true)
             .containsEntry("domainKnowledgeTokenBudget", 1500);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> knowledgeProjection = (Map<String, Object>) response.getMetadata()
+            .get(KnowledgeContext.RUNTIME_ATTRIBUTE);
+        assertThat(knowledgeProjection)
+            .containsEntry("used", true)
+            .containsEntry("compiledContext", "高仓位定义：证券市值占总资产比例超过内部阈值。示例客户资产为 100 万元。")
+            .containsKey("usageContract");
+        assertThat(runtimeAttributes.getValue())
+            .containsEntry(KnowledgeContext.RUNTIME_ATTRIBUTE, knowledgeProjection);
+        assertThat(response.getSources()).hasSize(1);
+        assertThat(response.getSources().get(0).getSource()).isEqualTo("风险分析规范");
     }
 
     @Test

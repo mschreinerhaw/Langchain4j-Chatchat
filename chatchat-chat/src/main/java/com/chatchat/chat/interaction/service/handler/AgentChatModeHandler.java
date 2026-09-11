@@ -174,6 +174,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             : request.getModelName();
 
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        if (domainKnowledge.used()) {
+            runtimeAttributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, domainKnowledge.toRuntimeProjection());
+        }
         if (!agentRoleContext.isEmpty()) {
             runtimeAttributes.put(AgentRoleAnalysisContext.RUNTIME_ATTRIBUTE, agentRoleContext);
         }
@@ -222,6 +225,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("domainKnowledgeTruncated", domainKnowledge.truncated());
         metadata.put("domainKnowledgeSkillCount",
             domainKnowledge.plan() == null ? 0 : domainKnowledge.plan().skills().size());
+        metadata.put(KnowledgeContext.RUNTIME_ATTRIBUTE, domainKnowledge.toRuntimeProjection());
         metadata.put("matchedExperienceIds", runtimeExperience.matchedExperienceIds());
         if (!runtimeExperience.plannerPrior().isEmpty()) {
             metadata.put("experiencePrior", runtimeExperience.plannerPrior());
@@ -434,14 +438,21 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         try {
             String modelName = skill != null && skill.modelName() != null && !skill.modelName().isBlank()
                 ? skill.modelName() : request.getModelName();
-            return knowledgeRuntime.retrieveKnowledge(new KnowledgeRequest(
+            KnowledgeContext knowledge = knowledgeRuntime.retrieveKnowledge(new KnowledgeRequest(
                 KnowledgeRequest.SCHEMA_VERSION, request.getQuery(), "TOOL_ANALYSIS",
                 knowledgeTokenBudget,
                 new KnowledgeScope(skill == null ? request.getSkillId() : skill.id(),
                     request.getTenantId(), request.getUserId(), documentIds, documentTags, List.of()),
                 null, Map.of("modelName", modelName == null ? "" : modelName,
                     "executionMode", "TOOL_AGENT",
+                    "preferDeterministicPlan", true,
                     "knowledgeSkillTimeoutMs", runtimePolicy.knowledgeSkillTimeoutMs())));
+            log.info("agentDomainKnowledgeRetrieved skillId={} status={} used={} sourceCount={} "
+                    + "estimatedTokens={} maxTokens={} truncated={} skillCount={}",
+                skill == null ? null : skill.id(), knowledge.status(), knowledge.used(),
+                knowledge.sources().size(), knowledge.estimatedTokens(), knowledge.maxTokens(),
+                knowledge.truncated(), knowledge.plan() == null ? 0 : knowledge.plan().skills().size());
+            return knowledge;
         } catch (RuntimeException ex) {
             log.warn("agentDomainKnowledgeRetrievalFailed skillId={} error={}",
                 skill == null ? null : skill.id(), ex.getMessage());

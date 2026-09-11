@@ -54,6 +54,14 @@ public class TemplateAssetCatalogService {
         return entries().stream().map(CatalogEntry::asset).toList();
     }
 
+    /** Loads only the requested asset family when a bound child route already fixed it. */
+    public List<TemplateAsset> listEnabledForType(String assetType) {
+        if (API.equals(assetType)) {
+            return apiEntries().stream().map(CatalogEntry::asset).toList();
+        }
+        return listEnabled().stream().filter(asset -> assetType.equals(asset.assetType())).toList();
+    }
+
     public List<TemplateAsset> listAuthorizedForRole(String roleId) {
         McpAuthorizationService.RoleView role = authorizationService.roles(null).stream()
             .filter(item -> item.id().equals(roleId))
@@ -71,8 +79,36 @@ public class TemplateAssetCatalogService {
         if (assetType == null || assetType.isBlank()) {
             throw new IllegalArgumentException("assetType is required");
         }
-        return listAuthorizedForRole(roleId).stream()
-            .filter(asset -> assetType.equals(asset.assetType()))
+        if (!API.equals(assetType)) {
+            return listAuthorizedForRole(roleId).stream()
+                .filter(asset -> assetType.equals(asset.assetType()))
+                .toList();
+        }
+        McpAuthorizationService.RoleView role = authorizationService.roles(null).stream()
+            .filter(item -> item.id().equals(roleId))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleId));
+        return apiEntries().stream()
+            .filter(entry -> entry.tenantId() == null || entry.tenantId().equals(role.tenantId()))
+            .filter(entry -> entry.authorizationRefs().stream().anyMatch(ref ->
+                authorizationService.roleAllows(role.id(), role.tenantId(), ref.toolName(), ref.scope(role.tenantId()))))
+            .map(CatalogEntry::asset)
+            .toList();
+    }
+
+    private List<CatalogEntry> apiEntries() {
+        List<BusinessCategory> businessCategories = businessCategoryService.listEnabled();
+        Map<String, BusinessCategory> categoriesById = businessCategories.stream()
+            .collect(Collectors.toMap(BusinessCategory::getId, Function.identity()));
+        Map<String, BusinessCategory> categoriesByCode = businessCategories.stream()
+            .collect(Collectors.toMap(item -> normalize(item.getCode()), Function.identity(), (left, right) -> left));
+        return apiServiceConfigService.listEnabled().stream()
+            .map(item -> entry(asset(
+                API, item.getToolName(), item.getTitle(), item.getDescription(), item.getBusinessGroup(),
+                category(categoriesById, categoriesByCode, item.getCategoryId(),
+                    item.getBusinessGroup(), item.getBusinessGroupName()), item.getInputSchemaJson()),
+                List.of(new AuthorizationRef(item.getToolName(), null, null, null, null))))
+            .sorted(Comparator.comparing(item -> item.asset().title()))
             .toList();
     }
 

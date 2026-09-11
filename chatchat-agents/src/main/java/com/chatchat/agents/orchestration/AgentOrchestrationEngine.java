@@ -513,7 +513,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             new AnalysisCoverageCoordinator.Configuration(
                 this.analysisSummaryWorkerMaxRetries,
                 this.analysisSummaryWorkerHeartbeatIntervalMs,
-                this.analysisSummaryWorkerHeartbeatTimeoutMs));
+                this.analysisSummaryWorkerHeartbeatTimeoutMs,
+                resolvedRuntimeProperties.isAdaptiveAnalysisPromptModelEnabled(),
+                resolvedRuntimeProperties.unifiedAnalysisMaxEvidenceRounds(),
+                resolvedRuntimeProperties.isUnifiedAnalysisReportDraftEnabled()));
         InterpretationPlanStore resolvedPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -806,8 +809,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                                              boolean requireBoundToolCall,
                                              Map<String, Object> runtimeAttributes) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
+        Map<String, Object> deadlineSeed = new LinkedHashMap<>(
+            runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        if (runtimeGuard.runtimeLong(deadlineSeed.get(AGENT_TIMEOUT_MS_ATTRIBUTE), 0L) <= 0L
+            && agentRuntimeProperties.executionTimeoutMs() > 0L) {
+            deadlineSeed.put(AGENT_TIMEOUT_MS_ATTRIBUTE, agentRuntimeProperties.executionTimeoutMs());
+        }
         Map<String, Object> requestRuntimeAttributes = new LinkedHashMap<>(
-            runtimeGuard.attributesWithDeadline(runtimeAttributes)
+            runtimeGuard.attributesWithDeadline(deadlineSeed)
         );
         if (query != null && !query.isBlank()) {
             requestRuntimeAttributes.putIfAbsent("originalUserQuery", query);
@@ -978,6 +987,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
         log.info("[{}] Agent planner capability projection. plannerVisibleTools={} internalToolDelegations={}",
             requestId, plannerVisibleTools, plannerInternalDelegations);
+        recordDomainKnowledgeCompilation(requestRuntimeAttributes, metadata);
         recordLifecyclePhase(
             requestRuntimeAttributes,
             metadata,
@@ -1032,6 +1042,54 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (!workflowMandatoryTools.isEmpty()) {
             metadata.put("runtimeEnforcedMcpWorkflow", true);
             metadata.put("mandatoryWorkflowPending", true);
+        }
+
+        InterpretationPlan deterministicTemplatePlan = deterministicBoundTemplatePlan(
+            query, plannerVisibleTools);
+        if (deterministicTemplatePlan != null) {
+            metadata.put("analysisPlanningNodes", List.of(Map.of(
+                "node", "deterministic_bound_template_plan",
+                "status", "COMPLETED"
+            )));
+            metadata.put("taskContractVersion", TaskContract.CONTRACT_VERSION);
+            metadata.put("taskType", "mixed");
+            metadata.put("evidenceRequirement", TaskContract.EvidenceRequirement.REQUIRED.name());
+            metadata.put("deterministicBoundTemplatePlan", true);
+            metadata.put("modelDeclaredLatencyBudgetAdvisory", false);
+            Map<String, Object> plannerStep = metadataOf(
+                "step", 1,
+                "action", "tool",
+                "toolName", deterministicTemplatePlan.steps().get(0).toolName(),
+                "resolvedToolName", deterministicTemplatePlan.steps().get(0).toolName(),
+                "reason", "Runtime compiled the fixed bound template discovery/execution workflow.",
+                "plannedAt", System.currentTimeMillis(),
+                "observationCount", observations.size(),
+                "generationMode", "RUNTIME_DETERMINISTIC_BOUND_TEMPLATE_PLAN"
+            );
+            plannerSteps.add(plannerStep);
+            runResultAdapter.recordRuntimeStep(
+                requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
+            recordLifecyclePhase(
+                requestRuntimeAttributes,
+                metadata,
+                "plan_generation",
+                "Runtime generated the fixed bound template discovery and execution plan.",
+                metadataOf(
+                    "step", 1,
+                    "action", "tool",
+                    "toolName", deterministicTemplatePlan.steps().get(0).toolName(),
+                    "eventKind", "DAG_VALIDATION",
+                    "eventState", "PASSED",
+                    "generationMode", "RUNTIME_DETERMINISTIC_BOUND_TEMPLATE_PLAN"
+                )
+            );
+            return executeInterpretationPlanPipeline(
+                deterministicTemplatePlan, activeChatModel, query, systemPrompt,
+                tenantId, requestId, conversationId, userId, tools,
+                workflowStateTracker.attributesWithCompletedTools(
+                    requestRuntimeAttributes, completedWorkflowTools),
+                traces, observations, metadata, documentIds, documentTags,
+                webSearchResultLimit, maxToolCalls, cancellationCheck);
         }
 
         int step = 1;
@@ -1138,6 +1196,69 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
             traces, observations, metadata, documentIds, documentTags,
             webSearchResultLimit, maxToolCalls, cancellationCheck);
+    }
+
+    /**
+     * Bound customer-service agents repeatedly need the same transport DAG. Semantic template
+     * admission and report analysis still use the model; only the invariant transport planning
+     * call is removed from the critical path.
+     */
+    InterpretationPlan deterministicBoundTemplatePlan(String query, List<String> plannerVisibleTools) {
+        if (query == null || query.isBlank() || plannerVisibleTools == null
+            || plannerVisibleTools.size() != 2) {
+            return null;
+        }
+        String discoveryTool = plannerVisibleTools.stream()
+            .filter(toolNames::isTemplateDiscoveryToolName)
+            .findFirst().orElse(null);
+        String executionTool = plannerVisibleTools.stream()
+            .filter(tool -> ToolWorkflowContract.resolveRole(
+                tool, toolMetadataOrNull(tool)) == ToolWorkflowRole.TEMPLATE_EXECUTION)
+            .findFirst().orElse(null);
+        if (discoveryTool == null || executionTool == null
+            || discoveryTool.equals(executionTool)) {
+            return null;
+        }
+        List<InterpretationPlan.Step> steps = List.of(
+            new InterpretationPlan.Step(
+                1, "mcp_tool", discoveryTool,
+                Map.of("query", query, "limit", 10),
+                List.of(), null, null),
+            new InterpretationPlan.Step(
+                2, "mcp_tool", executionTool,
+                Map.of(), List.of(1), null, null),
+            new InterpretationPlan.Step(
+                3, "final_answer", "",
+                Map.of("answer", "Use the admitted tool evidence to answer the current question."),
+                List.of(2), null, null)
+        );
+        InterpretationPlan.Plan plan = new InterpretationPlan.Plan(
+            steps,
+            List.of(new InterpretationPlan.EdgeContract(
+                1, 2, "$.templates[0].templateId", "string", true)),
+            List.of(
+                new InterpretationPlan.DependencyContract(
+                    1, 2, true, null, "Template discovery must precede execution.", "replan"),
+                new InterpretationPlan.DependencyContract(
+                    2, 3, true, null, "Evidence execution must precede the answer.", "replan")
+            ),
+            List.of(new InterpretationPlan.Binding(
+                1, "$.templates[0].templateId", 2, "$.templateId", "jsonpath", true)),
+            null
+        );
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("mixed", query, "low"),
+            new InterpretationPlan.Context(
+                List.of("The agent has one bound template discovery tool and one bound executor."),
+                List.of(), List.of(), List.of("Use only returned template identities.")),
+            plan,
+            new InterpretationPlan.ExecutionPolicy(
+                3, true, List.of(discoveryTool, executionTool), List.of(), null, 1,
+                "partial_result"),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(1.0, 0.0, true, List.of()), List.of())
+        );
     }
 
     private AgentOrchestrator.AgentExecutionResult executeInterpretationPlanPipeline(InterpretationPlan plan,
@@ -2033,6 +2154,17 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     RecordCoverageBundle analyzeClaimAdmissionCoverage(ChatModel activeChatModel, String query,
         InterpretationPlanRuntime.ExecutionResult latest, List<InterpretationPlanRuntime.ExecutionResult> attempts,
         Map<String, Object> runtimeAttributes, Map<String, Object> metadata, BooleanSupplier cancellationCheck) {
+        if (metadata != null
+            && Boolean.TRUE.equals(metadata.get("selfContainedCurrentTableBrief"))
+            && latest != null
+            && latest.finalAnswer() != null
+            && !latest.finalAnswer().isBlank()) {
+            metadata.put("unifiedAnalysisReportDraft", latest.finalAnswer().trim());
+            metadata.put("unifiedAnalysisReportDraftChars", latest.finalAnswer().trim().length());
+            metadata.put("analysisCoverageSkipped", true);
+            metadata.put("analysisCoverageSkipReason", "SELF_CONTAINED_CURRENT_TABLE_BRIEF");
+            return RecordCoverageBundle.empty();
+        }
         if (activeChatModel == null || latest == null) return RecordCoverageBundle.empty();
         return semanticClaimCoordinator.preflight(
             () -> buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult(latest, attempts),
@@ -3405,6 +3537,22 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 )
             );
         }
+        if (request.execution().success()
+            && isMetadataDiscoveryTool(request.execution().toolName())) {
+            log.info("Tool result admitted without model review runId={} stepId={} tool={} mode={}",
+                firstNonBlank(request.runId(), ""),
+                request.step() == null ? null : request.step().id(),
+                request.execution().toolName(),
+                "RUNTIME_DETERMINISTIC_METADATA_ADMISSION");
+            return InterpretationPlanRuntime.StepReview.accepted(
+                "Successful metadata/schema discovery is admitted as evidence; relevance, semantic conflicts and suitability are evaluated by the unified analysis graph.",
+                Map.of(
+                    "toolResultReviewSkipped", true,
+                    "toolResultReviewMode", "RUNTIME_DETERMINISTIC_METADATA_ADMISSION",
+                    "evidenceIterationSufficient", false
+                )
+            );
+        }
         long startedAt = System.currentTimeMillis();
         String runId = request.runId();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
@@ -3459,7 +3607,21 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             );
         }
         if (toolNames.isTemplateDiscoveryToolName(request.execution().toolName())) {
-            payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
+            if (templateSelectionReviewIsComplete(request.execution().output(), payload)) {
+                Map<String, Object> completed = new LinkedHashMap<>(payload);
+                completed.put("templateSelectionCoverageAudit", Map.of(
+                    "mode", "FIRST_PASS_COMPLETE",
+                    "coverageDecision", firstNonBlank(stringValue(firstObject(
+                        payload, "coverage_decision", "coverageDecision")), "SUFFICIENT"),
+                    "candidateCount", findCandidateMaps(
+                        request.execution().output(), "templates", 0).size()));
+                payload = completed;
+                log.info("Template selection coverage audit reused complete first-pass review runId={} selectedCount={}",
+                    firstNonBlank(request.runId(), ""), stringList(firstObject(
+                        payload, "selected_template_ids", "selectedTemplateIds")).size());
+            } else {
+                payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
+            }
             payload = bindSelectedTemplateParameters(
                 activeChatModel, query, request.execution().output(), payload);
         }
@@ -3646,11 +3808,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         List<Map<String, Object>> templates = findCandidateMaps(discoveryOutput, "templates", 0);
         SchemaDrivenTemplateParameterBinder binder =
             new SchemaDrivenTemplateParameterBinder(objectMapper);
-        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> nativeBinding =
-            binder.bind(activeChatModel, query, templates, selectedIds);
         Optional<SchemaDrivenTemplateParameterBinder.BindingResult> schemaCompleted =
             binder.completeFromReviewedProtocols(templates, selectedIds,
                 firstObject(reviewedPayload, "parameter_protocols", "parameterProtocols"));
+        Optional<SchemaDrivenTemplateParameterBinder.BindingResult> nativeBinding = schemaCompleted.isPresent()
+            ? Optional.empty()
+            : binder.bind(activeChatModel, query, templates, selectedIds);
         Optional<SchemaDrivenTemplateParameterBinder.BindingResult> binding;
         if (nativeBinding.isPresent() && (schemaCompleted.isEmpty()
             || nativeBinding.get().protocols().size() >= schemaCompleted.get().protocols().size())) {
@@ -3670,7 +3833,50 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         log.info("Schema-driven template parameters bound: mode={}, selectedTemplates={}, bindings={}",
             binding.get().mode(), selectedIds.size(), binding.get().protocols().size());
+        result.entrySet().removeIf(entry -> entry.getKey() == null || entry.getValue() == null);
         return Map.copyOf(result);
+    }
+
+    private boolean templateSelectionReviewIsComplete(Object discoveryOutput,
+                                                      Map<String, Object> reviewedPayload) {
+        List<String> selected = stringList(firstObject(
+            reviewedPayload, "selected_template_ids", "selectedTemplateIds"));
+        String coverageDecision = stringValue(firstObject(
+            reviewedPayload, "coverage_decision", "coverageDecision"));
+        List<Map<String, Object>> candidates = findCandidateMaps(discoveryOutput, "templates", 0);
+        List<Map<String, Object>> evaluations = objectMapList(firstObject(
+            reviewedPayload, "template_evaluations", "templateEvaluations"));
+        List<String> rejected = stringList(firstObject(
+            reviewedPayload, "rejected_template_ids", "rejectedTemplateIds"));
+        Set<String> candidateIds = candidates.stream()
+            .map(candidate -> stringValue(firstObject(candidate,
+                "templateId", "template_id", "id", "code", "template")))
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> classifiedIds = new LinkedHashSet<>(selected);
+        classifiedIds.addAll(rejected);
+        Set<String> evaluatedIds = evaluations.stream()
+            .map(evaluation -> stringValue(firstObject(evaluation,
+                "template_id", "templateId", "id", "code", "template")))
+            .filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<String> missingAspects = stringList(firstObject(reviewedPayload,
+            "missing_aspects", "missingAspects", "evidence_gaps", "evidenceGaps"));
+        boolean explicitDecisionAllowsReuse = coverageDecision == null
+            || "SUFFICIENT".equalsIgnoreCase(coverageDecision);
+        // A first-pass review is also complete when it explicitly partitions every
+        // returned candidate into selected/rejected and evaluates every selected item.
+        // Requiring a verbose evaluation object for every rejected candidate caused a
+        // redundant second LLM audit even though the model had already made a complete
+        // coverage decision.
+        boolean completeClassification = !candidateIds.isEmpty()
+            && classifiedIds.containsAll(candidateIds)
+            && evaluatedIds.containsAll(selected);
+        return booleanValue(firstObject(reviewedPayload, "satisfied", "accepted", "sufficient"))
+            && !selected.isEmpty()
+            && explicitDecisionAllowsReuse
+            && missingAspects.isEmpty()
+            && (evaluations.size() >= candidates.size() || completeClassification);
     }
 
     private Map<String, Object> auditTemplateSelectionCoverage(
@@ -3704,6 +3910,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "candidates merely to increase count. If the user asks to characterize behavior, preference, "
             + "pattern or activity, returned sources that record actions, events, transactions or history "
             + "are material evidence candidates; a snapshot alone cannot answer that facet. Treat a "
+            + "coverage facet as supported only when you can quote an exact title, description, capability "
+            + "or output-schema element from a selected candidate for it. A broad business-group description "
+            + "or your own paraphrase is not candidate evidence. In particular, an asset/profit snapshot does "
+            + "not become transaction evidence merely because the overall user query also asks for transactions. "
             + "template ID as an opaque identifier: never infer capability from its letters, abbreviations "
             + "or suffix. Use the candidate's declared title, description and parameter contract only; when "
             + "a title conflicts with a guessed meaning of the ID, the title is authoritative. A generic or "
@@ -3711,6 +3921,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "provisional rejection as internally contradictory when its reason says a candidate contains "
             + "the very behavior, activity or measure explicitly requested by the user. Return strict JSON only: "
             + "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"requested_aspects\":[],"
+            + "\"aspect_evidence\":[{\"aspect\":\"\",\"template_id\":\"\",\"declared_evidence\":\"exact candidate text/schema\"}],"
             + "\"corrected_selected_template_ids\":[],\"missing_aspects\":[],\"reason\":\"\"}.\n"
             + "Current-turn query:\n" + (query == null ? "" : query) + "\n"
             + "Returned candidates:\n" + ModelProtocolJson.compact(candidateProjection) + "\n"
@@ -3859,6 +4070,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (toolNames.isTemplateDiscoveryToolName(toolName)) {
             prompt.append("- Treat the literal current-turn user query as the immutable coverage contract. Before looking at candidates, copy every explicitly requested object, activity, measure, comparison and requested characterization into analysis_intent.analysis_focus. A skill name, role perspective, plan summary or the first clause of a multi-clause query must never narrow or replace those facets.\n");
             prompt.append("- Semantically evaluate every returned template identity from title, description, capability, output schema, dependencies, and required parameters. Select only IDs present in the result and materially needed by the question.\n");
+            prompt.append("- Treat every template ID as opaque. Never infer capability from ID letters, abbreviations or suffixes; the declared title, description and parameter contract are authoritative.\n");
             prompt.append("- Before selecting, decompose every explicit user-requested subject and analysis facet into supportsQuestionAspect entries. The selected complementary set must cover each facet for which a returned template declares relevant evidence; do not let a general snapshot or aggregate template displace a returned transaction, history, detail, composition, or comparison template needed for a separately requested facet.\n");
             prompt.append("- Selection completeness is semantic coverage, not a fixed template count. Select all and only complementary candidates required for the requested facets, and state an explicit missingAspects entry for any requested facet left uncovered.\n");
             prompt.append("- First decide coverage_decision: SUFFICIENT, NEED_NEXT_PAGE, or SCOPE_INSUFFICIENT. SUFFICIENT requires at least one selected returned template. An empty selection is valid and required when the current page has no suitable candidate; use NEED_NEXT_PAGE only when the tool result says hasMore=true.\n");
@@ -3881,6 +4093,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
     private void appendToolResultReviewOutputContract(StringBuilder prompt, String toolName) {
+        prompt.append("Return compact JSON without Markdown or duplicate narrative. Keep each reason/missing-item concise and cap reasons/relationship_hints at 3 entries. Never cap requested or matched question aspects; preserve every explicit user facet, required candidate evaluation and parameter protocol.\n");
         prompt.append("Return strict JSON only. Required common fields:\n")
             .append("{\"satisfied\":true,\"iteration_sufficient\":false,\"reason\":\"short evidence-based reason\",\"evidence_used\":[],\"missing_evidence\":[],\"conflicts\":[],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[],\"missingAspects\":[],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":false,\"confidence\":0.0}\n");
         if (toolNames.isTemplateDiscoveryToolName(toolName)) {
@@ -4191,6 +4404,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return semantic.equals("document_search")
             || semantic.endsWith("_document_search")
             || (semantic.contains("document") && semantic.contains("search"));
+    }
+
+    private boolean isMetadataDiscoveryTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return semantic.equals("sql_schema_context_query")
+            || semantic.endsWith("_sql_schema_context_query")
+            || semantic.equals("enterprise_metadata_search")
+            || semantic.endsWith("_enterprise_metadata_search");
     }
 
     private String toolSemanticKey(String toolName) {
@@ -5052,6 +5273,41 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "agent_lifecycle",
             values
         );
+    }
+
+    /**
+     * Exposes the Knowledge Planner/Context Compiler hand-off in the normal Runtime trace.
+     * The event deliberately carries only provenance and budget data; compiled document text
+     * remains in the bounded runtime attribute and is never copied into UI event payloads.
+     */
+    private void recordDomainKnowledgeCompilation(Map<String, Object> runtimeAttributes,
+                                                  Map<String, Object> metadata) {
+        Map<String, Object> knowledge = objectMap(runtimeAttributes == null
+            ? null : runtimeAttributes.get(com.chatchat.common.knowledge.KnowledgeContext.RUNTIME_ATTRIBUTE));
+        if (knowledge.isEmpty() || !Boolean.TRUE.equals(knowledge.get("used"))) return;
+        List<Map<String, Object>> sources = objectMapList(knowledge.get("sources"));
+        Map<String, Object> event = metadataOf(
+            "type", "domain_knowledge_compiled",
+            "schemaVersion", knowledge.get("schemaVersion"),
+            "status", knowledge.get("status"),
+            "sourceCount", sources.size(),
+            "sources", sources.stream().map(source -> metadataOf(
+                "documentId", source.get("documentId"),
+                "documentName", source.get("documentName"),
+                "section", source.get("section"),
+                "citation", source.get("citation")
+            )).toList(),
+            "skillTypes", knowledge.getOrDefault("skillTypes", List.of()),
+            "estimatedTokens", knowledge.getOrDefault("estimatedTokens", 0),
+            "maxTokens", knowledge.getOrDefault("maxTokens", 0),
+            "truncated", knowledge.getOrDefault("truncated", false),
+            "currentFactAuthority", false
+        );
+        metadata.put("domainKnowledgeContext", knowledge);
+        metadata.put("domainKnowledgeSourceCount", sources.size());
+        runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
+            "领域知识已完成规划、检索与上下文编译，共绑定 " + sources.size() + " 个来源。",
+            "knowledge_runtime", event);
     }
 
 }

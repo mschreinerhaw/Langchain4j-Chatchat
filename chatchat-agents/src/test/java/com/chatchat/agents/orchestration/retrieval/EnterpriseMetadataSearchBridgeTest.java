@@ -170,4 +170,64 @@ class EnterpriseMetadataSearchBridgeTest {
         assertThat(bridge.enrich(model, "enterprise_metadata_search", input))
             .containsExactlyInAnyOrderEntriesOf(input);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mergesAndRemovesLegacyQueryAliasesAfterModelEnrichment() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn("""
+            {
+              "searchIntent":"discover governed profit and loss metadata",
+              "queryTerms":["盈亏流水","profit and loss flow"],
+              "fields":[]
+            }
+            """);
+
+        Map<String, Object> result = bridge.enrich(
+            model,
+            "enterprise_metadata_search",
+            Map.of(
+                "query", "股票期权证券盈亏流水",
+                "keyword", "股票期权",
+                "keywords", List.of("证券盈亏"),
+                "queries", List.of("持仓快照"),
+                "queryTerms", List.of("盈亏")
+            )
+        );
+
+        assertThat((List<String>) result.get("queryTerms"))
+            .contains("股票期权", "证券盈亏", "持仓快照", "盈亏", "profit and loss flow");
+        assertThat(result).doesNotContainKeys("keyword", "keywords", "queries");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void keepsCanonicalTermsButBoundsCompatibilityQueryToPublishedSchemaLimit() {
+        ChatModel model = mock(ChatModel.class);
+        String longTerms = java.util.stream.IntStream.range(0, 120)
+            .mapToObj(index -> "metadata_search_term_" + index)
+            .collect(java.util.stream.Collectors.joining("\",\""));
+        when(model.chat(anyString())).thenReturn("""
+            {"searchIntent":"broad governed lookup","queryTerms":["%s"],"fields":[]}
+            """.formatted(longTerms));
+
+        Map<String, Object> result = bridge.enrich(
+            model,
+            "enterprise_metadata_search",
+            Map.of(
+                "query", "股票期权证券盈亏流水",
+                "queryTerms", List.of("股票期权", "盈亏流水"),
+                "sourceEvidence", List.of(Map.of("columns", List.of(
+                    Map.of("columnName", "profit_amount", "comment", "盈亏金额")
+                )))
+            )
+        );
+
+        assertThat(String.valueOf(result.get("query")))
+            .startsWith("股票期权证券盈亏流水")
+            .hasSizeLessThanOrEqualTo(512);
+        assertThat((List<String>) result.get("queryTerms"))
+            .hasSizeGreaterThan(20)
+            .contains("metadata_search_term_100");
+    }
 }

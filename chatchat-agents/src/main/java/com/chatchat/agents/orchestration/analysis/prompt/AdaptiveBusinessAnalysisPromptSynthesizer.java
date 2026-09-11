@@ -22,6 +22,14 @@ import java.util.Optional;
 public final class AdaptiveBusinessAnalysisPromptSynthesizer {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String CHECKPOINT_KEY = "adaptive_business_analysis_prompt:v5";
+    private static final int SHARED_CACHE_MAX_ENTRIES = 256;
+    private static final Map<String, Map<String, Object>> SHARED_CONTRACT_CACHE =
+        java.util.Collections.synchronizedMap(new LinkedHashMap<>(32, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Map<String, Object>> eldest) {
+                return size() > SHARED_CACHE_MAX_ENTRIES;
+            }
+        });
     private final DomainAnalysisProfileProvider profiles;
 
     public AdaptiveBusinessAnalysisPromptSynthesizer() { this(DomainAnalysisProfileProvider.empty()); }
@@ -67,10 +75,20 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
         Optional<String> restored = checkpoints.readCheckpoint(scope, CHECKPOINT_KEY, fingerprint);
         if (restored.isPresent()) {
             try {
-                return record(DynamicAnalysisPromptContract.from(parse(restored.get())),
-                    "CHECKPOINT_RESTORED", 0, metadata);
+                DynamicAnalysisPromptContract contract = DynamicAnalysisPromptContract.from(parse(restored.get()));
+                SHARED_CONTRACT_CACHE.put(fingerprint, contract.toMap());
+                return record(contract, "CHECKPOINT_RESTORED", 0, metadata);
             } catch (RuntimeException invalidCheckpoint) {
                 metadata.put("adaptiveAnalysisPromptInvalidCheckpoint", true);
+            }
+        }
+        Map<String, Object> shared = SHARED_CONTRACT_CACHE.get(fingerprint);
+        if (shared != null) {
+            try {
+                return record(DynamicAnalysisPromptContract.from(shared),
+                    "SHARED_CACHE_RESTORED", 0, metadata);
+            } catch (RuntimeException invalidSharedEntry) {
+                SHARED_CONTRACT_CACHE.remove(fingerprint);
             }
         }
         if (model == null) return record(fallback(question, role, declaredType, available, input, metadata),
@@ -85,6 +103,7 @@ public final class AdaptiveBusinessAnalysisPromptSynthesizer {
                 AnalysisPromptScaffoldRegistry.apply(planned, selectedType, available));
             DynamicAnalysisPromptContract contract = compileMethodology(scaffolded, input, metadata);
             checkpoints.checkpoint(scope, CHECKPOINT_KEY, fingerprint, ModelProtocolJson.compact(contract.toMap()));
+            SHARED_CONTRACT_CACHE.put(fingerprint, contract.toMap());
             return record(contract, "MODEL_SYNTHESIZED", 1, metadata);
         } catch (java.util.concurrent.CancellationException failure) {
             throw failure;

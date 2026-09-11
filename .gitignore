@@ -66,3 +66,7 @@ build/
 /deploy/chatchat-1.0.0-SNAPSHOT
 /deploy/chatchat-mcp-server-1.0.0-SNAPSHOT
 /deploy/chatchat-runtime-news-1.0.0-SNAPSHOT
+.codex-jar-inspect2/*
+.codex-jar-inspect/*
+.codex-tmp/*
+.codex-run/*

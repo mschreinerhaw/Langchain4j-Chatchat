@@ -3,6 +3,7 @@ package com.chatchat.enterprise.repository.identity;
 import com.chatchat.enterprise.entity.identity.SysUserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface SysUserRoleRepository extends JpaRepository<SysUserRole, String> {
@@ -13,6 +14,8 @@ public interface SysUserRoleRepository extends JpaRepository<SysUserRole, String
      * @return the matching by user id
      */
     List<SysUserRole> findByUserId(String userId);
+
+    List<SysUserRole> findByUserIdIn(Collection<String> userIds);
 
     /**
      * Finds the by role id.

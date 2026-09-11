@@ -169,8 +169,8 @@ class LivedataApiRegistrationServiceTest {
         when(configService.getConfig()).thenReturn(livedataConfig);
         when(gatewayConfigService.getById("source-gateway")).thenReturn(sourceGateway);
         when(mapper.toApiServiceConfig(definition, null, properties())).thenReturn(mapped);
-        when(apiServiceConfigService.findByToolName("livedata_orders")).thenReturn(Optional.of(registered));
-        when(gatewayConfigService.getById("gateway-1")).thenReturn(registeredGateway);
+        when(apiServiceConfigService.listAll()).thenReturn(List.of(registered));
+        when(gatewayConfigService.findAllById(java.util.Set.of("gateway-1"))).thenReturn(List.of(registeredGateway));
         when(mapper.toGatewayConfig(definition, sourceGateway, properties())).thenReturn(mappedGateway);
         when(apiServiceConfigService.updateDataContract(
             "service-1", mapped.getInputSchemaJson(), mapped.getOutputSchemaJson()))
@@ -204,7 +204,7 @@ class LivedataApiRegistrationServiceTest {
         when(configService.getConfig()).thenReturn(livedataConfig);
         when(gatewayConfigService.getById("source-gateway")).thenReturn(sourceGateway);
         when(mapper.toApiServiceConfig(definition, null, properties())).thenReturn(mapped);
-        when(apiServiceConfigService.findByToolName("livedata_orders")).thenReturn(Optional.empty());
+        when(apiServiceConfigService.listAll()).thenReturn(List.of());
 
         LivedataApiRegistrationService.LivedataParameterSyncResult result =
             service.synchronizeRegisteredParameterContracts();

@@ -144,3 +144,23 @@ describe("AgentWorkshopView knowledge document selection", () => {
     expect(context.form.boundDocumentIds).toEqual([]);
   });
 });
+
+describe("AgentWorkshopView resource picker dialogs", () => {
+  it("opens only one lightweight picker at a time and closes it independently", () => {
+    const context = {
+      documentPickerOpen: false,
+      toolPickerOpen: false
+    };
+
+    AgentWorkshopView.methods.openDocumentPicker.call(context);
+    expect(context.documentPickerOpen).toBe(true);
+    expect(context.toolPickerOpen).toBe(false);
+
+    AgentWorkshopView.methods.openToolPicker.call(context);
+    expect(context.documentPickerOpen).toBe(false);
+    expect(context.toolPickerOpen).toBe(true);
+
+    AgentWorkshopView.methods.closeToolPicker.call(context);
+    expect(context.toolPickerOpen).toBe(false);
+  });
+});

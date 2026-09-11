@@ -316,6 +316,32 @@ class AgentRuntimeTaskEventPublisherTest {
             .containsEntry("eventPayloadCompacted", true);
     }
 
+    @Test
+    void reusesStableTaskAndParentIdentityAcrossActiveRunEvents() {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository, eventStore, eventBus, objectMapper);
+        AgentTaskLatestEntity task = task("task-runtime-cached-identity");
+        AgentEvent question = AgentEvent.builder().eventId("question-1").build();
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        when(eventStore.findFirstByTaskAndType(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION"))
+            .thenReturn(Optional.of(question));
+
+        publisher.publish(AgentRunEvent.of(task.getTaskId(), AgentRunEventType.STEP_RECORDED,
+            "step", Map.of("step", 1)));
+        publisher.publish(AgentRunEvent.of(task.getTaskId(), AgentRunEventType.OBSERVATION_RECORDED,
+            "observation", Map.of("step", 1)));
+
+        verify(latestRepository, times(1)).findById(task.getTaskId());
+        verify(eventStore, times(1)).findFirstByTaskAndType(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION");
+        verify(eventStore, times(2)).append(org.mockito.ArgumentMatchers.any(AgentEvent.class));
+        verify(eventBus, times(2)).publishResult(org.mockito.ArgumentMatchers.any(AgentEvent.class));
+    }
+
     private AgentTaskLatestEntity task(String taskId) {
         AgentTaskLatestEntity task = new AgentTaskLatestEntity();
         task.setTaskId(taskId);

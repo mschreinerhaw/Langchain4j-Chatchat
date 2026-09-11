@@ -137,7 +137,16 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         }
         Set<String> templateIds = policy.allowedTemplates().getOrDefault(route.assetType(), Set.of());
         Map<String, TemplateAssetCatalogService.TemplateAsset> enabledAssets = new LinkedHashMap<>();
-        assetCatalogService.listEnabled().stream()
+        List<TemplateAssetCatalogService.TemplateAsset> scopedAssets =
+            TemplateAssetCatalogService.API.equals(route.assetType())
+                ? assetCatalogService.listEnabledForType(route.assetType())
+                : assetCatalogService.listEnabled();
+        // Keep compatibility with test doubles and extension implementations that
+        // have not yet implemented the scoped lookup contract.
+        if (scopedAssets == null) {
+            scopedAssets = assetCatalogService.listEnabled();
+        }
+        scopedAssets.stream()
             .filter(asset -> route.assetType().equals(asset.assetType()))
             .forEach(asset -> enabledAssets.put(asset.templateId(), asset));
         int limit = recallLimit(arguments);

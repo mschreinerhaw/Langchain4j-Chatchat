@@ -85,14 +85,38 @@ public final class RetrievalQualityGate {
         if (root == null || path == null || path.isBlank()) {
             return null;
         }
-        Object current = root;
-        for (String segment : path.split("\\.")) {
-            if (!(current instanceof Map<?, ?> map)) {
-                return null;
-            }
-            current = map.get(segment);
+        return valueAtPath(root, path.split("\\."), 0, 0);
+    }
+
+    private static Object valueAtPath(Object current,
+                                      String[] segments,
+                                      int segmentIndex,
+                                      int wrapperDepth) {
+        if (segmentIndex >= segments.length) {
+            return current;
         }
-        return current;
+        if (!(current instanceof Map<?, ?> map)) {
+            return null;
+        }
+        String segment = segments[segmentIndex];
+        if (map.containsKey(segment)) {
+            return valueAtPath(map.get(segment), segments, segmentIndex + 1, wrapperDepth);
+        }
+        // MCP transport wraps a tool's declared result in a governed analysis envelope.
+        // Published count paths describe the tool result, so transparently cross the
+        // envelope instead of treating a successful retrieval as empty and executing it twice.
+        if (wrapperDepth < 3) {
+            for (String wrapper : List.of("data", "result", "payload")) {
+                Object nested = map.get(wrapper);
+                if (nested instanceof Map<?, ?>) {
+                    Object found = valueAtPath(nested, segments, segmentIndex, wrapperDepth + 1);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static long count(Object value) {

@@ -13,14 +13,47 @@ import com.chatchat.agents.evidence.normalization.EvidenceType;
 import com.chatchat.mcpserver.search.engine.OpenSearchMcpSearchService;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 
 class EnterpriseMetadataSearchServiceTest {
+
+    @Test
+    void opensCircuitAfterFirstOpenSearchFailureSoRequirementFanOutUsesMemoryFallback() throws Exception {
+        EnterpriseMetadataProperties properties = new EnterpriseMetadataProperties();
+        OpenSearchMcpSearchService openSearch = mock(OpenSearchMcpSearchService.class);
+        when(openSearch.enabled()).thenReturn(true);
+        when(openSearch.searchEnterpriseMetadata(
+            anyString(), anyString(), anyList(), anyList(), anyList(), anyList(), anyString(),
+            anyInt(), anyDouble(), anyDouble(), anyInt()))
+            .thenThrow(new IllegalStateException("simulated timeout"));
+        EnterpriseMetadataSearchService service = new EnterpriseMetadataSearchService(
+            mock(EnterpriseMetadataCatalog.class), properties, openSearch,
+            mock(EnterpriseMetadataScenarioClassifier.class),
+            mock(EnterpriseMetadataVectorizer.class),
+            mock(com.chatchat.mcpserver.metadata.governance.MetadataGovernancePolicyService.class));
+        Method search = EnterpriseMetadataSearchService.class.getDeclaredMethod(
+            "searchOpenSearch", String.class, List.class, List.class, List.class, List.class, int.class);
+        search.setAccessible(true);
+
+        search.invoke(service, "first", List.of("metadata_field"), List.of(), List.of(), List.of(), 5);
+        search.invoke(service, "second", List.of("metadata_field"), List.of(), List.of(), List.of(), 5);
+
+        verify(openSearch, times(1)).searchEnterpriseMetadata(
+            anyString(), anyString(), anyList(), anyList(), anyList(), anyList(), anyString(),
+            anyInt(), anyDouble(), anyDouble(), anyInt());
+    }
 
     @Test
     @SuppressWarnings("unchecked")

@@ -45,14 +45,16 @@ public final class MachineIdentity {
             for (NetworkInterface item : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 if (isPhysicalCandidate(item)) candidates.add(item);
             }
-            List<NetworkInterface> active = candidates.stream()
-                .filter(item -> !isDown(item))
-                .toList();
-            List<NetworkInterface> available = active.isEmpty() ? candidates : active;
-            List<NetworkInterface> globallyAssigned = available.stream()
+            // A signed license is bound to installed physical hardware, not to whichever
+            // adapter happens to be connected at process startup. Restricting the candidate
+            // set to active adapters made a valid Wi-Fi-bound license fail as soon as a USB
+            // Ethernet adapter became the only active interface. Virtual/tunnel adapters are
+            // already excluded above, so retain every installed physical NIC and use link state
+            // only for deterministic ordering.
+            List<NetworkInterface> globallyAssigned = candidates.stream()
                 .filter(MachineIdentity::hasGloballyAssignedMac)
                 .toList();
-            List<NetworkInterface> selected = globallyAssigned.isEmpty() ? available : globallyAssigned;
+            List<NetworkInterface> selected = globallyAssigned.isEmpty() ? candidates : globallyAssigned;
             return selected.stream()
                 .sorted(Comparator.comparing(MachineIdentity::isDown)
                     .thenComparingInt(NetworkInterface::getIndex))

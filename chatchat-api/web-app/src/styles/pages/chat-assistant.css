@@ -5593,6 +5593,8 @@
 
 .reference-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; color:#64748b; font-size:12px; }
 .reference-toolbar button { border:1px solid #bfdbfe; border-radius:8px; background:#eff6ff; color:#2563eb; padding:5px 10px; cursor:pointer; }
+.knowledge-runtime-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 8px; padding:8px 10px; border:1px solid #dbeafe; border-radius:9px; background:#f8fbff; color:#475569; font-size:12px; }
+.knowledge-runtime-summary strong { color:#1d4ed8; font-weight:650; }
 .source-conflicts { border:1px solid #fed7aa; border-radius:10px; background:#fff7ed; padding:10px; margin-bottom:8px; color:#9a3412; }
 .source-conflicts article { margin-top:8px; padding-top:8px; border-top:1px solid #fed7aa; }
 .source-conflicts p { margin:4px 0; color:#7c2d12; }

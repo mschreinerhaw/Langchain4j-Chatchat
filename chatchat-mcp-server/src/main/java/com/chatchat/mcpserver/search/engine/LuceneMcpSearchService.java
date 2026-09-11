@@ -114,11 +114,17 @@ public class LuceneMcpSearchService {
         try {
             if (normalizeAssetType(effectiveRequest.assetType()) != null) {
                 String assetType = normalizeAssetType(effectiveRequest.assetType());
-                upsertAssets(assetType, safeAssetDocs(docs).stream()
-                    .filter(doc -> assetType.equals(normalizeAssetType(doc.assetType())))
-                    .toList());
+                // Querying is read-only. CRUD paths keep the acceleration index in sync;
+                // only bootstrap from the caller's source-of-truth documents when the
+                // logical index does not exist yet. Re-upserting here used to invoke the
+                // embedding endpoint on every page load/tool discovery request.
+                if (!assetIndexExists(assetType)) {
+                    upsertAssets(assetType, safeAssetDocs(docs).stream()
+                        .filter(doc -> assetType.equals(normalizeAssetType(doc.assetType())))
+                        .toList());
+                }
             } else {
-                upsertAssets(docs);
+                bootstrapMissingAssetIndexes(docs);
             }
             return searchAssets(effectiveRequest);
         } catch (Exception ex) {
@@ -134,7 +140,9 @@ public class LuceneMcpSearchService {
             return List.of();
         }
         try {
-            upsertTemplates(docs);
+            if (!templateIndexExists()) {
+                upsertTemplates(docs);
+            }
             return searchTemplates(request);
         } catch (Exception ignored) {
             return List.of();
@@ -192,7 +200,9 @@ public class LuceneMcpSearchService {
         }
         lastSearchDiagnostic.remove();
         try {
-            upsertDatabaseQueryTemplates(docs);
+            if (!databaseQueryTemplateIndexExists()) {
+                upsertDatabaseQueryTemplates(docs);
+            }
             return searchDatabaseQueryTemplates(request);
         } catch (Exception ex) {
             log.warn("MCP Lucene database query template search failed assetType={} dbType={} intentText={} limit={}: {}",
@@ -489,6 +499,21 @@ public class LuceneMcpSearchService {
 
     private List<AssetDoc> safeAssetDocs(List<AssetDoc> docs) {
         return docs == null ? List.of() : docs;
+    }
+
+    private void bootstrapMissingAssetIndexes(List<AssetDoc> docs) {
+        Map<String, List<AssetDoc>> byAssetType = safeAssetDocs(docs).stream()
+            .filter(doc -> normalizeAssetType(doc.assetType()) != null)
+            .collect(Collectors.groupingBy(
+                doc -> normalizeAssetType(doc.assetType()),
+                LinkedHashMap::new,
+                Collectors.toList()
+            ));
+        byAssetType.forEach((assetType, typedDocs) -> {
+            if (!assetIndexExists(assetType)) {
+                upsertAssets(assetType, typedDocs);
+            }
+        });
     }
 
     private AssetSearchRequest effectiveAssetSearchRequest(AssetSearchRequest request) {

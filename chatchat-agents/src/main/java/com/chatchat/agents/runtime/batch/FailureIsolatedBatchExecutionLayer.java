@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Kernel execution boundary that gives every admitted batch child a terminal slot.
@@ -54,6 +55,45 @@ public final class FailureIsolatedBatchExecutionLayer {
             }
         }
         return List.copyOf(attempts);
+    }
+
+    /**
+     * Executes an already Runtime-authorized set of independent read-only calls concurrently.
+     * Result slots retain declaration order, so evidence and audit correlation are unchanged.
+     * Unlike sequential execution, a terminal result cannot suppress siblings that have already
+     * started; each child still receives an explicit terminal attempt.
+     */
+    public List<Attempt> executeParallelReadOnly(List<ToolCallRequest> calls, ChildInvoker invoker) {
+        List<ToolCallRequest> safeCalls = calls == null ? List.of() : List.copyOf(calls);
+        List<CompletableFuture<Attempt>> futures = new ArrayList<>(safeCalls.size());
+        for (int index = 0; index < safeCalls.size(); index++) {
+            int invocationIndex = index;
+            ToolCallRequest call = safeCalls.get(index);
+            futures.add(CompletableFuture.supplyAsync(
+                () -> isolatedAttempt(call, invocationIndex, invoker)));
+        }
+        return futures.stream().map(CompletableFuture::join).toList();
+    }
+
+    private Attempt isolatedAttempt(ToolCallRequest call, int index, ChildInvoker invoker) {
+        Invocation invocation;
+        try {
+            invocation = invoker.invoke(call, index);
+        } catch (RuntimeException ex) {
+            return Attempt.failure(index, call, "FAILED", "BATCH_CHILD_RUNTIME_ERROR",
+                firstText(ex.getMessage(), ex.getClass().getSimpleName()));
+        }
+        if (invocation == null) {
+            return Attempt.failure(index, call, "FAILED", "BATCH_CHILD_NO_RESULT",
+                "Batch child invoker returned no execution result");
+        }
+        if (invocation.execution() != null) {
+            return Attempt.completed(index, call, invocation.execution());
+        }
+        return Attempt.failure(index, call,
+            firstText(invocation.status(), "FAILED"),
+            firstText(invocation.errorCode(), "BATCH_CHILD_FAILED"),
+            firstText(invocation.message(), "Batch child execution failed"));
     }
 
     @FunctionalInterface

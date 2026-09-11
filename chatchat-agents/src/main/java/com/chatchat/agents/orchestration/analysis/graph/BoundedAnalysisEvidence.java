@@ -12,8 +12,8 @@ import java.util.concurrent.CancellationException;
 
 /** Runtime-owned full-scan statistics and bounded views. Profiles are not semantic authorizations. */
 final class BoundedAnalysisEvidence {
-    static final int INPUT_BUDGET = 30_000;
-    static final int DIRECT_RECORD_BUDGET = 12_000;
+    static final int INPUT_BUDGET = 48_000;
+    static final int DIRECT_RECORD_BUDGET = 42_000;
     static final int REQUEST_RESULT_BUDGET = 4_000;
     private static final int CHUNK_ROWS = 1_000;
     private static final int MAX_FIELDS = 128;

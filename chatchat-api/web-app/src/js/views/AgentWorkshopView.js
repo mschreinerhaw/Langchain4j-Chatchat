@@ -195,6 +195,8 @@ export default {
       loading: false,
       saving: false,
       dialogOpen: false,
+      documentPickerOpen: false,
+      toolPickerOpen: false,
       dialogMode: "create",
       activeAgent: null,
       recallConfirmOpen: false,
@@ -753,6 +755,8 @@ export default {
       };
       this.dialogError = "";
       this.resetDocumentFilters();
+      this.documentPickerOpen = false;
+      this.toolPickerOpen = false;
       this.dialogOpen = true;
     },
     resetAgentFilters() {
@@ -820,16 +824,34 @@ export default {
       this.form = this.agentToForm(agent);
       this.dialogError = "";
       this.resetDocumentFilters();
+      this.documentPickerOpen = false;
+      this.toolPickerOpen = false;
       this.dialogOpen = true;
     },
     closeDialog() {
       if (this.saving) {
         return;
       }
+      this.documentPickerOpen = false;
+      this.toolPickerOpen = false;
       this.dialogOpen = false;
       this.dialogError = "";
       this.activeAgent = null;
       this.form = emptyForm();
+    },
+    openDocumentPicker() {
+      this.toolPickerOpen = false;
+      this.documentPickerOpen = true;
+    },
+    closeDocumentPicker() {
+      this.documentPickerOpen = false;
+    },
+    openToolPicker() {
+      this.documentPickerOpen = false;
+      this.toolPickerOpen = true;
+    },
+    closeToolPicker() {
+      this.toolPickerOpen = false;
     },
     agentToForm(agent) {
       return {

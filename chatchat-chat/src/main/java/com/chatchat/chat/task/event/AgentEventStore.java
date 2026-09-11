@@ -5,6 +5,32 @@ import java.util.Optional;
 
 public interface AgentEventStore {
 
+    /** Whether ordered append work may run off the Agent execution thread. */
+    default boolean supportsDeferredAppend() {
+        return false;
+    }
+
+    /**
+     * Appends an event with the next stream sequence. Implementations backed by
+     * a transactional database may override this to allocate the sequence under
+     * the same stream lock used by {@link #save(AgentEvent)}.
+     */
+    default String append(AgentEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("Agent event is required");
+        }
+        if (event.getSequence() == null || event.getSequence() <= 0) {
+            event.setSequence(nextSequence(event.getTenantId(), event.getSessionId(), event.getTaskId()));
+        }
+        return save(event);
+    }
+
+    /** Appends an ordered group while retaining every individual event. */
+    default List<String> appendAll(List<AgentEvent> events) {
+        if (events == null || events.isEmpty()) return List.of();
+        return events.stream().map(this::append).toList();
+    }
+
     /**
      * Saves the save.
      *

@@ -28,6 +28,9 @@ public class EnterpriseMetadataSearchBridge {
     private static final int MAX_PROFILE_FIELDS = 60;
     private static final int MAX_TERMS = 120;
     private static final int MAX_DISCOVERY_TERMS_WITHOUT_PHYSICAL_SCHEMA = 32;
+    // Published enterprise_metadata_search schema caps the compatibility query at 512
+    // characters. queryTerms remains the lossless, canonical search projection.
+    private static final int MAX_QUERY_CHARACTERS = 512;
 
     private final ObjectMapper objectMapper;
 
@@ -74,7 +77,13 @@ public class EnterpriseMetadataSearchBridge {
             }
             if (!terms.isEmpty()) {
                 original.put("queryTerms", terms);
-                original.put("query", String.join(" ", terms));
+                original.put("query", boundedQuery(text(original.get("query")), terms));
+                // queryTerms is the published canonical parameter. Once the bridge has merged
+                // legacy aliases, retaining a different alias value makes the strict argument
+                // compiler reject an otherwise valid search as ambiguous.
+                original.remove("keywords");
+                original.remove("keyword");
+                original.remove("queries");
             }
             original.put("schemaEvidence", mapOf(
                 "mode", evidence.fieldCount() > 0
@@ -249,6 +258,9 @@ public class EnterpriseMetadataSearchBridge {
                                      int limit) {
         Set<String> terms = new LinkedHashSet<>();
         addTexts(terms, original.get("queryTerms"));
+        addTexts(terms, original.get("keywords"));
+        addTexts(terms, original.get("keyword"));
+        addTexts(terms, original.get("queries"));
         addTexts(terms, profile.get("queryTerms"));
         for (Map<String, Object> field : fields) {
             addText(terms, field.get("fieldName"));
@@ -259,6 +271,44 @@ public class EnterpriseMetadataSearchBridge {
             addText(terms, original.get("query"));
         }
         return terms.stream().limit(Math.max(1, limit)).toList();
+    }
+
+    private String boundedQuery(String originalQuery, List<String> terms) {
+        StringBuilder query = new StringBuilder();
+        appendWithinLimit(query, originalQuery);
+        for (String term : terms) {
+            if (term == null || term.isBlank() || containsDelimitedTerm(query, term)) {
+                continue;
+            }
+            int separatorLength = query.isEmpty() ? 0 : 1;
+            if (query.length() + separatorLength + term.length() > MAX_QUERY_CHARACTERS) {
+                continue;
+            }
+            if (separatorLength > 0) {
+                query.append(' ');
+            }
+            query.append(term);
+        }
+        if (query.isEmpty() && !terms.isEmpty()) {
+            appendWithinLimit(query, terms.get(0));
+        }
+        return query.toString();
+    }
+
+    private void appendWithinLimit(StringBuilder target, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        target.append(value, 0, Math.min(value.length(), MAX_QUERY_CHARACTERS));
+    }
+
+    private boolean containsDelimitedTerm(StringBuilder query, String term) {
+        if (query.isEmpty()) {
+            return false;
+        }
+        String value = query.toString();
+        return value.equals(term) || value.startsWith(term + " ")
+            || value.endsWith(" " + term) || value.contains(" " + term + " ");
     }
 
     private boolean explicitCreateProjectionRequested(Map<String, Object> arguments) {

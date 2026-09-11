@@ -75,6 +75,20 @@ class SqlTemplateServiceTest {
     }
 
     @Test
+    void listAllSynchronizesDefaultsFromOneBulkRead() {
+        SqlTemplateService service = service(new SqlTemplateSeedProperties());
+        SqlTemplateConfig second = template("Z_TEMPLATE");
+        SqlTemplateConfig first = template("A_TEMPLATE");
+        when(repository.findAll()).thenReturn(List.of(second, first));
+
+        assertThat(service.listAll()).extracting(SqlTemplateConfig::getCode)
+            .containsExactly("A_TEMPLATE", "Z_TEMPLATE");
+
+        verify(repository).findAll();
+        verify(repository, never()).findByCode(anyString());
+    }
+
+    @Test
     void enabledDefaultSeedCreatesOnlyMaintenanceTemplates() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
         properties.setSeedDefaultsEnabled(true);

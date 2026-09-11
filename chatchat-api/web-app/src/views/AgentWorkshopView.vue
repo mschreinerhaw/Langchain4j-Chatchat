@@ -501,89 +501,20 @@
             <span>快捷问题</span>
             <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个问题"></textarea>
           </label>
-          <section class="agent-document-picker wide-field">
-            <div class="agent-tool-picker-head">
-              <div>
-                <strong>知识文档</strong>
-                <span>回答前仅在已勾选文档范围内检索；知识检索与 MCP 工具配置相互独立。</span>
-              </div>
-              <button
-                v-if="selectedDocumentIds.length"
-                type="button"
-                class="secondary-button compact-button"
-                @click="clearSelectedDocuments"
-              >
-                清空已选
+          <section class="agent-resource-selector wide-field">
+            <div class="agent-resource-selector-copy">
+              <strong>知识文档</strong>
+              <span>回答前仅在已选择的文档范围内检索。</span>
+            </div>
+            <div class="agent-resource-selector-action">
+              <span :class="{ 'is-selected': selectedDocumentIds.length }">
+                {{ selectedDocumentIds.length ? `已选 ${selectedDocumentIds.length} 个文档` : "未选择文档" }}
+              </span>
+              <button type="button" class="agent-picker-text-button" @click="openDocumentPicker">
+                {{ selectedDocumentIds.length ? "调整选择" : "选择文档" }}
+                <span aria-hidden="true">›</span>
               </button>
             </div>
-            <div v-if="selectedDocuments.length" class="agent-document-selected">
-              <strong>已选文档（{{ selectedDocuments.length }}）</strong>
-              <div>
-                <button
-                  v-for="document in selectedDocuments"
-                  :key="`selected-${document.docId}`"
-                  type="button"
-                  :title="`移除 ${document.title}`"
-                  @click="toggleDocument(document.docId)"
-                >
-                  <span>{{ document.title }}</span>
-                  <em>×</em>
-                </button>
-              </div>
-            </div>
-            <div v-if="documents.length" class="agent-document-searchbar">
-              <label>
-                <span>搜索已有文档</span>
-                <input
-                  v-model.trim="documentSearchQuery"
-                  type="search"
-                  placeholder="搜索文档名称、标签、来源或 ID"
-                >
-              </label>
-              <label>
-                <span>业务分类</span>
-                <select v-model="documentCategoryFilter">
-                  <option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                <span>文档类型</span>
-                <select v-model="documentTypeFilter">
-                  <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-            </div>
-            <div v-if="documents.length" class="agent-document-batchbar">
-              <span>只允许新绑定已解析文档；解析中或失败的文档会保留展示但不可勾选。</span>
-              <strong>{{ documentResultLabel }}</strong>
-            </div>
-            <div v-if="filteredDocuments.length" class="agent-document-checklist">
-              <label
-                v-for="document in filteredDocuments"
-                :key="document.docId"
-                class="agent-document-check"
-                :class="{ active: selectedDocumentIds.includes(document.docId), disabled: !documentSelectable(document) }"
-                :title="document.title"
-              >
-                <input
-                  type="checkbox"
-                  :checked="selectedDocumentIds.includes(document.docId)"
-                  :disabled="!documentSelectable(document)"
-                  @change="toggleDocument(document.docId)"
-                >
-                <span>
-                  <strong>{{ document.title }}</strong>
-                  <small>{{ document.category }} · {{ document.documentType }} · {{ documentStatusLabel(document.lifecycleStatus) }}</small>
-                  <em>{{ document.source || document.fileName || document.docId }} · {{ documentUpdatedLabel(document) }}</em>
-                </span>
-              </label>
-            </div>
-            <p v-else-if="documents.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p>
-            <p v-else class="agent-tool-empty">文档库暂无可选文档，请先上传并完成解析。</p>
           </section>
           <section v-if="form.defaultMode === 'agent_chat'" class="default-data-asset-settings wide-field">
             <div class="default-data-asset-heading">
@@ -603,89 +534,20 @@
               >
             </label>
           </section>
-          <section v-if="form.defaultMode === 'agent_chat'" class="agent-tool-picker wide-field">
-            <div class="agent-tool-picker-head">
-              <div>
-                <strong>已注册MCP工具</strong>
-                <span>{{ mcpToolResultLabel }}</span>
-              </div>
-              <button
-                v-if="registeredMcpTools.length"
-                type="button"
-                class="secondary-button compact-button"
-                @click="clearSelectedTools"
-              >
-                清空
+          <section v-if="form.defaultMode === 'agent_chat'" class="agent-resource-selector wide-field">
+            <div class="agent-resource-selector-copy">
+              <strong>已注册 MCP 工具</strong>
+              <span>按当前 Agent 的业务范围选择可调用工具。</span>
+            </div>
+            <div class="agent-resource-selector-action">
+              <span :class="{ 'is-selected': selectedToolNames.length }">
+                {{ selectedToolNames.length ? `已选 ${selectedToolNames.length} 个工具` : "未选择工具" }}
+              </span>
+              <button type="button" class="agent-picker-text-button" @click="openToolPicker">
+                {{ selectedToolNames.length ? "调整选择" : "选择工具" }}
+                <span aria-hidden="true">›</span>
               </button>
             </div>
-            <div v-if="registeredMcpTools.length" class="agent-tool-searchbar">
-              <label>
-                <span>检索工具</span>
-                <input
-                  v-model.trim="toolSearchQuery"
-                  type="search"
-                  placeholder="搜索名称、服务、描述、参数、分类或标签"
-                >
-              </label>
-              <label>
-                <span>后端服务类型</span>
-                <select v-model="toolBackendServiceTypeFilter">
-                  <option v-for="option in mcpBackendServiceTypeOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                <span>分组方式</span>
-                <select v-model="toolGroupMode">
-                  <option v-for="option in mcpToolGroupOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <strong>{{ mcpToolGroupSummary }}</strong>
-            </div>
-            <div v-if="registeredMcpTools.length && filteredMcpTools.length" class="agent-tool-group-list">
-              <section v-for="group in mcpToolGroups" :key="group.key" class="agent-tool-group">
-                <header>
-                  <div>
-                    <strong>{{ group.label }}</strong>
-                    <span>{{ group.selectedCount }} / {{ group.tools.length }} 已选 · {{ group.subtitle }}</span>
-                  </div>
-                  <button type="button" class="secondary-button compact-button" @click="toggleToolGroup(group)">
-                    {{ isToolGroupFullySelected(group) ? "取消本组" : "选择本组" }}
-                  </button>
-                </header>
-                <div class="agent-tool-checklist">
-                  <label
-                    v-for="tool in group.tools"
-                    :key="tool.localToolName"
-                    class="agent-tool-check"
-                    :class="{ active: selectedToolNames.includes(tool.localToolName) }"
-                    :title="applicabilityTooltip(tool)"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="selectedToolNames.includes(tool.localToolName)"
-                      @change="toggleTool(tool.localToolName)"
-                    >
-                    <span>
-                      <strong>{{ tool.displayName || tool.remoteToolName || tool.localToolName }}</strong>
-                      <small>
-                        {{ tool.serviceName || tool.serviceId || "未归属服务" }}
-                        · {{ backendServiceTypesLabel(tool) }}
-                      </small>
-                      <small v-if="tool.applicabilitySummary" class="agent-tool-applicability">
-                        适用范围：{{ tool.applicabilitySummary }}
-                      </small>
-                      <em>{{ tool.localToolName }}</em>
-                    </span>
-                  </label>
-                </div>
-              </section>
-            </div>
-            <p v-else-if="registeredMcpTools.length" class="agent-tool-empty">没有匹配的MCP工具，请换一个关键词或分组方式。</p>
-            <p v-else class="agent-tool-empty">请先在 MCP服务 完成服务接入和工具注册。</p>
           </section>
 
           <section v-if="form.defaultMode === 'agent_chat' && selectedToolNames.length" class="agent-workflow-builder wide-field">
@@ -858,6 +720,213 @@
           </button>
         </footer>
       </form>
+
+      <div
+        v-if="documentPickerOpen"
+        class="agent-resource-dialog-backdrop"
+        role="presentation"
+        @click.self="closeDocumentPicker"
+        @keydown.esc="closeDocumentPicker"
+      >
+        <section
+          class="agent-resource-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-document-picker-title"
+        >
+          <header>
+            <div>
+              <p>Agent 设置</p>
+              <h2 id="agent-document-picker-title">选择知识文档</h2>
+              <span>仅在已勾选文档范围内检索，选择会在保存 Agent 后生效。</span>
+            </div>
+            <button type="button" class="app-dialog-close" aria-label="关闭文档选择" title="关闭" @click="closeDocumentPicker">×</button>
+          </header>
+
+          <div class="agent-resource-dialog-body">
+            <div v-if="documents.length" class="agent-document-searchbar">
+              <label>
+                <span>搜索已有文档</span>
+                <input
+                  v-model.trim="documentSearchQuery"
+                  type="search"
+                  placeholder="搜索文档名称、标签、来源或 ID"
+                  autofocus
+                >
+              </label>
+              <label>
+                <span>业务分类</span>
+                <select v-model="documentCategoryFilter">
+                  <option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                <span>文档类型</span>
+                <select v-model="documentTypeFilter">
+                  <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+            </div>
+            <div v-if="documents.length" class="agent-document-batchbar">
+              <span>解析中或失败的文档会保留展示，但不可新绑定。</span>
+              <strong>{{ documentResultLabel }}</strong>
+            </div>
+            <div v-if="filteredDocuments.length" class="agent-document-checklist">
+              <label
+                v-for="document in filteredDocuments"
+                :key="document.docId"
+                class="agent-document-check"
+                :class="{ active: selectedDocumentIds.includes(document.docId), disabled: !documentSelectable(document) }"
+                :title="document.title"
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedDocumentIds.includes(document.docId)"
+                  :disabled="!documentSelectable(document)"
+                  @change="toggleDocument(document.docId)"
+                >
+                <span>
+                  <strong>{{ document.title }}</strong>
+                  <small>{{ document.category }} · {{ document.documentType }} · {{ documentStatusLabel(document.lifecycleStatus) }}</small>
+                  <em>{{ document.source || document.fileName || document.docId }} · {{ documentUpdatedLabel(document) }}</em>
+                </span>
+              </label>
+            </div>
+            <p v-else-if="documents.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p>
+            <p v-else class="agent-tool-empty">文档库暂无可选文档，请先上传并完成解析。</p>
+          </div>
+
+          <footer>
+            <button
+              v-if="selectedDocumentIds.length"
+              type="button"
+              class="agent-resource-clear-button"
+              @click="clearSelectedDocuments"
+            >
+              清空已选
+            </button>
+            <span v-else></span>
+            <button type="button" class="primary-button" @click="closeDocumentPicker">
+              完成（已选 {{ selectedDocumentIds.length }} 个）
+            </button>
+          </footer>
+        </section>
+      </div>
+
+      <div
+        v-if="toolPickerOpen"
+        class="agent-resource-dialog-backdrop"
+        role="presentation"
+        @click.self="closeToolPicker"
+        @keydown.esc="closeToolPicker"
+      >
+        <section
+          class="agent-resource-dialog agent-tool-selection-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="agent-tool-picker-title"
+        >
+          <header>
+            <div>
+              <p>Agent 设置</p>
+              <h2 id="agent-tool-picker-title">选择已注册 MCP 工具</h2>
+              <span>可按服务类型、分组和关键词快速筛选。</span>
+            </div>
+            <button type="button" class="app-dialog-close" aria-label="关闭工具选择" title="关闭" @click="closeToolPicker">×</button>
+          </header>
+
+          <div class="agent-resource-dialog-body">
+            <div v-if="registeredMcpTools.length" class="agent-tool-searchbar">
+              <label>
+                <span>检索工具</span>
+                <input
+                  v-model.trim="toolSearchQuery"
+                  type="search"
+                  placeholder="搜索名称、服务、描述、参数、分类或标签"
+                  autofocus
+                >
+              </label>
+              <label>
+                <span>后端服务类型</span>
+                <select v-model="toolBackendServiceTypeFilter">
+                  <option v-for="option in mcpBackendServiceTypeOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                <span>分组方式</span>
+                <select v-model="toolGroupMode">
+                  <option v-for="option in mcpToolGroupOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <strong>{{ mcpToolGroupSummary }}</strong>
+            </div>
+            <div v-if="registeredMcpTools.length && filteredMcpTools.length" class="agent-tool-group-list">
+              <section v-for="group in mcpToolGroups" :key="group.key" class="agent-tool-group">
+                <header>
+                  <div>
+                    <strong>{{ group.label }}</strong>
+                    <span>{{ group.selectedCount }} / {{ group.tools.length }} 已选 · {{ group.subtitle }}</span>
+                  </div>
+                  <button type="button" class="secondary-button compact-button" @click="toggleToolGroup(group)">
+                    {{ isToolGroupFullySelected(group) ? "取消本组" : "选择本组" }}
+                  </button>
+                </header>
+                <div class="agent-tool-checklist">
+                  <label
+                    v-for="tool in group.tools"
+                    :key="tool.localToolName"
+                    class="agent-tool-check"
+                    :class="{ active: selectedToolNames.includes(tool.localToolName) }"
+                    :title="applicabilityTooltip(tool)"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="selectedToolNames.includes(tool.localToolName)"
+                      @change="toggleTool(tool.localToolName)"
+                    >
+                    <span>
+                      <strong>{{ tool.displayName || tool.remoteToolName || tool.localToolName }}</strong>
+                      <small>
+                        {{ tool.serviceName || tool.serviceId || "未归属服务" }}
+                        · {{ backendServiceTypesLabel(tool) }}
+                      </small>
+                      <small v-if="tool.applicabilitySummary" class="agent-tool-applicability">
+                        适用范围：{{ tool.applicabilitySummary }}
+                      </small>
+                      <em>{{ tool.localToolName }}</em>
+                    </span>
+                  </label>
+                </div>
+              </section>
+            </div>
+            <p v-else-if="registeredMcpTools.length" class="agent-tool-empty">没有匹配的 MCP 工具，请调整关键词或筛选条件。</p>
+            <p v-else class="agent-tool-empty">请先在 MCP 服务完成服务接入和工具注册。</p>
+          </div>
+
+          <footer>
+            <button
+              v-if="selectedToolNames.length"
+              type="button"
+              class="agent-resource-clear-button"
+              @click="clearSelectedTools"
+            >
+              清空已选
+            </button>
+            <span v-else></span>
+            <button type="button" class="primary-button" @click="closeToolPicker">
+              完成（已选 {{ selectedToolNames.length }} 个）
+            </button>
+          </footer>
+        </section>
+      </div>
     </div>
 
     <div v-if="importDialogOpen" class="agent-dialog-backdrop">

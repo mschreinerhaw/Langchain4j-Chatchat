@@ -23,6 +23,7 @@ import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,29 @@ public class ConfiguredRemoteMcpServiceProvider implements McpServiceProvider {
 
     @Override
     public Collection<McpServiceDescriptor> services() {
-        return configService.listAll().stream().map(this::descriptor).toList();
+        Map<String, McpServiceDescriptor> services = new LinkedHashMap<>();
+        configService.listAll().stream()
+            .map(this::descriptor)
+            .forEach(service -> services.put(service.serviceId(), service));
+
+        // The runtime registry is the invocation source of truth. During a remote MCP restart,
+        // administrative configuration reads can temporarily lag behind an already recovered
+        // tool catalog. Keep contract preflight consistent with the live registry instead of
+        // rejecting an invokable tool as MCP_SERVICE_NOT_FOUND.
+        registryBridge.listRegisteredTools().forEach(tool -> services.putIfAbsent(
+            tool.serviceId(),
+            new McpServiceDescriptor(
+                tool.serviceId(),
+                tool.serviceName(),
+                providerId(),
+                "runtime-registry",
+                true,
+                Map.of("recoveredFromLiveRegistry", true)
+            )
+        ));
+        return services.values().stream()
+            .sorted(Comparator.comparing(McpServiceDescriptor::serviceId))
+            .toList();
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -43,8 +44,7 @@ public class CommandTemplateService {
 
     @Transactional
     public List<CommandTemplateConfig> listAll() {
-        ensureDefaults();
-        return repository.findAll().stream()
+        return ensureDefaults(repository.findAll()).stream()
             .sorted(Comparator.comparing(CommandTemplateConfig::getCode))
             .toList();
     }
@@ -132,6 +132,49 @@ public class CommandTemplateService {
         config.setRuntimeAction("confirm_required");
         config.setEnabled(true);
         repository.save(config);
+    }
+
+    /** Uses the admin catalog's bulk read to avoid an extra query per managed template. */
+    private List<CommandTemplateConfig> ensureDefaults(List<CommandTemplateConfig> existingConfigs) {
+        Map<String, CommandTemplateConfig> byCode = new LinkedHashMap<>();
+        for (CommandTemplateConfig config : existingConfigs == null
+            ? List.<CommandTemplateConfig>of() : existingConfigs) {
+            if (config != null && config.getCode() != null) {
+                byCode.put(config.getCode().trim().toUpperCase(Locale.ROOT), config);
+            }
+        }
+        boolean createMissingDefaults = seedProperties != null && seedProperties.isSeedDefaultsEnabled();
+        for (DefaultTemplate template : defaults()) {
+            ensureDefault(template,
+                createMissingDefaults || REQUIRED_MANAGED_TEMPLATE_CODES.contains(template.code()), byCode);
+        }
+        ensureDefault(systemOverviewTemplate(), createMissingDefaults, byCode);
+        return List.copyOf(byCode.values());
+    }
+
+    private void ensureDefault(DefaultTemplate template, boolean createMissingDefaults,
+                               Map<String, CommandTemplateConfig> byCode) {
+        CommandTemplateConfig existing = byCode.get(template.code());
+        if (existing != null) {
+            refreshDefaultTemplate(existing, template);
+            return;
+        }
+        if (!createMissingDefaults) {
+            return;
+        }
+        CommandTemplateConfig config = new CommandTemplateConfig();
+        config.setCode(template.code());
+        config.setTitle(template.title());
+        config.setDescription(template.description());
+        config.setCommandTemplate(template.command());
+        config.setParameterSchemaJson(writeJson(template.schema()));
+        config.setRiskLevel("LOW");
+        config.setCategory(categoryFromCode(template.code()));
+        config.setIntentSignalsJson(writeJson(intentSignals(template)));
+        config.setRuntimeAction("confirm_required");
+        config.setEnabled(true);
+        repository.save(config);
+        byCode.put(template.code(), config);
     }
 
     private void refreshDefaultTemplate(CommandTemplateConfig existing, DefaultTemplate template) {

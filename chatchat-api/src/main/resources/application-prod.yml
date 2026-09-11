@@ -93,6 +93,8 @@ chatchat:
     encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   mcp:
+    remote-provider:
+      enabled: true
     grpc:
       client:
         enabled: ${CHATCHAT_MCP_GRPC_ENABLED:true}

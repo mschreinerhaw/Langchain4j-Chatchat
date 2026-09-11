@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,20 +43,52 @@ class McpGatewayClientTest {
     }
 
     @Test
-    void dispatchesStandardToolListChangeToRuntimeListeners() {
+    void dispatchesStandardToolListChangeToRuntimeListeners() throws InterruptedException {
         McpGatewayClient client = new McpGatewayClient(
             new ObjectMapper(), new McpCenterProperties(), new InternalCredentialProperties(),
             mock(McpStdioProxyService.class));
         client.setToolsChangeExecutor(Runnable::run);
+        client.setToolsChangeDebounceMs(50L);
         AtomicReference<String> changedService = new AtomicReference<>();
-        client.addToolsChangeListener(changedService::set);
+        CountDownLatch dispatched = new CountDownLatch(1);
+        client.addToolsChangeListener(value -> {
+            changedService.set(value);
+            dispatched.countDown();
+        });
         McpServiceConfig service = new McpServiceConfig();
         service.setId("dynamic-service");
         service.setName("Dynamic service");
 
         client.notifyToolsChanged(service);
 
+        assertThat(dispatched.await(3, TimeUnit.SECONDS)).isTrue();
         assertThat(changedService).hasValue("dynamic-service");
+    }
+
+    @Test
+    void coalescesBurstToolListChangesIntoOneTrailingRefresh() throws InterruptedException {
+        McpGatewayClient client = new McpGatewayClient(
+            new ObjectMapper(), new McpCenterProperties(), new InternalCredentialProperties(),
+            mock(McpStdioProxyService.class));
+        client.setToolsChangeExecutor(Runnable::run);
+        client.setToolsChangeDebounceMs(50L);
+        AtomicInteger refreshCount = new AtomicInteger();
+        CountDownLatch trailingRefresh = new CountDownLatch(1);
+        client.addToolsChangeListener(ignored -> {
+            refreshCount.incrementAndGet();
+            trailingRefresh.countDown();
+        });
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("dynamic-service");
+        service.setName("Dynamic service");
+
+        for (int index = 0; index < 10; index++) {
+            client.notifyToolsChanged(service);
+        }
+
+        assertThat(refreshCount).hasValue(0);
+        assertThat(trailingRefresh.await(3, TimeUnit.SECONDS)).isTrue();
+        assertThat(refreshCount).hasValue(1);
     }
 
     @Test

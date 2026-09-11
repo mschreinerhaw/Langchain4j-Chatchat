@@ -100,9 +100,14 @@ public class McpAuthorizationService {
     private boolean refreshSnapshotUnderLock(String trigger) {
         lastUnavailableRefreshAttemptMs = System.currentTimeMillis();
         try {
+            Snapshot previous = snapshotRef.get();
             Snapshot snapshot = fetchSnapshot();
             snapshotRef.set(snapshot);
-            synchronizeRoles(snapshot);
+            if (!sameRoles(previous, snapshot)) {
+                synchronizeRoles(snapshot);
+            } else {
+                log.debug("MCP authorization roles unchanged; local synchronization skipped");
+            }
             return snapshot.usable();
         } catch (Exception ex) {
             if (ex instanceof InterruptedException) {
@@ -116,6 +121,13 @@ public class McpAuthorizationService {
             log.debug("MCP authorization snapshot refresh stack trace", ex);
             return false;
         }
+    }
+
+    private boolean sameRoles(Snapshot left, Snapshot right) {
+        if (left == null || right == null || !left.usable() || !right.usable()) {
+            return false;
+        }
+        return Objects.equals(left.rolesById(), right.rolesById());
     }
 
     public AuthorizationDecision authorize(String toolName, Map<String, Object> arguments) {

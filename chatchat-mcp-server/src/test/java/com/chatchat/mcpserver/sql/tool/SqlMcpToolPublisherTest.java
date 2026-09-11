@@ -92,6 +92,7 @@ class SqlMcpToolPublisherTest {
             .doesNotContain(SqlMcpToolPublisher.SQL_METADATA_SEARCH_TOOL, "sql_script_execute");
         verify(mcpSyncServer).removeTool("sql_script_execute");
         verify(mcpSyncServer).notifyToolsListChanged();
+        verify(sqlTemplateService).listEnabled();
     }
 
     @Test

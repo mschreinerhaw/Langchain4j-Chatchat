@@ -1084,6 +1084,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     }
 
     private List<Map<String, Object>> authorizedSqlTemplatesByAsset() {
+        List<SqlTemplateConfig> enabledTemplates = sqlTemplateService.listEnabled();
         return datasourceConfigService.listEnabled().stream()
             .map(datasource -> mutableMap(
                 "assetId", datasource.getId(),
@@ -1091,15 +1092,20 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
                 "toolName", datasource.getToolName(),
                 "environment", datasource.getEnvironment(),
                 "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType()),
-                "templates", authorizedSqlTemplates(datasource)
+                "templates", authorizedSqlTemplates(datasource, enabledTemplates)
             ))
             .toList();
     }
 
     private List<Map<String, Object>> authorizedSqlTemplates(SqlDatasourceConfig datasource) {
+        return authorizedSqlTemplates(datasource, sqlTemplateService.listEnabled());
+    }
+
+    private List<Map<String, Object>> authorizedSqlTemplates(SqlDatasourceConfig datasource,
+                                                              List<SqlTemplateConfig> enabledTemplates) {
         List<String> allowed = expandedAllowedTemplateCodes(datasource);
         String datasourceType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType());
-        return sqlTemplateService.listEnabled().stream()
+        return enabledTemplates.stream()
             .filter(template -> allowed.isEmpty() || allowed.contains(normalizeCode(template.getCode())))
             .filter(template -> compatibleTemplate(template, datasource, datasourceType))
             .map(this::templateSummary)

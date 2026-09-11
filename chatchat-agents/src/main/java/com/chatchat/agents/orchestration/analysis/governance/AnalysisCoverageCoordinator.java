@@ -132,7 +132,9 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
         observe(request, "已启动数据分析图，全部 " + datasets.size() + " 个数据集共同参与规划、计算和结论生成。",
             "analysis_graph", metadataOf("type", "unified_question_analysis_started", "datasetCount", datasets.size(), "modelTaskCount", 1));
-        var outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(profiles).execute(
+        var outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(
+            profiles, configuration.adaptivePromptModelEnabled(), configuration.maximumEvidenceRounds(),
+            configuration.reportDraftEnabled()).execute(
             request.query(), datasets, computation, request.model(), request.isolationScope(),
             request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
         lifecycle = lifecycle.datasetsDispatched(datasets.size());
@@ -692,7 +694,12 @@ public final class AnalysisCoverageCoordinator {
     }
 
     public record Configuration(int maximumRetries, long heartbeatIntervalMs,
-                                long heartbeatTimeoutMs) {}
+                                long heartbeatTimeoutMs, boolean adaptivePromptModelEnabled,
+                                int maximumEvidenceRounds, boolean reportDraftEnabled) {
+        public Configuration(int maximumRetries, long heartbeatIntervalMs, long heartbeatTimeoutMs) {
+            this(maximumRetries, heartbeatIntervalMs, heartbeatTimeoutMs, true, 2, false);
+        }
+    }
 
     public record Request(ChatModel model, String query,
         InterpretationPlanRuntime.ExecutionResult result, Map<String, Object> runtimeAttributes,

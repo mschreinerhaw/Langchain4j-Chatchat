@@ -24,6 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -136,22 +138,39 @@ public class LivedataApiRegistrationService {
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         List<ApiServiceConfig> updatedServices = new ArrayList<>();
+        Map<String, ApiServiceConfig> registeredByToolName = apiServiceConfigService.listAll().stream()
+            .filter(config -> config.getToolName() != null && !config.getToolName().isBlank())
+            .collect(Collectors.toMap(
+                config -> config.getToolName().trim().toLowerCase(java.util.Locale.ROOT),
+                config -> config,
+                (left, right) -> left,
+                LinkedHashMap::new));
+        Set<String> gatewayIds = registeredByToolName.values().stream()
+            .map(ApiServiceConfig::getGatewayId)
+            .filter(id -> id != null && !id.isBlank())
+            .collect(Collectors.toSet());
+        Map<String, HttpEndpointConfig> gatewaysById = gatewayConfigService.findAllById(gatewayIds).stream()
+            .collect(Collectors.toMap(HttpEndpointConfig::getId, gateway -> gateway,
+                (left, right) -> left, LinkedHashMap::new));
 
         for (LivedataApiDefinition definition : definitions) {
             try {
                 ApiServiceConfig mapped = mapper.toApiServiceConfig(definition, null, settings);
-                Optional<ApiServiceConfig> registered =
-                    apiServiceConfigService.findByToolName(mapped.getToolName());
-                if (registered.isEmpty()) {
+                ApiServiceConfig existing = mapped.getToolName() == null ? null
+                    : registeredByToolName.get(mapped.getToolName().trim().toLowerCase(java.util.Locale.ROOT));
+                if (existing == null) {
                     continue;
                 }
                 matched++;
-                ApiServiceConfig existing = registered.get();
                 if (existing.getGatewayId() == null || existing.getGatewayId().isBlank()) {
                     skipped++;
                     continue;
                 }
-                HttpEndpointConfig gateway = gatewayConfigService.getById(existing.getGatewayId());
+                HttpEndpointConfig gateway = gatewaysById.get(existing.getGatewayId());
+                if (gateway == null) {
+                    skipped++;
+                    continue;
+                }
                 HttpEndpointConfig mappedGateway = mapper.toGatewayConfig(definition, sourceGateway, settings);
                 if (!isLivedataGateway(gateway)
                     || gateway.getToolName() == null

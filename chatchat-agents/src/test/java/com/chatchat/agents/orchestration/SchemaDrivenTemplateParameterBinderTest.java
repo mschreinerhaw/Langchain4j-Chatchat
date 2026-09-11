@@ -106,15 +106,51 @@ class SchemaDrivenTemplateParameterBinderTest {
         assertThat(result.mode()).isEqualTo("schema_reused_reviewed_protocol");
     }
 
+    @Test
+    void prefersEachTemplatesReviewedEntityOverDefaultBackedCrossProjection() {
+        Map<String, Object> assets = defaultBackedTemplate("assets", "khh", "example-assets");
+        Map<String, Object> trades = defaultBackedTemplate("trades", "CUST_NUM", "example-trades");
+        List<Map<String, Object>> reviewed = List.of(
+            protocol("assets", "khh", "070200046604"),
+            protocol("trades", "CUST_NUM", "070200046604"));
+
+        SchemaDrivenTemplateParameterBinder.BindingResult result =
+            new SchemaDrivenTemplateParameterBinder(mapper)
+                .completeFromReviewedProtocols(
+                    List.of(assets, trades), List.of("assets", "trades"), reviewed)
+                .orElseThrow();
+
+        assertThat(result.protocols()).hasSize(2);
+        assertThat(result.protocols()).allSatisfy(binding -> {
+            Map<?, ?> arguments = (Map<?, ?>) binding.get("arguments");
+            assertThat(arguments).hasSize(1);
+            Map<?, ?> evidence = (Map<?, ?>) arguments.values().iterator().next();
+            assertThat(evidence.get("value")).isEqualTo("070200046604");
+        });
+    }
+
     private Map<String, Object> protocol(String templateId, String value) {
+        return protocol(templateId, "subject", value);
+    }
+
+    private Map<String, Object> protocol(String templateId, String field, String value) {
         return Map.of(
             "protocol_version", "template_parameter_protocol_v2",
             "template_id", templateId,
-            "arguments", Map.of("subject", Map.of(
+            "arguments", Map.of(field, Map.of(
                 "value", value,
                 "source", "user_query",
                 "evidence", Map.of("quote", value))),
             "unresolved_parameters", List.of());
+    }
+
+    private Map<String, Object> defaultBackedTemplate(String id, String field, String defaultValue) {
+        return Map.of(
+            "templateId", id,
+            "parameterSchema", Map.of(
+                "type", "object",
+                "properties", Map.of(field, Map.of("type", "string", "default", defaultValue)),
+                "required", List.of(field)));
     }
 
     private Map<String, Object> template(String id) {

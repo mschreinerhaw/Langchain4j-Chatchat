@@ -40,6 +40,10 @@ export default {
       type: Array,
       default: () => []
     },
+    knowledgeContext: {
+      type: Object,
+      default: () => ({})
+    },
     compact: {
       type: Boolean,
       default: false
@@ -57,11 +61,25 @@ export default {
   },
   computed: {
     hasDetails() {
-      return this.evidencePremiseRows.length
+      return this.knowledgeSummary
+        || this.evidencePremiseRows.length
         || this.documentReferenceRows.length
         || this.webPageRows.length
         || this.toolTraceRows.length
         || this.conflictRows.length;
+    },
+    knowledgeSummary() {
+      if (this.knowledgeContext?.used !== true) {
+        return "";
+      }
+      const sourceCount = Array.isArray(this.knowledgeContext.sources)
+        ? this.knowledgeContext.sources.length
+        : 0;
+      const tokens = Number(this.knowledgeContext.estimatedTokens || 0);
+      const skillCount = Array.isArray(this.knowledgeContext.skillTypes)
+        ? this.knowledgeContext.skillTypes.length
+        : 0;
+      return `${sourceCount} 条文档依据 · ${skillCount} 类知识技能${tokens > 0 ? ` · 约 ${tokens} tokens` : ""}`;
     },
     allSourceRows() {
       return [

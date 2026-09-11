@@ -54,7 +54,9 @@ public class EnterpriseMetadataTaxonomyService {
         invalidate();
     }
 
-    @Transactional(readOnly = true)
+    // Keep the cache fast path outside a transaction. Classifying a catalog can call this
+    // thousands of times; a method-level read-only transaction would still perform JDBC
+    // setReadOnly/autoCommit round trips for every record before the cache is inspected.
     public TaxonomySnapshot taxonomy() {
         String provider = properties.getScenarioClassification().getProvider();
         if (provider != null && !"database".equalsIgnoreCase(provider.trim())) {

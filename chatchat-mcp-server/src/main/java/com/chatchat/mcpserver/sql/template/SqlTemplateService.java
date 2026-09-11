@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -88,8 +89,7 @@ public class SqlTemplateService {
 
     @Transactional
     public List<SqlTemplateConfig> listAll() {
-        ensureDefaults();
-        return repository.findAll().stream()
+        return ensureDefaults(repository.findAll()).stream()
             .sorted(Comparator.comparing(SqlTemplateConfig::getCode))
             .toList();
     }
@@ -249,6 +249,58 @@ public class SqlTemplateService {
                 refreshDefaultTemplate(existing.get(), template);
             }
         }
+    }
+
+    /**
+     * Synchronizes managed defaults from an already loaded catalog. The admin list endpoint uses
+     * this path so opening the execution-template page does not issue one findByCode query for
+     * every built-in template before querying the complete list again.
+     */
+    private List<SqlTemplateConfig> ensureDefaults(List<SqlTemplateConfig> existingConfigs) {
+        Map<String, SqlTemplateConfig> byCode = new LinkedHashMap<>();
+        for (SqlTemplateConfig config : existingConfigs == null ? List.<SqlTemplateConfig>of() : existingConfigs) {
+            if (config != null && config.getCode() != null) {
+                byCode.put(config.getCode().trim().toUpperCase(Locale.ROOT), config);
+            }
+        }
+
+        Set<String> retiredCodes = new HashSet<>(RETIRED_DEFAULT_CODES);
+        List<SqlTemplateConfig> retired = byCode.entrySet().stream()
+            .filter(entry -> retiredCodes.contains(entry.getKey()))
+            .map(Map.Entry::getValue)
+            .toList();
+        if (!retired.isEmpty()) {
+            repository.deleteAll(retired);
+            retiredCodes.forEach(byCode::remove);
+        }
+
+        boolean createMissingDefaults = seedProperties != null && seedProperties.isSeedDefaultsEnabled();
+        for (DefaultTemplate template : defaults()) {
+            SqlTemplateConfig existing = byCode.get(template.code());
+            if (existing != null) {
+                refreshDefaultTemplate(existing, template);
+                continue;
+            }
+            if (!createMissingDefaults) {
+                continue;
+            }
+            SqlTemplateConfig config = new SqlTemplateConfig();
+            config.setCode(template.code());
+            config.setTitle(template.title());
+            config.setDescription(template.description());
+            config.setSqlTemplate(template.sql());
+            config.setParameterSchemaJson(writeJson(template.schema()));
+            config.setRiskLevel(template.riskLevel());
+            config.setCategory(template.category());
+            config.setDatabaseType(template.databaseType());
+            config.setRoutingLabelsJson(writeJson(template.routingLabels()));
+            config.setIntentSignalsJson(writeJson(template.intentSignals()));
+            config.setEvidencePolicyJson(writeJson(template.evidencePolicy()));
+            config.setEnabled(true);
+            repository.save(config);
+            byCode.put(template.code(), config);
+        }
+        return List.copyOf(byCode.values());
     }
 
     private void refreshDefaultTemplate(SqlTemplateConfig existing, DefaultTemplate template) {

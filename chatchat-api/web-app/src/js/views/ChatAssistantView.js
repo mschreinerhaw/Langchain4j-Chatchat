@@ -1314,6 +1314,12 @@ function normalizeResponsePayload(response = {}) {
     ),
     uiResponse,
     debug: firstObject(payload?.debug, runtimePayload?.debug, payload?.metadata?.debug, payload?.executionResult?.debug),
+    knowledgeContext: firstObject(
+      payload?.metadata?.domainKnowledgeContext,
+      runtimePayload?.metadata?.domainKnowledgeContext,
+      payload?.domainKnowledgeContext,
+      runtimePayload?.domainKnowledgeContext
+    ),
     visualizationSpec,
     sources: firstNonEmptyArray(
       payload?.sources,
@@ -1941,6 +1947,7 @@ export default {
               assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
               assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
               assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
+              assistantMessage.knowledgeContext = runContext.lastResponse.knowledgeContext;
             }
             this.emitActiveConversationSnapshot(query, "running", runContext);
           },
@@ -2089,6 +2096,7 @@ export default {
         assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
         assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
         assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
+        assistantMessage.knowledgeContext = runContext.lastResponse.knowledgeContext;
         if (this.isActiveRun(runContext)) {
           this.messages = runContext.messages;
           this.scrollMessages();
@@ -2115,6 +2123,7 @@ export default {
         assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
         assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
         assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
+        assistantMessage.knowledgeContext = runContext.lastResponse.knowledgeContext;
         await refreshSteps();
         await this.bufferResultPresentation(assistantMessage, runContext);
         assistantMessage.content = finalContent;
@@ -2140,6 +2149,7 @@ export default {
       assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
       assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
       assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
+      assistantMessage.knowledgeContext = runContext.lastResponse.knowledgeContext;
       await refreshSteps();
       await this.bufferResultPresentation(assistantMessage, runContext);
       assistantMessage.content = finalContent;
@@ -2226,6 +2236,7 @@ export default {
           visualizationSpec: targetContext.lastResponse.visualizationSpec,
           uiResponse: targetContext.lastResponse.uiResponse,
           evidencePremises: targetContext.lastResponse.evidencePremises,
+          knowledgeContext: targetContext.lastResponse.knowledgeContext,
           agentName: targetContext.agentName || "",
           modelName: targetContext.modelName || "",
           analysisNodeId: targetContext.analysisNodeId,
@@ -2508,6 +2519,7 @@ export default {
         visualizationSpec: normalizedResponse.visualizationSpec,
         uiResponse: normalizedResponse.uiResponse,
         evidencePremises: normalizedResponse.evidencePremises,
+        knowledgeContext: normalizedResponse.knowledgeContext,
         debug: normalizedResponse.debug
       };
       if (runContext) {
@@ -3281,6 +3293,7 @@ export default {
       assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
       assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
       assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
+      assistantMessage.knowledgeContext = runContext.lastResponse.knowledgeContext;
       if (bufferPresentation) {
         await this.bufferResultPresentation(assistantMessage, runContext);
         assistantMessage.status = finalStatus;

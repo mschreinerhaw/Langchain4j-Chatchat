@@ -33,6 +33,11 @@ public class ModelDrivenKnowledgeSkillSynthesizer implements KnowledgeSkillSynth
 
     @Override
     public KnowledgeSkillPlan synthesize(KnowledgeRequest request) {
+        if (Boolean.TRUE.equals(request.attributes().get("preferDeterministicPlan"))) {
+            log.debug("knowledgeSkillSynthesisDeterministic taskType={} reason=governed_bound_scope",
+                request.taskType());
+            return fallback.synthesize(request);
+        }
         try {
             String response = resolveModel(request).chat(plannerPrompt(request));
             return parseAndValidate(response, request);

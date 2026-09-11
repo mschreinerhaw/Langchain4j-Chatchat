@@ -30,14 +30,14 @@ class McpCenterRecoveryServiceTest {
         Fixture fixture = fixture();
         when(fixture.gatewayClient.discoverTools(any(), anyInt())).thenReturn(List.of());
         when(fixture.registryBridge.listRegisteredTools()).thenReturn(List.of());
-        when(fixture.centerSyncService.syncFromCenter(anyInt()))
+        when(fixture.centerSyncService.syncFromCenterForRecovery(anyInt()))
             .thenReturn(new McpCenterSyncService.SyncResult(0, List.of(), List.of("offline")));
 
         for (int index = 0; index < 7; index++) {
             fixture.service.heartbeat();
         }
 
-        verify(fixture.centerSyncService, times(5)).syncFromCenter(5000);
+        verify(fixture.centerSyncService, times(5)).syncFromCenterForRecovery(5000);
         assertThat(fixture.service.status())
             .extracting(
                 McpCenterRecoveryService.RecoveryStatus::state,
@@ -64,7 +64,7 @@ class McpCenterRecoveryServiceTest {
 
         fixture.service.heartbeat();
 
-        verify(fixture.centerSyncService, never()).syncFromCenter(anyInt());
+        verify(fixture.centerSyncService, never()).syncFromCenterForRecovery(anyInt());
         assertThat(fixture.service.status().state()).isEqualTo("HEALTHY");
         assertThat(fixture.service.status().attempts()).isZero();
     }
@@ -74,7 +74,7 @@ class McpCenterRecoveryServiceTest {
         Fixture fixture = fixture();
         when(fixture.gatewayClient.discoverTools(any(), anyInt())).thenReturn(List.of());
         when(fixture.registryBridge.listRegisteredTools()).thenReturn(List.of());
-        when(fixture.centerSyncService.syncFromCenter(anyInt()))
+        when(fixture.centerSyncService.syncFromCenterForRecovery(anyInt()))
             .thenReturn(new McpCenterSyncService.SyncResult(0, List.of(), List.of("offline")));
         when(fixture.centerSyncService.syncFromCenter())
             .thenReturn(new McpCenterSyncService.SyncResult(0, List.of(), List.of("offline")));

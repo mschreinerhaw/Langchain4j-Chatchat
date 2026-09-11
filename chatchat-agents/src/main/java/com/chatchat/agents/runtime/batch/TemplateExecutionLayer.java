@@ -17,7 +17,16 @@ public final class TemplateExecutionLayer {
         new FailureIsolatedBatchExecutionLayer();
 
     public List<Attempt> execute(List<ToolCallRequest> calls, TemplateInvoker invoker) {
-        return kernel.execute(calls, (call, index) -> {
+        return execute(calls, invoker, false);
+    }
+
+    public List<Attempt> executeParallelReadOnly(List<ToolCallRequest> calls, TemplateInvoker invoker) {
+        return execute(calls, invoker, true);
+    }
+
+    private List<Attempt> execute(List<ToolCallRequest> calls, TemplateInvoker invoker,
+                                  boolean parallelReadOnly) {
+        FailureIsolatedBatchExecutionLayer.ChildInvoker childInvoker = (call, index) -> {
                 Invocation invocation = invoker.invoke(call, index);
                 if (invocation == null) {
                     return null;
@@ -32,7 +41,11 @@ public final class TemplateExecutionLayer {
                 }
                 return FailureIsolatedBatchExecutionLayer.Invocation.failed(
                     invocation.status(), invocation.errorCode(), invocation.message());
-            }).stream()
+            };
+        List<FailureIsolatedBatchExecutionLayer.Attempt> attempts = parallelReadOnly
+            ? kernel.executeParallelReadOnly(calls, childInvoker)
+            : kernel.execute(calls, childInvoker);
+        return attempts.stream()
             .map(this::governedAttempt)
             .toList();
     }

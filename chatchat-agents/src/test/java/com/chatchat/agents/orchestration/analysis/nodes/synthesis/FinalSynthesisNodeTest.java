@@ -13,6 +13,7 @@ import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycle;
+import com.chatchat.common.knowledge.KnowledgeContext;
 import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLineageGraph;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -838,6 +839,43 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
+    void claimBoundCompositionCarriesBoundedDomainKnowledgeIntoFinalReportAuthoring() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(),
+            new AnswerCandidateCollector(), new StructuredFindingMerger());
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(any(String.class))).thenAnswer(invocation -> {
+            String prompt = invocation.getArgument(0);
+            assertThat(prompt)
+                .contains("domainKnowledgeContext", "交易偏好必须结合交易频次与持有期",
+                    "客户交易偏好分析规范", "not current factual evidence",
+                    "Name the supplied knowledge source");
+            return "# 分析报告\n\n当前样本仅支持短线倾向判断。";
+        });
+        Map<String, Object> knowledge = Map.of(
+            "schemaVersion", "knowledge_context.v1",
+            "used", true,
+            "compiledContext", "交易偏好必须结合交易频次与持有期。",
+            "sources", List.of(Map.of("documentName", "客户交易偏好分析规范")),
+            "usageContract", Map.of("currentFacts", false));
+        Map<String, Object> runtimeAttributes = new LinkedHashMap<>();
+        runtimeAttributes.put("agentRunId", "run-a");
+        runtimeAttributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, knowledge);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+        var request = new FinalSynthesisNode.FinalModelSynthesisRequest(
+            model, "legacy prompt", "completed", "run-a", 2, 1, 3,
+            true, () -> "unsafe", candidate -> candidate, "empty",
+            1, 1, true, true, true, 1, 0,
+            List.of(claimSummary()), List.of(claimSummary()), runtimeAttributes, metadata);
+
+        var result = coordinator.synthesizeFinal(request);
+
+        assertThat(result.content()).contains("当前样本仅支持短线倾向判断");
+        verify(model).chat(any(String.class));
+    }
+
+    @Test
     void publishesV4BlocksFromRuntimeCatalogAndClearsStaleBlocksOnFailure() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
@@ -931,7 +969,7 @@ class FinalSynthesisNodeTest {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
             String prompt = invocation.getArgument(0);
-            assertThat(prompt).contains("modelAnalysisInputs", "calibration and adjustment rules are undeclared",
+            assertThat(prompt).contains("producerDeclaredSemantics", "calibration and adjustment rules are undeclared",
                 "complete model-authored Markdown report", "Do not return JSON",
                 "decision question and evidence scope",
                 "same definition, unit, period, population and value",
@@ -941,7 +979,7 @@ class FinalSynthesisNodeTest {
                 .doesNotContain("当日盈亏", "trading strategy", "asset, holding", "Trading turnover",
                     "Static size cannot establish subscriptions", "no Markdown data tables",
                     "Return only one JSON object", "\"findings\":", "claimAssessments",
-                    "reportSections", "reportOrder", "insightBlockPolicy");
+                    "reportSections", "reportOrder", "insightBlockPolicy", "modelNarrative");
             return "# Model report\n\nMeasure is 42; adjustments are unknown.";
         });
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -1002,6 +1040,7 @@ class FinalSynthesisNodeTest {
         });
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
+        metadata.put("analysisAcceptanceQuestion", "请用图表展示结果");
         metadata.put("runtimeReturnedReportDatasets", List.of(
             com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture("returned:1",
                 List.of(Map.of("name", "A", "value", 42)))));

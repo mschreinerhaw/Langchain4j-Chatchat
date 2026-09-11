@@ -944,7 +944,87 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<SysUser> users = tenantId == null || tenantId.isBlank()
             ? userRepository.findAll()
             : userRepository.findByTenantIdOrderByUsernameAsc(tenantId);
-        return users.stream().map(this::toUserView).toList();
+        if (users.isEmpty()) {
+            return List.of();
+        }
+
+        Set<String> userIds = users.stream().map(SysUser::getId).collect(Collectors.toSet());
+        Map<String, List<String>> roleIdsByUser = userRoleRepository.findByUserIdIn(userIds).stream()
+            .collect(Collectors.groupingBy(
+                SysUserRole::getUserId,
+                Collectors.mapping(SysUserRole::getRoleId, Collectors.toList())
+            ));
+        Set<String> roleIds = roleIdsByUser.values().stream()
+            .flatMap(List::stream)
+            .collect(Collectors.toSet());
+        Map<String, SysRole> rolesById = roleRepository.findAllById(roleIds).stream()
+            .collect(Collectors.toMap(SysRole::getId, role -> role));
+        Map<String, List<String>> permissionIdsByRole = roleIds.isEmpty()
+            ? Map.of()
+            : rolePermissionRepository.findByRoleIdIn(roleIds).stream()
+                .collect(Collectors.groupingBy(
+                    SysRolePermission::getRoleId,
+                    Collectors.mapping(SysRolePermission::getPermissionId, Collectors.toList())
+                ));
+        List<SysPermission> orderedPermissions = permissionRepository
+            .findAllByOrderBySortOrderAscPermissionNameAsc();
+        Map<String, SysPermission> permissionsById = orderedPermissions.stream()
+            .collect(Collectors.toMap(SysPermission::getId, permission -> permission));
+        Set<String> tenantIds = users.stream()
+            .map(SysUser::getTenantId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        Map<String, SysTenant> tenantsById = tenantRepository.findAllById(tenantIds).stream()
+            .collect(Collectors.toMap(SysTenant::getId, value -> value));
+
+        return users.stream().map(user -> {
+            List<String> assignedRoleIds = roleIdsByUser.getOrDefault(user.getId(), List.of());
+            SysTenant tenant = tenantsById.get(user.getTenantId());
+            boolean platformAdmin = "admin".equalsIgnoreCase(user.getUsername())
+                && tenant != null
+                && tenant.getTenantNo() != null
+                && tenant.getTenantNo() == PLATFORM_TENANT_NO;
+            List<String> permissionCodes;
+            if (platformAdmin) {
+                permissionCodes = orderedPermissions.stream()
+                    .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
+                    .map(SysPermission::getPermissionCode)
+                    .distinct()
+                    .toList();
+            } else {
+                Set<String> allowedPermissionIds = assignedRoleIds.stream()
+                    .map(rolesById::get)
+                    .filter(Objects::nonNull)
+                    .filter(role -> Objects.equals(user.getTenantId(), role.getTenantId()))
+                    .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+                    .flatMap(role -> permissionIdsByRole.getOrDefault(role.getId(), List.of()).stream())
+                    .collect(Collectors.toSet());
+                permissionCodes = orderedPermissions.stream()
+                    .filter(permission -> allowedPermissionIds.contains(permission.getId()))
+                    .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
+                    .map(SysPermission::getPermissionCode)
+                    .distinct()
+                    .toList();
+            }
+            return new UserView(
+                user.getId(),
+                user.getTenantId(),
+                tenant == null ? null : tenant.getTenantNo(),
+                tenant == null ? null : tenant.getTenantName(),
+                user.getOrgId(),
+                user.getUsername(),
+                user.getDisplayName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getStatus(),
+                user.getLastLoginAt(),
+                assignedRoleIds,
+                permissionCodes,
+                user.getCreatedAt(),
+                user.getUpdatedAt(),
+                isProtectedUser(user)
+            );
+        }).toList();
     }
 
     /**

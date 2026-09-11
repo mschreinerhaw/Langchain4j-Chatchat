@@ -24,13 +24,16 @@ import org.opensearch.client.Request;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
+import org.opensearch.client.ResponseListener;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.URI;
+import java.net.SocketTimeoutException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -43,8 +46,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 
@@ -1616,7 +1623,9 @@ public class OpenSearchMcpSearchService {
             if (!body.isBlank() || !"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
                 request.setEntity(new StringEntity(body, ContentType.create(contentType, StandardCharsets.UTF_8)));
             }
-            Response response = restClient().performRequest(request);
+            Response response = requestTimeoutMs > 0
+                ? performRequestWithDeadline(request, requestTimeoutMs)
+                : restClient().performRequest(request);
             StatusLine status = response.getStatusLine();
             String responseBody = entityString(response.getEntity());
             if (allowNotFound && status.getStatusCode() == 404) {
@@ -1641,6 +1650,48 @@ public class OpenSearchMcpSearchService {
                 + " path=" + path + " body=" + responseBody, ex);
         } catch (IOException ex) {
             throw new IllegalStateException("OpenSearch request failed path=" + path + ": " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * The low-level client's synchronous API waits on an unbounded Future. Socket timeouts normally
+     * finish that Future, but a stalled async reactor or half-open connection can leave it waiting
+     * forever. Search requests are latency-sensitive and have an in-memory fallback, so enforce the
+     * configured timeout at the Future boundary as well and cancel the underlying HTTP request.
+     */
+    private Response performRequestWithDeadline(Request request, int requestTimeoutMs) throws IOException {
+        CompletableFuture<Response> responseFuture = new CompletableFuture<>();
+        org.opensearch.client.Cancellable cancellable = restClient().performRequestAsync(request, new ResponseListener() {
+            @Override
+            public void onSuccess(Response response) {
+                responseFuture.complete(response);
+            }
+
+            @Override
+            public void onFailure(Exception exception) {
+                responseFuture.completeExceptionally(exception);
+            }
+        });
+        try {
+            return responseFuture.get(Math.max(1, requestTimeoutMs), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException ex) {
+            cancellable.cancel();
+            throw new SocketTimeoutException("OpenSearch request exceeded " + requestTimeoutMs + " ms");
+        } catch (InterruptedException ex) {
+            cancellable.cancel();
+            Thread.currentThread().interrupt();
+            InterruptedIOException interrupted = new InterruptedIOException("Interrupted while waiting for OpenSearch");
+            interrupted.initCause(ex);
+            throw interrupted;
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof IOException ioException) {
+                throw ioException;
+            }
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IOException("OpenSearch request failed", cause);
         }
     }
 

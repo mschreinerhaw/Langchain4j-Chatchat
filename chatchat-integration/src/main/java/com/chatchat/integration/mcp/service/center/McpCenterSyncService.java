@@ -49,6 +49,17 @@ public class McpCenterSyncService {
      * Synchronizes from the center with an optional timeout used by automatic recovery.
      */
     public SyncResult syncFromCenter(int timeoutOverrideMs) {
+        return syncFromCenter(timeoutOverrideMs, false);
+    }
+
+    /** Automatic recovery verifies/imports center state but avoids rebuilding an
+     * unchanged runtime tool catalog. Manual synchronization keeps its explicit
+     * full-refresh semantics so administrators can deliberately replay contracts. */
+    SyncResult syncFromCenterForRecovery(int timeoutOverrideMs) {
+        return syncFromCenter(timeoutOverrideMs, true);
+    }
+
+    private SyncResult syncFromCenter(int timeoutOverrideMs, boolean retainUnchangedCatalog) {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("MCP center integration is disabled");
         }
@@ -84,7 +95,11 @@ public class McpCenterSyncService {
             log.warn("Failed to read MCP center service list: {}", ex.getMessage());
         }
 
-        registryBridge.refreshRegistry(requestTimeoutMs);
+        if (retainUnchangedCatalog) {
+            registryBridge.refreshRegistryIfCatalogChanged(requestTimeoutMs);
+        } else {
+            registryBridge.refreshRegistry(requestTimeoutMs);
+        }
         return new SyncResult(imported.size(), imported, errors);
     }
 

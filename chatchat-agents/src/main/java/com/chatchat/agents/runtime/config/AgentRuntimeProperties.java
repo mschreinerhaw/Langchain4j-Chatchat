@@ -48,6 +48,14 @@ public class AgentRuntimeProperties {
     private boolean answerCriticEnabled = true;
     private boolean answerRepairEnabled = true;
     private long answerCriticTimeoutMs = 45_000;
+    /** Hard wall-clock budget for one Agent execution; zero keeps the legacy unlimited behavior. */
+    private long executionTimeoutMs = 0L;
+    /** Uses the deterministic governed prompt contract instead of an extra prompt-design model call. */
+    private boolean adaptiveAnalysisPromptModelEnabled = true;
+    /** Maximum unified evidence/model rounds. One is the production fast path. */
+    private int unifiedAnalysisMaxEvidenceRounds = 2;
+    /** Reuses the evidence-bound Markdown authored by unified analysis as the final report. */
+    private boolean unifiedAnalysisReportDraftEnabled = false;
     /** Governs lossless analysis chunk boundaries only; it never truncates returned evidence. */
     private int recordAnalysisChunkMaxChars = 12_000;
     /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */
@@ -163,6 +171,14 @@ public class AgentRuntimeProperties {
 
     public long answerCriticTimeoutMs() {
         return Math.max(5_000L, answerCriticTimeoutMs);
+    }
+
+    public long executionTimeoutMs() {
+        return Math.max(0L, executionTimeoutMs);
+    }
+
+    public int unifiedAnalysisMaxEvidenceRounds() {
+        return Math.max(1, Math.min(2, unifiedAnalysisMaxEvidenceRounds));
     }
 
     public int recordAnalysisChunkMaxChars() {

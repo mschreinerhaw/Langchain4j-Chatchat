@@ -119,9 +119,10 @@ chatchat:
       # auto detects OpenAI-compatible URLs and DashScope native generation endpoints.
       protocol: auto
       timeout: 1800000
-      # Maximum model completion tokens. -1 means do not set a model-side token limit.
-      maxTokens: -1
-      maxRetries: 3
+      # Do not truncate analytical or final-report output. Retry remains available for transient
+      # provider failures; latency is controlled outside the quality contract.
+      maxTokens: ${CHATCHAT_MODEL_MAX_TOKENS:-1}
+      maxRetries: ${CHATCHAT_MODEL_MAX_RETRIES:3}
       proxy:
         enabled: false
         host:
@@ -130,6 +131,11 @@ chatchat:
   agent-runtime:
     workflow-engine: ${CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE:local}
     native-tool-calling-enabled: ${CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED:true}
+    # Safety deadline only. Never meet the latency SLO by truncating the quality pipeline.
+    execution-timeout-ms: ${CHATCHAT_AGENT_EXECUTION_TIMEOUT_MS:900000}
+    adaptive-analysis-prompt-model-enabled: ${CHATCHAT_ADAPTIVE_ANALYSIS_PROMPT_MODEL_ENABLED:true}
+    unified-analysis-max-evidence-rounds: ${CHATCHAT_UNIFIED_ANALYSIS_MAX_EVIDENCE_ROUNDS:2}
+    unified-analysis-report-draft-enabled: ${CHATCHAT_UNIFIED_ANALYSIS_REPORT_DRAFT_ENABLED:true}
     temporal:
       target: ${CHATCHAT_TEMPORAL_TARGET:127.0.0.1:7233}
       namespace: ${CHATCHAT_TEMPORAL_NAMESPACE:default}

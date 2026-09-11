@@ -37,6 +37,14 @@ public class DefaultKnowledgeSkillSynthesizer implements KnowledgeSkillSynthesiz
     private List<KnowledgeSkillType> selectTypes(KnowledgeRequest request) {
         String text = (request.taskType() + " " + request.query()).toLowerCase(Locale.ROOT);
         List<KnowledgeSkillType> candidates = new ArrayList<>();
+        if ("TOOL_ANALYSIS".equalsIgnoreCase(request.taskType())) {
+            // A bound, governed document scope is already narrow. Cover the four knowledge
+            // dimensions needed by analytical reports in parallel without another model call.
+            candidates.add(KnowledgeSkillType.CONCEPT_LOOKUP);
+            candidates.add(KnowledgeSkillType.METRIC_LOOKUP);
+            candidates.add(KnowledgeSkillType.METHODOLOGY_LOOKUP);
+            candidates.add(KnowledgeSkillType.CONSTRAINT_LOOKUP);
+        }
         if (containsAny(text, "指标", "口径", "metric", "ratio", "比例", "集中度")) {
             candidates.add(KnowledgeSkillType.METRIC_LOOKUP);
         }
@@ -54,7 +62,7 @@ public class DefaultKnowledgeSkillSynthesizer implements KnowledgeSkillSynthesiz
             candidates.add(KnowledgeSkillType.METHODOLOGY_LOOKUP);
         }
         List<KnowledgeSkillType> selected = candidates.stream().distinct()
-            .filter(request.allowedSkillTypes()::contains).limit(3).toList();
+            .filter(request.allowedSkillTypes()::contains).limit(4).toList();
         return selected.isEmpty() ? List.of(request.allowedSkillTypes().iterator().next()) : selected;
     }
 

@@ -16,6 +16,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ModelDrivenKnowledgeSkillSynthesizerTest {
@@ -57,6 +58,29 @@ class ModelDrivenKnowledgeSkillSynthesizerTest {
         assertThat(plan.skills()).hasSize(1);
         assertThat(plan.skills().get(0).skillType()).isEqualTo(KnowledgeSkillType.RULE_LOOKUP);
         assertThat(plan.skills().get(0).parameters()).doesNotContainKey("planner");
+    }
+
+    @Test
+    void governedBoundScopeUsesParallelDeterministicPlanWithoutAnotherModelCall() {
+        ChatModel model = mock(ChatModel.class);
+        ConfigurableChatModelFactory factory = mock(ConfigurableChatModelFactory.class);
+        ModelDrivenKnowledgeSkillSynthesizer synthesizer = new ModelDrivenKnowledgeSkillSynthesizer(
+            model, factory, new ObjectMapper(), new DefaultKnowledgeSkillSynthesizer());
+        KnowledgeRequest request = new KnowledgeRequest(
+            "v", "查询客户交易、资产、盈亏并总结当前样本中的交易偏好", "TOOL_ANALYSIS", 1200,
+            new KnowledgeScope("ids-agent", "tenant", "user", List.of("doc-method"),
+                List.of(), List.of("securities")), null,
+            Map.of("preferDeterministicPlan", true));
+
+        var plan = synthesizer.synthesize(request);
+
+        assertThat(plan.skills()).extracting(skill -> skill.skillType()).containsExactly(
+            KnowledgeSkillType.CONCEPT_LOOKUP,
+            KnowledgeSkillType.METRIC_LOOKUP,
+            KnowledgeSkillType.METHODOLOGY_LOOKUP,
+            KnowledgeSkillType.CONSTRAINT_LOOKUP);
+        assertThat(plan.skills().stream().mapToInt(skill -> skill.tokenBudget()).sum()).isEqualTo(1200);
+        verifyNoInteractions(model, factory);
     }
 
     private KnowledgeRequest request(Set<KnowledgeSkillType> allowed) {

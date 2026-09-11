@@ -48,6 +48,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -88,6 +92,7 @@ public class McpGatewayClient {
     private static final String STATE_SUCCEEDED = "SUCCEEDED";
     private static final String STATE_FAILED = "FAILED";
     private static final String STATE_STOPPED = "STOPPED";
+    private static final long DEFAULT_TOOLS_CHANGE_DEBOUNCE_MS = 10_000L;
     private static final Set<String> STANDALONE_TRANSPORT_CONTEXT_ARGUMENTS = Set.of(
         "tenantId", "tenant_id", "tenant",
         "userId", "user_id", "username", "userName",
@@ -106,11 +111,22 @@ public class McpGatewayClient {
     private final Map<String, ManagedSdkClient> sdkClientCache = new ConcurrentHashMap<>();
     private final Map<String, Object> sdkSessionLocks = new ConcurrentHashMap<>();
     private final List<Consumer<String>> toolsChangeListeners = new CopyOnWriteArrayList<>();
+    private final Map<String, ScheduledFuture<?>> pendingToolsChangeDispatch = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService toolsChangeScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "mcp-tools-change-debounce");
+        thread.setDaemon(true);
+        return thread;
+    });
     private Executor toolsChangeExecutor = ForkJoinPool.commonPool();
+    private volatile long toolsChangeDebounceMs = DEFAULT_TOOLS_CHANGE_DEBOUNCE_MS;
 
     @Autowired(required = false)
     void setToolsChangeExecutor(@Qualifier("applicationTaskExecutor") Executor executor) {
         if (executor != null) toolsChangeExecutor = executor;
+    }
+
+    void setToolsChangeDebounceMs(long debounceMs) {
+        toolsChangeDebounceMs = Math.max(1L, debounceMs);
     }
 
     /** Registers a Runtime OS listener for MCP {@code notifications/tools/list_changed}. */
@@ -1252,10 +1268,32 @@ public class McpGatewayClient {
             || isStandaloneCenterEndpoint(config);
     }
 
-    void notifyToolsChanged(McpServiceConfig config) {
+    synchronized void notifyToolsChanged(McpServiceConfig config) {
         String serviceId = config == null ? null : config.getId();
+        String key = serviceId == null || serviceId.isBlank() ? "__unknown_service__" : serviceId;
+        ScheduledFuture<?> pending = pendingToolsChangeDispatch.get(key);
+        if (pending != null) {
+            pending.cancel(false);
+            log.debug("MCP tools/list_changed coalesced serviceId={} service={}",
+                serviceId, config == null ? null : config.getName());
+        }
+        // A server commonly publishes one notification per dynamic tool while it is
+        // bootstrapping. Dispatch only after the catalog has been quiet, otherwise the
+        // leading refresh discovers and exposes a partial tool set to Agent requests.
+        scheduleTrailingToolsChange(key, serviceId, config == null ? null : config.getName());
+    }
+
+    private void scheduleTrailingToolsChange(String key, String serviceId, String serviceName) {
+        ScheduledFuture<?> scheduled = toolsChangeScheduler.schedule(() -> {
+            pendingToolsChangeDispatch.remove(key);
+            dispatchToolsChanged(serviceId, serviceName);
+        }, toolsChangeDebounceMs, TimeUnit.MILLISECONDS);
+        pendingToolsChangeDispatch.put(key, scheduled);
+    }
+
+    private void dispatchToolsChanged(String serviceId, String serviceName) {
         log.info("MCP tools/list_changed received serviceId={} service={}; scheduling Runtime OS refresh",
-            serviceId, config == null ? null : config.getName());
+            serviceId, serviceName);
         for (Consumer<String> listener : toolsChangeListeners) {
             try {
                 toolsChangeExecutor.execute(() -> {

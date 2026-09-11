@@ -24,12 +24,37 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class McpTemplateLuceneIndexServiceTest {
 
     @TempDir
     Path tempDir;
+
+    @Test
+    void skipsStartupRebuildWhenAllTemplateIndexesAlreadyExist() {
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.templateIndexExists()).thenReturn(true);
+        when(lucene.databaseQueryTemplateIndexExists()).thenReturn(true);
+        when(lucene.apiServiceTemplateIndexExists()).thenReturn(true);
+        CommandTemplateService commands = mock(CommandTemplateService.class);
+        SqlTemplateService sqlTemplates = mock(SqlTemplateService.class);
+        JmxTemplateService jmxTemplates = mock(JmxTemplateService.class);
+        HttpEndpointConfigService httpEndpoints = mock(HttpEndpointConfigService.class);
+        ApiServiceConfigService apiServices = mock(ApiServiceConfigService.class);
+        DatabaseQueryConfigService databaseQueries = mock(DatabaseQueryConfigService.class);
+        SqlDatasourceConfigService datasources = mock(SqlDatasourceConfigService.class);
+        McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
+            lucene, commands, sqlTemplates, jmxTemplates, httpEndpoints, apiServices,
+            databaseQueries, datasources, new ObjectMapper()
+        );
+
+        indexService.initializeMissingIndexes();
+
+        verifyNoInteractions(commands, sqlTemplates, jmxTemplates, httpEndpoints, apiServices, databaseQueries, datasources);
+    }
 
     @Test
     void rebuildsSelectedEnabledJmxTemplateIndex() {

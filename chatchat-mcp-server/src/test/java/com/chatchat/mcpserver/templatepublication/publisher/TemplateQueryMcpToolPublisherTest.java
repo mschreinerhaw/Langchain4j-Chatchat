@@ -113,7 +113,7 @@ class TemplateQueryMcpToolPublisherTest {
         when(bindings.resolvePolicy(context, "customer_template_query")).thenReturn(policy(Map.of()));
         when(bindings.requireRoute("customer_template_query")).thenReturn(
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
-        when(catalog.listEnabled()).thenReturn(List.of());
+        when(catalog.listEnabledForType(TemplateAssetCatalogService.API)).thenReturn(List.of());
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
@@ -137,7 +137,7 @@ class TemplateQueryMcpToolPublisherTest {
             .thenReturn(policy(Map.of("api_service", allowed)));
         when(bindings.requireRoute("customer_template_query")).thenReturn(
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
-        when(catalog.listEnabled()).thenReturn(List.of(
+        when(catalog.listEnabledForType(TemplateAssetCatalogService.API)).thenReturn(List.of(
             asset(TemplateAssetCatalogService.API, "customer_query", Map.of("required", List.of("customer_id"))),
             asset(TemplateAssetCatalogService.API, "excluded_query", Map.of("type", "object")),
             asset(TemplateAssetCatalogService.API, "unbound_template", Map.of())));
@@ -172,7 +172,7 @@ class TemplateQueryMcpToolPublisherTest {
             .thenReturn(policy(Map.of("api_service", allowed)));
         when(bindings.requireRoute("customer_template_query")).thenReturn(
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
-        when(catalog.listEnabled()).thenReturn(List.of(
+        when(catalog.listEnabledForType(TemplateAssetCatalogService.API)).thenReturn(List.of(
             asset(TemplateAssetCatalogService.API, "template-1", Map.of()),
             asset(TemplateAssetCatalogService.API, "template-2", Map.of()),
             asset(TemplateAssetCatalogService.API, "template-3", Map.of())));
@@ -207,7 +207,7 @@ class TemplateQueryMcpToolPublisherTest {
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
         when(bindings.resolvePolicy(null, "customer_template_query", arguments))
             .thenReturn(policy(Map.of("api_service", allowed)));
-        when(catalog.listEnabled()).thenReturn(List.of(
+        when(catalog.listEnabledForType(TemplateAssetCatalogService.API)).thenReturn(List.of(
             asset(TemplateAssetCatalogService.API, "customer_query", Map.of("type", "object"))));
 
         Map<String, Object> result = publisher.queryFromParent(

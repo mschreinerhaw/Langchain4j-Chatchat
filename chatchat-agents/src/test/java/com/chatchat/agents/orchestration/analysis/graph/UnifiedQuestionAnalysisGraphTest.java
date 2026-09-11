@@ -361,11 +361,22 @@ class UnifiedQuestionAnalysisGraphTest {
             new Dataset("second", Map.of("source", Map.of("displayName", "second")),
                 List.of(Map.<String, Object>of("VALUE", 2))));
         AtomicInteger calls = new AtomicInteger();
+        java.util.concurrent.atomic.AtomicBoolean focusedCoverageReview =
+            new java.util.concurrent.atomic.AtomicBoolean();
         ChatModel model = new ChatModel() {
             @Override public String chat(String prompt) {
-                int call = calls.incrementAndGet();
-                if (call == 1) return com.chatchat.agents.orchestration.analysis.prompt
+                calls.incrementAndGet();
+                if (prompt.contains("Synthesize one adaptive business analysis prompt contract")) {
+                    return com.chatchat.agents.orchestration.analysis.prompt
                     .AdaptiveBusinessAnalysisPromptSynthesizerTest.response();
+                }
+                if (prompt.contains("Review only the methodology-coverage protocol")) {
+                    focusedCoverageReview.set(true);
+                    assertThat(prompt).contains("plannedMethodology", "acceptedFindings", "OBSERVE");
+                    return ModelProtocolJson.compact(Map.of("methodologyCoverage", List.of(
+                        Map.of("method", "OBSERVE", "status", "EXECUTED", "findingIndexes", List.of(1),
+                            "limitation", ""))));
+                }
                 List<Map<String, Object>> findings = List.of(
                     detailedFinding("first", 1, "First observation"),
                     detailedFinding("second", 2, "Second observation"));
@@ -373,23 +384,6 @@ class UnifiedQuestionAnalysisGraphTest {
                 product.put("schemaVersion", "unified_question_analysis.v1");
                 product.put("findings", findings);
                 product.put("limitations", List.of());
-                if (call == 2) return ModelProtocolJson.compact(product);
-                assertThat(prompt).contains("METHODOLOGY_COVERAGE_REQUIRED", "OBSERVE",
-                    "previousFindings");
-                product.put("methodologyCoverage", List.of(
-                    Map.of("method", "OBSERVE", "status", "EXECUTED", "findingIndexes", List.of(1),
-                        "limitation", "")));
-                product.put("questionLevelFindings", List.of(Map.of(
-                    "claim", "The two returned observations differ",
-                    "observation", "The returned values are 1 and 2",
-                    "interpretation", "The observations are not equal",
-                    "implication", "The difference needs a declared comparison basis",
-                    "significance", "Answers the cross-source part of the question",
-                    "confidence", "MEDIUM", "caveats", List.of("No causal conclusion"),
-                    "basisFindingIndexes", List.of(1, 2))));
-                product.put("ranking", List.of(Map.of("findingIndex", 2, "priority", "PRIMARY")));
-                product.put("conflicts", List.of());
-                product.put("evidenceSufficiency", Map.of("status", "PARTIAL"));
                 return ModelProtocolJson.compact(product);
             }
         };
@@ -398,17 +392,21 @@ class UnifiedQuestionAnalysisGraphTest {
         new UnifiedQuestionAnalysisGraph().execute("compare", datasets, () -> datasets, model, scope,
             new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> { });
 
-        assertThat(calls.get()).isEqualTo(3);
+        // Prompt synthesis may be restored from the shared cache, while a malformed
+        // compatibility product may consume one contract-repair call.
+        assertThat(calls.get()).isBetween(2, 4);
+        assertThat(focusedCoverageReview).isTrue();
         assertThat(metadata).containsEntry("unifiedAnalysisMethodologyRepairRequested", true)
+            .containsEntry("unifiedAnalysisMethodologyRepairMode", "FOCUSED_COVERAGE_REVIEW")
+            .containsEntry("unifiedAnalysisMethodologyRepairSucceeded", true)
+            .containsEntry("unifiedAnalysisEvidenceRounds", 1)
             .containsEntry("unifiedAnalysisMethodologyGaps", List.of())
-            .containsEntry("unifiedAnalysisQuestionFindingCount", 1);
+            .containsEntry("unifiedAnalysisQuestionFindingCount", 0);
         assertThat(metadata.get("unifiedAnalysisArtifacts").toString()).contains(
             "observation=The returned field is 1", "interpretation=The value is directly observed",
             "implication=Use it as bounded evidence", "method=direct field observation",
             "grain=returned record", "timeScope=returned snapshot",
-            "alternativeExplanations=[No longitudinal evidence]", "QUESTION_LEVEL_SYNTHESIS",
-            "basisClaimIds=[finding:");
-        assertThat(metadata.get("unifiedAnalysisJudgments").toString()).contains("PRIMARY", "PARTIAL");
+            "alternativeExplanations=[No longitudinal evidence]");
     }
 
     private static Map<String, Object> detailedFinding(String dataset, int value, String claim) {

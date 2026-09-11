@@ -81,7 +81,7 @@ public class McpCenterRecoveryService {
         log.warn("MCP heartbeat unhealthy; running center auto-sync attempt {}/{}: {}",
             autoSyncAttempts, maxAttempts, lastFailure);
         try {
-            centerSyncService.syncFromCenter(heartbeatTimeoutMs());
+            centerSyncService.syncFromCenterForRecovery(heartbeatTimeoutMs());
             HealthCheck recovered = inspectHealth();
             lastHeartbeatAt = System.currentTimeMillis();
             if (recovered.healthy()) {

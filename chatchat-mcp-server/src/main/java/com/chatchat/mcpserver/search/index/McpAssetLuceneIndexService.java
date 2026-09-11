@@ -69,10 +69,19 @@ public class McpAssetLuceneIndexService {
         }
         Map<String, Object> summary = new LinkedHashMap<>();
         int indexed = 0;
+        boolean httpEndpointIndexesRefreshed = false;
         for (String assetType : missing) {
+            if ((HTTP_ASSET_INDEX_TYPE.equals(assetType) || MICROSERVICE_ASSET_INDEX_TYPE.equals(assetType))
+                && httpEndpointIndexesRefreshed) {
+                continue;
+            }
             Map<String, Object> item = refresh(assetType);
             summary.put(assetType, item);
             indexed += intValue(item.get("indexed"));
+            if (HTTP_ASSET_INDEX_TYPE.equals(assetType) || MICROSERVICE_ASSET_INDEX_TYPE.equals(assetType)) {
+                // Both physical indexes are rebuilt together from the same endpoint catalog.
+                httpEndpointIndexesRefreshed = true;
+            }
         }
         log.info("MCP asset index startup initialized missing indexes={} indexed={}", missing, indexed);
         return Map.of("enabled", true, "indexed", indexed, "startupSkipped", false, "missingIndexes", missing, "indexes", summary);

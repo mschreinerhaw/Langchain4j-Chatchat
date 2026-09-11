@@ -2958,6 +2958,170 @@
   line-height: 1.6;
 }
 
+.agent-workshop-view .agent-resource-selector {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 2px 12px;
+}
+
+.agent-workshop-view .agent-resource-selector-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.agent-workshop-view .agent-resource-selector-copy strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.agent-workshop-view .agent-resource-selector-copy span,
+.agent-workshop-view .agent-resource-selector-action > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.agent-workshop-view .agent-resource-selector-action {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.agent-workshop-view .agent-resource-selector-action > span.is-selected {
+  color: var(--primary-strong);
+}
+
+.agent-workshop-view .agent-picker-text-button,
+.agent-workshop-view .agent-resource-clear-button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--primary-strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .agent-picker-text-button:hover,
+.agent-workshop-view .agent-resource-clear-button:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.agent-workshop-view .agent-picker-text-button span {
+  color: inherit;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.agent-workshop-view .agent-resource-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(18, 24, 38, 0.34);
+  backdrop-filter: blur(2px);
+}
+
+.agent-workshop-view .agent-resource-dialog {
+  width: min(860px, 100%);
+  max-height: min(80dvh, 760px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid rgba(216, 223, 234, 0.9);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(26, 39, 64, 0.2);
+}
+
+.agent-workshop-view .agent-resource-dialog > header,
+.agent-workshop-view .agent-resource-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+}
+
+.agent-workshop-view .agent-resource-dialog > header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+}
+
+.agent-workshop-view .agent-resource-dialog > header > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.agent-workshop-view .agent-resource-dialog > header p,
+.agent-workshop-view .agent-resource-dialog > header h2 {
+  margin: 0;
+}
+
+.agent-workshop-view .agent-resource-dialog > header p {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .agent-resource-dialog > header h2 {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.agent-workshop-view .agent-resource-dialog > header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-workshop-view .agent-resource-dialog > footer {
+  border-top: 1px solid var(--line);
+}
+
+.agent-workshop-view .agent-resource-clear-button {
+  color: var(--muted);
+}
+
+.agent-workshop-view .agent-resource-dialog-body {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+  padding: 16px 18px;
+}
+
+.agent-workshop-view .agent-resource-dialog-body label > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .agent-resource-dialog .agent-tool-group-list,
+.agent-workshop-view .agent-resource-dialog .agent-document-checklist {
+  max-height: none;
+}
+
+.agent-workshop-view .agent-document-check.disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .agent-workshop-view .agent-import-notice-body ul {
   max-height: 180px;
   margin: 10px 0 0;
@@ -3184,7 +3348,9 @@
 }
 
 .agent-workshop-view .dialog-body .agent-tool-check span,
-.agent-workshop-view .dialog-body .agent-document-check span {
+.agent-workshop-view .dialog-body .agent-document-check span,
+.agent-workshop-view .agent-resource-dialog-body .agent-tool-check > span,
+.agent-workshop-view .agent-resource-dialog-body .agent-document-check > span {
   min-width: 0;
   display: grid;
   gap: 3px;
@@ -4585,6 +4751,26 @@
   .agent-workshop-view .agent-tool-group header {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .agent-workshop-view .agent-resource-selector {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .agent-workshop-view .agent-resource-selector-action {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .agent-workshop-view .agent-resource-dialog-backdrop {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .agent-workshop-view .agent-resource-dialog {
+    max-height: none;
   }
 
   .agent-workshop-view .agent-actions button,

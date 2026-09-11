@@ -31,6 +31,8 @@ export default {
     defaults: { type: Object, default: () => ({}) },
     searchableFields: { type: Array, default: () => [] },
     listFilters: { type: Array, default: () => [] },
+    initialItems: { type: Array, default: () => [] },
+    loadOnMount: { type: Boolean, default: true },
     pageSize: { type: Number, default: 10 },
     emptyText: { type: String, default: '暂无数据。' },
     searchPlaceholder: { type: String, default: '搜索' },
@@ -40,6 +42,7 @@ export default {
   data() {
     return {
       busy: false,
+      listLoading: false,
       rowOperation: null,
       items: [],
       keyword: '',
@@ -286,6 +289,12 @@ export default {
         this.page = 1;
       }
     },
+    initialItems: {
+      deep: true,
+      handler(items) {
+        if (!this.loadOnMount) this.replaceItems(items);
+      }
+    },
     pageCount(value) {
       if (this.page > value) this.page = value;
     },
@@ -300,7 +309,11 @@ export default {
     }
   },
   mounted() {
-    this.load();
+    if (this.loadOnMount) {
+      this.load();
+    } else {
+      this.replaceItems(this.initialItems);
+    }
   },
   methods: {
     replaceItems(items) {
@@ -325,7 +338,7 @@ export default {
       return acceptedValues.includes(itemValue);
     },
     async load() {
-      this.busy = true;
+      this.listLoading = true;
       try {
         this.items = await this.listAction() || [];
         this.selectedIds = new Set([...this.selectedIds].filter(id => this.items.some(item => item.id === id)));
@@ -333,7 +346,7 @@ export default {
       } catch (error) {
         this.$emit('error', error);
       } finally {
-        this.busy = false;
+        this.listLoading = false;
       }
     },
     listFilterOptions(filter) {

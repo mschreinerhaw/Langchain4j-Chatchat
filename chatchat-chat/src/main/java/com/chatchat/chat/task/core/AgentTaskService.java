@@ -1137,12 +1137,9 @@ public class AgentTaskService {
                 Map<String, Object> resultPayload = new LinkedHashMap<>(resultContract.payload(response));
                 applyArtifactPresentation(resultPayload, artifactPresentation);
                 AgentEvent resultEvent = copyEvent(question, resultContract.eventType(), resultContract.status(), writePayload(resultPayload));
-                resultEvent.setSequence(nextSequence(question));
                 resultEvent.setParentEventId(question.getEventId());
                 resultEvent.setLatencyMs(response.getLatencyMs());
                 resultEvent.setCreateTime(resolveAnswerTime(response, modelFinishedAt));
-                eventStore.save(resultEvent);
-                logAgentTaskEvent("result", resultEvent);
                 Map<String, Object> completePayload = new LinkedHashMap<>();
                 completePayload.put("message", resultContract.completeMessage());
                 completePayload.put("mode", response.getMode());
@@ -1168,10 +1165,14 @@ public class AgentTaskService {
                 }
                 completePayload.put("executionResult", completeExecutionResult);
                 AgentEvent completeEvent = copyEvent(question, "COMPLETE", resultContract.status(), writePayload(completePayload));
-                completeEvent.setSequence(nextSequence(question));
                 completeEvent.setParentEventId(resultEvent.getEventId());
                 completeEvent.setCreateTime(Math.max(resultEvent.getCreateTime(), System.currentTimeMillis()));
-                eventStore.save(completeEvent);
+                // Persist the two terminal events under one stream lock/flush. They remain
+                // individually addressable and ordered, while remote database latency is paid once.
+                resultEvent.setSequence(null);
+                completeEvent.setSequence(null);
+                eventStore.appendAll(List.of(resultEvent, completeEvent));
+                logAgentTaskEvent("result", resultEvent);
                 logAgentTaskEvent("complete", completeEvent);
                 updateLatest(
                     question.getTaskId(),
@@ -1568,9 +1569,16 @@ public class AgentTaskService {
                                    InteractionResponse response,
                                    long modelStartedAt,
                                    long modelFinishedAt) {
-        emitThinkEvent(question, response, modelStartedAt, modelFinishedAt);
-        emitPlannerEvents(question, response);
-        emitToolEvents(question, response);
+        List<AgentEvent> events = new ArrayList<>();
+        emitThinkEvent(question, response, modelStartedAt, modelFinishedAt, events);
+        emitPlannerEvents(question, response, events);
+        emitToolEvents(question, response, events);
+        // These events describe work that has already completed inside InteractionResponse.
+        // Persist them under one stream lock/flush instead of paying one remote database
+        // transaction (and one sequence lookup) per timeline item. Audit detail, ordering,
+        // parent links and payloads remain unchanged.
+        eventStore.appendAll(events);
+        events.forEach(event -> logAgentTaskEvent(eventLogPhase(event, question), event));
     }
 
     /**
@@ -1584,7 +1592,8 @@ public class AgentTaskService {
     private void emitThinkEvent(AgentEvent question,
                                 InteractionResponse response,
                                 long modelStartedAt,
-                                long modelFinishedAt) {
+                                long modelFinishedAt,
+                                List<AgentEvent> events) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("mode", response.getMode());
         payload.put("handler", metadataValue(response.getMetadata(), "handler"));
@@ -1592,11 +1601,9 @@ public class AgentTaskService {
         payload.put("latencyMs", response.getLatencyMs());
         AgentEvent thinkEvent = copyEvent(question, "THINK", "RUNNING", writePayload(payload));
         thinkEvent.setParentEventId(question.getEventId());
-        thinkEvent.setSequence(nextSequence(question));
         thinkEvent.setLatencyMs(Math.max(0L, modelFinishedAt - modelStartedAt));
         thinkEvent.setCreateTime(modelStartedAt);
-        eventStore.save(thinkEvent);
-        logAgentTaskEvent("think", thinkEvent);
+        events.add(thinkEvent);
     }
 
     /**
@@ -1606,7 +1613,8 @@ public class AgentTaskService {
      * @param response the response value
      */
     @SuppressWarnings("unchecked")
-    private void emitPlannerEvents(AgentEvent question, InteractionResponse response) {
+    private void emitPlannerEvents(AgentEvent question, InteractionResponse response,
+                                   List<AgentEvent> events) {
         List<Map<String, Object>> plannerSteps = plannerSteps(response);
         for (Map<String, Object> step : plannerSteps) {
             long plannedAt = longValue(step.get("plannedAt"), System.currentTimeMillis());
@@ -1620,11 +1628,9 @@ public class AgentTaskService {
 
             AgentEvent planEvent = copyEvent(question, "PLAN", "RUNNING", writePayload(planPayload));
             planEvent.setParentEventId(question.getEventId());
-            planEvent.setSequence(nextSequence(question));
             planEvent.setToolName(stringValue(step.get("toolName")));
             planEvent.setCreateTime(plannedAt);
-            eventStore.save(planEvent);
-            logAgentTaskEvent("plan", planEvent);
+            events.add(planEvent);
 
             String reason = stringValue(step.get("reason"));
             String preview = stringValue(step.get("answerPreview"));
@@ -1636,11 +1642,9 @@ public class AgentTaskService {
                 thinkPayload.put("action", step.get("action"));
                 AgentEvent thinkEvent = copyEvent(question, "THINK", "RUNNING", writePayload(thinkPayload));
                 thinkEvent.setParentEventId(planEvent.getEventId());
-                thinkEvent.setSequence(nextSequence(question));
                 thinkEvent.setToolName(stringValue(step.get("toolName")));
                 thinkEvent.setCreateTime(plannedAt);
-                eventStore.save(thinkEvent);
-                logAgentTaskEvent("planner_think", thinkEvent);
+                events.add(thinkEvent);
             }
         }
     }
@@ -1651,7 +1655,8 @@ public class AgentTaskService {
      * @param question the question value
      * @param response the response value
      */
-    private void emitToolEvents(AgentEvent question, InteractionResponse response) {
+    private void emitToolEvents(AgentEvent question, InteractionResponse response,
+                                List<AgentEvent> events) {
         List<InteractionToolTrace> traces = response.getToolTraces() == null ? List.of() : response.getToolTraces();
         for (InteractionToolTrace trace : traces) {
             long startedAt = trace.getStartedAt() == null ? System.currentTimeMillis() : trace.getStartedAt();
@@ -1662,11 +1667,9 @@ public class AgentTaskService {
                 "toolName", trace.getToolName()
             )));
             waitToolEvent.setParentEventId(question.getEventId());
-            waitToolEvent.setSequence(nextSequence(question));
             waitToolEvent.setToolName(trace.getToolName());
             waitToolEvent.setCreateTime(startedAt);
-            eventStore.save(waitToolEvent);
-            logAgentTaskEvent("wait_tool", waitToolEvent);
+            events.add(waitToolEvent);
 
             Map<String, Object> toolCallPayload = new LinkedHashMap<>();
             toolCallPayload.put("toolName", trace.getToolName());
@@ -1677,11 +1680,9 @@ public class AgentTaskService {
             toolCallPayload.put("runtime", trace.getRuntimeMetadata());
             AgentEvent toolCallEvent = copyEvent(question, "TOOL_CALL", "WAIT_TOOL", writePayload(toolCallPayload));
             toolCallEvent.setParentEventId(waitToolEvent.getEventId());
-            toolCallEvent.setSequence(nextSequence(question));
             toolCallEvent.setToolName(trace.getToolName());
             toolCallEvent.setCreateTime(startedAt);
-            eventStore.save(toolCallEvent);
-            logAgentTaskEvent("tool_call", toolCallEvent);
+            events.add(toolCallEvent);
 
             Map<String, Object> toolResultPayload = new LinkedHashMap<>();
             toolResultPayload.put("toolName", trace.getToolName());
@@ -1697,14 +1698,26 @@ public class AgentTaskService {
                 writePayload(toolResultPayload)
             );
             toolResultEvent.setParentEventId(toolCallEvent.getEventId());
-            toolResultEvent.setSequence(nextSequence(question));
             toolResultEvent.setToolName(trace.getToolName());
             toolResultEvent.setLatencyMs(trace.getDurationMs());
             toolResultEvent.setErrorCode(trace.isSuccess() ? null : "TOOL_EXECUTION_FAILED");
             toolResultEvent.setCreateTime(finishedAt);
-            eventStore.save(toolResultEvent);
-            logAgentTaskEvent("tool_result", toolResultEvent);
+            events.add(toolResultEvent);
         }
+    }
+
+    private String eventLogPhase(AgentEvent event, AgentEvent question) {
+        if (event == null || event.getType() == null) return "runtime";
+        if ("PLAN".equalsIgnoreCase(event.getType())) return "plan";
+        if ("TOOL_CALL".equalsIgnoreCase(event.getType())) return "tool_call";
+        if ("TOOL_RESULT".equalsIgnoreCase(event.getType())) return "tool_result";
+        if ("STATUS".equalsIgnoreCase(event.getType())
+            && "WAIT_TOOL".equalsIgnoreCase(event.getStatus())) return "wait_tool";
+        if ("THINK".equalsIgnoreCase(event.getType())
+            && event.getParentEventId() != null
+            && question != null
+            && !event.getParentEventId().equals(question.getEventId())) return "planner_think";
+        return "think";
     }
 
     /**
@@ -3041,6 +3054,7 @@ public class AgentTaskService {
     List<Map<String, Object>> citations(InteractionResponse response, Map<String, Object> reasoningPayload) {
         List<Map<String, Object>> values = new ArrayList<>();
         addWebSearchCitations(values, response == null ? null : response.getToolTraces());
+        addToolTraceCitations(values, response == null ? null : response.getToolTraces());
         addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("direct"), "direct");
         addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("supporting"), "supporting");
         addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("context"), "context");
@@ -3062,7 +3076,55 @@ public class AgentTaskService {
                 values.add(citation);
             }
         }
+        addDomainKnowledgeCitations(values, response == null ? Map.of() : response.getMetadata());
         return dedupeCitations(values).stream().limit(12).toList();
+    }
+
+    /**
+     * Runtime metadata is the durable fallback for domain-document provenance. This prevents
+     * task/event envelope conversion from making attached Agent knowledge disappear even when
+     * an intermediate response projection omits InteractionSource objects.
+     */
+    private void addDomainKnowledgeCitations(List<Map<String, Object>> values,
+                                             Map<String, Object> responseMetadata) {
+        Map<String, Object> metadata = asStringMap(responseMetadata);
+        Map<String, Object> knowledge = asStringMap(metadata.get("domainKnowledgeContext"));
+        Object rawSources = knowledge.get("sources");
+        if (!(rawSources instanceof List<?> sources)) return;
+        for (Object rawSource : sources) {
+            Map<String, Object> source = asStringMap(rawSource);
+            if (source.isEmpty()) continue;
+            Map<String, Object> citation = new LinkedHashMap<>();
+            citation.put("rank", values.size() + 1);
+            citation.put("sourceRef", firstTextValue(
+                source.get("documentId"), source.get("sourceId"), source.get("chunkId"), ""));
+            citation.put("title", firstTextValue(
+                source.get("documentName"), source.get("section"), source.get("documentId"), "领域知识文档"));
+            citation.put("text", compactCitationText(firstTextValue(
+                source.get("citation"), source.get("section"), "")));
+            putIfPresent(citation, "section", firstTextValue(source.get("section"), ""));
+            putIfPresent(citation, "version", firstTextValue(source.get("version"), ""));
+            values.add(citation);
+        }
+    }
+
+    private void addToolTraceCitations(List<Map<String, Object>> values,
+                                       List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) return;
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || !trace.isSuccess() || isWebSearchTrace(trace)) continue;
+            String toolName = firstTextValue(trace.getToolName(), trace.getDisplayName(), "");
+            if (toolName.isBlank()) continue;
+            Map<String, Object> citation = new LinkedHashMap<>();
+            citation.put("rank", values.size() + 1);
+            citation.put("sourceRef", toolName);
+            citation.put("title", firstTextValue(trace.getDisplayName(), trace.getServiceName(), toolName));
+            citation.put("text", compactCitationText(String.valueOf(
+                ToolLogSummarizer.summarize(trace.getOutput()))));
+            putIfPresent(citation, "serviceId", trace.getServiceId());
+            values.add(citation);
+            if (values.size() >= 12) return;
+        }
     }
 
     private void addWebSearchCitations(List<Map<String, Object>> values, List<InteractionToolTrace> traces) {
@@ -3595,6 +3657,31 @@ public class AgentTaskService {
             copyMetadataValue(safe, metadata, "historyUsed");
             copyMetadataValue(safe, metadata, "summaryUsed");
             copyMetadataValue(safe, metadata, "experienceHintsUsed");
+            copyMetadataValue(safe, metadata, "knowledgeRetrieval");
+            copyMetadataValue(safe, metadata, "domainKnowledgeUsed");
+            copyMetadataValue(safe, metadata, "domainKnowledgeSourceCount");
+            copyMetadataValue(safe, metadata, "domainKnowledgeTokens");
+            copyMetadataValue(safe, metadata, "domainKnowledgeTokenBudget");
+            copyMetadataValue(safe, metadata, "domainKnowledgeTruncated");
+            copyMetadataValue(safe, metadata, "domainKnowledgeSkillCount");
+            Object domainKnowledge = metadata.get("domainKnowledgeContext");
+            if (domainKnowledge instanceof Map<?, ?> knowledgeMetadata) {
+                Map<String, Object> knowledge = new LinkedHashMap<>();
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "schemaVersion");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "status");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "used");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "estimatedTokens");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "maxTokens");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "truncated");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "skillTypes");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "sources");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "usageContract");
+                if (!knowledge.isEmpty()) {
+                    // Do not persist the compiled prompt body in the user-facing task envelope.
+                    // Its bounded provenance and usage statistics are sufficient for inspection.
+                    safe.put("domainKnowledgeContext", knowledge);
+                }
+            }
             Object agent = metadata.get("agent");
             if (agent instanceof Map<?, ?> agentMetadata) {
                 Map<String, Object> governance = new LinkedHashMap<>();

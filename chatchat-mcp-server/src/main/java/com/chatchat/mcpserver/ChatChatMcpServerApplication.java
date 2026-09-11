@@ -6,8 +6,11 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 
-@SpringBootApplication(scanBasePackages = {
+@SpringBootApplication
+@ComponentScan(basePackages = {
     "com.chatchat.common",
     "com.chatchat.agents.tool",
     "com.chatchat.tools",
@@ -16,7 +19,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     "com.chatchat.runtime.market",
     "com.chatchat.knowledgebase",
     "com.chatchat.mcpserver"
-})
+}, excludeFilters = @ComponentScan.Filter(
+    type = FilterType.REGEX,
+    pattern = "com\\.chatchat\\.integration\\.mcp\\.service\\.directory\\.ConfiguredRemoteMcpServiceProvider"
+))
 @ConfigurationPropertiesScan(basePackages = {
     "com.chatchat.common",
     "com.chatchat.mcpserver"

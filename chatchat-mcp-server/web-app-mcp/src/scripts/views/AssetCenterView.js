@@ -24,11 +24,15 @@ export default {
       api,
       activeTab: 'ssh',
       activeTemplateTab: 'ssh-template',
+      visitedTabs: ['ssh'],
+      visitedTemplateTabs: ['ssh-template'],
       busyAction: '',
       sshCommandTemplates: [],
       sqlOpsTemplates: [],
+      sqlOpsTemplatesLoaded: false,
       businessCategories: [],
       enterpriseScenarioOptions: [],
+      enterpriseMetadataStatusLoaded: false,
       searchBusy: false,
       searchResult: '',
       searchRows: [],
@@ -539,8 +543,22 @@ export default {
   mounted() {
     this.loadBusinessCategories();
     this.loadSshCommandTemplates();
-    this.loadSqlOpsTemplates();
-    this.loadEnterpriseMetadataStatus();
+  },
+  watch: {
+    activeTab(tab) {
+      if (!this.visitedTabs.includes(tab)) this.visitedTabs.push(tab);
+      if (tab === 'templates' && !this.visitedTemplateTabs.includes(this.activeTemplateTab)) {
+        this.visitedTemplateTabs.push(this.activeTemplateTab);
+      }
+      if (tab === 'sql' || (tab === 'templates' && this.activeTemplateTab === 'sql-template')) {
+        this.loadSqlOpsTemplates();
+      }
+      if (tab === 'index-search') this.loadEnterpriseMetadataStatus();
+    },
+    activeTemplateTab(tab) {
+      if (!this.visitedTemplateTabs.includes(tab)) this.visitedTemplateTabs.push(tab);
+      if (tab === 'sql-template') this.loadSqlOpsTemplates();
+    }
   },
   methods: {
     async loadBusinessCategories() {
@@ -556,9 +574,11 @@ export default {
       return category ? category.name : id;
     },
     async loadEnterpriseMetadataStatus() {
+      if (this.enterpriseMetadataStatusLoaded) return;
       try {
         const status = await api.enterpriseMetadataStatus();
         this.enterpriseScenarioOptions = Array.isArray(status?.scenarios) ? status.scenarios : [];
+        this.enterpriseMetadataStatusLoaded = true;
       } catch (error) {
         this.enterpriseScenarioOptions = [];
       }
@@ -571,8 +591,10 @@ export default {
       }
     },
     async loadSqlOpsTemplates() {
+      if (this.sqlOpsTemplatesLoaded) return;
       try {
         this.sqlOpsTemplates = await api.listSqlTemplates() || [];
+        this.sqlOpsTemplatesLoaded = true;
       } catch (error) {
         this.$emit('error', error);
       }

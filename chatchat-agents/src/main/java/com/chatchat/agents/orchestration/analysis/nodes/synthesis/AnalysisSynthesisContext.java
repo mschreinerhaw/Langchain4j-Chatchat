@@ -6,6 +6,7 @@ import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
 import com.chatchat.common.runtime.summary.analysis.contract.AnalysisMethodologyContract;
+import com.chatchat.common.knowledge.KnowledgeContext;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -41,6 +42,8 @@ final class AnalysisSynthesisContext {
             "missingBaselineEffect", "QUALIFY_DEPENDENT_CLAIMS_DO_NOT_SUPPRESS_SUPPORTED_FINDINGS"));
         result.put(AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY,
             AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes));
+        result.put(KnowledgeContext.RUNTIME_ATTRIBUTE,
+            value(runtimeAttributes, KnowledgeContext.RUNTIME_ATTRIBUTE, Map.of()));
         result.put("adaptiveAnalysisPrompt", value(metadata,
             "adaptiveAnalysisPromptContract", Map.of()));
         result.put("modelAnalysisInputs", modelAnalysisInputs(reducers.isEmpty() ? workers : reducers));

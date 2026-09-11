@@ -67,6 +67,7 @@ public class McpToolRegistryBridge {
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private final Map<String, RegisteredMcpTool> registeredTools = new ConcurrentHashMap<>();
     private final Map<String, String> registeredContractChecksums = new ConcurrentHashMap<>();
+    private final Map<String, String> discoveredCatalogSignatures = new ConcurrentHashMap<>();
     private final AtomicLong toolsChangeGeneration = new AtomicLong();
     private final AtomicBoolean toolsChangeRefreshRunning = new AtomicBoolean();
 
@@ -117,7 +118,7 @@ public class McpToolRegistryBridge {
         try {
             do {
                 handledGeneration = toolsChangeGeneration.get();
-                refreshRegistry();
+                refreshRegistryFromNotification();
             } while (toolsChangeGeneration.get() != handledGeneration);
         } finally {
             toolsChangeRefreshRunning.set(false);
@@ -129,19 +130,42 @@ public class McpToolRegistryBridge {
      * Performs the refresh registry operation.
      */
     public synchronized void refreshRegistry() {
-        refreshRegistry(0);
+        // Runtime callers use refresh() as a readiness check before execution. A
+        // byte-for-byte identical tools/list response must not re-run persistent
+        // contract synchronization for every tool, especially with a remote DB.
+        refreshRegistryInternal(0, true, true);
     }
 
     /**
      * Refreshes the registry with an optional discovery timeout override.
      */
     public synchronized void refreshRegistry(int discoveryTimeoutMs) {
+        refreshRegistryInternal(discoveryTimeoutMs, false, false);
+    }
+
+    /**
+     * Refreshes reachability and catalog state while retaining the existing runtime
+     * registrations when the publisher-owned tool definitions are unchanged. This
+     * is intended for automatic recovery/heartbeat paths, where rebuilding every
+     * enhanced tool would add avoidable latency to concurrent API requests.
+     */
+    public synchronized void refreshRegistryIfCatalogChanged(int discoveryTimeoutMs) {
+        refreshRegistryInternal(discoveryTimeoutMs, true, true);
+    }
+
+    private synchronized void refreshRegistryFromNotification() {
+        refreshRegistryInternal(0, true, false);
+    }
+
+    private void refreshRegistryInternal(int discoveryTimeoutMs, boolean skipUnchangedCatalog,
+                                         boolean preserveTransientEmptyCatalog) {
         List<McpServiceConfig> services = configService.listEnabled();
         if (services.isEmpty()) {
             managedToolNames.forEach(toolRegistry::unregisterTool);
             managedToolNames.clear();
             registeredTools.clear();
             registeredContractChecksums.clear();
+            discoveredCatalogSignatures.clear();
             routeService.clear();
             log.info("No enabled MCP service found, skip MCP tool registration");
             return;
@@ -155,8 +179,32 @@ public class McpToolRegistryBridge {
             try {
                 List<McpToolDefinition> tools = gatewayClient.discoverTools(
                     service, Math.max(0, discoveryTimeoutMs));
-                if (tools.isEmpty()) {
+                String catalogSignature = catalogSignature(tools);
+                if (skipUnchangedCatalog
+                    && catalogSignature.equals(discoveredCatalogSignatures.get(service.getId()))) {
+                    registeredTools.values().stream()
+                        .filter(tool -> service.getId().equals(tool.serviceId()))
+                        .map(RegisteredMcpTool::localToolName)
+                        .forEach(discoveredNames::add);
                     refreshedServiceIds.add(service.getId());
+                    log.info("MCP tool catalog unchanged, skipped redundant registration serviceId={} tools={}",
+                        service.getId(), tools.size());
+                    continue;
+                }
+                if (tools.isEmpty()) {
+                    if (preserveTransientEmptyCatalog
+                        && registeredTools.values().stream()
+                            .anyMatch(tool -> service.getId().equals(tool.serviceId()))) {
+                        registeredTools.values().stream()
+                            .filter(tool -> service.getId().equals(tool.serviceId()))
+                            .map(RegisteredMcpTool::localToolName)
+                            .forEach(discoveredNames::add);
+                        log.warn("MCP recovery discovery returned an empty catalog; preserved prior runtime "
+                            + "registrations serviceId={}", service.getId());
+                        continue;
+                    }
+                    refreshedServiceIds.add(service.getId());
+                    discoveredCatalogSignatures.put(service.getId(), catalogSignature);
                     log.info("No MCP tools discovered for service {}", service.getName());
                     continue;
                 }
@@ -170,6 +218,7 @@ public class McpToolRegistryBridge {
                     }
                 }
                 refreshedServiceIds.add(service.getId());
+                discoveredCatalogSignatures.put(service.getId(), catalogSignature);
             } catch (Exception ex) {
                 log.warn("Skip MCP service {} (id={}) during refresh: {}",
                     service.getName(), service.getId(), ex.getMessage());
@@ -198,6 +247,23 @@ public class McpToolRegistryBridge {
             managedToolNames.remove(name);
         });
         log.info("MCP tool registry refreshed, registered {} tools", managedToolNames.size());
+    }
+
+    private String catalogSignature(List<McpToolDefinition> tools) {
+        if (tools == null || tools.isEmpty()) return "[]";
+        try {
+            List<McpToolDefinition> ordered = tools.stream()
+                .sorted(Comparator.comparing(definition -> definition == null
+                    ? "" : String.valueOf(definition.name())))
+                .toList();
+            return objectMapper.writeValueAsString(ordered);
+        } catch (JsonProcessingException ex) {
+            return tools.stream()
+                .map(definition -> definition == null ? "null" : String.valueOf(definition))
+                .sorted()
+                .reduce((left, right) -> left + "\n" + right)
+                .orElse("[]");
+        }
     }
 
     /**

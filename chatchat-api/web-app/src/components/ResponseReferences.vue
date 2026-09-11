@@ -4,6 +4,10 @@
       <span>{{ allSourceRows.length }} 个可核验来源</span>
       <button type="button" @click="toggleSourcePanel">{{ sourcePanelOpen ? "收起来源" : "来源侧栏" }}</button>
     </header>
+    <div v-if="knowledgeSummary" class="knowledge-runtime-summary">
+      <strong>已应用 Agent 领域知识</strong>
+      <span>{{ knowledgeSummary }}</span>
+    </div>
     <section v-if="conflictRows.length" class="source-conflicts" aria-label="冲突来源">
       <strong>发现 {{ conflictRows.length }} 组冲突来源</strong>
       <article v-for="conflict in conflictRows" :key="conflict.id">

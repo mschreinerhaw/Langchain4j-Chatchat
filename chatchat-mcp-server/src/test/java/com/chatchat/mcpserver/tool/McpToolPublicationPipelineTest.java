@@ -9,6 +9,7 @@ import org.mockito.InOrder;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -132,6 +133,32 @@ class McpToolPublicationPipelineTest {
         verify(server).notifyToolsListChanged();
     }
 
+    @Test
+    void skipsDeclaredRetirementsThatAreNotPresentInTheLiveRegistry() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        when(server.listTools()).thenReturn(List.of());
+        MutableContributor contributor = new MutableContributor(server, List.of());
+        contributor.retired = Set.of("legacy_absent");
+
+        McpToolPublicationPipeline.publish(server, contributor);
+
+        verify(server, never()).removeTool("legacy_absent");
+        verify(server, never()).notifyToolsListChanged();
+    }
+
+    @Test
+    void removesDeclaredRetirementsThatArePresentInTheLiveRegistry() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        when(server.listTools()).thenReturn(List.of(publication("legacy_live", Map.of()).specification().tool()));
+        MutableContributor contributor = new MutableContributor(server, List.of());
+        contributor.retired = Set.of("legacy_live");
+
+        McpToolPublicationPipeline.publish(server, contributor);
+
+        verify(server).removeTool("legacy_live");
+        verify(server).notifyToolsListChanged();
+    }
+
     private static ToolPublication publication(String name, Map<String, Object> meta) {
         return publication(name, meta, List.of());
     }
@@ -155,6 +182,7 @@ class McpToolPublicationPipelineTest {
     private static final class MutableContributor implements McpToolContributor {
         private final McpSyncServer server;
         private List<ToolPublication> publications;
+        private Set<String> retired = Set.of();
 
         private MutableContributor(McpSyncServer server, List<ToolPublication> publications) {
             this.server = server;
@@ -164,5 +192,6 @@ class McpToolPublicationPipelineTest {
         @Override public String contributorId() { return "test_contributor"; }
         @Override public McpSyncServer publicationServer() { return server; }
         @Override public List<ToolPublication> contribute() { return publications; }
+        @Override public Set<String> retiredToolNames() { return retired; }
     }
 }

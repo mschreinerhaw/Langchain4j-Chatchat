@@ -17,16 +17,29 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OpenSearchEmbeddingClient {
 
+    private static final long INCOMPATIBLE_DIMENSION_BACKOFF_MS = Duration.ofMinutes(5).toMillis();
+    private static final int MAX_CACHE_ENTRIES = 512;
+
     private final SearchProperties properties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().build();
+    private final AtomicLong incompatibleDimensionUntil = new AtomicLong();
+    private final Map<String, List<Float>> embeddingCache = java.util.Collections.synchronizedMap(
+        new LinkedHashMap<>(64, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, List<Float>> eldest) {
+                return size() > MAX_CACHE_ENTRIES;
+            }
+        });
 
     public boolean enabled() {
         SearchProperties.OpenSearch.Embedding config = config();
@@ -50,6 +63,12 @@ public class OpenSearchEmbeddingClient {
         }
         SearchProperties.OpenSearch.Embedding config = config();
         String text = truncate(input.trim(), Math.max(1, config.getMaxInputChars()));
+        String cacheKey = config.getModel() + "|" + config.getDimension() + "|" + text;
+        List<Float> cached = embeddingCache.get(cacheKey);
+        if (cached != null) return cached;
+        if (System.currentTimeMillis() < incompatibleDimensionUntil.get()) {
+            return List.of();
+        }
         Map<String, Object> body = Map.of(
             "model", config.getModel(),
             "input", text
@@ -76,9 +95,13 @@ public class OpenSearchEmbeddingClient {
             if (vector.size() != config.getDimension()) {
                 log.warn("Embedding dimension mismatch expected={} actual={} model={}",
                     config.getDimension(), vector.size(), config.getModel());
+                incompatibleDimensionUntil.set(
+                    System.currentTimeMillis() + INCOMPATIBLE_DIMENSION_BACKOFF_MS);
                 return List.of();
             }
-            return vector;
+            List<Float> immutable = List.copyOf(vector);
+            embeddingCache.put(cacheKey, immutable);
+            return immutable;
         } catch (IOException ex) {
             log.warn("Embedding request failed endpoint={} error={}", config.getEndpoint(), ex.getMessage(), ex);
             return List.of();

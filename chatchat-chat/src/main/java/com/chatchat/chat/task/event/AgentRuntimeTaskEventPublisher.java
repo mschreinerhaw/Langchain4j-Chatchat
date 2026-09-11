@@ -12,15 +12,26 @@ import com.chatchat.agents.runtime.event.AgentRunEventType;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Primary
@@ -29,19 +40,32 @@ import java.util.Optional;
 public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
 
     private static final int MAX_PERSISTED_RUNTIME_PAYLOAD_CHARS = 64_000;
+    private static final int MAX_ACTIVE_RUN_CACHE_ENTRIES = 4_096;
+    // Runtime traces remain fully durable, but a high-latency database should not turn
+    // dozens of audit events into dozens of blocking round trips before final synthesis.
+    private static final int DEFERRED_APPEND_BATCH_SIZE = 32;
 
     private final AgentTaskLatestRepository latestRepository;
     private final AgentEventStore eventStore;
     private final AgentEventBus eventBus;
     private final ObjectMapper objectMapper;
+    /**
+     * Runtime events for one run share immutable task identity and parent-question data.
+     * Keep those values locally while the run is active so audit persistence does not
+     * pay two remote reads for every event.
+     */
+    private final Map<String, AgentTaskLatestEntity> taskByRunId = boundedCache();
+    private final Map<String, Optional<String>> parentQuestionIdByTask = boundedCache();
+    private final Map<String, CompletableFuture<Void>> appendTailByRunId = new ConcurrentHashMap<>();
+    private final Map<String, List<PendingEvent>> pendingByRunId = new ConcurrentHashMap<>();
+    private final ExecutorService appendExecutor = Executors.newFixedThreadPool(4, deferredAppendThreadFactory());
 
     @Override
     public void publish(AgentRunEvent event) {
         if (event == null || event.runId() == null || event.runId().isBlank()) {
             return;
         }
-        Optional<AgentTaskLatestEntity> task = latestRepository.findById(event.runId())
-            .or(() -> latestRepository.findByExecutionAttemptId(event.runId()));
+        Optional<AgentTaskLatestEntity> task = cachedTask(event.runId());
         if (task.isEmpty()) {
             log.debug("Agent runtime event has no matching async task. runId={} eventType={}",
                 event.runId(), event.type());
@@ -60,7 +84,6 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             .agentId(latest.getAgentId())
             .sessionId(latest.getSessionId())
             .parentEventId(parentQuestionEventId(latest))
-            .sequence(eventStore.nextSequence(latest.getTenantId(), latest.getSessionId(), latest.getTaskId()))
             .toolName(toolName(event))
             .type(taskEventType(event.type()))
             .status(taskStatus(event.type()))
@@ -68,7 +91,46 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             .errorCode(errorCode(event))
             .createTime(event.createdAt())
             .build();
-        eventStore.save(taskEvent);
+        if (eventStore.supportsDeferredAppend()) {
+            List<PendingEvent> batch = bufferAndDrain(event.runId(),
+                new PendingEvent(taskEvent, latest, event), isTerminal(event.type()));
+            CompletableFuture<Void> tail = batch.isEmpty()
+                ? appendTailByRunId.getOrDefault(event.runId(), CompletableFuture.completedFuture(null))
+                : enqueueBatch(event.runId(), batch);
+            if (isTerminal(event.type())) {
+                try {
+                    tail.join();
+                } catch (CompletionException failure) {
+                    throw failure.getCause() instanceof RuntimeException runtime
+                        ? runtime : failure;
+                } finally {
+                    appendTailByRunId.remove(event.runId(), tail);
+                    pendingByRunId.remove(event.runId());
+                    evictRun(event.runId(), latest);
+                }
+            }
+            return;
+        }
+        persistAndPublish(taskEvent, latest, event);
+        if (isTerminal(event.type())) {
+            evictRun(event.runId(), latest);
+        }
+    }
+
+    private void persistAndPublish(AgentEvent taskEvent, AgentTaskLatestEntity latest,
+                                   AgentRunEvent event) {
+        eventStore.append(taskEvent);
+        publishPersisted(taskEvent, latest, event);
+    }
+
+    private void persistBatch(List<PendingEvent> batch) {
+        eventStore.appendAll(batch.stream().map(PendingEvent::taskEvent).toList());
+        batch.forEach(pending -> publishPersisted(
+            pending.taskEvent(), pending.latest(), pending.runtimeEvent()));
+    }
+
+    private void publishPersisted(AgentEvent taskEvent, AgentTaskLatestEntity latest,
+                                  AgentRunEvent event) {
         eventBus.publishResult(taskEvent);
         if (event.type() == AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING) {
             log.info("Business template selection bridged to task flow. taskId={} candidateCount={} "
@@ -89,15 +151,121 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             event.message());
     }
 
+    private List<PendingEvent> bufferAndDrain(String runId, PendingEvent event, boolean force) {
+        List<PendingEvent> buffer = pendingByRunId.computeIfAbsent(
+            runId, ignored -> new ArrayList<>(DEFERRED_APPEND_BATCH_SIZE));
+        synchronized (buffer) {
+            buffer.add(event);
+            if (!force && buffer.size() < DEFERRED_APPEND_BATCH_SIZE) return List.of();
+            List<PendingEvent> drained = List.copyOf(buffer);
+            buffer.clear();
+            return drained;
+        }
+    }
+
+    private CompletableFuture<Void> enqueueBatch(String runId, List<PendingEvent> batch) {
+        return appendTailByRunId.compute(runId, (ignored, previous) ->
+            (previous == null ? CompletableFuture.completedFuture(null) : previous)
+                .thenRunAsync(() -> persistBatch(batch), appendExecutor));
+    }
+
+    private Optional<AgentTaskLatestEntity> cachedTask(String runId) {
+        AgentTaskLatestEntity cached = taskByRunId.get(runId);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        Optional<AgentTaskLatestEntity> loaded = latestRepository.findById(runId)
+            .or(() -> latestRepository.findByExecutionAttemptId(runId));
+        loaded.ifPresent(task -> taskByRunId.put(runId, task));
+        return loaded;
+    }
+
     private String parentQuestionEventId(AgentTaskLatestEntity latest) {
-        return eventStore.findFirstByTaskAndType(
+        String cacheKey = taskCacheKey(latest);
+        return parentQuestionIdByTask.computeIfAbsent(cacheKey, ignored -> eventStore.findFirstByTaskAndType(
                 latest.getTenantId(),
                 latest.getSessionId(),
                 latest.getTaskId(),
                 "QUESTION"
             )
-            .map(AgentEvent::getEventId)
+            .map(AgentEvent::getEventId))
             .orElse(null);
+    }
+
+    private void evictRun(String runId, AgentTaskLatestEntity latest) {
+        taskByRunId.remove(runId);
+        parentQuestionIdByTask.remove(taskCacheKey(latest));
+    }
+
+    private boolean isTerminal(AgentRunEventType type) {
+        return type == AgentRunEventType.RUN_COMPLETED
+            || type == AgentRunEventType.RUN_CANCELLED
+            || type == AgentRunEventType.RUN_FAILED;
+    }
+
+    private String taskCacheKey(AgentTaskLatestEntity latest) {
+        return String.join("\u001f",
+            safeCachePart(latest.getTenantId()),
+            safeCachePart(latest.getSessionId()),
+            safeCachePart(latest.getTaskId()));
+    }
+
+    private String safeCachePart(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static <K, V> Map<K, V> boundedCache() {
+        return Collections.synchronizedMap(new LinkedHashMap<>(128, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+                return size() > MAX_ACTIVE_RUN_CACHE_ENTRIES;
+            }
+        });
+    }
+
+    private static ThreadFactory deferredAppendThreadFactory() {
+        AtomicInteger sequence = new AtomicInteger();
+        return task -> {
+            Thread thread = new Thread(task,
+                "agent-runtime-event-append-" + sequence.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        };
+    }
+
+    @PreDestroy
+    void flushDeferredAppends() {
+        pendingByRunId.forEach((runId, buffer) -> {
+            List<PendingEvent> drained;
+            synchronized (buffer) {
+                drained = List.copyOf(buffer);
+                buffer.clear();
+            }
+            if (!drained.isEmpty()) enqueueBatch(runId, drained);
+        });
+        CompletableFuture<?>[] pending = appendTailByRunId.values()
+            .toArray(CompletableFuture[]::new);
+        try {
+            if (pending.length > 0) {
+                CompletableFuture.allOf(pending).get(30, TimeUnit.SECONDS);
+            }
+        } catch (Exception failure) {
+            log.warn("Timed out while flushing deferred Agent runtime audit events during shutdown", failure);
+        } finally {
+            appendExecutor.shutdown();
+            try {
+                if (!appendExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    appendExecutor.shutdownNow();
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                appendExecutor.shutdownNow();
+            }
+        }
+    }
+
+    private record PendingEvent(AgentEvent taskEvent, AgentTaskLatestEntity latest,
+                                AgentRunEvent runtimeEvent) {
     }
 
     private String taskEventType(AgentRunEventType type) {

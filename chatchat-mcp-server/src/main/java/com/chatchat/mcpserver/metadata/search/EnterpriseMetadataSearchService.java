@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.metadata.governance.MetadataGovernancePolicyServic
 import com.chatchat.agents.evidence.normalization.EvidenceType;
 
 import com.chatchat.mcpserver.search.engine.OpenSearchMcpSearchService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -22,19 +23,23 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class EnterpriseMetadataSearchService {
 
     public static final String RESULT_SCHEMA_VERSION = "enterprise_metadata_search_result.v2";
     public static final String REQUIRED_BUNDLE_SCHEMA_VERSION = "enterprise_metadata_search_result.v3";
     public static final String CARDINALITY_SCHEMA_VERSION = "enterprise_metadata_search_result.v4";
+    private static final long OPENSEARCH_FAILURE_COOLDOWN_NANOS = TimeUnit.SECONDS.toNanos(60);
     private final EnterpriseMetadataCatalog catalog;
     private final EnterpriseMetadataProperties properties;
     private final OpenSearchMcpSearchService openSearch;
     private final EnterpriseMetadataScenarioClassifier scenarioClassifier;
     private final EnterpriseMetadataVectorizer vectorizer;
     private final MetadataGovernancePolicyService policyService;
+    private volatile long openSearchRetryAfterNanos;
 
     public EnterpriseMetadataSearchService(EnterpriseMetadataCatalog catalog,
                                            EnterpriseMetadataProperties properties,
@@ -402,8 +407,11 @@ public class EnterpriseMetadataSearchService {
         if (openSearch == null || !openSearch.enabled()) {
             return List.of();
         }
+        if (System.nanoTime() < openSearchRetryAfterNanos) {
+            return List.of();
+        }
         try {
-            return openSearch.searchEnterpriseMetadata(
+            List<Map<String, Object>> results = openSearch.searchEnterpriseMetadata(
                     properties.getIndexName(), query, types, statuses, scenarios, queryVector,
                     properties.getKnn().getVectorField(),
                     Math.max(properties.getKnn().getCandidateLimit(), limit),
@@ -413,7 +421,12 @@ public class EnterpriseMetadataSearchService {
                 .stream()
                 .map(this::flattenOpenSearchResult)
                 .toList();
-        } catch (Exception ignored) {
+            openSearchRetryAfterNanos = 0L;
+            return results;
+        } catch (Exception ex) {
+            openSearchRetryAfterNanos = System.nanoTime() + OPENSEARCH_FAILURE_COOLDOWN_NANOS;
+            log.warn("Enterprise metadata OpenSearch unavailable; using memory fallback for cooldown window error={}",
+                ex.getMessage());
             return List.of();
         }
     }

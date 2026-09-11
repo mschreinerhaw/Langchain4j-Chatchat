@@ -39,7 +39,7 @@
               <el-icon><Refresh /></el-icon>
               <span>{{ rebuildLabel }}</span>
             </el-button>
-            <el-button v-if="refreshAction" plain :loading="busy" @click="load">
+            <el-button v-if="refreshAction" plain :loading="listLoading" @click="load">
               <el-icon><Refresh /></el-icon>
               <span>刷新</span>
             </el-button>
@@ -65,6 +65,7 @@
 
     <el-table
       class="catalog-table"
+      v-loading="listLoading"
       :data="visibleItems"
       border
       stripe

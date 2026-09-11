@@ -55,6 +55,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
@@ -81,6 +82,71 @@ class McpToolRegistryBridgeLifecycleTest {
 
         verify(gateway).discoverTools(service, 0);
         verify(registry).registerTool(anyString(), any(ToolMetadata.class), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void unchangedToolListNotificationSkipsRedundantRegistration() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("stable-service", "Stable service");
+        McpToolDefinition definition = new McpToolDefinition("stable_tool", "stable", Map.of());
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        ArgumentCaptor<Consumer<String>> listener = ArgumentCaptor.forClass(Consumer.class);
+        verify(gateway).addToolsChangeListener(listener.capture());
+
+        bridge.refreshRegistry();
+        listener.getValue().accept(service.getId());
+
+        verify(gateway, times(2)).discoverTools(service, 0);
+        verify(registry, times(1)).registerTool(anyString(), any(ToolMetadata.class), any());
+        assertThat(bridge.listRegisteredTools()).hasSize(1);
+    }
+
+    @Test
+    void unchangedRecoveryRefreshSkipsRedundantRegistration() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("recovery-service", "Recovery service");
+        McpToolDefinition definition = new McpToolDefinition("stable_tool", "stable", Map.of());
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        when(gateway.discoverTools(service, 5000)).thenReturn(List.of(definition));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry();
+        bridge.refreshRegistryIfCatalogChanged(5000);
+
+        verify(gateway).discoverTools(service, 0);
+        verify(gateway).discoverTools(service, 5000);
+        verify(registry, times(1)).registerTool(anyString(), any(ToolMetadata.class), any());
+        assertThat(bridge.listRegisteredTools()).hasSize(1);
+    }
+
+    @Test
+    void transientEmptyRecoveryDiscoveryPreservesLiveRegistry() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("recovery-service", "Recovery service");
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(
+            new McpToolDefinition("stable_tool", "stable", Map.of())));
+        when(gateway.discoverTools(service, 5000)).thenReturn(List.of());
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry();
+        bridge.refreshRegistryIfCatalogChanged(5000);
+
+        verify(registry, never()).unregisterTool(anyString());
+        assertThat(bridge.listRegisteredTools()).hasSize(1);
     }
 
     @Test

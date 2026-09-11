@@ -259,6 +259,7 @@
           :evidence-premises="message.evidencePremises || []"
           :tool-traces="message.traces || []"
           :conflicts="message.evidenceConflicts || message.evidenceManifest?.conflicts || message.uiResponse?.evidenceConflicts || []"
+          :knowledge-context="message.knowledgeContext || {}"
           compact
         />
         <div

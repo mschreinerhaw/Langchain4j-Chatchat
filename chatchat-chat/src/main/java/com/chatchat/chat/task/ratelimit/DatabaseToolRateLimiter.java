@@ -20,6 +20,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DatabaseToolRateLimiter implements DistributedToolRateLimiter {
 
+    private static final Object[] BUCKET_BOOTSTRAP_LOCKS = new Object[64];
+
+    static {
+        java.util.Arrays.setAll(BUCKET_BOOTSTRAP_LOCKS, ignored -> new Object());
+    }
+
     private final ToolRateBucketRepository repository;
     private final PlatformTransactionManager transactionManager;
 
@@ -72,6 +78,14 @@ public class DatabaseToolRateLimiter implements DistributedToolRateLimiter {
     }
 
     private void ensureBucket(BucketSpec spec) {
+        Object localLock = BUCKET_BOOTSTRAP_LOCKS[
+            Math.floorMod(spec.id().hashCode(), BUCKET_BOOTSTRAP_LOCKS.length)];
+        synchronized (localLock) {
+            ensureBucketUnderLocalLock(spec);
+        }
+    }
+
+    private void ensureBucketUnderLocalLock(BucketSpec spec) {
         for (int attempt = 0; attempt < 4; attempt++) {
             try {
                 TransactionTemplate bootstrap = new TransactionTemplate(transactionManager);

@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.plan.selection;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -297,6 +298,32 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
         assertThat(evaluation.output().toString())
             .contains("reviewedInvocations", "asset-summary", "trade-flow", "070200046604")
             .doesNotContain("templateId=invented");
+    }
+
+    @Test
+    void preservesExplicitNullsWhileAttachingReviewedInvocationsAndRequirementAnalysis() {
+        Map<String, Object> discoveryOutput = new LinkedHashMap<>();
+        discoveryOutput.put("templates", List.of(Map.of("templateId", "oracle-instance-status")));
+        discoveryOutput.put("nextCursor", null);
+
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                discoveryOutput,
+                Map.of(
+                    "originalUserQuestion", "check the DEV Oracle instance status",
+                    "selectedTemplateIds", List.of("oracle-instance-status"),
+                    "nextActions", List.of(Map.of(
+                        "tool", "sql_query_execute",
+                        "input_changes", Map.of("templateId", "oracle-instance-status")))
+                )
+            );
+
+        assertThat(evaluation.applied()).isTrue();
+        Map<?, ?> projected = (Map<?, ?>) evaluation.output();
+        assertThat(projected.containsKey("nextCursor")).isTrue();
+        assertThat(projected.get("nextCursor")).isNull();
+        assertThat(projected.toString())
+            .contains("reviewedInvocations", "templateMatchAnalysis", "oracle-instance-status");
     }
 
     @Test

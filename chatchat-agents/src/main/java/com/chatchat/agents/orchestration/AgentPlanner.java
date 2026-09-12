@@ -814,7 +814,11 @@ public class AgentPlanner implements AgentPlanningPort {
             if (decision.reason() == null || decision.reason().isBlank()) {
                 issues.add("Optional tool decision requires a request-specific reason: " + optionalTool);
             }
-            Integer toolStepId = firstToolStepId(toolStepIds, optionalTool);
+            // Optional applicability is decided for one concrete authorized tool. Do not use
+            // workflow-role aliases here: database_capability_query and
+            // server_capability_query are both asset-discovery tools, but selecting one must
+            // never make the other appear selected in a cross-domain plan.
+            Integer toolStepId = firstConcreteToolStepId(toolStepIds, optionalTool);
             if ("SELECT".equals(disposition)) {
                 if (decision.questionAspects() == null || decision.questionAspects().isEmpty()) {
                     issues.add("Selected optional tool must identify supported question aspects: " + optionalTool);
@@ -1062,6 +1066,23 @@ public class AgentPlanner implements AgentPlanningPort {
         }
         for (Map.Entry<String, List<Integer>> entry : toolStepIds.entrySet()) {
             if (sameToolName(entry.getKey(), toolName) && entry.getValue() != null && !entry.getValue().isEmpty()) {
+                return entry.getValue().get(0);
+            }
+        }
+        return null;
+    }
+
+    private Integer firstConcreteToolStepId(Map<String, List<Integer>> toolStepIds, String toolName) {
+        if (toolName == null || toolName.isBlank() || toolStepIds == null || toolStepIds.isEmpty()) {
+            return null;
+        }
+        String expectedSemanticKey = toolSemanticKey(toolName);
+        for (Map.Entry<String, List<Integer>> entry : toolStepIds.entrySet()) {
+            String plannedTool = entry.getKey();
+            boolean sameConcreteTool = plannedTool != null
+                && (plannedTool.equalsIgnoreCase(toolName)
+                    || toolSemanticKey(plannedTool).equals(expectedSemanticKey));
+            if (sameConcreteTool && entry.getValue() != null && !entry.getValue().isEmpty()) {
                 return entry.getValue().get(0);
             }
         }

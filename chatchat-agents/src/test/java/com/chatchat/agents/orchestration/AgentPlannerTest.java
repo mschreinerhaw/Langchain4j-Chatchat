@@ -13,6 +13,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.model.chat.ChatModel;
@@ -1735,6 +1736,48 @@ class AgentPlannerTest {
             .isEqualTo("SKIP");
     }
 
+    @Test
+    void optionalToolValidationDoesNotConfuseCrossDomainToolsWithTheSameWorkflowRole() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String databaseDiscovery = "mcp_chatchat_mcp_server_database_capability_query";
+        String serverDiscovery = "mcp_chatchat_mcp_server_server_capability_query";
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"check Oracle health","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_database_capability_query","input":{},"depends_on":[]},
+                {"id":2,"action_type":"final_answer","tool_name":"","input":{"answer":"pending evidence"},"depends_on":[1]}
+              ]},
+              "execution_policy":{"max_steps":2,"allow_parallel":false,
+                "allow_tool":["mcp_chatchat_mcp_server_database_capability_query"],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.8,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":[]},"fallback_plan":[],
+                "optional_tool_decisions":[{
+                  "tool_name":"mcp_chatchat_mcp_server_server_capability_query","decision":"SKIP",
+                  "reason":"the request asks for database diagnostics only","question_aspects":[]
+                }]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "check Oracle health", "", List.of(databaseDiscovery, serverDiscovery),
+            List.of(), List.of(), List.of(), List.of(databaseDiscovery), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1,
+                "plannerOptionalTools", List.of(serverDiscovery)));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.plan().issues()).isEmpty();
+    }
+
     private static class TestToolRegistry implements ToolRegistry {
         private final boolean includeApplicability;
         private final Set<String> tools = Set.of(
@@ -1804,6 +1847,15 @@ class AgentPlannerTest {
                 ));
             }
             return builder.build();
+        }
+
+        @Override
+        public ToolWorkflowRole getWorkflowRole(String toolName) {
+            if (toolName != null && (toolName.endsWith("database_capability_query")
+                || toolName.endsWith("server_capability_query"))) {
+                return ToolWorkflowRole.ASSET_DISCOVERY;
+            }
+            return ToolRegistry.super.getWorkflowRole(toolName);
         }
 
         @Override

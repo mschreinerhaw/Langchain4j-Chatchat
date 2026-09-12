@@ -5950,6 +5950,76 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void ignoresModelAssetPathWhenReviewedDiagnosticBatchOwnsAssetTransport() throws Exception {
+        String discoveryTool = "mcp_chatchat_mcp_server_database_capability_query";
+        String executorTool = "mcp_chatchat_mcp_server_sql_query_execute";
+        InterpretationPlan.Step discovery = new InterpretationPlan.Step(
+            1, "mcp_tool", discoveryTool, Map.of(), List.of(), null, null);
+        InterpretationPlan.Step execution = new InterpretationPlan.Step(
+            2, "mcp_tool", executorTool, Map.of(), List.of(1), null, null);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("database_health", "Inspect Oracle health", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(discovery, execution),
+                List.of(),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.assets[0].asset.name", 2,
+                    "$.toolCall.context.executionContext.assetName", "jsonpath", true)),
+                null,
+                new InterpretationPlan.DiagnosticProfile(
+                    "oracle_health", "database", List.of(
+                        new InterpretationPlan.DiagnosticCheck(
+                            "instance", "instance_status", "availability", true, 1, List.of(2)),
+                        new InterpretationPlan.DiagnosticCheck(
+                            "sessions", "session_info", "concurrency", true, 2, List.of(2))))
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                2, false, List.of(discoveryTool, executorTool), List.of(), 30_000),
+            review()
+        );
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed = Map.of(
+            1, new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", discoveryTool, true,
+                Map.of("templates", List.of(
+                    Map.of("templateId", "ORACLE_INSTANCE_STATUS"),
+                    Map.of("templateId", "ORACLE_SESSION_OVERVIEW"))),
+                null, null, null, 10)
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getAllToolNames()).thenReturn(java.util.Set.of(discoveryTool, executorTool));
+        when(toolRegistry.getWorkflowRole(discoveryTool))
+            .thenReturn(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(toolRegistry.getWorkflowRole(executorTool))
+            .thenReturn(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION);
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(toolRegistry),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "applyBindings",
+            InterpretationPlan.Step.class,
+            InterpretationPlan.class,
+            Map.class,
+            Map.class,
+            InterpretationPlanRuntime.ExecutionRequest.class
+        );
+        method.setAccessible(true);
+        Map<String, Object> input = new java.util.LinkedHashMap<>();
+
+        method.invoke(runtime, execution, plan, completed, input,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan, toolRegistry, List.of(discoveryTool, executorTool),
+                "tenant", "request", "conversation", "user", Map.of()));
+
+        assertThat(input).isEmpty();
+    }
+
+    @Test
     void rejectsUnresolvedBindingPlaceholderBeforeToolExecution() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

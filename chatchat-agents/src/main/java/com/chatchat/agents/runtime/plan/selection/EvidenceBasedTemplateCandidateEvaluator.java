@@ -439,8 +439,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         if (map.get("runtimeTemplateSelection") instanceof Map<?, ?> rawSelection) {
             Map<String, Object> selection = new LinkedHashMap<>((Map<String, Object>) rawSelection);
             selection.put(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY, match);
-            map.put("runtimeTemplateSelection", Map.copyOf(selection));
-            return Map.copyOf(map);
+            map.put("runtimeTemplateSelection", immutableNullableMap(selection));
+            return immutableNullableMap(map);
         }
         for (String key : List.of(
             "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
@@ -449,7 +449,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 map.put(key, attachRequirementMatch(map.get(key), match, depth + 1));
             }
         }
-        return Map.copyOf(map);
+        return immutableNullableMap(map);
     }
 
     /**
@@ -473,8 +473,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         if (map.get("runtimeTemplateSelection") instanceof Map<?, ?> rawSelection) {
             Map<String, Object> selection = new LinkedHashMap<>((Map<String, Object>) rawSelection);
             selection.put("reviewedInvocations", List.copyOf(invocations));
-            map.put("runtimeTemplateSelection", Map.copyOf(selection));
-            return Map.copyOf(map);
+            map.put("runtimeTemplateSelection", immutableNullableMap(selection));
+            return immutableNullableMap(map);
         }
         for (String key : List.of(
             "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
@@ -483,7 +483,16 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 map.put(key, attachReviewedInvocations(map.get(key), invocations, depth + 1));
             }
         }
-        return Map.copyOf(map);
+        return immutableNullableMap(map);
+    }
+
+    /**
+     * MCP payloads may legitimately contain explicit JSON null values. Map.copyOf rejects
+     * those values, so enrichment must retain them while still preventing mutation of the
+     * reviewed runtime projection.
+     */
+    private Map<String, Object> immutableNullableMap(Map<String, Object> value) {
+        return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(value));
     }
 
     private List<Map<String, Object>> reviewedInvocations(Object value,

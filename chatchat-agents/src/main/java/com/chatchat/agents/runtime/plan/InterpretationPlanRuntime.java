@@ -8721,8 +8721,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             if (com.chatchat.agents.runtime.plan.selection.ReviewedTemplateTransport.owns(discovery, output -> templateCandidates(output).stream()
                 .map(this::canonicalTemplateId).filter(Objects::nonNull).collect(Collectors.toSet()))) return true;
         }
-        if (runtimeOwnedReviewedTemplateBatch(targetStep, completed)
-            && (normalizedField.contains("template") || normalizedField.contains("call"))) {
+        if ((runtimeOwnedReviewedTemplateBatch(targetStep, completed)
+                && (normalizedField.contains("template") || normalizedField.contains("call")))
+            || (runtimeOwnedTemplateBatch(targetStep, plan, completed)
+                && diagnosticAssetTransportField(normalizedField))) {
             return true;
         }
         if (plan.plan().diagnosticProfile() == null || sourceStep == null
@@ -8746,6 +8748,18 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             .filter(execution -> isTemplateDiscoveryTool(execution.toolName()))
             .mapToInt(execution -> templateCandidates(execution.output()).size())
             .sum() >= 2;
+    }
+
+    private boolean diagnosticAssetTransportField(String field) {
+        String semanticKey = field == null ? "" : field
+            .replace("_", "")
+            .replace("-", "")
+            .replace(" ", "")
+            .toLowerCase(Locale.ROOT);
+        return semanticKey.contains("assetid")
+            || semanticKey.contains("assetname")
+            || semanticKey.contains("assetdisplayname")
+            || semanticKey.contains("assettoolname");
     }
 
     private boolean isWholeStepOutputField(String field) {

@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -84,8 +85,22 @@ class SqlTemplateServiceTest {
         assertThat(service.listAll()).extracting(SqlTemplateConfig::getCode)
             .containsExactly("A_TEMPLATE", "Z_TEMPLATE");
 
-        verify(repository).findAll();
+        verify(repository, times(2)).findAll();
         verify(repository, never()).findByCode(anyString());
+    }
+
+    @Test
+    void runtimeMetadataAndRenderSynchronizeManagedDefaultsOnlyOnce() {
+        SqlTemplateService service = service(new SqlTemplateSeedProperties());
+        SqlTemplateConfig config = template("HEALTH_CHECK");
+        when(repository.findAll()).thenReturn(List.of(config));
+        when(repository.findByCode("HEALTH_CHECK")).thenReturn(Optional.of(config));
+
+        service.executionMetadata("HEALTH_CHECK");
+        service.render("HEALTH_CHECK", Map.of());
+
+        verify(repository, times(1)).findAll();
+        verify(repository, times(2)).findByCode("HEALTH_CHECK");
     }
 
     @Test
@@ -351,19 +366,12 @@ class SqlTemplateServiceTest {
         SqlTemplateConfig recentData = template("CHECK_RECENT_DATA");
         SqlTemplateConfig taskResult = template("TASK_RESULT");
         SqlTemplateConfig mysqlMetadata = template("MYSQL_TABLE_METADATA");
-        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
-        when(repository.findByCode("CHECK_TABLE_COUNT")).thenReturn(Optional.of(tableCount));
-        when(repository.findByCode("CHECK_RECENT_DATA")).thenReturn(Optional.of(recentData));
-        when(repository.findByCode("TASK_RESULT")).thenReturn(Optional.of(taskResult));
-        when(repository.findByCode("MYSQL_TABLE_METADATA")).thenReturn(Optional.of(mysqlMetadata));
+        when(repository.findAll()).thenReturn(List.of(tableCount, recentData, taskResult, mysqlMetadata));
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
 
         service.listEnabled();
 
-        verify(repository).delete(tableCount);
-        verify(repository).delete(recentData);
-        verify(repository).delete(taskResult);
-        verify(repository).delete(mysqlMetadata);
+        verify(repository).deleteAll(List.of(tableCount, recentData, taskResult, mysqlMetadata));
     }
 
     @Test
@@ -383,8 +391,7 @@ class SqlTemplateServiceTest {
         existing.setRoutingLabelsJson("[]");
         existing.setIntentSignalsJson("[]");
         existing.setEnabled(false);
-        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
-        when(repository.findByCode("MYSQL_SHOW_STATUS")).thenReturn(Optional.of(existing));
+        when(repository.findAll()).thenReturn(List.of(existing));
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
 
         service.listEnabled();
@@ -423,8 +430,7 @@ class SqlTemplateServiceTest {
         existing.setRoutingLabelsJson("[]");
         existing.setIntentSignalsJson("[]");
         existing.setEnabled(true);
-        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
-        when(repository.findByCode("MYSQL_SHOW_STATUS")).thenReturn(Optional.of(existing));
+        when(repository.findAll()).thenReturn(List.of(existing));
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of(existing));
 
         service.listEnabled();

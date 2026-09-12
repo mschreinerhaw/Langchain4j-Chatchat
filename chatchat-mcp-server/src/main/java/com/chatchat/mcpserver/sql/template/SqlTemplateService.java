@@ -86,10 +86,13 @@ public class SqlTemplateService {
     private final TemplateParameterValidator parameterValidator;
     private final SqlTemplateSeedProperties seedProperties;
     private final DynamicDateParamService dynamicDateParamService;
+    private final Object defaultSynchronizationMonitor = new Object();
+    private volatile boolean defaultsSynchronized;
 
     @Transactional
     public List<SqlTemplateConfig> listAll() {
-        return ensureDefaults(repository.findAll()).stream()
+        ensureDefaultsOnce();
+        return repository.findAll().stream()
             .sorted(Comparator.comparing(SqlTemplateConfig::getCode))
             .toList();
     }
@@ -133,7 +136,7 @@ public class SqlTemplateService {
 
     @Transactional
     public List<SqlTemplateConfig> listEnabled() {
-        ensureDefaults();
+        ensureDefaultsOnce();
         return repository.findByEnabledTrueOrderByCodeAsc();
     }
 
@@ -147,7 +150,7 @@ public class SqlTemplateService {
 
     public String render(String code, Map<String, Object> parameters, SqlDatasourceConfig datasource,
                          Map<String, Object> source) {
-        ensureDefaults();
+        ensureDefaultsOnce();
         SqlTemplateConfig config = repository.findByCode(requireText(code, "SQL template code is required").toUpperCase(Locale.ROOT))
             .filter(SqlTemplateConfig::isEnabled)
             .orElseThrow(() -> new IllegalArgumentException("SQL template not found or disabled: " + code));
@@ -190,7 +193,7 @@ public class SqlTemplateService {
         if (code == null || code.isBlank()) {
             return Map.of();
         }
-        ensureDefaults();
+        ensureDefaultsOnce();
         SqlTemplateConfig config = repository.findByCode(code.trim().toUpperCase(Locale.ROOT))
             .filter(SqlTemplateConfig::isEnabled)
             .orElse(null);
@@ -223,31 +226,26 @@ public class SqlTemplateService {
 
     @Transactional
     public void ensureDefaults() {
-        removeRetiredDefaults();
-        boolean createMissingDefaults = seedProperties != null && seedProperties.isSeedDefaultsEnabled();
-        for (DefaultTemplate template : defaults()) {
-            var existing = repository.findByCode(template.code());
-            if (existing.isEmpty()) {
-                if (!createMissingDefaults) {
-                    continue;
-                }
-                SqlTemplateConfig config = new SqlTemplateConfig();
-                config.setCode(template.code());
-                config.setTitle(template.title());
-                config.setDescription(template.description());
-                config.setSqlTemplate(template.sql());
-                config.setParameterSchemaJson(writeJson(template.schema()));
-                config.setRiskLevel(template.riskLevel());
-                config.setCategory(template.category());
-                config.setDatabaseType(template.databaseType());
-                config.setRoutingLabelsJson(writeJson(template.routingLabels()));
-                config.setIntentSignalsJson(writeJson(template.intentSignals()));
-                config.setEvidencePolicyJson(writeJson(template.evidencePolicy()));
-                config.setEnabled(true);
-                repository.save(config);
-            } else {
-                refreshDefaultTemplate(existing.get(), template);
+        ensureDefaults(repository.findAll());
+        defaultsSynchronized = true;
+    }
+
+    /**
+     * Runtime reads must not rescan every managed template for every metadata lookup and render.
+     * One MCP call commonly asks for metadata and then renders the same template; a diagnostic
+     * batch multiplies that pattern. Keep the managed-default synchronization idempotent for the
+     * lifetime of the service and use the existing bulk reconciliation path for the first read.
+     */
+    private void ensureDefaultsOnce() {
+        if (defaultsSynchronized) {
+            return;
+        }
+        synchronized (defaultSynchronizationMonitor) {
+            if (defaultsSynchronized) {
+                return;
             }
+            ensureDefaults(repository.findAll());
+            defaultsSynchronized = true;
         }
     }
 

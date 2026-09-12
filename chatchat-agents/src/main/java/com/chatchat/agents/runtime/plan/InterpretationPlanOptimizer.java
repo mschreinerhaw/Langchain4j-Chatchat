@@ -69,6 +69,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         new InterpretationPlanTransformationPipeline(
             BuiltInInterpretationPlanPasses.create(this)).optimize(workspace, context);
         List<InterpretationPlan.Step> steps = workspace.steps();
+        List<InterpretationPlan.DependencyContract> executableDependencyContracts =
+            executableDependencyContracts(steps, workspace.dependencyContracts());
         Map<Integer, Integer> stepIdMappings = renumberMap(steps);
         InterpretationPlan optimized = new InterpretationPlan(
             plan.version(),
@@ -77,7 +79,7 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             new InterpretationPlan.Plan(
                 renumber(steps),
                 remapContractsForRenumber(steps, workspace.edgeContracts()),
-                remapDependencyContractsForRenumber(steps, workspace.dependencyContracts()),
+                remapDependencyContractsForRenumber(steps, executableDependencyContracts),
                 remapBindingsForRenumber(steps, workspace.bindings()),
                 remapStabilityForRenumber(steps, plan.plan().stability()),
                 remapDiagnosticProfileForRenumber(steps, plan.plan().diagnosticProfile()),
@@ -89,6 +91,41 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         );
         return OptimizationResult.derived(
             plan, optimized, workspace.appliedPasses(), stepIdMappings, workspace.passFailures());
+    }
+
+    /**
+     * Keeps graph contracts aligned with the executable step set after structural passes.
+     * A pass may prune or deduplicate a node and redirect the concrete {@code depends_on}
+     * edges. Contracts that still reference the removed node are descriptive leftovers,
+     * not executable dependencies, and must not invalidate the repaired DAG.
+     */
+    private List<InterpretationPlan.DependencyContract> executableDependencyContracts(
+        List<InterpretationPlan.Step> steps,
+        List<InterpretationPlan.DependencyContract> contracts
+    ) {
+        Map<Integer, Set<Integer>> dependenciesByTarget = new LinkedHashMap<>();
+        Set<Integer> stepIds = new LinkedHashSet<>();
+        for (InterpretationPlan.Step step : steps == null ? List.<InterpretationPlan.Step>of() : steps) {
+            if (step == null || step.id() == null) {
+                continue;
+            }
+            stepIds.add(step.id());
+            dependenciesByTarget.put(step.id(), new LinkedHashSet<>(
+                step.dependsOn() == null ? List.of() : step.dependsOn()));
+        }
+        LinkedHashSet<InterpretationPlan.DependencyContract> executable = new LinkedHashSet<>();
+        for (InterpretationPlan.DependencyContract contract :
+            contracts == null ? List.<InterpretationPlan.DependencyContract>of() : contracts) {
+            if (contract == null || !stepIds.contains(contract.from()) || !stepIds.contains(contract.to())) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(contract.required())
+                && !dependenciesByTarget.getOrDefault(contract.to(), Set.of()).contains(contract.from())) {
+                continue;
+            }
+            executable.add(contract);
+        }
+        return List.copyOf(executable);
     }
 
     @Override

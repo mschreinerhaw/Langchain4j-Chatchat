@@ -127,12 +127,12 @@ class AgentOrchestratorTest {
                 InterpretationExecutionProtocol.VERSION, "trace", "");
         InterpretationPlanRuntime.StepExecution execution =
             new InterpretationPlanRuntime.StepExecution(
-                1, "mcp_tool", "template_discovery", true,
+                1, "mcp_tool", "mcp_chatchat_mcp_server_server_capability_query", true,
                 Map.of("templates", List.of()), null, null, null, 1L);
         InterpretationPlanRuntime.StepReviewRequest reviewRequest =
             new InterpretationPlanRuntime.StepReviewRequest(
                 null, null, execution, Map.of(), 1, 1, "run-role");
-        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(mock(ChatModel.class));
 
         String dagPrompt = orchestrator.buildInterpretationPlanDagDecisionPrompt(
             "review reliability", null, dagRequest, attributes);
@@ -147,7 +147,107 @@ class AgentOrchestratorTest {
             "decompose every explicit user-requested subject and analysis facet",
             "Selection completeness is semantic coverage, not a fixed template count",
             "Optimize for answer quality and evidence breadth, not the fewest calls",
-            "overlapping descriptions do not prove redundancy");
+            "overlapping descriptions do not prove redundancy",
+            "Cross-asset relationship rule",
+            "shared canonical mapping",
+            "shared environment");
+    }
+
+    @Test
+    void templateCoverageAuditReceivesPriorAssetEvidenceAndCannotAuthorizeUnmappedCounterpart() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"host-health\"],"
+                + "\"deferred_template_ids\":[\"host-process\"],\"coverage_decision\":\"SUFFICIENT\"}",
+            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+                + "\"requested_aspects\":[\"database-host relationship\"],"
+                + "\"corrected_selected_template_ids\":[\"host-health\",\"host-process\"],"
+                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[],"
+                + "\"reason\":\"the model incorrectly assumes the DEV host is related\"}"
+        );
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model, false);
+        InterpretationPlanRuntime.StepExecution databaseDiscovery =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_database_capability_query", true,
+                Map.of(
+                    "queryIr", Map.of("asset", Map.of("selected", Map.of(
+                        "id", "db-risk-oracle", "name", "Risk Oracle",
+                        "type", "sql_datasource", "environment", "DEV"))),
+                    "templates", List.of(Map.of("templateId", "db-instance-status"))),
+                null, null, null, 10L);
+        InterpretationPlanRuntime.StepExecution hostTemplateDiscovery =
+            new InterpretationPlanRuntime.StepExecution(
+                2, "mcp_tool", "mcp_chatchat_mcp_server_server_capability_query", true,
+                Map.of(
+                    "queryIr", Map.of("asset", Map.of("selected", Map.of(
+                        "id", "host-adp", "name", "ADP database host",
+                        "type", "ssh_host", "environment", "DEV"))),
+                    "templates", List.of(
+                        Map.of("templateId", "host-health", "title", "Host health"),
+                        Map.of("templateId", "host-process", "title", "Host process status"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model,
+            "Analyze the DEV risk Oracle database together with its physical server",
+            null,
+            () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, hostTemplateDiscovery, Map.of(1, databaseDiscovery), 1, 1,
+                "run-unmapped-counterpart"));
+
+        assertThat(review.metadata())
+            .containsEntry("selectedTemplateIds", List.of())
+            .containsEntry("coverageDecision", "SCOPE_INSUFFICIENT")
+            .containsEntry("retrievalOutcome", "SCOPE_EXHAUSTED_NO_MATCH");
+        verify(model, org.mockito.Mockito.times(2)).chat(argThat((String prompt) ->
+            prompt.contains("Cross-asset relationship rule")
+                && prompt.contains("shared canonical mapping")
+                && prompt.contains("db-risk-oracle")
+                && prompt.contains("host-adp")));
+    }
+
+    @Test
+    void plannedCrossAssetAnchorPreventsParallelReviewRaceFromAuthorizingSecondaryAsset() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"host-health\"],"
+                + "\"deferred_template_ids\":[\"host-process\"],\"coverage_decision\":\"SUFFICIENT\"}",
+            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+                + "\"corrected_selected_template_ids\":[\"host-health\",\"host-process\"],"
+                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[]}"
+        );
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model, false);
+        InterpretationPlan.Step databaseStep = new InterpretationPlan.Step(
+            1, "mcp_tool", "mcp_chatchat_mcp_server_database_capability_query",
+            Map.of(), List.of(), null, null);
+        InterpretationPlan.Step hostStep = new InterpretationPlan.Step(
+            3, "mcp_tool", "mcp_chatchat_mcp_server_server_capability_query",
+            Map.of(), List.of(), null, null);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", null, null, new InterpretationPlan.Plan(List.of(databaseStep, hostStep)), null, null);
+        InterpretationPlanRuntime.StepExecution hostDiscovery =
+            new InterpretationPlanRuntime.StepExecution(
+                3, "mcp_tool", hostStep.toolName(), true,
+                Map.of(
+                    "queryIr", Map.of("asset", Map.of("selected", Map.of(
+                        "id", "host-adp", "name", "ADP database host",
+                        "type", "ssh_host", "environment", "DEV"))),
+                    "templates", List.of(
+                        Map.of("templateId", "host-health", "title", "Host health"),
+                        Map.of("templateId", "host-process", "title", "Host process status"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "Analyze the DEV risk Oracle database together with its physical server",
+            null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                plan, hostStep, hostDiscovery, Map.of(), 1, 1, "run-parallel-race"));
+
+        assertThat(review.metadata())
+            .containsEntry("selectedTemplateIds", List.of())
+            .containsEntry("coverageDecision", "SCOPE_INSUFFICIENT")
+            .containsEntry("retrievalOutcome", "SCOPE_EXHAUSTED_NO_MATCH");
     }
 
     @Test
@@ -1111,6 +1211,35 @@ class AgentOrchestratorTest {
             .as("a declarative business gap must be allowed to enter normal discovery")
             .isTrue();
 
+    }
+
+    @Test
+    void semanticExtractionFailureWithUnifiedDraftStopsRetrievalAndRetainsReport() {
+        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        InterpretationPlanRuntime.ExecutionResult success = new InterpretationPlanRuntime.ExecutionResult(
+            "completed_with_evidence", true, false, null, "completed", List.of(), Map.of(), 1L);
+        Map<String, Object> snapshot = Map.of(
+            "sufficient", false,
+            "remainingMissing", List.of("semantic claim extraction"),
+            "toolEvidence", List.of(Map.of(
+                "tool", "database_capability_query",
+                "success", true,
+                "output", Map.of("value", 42)
+            ))
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("semanticClaimPreflightFailed", true);
+        metadata.put("unifiedAnalysisReportDraft", "# Database health report\n\nEvidence-backed analysis.");
+
+        EvidenceAugmentationPolicy.Outcome outcome = orchestrator.decideEvidenceAugmentation(
+            snapshot, success, true, false, metadata);
+
+        assertThat(outcome.decision()).isEqualTo(EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS);
+        assertThat(outcome.answerAllowed()).isTrue();
+        assertThat(outcome.continueLoop()).isFalse();
+        assertThat(metadata.get("semanticClaimPreflightReportRetained")).isEqualTo(true);
+        assertThat(metadata.get("semanticClaimPreflightFailureDisposition"))
+            .isEqualTo("ADVISORY_REPORT_RETAINED");
     }
 
     @Test
@@ -3630,7 +3759,7 @@ class AgentOrchestratorTest {
         InterpretationPlanRuntime.ExecutionResult replayed = new InterpretationPlanRuntime.ExecutionResult(
             "RECOVERED_BATCH_EVIDENCE", true, false, null, null,
             List.of(replayedStep), Map.of(), 12L);
-        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(mock(ChatModel.class));
 
         String analyzedFingerprint = orchestrator.evidenceSnapshotFingerprint(executed, Map.of());
         assertThat(orchestrator.hasAdditionalRecoveredEvidence(
@@ -3649,7 +3778,7 @@ class AgentOrchestratorTest {
 
     @Test
     void interpretationPlanWorkflowUsesAvailableEvidenceWhenOnlyNonMandatoryStepsRemain() throws Exception {
-        AgentOrchestrator orchestrator = newOrchestrator(mock(ChatModel.class));
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(mock(ChatModel.class));
         Method method = AgentOrchestrator.class.getDeclaredMethod(
             "finishInterpretationPlanWorkflowBlockedIfPending",
             List.class,
@@ -3702,7 +3831,7 @@ class AgentOrchestratorTest {
         }
         InterpretationPlanRuntime.StepExecution execution =
             new InterpretationPlanRuntime.StepExecution(
-                1, "mcp_tool", "template_discovery", true,
+                1, "mcp_tool", "mcp_chatchat_mcp_server_server_capability_query", true,
                 Map.of("candidateCount", 5, "templates", templates),
                 null, null, null, 10L
             );
@@ -6245,6 +6374,11 @@ class AgentOrchestratorTest {
     }
 
     private AgentOrchestrator newTemplateDiscoveryOrchestrator(ChatModel chatModel) {
+        return newTemplateDiscoveryOrchestrator(chatModel, true);
+    }
+
+    private AgentOrchestrator newTemplateDiscoveryOrchestrator(ChatModel chatModel,
+                                                                boolean includeAssetType) {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata("mcp_chatchat_mcp_server_customer_service_template_query"))
             .thenReturn(ToolMetadata.builder()
@@ -6252,6 +6386,32 @@ class AgentOrchestratorTest {
                     com.chatchat.common.tool.ToolWorkflowContract.declaration(
                         com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
                         "customer_service_template_query", "template_query.v1")))
+                .build());
+        when(registry.getToolMetadata("mcp_chatchat_mcp_server_server_capability_query"))
+            .thenReturn(ToolMetadata.builder()
+                .metadata(includeAssetType ? Map.of(
+                    com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "server_capability_query", "template_query.v1"),
+                    "mcpToolMeta", Map.of("assetType", "ssh_host")) : Map.of(
+                    com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "server_capability_query", "template_query.v1")))
+                .build());
+        when(registry.getToolMetadata("mcp_chatchat_mcp_server_database_capability_query"))
+            .thenReturn(ToolMetadata.builder()
+                .metadata(includeAssetType ? Map.of(
+                    com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "database_capability_query", "template_query.v1"),
+                    "mcpToolMeta", Map.of("assetType", "sql_datasource")) : Map.of(
+                    com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY,
+                    com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "database_capability_query", "template_query.v1")))
                 .build());
         return newOrchestrator(chatModel, registry);
     }

@@ -865,6 +865,52 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void preservesSpecialistTemplatesForCompoundDatabaseDiagnostics() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        CommandTemplateDiscoveryService service = service(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class)
+        );
+        SqlDatasourceConfig datasource = datasource("ds-risk", "risk-oracle", "DEV");
+        datasource.setDatabaseType("oracle");
+        datasource.setAllowedTemplatesJson("[\"ORACLE_INSTANCE_STATUS\",\"ORACLE_SESSION_OVERVIEW\",\"ORACLE_LOCKS\",\"ORACLE_SYSTEM_EVENTS\",\"ORACLE_TABLESPACE_SIZE\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate("ORACLE_INSTANCE_STATUS", "SELECT 1 FROM v$instance", "Instance status", "Oracle instance state", "oracle", "maintenance_instance", "[\"instance\",\"status\"]"),
+            sqlTemplate("ORACLE_SESSION_OVERVIEW", "SELECT 1 FROM v$session", "Current sessions", "Oracle session overview", "oracle", "maintenance_session", "[\"session\"]"),
+            sqlTemplate("ORACLE_LOCKS", "SELECT 1 FROM v$lock", "Lock waits", "Oracle lock waits", "oracle", "maintenance_lock", "[\"lock\"]"),
+            sqlTemplate("ORACLE_SYSTEM_EVENTS", "SELECT 1 FROM v$system_event", "System wait events", "Oracle system wait events", "oracle", "maintenance_wait", "[\"wait event\"]"),
+            sqlTemplate("ORACLE_TABLESPACE_SIZE", "SELECT 1 FROM dba_tablespaces", "Tablespace usage", "Oracle tablespace usage", "oracle", "maintenance_storage", "[\"tablespace\"]")
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of(
+                "assetName", "risk-oracle",
+                "env", "DEV",
+                "intentCandidates", List.of(
+                    "oracle readonly diagnostics", "instance availability", "current sessions",
+                    "lock waits", "system wait events", "tablespace usage", "connection pressure",
+                    "resource saturation", "capacity trend", "blocking chain", "performance baseline",
+                    "operational risk", "health report", "cross validation", "remediation priority"
+                )
+            ),
+            "trace", trace(),
+            "limit", 20
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 5);
+        assertThat(result.get("templates").toString()).contains(
+            "ORACLE_INSTANCE_STATUS", "ORACLE_SESSION_OVERVIEW", "ORACLE_LOCKS",
+            "ORACLE_SYSTEM_EVENTS", "ORACLE_TABLESPACE_SIZE");
+    }
+
+    @Test
     void doesNotFallbackToSqlOpsTemplatesForBusinessQueryIntentLuceneHits() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

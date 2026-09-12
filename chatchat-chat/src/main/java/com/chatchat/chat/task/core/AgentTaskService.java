@@ -116,6 +116,12 @@ public class AgentTaskService {
     private final Map<String, AtomicInteger> tenantWorkerCounts = new ConcurrentHashMap<>();
     private final Map<String, Thread> runningTaskThreads = new ConcurrentHashMap<>();
     private final ThreadLocal<AgentTaskQueueCoordinator.ClaimedTask> activeDatabaseClaim = new ThreadLocal<>();
+    /**
+     * Database queue polling starts before {@code ApplicationReadyEvent}. Keep durable tasks
+     * unclaimed until MCP tools and the published Agent catalog have finished bootstrapping;
+     * otherwise a recovered task can be planned against a transiently empty tool registry.
+     */
+    private volatile boolean persistentTaskDispatchReady;
     private volatile boolean stopping;
     private static final String DATABASE_WORKER_ID = "agent-worker-" + UUID.randomUUID();
     private static final ScheduledExecutorService DATABASE_HEARTBEATS = Executors.newScheduledThreadPool(4, runnable -> {
@@ -251,7 +257,8 @@ public class AgentTaskService {
                 return Optional.of(content);
             }
         }
-        AgentNotificationContent persistedContent = extractNotificationContent(task.getFinalNotificationJson(), task.getTaskId());
+        AgentNotificationContent persistedContent = extractNotificationContent(
+            task.getFinalNotificationJson(), task.getTenantId(), task.getTaskId());
         if (persistedContent != null && !persistedContent.answer().isBlank()) {
             return Optional.of(persistedContent);
         }
@@ -264,10 +271,12 @@ public class AgentTaskService {
         if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
             return null;
         }
-        return extractNotificationContent(event.getPayload(), event.getTaskId());
+        return extractNotificationContent(event.getPayload(), event.getTenantId(), event.getTaskId());
     }
 
-    private AgentNotificationContent extractNotificationContent(String payload, String taskId) {
+    private AgentNotificationContent extractNotificationContent(String payload,
+                                                                String tenantId,
+                                                                String taskId) {
         if (payload == null || payload.isBlank()) {
             return null;
         }
@@ -285,6 +294,23 @@ public class AgentTaskService {
             addReferenceMaps(references, root.path("executionResult").path("uiResponse").path("citations"));
             addReferenceMaps(references, root.path("executionResult").path("sources"));
             addReferenceMaps(references, root.path("references"));
+            String artifactId = firstTextValue(
+                root.path("uiArtifact").path("artifactId").asText(null),
+                root.path("uiResponse").path("uiArtifact").path("artifactId").asText(null),
+                root.path("executionResult").path("uiResponse")
+                    .path("uiArtifact").path("artifactId").asText(null)
+            );
+            if (uiArtifactService != null && artifactId != null && !artifactId.isBlank()) {
+                answer = uiArtifactService.resource(tenantId, artifactId, "answer")
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .filter(value -> !value.isBlank())
+                    .orElse(answer);
+                if (references.isEmpty()) {
+                    uiArtifactService.resource(tenantId, artifactId, "citations")
+                        .ifPresent(value -> addReferenceMaps(references, value));
+                }
+            }
             return answer == null ? null : new AgentNotificationContent(answer, List.copyOf(references));
         } catch (JsonProcessingException ex) {
             log.warn("Failed to read final notification content: taskId={} error={}", taskId, ex.getMessage());
@@ -300,6 +326,18 @@ public class AgentTaskService {
         for (JsonNode item : node) {
             if (item != null && item.isObject()) {
                 target.add(new LinkedHashMap<>(objectMapper.convertValue(item, Map.class)));
+            }
+        }
+    }
+
+    private void addReferenceMaps(List<Map<String, Object>> target, Object value) {
+        if (!(value instanceof Collection<?> items)) {
+            return;
+        }
+        for (Object item : items) {
+            Map<String, Object> reference = asStringMap(item);
+            if (!reference.isEmpty()) {
+                target.add(new LinkedHashMap<>(reference));
             }
         }
     }
@@ -1906,7 +1944,7 @@ public class AgentTaskService {
     }
 
     public int dispatchPersistentTasks() {
-        if (!databaseQueueEnabled() || stopping) {
+        if (!databaseQueueEnabled() || stopping || !persistentTaskDispatchReady) {
             return 0;
         }
         List<AgentTaskQueueCoordinator.ClaimedTask> claims = queueCoordinator.claimAvailable(DATABASE_WORKER_ID);
@@ -1922,6 +1960,12 @@ public class AgentTaskService {
             }
         }
         return submitted;
+    }
+
+    /** Opens durable task dispatch after runtime capabilities have been fully registered. */
+    public void activatePersistentTaskDispatch() {
+        persistentTaskDispatchReady = true;
+        log.info("Agent persistent task dispatch activated after runtime capability bootstrap");
     }
 
     public int recoverExpiredDatabaseClaims() {

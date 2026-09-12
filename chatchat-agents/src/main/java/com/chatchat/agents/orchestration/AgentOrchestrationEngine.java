@@ -198,6 +198,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private static final int TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS = 8_000;
     private static final int TOOL_REVIEW_CURRENT_EVIDENCE_CHARS = 16_000;
     private static final int TOOL_REVIEW_CANDIDATE_FIELD_CHARS = 1_500;
+    private static final String CROSS_ASSET_RELATIONSHIP_REVIEW_RULE =
+        "Cross-asset relationship rule: when a candidate is intended as the host, counterpart, "
+            + "dependency, or other asset-family companion of an already identified target, select "
+            + "it only when the current-turn query explicitly identifies that candidate or authoritative "
+            + "completed/current tool evidence declares an explicit relationship or shared canonical "
+            + "mapping. A shared environment, generic role/category, retrieval rank, keyword similarity, "
+            + "or discovery presence alone is not relationship evidence. When that relationship is absent, "
+            + "do not authorize the dependent candidate or its execution templates; record the missing "
+            + "relationship evidence and do not request another template page merely for an unconfirmed asset.";
     private static final Pattern TOOL_OUTPUT_DOCUMENT_ID = Pattern.compile(
         "tool-output:[A-Za-z0-9._:-]+"
     );
@@ -3636,6 +3645,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             // coverage audit whenever unselected candidates remain; the auditor still decides by semantic
             // relevance and returned capability metadata, never by hard-coded template identities.
             payload = auditTemplateSelectionCoverage(activeChatModel, query, request, payload);
+            payload = enforceCrossAssetRelationshipAuthorization(query, request, payload);
             payload = bindSelectedTemplateParameters(
                 activeChatModel, query, request.execution().output(), payload);
         }
@@ -3971,6 +3981,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         provisionalProjection.put("reason", firstObject(provisional, "reason", "analysis"));
         provisionalProjection.put("templateEvaluations", firstObject(
             provisional, "template_evaluations", "templateEvaluations"));
+        Map<String, Object> cumulativeContext = templateRequirementReviewContext(request);
         String auditPrompt = "You are the second-pass semantic coverage auditor for template selection. "
             + "The literal current-turn query is immutable. Independently decompose every requested "
             + "object, activity, measure, comparison and characterization, then check whether the "
@@ -3999,12 +4010,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "assessable, and rejected requires explicit evidence that the candidate is irrelevant. Never compute "
             + "rejected as all returned ids minus selected ids. If the query text is visibly damaged by replacement "
             + "characters or repeated question marks, do not infer hidden intent and do not reject candidates because "
-            + "of the missing text. Return strict JSON only: "
+            + "of the missing text. " + CROSS_ASSET_RELATIONSHIP_REVIEW_RULE + " Return strict JSON only: "
             + "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT|NEED_NEXT_PAGE|SCOPE_INSUFFICIENT\",\"requested_aspects\":[],"
             + "\"aspect_evidence\":[{\"aspect\":\"\",\"template_id\":\"\",\"declared_evidence\":\"exact candidate text/schema\"}],"
             + "\"corrected_selected_template_ids\":[],\"corrected_deferred_template_ids\":[],"
             + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[],\"reason\":\"\"}.\n"
             + "Current-turn query:\n" + (query == null ? "" : query) + "\n"
+            + "Authoritative cumulative context:\n"
+            + shortObservationText(stringify(cumulativeContext), TOOL_REVIEW_CUMULATIVE_CONTEXT_CHARS) + "\n"
             + "Returned candidates:\n" + ModelProtocolJson.compact(candidateProjection) + "\n"
             + "Provisional selection:\n" + ModelProtocolJson.compact(provisionalProjection);
         String rawAudit = activeChatModel.chat(auditPrompt);
@@ -4179,8 +4192,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("- Return one template_evaluations entry per candidate, selected_template_ids, deferred_template_ids, rejected_template_ids, evidence_gaps, analysis_intent, and only evidence-supported template_relationships. Assign each candidate one declared analysis_role. Every rejection requires its own evaluation with decision=reject and an evidence-based reason.\n");
             prompt.append("- Return at least one parameter_protocols entry for every selected template. When the user supplies a collection of entities, repeat the template_id with one binding_id and one scalar argument set per distinct entity; the Runtime will compile the bounded entity-by-template batch. Include only schema-declared overrides proven by an exact user-query quote or completed tool-result path. Keep arguments={} when defaults are sufficient; do not copy defaults as model values.\n");
             prompt.append("- Preserve the original question scope. Candidate grouping and rank do not authorize execution or prove relevance.\n");
+            prompt.append("- ").append(CROSS_ASSET_RELATIONSHIP_REVIEW_RULE).append('\n');
         } else if (toolNames.isAssetDiscoveryToolName(toolName)) {
             prompt.append("- Evaluate every returned asset identity from authoritative routing metadata. Select only returned IDs; discovery proves routing eligibility, not business health.\n");
+            prompt.append("- ").append(CROSS_ASSET_RELATIONSHIP_REVIEW_RULE).append('\n');
         } else if (isWebDiscoveryTool(toolName)) {
             prompt.append("- Judge candidate URLs and snippets. When a downstream content step exists, return useful URLs in selected_urls; do not demand full article content at discovery time.\n");
         } else if (isDocumentSearchTool(toolName)) {
@@ -4243,6 +4258,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         result.put("candidateType", templates ? "TEMPLATE" : "ASSET");
         result.put("candidateCount", projected.size());
         result.put(collectionName, List.copyOf(projected));
+        Map<String, Object> selectedAsset = findSelectedAssetContext(output, 0);
+        if (!selectedAsset.isEmpty()) {
+            result.put("selectedAsset", selectedAsset);
+        }
         Map<String, Object> page = findCandidatePage(output, 0);
         for (String field : List.of("hasMore", "nextCursor", "pageIndex", "pageFloorScore",
             "maxPages", "scannedCandidateCount", "maxCandidateCount", "policyVersion", "queryHash")) {
@@ -4254,6 +4273,234 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "executionDetailsRetainedByRuntime", true
         ));
         return Map.copyOf(result);
+    }
+
+    /**
+     * Preserves the selected discovery target while keeping transport credentials and executor
+     * configuration out of the model projection. Template relevance cannot authorize execution
+     * safely when the reviewer sees candidate capabilities but not the asset they would run on.
+     */
+    private Map<String, Object> findSelectedAssetContext(Object value, int depth) {
+        if (value == null || depth > 12) return Map.of();
+        if (value instanceof Map<?, ?> raw) {
+            Map<String, Object> map = asMap(raw);
+            for (String key : List.of("selectedAsset", "selected_asset")) {
+                Map<String, Object> projected = projectAssetIdentity(asMap(map.get(key)));
+                if (!projected.isEmpty()) return projected;
+            }
+            Map<String, Object> asset = asMap(map.get("asset"));
+            if (!asset.isEmpty()) {
+                Map<String, Object> selected = projectAssetIdentity(asMap(asset.get("selected")));
+                if (!selected.isEmpty()) return selected;
+            }
+            if ((map.containsKey("targetKind") || map.containsKey("assetType"))
+                && map.get("selected") instanceof Map<?, ?>) {
+                Map<String, Object> selected = projectAssetIdentity(asMap(map.get("selected")));
+                if (!selected.isEmpty()) return selected;
+            }
+            for (String nestedKey : List.of(
+                "data", "result", "payload", "structuredContent", "body", "preview", "queryIr")) {
+                Map<String, Object> nested = findSelectedAssetContext(map.get(nestedKey), depth + 1);
+                if (!nested.isEmpty()) return nested;
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> projectAssetIdentity(Map<String, Object> asset) {
+        if (asset.isEmpty()) return Map.of();
+        Map<String, Object> projected = new LinkedHashMap<>();
+        for (String field : List.of(
+            "id", "assetId", "name", "title", "displayName", "type", "assetType",
+            "targetKind", "toolName", "environment", "labels", "canonicalId", "parentId",
+            "relationships", "relatedAssetIds")) {
+            putCandidateField(projected, asset, field);
+        }
+        boolean identifiable = projected.containsKey("id") || projected.containsKey("assetId")
+            || projected.containsKey("name") || projected.containsKey("title")
+            || projected.containsKey("toolName");
+        return identifiable ? Map.copyOf(projected) : Map.of();
+    }
+
+    /**
+     * Enforces the generic cross-asset identity contract after semantic review. Models remain free
+     * to choose analytical capabilities, but a capability selected for a different asset family
+     * cannot become execution authority merely because both assets share an environment or query
+     * vocabulary. This guard uses only publisher-owned identity/relationship fields and literal
+     * user identification; it contains no domain, product or template-specific rules.
+     */
+    private Map<String, Object> enforceCrossAssetRelationshipAuthorization(
+        String query,
+        InterpretationPlanRuntime.StepReviewRequest request,
+        Map<String, Object> payload
+    ) {
+        if (request == null || request.execution() == null || payload == null
+            || stringList(firstObject(payload, "selected_template_ids", "selectedTemplateIds")).isEmpty()) {
+            return payload;
+        }
+        Map<String, Object> current = findSelectedAssetContext(request.execution().output(), 0);
+        if (current.isEmpty()) {
+            return payload;
+        }
+        for (InterpretationPlanRuntime.StepExecution execution : request.completed() == null
+            ? List.<InterpretationPlanRuntime.StepExecution>of()
+            : request.completed().values()) {
+            if (execution == null || !execution.success()
+                || Objects.equals(execution.stepId(), request.execution().stepId())) {
+                continue;
+            }
+            Map<String, Object> prior = findSelectedAssetContext(execution.output(), 0);
+            if (prior.isEmpty() || sameAssetIdentity(current, prior)
+                || sameAssetFamily(current, prior)) {
+                continue;
+            }
+            if (assetsExplicitlyIdentified(query, current, prior)
+                || declaredAssetRelationship(current, prior)) {
+                continue;
+            }
+            return withholdCrossAssetAuthorization(payload, current, prior);
+        }
+        if (isSecondaryCrossAssetDiscovery(request, current)) {
+            return withholdCrossAssetAuthorization(payload, current,
+                Map.of("id", "planned-cross-asset-anchor", "type", "publisher-declared-peer-family"));
+        }
+        return payload;
+    }
+
+    private Map<String, Object> withholdCrossAssetAuthorization(Map<String, Object> payload,
+                                                                 Map<String, Object> current,
+                                                                 Map<String, Object> prior) {
+        List<String> selected = stringList(firstObject(
+            payload, "selected_template_ids", "selectedTemplateIds"));
+        LinkedHashSet<String> deferred = new LinkedHashSet<>(stringList(firstObject(
+            payload, "deferred_template_ids", "deferredTemplateIds")));
+        deferred.addAll(selected);
+        List<String> gaps = new ArrayList<>(stringList(firstObject(
+            payload, "evidence_gaps", "evidenceGaps", "missing_evidence", "missingEvidence")));
+        gaps.add("Cross-asset execution was not authorized: publisher metadata did not declare "
+            + "a relationship between selected asset identities.");
+        Map<String, Object> guarded = new LinkedHashMap<>(payload);
+        guarded.put("selected_template_ids", List.of());
+        guarded.put("deferred_template_ids", List.copyOf(deferred));
+        guarded.put("parameter_protocols", List.of());
+        guarded.put("satisfied", false);
+        guarded.put("iteration_sufficient", false);
+        guarded.put("shouldExpandQuery", false);
+        guarded.put("coverage_decision", "SCOPE_INSUFFICIENT");
+        guarded.put("retrieval_outcome", "SCOPE_EXHAUSTED_NO_MATCH");
+        guarded.put("evidence_gaps", List.copyOf(new LinkedHashSet<>(gaps)));
+        guarded.put("reason", "Selected capabilities belong to an asset family whose relationship "
+            + "to the other discovered asset is not established by the user or authoritative metadata.");
+        log.warn("Cross-asset template authorization withheld: currentAsset={} priorAsset={} selectedTemplates={}",
+            projectAssetIdentity(current), projectAssetIdentity(prior), selected);
+        return Map.copyOf(guarded);
+    }
+
+    private boolean isSecondaryCrossAssetDiscovery(
+        InterpretationPlanRuntime.StepReviewRequest request,
+        Map<String, Object> current
+    ) {
+        if (request == null || request.plan() == null || request.step() == null
+            || request.step().id() == null || request.plan().steps() == null) return false;
+        // A publisher-declared relation is sufficient to let the ordinary relationship check
+        // decide once peer evidence is available. Without such a relation, a second distinct
+        // discovery capability must not turn a merely environment-matched asset into execution
+        // authority. Production registries may omit asset-family hints, so tool identity is the
+        // conservative protocol boundary while the discovered asset remains the source of truth.
+        if (!assetRelationshipReferences(current).isEmpty()) return false;
+        String currentFamily = assetFamily(current);
+        return request.plan().steps().stream()
+            .filter(Objects::nonNull)
+            .filter(step -> step.id() != null && step.id() < request.step().id())
+            .filter(step -> toolNames.isTemplateDiscoveryToolName(step.toolName()))
+            .anyMatch(step -> {
+                String family = declaredToolAssetFamily(step.toolName());
+                if (currentFamily != null && family != null) {
+                    return !family.equalsIgnoreCase(currentFamily);
+                }
+                return step.toolName() != null && request.step().toolName() != null
+                    && !step.toolName().equalsIgnoreCase(request.step().toolName());
+            });
+    }
+
+    private String declaredToolAssetFamily(String toolName) {
+        ToolMetadata metadata = toolMetadataOrNull(toolName);
+        Map<String, Object> root = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> mcp = asMap(root.get("mcpToolMeta"));
+        String direct = firstNonBlank(stringValue(firstObject(mcp, "assetType", "asset_type")),
+            stringValue(firstObject(mcp, "targetKind", "target_kind")));
+        if (direct != null) return direct;
+        Map<String, Object> workflow = asMap(firstObject(root,
+            com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY));
+        if (workflow.isEmpty()) workflow = asMap(firstObject(mcp,
+            com.chatchat.common.tool.ToolWorkflowContract.METADATA_KEY));
+        return stringValue(firstObject(workflow, "resultEntityKind", "result_entity_kind"));
+    }
+
+    private String assetFamily(Map<String, Object> asset) {
+        return firstNonBlank(firstNonBlank(stringValue(asset.get("assetType")),
+            stringValue(asset.get("type"))), stringValue(asset.get("targetKind")));
+    }
+
+    private boolean sameAssetIdentity(Map<String, Object> left, Map<String, Object> right) {
+        for (String field : List.of("id", "assetId", "canonicalId", "toolName")) {
+            String a = stringValue(left.get(field));
+            String b = stringValue(right.get(field));
+            if (a != null && b != null && a.equalsIgnoreCase(b)) return true;
+        }
+        return false;
+    }
+
+    private boolean sameAssetFamily(Map<String, Object> left, Map<String, Object> right) {
+        String a = assetFamily(left);
+        String b = assetFamily(right);
+        return a == null || b == null || a.equalsIgnoreCase(b);
+    }
+
+    private boolean assetsExplicitlyIdentified(String query,
+                                               Map<String, Object> left,
+                                               Map<String, Object> right) {
+        String normalizedQuery = query == null ? "" : query.toLowerCase(Locale.ROOT);
+        return assetExplicitlyIdentified(normalizedQuery, left)
+            && assetExplicitlyIdentified(normalizedQuery, right);
+    }
+
+    private boolean assetExplicitlyIdentified(String normalizedQuery, Map<String, Object> asset) {
+        for (String field : List.of("id", "assetId", "name", "title", "displayName", "toolName")) {
+            String value = stringValue(asset.get(field));
+            if (value != null && value.length() >= 3
+                && normalizedQuery.contains(value.toLowerCase(Locale.ROOT))) return true;
+        }
+        return false;
+    }
+
+    private boolean declaredAssetRelationship(Map<String, Object> left, Map<String, Object> right) {
+        Set<String> leftReferences = assetRelationshipReferences(left);
+        Set<String> rightReferences = assetRelationshipReferences(right);
+        return assetIdentityValues(right).stream().anyMatch(leftReferences::contains)
+            || assetIdentityValues(left).stream().anyMatch(rightReferences::contains);
+    }
+
+    private Set<String> assetRelationshipReferences(Map<String, Object> asset) {
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        for (String field : List.of("parentId", "relationships", "relatedAssetIds")) {
+            for (String value : stringList(asset.get(field))) {
+                if (value != null && !value.isBlank()) values.add(value.toLowerCase(Locale.ROOT));
+            }
+            String scalar = stringValue(asset.get(field));
+            if (scalar != null) values.add(scalar.toLowerCase(Locale.ROOT));
+        }
+        return values;
+    }
+
+    private Set<String> assetIdentityValues(Map<String, Object> asset) {
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        for (String field : List.of("id", "assetId", "canonicalId", "parentId", "toolName")) {
+            String value = stringValue(asset.get(field));
+            if (value != null && !value.isBlank()) values.add(value.toLowerCase(Locale.ROOT));
+        }
+        return values;
     }
 
     private Map<String, Object> findCandidatePage(Object value, int depth) {
@@ -4352,6 +4599,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     Map<String, Object> facts =
                         toolResultFactExtractor.structuredOutputFacts(execution.output());
                     if (!facts.isEmpty()) item.put("returnedFacts", facts);
+                    Object candidateEvidence = candidateSelectionEvidence(
+                        execution.toolName(), execution.output());
+                    if (candidateEvidence != null) {
+                        item.put("candidateEvidence", candidateEvidence);
+                    }
                     Map<String, Object> semanticContext = mcpAnalysisContextAdapter.adapt(
                         firstNonBlank(execution.toolName(), "completed-step"),
                         toolMetadataOrNull(execution.toolName()), execution.output());
@@ -4792,6 +5044,20 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         boolean authorizationRequired,
         Map<String, Object> metadata
     ) {
+        boolean retainedModelReport = metadata != null
+            && Boolean.TRUE.equals(metadata.get("semanticClaimPreflightFailed"))
+            && metadata.get("unifiedAnalysisReportDraft") instanceof String draft
+            && !draft.isBlank()
+            && result != null && result.success();
+        if (retainedModelReport) {
+            // A secondary semantic-product extraction failure must not discard a report that
+            // the unified model already authored from successful tool evidence. Close the
+            // retrieval loop with limitations; final publication still applies the normal
+            // report sanitizer and concrete batch-evidence guards.
+            explorationAvailable = false;
+            metadata.put("semanticClaimPreflightReportRetained", true);
+            metadata.put("semanticClaimPreflightFailureDisposition", "ADVISORY_REPORT_RETAINED");
+        }
         return analysisLoopCoordinator.decide(snapshot, result != null && result.success(),
             explorationAvailable, authorizationRequired, metadata);
     }

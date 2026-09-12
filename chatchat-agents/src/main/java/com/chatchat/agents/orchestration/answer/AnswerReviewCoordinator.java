@@ -100,7 +100,56 @@ final class AnswerReviewCoordinator {
         if (review != null && AgentAnswerReview.REJECTED.equals(review.status())) {
             log.warn("agentModelReviewRejected runId={} feedback={}", nonBlank(runId), review.feedback());
         }
-        return review;
+        return validateRevisedReport(review, finalAnswer, preflight, reviewObservations, metadata, runId);
+    }
+
+    private AgentAnswerReview validateRevisedReport(AgentAnswerReview review,
+                                                    String originalAnswer,
+                                                    AnswerEvidenceLedgerCompiler.Result originalPreflight,
+                                                    List<String> observations,
+                                                    Map<String, Object> metadata,
+                                                    String runId) {
+        if (review == null || !AgentAnswerReview.REVISED.equals(review.status())
+            || review.answer() == null || review.answer().isBlank()
+            || metadata == null || metadata.get("analysisReportContract") == null) {
+            return review;
+        }
+        String revised = review.answer();
+        AnswerEvidenceLedgerCompiler.Result revisedPreflight = evidenceLedgerCompiler.compile(
+            revised, metadata, observations, List.of());
+        double retentionRatio = originalAnswer == null || originalAnswer.isBlank()
+            ? 1D : (double) revised.length() / originalAnswer.length();
+        boolean destructiveRewrite = retentionRatio < 0.75D;
+        boolean evidenceRegressed = revisedPreflight.unknownReferences() > originalPreflight.unknownReferences()
+            || revisedPreflight.criticalUnboundClaims() > originalPreflight.criticalUnboundClaims()
+            || statusRank(revisedPreflight.status()) < statusRank(originalPreflight.status())
+            || revisedPreflight.coverage() + 0.000001D < originalPreflight.coverage();
+        metadata.put("answerReviewRevisedEvidencePreflight", revisedPreflight.claimLedger());
+        metadata.put("answerReviewRevisedEvidencePreflightStatus", revisedPreflight.status());
+        metadata.put("answerReviewRevisedEvidencePreflightCoverage", revisedPreflight.coverage());
+        metadata.put("answerReviewContentRetentionRatio", Math.round(retentionRatio * 10_000D) / 10_000D);
+        if (!destructiveRewrite && !evidenceRegressed) {
+            return review;
+        }
+        metadata.put("answerReviewFallback", "accepted_current_answer");
+        metadata.put("answerReviewRewriteRejected", true);
+        metadata.put("answerReviewRewriteRejectedReason",
+            destructiveRewrite ? "destructive_report_shortening" : "evidence_grounding_regression");
+        log.warn("agentModelReviewRewriteRejected runId={} reason={} originalChars={} revisedChars={} "
+                + "originalEvidenceStatus={} revisedEvidenceStatus={}",
+            nonBlank(runId), metadata.get("answerReviewRewriteRejectedReason"),
+            originalAnswer == null ? 0 : originalAnswer.length(), revised.length(),
+            originalPreflight.status(), revisedPreflight.status());
+        return accepted(originalAnswer,
+            "Reviewer rewrite was advisory only because it shortened the governed report or regressed evidence grounding. "
+                + firstNonBlank(review.feedback(), ""));
+    }
+
+    private int statusRank(String status) {
+        if ("PASS".equals(status) || "NOT_APPLICABLE".equals(status)) return 3;
+        if ("PARTIAL".equals(status)) return 2;
+        if ("FAIL".equals(status)) return 1;
+        return 0;
     }
 
     private List<String> modelAnalysisReviewObservations(List<String> observations,
@@ -175,5 +224,9 @@ final class AnswerReviewCoordinator {
 
     private String nonBlank(String value) {
         return value == null ? "" : value;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first == null || first.isBlank() ? second : first;
     }
 }

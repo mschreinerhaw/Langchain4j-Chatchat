@@ -1957,6 +1957,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (step.mcpToolAction()) {
             try {
                 validatePinnedResourceSnapshot(step, request);
+                assertReviewedTemplateBranchMayExecute(step, request.plan(), completed);
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
                 applyBoundDocumentScope(step, request, resolvedInput);
                 Map<String, Object> contextParameterRecovery = new LinkedHashMap<>(
@@ -2003,7 +2004,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     resolvedInput = templateInvocation.arguments();
                     retrievalGate = Map.of();
                     if (batchToolInput(resolvedInput)) {
-                        templateCompletenessRepairIds = reviewedSelectedTemplateIds(completed);
+                        templateCompletenessRepairIds = reviewedSelectedTemplateIds(
+                            reviewedTemplateSelectionExecution(step, request.plan(), completed));
                         templateCompletenessRepairApplied = templateCompletenessRepairIds.size() >= 2
                             && !declaresBatchTransport(step.input());
                         bridgeBatchTemplateInvocations(step, request, completed, resolvedInput);
@@ -4445,16 +4447,17 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                                               InterpretationPlan plan,
                                               Map<Integer, StepExecution> completed) {
         return runtimeOwnedDiagnosticBatch(step, plan)
-            || runtimeOwnedReviewedTemplateBatch(step, completed);
+            || runtimeOwnedReviewedTemplateBatch(step, plan, completed);
     }
 
     private boolean runtimeOwnedReviewedTemplateBatch(InterpretationPlan.Step step,
+                                                       InterpretationPlan plan,
                                                        Map<Integer, StepExecution> completed) {
         if (step == null || !isTemplateExecutionTool(step.toolName())) {
             return false;
         }
-        StepExecution selection = reviewedTemplateSelectionExecution(completed);
-        return reviewedSelectedTemplateIds(completed).size() >= 2
+        StepExecution selection = reviewedTemplateSelectionExecution(step, plan, completed);
+        return reviewedSelectedTemplateIds(selection).size() >= 2
             || reviewedInvocationCount(selection == null ? null : selection.output(), 0) >= 2;
     }
 
@@ -5417,7 +5420,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (checks.size() < 2) {
             return null;
         }
-        if (shouldUseReviewedTemplateBatch(checks, completed)) {
+        if (shouldUseReviewedTemplateBatch(step, plan, checks, completed)) {
             // A coarse diagnostic check may expand into several model-reviewed templates.
             // Preserve that authorized set instead of guessing a one-to-one semantic match.
             return null;
@@ -5621,10 +5624,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private boolean shouldUseReviewedTemplateBatch(
+        InterpretationPlan.Step step,
+        InterpretationPlan plan,
         List<InterpretationPlan.DiagnosticCheck> checks,
         Map<Integer, StepExecution> completed
     ) {
-        StepExecution reviewedSelection = reviewedTemplateSelectionExecution(completed);
+        StepExecution reviewedSelection = reviewedTemplateSelectionExecution(step, plan, completed);
         return reviewedSelection != null
             && Boolean.TRUE.equals(reviewedSelection.metadata().get("semanticCandidateReviewSatisfied"))
             && templateCandidates(reviewedSelection.output()).size()
@@ -5645,14 +5650,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         List<String> allowedTools,
         com.chatchat.agents.tool.ToolRegistry toolRegistry
     ) {
-        if (!runtimeOwnedReviewedTemplateBatch(step, completed)) {
+        if (!runtimeOwnedReviewedTemplateBatch(step, plan, completed)) {
             return null;
         }
-        List<String> selectedIds = reviewedSelectedTemplateIds(completed);
+        StepExecution reviewedSelection = reviewedTemplateSelectionExecution(step, plan, completed);
+        List<String> selectedIds = reviewedSelectedTemplateIds(reviewedSelection);
         List<Map<String, Object>> selectedTemplates = selectedIds.stream()
             .map(templateId -> completedTemplateMetadata(completed, templateId))
             .toList();
-        StepExecution reviewedSelection = reviewedTemplateSelectionExecution(completed);
         List<Map<String, Object>> reviewedBindings = reviewedTemplateInvocations(
             reviewedSelection == null ? null : reviewedSelection.output());
         Set<String> reviewedCoverage = reviewedBindings.stream()
@@ -5680,7 +5685,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
         });
         Map<String, Object> batchInput = new LinkedHashMap<>(input == null ? Map.of() : input);
-        mergeReviewedTemplateExecutionInputChanges(completed, step.toolName(), batchInput);
+        mergeReviewedTemplateExecutionInputChanges(reviewedSelection, step.toolName(), batchInput);
         // Reviewed-template expansion is a second diagnostic batch compiler and must apply
         // the same canonical asset hydration as the ordinary diagnostic path. Without this,
         // templates that publish an executor but omit a per-template executionContext lose
@@ -5947,7 +5952,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     private List<String> reviewedSelectedTemplateIds(Map<Integer, StepExecution> completed) {
-        StepExecution selection = reviewedTemplateSelectionExecution(completed);
+        return reviewedSelectedTemplateIds(reviewedTemplateSelectionExecution(completed));
+    }
+
+    private List<String> reviewedSelectedTemplateIds(StepExecution selection) {
         if (selection == null) {
             return List.of();
         }
@@ -5965,6 +5973,92 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
         }
         return List.copyOf(selected);
+    }
+
+    /**
+     * Resolves a reviewed discovery for one execution branch. When the step directly depends on
+     * discovery nodes, those dependencies form a hard branch boundary: an empty/rejected review
+     * in one branch must never fall back to a successful discovery from a sibling branch.
+     */
+    private StepExecution reviewedTemplateSelectionExecution(InterpretationPlan.Step step,
+                                                               InterpretationPlan plan,
+                                                               Map<Integer, StepExecution> completed) {
+        if (step == null || completed == null) {
+            return reviewedTemplateSelectionExecution(completed);
+        }
+        Set<Integer> branchSources = directTemplateDiscoverySourceIds(step, plan);
+        if (branchSources.isEmpty()) {
+            return reviewedTemplateSelectionExecution(completed);
+        }
+        List<StepExecution> directDiscoveries = branchSources.stream()
+            .map(completed::get)
+            .filter(Objects::nonNull)
+            .filter(StepExecution::success)
+            .filter(execution -> isTemplateDiscoveryTool(execution.toolName()))
+            .toList();
+        if (directDiscoveries.isEmpty()) {
+            return null;
+        }
+        StepExecution latest = null;
+        StepExecution fixedBinding = null;
+        for (StepExecution execution : directDiscoveries) {
+            if (templateCandidates(execution.output()).stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(this::canonicalTemplateId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .limit(2)
+                .count() < 2) {
+                continue;
+            }
+            latest = execution;
+            if (isBoundTemplateScope(execution.output())) {
+                fixedBinding = execution;
+            }
+        }
+        return fixedBinding == null ? latest : fixedBinding;
+    }
+
+    /**
+     * A reviewed empty selection is an authoritative branch result, not an invitation to use
+     * candidates from a sibling discovery. Bindings are included because optimized plans may
+     * express the branch edge only as a binding and leave {@code dependsOn} empty.
+     */
+    private void assertReviewedTemplateBranchMayExecute(InterpretationPlan.Step step,
+                                                        InterpretationPlan plan,
+                                                        Map<Integer, StepExecution> completed) {
+        if (step == null || !isTemplateExecutionTool(step.toolName()) || completed == null) return;
+        for (Integer sourceId : directTemplateDiscoverySourceIds(step, plan)) {
+            StepExecution discovery = completed.get(sourceId);
+            if (discovery == null || !isTemplateDiscoveryTool(discovery.toolName())) {
+                continue;
+            }
+            if (!discovery.success()) {
+                throw new IllegalStateException("TEMPLATE_DISCOVERY_BRANCH_UNAVAILABLE: discovery step "
+                    + sourceId + " failed for execution step " + step.id());
+            }
+            if (!Boolean.TRUE.equals(discovery.metadata().get("semanticCandidateReviewSatisfied"))) continue;
+            if (reviewedSelectedTemplateIds(discovery).isEmpty()) {
+                throw new IllegalStateException("TEMPLATE_SELECTION_EMPTY: reviewed discovery step "
+                    + sourceId + " authorized no template for execution step " + step.id());
+            }
+        }
+    }
+
+    private Set<Integer> directTemplateDiscoverySourceIds(InterpretationPlan.Step step,
+                                                           InterpretationPlan plan) {
+        if (step == null || step.id() == null) return Set.of();
+        LinkedHashSet<Integer> sourceIds = new LinkedHashSet<>(safeIntegerList(step.dependsOn()));
+        if (plan != null && plan.plan() != null && plan.plan().bindings() != null) {
+            plan.plan().bindings().stream()
+                .filter(Objects::nonNull)
+                .filter(binding -> step.id().equals(binding.to()))
+                .map(InterpretationPlan.Binding::from)
+                .filter(Objects::nonNull)
+                .forEach(sourceIds::add);
+        }
+        return Set.copyOf(sourceIds);
     }
 
     private StepExecution reviewedTemplateSelectionExecution(Map<Integer, StepExecution> completed) {
@@ -5993,13 +6087,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     }
 
     @SuppressWarnings("unchecked")
-    private void mergeReviewedTemplateExecutionInputChanges(Map<Integer, StepExecution> completed,
+    private void mergeReviewedTemplateExecutionInputChanges(StepExecution selection,
                                                             String executorTool,
                                                             Map<String, Object> target) {
-        if (completed == null || target == null) {
+        if (target == null) {
             return;
         }
-        StepExecution selection = reviewedTemplateSelectionExecution(completed);
         Object rawActions = selection == null || selection.metadata() == null
             ? null : selection.metadata().get("nextActions");
         if (rawActions instanceof Iterable<?> actions) {
@@ -6037,7 +6130,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         return plan.steps().stream()
             .filter(Objects::nonNull)
             .filter(step -> safeIntegerList(step.dependsOn()).contains(failedStepId))
-            .anyMatch(step -> runtimeOwnedReviewedTemplateBatch(step, completed));
+            .anyMatch(step -> runtimeOwnedReviewedTemplateBatch(step, plan, completed));
     }
 
     @SuppressWarnings("unchecked")
@@ -8721,7 +8814,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             if (com.chatchat.agents.runtime.plan.selection.ReviewedTemplateTransport.owns(discovery, output -> templateCandidates(output).stream()
                 .map(this::canonicalTemplateId).filter(Objects::nonNull).collect(Collectors.toSet()))) return true;
         }
-        if ((runtimeOwnedReviewedTemplateBatch(targetStep, completed)
+        if ((runtimeOwnedReviewedTemplateBatch(targetStep, plan, completed)
                 && (normalizedField.contains("template") || normalizedField.contains("call")))
             || (runtimeOwnedTemplateBatch(targetStep, plan, completed)
                 && diagnosticAssetTransportField(normalizedField))) {

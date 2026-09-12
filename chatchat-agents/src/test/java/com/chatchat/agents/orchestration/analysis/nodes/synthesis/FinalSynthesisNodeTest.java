@@ -32,18 +32,23 @@ import static org.mockito.Mockito.when;
 class FinalSynthesisNodeTest {
 
     @Test
-    void failedAnalysisOfNonemptyDataCannotFallThroughToFreeFormSynthesis() {
+    void semanticExtractionFailureRetainsAlreadyAuthoredUnifiedReport() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
-            mock(AnalysisSummaryGovernanceCoordinator.class), new DeterministicInsightEngine(),
+            passthroughGovernance(), new DeterministicInsightEngine(),
             new AnswerCandidateCollector(), new StructuredFindingMerger());
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("semanticClaimPreflightFailed", true);
+        metadata.put("semanticClaimPreflightReportRetained", true);
         metadata.put("analysisObservedReturnedRecordCount", 41L);
+        metadata.put("unifiedAnalysisReportDraft", "# 数据分析报告\n\n基于已返回记录形成的模型分析正文。");
         var model = mock(ChatModel.class);
-        assertThatThrownBy(() -> coordinator.synthesizeFinal(request(model, metadata, value -> value, () -> "fallback", true)))
-            .hasMessageContaining("41 returned records present");
+        var result = coordinator.synthesizeFinal(
+            request(model, metadata, value -> value, () -> "fallback", true));
+
+        assertThat(result.content()).contains("基于已返回记录形成的模型分析正文");
         org.mockito.Mockito.verifyNoInteractions(model);
-        assertThat(metadata).containsEntry("analysisGraphStatus", "FAILED");
+        assertThat(metadata).containsEntry("analysisSemanticExtractionAdvisory", true)
+            .containsEntry("analysisFinalSynthesisInputMode", "UNIFIED_ANALYSIS_REPORT_DRAFT");
     }
 
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(

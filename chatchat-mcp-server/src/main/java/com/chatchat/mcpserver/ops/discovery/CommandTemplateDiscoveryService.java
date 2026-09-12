@@ -71,6 +71,11 @@ public class CommandTemplateDiscoveryService {
     private static final double TEMPLATE_RELATIVE_SCORE_FLOOR = 0.20;
     private static final double TEMPLATE_STRONG_SEMANTIC_FLOOR = 0.60;
     private static final double TEMPLATE_MIN_QUERY_COVERAGE = 0.08;
+    // A compound operation request can legitimately contain many independent
+    // diagnostic dimensions while each executable template implements only one
+    // of them. Cap the admission denominator so additional sibling dimensions do
+    // not dilute a concrete template match below the quality gate.
+    private static final int TEMPLATE_QUERY_COVERAGE_DENOMINATOR_CAP = 12;
     private static final int TEMPLATE_RETRIEVAL_LIMIT = 100;
     private static final double INTENT_WEIGHT = 0.40;
     private static final double LEXICAL_WEIGHT = 0.30;
@@ -762,6 +767,8 @@ public class CommandTemplateDiscoveryService {
                 "minimumRegistryRelevanceScore", TEMPLATE_MIN_RELEVANCE_SCORE,
                 "relativeScoreFloor", TEMPLATE_RELATIVE_SCORE_FLOOR,
                 "minimumQueryCoverage", TEMPLATE_MIN_QUERY_COVERAGE,
+                "queryCoverageDenominatorCap", TEMPLATE_QUERY_COVERAGE_DENOMINATOR_CAP,
+                "compoundIntentAdmission", "a specialist template may satisfy one independently requested capability; sibling capabilities do not dilute its lexical admission score",
                 "querySegmentation", "NFKC normalization with identifier preservation, script-aware tokenization and Chinese bigrams",
                 "vectorRetrieval", "OpenSearch embedding/KNN evidence is fused when configured and index-compatible; otherwise retrieval degrades to segmented BM25/registry ranking",
                 "intentSynonymSource", "built-in zh/en intent synonyms plus chatchat.mcp.template-discovery.intent-synonyms and template intentSignals",
@@ -2368,7 +2375,8 @@ public class CommandTemplateDiscoveryService {
                                           Set<String> queryTokens,
                                           int requiredMatches) {
         int matched = matchedIntentTermCount(relevance, queryTokens);
-        double coverage = queryTokens.isEmpty() ? 0.0D : matched / (double) queryTokens.size();
+        int denominator = Math.min(queryTokens.size(), TEMPLATE_QUERY_COVERAGE_DENOMINATOR_CAP);
+        double coverage = denominator == 0 ? 0.0D : matched / (double) denominator;
         return matched >= requiredMatches && coverage >= TEMPLATE_MIN_QUERY_COVERAGE;
     }
 

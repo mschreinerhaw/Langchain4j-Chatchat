@@ -39,6 +39,9 @@ public class ApplicationStartupListener {
         }
 
         try {
+            // Scheduled database queue polling is already alive at this point. Open its
+            // dispatch gate only after the MCP/Agent capability catalogs above are ready.
+            agentTaskService.activatePersistentTaskDispatch();
             int repairedTasks = agentTaskService.reconcileLatestStateFromEvents();
             log.info("Reconciled {} Agent task snapshots from event store", repairedTasks);
             int recoveredTasks = agentTaskService.recoverActiveTasks();

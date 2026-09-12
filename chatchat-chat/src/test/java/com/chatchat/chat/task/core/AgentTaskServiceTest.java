@@ -38,6 +38,7 @@ import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.uiartifact.UiArtifactService;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -391,6 +392,39 @@ class AgentTaskServiceTest {
     }
 
     @Test
+    void persistentQueueDoesNotClaimTasksBeforeRuntimeCapabilityBootstrap() throws Exception {
+        AgentTaskQueueCoordinator coordinator = mock(AgentTaskQueueCoordinator.class);
+        AgentTaskProperties properties = new AgentTaskProperties();
+        properties.setDatabaseQueueEnabled(true);
+        AgentTaskService service = new AgentTaskService(
+            mock(AgentEventBus.class),
+            mock(AgentEventStore.class),
+            mock(AgentTaskLatestRepository.class),
+            mock(InteractionOrchestrationService.class),
+            new ObjectMapper(),
+            properties,
+            mock(ToolRuntimeService.class),
+            mock(AgentRuntime.class),
+            mock(AgentTaskCancellationRegistry.class),
+            mock(AgentLearningService.class),
+            mock(TaskConfirmRepository.class),
+            mock(InterpretationPlanStore.class),
+            mock(ThreadPoolTaskExecutor.class)
+        );
+        Field queueCoordinatorField = AgentTaskService.class.getDeclaredField("queueCoordinator");
+        queueCoordinatorField.setAccessible(true);
+        queueCoordinatorField.set(service, coordinator);
+        when(coordinator.claimAvailable(any())).thenReturn(List.of());
+
+        assertThat(service.dispatchPersistentTasks()).isZero();
+        verify(coordinator, never()).claimAvailable(any());
+
+        service.activatePersistentTaskDispatch();
+        assertThat(service.dispatchPersistentTasks()).isZero();
+        verify(coordinator).claimAvailable(any());
+    }
+
+    @Test
     void databaseSubmissionIsStagedBeforeItBecomesDispatchable() throws Exception {
         AgentEventBus eventBus = mock(AgentEventBus.class);
         AgentEventStore eventStore = mock(AgentEventStore.class);
@@ -432,6 +466,7 @@ class AgentTaskServiceTest {
         Field queueCoordinatorField = AgentTaskService.class.getDeclaredField("queueCoordinator");
         queueCoordinatorField.setAccessible(true);
         queueCoordinatorField.set(service, coordinator);
+        service.activatePersistentTaskDispatch();
 
         AgentTaskResponse response = service.submit(
             idempotentRequest("message-staged", "diagnose Oracle health"));
@@ -898,6 +933,79 @@ class AgentTaskServiceTest {
         assertThat(content.references().get(0))
             .containsEntry("title", "交易所公告")
             .containsEntry("url", "https://example.com/notice/1");
+    }
+
+    @Test
+    void finalNotificationHydratesExternalizedFullAnswerAndReferences() throws Exception {
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentTaskLatestEntity task = new AgentTaskLatestEntity();
+        task.setTaskId("task-artifact-notification");
+        task.setTenantId("tenant-1");
+        task.setUserId("user-1");
+        task.setAgentId("db-ops");
+        task.setSessionId("session-1");
+        task.setStatus("SUCCESS");
+        ObjectMapper objectMapper = new ObjectMapper();
+        String preview = "报告预览";
+        String fullAnswer = "# 数据库健康报告\n\n" + "完整分析。".repeat(1_000);
+        AgentEvent complete = AgentEvent.builder()
+            .taskId(task.getTaskId())
+            .tenantId(task.getTenantId())
+            .userId(task.getUserId())
+            .agentId(task.getAgentId())
+            .sessionId(task.getSessionId())
+            .type("COMPLETE")
+            .status("SUCCESS")
+            .payload(objectMapper.writeValueAsString(Map.of(
+                "answer", preview,
+                "citations", List.of(),
+                "uiArtifact", Map.of("artifactId", "ui-report-1"),
+                "uiResponse", Map.of(
+                    "answer", preview,
+                    "citations", List.of(),
+                    "uiArtifact", Map.of("artifactId", "ui-report-1")))))
+            .build();
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        when(eventStore.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), Integer.MAX_VALUE))
+            .thenReturn(List.of(complete));
+        UiArtifactService uiArtifactService = mock(UiArtifactService.class);
+        when(uiArtifactService.resource(task.getTenantId(), "ui-report-1", "answer"))
+            .thenReturn(Optional.of(fullAnswer));
+        when(uiArtifactService.resource(task.getTenantId(), "ui-report-1", "citations"))
+            .thenReturn(Optional.of(List.of(Map.of(
+                "sourceRef", "ORACLE_INSTANCE_STATUS#chunk-1",
+                "title", "ORACLE_INSTANCE_STATUS",
+                "text", "实例状态 OPEN"))));
+        AgentTaskService service = new AgentTaskService(
+            eventBus,
+            eventStore,
+            latestRepository,
+            mock(InteractionOrchestrationService.class),
+            objectMapper,
+            new AgentTaskProperties(),
+            mock(ToolRuntimeService.class),
+            mock(AgentRuntime.class),
+            mock(AgentTaskCancellationRegistry.class),
+            mock(AgentLearningService.class),
+            mock(TaskConfirmRepository.class),
+            mock(InterpretationPlanStore.class),
+            mock(ThreadPoolTaskExecutor.class)
+        );
+        Field artifactField = AgentTaskService.class.getDeclaredField("uiArtifactService");
+        artifactField.setAccessible(true);
+        artifactField.set(service, uiArtifactService);
+
+        AgentTaskService.AgentNotificationContent content = service
+            .finalNotificationContent(task.getTenantId(), task.getTaskId())
+            .orElseThrow();
+
+        assertThat(content.answer()).isEqualTo(fullAnswer);
+        assertThat(content.references()).singleElement()
+            .satisfies(reference -> assertThat(reference)
+                .containsEntry("sourceRef", "ORACLE_INSTANCE_STATUS#chunk-1")
+                .containsEntry("title", "ORACLE_INSTANCE_STATUS"));
     }
 
     @Test

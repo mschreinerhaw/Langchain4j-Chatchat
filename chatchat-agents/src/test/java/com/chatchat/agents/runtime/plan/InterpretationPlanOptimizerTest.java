@@ -638,6 +638,67 @@ class InterpretationPlanOptimizerTest {
     }
 
     @Test
+    void removesDependencyContractsLeftBehindByDeduplicatedToolSteps() {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("mixed", "Refine diagnostics", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "database_capability_query",
+                        Map.of("query", "oracle"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "sql_query_execute",
+                        Map.of("templateId", "ORACLE_LOCKS", "executionContext",
+                            Map.of("assetName", "risk-oracle", "env", "DEV")),
+                        List.of(1), null, null),
+                    new InterpretationPlan.Step(6, "mcp_tool", "sql_query_execute",
+                        Map.of("templateId", "ORACLE_LOCKS", "executionContext",
+                            Map.of("assetName", "risk-oracle", "env", "DEV")),
+                        List.of(1), null, null),
+                    new InterpretationPlan.Step(5, "final_answer", "", Map.of(),
+                        List.of(2, 6), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(1, 2, true, null, "discovery", "stop"),
+                    new InterpretationPlan.DependencyContract(1, 6, true, null, "refinement", "stop"),
+                    new InterpretationPlan.DependencyContract(2, 5, true, null, "evidence", "stop"),
+                    new InterpretationPlan.DependencyContract(6, 5, true, null, "refined evidence", "stop")
+                ),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                6, false, List.of("database_capability_query", "sql_query_execute"),
+                List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result =
+            new InterpretationPlanOptimizer().optimize(plan);
+
+        assertThat(result.appliedPasses()).contains("DedupeToolCallPass");
+        assertThat(result.plan().steps()).hasSize(3);
+        Set<Integer> executableStepIds = result.plan().steps().stream()
+            .map(InterpretationPlan.Step::id)
+            .collect(java.util.stream.Collectors.toSet());
+        assertThat(result.plan().plan().dependencyContracts()).allSatisfy(contract -> {
+            assertThat(executableStepIds).contains(contract.from(), contract.to());
+            if (Boolean.TRUE.equals(contract.required())) {
+                InterpretationPlan.Step target = result.plan().steps().stream()
+                    .filter(step -> step.id().equals(contract.to()))
+                    .findFirst().orElseThrow();
+                assertThat(target.dependsOn()).contains(contract.from());
+            }
+        });
+        InterpretationPlanValidator.ValidationResult validation =
+            new InterpretationPlanValidator().validate(
+                result.plan(), null, Set.of("database_capability_query", "sql_query_execute"));
+        assertThat(validation.valid()).as("%s", validation.errors()).isTrue();
+    }
+
+    @Test
     void stabilityGuardPreventsPruneAndDedupeWhilePolicyOrderingStillApplies() {
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",

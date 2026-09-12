@@ -689,6 +689,8 @@ class AgentPlannerTest {
             .contains("score >= 0.75")
             .contains("if none reaches 0.75, use the top two candidates")
             .contains("semantic retrieval filters")
+            .contains("never treat a same-environment or top-ranked asset from another asset family")
+            .contains("explicit relation/canonical mapping")
             .doesNotContain("mysqld process", "systemctl status mysql")
             .contains("templates[] is ranked by relevanceScore")
             .contains("filters.intentAliases")
@@ -1642,6 +1644,8 @@ class AgentPlannerTest {
             .contains("Optional tool must have exactly one applicability decision: workflow_standard_lookup");
         assertThat(capturedPrompt[0])
             .contains("The absence of mandatory tools means only that no tool is forced")
+            .contains("Cross-domain tool applicability does not prove that independently discovered assets are related")
+            .contains("A shared environment, generic role, retrieval rank, or similar name is insufficient")
             .contains("does not impose a top-k selection limit")
             .contains("workflow_standard_lookup");
     }

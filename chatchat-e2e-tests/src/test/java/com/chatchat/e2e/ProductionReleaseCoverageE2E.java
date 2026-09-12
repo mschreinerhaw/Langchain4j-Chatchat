@@ -3,7 +3,7 @@ package com.chatchat.e2e;
 import com.chatchat.agents.orchestration.analysis.dispatch.DatasetAnalysisNode;
 import com.chatchat.agents.orchestration.analysis.insight.StructuredReasoningEvidenceAdapterRegistry;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
-import com.chatchat.agents.orchestration.analysis.summary.AnalysisNodeProtocol;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
 
 
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
@@ -298,7 +298,7 @@ class ProductionReleaseCoverageE2E {
         String analysisDatasetWorker = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/dispatch/DatasetAnalysisNode.java"));
         String summaryBridge = Files.readString(root.resolve(
-            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/summary/AnalysisNodeProtocol.java"));
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/nodes/analysis/AnalysisNodeProtocol.java"));
         String mcpAnalysisContextAdapter = Files.readString(root.resolve(
             "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/McpAnalysisContextAdapter.java"));
         String summaryResult = Files.readString(root.resolve(

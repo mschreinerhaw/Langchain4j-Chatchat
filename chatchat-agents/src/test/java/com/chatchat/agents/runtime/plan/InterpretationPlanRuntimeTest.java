@@ -30,6 +30,7 @@ import com.chatchat.common.mcp.audit.McpContractSource;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
@@ -53,6 +54,70 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
+
+    @Test
+    void reviewedTemplateBatchDoesNotBorrowSelectionFromSiblingDiscoveryBranch() throws Exception {
+        String discoveryTool = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String executionTool = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(
+            new java.util.LinkedHashSet<>(List.of(discoveryTool, executionTool)));
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(registry),
+            (InterpretationPlanRuntime.DagExecutionController) null);
+        InterpretationPlanRuntime.StepExecution databaseDiscovery = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", discoveryTool, true,
+            Map.of("templates", List.of(
+                Map.of("templateId", "ORACLE_INSTANCE_STATUS"),
+                Map.of("templateId", "ORACLE_LOCKS"))),
+            null, null, null, 1L);
+        InterpretationPlanRuntime.StepExecution rejectedHostDiscovery = new InterpretationPlanRuntime.StepExecution(
+            3, "mcp_tool", discoveryTool, true,
+            Map.of("templates", List.of()), null, null, null, 1L,
+            Map.of("semanticCandidateReviewSatisfied", true));
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed = new LinkedHashMap<>();
+        completed.put(1, databaseDiscovery);
+        completed.put(3, rejectedHostDiscovery);
+        InterpretationPlan.Step databaseExecution = new InterpretationPlan.Step(
+            2, "mcp_tool", executionTool,
+            Map.of(), List.of(), null, null);
+        InterpretationPlan.Step hostExecution = new InterpretationPlan.Step(
+            4, "mcp_tool", executionTool,
+            Map.of(), List.of(), null, null);
+        InterpretationPlan plan = mock(InterpretationPlan.class);
+        InterpretationPlan.Plan planBody = mock(InterpretationPlan.Plan.class);
+        when(plan.plan()).thenReturn(planBody);
+        when(planBody.bindings()).thenReturn(List.of(
+            new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2,
+                "$.templateId", "jsonpath", true),
+            new InterpretationPlan.Binding(3, "$.templates[0].templateId", 4,
+                "$.templateId", "jsonpath", true)));
+
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "runtimeOwnedReviewedTemplateBatch", InterpretationPlan.Step.class,
+            InterpretationPlan.class, Map.class);
+        method.setAccessible(true);
+
+        assertThat(method.invoke(runtime, databaseExecution, plan, completed)).isEqualTo(true);
+        assertThat(method.invoke(runtime, hostExecution, plan, completed)).isEqualTo(false);
+
+        Method branchGuard = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "assertReviewedTemplateBranchMayExecute", InterpretationPlan.Step.class,
+            InterpretationPlan.class, Map.class);
+        branchGuard.setAccessible(true);
+        assertThatThrownBy(() -> branchGuard.invoke(runtime, hostExecution, plan, completed))
+            .hasRootCauseMessage("TEMPLATE_SELECTION_EMPTY: reviewed discovery step 3 authorized no template for execution step 4");
+
+        completed.put(3, new InterpretationPlanRuntime.StepExecution(
+            3, "mcp_tool", discoveryTool, false, Map.of("templates", List.of()),
+            "semantic review rejected all candidates", null, null, 1L));
+        assertThat(method.invoke(runtime, hostExecution, plan, completed)).isEqualTo(false);
+        assertThatThrownBy(() -> branchGuard.invoke(runtime, hostExecution, plan, completed))
+            .hasRootCauseMessage("TEMPLATE_DISCOVERY_BRANCH_UNAVAILABLE: discovery step 3 failed for execution step 4");
+    }
 
     @Test
     void rejectsPlanBeforeStepZeroWhenResourcePreflightFails() {

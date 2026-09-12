@@ -135,10 +135,18 @@ public final class FinalSynthesisNode {
     private FinalSynthesisResult synthesizeFinalAdmitted(FinalModelSynthesisRequest request) {
         boolean noFindings = request.metadata().get("unifiedAnalysisFindingCount") instanceof Number findings
             && findings.longValue() == 0;
+        boolean retainedUnifiedDraft = Boolean.TRUE.equals(
+            request.metadata().get("semanticClaimPreflightReportRetained"))
+            && request.metadata().get("unifiedAnalysisReportDraft") instanceof String draft
+            && !draft.isBlank();
         if ((Boolean.TRUE.equals(request.metadata().get("semanticClaimPreflightFailed")) || noFindings)
+            && !retainedUnifiedDraft
             && request.metadata().get("analysisObservedReturnedRecordCount") instanceof Number rows && rows.longValue() > 0) {
             throw new IllegalStateException("Analysis failed with " + rows.longValue()
                 + " returned records present; final synthesis cannot treat missing analysis products as empty source data.");
+        }
+        if (retainedUnifiedDraft) {
+            request.metadata().put("analysisSemanticExtractionAdvisory", true);
         }
         if (Boolean.FALSE.equals(request.metadata().get("analysisSynthesisBarrierReady"))) {
             recordHumanReviewAdvisory(request, "SYNTHESIS_INPUT_REVIEW",
@@ -225,7 +233,7 @@ public final class FinalSynthesisNode {
         modelPrompt += finalReportCalibrationRules();
         boolean selfContainedCurrentTableBrief = Boolean.TRUE.equals(
             request.metadata().get("selfContainedCurrentTableBrief"));
-        String unifiedReportDraft = claimBoundPublication || selfContainedCurrentTableBrief
+        String unifiedReportDraft = claimBoundPublication || selfContainedCurrentTableBrief || retainedUnifiedDraft
             ? String.valueOf(request.metadata().getOrDefault("unifiedAnalysisReportDraft", "")).trim()
             : "";
         boolean reuseUnifiedReportDraft = !unifiedReportDraft.isBlank();

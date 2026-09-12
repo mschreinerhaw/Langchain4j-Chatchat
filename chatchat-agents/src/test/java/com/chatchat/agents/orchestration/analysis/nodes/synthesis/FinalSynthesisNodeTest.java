@@ -1010,7 +1010,9 @@ class FinalSynthesisNodeTest {
         String report = "# 分析报告\n\n## 核心发现\n\n样本数值为42。\n\n## 后续关注\n\n核对观察期间。";
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
             assertThat((String) invocation.getArgument(0))
-                .contains("\"output\":[\"KEY_FINDINGS\",\"RECOMMENDED_ACTIONS\"]", "ordered H2 section plan")
+                .contains("\"output\":[\"KEY_FINDINGS\",\"RECOMMENDED_ACTIONS\"]",
+                    "question-specific analytical brief", "not a fixed outline",
+                    "combine prose with compact Markdown tables", "not mandatory headings")
                 .doesNotContain("claimAssessments");
             return "以下工具结果是本次分析的事实基础。\n" + report;
         });
@@ -1051,7 +1053,8 @@ class FinalSynthesisNodeTest {
                 List.of(Map.of("name", "A", "value", 42)))));
         var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
         assertThat(result.generated()).isTrue();
-        assertThat(result.content()).contains("正文数值为42", "后续行动", "已省略图表").doesNotContain("999");
+        assertThat(result.content()).contains("正文数值为42", "后续行动")
+            .doesNotContain("999", "已省略图表", "原始返回记录");
         assertThat(metadata).containsKey("analysisVisualizationAudit").containsKey("analysisNumericAudit");
         verify(model).chat(any(String.class));
     }

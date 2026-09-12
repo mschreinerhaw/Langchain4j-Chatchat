@@ -85,8 +85,8 @@ public final class ReportVisualizationAudit {
                     i--;
                     continue;
                 }
-                result.append("\n> 此图表的数据绑定或计算未通过核验，已省略图表；请参阅正文分析与数据表。\n\n");
-                if (checks.size() < 6) result.append(sourceTable(requested, catalog));
+                // Invalid model-authored visualizations are withheld and recorded as audit metadata.
+                // Runtime must not replace them with prose or a generated data table inside the report body.
                 if (checks.size() < 12) checks.add(Map.of("status", "REJECTED", "reason",
                     invalid instanceof IllegalArgumentException ? String.valueOf(invalid.getMessage()) : "INVALID_VISUALIZATION_JSON"));
             }
@@ -235,33 +235,6 @@ public final class ReportVisualizationAudit {
         if (!input.containsKey("dataset")) result.put("dataset", Map.of("sourceRef", text(input.get("datasetRef")),
             "xKey", text(input.get("x")), "series", List.of(Map.of("yKey", text(input.get("y")), "name", text(input.get("y"))))));
         return result;
-    }
-
-    /** Rejected derived views fall back to original observations, never model-provided rows. */
-    private String sourceTable(Map<String, Object> spec, VerifiedReportDataCatalog catalog) {
-        String ref = text(map(spec.get("dataset")).get("sourceRef"));
-        if (ref.isEmpty()) ref = text(spec.get("datasetRef"));
-        var source = catalog.dataset(ref);
-        List<Map<String, Object>> rows = source == null ? List.of() : source.rows();
-        var computed = catalog.get(text(spec.get("dataRef")));
-        if (computed != null) rows = computed.rows().isEmpty() && computed.metric() != null
-            ? List.of(Map.of("entity", computed.title(), "value", computed.metric(), "unit", computed.metricUnit())) : computed.rows();
-        if (rows.isEmpty()) return "";
-        List<String> columns = rows.get(0).keySet().stream().limit(8).toList();
-        if (columns.isEmpty()) return "";
-        StringBuilder table = new StringBuilder("原始返回记录（最多展示 20 行，未执行上述图表计算）：\n\n|");
-        columns.forEach(key -> table.append(cell(key)).append('|'));
-        table.append("\n|"); columns.forEach(key -> table.append("---|")); table.append('\n');
-        rows.stream().limit(20).forEach(row -> {
-            table.append('|'); columns.forEach(key -> table.append(cell(row.get(key))).append('|')); table.append('\n');
-        });
-        return table.append('\n').toString();
-    }
-    private String cell(Object value) {
-        return text(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            .replace("|", "&#124;").replace("`", "&#96;").replace("*", "&#42;")
-            .replace("[", "&#91;").replace("]", "&#93;").replace("\\", "&#92;")
-            .replace("\r", " ").replace("\n", " ");
     }
 
     private List<Map<String, Object>> aggregate(List<Map<String, Object>> rows, Map<String, Object> transform) {

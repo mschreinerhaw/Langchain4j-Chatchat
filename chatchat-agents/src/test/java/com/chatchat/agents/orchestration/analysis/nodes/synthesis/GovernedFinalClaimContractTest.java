@@ -17,7 +17,9 @@ class GovernedFinalClaimContractTest {
     @Test
     void legacyPromptEntryAlsoUsesMarkdownWithoutPerClaimReviewForms() {
         String prompt = contract.appendSelectionInstruction("original", contract.compile(List.of(summary())));
-        assertThat(prompt).contains("complete model-authored Markdown report", "visualization_spec.v2")
+        assertThat(prompt).contains("complete model-authored Markdown report", "visualization_spec.v2",
+                "combine prose with compact Markdown tables", "not mandatory headings",
+                "Runtime will publish this body without composing sections")
             .doesNotContain("claimAssessments", "Return only one JSON object", "driverReview");
     }
 

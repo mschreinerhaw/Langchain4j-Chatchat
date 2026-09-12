@@ -10,10 +10,12 @@ public final class RuntimeAnalysisResponsibilityContract {
             Runtime analysis responsibility contract:
             - Runtime supplies scoped evidence, provenance, declared semantics, available capabilities and the
               active Agent analysis contract. It must not author domain conclusions, thresholds, causal rules,
-              preferred interpretations or a fixed business-analysis checklist.
+              preferred interpretations, report sections, prose, tables or a fixed business-analysis checklist.
             - The model owns analytical reasoning. Use the active Agent role, adaptive analysis prompt and relevant
               domain knowledge to choose useful comparisons, interpretations, hypotheses and business implications.
               Explore the returned evidence fully; evidence governance must not reduce the answer to field transcription.
+              The model also owns the complete report body: title, structure, narrative flow, table selection and the
+              placement of data beside interpretation. Runtime may validate and publish it, but never completes it.
             - Evidence artifacts distinguish source observations, calculations and model interpretations for audit.
               This protocol metadata is not a requirement to expose a confidence label, alternative explanation,
               verification checklist or repetitive qualification in every user-facing sentence. Add those only when

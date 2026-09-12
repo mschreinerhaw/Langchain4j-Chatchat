@@ -19,7 +19,8 @@ class RuntimeAnalysisResponsibilityContractTest {
                 "scenario analysis", "risks", "data gaps", "next actions",
                 "not directly proven", "analysis forbidden",
                 "Optional analytical lenses", "not a mandatory sequence",
-                "Design the report and reasoning yourself",
+                "Design the report and reasoning yourself", "complete report body",
+                "report sections, prose, tables",
                 "Cannot prove", "cannot analyze")
             .doesNotContain("Securities market value", "investment preference", "99.89%",
                 "at least one material alternative explanation");

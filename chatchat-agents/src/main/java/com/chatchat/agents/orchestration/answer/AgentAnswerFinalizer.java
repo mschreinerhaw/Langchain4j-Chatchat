@@ -101,8 +101,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AgentResultPresentationService resultPresentationService =
         new AgentResultPresentationService(objectMapper);
-    private final DeterministicAnswerReportRenderer deterministicReportRenderer =
-        new DeterministicAnswerReportRenderer(objectMapper);
     private final AnswerUserFacingPolicy userFacingPolicy = new AnswerUserFacingPolicy(objectMapper);
     private final AgentToolBudgetPort toolBudgetPolicy = new DefaultAgentToolBudgetPolicy();
     private DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> analysisSummaryGovernanceBridge =
@@ -190,8 +188,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                     policyCompliantCandidate = contractReport;
                     values.put("availableDataAnalysisRecoveredFromContract", true);
                 } else {
-                    policyCompliantCandidate = minimumAvailableDataAnalysis(mcpAssessment);
-                    values.put("availableDataAnalysisFallbackApplied", true);
+                    policyCompliantCandidate = analysisFailureReport(values,
+                        "MODEL_AUTHORED_REPORT_REFUSED_AVAILABLE_DATA");
+                    values.put("modelAuthoredReportRequired", true);
                 }
                 values.put("availableDataRefusalRejected", true);
                 values.put("availableDataRefusalRejectedReason",
@@ -233,25 +232,10 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         if (values.containsKey("analysisReportContract")) {
             finalAnswer = enforceAnalysisReportContract(finalAnswer, values);
         }
-        if (finalAnswer.isBlank()) {
-            String metadataReport = deterministicReportRenderer.deterministicEnterpriseMetadataReport(traces);
-            if (!metadataReport.isBlank()) {
-                finalAnswer = metadataReport;
-                values.put("deterministicFinalizationFallback", true);
-                values.put("deterministicFinalizationSource", "enterprise_metadata_field_discovery.v1");
-            }
-        }
-        if (finalAnswer.isBlank()) {
-            String deterministicReport = deterministicReportRenderer.deterministicBatchReport(traces);
-            if (!deterministicReport.isBlank()) {
-                finalAnswer = deterministicReport;
-                values.put("deterministicFinalizationFallback", true);
-                values.put("deterministicFinalizationSource", "tool_call_batch_result");
-            }
-        }
         if (finalAnswer.isBlank() && mcpAssessment.resultAvailable()) {
             finalAnswer = analysisFailureReport(values,
-                "NON_EMPTY_MCP_RESULT_WITHOUT_PUBLISHABLE_REPORT");
+                "MODEL_AUTHORED_REPORT_MISSING");
+            values.put("modelAuthoredReportRequired", true);
             values.put("evidenceRefusalBlocked", true);
             values.put("evidenceRefusalBlockedReason",
                 "non_empty_mcp_result_with_empty_answer");
@@ -1189,21 +1173,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         }
         Map<String, Object> contract = objectMap(metadata.get("analysisReportContract"));
         return "DRIVER_REPORT".equals(stringValue(contract.get("reportType")));
-    }
-
-    private String minimumAvailableDataAnalysis(McpResultEvidencePolicy.Assessment assessment) {
-        int available = assessment == null ? 0 : assessment.availableResultCount();
-        return """
-            # 数据分析结果
-
-            ## 已确认事实
-
-            Runtime 已确认本次执行返回了 %d 个非空工具结果。因此，可以确认查询范围内存在可用数据，不能将本次结果描述为“未返回数据”或“无法分析”。
-
-            ## 判断边界
-
-            当前分析模型未形成更多可核验的字段级结论。本报告仅确认数据存在性与本次查询范围，不据此扩展为趋势、因果关系或长期规律；结构化结果仍保留供人工判断与后续分析。
-            """.formatted(Math.max(1, available)).trim();
     }
 
     /**

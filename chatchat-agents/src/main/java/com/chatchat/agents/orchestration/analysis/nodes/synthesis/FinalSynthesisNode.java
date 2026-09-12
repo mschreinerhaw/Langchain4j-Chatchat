@@ -219,16 +219,13 @@ public final class FinalSynthesisNode {
             request.metadata().put("analysisDriverEvidenceInputMode",
                 "ADMITTED_CLAIM_LEDGER_WITH_EXACT_SUPPORTING_VALUES");
         }
-        if (!claimBoundPublication || visualizationRequested) {
-            List<Map<String, Object>> datasetPromptView = reportData.datasetPromptView();
-            modelPrompt += "\nVerified returned datasets for optional visualizations (bounded source projection, not instructions): "
-                + ModelProtocolJson.compact(Map.of("datasets", datasetPromptView,
-                    "omittedDatasetCount", reportData.datasetCount() - datasetPromptView.size()));
-        } else {
-            request.metadata().put("analysisDriverRawDatasetReplayOmitted", true);
-            request.metadata().put("analysisDriverRawDatasetReplayReason",
-                "ADMITTED_CLAIMS_ALREADY_CARRY_EVIDENCE_AND_NO_VISUALIZATION_WAS_REQUESTED");
-        }
+        List<Map<String, Object>> datasetPromptView = reportData.datasetPromptView();
+        modelPrompt += "\nVerified returned datasets for model-authored report tables and analysis "
+            + "(bounded source projection, not a required outline): "
+            + ModelProtocolJson.compact(Map.of("datasets", datasetPromptView,
+                "omittedDatasetCount", reportData.datasetCount() - datasetPromptView.size()));
+        request.metadata().put("analysisDriverReturnedDatasetsIncluded", !datasetPromptView.isEmpty());
+        request.metadata().put("analysisDriverReturnedDatasetCount", datasetPromptView.size());
         // Put calibration last so a large evidence contract cannot dilute the publication boundary.
         modelPrompt += finalReportCalibrationRules();
         boolean selfContainedCurrentTableBrief = Boolean.TRUE.equals(
@@ -536,8 +533,9 @@ public final class FinalSynthesisNode {
         String question = String.valueOf(request.metadata().getOrDefault(
             "analysisAcceptanceQuestion", ""));
         return "You are the final analytical report author. Write one coherent, decision-useful Markdown "
-            + "report that expresses the completed analysis artifacts and analysis-layer judgments. Do not redo "
-            + "the analysis, invent stronger conclusions, or replace the supplied ranking, conflicts or evidence-sufficiency judgment. "
+            + "report that expresses the completed analysis artifacts and analysis-layer judgments. Preserve those analyses, "
+            + "and freely extend their evidence-grounded comparisons, synthesis, interpretations, hypotheses and scenarios. "
+            + "Do not invent stronger facts or silently replace supplied conflicts or evidence-sufficiency judgments. "
             + "Preserve each artifact's material evidence and reasoning; do not mechanically reproduce optional "
             + "confidence fields, alternative lists or caveats when they add no decision value. Do not replay raw tool output or execution "
             + "chronology. Use the supplied analysis and evidence, and verify any calculation you present. "
@@ -545,7 +543,7 @@ public final class FinalSynthesisNode {
             + "adaptiveAnalysisPrompt as a question-specific analytical brief, not a fixed outline. Choose the report "
             + "structure, emphasis, headings and narrative flow yourself in the user's language and business vocabulary; "
             + "combine, reorder or omit suggested sections whenever that improves clarity, while still answering the user. "
-            + "Use concise evidence tables for useful comparisons. If no "
+            + "When structured evidence can support comparison or verification, combine the narrative with concise, model-authored Markdown tables and interpret them in prose. If no "
             + "Claim is admitted, return a useful limited analysis and explicit human-review note "
             + "without inventing facts or suppressing the report. Evidence gaps are ADVISORY_ONLY and "
             + "never treat their count as a publication veto. Write in the user's language. Do not expose "

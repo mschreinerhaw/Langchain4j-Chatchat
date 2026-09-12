@@ -40,7 +40,8 @@ class ReportVisualizationAuditTest {
             dataset(spec).put("rows", List.of(forged));
             var result = audit.audit(report(spec), catalog(rows));
             assertThat(result.checks().get(0)).containsEntry("reason", "ROW_VALUE_OR_ENTITY_MISMATCH");
-            assertThat(result.markdown()).contains("有证据的结论。", "后续行动保持不变。", "已省略图表").doesNotContain("visualizationSpec");
+            assertThat(result.markdown()).contains("有证据的结论。", "后续行动保持不变。")
+                .doesNotContain("visualizationSpec", "已省略图表", "999");
         }
     }
     @Test void duplicateRowsCannotMultiplyAnObservation() {
@@ -138,7 +139,8 @@ class ReportVisualizationAuditTest {
             var result = audit.audit(report(spec), VerifiedReportDataCatalog.fromRuntime(
                 Map.of("runtimeReturnedReportDatasets", List.of(source))));
             assertThat(result.checks().get(0)).containsEntry("reason", "UNKNOWN_OR_PREAGGREGATED_METRIC");
-            assertThat(result.markdown()).contains("amount", "category").doesNotContain("VERIFIED_SOURCE_DATA");
+            assertThat(result.markdown()).contains("有证据的结论。", "后续行动保持不变。")
+                .doesNotContain("VERIFIED_SOURCE_DATA", "visualizationSpec");
         }
     }
     @Test void compilesRankingIntentToSortedHorizontalChart() {
@@ -152,7 +154,8 @@ class ReportVisualizationAuditTest {
         var spec = spec("line", "category", "amount");
         dataset(spec).put("rows", List.of(Map.of("category", "FORGED", "amount", 999)));
         var result = audit.audit(report(spec), catalog(rows));
-        assertThat(result.markdown()).contains("10", "20").doesNotContain("FORGED", "999");
+        assertThat(result.markdown()).contains("有证据的结论。", "后续行动保持不变。")
+            .doesNotContain("FORGED", "999", "visualizationSpec");
     }
     @Test void enforcesOperationAllowlistAndProducerUnits() {
         var source = ReturnedReportDataset.capture("returned:1", rows, Map.of("reportMetricPolicies", Map.of(

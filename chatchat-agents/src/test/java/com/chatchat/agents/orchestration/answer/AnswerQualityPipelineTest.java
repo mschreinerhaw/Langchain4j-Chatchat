@@ -219,11 +219,13 @@ class AnswerQualityPipelineTest {
             refusal, List.of(trace), metadata, List.of("result.records[0].value=42"));
 
         assertThat(result.answer())
-            .contains("Runtime 已确认本次执行返回了", "存在可用数据")
-            .doesNotContain("cannot be analyzed");
+            .contains("数据分析暂时不可用")
+            .doesNotContain("Runtime 已确认本次执行返回了", "cannot be analyzed");
         assertThat(result.metadata())
             .containsEntry("availableDataRefusalRejected", true)
-            .containsEntry("availableDataAnalysisFallbackApplied", true);
+            .containsEntry("modelAuthoredReportRequired", true)
+            .containsEntry("finalPayloadFallbackReason", "MODEL_AUTHORED_REPORT_REFUSED_AVAILABLE_DATA")
+            .doesNotContainKey("availableDataAnalysisFallbackApplied");
     }
 
     @Test

@@ -291,7 +291,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void summaryFailureFallsBackToPersistedEnterpriseMetadataFieldsInsteadOfEmptyResult() {
+    void summaryFailureDoesNotTurnPersistedMetadataIntoRuntimeAuthoredReport() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->
                 new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
@@ -340,16 +340,16 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("元数据匹配结果")
-            .contains("gdp_ads.ads_ids_clr_acc_liab_d_i")
-            .contains("acc_clas_code")
-            .contains("ACC_CLAS_CODE")
-            .contains("账户类别代码");
+            .contains("数据分析暂时不可用")
+            .doesNotContain("元数据匹配结果", "gdp_ads.ads_ids_clr_acc_liab_d_i",
+                "acc_clas_code", "ACC_CLAS_CODE", "账户类别代码");
         assertThat(result.toolTraces()).containsExactly(trace);
         assertThat(result.metadata())
             .containsEntry("summaryGenerated", false)
             .containsEntry("summaryFailure", "context length exceeded")
-            .containsEntry("deterministicFinalizationSource", "enterprise_metadata_field_discovery.v1")
+            .containsEntry("modelAuthoredReportRequired", true)
+            .containsEntry("finalPayloadFallbackReason", "MODEL_AUTHORED_REPORT_MISSING")
+            .doesNotContainKeys("deterministicFinalizationFallback", "deterministicFinalizationSource")
             .containsEntry("toolTraceCount", 1);
     }
 
@@ -407,7 +407,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void emptyModelAnswerFallsBackToDeterministicBatchExecutionReport() {
+    void emptyModelAnswerReturnsOperationalFailureInsteadOfRuntimeAuthoredReport() {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->
                 new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
@@ -439,14 +439,12 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             "", List.of(batch), new LinkedHashMap<>(), List.of());
 
         assertThat(result.answer())
-            .contains("MCP 批量诊断执行结果")
-            .contains("instance")
-            .contains("ORACLE_INSTANCE_STATUS")
-            .contains("locks")
-            .contains("查询执行超时");
+            .contains("数据分析暂时不可用")
+            .doesNotContain("MCP 批量诊断执行结果", "ORACLE_INSTANCE_STATUS", "ORACLE_LOCKS");
         assertThat(result.metadata())
-            .containsEntry("deterministicFinalizationFallback", true)
-            .containsEntry("deterministicFinalizationSource", "tool_call_batch_result");
+            .containsEntry("modelAuthoredReportRequired", true)
+            .containsEntry("finalPayloadFallbackReason", "MODEL_AUTHORED_REPORT_MISSING")
+            .doesNotContainKeys("deterministicFinalizationFallback", "deterministicFinalizationSource");
     }
 
     @Test

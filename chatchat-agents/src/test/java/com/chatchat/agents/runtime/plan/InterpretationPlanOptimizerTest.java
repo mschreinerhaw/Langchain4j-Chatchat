@@ -505,6 +505,60 @@ class InterpretationPlanOptimizerTest {
     }
 
     @Test
+    void preservesExistingCrossDomainBranchWhenRepairingTemplateExecutionBindings() {
+        String databaseDiscovery = "mcp_chatchat_mcp_server_database_capability_query";
+        String serverDiscovery = "mcp_chatchat_mcp_server_server_capability_query";
+        String sqlExecution = "mcp_chatchat_mcp_server_sql_query_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(
+            databaseDiscovery, serverDiscovery, sqlExecution));
+        when(registry.getWorkflowRole(databaseDiscovery)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(serverDiscovery)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(sqlExecution)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_execution", "database and host health", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", databaseDiscovery,
+                    Map.of("query", "DEV database"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", serverDiscovery,
+                    Map.of("query", "DEV host"), List.of(), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", sqlExecution,
+                    Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of(),
+                    List.of(2, 3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, true, List.of(databaseDiscovery, serverDiscovery, sqlExecution),
+                List.of(), 30000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.9, 0.1, true, List.of()), List.of())
+        );
+
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", databaseDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", serverDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", sqlExecution, "dependsOnTools", List.of(databaseDiscovery)));
+        InterpretationPlanOptimizer.OptimizationResult result =
+            new InterpretationPlanOptimizer(registry).optimize(plan, authoritativeDag);
+
+        InterpretationPlan.Step database = stepByTool(result.plan(), databaseDiscovery);
+        InterpretationPlan.Step server = stepByTool(result.plan(), serverDiscovery);
+        InterpretationPlan.Step execute = stepByTool(result.plan(), sqlExecution);
+        assertThat(execute.dependsOn()).contains(database.id()).doesNotContain(server.id());
+        assertThat(result.plan().plan().bindings())
+            .anySatisfy(binding -> {
+                assertThat(binding.from()).isEqualTo(database.id());
+                assertThat(binding.to()).isEqualTo(execute.id());
+            })
+            .noneSatisfy(binding -> {
+                assertThat(binding.from()).isEqualTo(server.id());
+                assertThat(binding.to()).isEqualTo(execute.id());
+            });
+    }
+
+    @Test
     void materializesLockedEdgeContractsForEveryRequiredBindingOnAuthorizedEdge() {
         String assetTool = "mcp_chatchat_mcp_server_ssh_asset_query";
         String templateTool = "mcp_chatchat_mcp_server_ssh_template_query";

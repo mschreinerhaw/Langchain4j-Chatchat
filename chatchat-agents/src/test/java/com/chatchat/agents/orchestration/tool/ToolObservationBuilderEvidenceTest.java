@@ -272,6 +272,41 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void batchExecutionRejectsReturnedTargetThatConflictsWithAuthorizedAssetIdentity() {
+        ToolCallResult locks = new ToolCallResult(
+            "run-oracle", "oracle-health", "locks", "locks",
+            "sql_query_execute", "sql_query_execute", "ORACLE_LOCKS", "ORACLE_LOCKS",
+            "asset-oracle", "风控oracle服务器", "db_query_oracle_wind_dev", 2,
+            true, "SUCCESS", true, 11L, "e-locks",
+            Map.of(
+                "schemaVersion", "tool_execution_result.v1",
+                "target", Map.of(
+                    "assetId", "asset-mysql-248",
+                    "name", "248测试数据库",
+                    "toolName", "db_query_mysql_248_test_db"),
+                "data", Map.of("rows", List.of(Map.of("SID", 101, "BLOCK", "NONE")))
+            ),
+            Map.of()
+        );
+        ToolCallBatchResult batch = new ToolCallBatchResult(
+            "oracle-health", "SEQUENTIAL", "start", "end", "SUCCESS",
+            new ToolCallBatchResult.Summary(1, 1, 0, 0, 0, 1), List.of(locks));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence("sql_query_execute", batch);
+
+        assertThat(evidence)
+            .contains("\"templateId\":\"ORACLE_LOCKS\"")
+            .contains("\"id\":\"asset-oracle\"")
+            .contains("\"name\":\"风控oracle服务器\"")
+            .contains("\"toolName\":\"db_query_oracle_wind_dev\"")
+            .contains("\"consistent\":false")
+            .contains("\"reportedTargetExcluded\":true")
+            .contains("TARGET_IDENTITY_MISMATCH")
+            .contains("\"evidenceUsable\":false")
+            .doesNotContain("248测试数据库", "db_query_mysql_248_test_db", "\"SID\":101");
+    }
+
+    @Test
     void batchExecutionEvidenceAcceptsUnscheduledChildWithoutOptionalToolIdentity() {
         ToolCallBatchResult batch = new ToolCallBatchResult(
             "database-health", "SEQUENTIAL", "start", "end", "BATCH_COMPILATION_INCOMPLETE",

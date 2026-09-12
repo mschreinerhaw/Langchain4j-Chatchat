@@ -14,8 +14,9 @@ public final class GovernedRecordFinalPromptBuilder {
             prompt.append("System instruction:\n").append(systemInstruction).append("\n\n");
         }
         prompt.append("""
-            You are the final report author synthesizing completed Worker/Reducer analyses.
-            Answer the original question in Chinese with a complete, polished Markdown report.
+            You are the sole author of the final report, synthesizing completed Worker/Reducer analyses.
+            Answer the original question in Chinese with a complete, polished Markdown report. Runtime will not
+            assemble, supplement or rewrite the business-analysis body, so the report must be self-contained.
 
             Analytical task:
             1. Identify the user's decision need. Use agent_role_analysis_context attached to governed inputs
@@ -52,9 +53,15 @@ public final class GovernedRecordFinalPromptBuilder {
             outline. Choose the report structure, headings, order, depth and narrative flow yourself; explicit user
             formatting takes precedence. Combine, reorder or omit suggested sections whenever that produces a
             clearer and more insightful answer. Each section adds evidence or interpretation;
-            the summary compresses the body without strengthening it. Use evidence-backed Markdown tables for
-            comparisons and clear units in headers. Tables support the explanation, not replace it. Select useful
-            rows and disclose any selection or truncation. Existing table controls provide interactive charts.
+            the summary compresses the body without strengthening it. Whenever structured evidence materially
+            supports comparison, diagnosis or verification, combine explanatory prose with one or more compact,
+            evidence-backed Markdown tables. You decide the useful tables, columns, rows and placement. Preserve
+            exact labels, values, units, periods and scope; disclose any selection or truncation. Interpret each
+            table in prose: tables support analysis and verification but never replace it. Existing table controls
+            provide interactive charts.
+            Use facts -> derived indicators -> cross-validation -> patterns -> interpretation -> hypotheses ->
+            scenarios -> risks -> gaps -> actions as an adaptive reasoning loop where useful, not as mandatory
+            headings, a fixed sequence or a checklist. Combine, reorder or omit lenses to fit this question.
             Keep the report understandable without claim IDs, tools, templates or workflow chronology.
 
             Before returning, silently reconcile values and scope across summary, detail and actions; remove

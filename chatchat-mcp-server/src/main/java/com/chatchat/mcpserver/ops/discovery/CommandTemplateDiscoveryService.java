@@ -864,7 +864,10 @@ public class CommandTemplateDiscoveryService {
                 "type", assetType,
                 "targetKind", targetKindRegistry.targetKindForAssetType(assetType),
                 "scoped", hasAssetScope(filters),
-                "selected", resolvedAssets.isEmpty() ? null : resolvedAssets.get(0),
+                // Candidate order is retrieval evidence, not an asset-selection decision. Publishing
+                // candidates[0] as selected caused an environment-wide query to silently bind the
+                // alphabetically first asset. Only a unique resolved asset is canonical here.
+                "selected", resolvedAssets.size() == 1 ? resolvedAssets.get(0) : null,
                 "candidates", resolvedAssets
             ),
             "intent", mapOf(

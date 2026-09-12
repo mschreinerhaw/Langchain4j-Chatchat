@@ -470,11 +470,16 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
                     changed = true;
                 }
             }
-            List<InterpretationPlan.Step> configuredPredecessors = mayRepairWorkflowEdges
-                ? templates
-                : templates.stream()
-                    .filter(template -> dependsOnTransitively(executor.id(), template.id(), steps, new LinkedHashSet<>()))
-                    .toList();
+            List<InterpretationPlan.Step> branchPredecessors = templates.stream()
+                .filter(template -> dependsOnTransitively(
+                    executor.id(), template.id(), steps, new LinkedHashSet<>()))
+                .toList();
+            // An existing dependency is a branch boundary, even when this pass is allowed
+            // to repair missing workflow edges. Falling back to every discovery node here
+            // can bind a SQL executor to an unrelated host/API discovery merely because
+            // that sibling has a later step id.
+            List<InterpretationPlan.Step> configuredPredecessors = branchPredecessors.isEmpty()
+                && mayRepairWorkflowEdges ? templates : branchPredecessors;
             InterpretationPlan.Step template = bestProtocolPredecessor(executor, configuredPredecessors);
             if (template == null) {
                 continue;

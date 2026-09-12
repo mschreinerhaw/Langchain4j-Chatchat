@@ -33,7 +33,7 @@ or downstream binaries still require the old method shape.
 | Answer finalization port | `AgentAnswerFinalizationPort` | tool execution and plan scheduling |
 | Answer review execution | `AnswerReviewCoordinator` | candidate selection and user-facing rendering |
 | User-facing answer policy | `AnswerUserFacingPolicy` | reviewer invocation and workflow execution |
-| Deterministic reports | `DeterministicAnswerReportRenderer` | answer selection and model review |
+| Report authorship | final synthesis model | Runtime-authored business prose, sections, conclusions and tables |
 | Result presentation | `AgentResultPresentationService` | model review and workflow completion |
 | Evidence graph | `AgentEvidenceGraphService` | lifecycle decisions and UI rendering |
 | Interpretation evidence analysis | `InterpretationPlanEvidenceAnalyzer` | scheduling and final-answer rendering |

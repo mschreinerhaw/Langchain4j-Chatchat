@@ -179,10 +179,6 @@ class AgentOrchestratorArchitectureTest {
             MAX_DOMAIN_COMPONENT_LINES,
             "User-facing answer presentation must remain independent from candidate review");
         assertSourceLineCount(
-            "src/main/java/com/chatchat/agents/orchestration/answer/DeterministicAnswerReportRenderer.java",
-            MAX_DOMAIN_COMPONENT_LINES,
-            "Deterministic report rendering must remain independent from answer selection");
-        assertSourceLineCount(
             "src/main/java/com/chatchat/agents/orchestration/answer/AnswerReviewCoordinator.java",
             MAX_DOMAIN_COMPONENT_LINES,
             "Reviewer execution and fallback must remain independent from final answer policy");

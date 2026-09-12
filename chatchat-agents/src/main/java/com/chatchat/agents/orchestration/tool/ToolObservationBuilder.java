@@ -534,7 +534,24 @@ public class ToolObservationBuilder {
             return Map.copyOf(projection);
         }
         putIfPresent(projection, "sourceSchemaVersion", output.get("schemaVersion"));
-        putIfPresent(projection, "target", output.get("target"));
+        Map<String, Object> reportedTarget = asMap(output.get("target"));
+        boolean targetIdentityMismatch = batchTargetIdentityMismatch(result, reportedTarget);
+        Map<String, Object> canonicalTarget = canonicalBatchTarget(result, reportedTarget);
+        putIfPresent(projection, "target", canonicalTarget);
+        projection.put("targetIdentity", Map.of(
+            "authority", "AUTHORIZED_BATCH_CALL",
+            "consistent", !targetIdentityMismatch,
+            "reportedTargetExcluded", targetIdentityMismatch
+        ));
+        if (targetIdentityMismatch) {
+            projection.put("evidenceUsable", false);
+            projection.put("resultSetState", "UNAVAILABLE");
+            projection.put("error", Map.of(
+                "code", "TARGET_IDENTITY_MISMATCH",
+                "message", "Returned target identity does not match the authorized batch call"
+            ));
+            return Map.copyOf(projection);
+        }
         putIfPresent(projection, "analysisContext", output.get("analysisContext"));
         putAnalysisProjection(projection, resultSetId, result.output(), false);
         Map<String, Object> data = asMap(output.get("data"));
@@ -579,6 +596,42 @@ public class ToolObservationBuilder {
             }
         }
         return Map.copyOf(projection);
+    }
+
+    private Map<String, Object> canonicalBatchTarget(ToolCallResult result,
+                                                     Map<String, Object> reportedTarget) {
+        Map<String, Object> target = new LinkedHashMap<>(reportedTarget);
+        if (result.assetId() != null && !result.assetId().isBlank()) {
+            target.put("id", result.assetId());
+            target.put("assetId", result.assetId());
+        }
+        if (result.assetDisplayName() != null && !result.assetDisplayName().isBlank()) {
+            target.put("name", result.assetDisplayName());
+            target.put("displayName", result.assetDisplayName());
+        }
+        if (result.assetToolName() != null && !result.assetToolName().isBlank()) {
+            target.put("toolName", result.assetToolName());
+        }
+        return target.isEmpty() ? Map.of() : Map.copyOf(target);
+    }
+
+    private boolean batchTargetIdentityMismatch(ToolCallResult result,
+                                                Map<String, Object> reportedTarget) {
+        if (reportedTarget.isEmpty()) {
+            return false;
+        }
+        String reportedAssetId = firstNonBlank(stringValue(reportedTarget.get("assetId")),
+            stringValue(reportedTarget.get("id")));
+        String reportedToolName = firstNonBlank(stringValue(reportedTarget.get("toolName")),
+            stringValue(reportedTarget.get("assetToolName")));
+        return differentNonBlank(result.assetId(), reportedAssetId)
+            || differentNonBlank(result.assetToolName(), reportedToolName);
+    }
+
+    private boolean differentNonBlank(String authorized, String reported) {
+        return authorized != null && !authorized.isBlank()
+            && reported != null && !reported.isBlank()
+            && !authorized.equals(reported);
     }
 
     private void putAnalysisProjection(Map<String, Object> target,

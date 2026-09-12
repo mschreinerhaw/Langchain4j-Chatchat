@@ -7,6 +7,7 @@ import com.chatchat.common.knowledge.KnowledgeRequest;
 import com.chatchat.common.knowledge.KnowledgeSkillPlan;
 import com.chatchat.common.knowledge.KnowledgeType;
 import com.chatchat.common.knowledge.TokenEstimator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -18,9 +19,12 @@ import java.util.Map;
 
 /** Compiles only task-relevant IR and applies a conservative hard context budget. */
 @Component
+@Slf4j
 public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompilerPort {
 
     private final TokenEstimator tokenEstimator;
+    private final LangChain4jKnowledgeFusion knowledgeFusion;
+    private final LangChain4jDomainSkillAdapter domainSkillAdapter;
 
     public BudgetedKnowledgeContextCompiler() {
         this(new CjkAwareTokenEstimator());
@@ -29,21 +33,27 @@ public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompile
     @Autowired
     public BudgetedKnowledgeContextCompiler(TokenEstimator tokenEstimator) {
         this.tokenEstimator = tokenEstimator;
+        this.knowledgeFusion = new LangChain4jKnowledgeFusion();
+        this.domainSkillAdapter = new LangChain4jDomainSkillAdapter();
     }
 
     @Override
     public KnowledgeContext compile(KnowledgeRequest request,
                                     KnowledgeSkillPlan plan,
                                     List<KnowledgeIR> units) {
+        List<KnowledgeIR> rankedUnits = knowledgeFusion.fuse(request,
+            units == null ? List.of() : units.stream().filter(java.util.Objects::nonNull).toList());
         Map<String, KnowledgeIR> unique = new LinkedHashMap<>();
-        if (units != null) {
-            units.stream().filter(java.util.Objects::nonNull)
-                .sorted(Comparator.comparingDouble(this::weightedRelevance).reversed())
-                .forEach(unit -> unique.putIfAbsent(dedupKey(unit), unit));
-        }
+        rankedUnits.forEach(unit -> unique.putIfAbsent(dedupKey(unit), unit));
         List<KnowledgeIR> selected = new ArrayList<>();
         StringBuilder compiled = new StringBuilder();
         boolean truncated = false;
+        String activatedSkills = rankedUnits.isEmpty()
+            ? "" : domainSkillAdapter.renderActivatedSkills(plan, rankedUnits);
+        int activatedSkillTokens = tokenEstimator.estimate(activatedSkills);
+        if (!activatedSkills.isBlank() && activatedSkillTokens <= Math.max(1, request.maxTokens() / 4)) {
+            compiled.append(activatedSkills.strip());
+        }
         for (KnowledgeIR unit : unique.values()) {
             String block = render(unit);
             int remaining = request.maxTokens() - tokenEstimator.estimate(compiled.toString());
@@ -56,16 +66,25 @@ public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompile
                 truncated = true;
             }
             if (!block.isBlank()) {
-                if (!compiled.isEmpty()) compiled.append('\n');
+                if (!compiled.isEmpty()) compiled.append("\n\n");
                 compiled.append(block);
                 selected.add(unit);
             }
             if (truncated) break;
         }
+        String compiledValue = compiled.toString();
+        if (tokenEstimator.estimate(compiledValue) > request.maxTokens()) {
+            compiledValue = truncateToTokenBudget(compiledValue, request.maxTokens());
+            truncated = true;
+        }
         List<com.chatchat.common.knowledge.KnowledgeSourceReference> sources = selected.stream()
             .map(KnowledgeIR::source).filter(java.util.Objects::nonNull).distinct().toList();
-        int used = tokenEstimator.estimate(compiled.toString());
-        return new KnowledgeContext(KnowledgeContext.SCHEMA_VERSION, plan, selected, compiled.toString(),
+        int used = tokenEstimator.estimate(compiledValue);
+        log.info("knowledgeContextCompiled framework=langchain4j skills=true fusion=rrf "
+                + "plannedSkills={} rawUnits={} fusedUnits={} selectedUnits={} sourceCount={} tokens={} truncated={}",
+            plan == null ? 0 : plan.skills().size(), units == null ? 0 : units.size(), rankedUnits.size(),
+            selected.size(), sources.size(), used, truncated);
+        return new KnowledgeContext(KnowledgeContext.SCHEMA_VERSION, plan, selected, compiledValue,
             sources, used, request.maxTokens(), truncated, compiled.isEmpty() ? "empty" : "used");
     }
 

@@ -135,7 +135,7 @@ chatchat:
     execution-timeout-ms: ${CHATCHAT_AGENT_EXECUTION_TIMEOUT_MS:900000}
     adaptive-analysis-prompt-model-enabled: ${CHATCHAT_ADAPTIVE_ANALYSIS_PROMPT_MODEL_ENABLED:true}
     unified-analysis-max-evidence-rounds: ${CHATCHAT_UNIFIED_ANALYSIS_MAX_EVIDENCE_ROUNDS:2}
-    unified-analysis-report-draft-enabled: ${CHATCHAT_UNIFIED_ANALYSIS_REPORT_DRAFT_ENABLED:false}
+    unified-analysis-report-draft-enabled: ${CHATCHAT_UNIFIED_ANALYSIS_REPORT_DRAFT_ENABLED:true}
     temporal:
       target: ${CHATCHAT_TEMPORAL_TARGET:127.0.0.1:7233}
       namespace: ${CHATCHAT_TEMPORAL_NAMESPACE:default}

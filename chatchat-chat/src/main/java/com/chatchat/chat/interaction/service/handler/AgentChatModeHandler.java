@@ -445,7 +445,6 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                     request.getTenantId(), request.getUserId(), documentIds, documentTags, List.of()),
                 null, Map.of("modelName", modelName == null ? "" : modelName,
                     "executionMode", "TOOL_AGENT",
-                    "preferDeterministicPlan", true,
                     "knowledgeSkillTimeoutMs", runtimePolicy.knowledgeSkillTimeoutMs())));
             log.info("agentDomainKnowledgeRetrieved skillId={} status={} used={} sourceCount={} "
                     + "estimatedTokens={} maxTokens={} truncated={} skillCount={}",

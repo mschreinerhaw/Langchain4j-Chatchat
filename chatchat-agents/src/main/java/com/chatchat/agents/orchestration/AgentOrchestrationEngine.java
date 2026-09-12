@@ -4007,13 +4007,23 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "templateId", "template_id", "id", "code", "template")))
             .filter(Objects::nonNull)
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        List<String> auditedSelected = corrected.stream()
-            .filter(returned::contains).distinct().toList();
         List<String> auditedRejected = stringList(firstObject(
             audit, "corrected_rejected_template_ids", "correctedRejectedTemplateIds")).stream()
             .filter(returned::contains)
-            .filter(id -> !auditedSelected.contains(id))
             .distinct()
+            .toList();
+        // Coverage audit is additive: it may restore a missed complementary source, but it must
+        // not silently demote a source already admitted by the question-aware first pass. A
+        // removal is allowed only when the auditor explicitly rejects that candidate. This keeps
+        // the two model calls as independent semantic checks without turning the second call into
+        // a quality-reducing re-selection pass.
+        LinkedHashSet<String> auditedSelection = new LinkedHashSet<>();
+        selected.stream().filter(returned::contains).forEach(auditedSelection::add);
+        corrected.stream().filter(returned::contains).forEach(auditedSelection::add);
+        auditedRejected.forEach(auditedSelection::remove);
+        List<String> auditedSelected = List.copyOf(auditedSelection);
+        List<String> finalAuditedRejected = auditedRejected.stream()
+            .filter(id -> !auditedSelected.contains(id))
             .toList();
         Boolean coverageComplete = booleanValue(firstObject(
             audit, "coverage_complete", "coverageComplete"));
@@ -4038,10 +4048,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         Map<String, Object> revised = new LinkedHashMap<>(provisional);
         revised.put("selected_template_ids", auditedSelected);
-        revised.put("rejected_template_ids", auditedRejected);
+        revised.put("rejected_template_ids", finalAuditedRejected);
         revised.put("deferred_template_ids", returned.stream()
             .filter(id -> !auditedSelected.contains(id))
-            .filter(id -> !auditedRejected.contains(id)).toList());
+            .filter(id -> !finalAuditedRejected.contains(id)).toList());
         revised.put("supportsQuestionAspect", stringList(firstObject(
             audit, "requested_aspects", "requestedAspects")));
         revised.put("missingAspects", stringList(firstObject(

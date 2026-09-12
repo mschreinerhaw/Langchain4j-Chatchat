@@ -93,6 +93,7 @@ class AgentChatModeHandlerTest {
         assertThat(retrieval.getValue().scope().documentIds()).containsExactly("doc-risk-policy");
         assertThat(retrieval.getValue().scope().tenantId()).isEqualTo("tenant-a");
         assertThat(retrieval.getValue().maxTokens()).isEqualTo(1500);
+        assertThat(retrieval.getValue().attributes()).doesNotContainKey("preferDeterministicPlan");
         assertThat(availableTools.getValue()).containsExactly("mcp_customer_assets");
         assertThat(systemPrompt.getValue())
             .contains("<domain_knowledge>", "</domain_knowledge>", "<tool_evidence>")

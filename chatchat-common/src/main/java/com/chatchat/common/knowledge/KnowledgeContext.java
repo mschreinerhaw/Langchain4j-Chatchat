@@ -52,6 +52,16 @@ public record KnowledgeContext(
         projection.put("truncated", truncated);
         projection.put("skillTypes", plan == null ? List.of() : plan.skills().stream()
             .map(skill -> skill.skillType().name()).distinct().toList());
+        projection.put("activatedSkills", plan == null ? List.of() : plan.skills().stream().map(skill -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("instanceId", skill.instanceId());
+            item.put("skillType", skill.skillType().name());
+            putIfPresent(item, "domain", skill.domain());
+            putIfPresent(item, "goal", skill.goal());
+            item.put("queryHints", skill.queryHints());
+            item.put("priority", skill.priority());
+            return Map.copyOf(item);
+        }).toList());
         projection.put("sources", sources.stream().filter(java.util.Objects::nonNull).map(source -> {
             Map<String, Object> item = new LinkedHashMap<>();
             putIfPresent(item, "sourceId", source.sourceId());

@@ -57,7 +57,7 @@ public class AgentRuntimeProperties {
     /** Maximum unified evidence/model rounds. One is the production fast path. */
     private int unifiedAnalysisMaxEvidenceRounds = 2;
     /** Reuses the evidence-bound Markdown authored by unified analysis as the final report. */
-    private boolean unifiedAnalysisReportDraftEnabled = false;
+    private boolean unifiedAnalysisReportDraftEnabled = true;
     /** Governs lossless analysis chunk boundaries only; it never truncates returned evidence. */
     private int recordAnalysisChunkMaxChars = 12_000;
     /** Governs lossless analysis chunk boundaries only; every returned record remains covered. */

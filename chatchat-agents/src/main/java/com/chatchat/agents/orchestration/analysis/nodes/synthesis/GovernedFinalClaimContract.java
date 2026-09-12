@@ -478,7 +478,7 @@ final class GovernedFinalClaimContract {
             + "\n\nFinal deliverable: return only the complete model-authored Markdown report. "
             + "Choose its title, organization, depth, tables and explanatory narrative from the user's "
             + "question and available evidence. Do not return JSON as the report envelope, findings fields or a review form. "
-            + "When adaptiveAnalysisPrompt.output is supplied, use its order as localized H2 section guidance; "
+            + "When adaptiveAnalysisPrompt.output is supplied, treat it as an ordered H2 section plan and use its order as localized H2 section guidance; "
             + "explicit user formatting takes precedence, overlapping sections may be combined and empty ones omitted. "
             + "Support important comparisons with compact Markdown tables, preserving labels, units, periods and "
             + "source values. Existing table controls can visualize those datasets without a computed dataRef. "

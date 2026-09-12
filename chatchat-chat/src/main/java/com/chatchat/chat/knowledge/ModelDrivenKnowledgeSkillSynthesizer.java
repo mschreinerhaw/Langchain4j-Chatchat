@@ -59,7 +59,7 @@ public class ModelDrivenKnowledgeSkillSynthesizer implements KnowledgeSkillSynth
             Return JSON only: {"skills":[{"skillType":"RULE_LOOKUP","domain":"...","goal":"...","queryHints":["..."],"priority":1}]}.
             Allowed skillType values: %s
             Rules:
-            - Select at most 4 skills and only from the allowed list.
+            - Select at most 6 skills and only from the allowed list.
             - Generate goals and query hints, never code, SQL, URLs, tool calls, or document IDs.
             - Ask only for knowledge needed to solve the current task.
             - Include constraints when conclusions may be regulated, risky, or easily overstated.
@@ -75,7 +75,7 @@ public class ModelDrivenKnowledgeSkillSynthesizer implements KnowledgeSkillSynth
         if (!nodes.isArray() || nodes.isEmpty()) throw new IllegalArgumentException("skills array is required");
         List<PlannedSkill> planned = new ArrayList<>();
         for (JsonNode node : nodes) {
-            if (planned.size() >= 4) break;
+            if (planned.size() >= 6) break;
             KnowledgeSkillType type = parseType(node.path("skillType").asText(), request);
             String goal = node.path("goal").asText("").trim();
             if (goal.isBlank()) continue;

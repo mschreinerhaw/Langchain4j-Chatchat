@@ -243,16 +243,6 @@ public final class FinalSynthesisNode {
         GovernedFinalClaimContract.DriverAudit driverAudit = null;
         if (reuseUnifiedReportDraft) {
             answer = unifiedReportDraft;
-            if (selfContainedCurrentTableBrief
-                && !(answer.contains("表名") && answer.contains("快照")
-                    && answer.contains("流水"))) {
-                answer += "\n\n## 口径与适用性提醒\n\n"
-                    + "表名中的“盈亏流水”与产品简介中的“某一统计日期最新持仓”"
-                    + "存在明显口径差异。按当前简介，应先把它视为持仓快照类数据；"
-                    + "如果要分析历史逐笔盈亏变化、成交流水或完整交易过程，"
-                    + "仅凭当前简介所描述的这张表不一定适合，应优先查找真正的历史盈亏流水或成交明细表。";
-                request.metadata().put("selfContainedTableSemanticBoundaryAppended", true);
-            }
             request.metadata().put("analysisDriverRawResponseChars", answer.length());
             request.metadata().put("analysisReportGenerationMode", selfContainedCurrentTableBrief
                 ? "SELF_CONTAINED_PLANNER_AUTHORED_MARKDOWN"

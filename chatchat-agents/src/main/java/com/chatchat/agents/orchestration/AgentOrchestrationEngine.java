@@ -877,6 +877,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         List<String> plannerVisibleTools = toolNames.plannerVisibleTools(tools);
         Map<String, List<String>> plannerInternalDelegations =
             toolNames.plannerInternalDelegations(tools);
+        List<String> configuredOptionalTools = metadataStringList(
+            requestRuntimeAttributes, "plannerOptionalTools");
+        List<String> resolvedMandatoryTools = List.copyOf(mandatoryTools);
+        List<String> plannerOptionalTools = (configuredOptionalTools.isEmpty()
+            ? plannerVisibleTools : configuredOptionalTools).stream()
+            .filter(tool -> containsSameTool(plannerVisibleTools, tool))
+            .filter(tool -> !containsSameTool(resolvedMandatoryTools, tool))
+            .distinct()
+            .toList();
+        requestRuntimeAttributes.put("plannerOptionalTools", plannerOptionalTools);
         if (!mandatoryTools.isEmpty() && !runtimeGuard.hasConfiguredMaxSteps(requestRuntimeAttributes)) {
             maxSteps = Math.max(maxSteps, mandatoryTools.size() + 1);
         }
@@ -931,6 +941,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         metadata.put("webSearchResultLimit", webSearchResultLimit);
         metadata.put("mandatoryToolCall", requireToolBeforeFinal);
         metadata.put("mandatoryTools", mandatoryTools);
+        metadata.put("optionalTools", plannerOptionalTools);
         metadata.put("workflowMandatoryTools", workflowMandatoryTools);
         metadata.put("authoritativeWorkflowDag", authoritativeWorkflowDag);
         metadata.put("authoritativeWorkflowTaskId", authoritativeWorkflowTaskId);

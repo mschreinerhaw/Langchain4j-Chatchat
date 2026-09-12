@@ -49,6 +49,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -192,11 +193,19 @@ public class AgentPlanner implements AgentPlanningPort {
             candidateScorer.experiencePrior(runtimeAttributes),
             AgentPlanBudgetPolicy.fromRuntimeAttributes(runtimeAttributes),
             authoritativeWorkflowDagForPlanning(runtimeAttributes),
-            runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow")
+            runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow"),
+            stringList(runtimeAttributes == null ? null : runtimeAttributes.get("plannerOptionalTools"))
         );
-        var nativeDecision = RuntimeDesignatedFunctionCallingAdapter.decide(nativeToolCallingPlanner,
-            toolRegistry, activeChatModel, query, systemPrompt, availableTools, observations,
-            requireDocumentWebVerification, runtimeAttributes);
+        List<String> optionalTools = validationContext.optionalTools();
+        // Native function calling selects a single call and therefore cannot express the
+        // Runtime OS applicability ledger for a cross-domain optional tool set. Route such
+        // requests through InterpretationPlan generation so the model evaluates every
+        // authorized candidate before constructing the execution DAG.
+        var nativeDecision = optionalTools.isEmpty()
+            ? RuntimeDesignatedFunctionCallingAdapter.decide(nativeToolCallingPlanner,
+                toolRegistry, activeChatModel, query, systemPrompt, availableTools, observations,
+                requireDocumentWebVerification, runtimeAttributes)
+            : java.util.Optional.<AgentDecision>empty();
         if (nativeDecision.isPresent()) {
             AgentDecision call = nativeDecision.get();
             Map<String, Object> payload = Map.of(
@@ -738,6 +747,7 @@ public class AgentPlanner implements AgentPlanningPort {
             validateAuthoritativeWorkflowDependencies(
                 context.authoritativeWorkflowDag(), stepsById, toolStepIds, issues);
         }
+        validateOptionalToolDecisions(plan, context, stepsById, toolStepIds, finalStep, issues);
         if (context.requireDocumentWebVerification()) {
             Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
             Integer webStepId = firstToolStepId(toolStepIds, context.verificationWebSearchTool());
@@ -764,6 +774,66 @@ public class AgentPlanner implements AgentPlanningPort {
         validateAssetDiscoveryIsNotGuessed(plan, context, toolStepIds, issues);
         validateWebSearchCrawlerSplit(plan, context, stepsById, toolStepIds, finalStep, issues);
         return issues;
+    }
+
+    private void validateOptionalToolDecisions(InterpretationPlan plan,
+                                               PlannerValidationContext context,
+                                               Map<Integer, InterpretationPlan.Step> stepsById,
+                                               Map<String, List<Integer>> toolStepIds,
+                                               InterpretationPlan.Step finalStep,
+                                               List<String> issues) {
+        List<String> optionalTools = normalizeList(context.optionalTools());
+        if (optionalTools.isEmpty()) {
+            return;
+        }
+        List<InterpretationPlan.OptionalToolDecision> decisions = plan.review() == null
+            || plan.review().optionalToolDecisions() == null
+            ? List.of() : plan.review().optionalToolDecisions();
+        Map<String, List<InterpretationPlan.OptionalToolDecision>> byTool = decisions.stream()
+            .filter(Objects::nonNull)
+            .filter(decision -> decision.toolName() != null && !decision.toolName().isBlank())
+            .collect(java.util.stream.Collectors.groupingBy(
+                decision -> decision.toolName().trim().toLowerCase(Locale.ROOT),
+                LinkedHashMap::new,
+                java.util.stream.Collectors.toList()));
+
+        for (String optionalTool : optionalTools) {
+            List<InterpretationPlan.OptionalToolDecision> matches = byTool.getOrDefault(
+                optionalTool.toLowerCase(Locale.ROOT), List.of());
+            if (matches.size() != 1) {
+                issues.add("Optional tool must have exactly one applicability decision: " + optionalTool);
+                continue;
+            }
+            InterpretationPlan.OptionalToolDecision decision = matches.get(0);
+            String disposition = decision.decision() == null
+                ? "" : decision.decision().trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("SELECT", "SKIP").contains(disposition)) {
+                issues.add("Optional tool decision must be SELECT or SKIP: " + optionalTool);
+                continue;
+            }
+            if (decision.reason() == null || decision.reason().isBlank()) {
+                issues.add("Optional tool decision requires a request-specific reason: " + optionalTool);
+            }
+            Integer toolStepId = firstToolStepId(toolStepIds, optionalTool);
+            if ("SELECT".equals(disposition)) {
+                if (decision.questionAspects() == null || decision.questionAspects().isEmpty()) {
+                    issues.add("Selected optional tool must identify supported question aspects: " + optionalTool);
+                }
+                if (toolStepId == null) {
+                    issues.add("Selected optional tool is missing from InterpretationPlan: " + optionalTool);
+                } else if (finalStep == null
+                    || !dependsOnStep(finalStep.id(), toolStepId, stepsById, new LinkedHashSet<>())) {
+                    issues.add("final_answer must depend on selected optional tool evidence: " + optionalTool);
+                }
+            } else if (toolStepId != null) {
+                issues.add("Skipped optional tool must not appear in InterpretationPlan: " + optionalTool);
+            }
+        }
+        for (String decidedTool : byTool.keySet()) {
+            if (optionalTools.stream().noneMatch(tool -> tool.equalsIgnoreCase(decidedTool))) {
+                issues.add("Optional tool decision references a non-candidate tool: " + decidedTool);
+            }
+        }
     }
 
     private void validateAuthoritativeWorkflowDependencies(Object rawDag,

@@ -147,6 +147,22 @@ public final class InterpretationPlanPayloadNormalizer {
                 review.put("self_check", selfCheck);
             }
             alias(review, "fallbackPlan", "fallback_plan");
+            alias(review, "optionalToolDecisions", "optional_tool_decisions");
+            Object optionalDecisions = review.get("optional_tool_decisions");
+            if (optionalDecisions instanceof List<?> decisions) {
+                List<Object> normalizedDecisions = new ArrayList<>();
+                for (Object item : decisions) {
+                    Map<String, Object> decision = mutableMap(item);
+                    if (decision.isEmpty()) {
+                        normalizedDecisions.add(item);
+                        continue;
+                    }
+                    alias(decision, "toolName", "tool_name");
+                    alias(decision, "questionAspects", "question_aspects");
+                    normalizedDecisions.add(decision);
+                }
+                review.put("optional_tool_decisions", normalizedDecisions);
+            }
             normalized.put("review", review);
         }
         return normalized;

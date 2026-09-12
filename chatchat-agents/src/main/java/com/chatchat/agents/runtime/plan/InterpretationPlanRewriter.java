@@ -605,7 +605,12 @@ public class InterpretationPlanRewriter {
         }
         InterpretationPlan.Review normalizedReview = new InterpretationPlan.Review(
             selfCheck,
-            review == null || review.fallbackPlan() == null ? List.of() : review.fallbackPlan()
+            review == null || review.fallbackPlan() == null ? List.of() : review.fallbackPlan(),
+            review != null && review.optionalToolDecisions() != null
+                ? review.optionalToolDecisions()
+                : originalPlan != null && originalPlan.review() != null
+                    && originalPlan.review().optionalToolDecisions() != null
+                    ? originalPlan.review().optionalToolDecisions() : List.of()
         );
         InterpretationPlan.Plan normalizedBody = new InterpretationPlan.Plan(
             normalizedSteps,

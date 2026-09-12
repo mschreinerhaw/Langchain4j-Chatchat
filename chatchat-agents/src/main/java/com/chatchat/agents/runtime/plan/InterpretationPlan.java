@@ -351,10 +351,31 @@ public record InterpretationPlan(
         @JsonProperty("self_check")
         SelfCheck selfCheck,
         @JsonProperty("fallback_plan")
-        List<String> fallbackPlan
+        List<String> fallbackPlan,
+        @JsonProperty("optional_tool_decisions")
+        List<OptionalToolDecision> optionalToolDecisions
     ) {
         public Review {
             fallbackPlan = immutableList(fallbackPlan);
+            optionalToolDecisions = immutableList(optionalToolDecisions);
+        }
+
+        public Review(SelfCheck selfCheck, List<String> fallbackPlan) {
+            this(selfCheck, fallbackPlan, List.of());
+        }
+    }
+
+    /** Model-owned applicability decision for one Runtime-authorized optional tool. */
+    public record OptionalToolDecision(
+        @JsonProperty("tool_name")
+        String toolName,
+        String decision,
+        String reason,
+        @JsonProperty("question_aspects")
+        List<String> questionAspects
+    ) {
+        public OptionalToolDecision {
+            questionAspects = immutableList(questionAspects);
         }
     }
 

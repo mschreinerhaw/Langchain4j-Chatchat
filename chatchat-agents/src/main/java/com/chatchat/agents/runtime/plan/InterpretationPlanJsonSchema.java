@@ -254,7 +254,21 @@ public final class InterpretationPlanJsonSchema {
                     "missing_steps": {"type": "array", "items": {"type": "string"}}
                   }
                 },
-                "fallback_plan": {"type": "array", "items": {"type": "string"}}
+                "fallback_plan": {"type": "array", "items": {"type": "string"}},
+                "optional_tool_decisions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["tool_name", "decision", "reason", "question_aspects"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "tool_name": {"type": "string"},
+                      "decision": {"type": "string", "enum": ["SELECT", "SKIP"]},
+                      "reason": {"type": "string"},
+                      "question_aspects": {"type": "array", "items": {"type": "string"}}
+                    }
+                  }
+                }
               }
             }
           }

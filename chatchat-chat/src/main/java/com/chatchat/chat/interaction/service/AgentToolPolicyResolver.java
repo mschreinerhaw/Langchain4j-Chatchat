@@ -79,10 +79,14 @@ public class AgentToolPolicyResolver {
         boolean hasMcpBinding = hasMcpBinding(skill);
         Map<String, String> skippedToolReasons = new LinkedHashMap<>(workflowTools.skippedToolReasons());
         skippedToolReasons.putAll(selection.skippedToolReasons());
+        List<String> optionalTools = selection.availableTools().stream()
+            .filter(tool -> requiredTools.stream().noneMatch(required -> required.equalsIgnoreCase(tool)))
+            .toList();
 
         return new ToolPolicy(
             selection.availableTools(),
             requiredTools,
+            optionalTools,
             hasMcpBinding,
             !requiredTools.isEmpty(),
             activations.stream().map(ToolActivation::intentName).toList(),
@@ -457,7 +461,6 @@ public class AgentToolPolicyResolver {
                 .thenComparing(ScoredTool::toolName))
             .toList();
 
-        boolean hasRelevantMcpSignal = !scoredMcpTools.isEmpty();
         int maxRelevantMcpTools = resolveMaxRelevantMcpTools(skill);
         Set<String> selectedMcpTools = scoredMcpTools.stream()
             .limit(maxRelevantMcpTools)
@@ -470,24 +473,12 @@ public class AgentToolPolicyResolver {
             .forEach(ordered::add);
         selectedMcpTools.forEach(ordered::add);
 
-        for (String toolName : normalizedTools) {
-            if (ordered.contains(toolName)) {
-                continue;
-            }
-            if (hasRelevantMcpSignal && isMcpToolName(toolName, registeredMcpToolNames)) {
-                continue;
-            }
-            ordered.add(toolName);
-        }
+        // Query scoring is a model-facing ranking hint, not an authorization filter. Keeping the
+        // complete bound set visible is essential for cross-domain plans: lexical top-k must not
+        // erase an optional capability before the model can assess its semantic contribution.
+        normalizedTools.forEach(ordered::add);
 
         Map<String, String> skipped = new LinkedHashMap<>();
-        if (hasRelevantMcpSignal) {
-            for (String toolName : normalizedTools) {
-                if (isMcpToolName(toolName, registeredMcpToolNames) && !ordered.contains(toolName)) {
-                    skipped.put(toolName, "not selected for this query; a more relevant MCP candidate was available");
-                }
-            }
-        }
 
         List<String> selectedCandidates = new ArrayList<>(required);
         selectedMcpTools.stream()
@@ -723,6 +714,7 @@ public class AgentToolPolicyResolver {
     public record ToolPolicy(
         List<String> availableTools,
         List<String> requiredTools,
+        List<String> optionalTools,
         boolean hasMcpBinding,
         boolean requireBoundToolCall,
         List<String> activatedIntents,

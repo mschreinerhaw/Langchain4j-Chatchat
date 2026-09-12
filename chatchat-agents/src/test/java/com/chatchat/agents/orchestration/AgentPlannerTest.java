@@ -1604,6 +1604,137 @@ class AgentPlannerTest {
         assertThat(audit.get("materialTopologyChanged")).isEqualTo(false);
     }
 
+    @Test
+    void optionalToolsRequireExplicitApplicabilityDecisionsEvenWithoutMandatoryTools() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"analyze customer","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[]}
+              ]},
+              "execution_policy":{"max_steps":1,"allow_parallel":false,"allow_tool":[],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.2,"hallucination_risk":0.8,
+                "tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """;
+        String[] capturedPrompt = new String[1];
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                capturedPrompt[0] = message;
+                return response;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "analyze customer", "", List.of("workflow_standard_lookup"),
+            List.of(), List.of(), List.of(), List.of(), false,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1,
+                "plannerOptionalTools", List.of("workflow_standard_lookup")));
+
+        assertThat(result.plan().valid()).isFalse();
+        assertThat(result.plan().issues())
+            .contains("Optional tool must have exactly one applicability decision: workflow_standard_lookup");
+        assertThat(capturedPrompt[0])
+            .contains("The absence of mandatory tools means only that no tool is forced")
+            .contains("does not impose a top-k selection limit")
+            .contains("workflow_standard_lookup");
+    }
+
+    @Test
+    void selectedOptionalToolMustEnterDagAndCanCoexistWithMandatoryWorkflow() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"mixed","goal":"cross-domain analysis","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"mcp_tool","tool_name":"workflow_asset_lookup","input":{},"depends_on":[]},
+                {"id":2,"action_type":"mcp_tool","tool_name":"workflow_standard_lookup","input":{},"depends_on":[]},
+                {"id":3,"action_type":"final_answer","tool_name":"","input":{"answer":"pending evidence"},"depends_on":[1,2]}
+              ]},
+              "execution_policy":{"max_steps":3,"allow_parallel":true,
+                "allow_tool":["workflow_asset_lookup","workflow_standard_lookup"],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.8,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":[]},"fallback_plan":[],
+                "optional_tool_decisions":[{
+                  "tool_name":"workflow_standard_lookup","decision":"SELECT",
+                  "reason":"supplies an independent standards perspective",
+                  "question_aspects":["standards validation"]
+                }]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "cross-domain analysis", "",
+            List.of("workflow_asset_lookup", "workflow_standard_lookup"),
+            List.of(), List.of(), List.of(), List.of("workflow_asset_lookup"), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1,
+                "authoritativeWorkflowDag", List.of(
+                    Map.of("tool", "workflow_asset_lookup", "dependsOnTools", List.of())),
+                "plannerOptionalTools", List.of("workflow_standard_lookup")));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.decision().interpretationPlan().review().optionalToolDecisions())
+            .singleElement().satisfies(decision -> {
+                assertThat(decision.toolName()).isEqualTo("workflow_standard_lookup");
+                assertThat(decision.decision()).isEqualTo("SELECT");
+            });
+    }
+
+    @Test
+    void optionalToolMayBeSkippedByModelWithAnExplicitReason() {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"conversation","goal":"acknowledge greeting","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"final_answer","tool_name":"","input":{"answer":"你好"},"depends_on":[]}
+              ]},
+              "execution_policy":{"max_steps":1,"allow_parallel":false,"allow_tool":[],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":1.0,"hallucination_risk":0.0,
+                "tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[],
+                "optional_tool_decisions":[{
+                  "tool_name":"workflow_standard_lookup","decision":"SKIP",
+                  "reason":"the greeting requests no standards evidence","question_aspects":[]
+                }]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "你好", "", List.of("workflow_standard_lookup"),
+            List.of(), List.of(), List.of(), List.of(), false,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1,
+                "plannerOptionalTools", List.of("workflow_standard_lookup")));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.decision().action()).isEqualTo("final");
+        assertThat(result.decision().interpretationPlan().review().optionalToolDecisions())
+            .singleElement().extracting(InterpretationPlan.OptionalToolDecision::decision)
+            .isEqualTo("SKIP");
+    }
+
     private static class TestToolRegistry implements ToolRegistry {
         private final boolean includeApplicability;
         private final Set<String> tools = Set.of(

@@ -174,6 +174,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             : request.getModelName();
 
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        runtimeAttributes.put("plannerOptionalTools", toolPolicy.optionalTools());
         if (domainKnowledge.used()) {
             runtimeAttributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, domainKnowledge.toRuntimeProjection());
         }
@@ -203,6 +204,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("availableTools", toolPolicy.availableTools());
         metadata.put("requiredTools", toolPolicy.requiredTools());
+        metadata.put("optionalTools", toolPolicy.optionalTools());
         metadata.put("toolIntents", toolPolicy.activatedIntents());
         metadata.put("hasMcpBinding", toolPolicy.hasMcpBinding());
         metadata.put("selectedCandidateTools", toolPolicy.selectedCandidateTools());

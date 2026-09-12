@@ -181,6 +181,7 @@ public final class AgentPlannerPromptBuilder {
             prompt.append("- Tools listed in the same workflow parallel stage may be represented as independent steps with the same dependencies.\n");
             prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, include the mandatory tools before final_answer.\n\n");
         }
+        appendOptionalToolPlanningContract(prompt, runtimeAttributes);
         appendMcpWorkflowOrchestrationContract(prompt, runtimeAttributes);
         appendMcpControlPlaneToolContracts(prompt, availableTools);
         prompt.append(toolProtocolContracts.plannerSection(availableTools, toolRegistry));
@@ -319,7 +320,8 @@ public final class AgentPlannerPromptBuilder {
         prompt.append("You are the planning node of Agent Runtime OS. Output exactly one valid InterpretationPlan JSON object; no markdown or explanation.\n")
             .append("Runtime date: ").append(runtimeDate).append("; timezone: ").append(runtimeZone.getId()).append(".\n\n")
             .append("Authoritative planning rules:\n")
-            .append("- Preserve every tool and dependency in the Runtime workflow below. Do not add, replace, omit or reorder workflow tools.\n")
+            .append("- Preserve every required tool and dependency in the Runtime workflow below. Do not replace, omit or reorder required workflow tools.\n")
+            .append("- Runtime-authorized optional tools may be added when their applicability decision is SELECT; they are not part of the mandatory DAG.\n")
             .append("- Tool steps use action_type=mcp_tool and an exact Available tools name. Step ids are consecutive integers starting at 1.\n")
             .append("- Add exactly one final_answer step after all required evidence steps. Before execution, its input.answer may state that evidence is pending; never invent results.\n")
             .append("- depends_on contains prior integer step ids. Runtime owns this authoritative DAG and template bindings: omit dependency_contracts, edge_contracts, bindings, branch_groups and conditional_edges.\n")
@@ -335,13 +337,15 @@ public final class AgentPlannerPromptBuilder {
             .append("\"plan\":{\"steps\":[{\"id\":1,\"action_type\":\"mcp_tool\",\"tool_name\":\"exact-name\",\"input\":{},\"depends_on\":[]},")
             .append("{\"id\":2,\"action_type\":\"final_answer\",\"tool_name\":\"\",\"input\":{\"answer\":\"等待工具证据\"},\"depends_on\":[1]}]},")
             .append("\"execution_policy\":{\"max_steps\":4,\"allow_parallel\":true,\"allow_tool\":[],\"max_rewrite_times\":1,\"fallback_mode\":\"partial_result\"},")
-            .append("\"review\":{\"self_check\":{\"completeness_score\":0.0,\"hallucination_risk\":0.0,\"tool_sufficiency\":false,\"missing_steps\":[]}}}\n\n");
+            .append("\"review\":{\"self_check\":{\"completeness_score\":0.0,\"hallucination_risk\":0.0,\"tool_sufficiency\":false,\"missing_steps\":[]},")
+            .append("\"optional_tool_decisions\":[{\"tool_name\":\"exact-name\",\"decision\":\"SELECT|SKIP\",\"reason\":\"...\",\"question_aspects\":[]}]}}\n\n");
         appendAgentBudgetContract(prompt, runtimeAttributes);
         appendAgentRuntimeEnvironmentContract(prompt, runtimeAttributes);
         appendAuthoritativeWorkflowContract(prompt, authoritativeDag);
         if (requireToolBeforeFinal) {
             prompt.append("Required workflow tools: ").append(mandatoryTools).append(". final_answer must depend on their evidence.\n\n");
         }
+        appendOptionalToolPlanningContract(prompt, runtimeAttributes);
         prompt.append("Available tools (bounded model-facing metadata):\n")
             .append(describeToolsCompact(availableTools, runtimeAttributes));
         String protocol = toolProtocolContracts.plannerSection(availableTools, toolRegistry);
@@ -358,6 +362,25 @@ public final class AgentPlannerPromptBuilder {
         prompt.append("User query:\n")
             .append(boundedText(query, COMPACT_USER_QUERY_PROMPT_CHARS, "user query"));
         return prompt.toString();
+    }
+
+    private void appendOptionalToolPlanningContract(StringBuilder prompt,
+                                                    Map<String, Object> runtimeAttributes) {
+        List<String> optionalTools = stringList(runtimeAttributes == null
+            ? null : runtimeAttributes.get("plannerOptionalTools"));
+        if (optionalTools.isEmpty()) {
+            return;
+        }
+        prompt.append("Optional tool applicability contract:\n")
+            .append("- The absence of mandatory tools means only that no tool is forced. It MUST NOT bypass optional-tool analysis.\n")
+            .append("- Evaluate every Runtime-authorized optional tool against every explicit facet of the current user request before building the DAG.\n")
+            .append("- Return exactly one review.optional_tool_decisions item per optional tool, using decision=SELECT or SKIP, a request-specific reason, and the question_aspects it can support.\n")
+            .append("- Every SELECT tool MUST appear as an mcp_tool step and the final_answer must depend on its evidence. A SKIP tool MUST NOT appear as a step.\n")
+            .append("- Select complementary cross-domain tools when they contribute distinct facts, dimensions, validation, explanation, or action evidence. Do not skip a relevant tool merely because another tool is mandatory, ranked higher, or from a different domain.\n")
+            .append("- Direct final_answer is permitted only when every optional tool is explicitly SKIP and the answer can be grounded in current query/observations without external evidence.\n")
+            .append("- Select every tool that materially contributes to the request; Runtime ranking is only a hint and does not impose a top-k selection limit. All ")
+            .append(optionalTools.size()).append(" candidates must be assessed.\n")
+            .append("Optional tools: ").append(optionalTools).append("\n\n");
     }
 
     private String describeToolsCompact(List<String> availableTools, Map<String, Object> runtimeAttributes) {
@@ -453,7 +476,7 @@ public final class AgentPlannerPromptBuilder {
             return;
         }
         prompt.append("MCP tool orchestration contract from current Agent Runtime OS:\n");
-        prompt.append("- Treat this workflow as a mandatory reasoning and execution graph, not a loose tool suggestion.\n");
+        prompt.append("- Treat required workflow nodes as the mandatory execution graph and optional nodes as model-planned candidates, not as loose or pre-skipped suggestions.\n");
         prompt.append("- The InterpretationPlan MUST preserve every required step, required dependency, condition, and confirmation node from this workflow.\n");
         prompt.append("- Workflow dependencies may be required or optional. Required dependencies must become plan.dependency_contracts required=true and the matching target step depends_on. Optional dependencies must become required=false with condition/reason, and should only become executable steps when the user request needs them.\n");
         prompt.append("- When a workflow step has dependsOn, treat it as required unless the workflow explicitly marks it optional. The matching plan step MUST depend_on the referenced prior workflow tool step.\n");

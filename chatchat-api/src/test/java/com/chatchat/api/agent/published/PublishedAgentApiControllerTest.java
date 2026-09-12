@@ -75,6 +75,7 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.code").value(202))
             .andExpect(jsonPath("$.data.taskId").value("task-1"))
             .andExpect(jsonPath("$.data.statusUrl").value("/api/v1/published-agents/finance-agent/questions/task-1/status"))
+            .andExpect(jsonPath("$.data.cancelUrl").value("/api/v1/published-agents/finance-agent/questions/task-1"))
             .andExpect(jsonPath("$.data.answerUrl").value("/api/v1/published-agents/finance-agent/questions/task-1/answer"));
 
         ArgumentCaptor<AgentTaskSubmitRequest> captor = ArgumentCaptor.forClass(AgentTaskSubmitRequest.class);
@@ -114,6 +115,7 @@ class PublishedAgentApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.terminal").value(true))
             .andExpect(jsonPath("$.data.answerAvailable").value(true))
+            .andExpect(jsonPath("$.data.cancelUrl").value("/api/v1/published-agents/finance-agent/questions/task-1"))
             .andExpect(jsonPath("$.data.events").isArray())
             .andExpect(jsonPath("$.data.eventCursor").value(0))
             .andExpect(jsonPath("$.data.hasMoreEvents").value(false));
@@ -219,6 +221,8 @@ class PublishedAgentApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.submitCurl").value(org.hamcrest.Matchers.containsString("/questions")))
             .andExpect(jsonPath("$.data.statusCurl").value(org.hamcrest.Matchers.containsString("/status")))
+            .andExpect(jsonPath("$.data.cancelCurl").value(org.hamcrest.Matchers.containsString("--request DELETE")))
+            .andExpect(jsonPath("$.data.cancelCurl").value(org.hamcrest.Matchers.containsString("/questions/${TASK_ID}")))
             .andExpect(jsonPath("$.data.answerCurl").value(org.hamcrest.Matchers.containsString("/answer")))
             .andExpect(jsonPath("$.data.tokenEnvironmentVariable").value("AGENT_TOKEN"))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("AGENT_BASE_URL")))
@@ -237,6 +241,9 @@ class PublishedAgentApiControllerTest {
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("--fail --connect-timeout")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("if ! SUBMIT_RESPONSE=$(")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("if ! STATUS_RESPONSE=$(")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("STOP_AGENT_RUN")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("if ! CANCEL_RESPONSE=$(")))
+            .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString("if ! ANSWER_RESPONSE=$(")))
             .andExpect(jsonPath("$.data.statusCurl").value(org.hamcrest.Matchers.containsString("afterSequence=")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.containsString(".data.answerAvailable")))
             .andExpect(jsonPath("$.data.completeExample").value(org.hamcrest.Matchers.not(

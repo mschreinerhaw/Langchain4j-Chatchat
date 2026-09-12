@@ -37,9 +37,9 @@ describe("AgentWorkshopView published Agent curl access", () => {
     expect(AgentWorkshopView.computed.isPlatformAdmin()).toBe(false);
   });
 
-  it("loads the complete question, status and answer curl example", async () => {
+  it("loads the complete submit, status, stop and answer curl example", async () => {
     fetchPublishedAgentCurlExample.mockResolvedValue({
-      completeExample: "submit\nstatus\nanswer"
+      completeExample: "submit\nstatus\nstop\nanswer"
     });
     const context = {
       isPlatformAdmin: true,
@@ -58,6 +58,7 @@ describe("AgentWorkshopView published Agent curl access", () => {
     expect(context.curlExampleOpen).toBe(true);
     expect(context.curlExampleLoading).toBe(false);
     expect(context.curlExample.completeExample).toContain("status");
+    expect(context.curlExample.completeExample).toContain("stop");
     expect(context.curlExample.completeExample).toContain("answer");
   });
 

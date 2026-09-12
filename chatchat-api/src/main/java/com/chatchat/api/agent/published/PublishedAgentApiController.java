@@ -52,7 +52,7 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(AppConstants.API_V1 + "/published-agents")
-@Tag(name = "Published Agent API", description = "Authenticated question, status and answer APIs for published Agents")
+@Tag(name = "Published Agent API", description = "Authenticated question, status, cancellation and answer APIs for published Agents")
 public class PublishedAgentApiController {
 
     private static final int MAX_HISTORY_WINDOW = 100;
@@ -109,7 +109,7 @@ public class PublishedAgentApiController {
                 new PublishedAgentSubmission(
                     task.taskId(), task.executionId(), task.attemptId(), task.sessionId(), agent.id(),
                     task.status(), task.canonicalState(), statusPath(agent.id(), task.taskId()),
-                    answerPath(agent.id(), task.taskId()), task.createTime()
+                    cancelPath(agent.id(), task.taskId()), answerPath(agent.id(), task.taskId()), task.createTime()
                 ),
                 "Published Agent question accepted"
             );
@@ -154,7 +154,8 @@ public class PublishedAgentApiController {
             task.taskId(), task.executionId(), task.attemptId(), task.attemptNumber(), task.sessionId(),
             task.agentId(), task.status(), task.canonicalState(), terminal,
             terminal && hasText(task.answerSummary()), task.errorMessage(), task.createTime(), task.updateTime(),
-            answerPath(task.agentId(), task.taskId()), events, eventCursor, hasMoreEvents
+            cancelPath(task.agentId(), task.taskId()), answerPath(task.agentId(), task.taskId()),
+            events, eventCursor, hasMoreEvents
         ));
     }
 
@@ -315,12 +316,18 @@ public class PublishedAgentApiController {
             + escapedAgentId + "/questions/${TASK_ID}/status?afterSequence=${EVENT_CURSOR:-0}&eventLimit=100\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Accept: application/json\"";
+        String cancel = "curl --silent --show-error --fail --connect-timeout 10 --max-time 30 --request DELETE \"${AGENT_BASE_URL}/api/v1/published-agents/"
+            + escapedAgentId + "/questions/${TASK_ID}\" \\\n"
+            + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
+            + "  --header \"Accept: application/json\"";
         String answer = "curl --silent --show-error --fail --connect-timeout 10 --max-time 30 --request GET \"${AGENT_BASE_URL}/api/v1/published-agents/"
             + escapedAgentId + "/questions/${TASK_ID}/answer\" \\\n"
             + "  --header \"Authorization: Bearer ${AGENT_TOKEN}\" \\\n"
             + "  --header \"Accept: application/json\"";
         String complete = "export AGENT_BASE_URL=\"" + escapedBaseUrl + "\"\n"
             + "export AGENT_TOKEN=\"<paste-agent-api-token>\"\n\n"
+            + "# Set STOP_AGENT_RUN=true to demonstrate caller-initiated cancellation after the first status query.\n"
+            + "STOP_AGENT_RUN=\"${STOP_AGENT_RUN:-false}\"\n\n"
             + "# This example uses jq to read data.taskId from the submit response.\n"
             + "# 1. Submit a question. sessionId uses the same UUID format as ChatChat sessions.\n"
             + "if ! SUBMIT_RESPONSE=$(" + submit + "); then\n"
@@ -336,7 +343,7 @@ public class PublishedAgentApiController {
             + "EVENT_CURSOR=0\n"
             + "POLL_TIMEOUT_SECONDS=900\n"
             + "POLL_STARTED_AT=$(date +%s)\n"
-            + "# 2. Poll run status until data.terminal is true.\n"
+            + "# 2. Query status and incremental events until data.terminal is true.\n"
             + "while true; do\n"
             + "  if ! STATUS_RESPONSE=$(" + status + "); then\n"
             + "    echo \"Failed to query Agent task ${TASK_ID}.\" >&2\n"
@@ -345,7 +352,17 @@ public class PublishedAgentApiController {
             + "  printf '%s\\n' \"${STATUS_RESPONSE}\"\n"
             + "  EVENT_CURSOR=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.eventCursor // 0')\n"
             + "  TERMINAL=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.terminal // false')\n"
+            + "  ANSWER_AVAILABLE=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.answerAvailable // false')\n"
             + "  HAS_MORE_EVENTS=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.hasMoreEvents // false')\n"
+            + "  # 3. Optionally stop a non-terminal run. DELETE is idempotent for an already terminal task.\n"
+            + "  if [ \"${STOP_AGENT_RUN}\" = \"true\" ] && [ \"${TERMINAL}\" != \"true\" ]; then\n"
+            + "    if ! CANCEL_RESPONSE=$(" + cancel + "); then\n"
+            + "      echo \"Failed to stop Agent task ${TASK_ID}.\" >&2\n"
+            + "      exit 1\n"
+            + "    fi\n"
+            + "    printf '%s\\n' \"${CANCEL_RESPONSE}\"\n"
+            + "    STOP_AGENT_RUN=false\n"
+            + "  fi\n"
             + "  if [ \"${TERMINAL}\" = \"true\" ] && [ \"${HAS_MORE_EVENTS}\" != \"true\" ]; then\n"
             + "    break\n"
             + "  fi\n"
@@ -355,15 +372,19 @@ public class PublishedAgentApiController {
             + "  fi\n"
             + "  sleep 2\n"
             + "done\n\n"
-            + "ANSWER_AVAILABLE=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.answerAvailable // false')\n"
-            + "if [ \"${ANSWER_AVAILABLE}\" != \"true\" ]; then\n"
-            + "  TASK_ERROR=$(printf '%s' \"${STATUS_RESPONSE}\" | jq -r '.data.error // \"Task ended without an answer.\"')\n"
-            + "  echo \"Agent task failed: ${TASK_ERROR}\" >&2\n"
+            + "# 4. Always query the answer endpoint after terminal state. A cancelled task normally returns ready=false.\n"
+            + "if ! ANSWER_RESPONSE=$(" + answer + "); then\n"
+            + "  echo \"Failed to query the answer for Agent task ${TASK_ID}.\" >&2\n"
             + "  exit 1\n"
-            + "fi\n\n"
-            + "# 3. Get the final answer after the task reaches a terminal state.\n" + answer;
+            + "fi\n"
+            + "printf '%s\\n' \"${ANSWER_RESPONSE}\"\n"
+            + "ANSWER_READY=$(printf '%s' \"${ANSWER_RESPONSE}\" | jq -r '.data.ready // false')\n"
+            + "if [ \"${ANSWER_READY}\" != \"true\" ]; then\n"
+            + "  FINAL_STATE=$(printf '%s' \"${ANSWER_RESPONSE}\" | jq -r '.data.canonicalState // .data.status // \"UNKNOWN\"')\n"
+            + "  echo \"Agent task ended in ${FINAL_STATE} without a final answer.\" >&2\n"
+            + "fi";
         return new PublishedAgentCurlExample(
-            agent.id(), agent.label(), baseUrl, "AGENT_TOKEN", submit, status, answer, complete,
+            agent.id(), agent.label(), baseUrl, "AGENT_TOKEN", submit, status, cancel, answer, complete,
             "Use a dedicated Agent API token issued by an administrator. Tenant, user and role-to-Agent authorization are enforced server-side."
         );
     }
@@ -500,6 +521,10 @@ public class PublishedAgentApiController {
         return AppConstants.API_V1 + "/published-agents/" + agentId + "/questions/" + taskId + "/answer";
     }
 
+    private String cancelPath(String agentId, String taskId) {
+        return AppConstants.API_V1 + "/published-agents/" + agentId + "/questions/" + taskId;
+    }
+
     private <T> ResponseEntity<ApiResponse<T>> ok(T data) {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -542,6 +567,7 @@ public class PublishedAgentApiController {
         String status,
         String canonicalState,
         String statusUrl,
+        String cancelUrl,
         String answerUrl,
         Instant submittedAt
     ) {
@@ -561,6 +587,7 @@ public class PublishedAgentApiController {
         String error,
         Instant createdAt,
         Instant updatedAt,
+        String cancelUrl,
         String answerUrl,
         List<PublishedAgentEvent> events,
         long eventCursor,
@@ -622,6 +649,7 @@ public class PublishedAgentApiController {
         String tokenEnvironmentVariable,
         String submitCurl,
         String statusCurl,
+        String cancelCurl,
         String answerCurl,
         String completeExample,
         String securityNotice

@@ -256,7 +256,7 @@
             <div>
               <p>已发布 Agent · API 调用</p>
             <h2 id="agent-curl-title">{{ curlExample?.agentName || "curl 请求示例" }}</h2>
-              <span>复制示例后，即可在终端发起完整问答流程</span>
+              <span>复制示例后，即可在终端管理问答任务的完整生命周期</span>
             </div>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="curlExampleLoading" @click="closeCurlExample">×</button>
@@ -267,7 +267,9 @@
             <i aria-hidden="true"></i>
             <span><b>2</b> 查询状态</span>
             <i aria-hidden="true"></i>
-            <span><b>3</b> 获取答案</span>
+            <span><b>3</b> 停止任务</span>
+            <i aria-hidden="true"></i>
+            <span><b>4</b> 获取答案</span>
           </div>
           <div class="agent-curl-notice">
             <span class="agent-curl-notice-icon" aria-hidden="true">!</span>

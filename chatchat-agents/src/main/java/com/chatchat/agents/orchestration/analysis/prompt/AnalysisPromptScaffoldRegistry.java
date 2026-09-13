@@ -19,15 +19,15 @@ final class AnalysisPromptScaffoldRegistry {
         Map<String, Object> result = new LinkedHashMap<>(planned);
         result.remove("domainFocus");
         result.remove("domainProfileRevision");
+        result.remove("output");
+        result.remove("sectionTitles");
         result.put("analysisType", scaffold.isEmpty() ? "GENERIC" : type);
         if (scaffold.isEmpty()) return result;
-        for (String key : List.of("output", "focus")) {
+        for (String key : List.of("focus")) {
             if (!(result.get(key) instanceof List<?> values) || values.isEmpty()) result.put(key, scaffold.get(key));
         }
-        Map<String, Object> titles = new LinkedHashMap<>();
-        if (scaffold.get("sectionTitles") instanceof Map<?, ?> defaults) defaults.forEach((key, value) -> titles.put(key.toString(), value));
-        if (planned.get("sectionTitles") instanceof Map<?, ?> custom) custom.forEach((key, value) -> titles.put(key.toString(), value));
-        result.put("sectionTitles", titles);
+        // Domain profiles may guide analysis, but must never prescribe the final
+        // report's section inventory or localized headings.
         result.put("domainFocus", scaffold.getOrDefault("focus", List.of()));
         if (!(result.get("methodology") instanceof List<?> methods) || methods.isEmpty()) {
             result.put("methodology", scaffold.getOrDefault("methodology", List.of()));

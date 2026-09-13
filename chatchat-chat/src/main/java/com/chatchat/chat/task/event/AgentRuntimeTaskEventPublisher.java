@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,9 +40,6 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
 
     private static final int MAX_PERSISTED_RUNTIME_PAYLOAD_CHARS = 64_000;
     private static final int MAX_ACTIVE_RUN_CACHE_ENTRIES = 4_096;
-    // Runtime traces remain fully durable, but a high-latency database should not turn
-    // dozens of audit events into dozens of blocking round trips before final synthesis.
-    private static final int DEFERRED_APPEND_BATCH_SIZE = 32;
 
     private final AgentTaskLatestRepository latestRepository;
     private final AgentEventStore eventStore;
@@ -57,7 +53,6 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
     private final Map<String, AgentTaskLatestEntity> taskByRunId = boundedCache();
     private final Map<String, Optional<String>> parentQuestionIdByTask = boundedCache();
     private final Map<String, CompletableFuture<Void>> appendTailByRunId = new ConcurrentHashMap<>();
-    private final Map<String, List<PendingEvent>> pendingByRunId = new ConcurrentHashMap<>();
     private final ExecutorService appendExecutor = Executors.newFixedThreadPool(4, deferredAppendThreadFactory());
 
     @Override
@@ -92,11 +87,11 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             .createTime(event.createdAt())
             .build();
         if (eventStore.supportsDeferredAppend()) {
-            List<PendingEvent> batch = bufferAndDrain(event.runId(),
-                new PendingEvent(taskEvent, latest, event), isTerminal(event.type()));
-            CompletableFuture<Void> tail = batch.isEmpty()
-                ? appendTailByRunId.getOrDefault(event.runId(), CompletableFuture.completedFuture(null))
-                : enqueueBatch(event.runId(), batch);
+            // This store backs the live SSE projection, not only end-of-run audit.
+            // Queue every event immediately; per-run chaining preserves ordering
+            // without blocking the Agent execution thread on database I/O.
+            CompletableFuture<Void> tail = enqueueBatch(event.runId(),
+                List.of(new PendingEvent(taskEvent, latest, event)));
             if (isTerminal(event.type())) {
                 try {
                     tail.join();
@@ -105,7 +100,6 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
                         ? runtime : failure;
                 } finally {
                     appendTailByRunId.remove(event.runId(), tail);
-                    pendingByRunId.remove(event.runId());
                     evictRun(event.runId(), latest);
                 }
             }
@@ -149,18 +143,6 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             taskEvent.getType(),
             taskEvent.getStatus(),
             event.message());
-    }
-
-    private List<PendingEvent> bufferAndDrain(String runId, PendingEvent event, boolean force) {
-        List<PendingEvent> buffer = pendingByRunId.computeIfAbsent(
-            runId, ignored -> new ArrayList<>(DEFERRED_APPEND_BATCH_SIZE));
-        synchronized (buffer) {
-            buffer.add(event);
-            if (!force && buffer.size() < DEFERRED_APPEND_BATCH_SIZE) return List.of();
-            List<PendingEvent> drained = List.copyOf(buffer);
-            buffer.clear();
-            return drained;
-        }
     }
 
     private CompletableFuture<Void> enqueueBatch(String runId, List<PendingEvent> batch) {
@@ -235,14 +217,6 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
 
     @PreDestroy
     void flushDeferredAppends() {
-        pendingByRunId.forEach((runId, buffer) -> {
-            List<PendingEvent> drained;
-            synchronized (buffer) {
-                drained = List.copyOf(buffer);
-                buffer.clear();
-            }
-            if (!drained.isEmpty()) enqueueBatch(runId, drained);
-        });
         CompletableFuture<?>[] pending = appendTailByRunId.values()
             .toArray(CompletableFuture[]::new);
         try {

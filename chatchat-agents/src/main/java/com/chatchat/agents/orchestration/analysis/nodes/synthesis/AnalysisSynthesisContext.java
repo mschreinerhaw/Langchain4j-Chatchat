@@ -39,8 +39,7 @@ final class AnalysisSynthesisContext {
             AgentRoleAnalysisContext.fromRuntimeAttributes(runtimeAttributes));
         result.put(KnowledgeContext.RUNTIME_ATTRIBUTE,
             value(runtimeAttributes, KnowledgeContext.RUNTIME_ATTRIBUTE, Map.of()));
-        result.put("adaptiveAnalysisPrompt", value(metadata,
-            "adaptiveAnalysisPromptContract", Map.of()));
+        result.put("adaptiveAnalysisPrompt", adaptivePrompt(metadata));
         result.put("modelAnalysisInputs", modelAnalysisInputs(reducers.isEmpty() ? workers : reducers));
         result.put("completedAnalysisJudgments", value(metadata,
             "unifiedAnalysisJudgments", collectFirst(reducers.isEmpty() ? workers : reducers,
@@ -68,6 +67,16 @@ final class AnalysisSynthesisContext {
         result.put("rawRecordAccess", "PROHIBITED");
         result.put("pipelineFingerprint", ModelProtocolJson.sha256Hex(result));
         return Map.copyOf(result);
+    }
+
+    private Map<String, Object> adaptivePrompt(Map<String, Object> metadata) {
+        Map<String, Object> prompt = new LinkedHashMap<>(map(value(metadata,
+            "adaptiveAnalysisPromptContract", Map.of())));
+        // Legacy contracts may carry report-section hints. Analysis guidance is
+        // retained, but final presentation is derived only after findings exist.
+        prompt.remove("output");
+        prompt.remove("sectionTitles");
+        return Map.copyOf(prompt);
     }
 
     private Map<String, Object> analysisObjective(List<AnalysisSummaryResult> workers,

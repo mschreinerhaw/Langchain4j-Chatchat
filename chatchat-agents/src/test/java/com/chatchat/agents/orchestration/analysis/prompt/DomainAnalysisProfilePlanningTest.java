@@ -28,7 +28,8 @@ class DomainAnalysisProfilePlanningTest {
         var result = synthesizer.synthesize("分析门店", List.of(), model, scope,
             AnalysisEvidenceSpillStore.disabled(), new LinkedHashMap<>(), () -> {});
         assertThat(result.contract().toMap()).containsEntry("analysisType", "RETAIL").containsEntry("domainProfileRevision", 3L);
-        assertThat(result.compiledPrompt()).contains("门店表现", "数据库维护的零售视角").doesNotContain("持仓", "成交结构");
+        assertThat(result.compiledPrompt()).contains("数据库维护的零售视角")
+            .doesNotContain("门店表现", "持仓", "成交结构");
     }
     @Test void declaredGenericAndMissingProfilesNeverLoadBusinessScaffolds() {
         for (String type : List.of("GENERIC", "NOT_CONFIGURED")) {
@@ -46,7 +47,7 @@ class DomainAnalysisProfilePlanningTest {
             if (revision == 2) snapshot.set(profile("第二版标题", 2));
             var result = synthesizer.synthesize("分析", List.of(), null, scope, AnalysisEvidenceSpillStore.disabled(),
                 new LinkedHashMap<>(Map.of("analysisType", "RETAIL")), () -> {});
-            assertThat(result.compiledPrompt()).contains(revision == 1 ? "第一版标题" : "第二版标题");
+            assertThat(result.compiledPrompt()).doesNotContain("第一版标题", "第二版标题");
         }
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of("analysisType", "RETAIL"));
         var result = new AdaptiveBusinessAnalysisPromptSynthesizer(tenant -> { throw new IllegalStateException(); })
@@ -74,7 +75,7 @@ class DomainAnalysisProfilePlanningTest {
         snapshot.set(profile("新标题", 1));
         var fresh = provider.synthesize("分析门店", List.of(), model, scope, store, new LinkedHashMap<>(), () -> {});
         assertThat(fresh.mode()).isEqualTo("MODEL_SYNTHESIZED");
-        assertThat(fresh.compiledPrompt()).contains("新标题").doesNotContain("旧标题");
+        assertThat(fresh.compiledPrompt()).doesNotContain("新标题", "旧标题");
         verify(model, times(2)).chat(anyString());
     }
 }

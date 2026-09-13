@@ -315,7 +315,7 @@ export default {
     visibleExecutionSteps(message = {}) {
       const steps = Array.isArray(message.steps) ? message.steps : [];
       const running = this.isExecutionRunning(message);
-      const visible = running && !steps.length ? this.defaultRunningSteps(message) : steps.slice(-40);
+      const visible = running && !steps.length ? this.defaultRunningSteps(message) : steps;
       const messageStatus = String(message.status || "").toLowerCase();
       const terminalStepStatus = ["completed", "complete", "success", "succeeded", "done"].includes(messageStatus)
         ? "done"
@@ -337,6 +337,7 @@ export default {
           : (step.status || "pending"),
         type: step.type || "",
         toolName: step.toolName || "",
+        sequence: Number(step.order) || null,
         timestamp: step.timestamp || message.timestamp || Date.now(),
         latencyMs: step.latencyMs
       }));
@@ -452,36 +453,12 @@ export default {
         }));
     },
     runtimeProcessSteps(message = {}) {
-      const stages = [];
-      const stagesByKey = new Map();
-      let currentStage = null;
-      this.runtimeStageCards(message)
+      // Render the authoritative backend stream directly. Lifecycle observations,
+      // model events and tool results must not be folded into inferred stages or
+      // hidden as children of the preceding row.
+      return this.runtimeStageCards(message)
         .filter((step) => String(step.status || "").toLowerCase() !== "pending")
-        .forEach((step) => {
-          if (this.isPrimaryRuntimeStage(step)) {
-            const presented = this.runtimePrimaryPresentation(step);
-            const key = this.runtimePrimaryStageKey(presented);
-            const existing = stagesByKey.get(key);
-            if (existing) {
-              existing.status = presented.status;
-              existing.timestamp = presented.timestamp;
-              existing.detail = presented.detail || existing.detail;
-              currentStage = existing;
-              return;
-            }
-            currentStage = { ...presented, children: [] };
-            stagesByKey.set(key, currentStage);
-            stages.push(currentStage);
-            return;
-          }
-          if (!currentStage) {
-            currentStage = { ...this.runtimeChildPresentation(step), children: [] };
-            stages.push(currentStage);
-            return;
-          }
-          currentStage.children.push(this.runtimeChildPresentation(step));
-        });
-      return stages.slice(-12);
+        .map((step) => ({ ...this.runtimePrimaryPresentation(step), children: [] }));
     },
     isPrimaryRuntimeStage(step = {}) {
       const type = String(step.type || "").toUpperCase();

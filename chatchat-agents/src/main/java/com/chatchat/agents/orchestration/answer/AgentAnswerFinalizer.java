@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration.answer;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol;
+import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveReportGenerationSpec;
 
 
 import com.chatchat.agents.evidence.normalization.EvidenceType;
@@ -719,6 +720,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         prompt.append("Do not turn counter equality, status coexistence, or completed execution into causal claims such as normal completion, health, or absence of failures unless the returned fields explicitly establish that conclusion. State the observed counters first and label any broader interpretation as inference.\n");
         prompt.append("Keep execution success separate from evidence sufficiency. A successful result remains reportable while weak coverage lowers confidence.\n");
         prompt.append("Respect evidence semantics supplied at runtime, including scope, time basis, completeness, capability and source role. Do not infer beyond them.\n");
+        prompt.append(AdaptiveReportGenerationSpec.promptSection());
         if (userVisibleEvidence) {
             prompt.append("Keep an exact returned evidence URI or source citation near every factual numeric, date, causal, comparative, or definitive claim. A tool display name alone is not an evidence reference.\n");
         } else {

@@ -22,9 +22,6 @@ public final class DynamicAnalysisPromptContract {
         "OBSERVE", "BASELINE", "COMPARE", "DECOMPOSE", "CONTRIBUTION", "RANK",
         "TREND", "DISTRIBUTION", "CORRELATION", "CROSS_VALIDATE", "EXPLAIN",
         "ASSESS_IMPACT");
-    private static final Set<String> OUTPUTS = Set.of(
-        "EXECUTIVE_SUMMARY", "OVERALL_PERFORMANCE", "KEY_FINDINGS", "KEY_DRIVERS",
-        "DEEP_DIVE", "RISKS_AND_OPPORTUNITIES", "RECOMMENDED_ACTIONS", "LIMITATIONS");
 
     private final Map<String, Object> value;
 
@@ -44,9 +41,7 @@ public final class DynamicAnalysisPromptContract {
         List<String> focus = items(supplied.get("focus"));
         List<String> constraints = items(supplied.get("constraints"));
         List<String> evidenceRequirements = items(supplied.get("evidenceRequirements"));
-        List<String> output = enumItems(supplied.get("output"), OUTPUTS);
         if (methodology.isEmpty()) methodology = List.of("OBSERVE", "CROSS_VALIDATE");
-        if (output.isEmpty()) output = List.of("EXECUTIVE_SUMMARY", "KEY_FINDINGS", "LIMITATIONS");
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("schemaVersion", SCHEMA_VERSION);
@@ -59,13 +54,10 @@ public final class DynamicAnalysisPromptContract {
         result.put("focus", focus);
         result.put("constraints", constraints);
         result.put("evidenceRequirements", evidenceRequirements);
-        result.put("output", output);
         result.put("analysisType", AnalysisPromptScaffoldRegistry.normalize(supplied.get("analysisType")));
         if (supplied.get("domainProfileRevision") instanceof Number revision) result.put("domainProfileRevision", revision.longValue());
         List<String> domainFocus = items(supplied.get("domainFocus"));
         if (!domainFocus.isEmpty()) result.put("domainFocus", domainFocus);
-        Map<String, Object> titles = normalizedObject(supplied.get("sectionTitles"), output, false);
-        if (!titles.isEmpty()) result.put("sectionTitles", titles);
         result.put("executionBoundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE");
         if (compact(result).length() > MAX_CONTRACT_CHARS) {
             throw new IllegalArgumentException("Dynamic analysis prompt contract exceeds size limit");
@@ -88,7 +80,6 @@ public final class DynamicAnalysisPromptContract {
         supplied.put("focus", List.of("与用户问题直接相关的事实", "重要差异、结构和异常", "可由证据支持的业务影响"));
         supplied.put("constraints", List.of("围绕已返回证据展开事实、结构、业务含义与条件性建议", "结论明确限定在观察期间与样本范围", "优先回答已有数据支持的问题，集中说明影响判断的数据缺口", "摘要、正文和建议保持相同口径与结论强度"));
         supplied.put("evidenceRequirements", List.of("每个重要结论引用原始记录或已验证计算", "精确保持指标口径、时间范围和总体范围"));
-        supplied.put("output", List.of("EXECUTIVE_SUMMARY", "KEY_FINDINGS", "RECOMMENDED_ACTIONS", "LIMITATIONS"));
         return from(supplied);
     }
 
@@ -108,9 +99,7 @@ public final class DynamicAnalysisPromptContract {
             + (value.containsKey("domainFocus") ? "Type-specific analytical questions: " + compact(value.get("domainFocus")) + "\n" : "")
             + "Analytical constraints: " + compact(value.get("constraints")) + "\n"
             + "Evidence requirements: " + compact(value.get("evidenceRequirements")) + "\n"
-            + "Suggested report content: " + compact(value.get("output")) + "\n"
-            + "Suggested business headings: " + compact(value.getOrDefault("sectionTitles", Map.of())) + "\n"
-            + "These are content requirements and suggestions, not a fixed outline. Choose the structure, order, headings and depth that best answer the question; explicit user formatting takes precedence. "
+            + "Choose the structure, order, headings, tables and depth only after seeing the actual findings. Explicit user formatting takes precedence; no output key or profile supplies a report outline. "
             + "Apply methods supported by the evidence; explain each material finding through fact, reasoning and bounded business implication. ";
     }
 

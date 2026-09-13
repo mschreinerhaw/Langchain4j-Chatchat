@@ -33,7 +33,8 @@ class DynamicAnalysisPromptContractTest {
             "output", List.of("EXECUTIVE_SUMMARY", "KEY_FINDINGS")));
 
         assertThat(contract.toMap()).containsEntry("authority", "ANALYSIS_GUIDANCE_ONLY")
-            .containsEntry("executionBoundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE");
+            .containsEntry("executionBoundary", "MODEL_DECIDES_HOW_TO_ANALYZE_RUNTIME_DECIDES_WHAT_IS_LEGAL_TO_EXECUTE")
+            .doesNotContainKeys("output", "sectionTitles");
         assertThat(contract.compile()).contains("客户经营分析师", "COMPARE", "grants no execution authority",
             "Capability-bound analysis plan", "amount", "segment", "NONE_DECLARED");
     }
@@ -46,6 +47,6 @@ class DynamicAnalysisPromptContractTest {
             .hasMessageContaining("Unsupported dynamic prompt enum");
         assertThat(DynamicAnalysisPromptContract.fallback("分析当前数据", Map.of()).compile())
             .contains("分析当前数据", "结论明确限定在观察期间与样本范围",
-                "content requirements and suggestions, not a fixed outline");
+                "no output key or profile supplies a report outline");
     }
 }

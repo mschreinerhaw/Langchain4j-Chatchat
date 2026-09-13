@@ -92,6 +92,9 @@
                 <div>
                   <span class="runtime-step-heading">
                     <b>{{ step.title }}</b>
+                    <code v-if="step.type" class="runtime-event-identity">
+                      {{ step.sequence ? `#${step.sequence} ` : '' }}{{ step.type }}
+                    </code>
                     <time>{{ step.displayTime }}</time>
                   </span>
                   <small v-if="step.detail">{{ step.detail }}</small>

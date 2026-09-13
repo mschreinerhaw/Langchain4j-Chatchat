@@ -49,7 +49,7 @@ describe("tool execution evidence", () => {
     })).toBe(true);
   });
 
-  it("keeps backend lifecycle observations visible without counting them as tool calls", () => {
+  it("keeps every backend event visible without counting lifecycle observations as tool calls", () => {
     const message = {
       role: "assistant",
       status: "failed",
@@ -70,9 +70,10 @@ describe("tool execution evidence", () => {
 
     expect(methods.runtimeToolCalls.call(context, message)).toHaveLength(0);
     const stages = methods.runtimeProcessSteps.call(context, message);
-    expect(stages.map((step) => step.id)).toEqual(["runtime-start", "runtime-failed"]);
-    expect(stages[0].children).toHaveLength(1);
-    expect(stages[0].children[0]).toEqual(expect.objectContaining({
+    expect(stages.map((step) => step.id)).toEqual([
+      "runtime-start", "planner-observation", "runtime-failed"
+    ]);
+    expect(stages[1]).toEqual(expect.objectContaining({
       id: "planner-observation",
       title: "计划校验",
       toolName: "mcp_chatchat_mcp_server_api_template_query"

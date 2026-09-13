@@ -48,22 +48,6 @@ public final class GovernedRecordFinalPromptBuilder {
                "at least N" only when evidence explicitly says truncated=true, sourceComplete=false, or
                pagination.hasMore=true. UNKNOWN completeness or paginationAssessed=false means unknown, not truncated.
 
-            Presentation:
-            Treat adaptiveAnalysisPrompt as a question-specific analytical brief when supplied, not a mandatory
-            outline. Choose the report structure, headings, order, depth and narrative flow yourself; explicit user
-            formatting takes precedence. Combine, reorder or omit suggested sections whenever that produces a
-            clearer and more insightful answer. Each section adds evidence or interpretation;
-            the summary compresses the body without strengthening it. Whenever structured evidence materially
-            supports comparison, diagnosis or verification, combine explanatory prose with one or more compact,
-            evidence-backed Markdown tables. You decide the useful tables, columns, rows and placement. Preserve
-            exact labels, values, units, periods and scope; disclose any selection or truncation. Interpret each
-            table in prose: tables support analysis and verification but never replace it. Existing table controls
-            provide interactive charts.
-            Use facts -> derived indicators -> cross-validation -> patterns -> interpretation -> hypotheses ->
-            scenarios -> risks -> gaps -> actions as an adaptive reasoning loop where useful, not as mandatory
-            headings, a fixed sequence or a checklist. Combine, reorder or omit lenses to fit this question.
-            Keep the report understandable without claim IDs, tools, templates or workflow chronology.
-
             Before returning, silently reconcile values and scope across summary, detail and actions; remove
             repetition, unsupported reasoning jumps and arithmetic contradictions. When describing behavior, keep
             the observed period explicit and inspect contrary records before using words such as all, none, always,
@@ -73,7 +57,8 @@ public final class GovernedRecordFinalPromptBuilder {
             evidence provenance and audit metadata are handled separately, not as a model-written review form.
 
             Original user question:
-            """).append("\n").append(RuntimeAnalysisResponsibilityContract.promptSection())
+            """).append("\n").append(AdaptiveReportGenerationSpec.promptSection())
+            .append("\n").append(RuntimeAnalysisResponsibilityContract.promptSection())
             .append("\n").append(userQuestion == null ? "" : userQuestion)
             .append("\n\nGoverned dataset analysis and coverage contract:\n")
             .append(governedRecordEvidence == null ? "" : governedRecordEvidence);

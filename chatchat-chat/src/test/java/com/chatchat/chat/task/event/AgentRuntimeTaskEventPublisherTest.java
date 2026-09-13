@@ -90,6 +90,35 @@ class AgentRuntimeTaskEventPublisherTest {
     }
 
     @Test
+    void publishesEachDeferredRuntimeEventWithoutWaitingForAnEndOfRunBatch() throws Exception {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        AgentEventStore eventStore = mock(AgentEventStore.class);
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository, eventStore, eventBus, objectMapper);
+        AgentTaskLatestEntity task = task("task-runtime-live-stream");
+        CountDownLatch appended = new CountDownLatch(1);
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        when(eventStore.supportsDeferredAppend()).thenReturn(true);
+        when(eventStore.findFirstByTaskAndType(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION"))
+            .thenReturn(Optional.empty());
+        when(eventStore.appendAll(org.mockito.ArgumentMatchers.anyList())).thenAnswer(invocation -> {
+            appended.countDown();
+            return List.of("runtime-live-event");
+        });
+
+        publisher.publish(AgentRunEvent.of(
+            task.getTaskId(), AgentRunEventType.OBSERVATION_RECORDED,
+            "live lifecycle event", Map.of("type", "lifecycle")));
+
+        assertThat(appended.await(2, TimeUnit.SECONDS)).isTrue();
+        verify(eventStore).appendAll(org.mockito.ArgumentMatchers.argThat(events -> events.size() == 1));
+        verify(eventBus).publishResult(org.mockito.ArgumentMatchers.any(AgentEvent.class));
+        publisher.flushDeferredAppends();
+    }
+
+    @Test
     void bridgesBusinessTemplateRequirementMatchingToTaskEventStore() throws Exception {
         AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
         InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();

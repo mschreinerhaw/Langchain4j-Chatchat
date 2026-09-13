@@ -101,10 +101,10 @@ describe("restored assistant result deduplication", () => {
     }]);
 
     expect(second).toHaveLength(2);
-    expect(second.map((step) => step.id)).toEqual(["receive-question", "planning"]);
+    expect(second.map((step) => step.id)).toEqual(["event:event-1", "event:event-2"]);
   });
 
-  it("refreshes the active model step from stream heartbeats without adding duplicate rows", () => {
+  it("keeps distinct backend status events as distinct timeline rows", () => {
     const waiting = mergeExecutionSteps([], [{
       eventId: "event-wait-model",
       sequence: 3,
@@ -114,23 +114,27 @@ describe("restored assistant result deduplication", () => {
       payload: JSON.stringify({ message: "Agent task is waiting for model inference" })
     }]);
     const refreshed = mergeExecutionSteps(waiting, [{
-      sequence: 3,
-      type: "HEARTBEAT",
+      eventId: "event-wait-model-again",
+      sequence: 4,
+      type: "STATUS",
       status: "WAIT_MODEL",
       createTime: 3_000,
-      payload: "{}"
+      payload: JSON.stringify({ message: "second backend model status" })
     }]);
 
-    expect(refreshed).toHaveLength(1);
+    expect(refreshed).toHaveLength(2);
     expect(refreshed[0]).toEqual(expect.objectContaining({
-      id: "model-inference",
-      status: "active",
-      timestamp: 3_000
+      id: "event:event-wait-model",
+      status: "done",
+      timestamp: 1_000
     }));
-    expect(refreshed[0].detail).toContain("立即展示后续步骤");
+    expect(refreshed.map((step) => step.id)).toEqual([
+      "event:event-wait-model",
+      "event:event-wait-model-again"
+    ]);
   });
 
-  it("completes a runtime tool when its observation arrives in a later stream batch", () => {
+  it("keeps a runtime tool call and its observation as separate backend events", () => {
     const running = mergeExecutionSteps([], [{
       eventId: "runtime-step-1", sequence: 10, type: "RUNTIME_STEP", status: "RUNNING",
       payload: JSON.stringify({ payload: { stepId: "step-1", toolName: "template_query", action: "execute" } })
@@ -140,13 +144,17 @@ describe("restored assistant result deduplication", () => {
       payload: JSON.stringify({ payload: { source: "template_query", contentPreview: "completed" } })
     }]);
 
-    expect(completed).toHaveLength(1);
-    expect(completed[0]).toEqual(expect.objectContaining({
-      id: "runtime-tool:step-1:template_query", toolName: "template_query", status: "done"
+    expect(completed).toHaveLength(2);
+    expect(completed.map((step) => step.id)).toEqual([
+      "event:runtime-step-1",
+      "event:runtime-observation-1"
+    ]);
+    expect(completed[1]).toEqual(expect.objectContaining({
+      toolName: "template_query", status: "done"
     }));
   });
 
-  it("keeps the structured model review phase aligned across start and completion events", () => {
+  it("shows model inference start and completion as separate backend events", () => {
     const event = (eventId, sequence, eventState) => ({
       eventId, sequence, type: "RUNTIME_OBSERVATION", status: "RUNNING",
       payload: JSON.stringify({ payload: { metadata: {
@@ -157,9 +165,9 @@ describe("restored assistant result deduplication", () => {
     const started = mergeExecutionSteps([], [event("review-started", 20, "STARTED")]);
     const completed = mergeExecutionSteps(started, [event("review-completed", 21, "COMPLETED")]);
 
-    expect(completed).toHaveLength(1);
-    expect(completed[0]).toEqual(expect.objectContaining({
-      id: "runtime-observation:model-inference:tool_result_review:step-1",
+    expect(completed).toHaveLength(2);
+    expect(completed[1]).toEqual(expect.objectContaining({
+      id: "event:review-completed",
       title: "模型审查工具结果", status: "done"
     }));
   });

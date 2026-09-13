@@ -904,7 +904,7 @@ const STEP_PHASE_ORDER = {
 };
 
 function stepPhaseOrder(step = {}) {
-  return STEP_PHASE_ORDER[step.id] || step.phaseOrder || step.order || step.timestamp || 999;
+  return step.order || step.timestamp || step.phaseOrder || STEP_PHASE_ORDER[step.id] || 999;
 }
 
 function runtimePayloadOf(payload = {}) {
@@ -933,6 +933,11 @@ function eventOrderValue(event = {}) {
 }
 
 function eventStepId(event = {}, payload = {}) {
+  // Preserve the backend event stream one-to-one. The stable event id also
+  // de-duplicates the same event received from SSE and a polling refresh.
+  if (event?.eventId) {
+    return `event:${event.eventId}`;
+  }
   const type = normalizeEventType(event);
   const status = normalizeEventStatus(event);
   if (type === "QUESTION") {
@@ -1023,7 +1028,7 @@ function agentEventToExecutionStep(event = {}) {
     toolName,
     timestamp: event.createTime || Date.now(),
     order: eventOrderValue(event),
-    phaseOrder: STEP_PHASE_ORDER[stepId] || 999,
+    phaseOrder: eventOrderValue(event),
     latencyMs: event.latencyMs
   };
 
@@ -1087,8 +1092,6 @@ function agentEventToExecutionStep(event = {}) {
   if (type === "RUNTIME_STARTED") {
     return {
       ...base,
-      id: "backend-running",
-      phaseOrder: STEP_PHASE_ORDER["backend-running"],
       title: "\u540e\u7aef\u6267\u884c\u4e2d",
       detail: compactText(payload.message || "\u5df2\u8fdb\u5165\u7075\u52a8\u667a\u7b56", 72),
       status: "done"
@@ -1158,8 +1161,21 @@ function agentEventToExecutionStep(event = {}) {
       status: noResult ? "empty" : (budgetExhausted ? "error" : "partial")
     };
   }
-  if (type === "COMPLETE") {
-    return null;
+  if (type === "RUNTIME_SUBMITTED") {
+    return {
+      ...base,
+      title: "Runtime \u4efb\u52a1\u5df2\u63d0\u4ea4",
+      detail: compactText(payload.message || "", 96),
+      status: "done"
+    };
+  }
+  if (type === "RUNTIME_COMPLETED" || type === "COMPLETE") {
+    return {
+      ...base,
+      title: type === "RUNTIME_COMPLETED" ? "Runtime \u6267\u884c\u5b8c\u6210" : "\u4efb\u52a1\u4e8b\u4ef6\u6d41\u5b8c\u6210",
+      detail: compactText(payload.message || "", 96),
+      status: "done"
+    };
   }
   if (type === "ERROR") {
     return {
@@ -1199,7 +1215,12 @@ function agentEventToExecutionStep(event = {}) {
       status: "active"
     };
   }
-  return null;
+  return {
+    ...base,
+    title: type || "\u540e\u7aef\u4e8b\u4ef6",
+    detail: compactText(payload.message || payload.action || displayToolName || "", 120),
+    status: ["FAILED", "ERROR"].includes(status) ? "error" : "done"
+  };
 }
 
 function mergeStepState(previous = {}, next = {}) {
@@ -1236,36 +1257,10 @@ function initialExecutionSteps(agentName = "") {
 }
 
 export function mergeExecutionSteps(previousSteps = [], events = []) {
-  const activeRuntimeTools = new Map();
-  previousSteps.forEach((step) => {
-    if (String(step?.type || "").toUpperCase() === "RUNTIME_STEP"
-        && step?.status === "active" && step?.toolName) {
-      activeRuntimeTools.set(step.toolName, step.id);
-    }
-  });
   const eventSteps = events
     .filter(Boolean)
     .sort((left, right) => eventOrderValue(left) - eventOrderValue(right))
-    .map((event) => {
-      const step = agentEventToExecutionStep(event);
-      if (!step) {
-        return null;
-      }
-      const type = normalizeEventType(event);
-      const payload = parseJsonPayload(event.payload);
-      const runtimePayload = runtimePayloadOf(payload);
-      const runtimeToolName = runtimeToolNameOf(runtimePayload) || step.toolName;
-      if (type === "RUNTIME_STEP" && runtimeToolName) {
-        activeRuntimeTools.set(runtimeToolName, step.id);
-      } else if (type === "RUNTIME_OBSERVATION" && runtimeToolName && activeRuntimeTools.has(runtimeToolName)) {
-        step.id = activeRuntimeTools.get(runtimeToolName);
-        step.title = "调用工具";
-        step.toolName = runtimeToolName;
-        step.status = "done";
-        activeRuntimeTools.delete(runtimeToolName);
-      }
-      return step;
-    })
+    .map((event) => agentEventToExecutionStep(event))
     .filter(Boolean);
   if (!eventSteps.length) {
     return previousSteps.length ? previousSteps : initialExecutionSteps();

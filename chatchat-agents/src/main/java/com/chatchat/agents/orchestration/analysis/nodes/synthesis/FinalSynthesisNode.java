@@ -10,6 +10,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisReportContract;
 import com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatalog;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
+import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveReportGenerationSpec;
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy;
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisExecutionOutcomeRecorder;
@@ -521,7 +522,9 @@ public final class FinalSynthesisNode {
             if (value != null) {
                 Set<String> presentationKeys = "analysisMethodology".equals(key)
                         ? Set.of("reportSections", "reportOrder", "insightBlockPolicy")
-                        : Set.of();
+                        : "adaptiveAnalysisPrompt".equals(key)
+                            ? Set.of("output", "sectionTitles")
+                            : Set.of();
                 boundedContext.put(key, omitPresentationDirectives(value, presentationKeys));
             }
         }
@@ -559,6 +562,7 @@ public final class FinalSynthesisNode {
             + "Keep useful observed-period conclusions after narrowing them. Ensure any summary and its supporting detail use the same scope and claim strength.\n"
             + "Use analytical_reasoning_arc.v1 as quality inspiration rather than a report template. Include facts, indicators, validation, patterns, interpretation, hypotheses, scenarios, risks, gaps or actions only where they materially improve this answer; connect the elements you use into a coherent argument. You may develop additional evidence-grounded synthesis from the supplied artifacts. Never turn an observed-period pattern into a persistent profile, a correlation into causality, or a hypothesis into a fact.\n"
             + "Reason freely from the evidence, but keep the wording boundary visible: a plausible explanation or example remains a hypothesis, and later conclusions, customer labels and recommendations must not assume that hypothesis has become observed fact.\n"
+            + AdaptiveReportGenerationSpec.promptSection()
             + RuntimeAnalysisResponsibilityContract.promptSection()
             + "User question: " + question + "\n"
             + "Bounded composition context (not factual evidence): "

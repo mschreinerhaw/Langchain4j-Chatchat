@@ -1002,7 +1002,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void dynamicOutlineReachesAuthorAndMinorInstructionLeakNeedsNoRegeneration() {
+    void dynamicContentHintsDoNotBecomeAnOutlineAndMinorInstructionLeakNeedsNoRegeneration() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
             new StructuredFindingMerger());
@@ -1010,9 +1010,9 @@ class FinalSynthesisNodeTest {
         String report = "# 分析报告\n\n## 核心发现\n\n样本数值为42。\n\n## 后续关注\n\n核对观察期间。";
         when(model.chat(any(String.class))).thenAnswer(invocation -> {
             assertThat((String) invocation.getArgument(0))
-                .contains("\"output\":[\"KEY_FINDINGS\",\"RECOMMENDED_ACTIONS\"]",
-                    "question-specific analytical brief", "not a fixed outline",
-                    "combine prose with compact Markdown tables", "not mandatory headings")
+                .contains("question-specific analytical brief", "not a fixed outline",
+                    "Adaptive report generation principles", "not mandatory headings")
+                .doesNotContain("\"output\":[\"KEY_FINDINGS\",\"RECOMMENDED_ACTIONS\"]")
                 .doesNotContain("claimAssessments");
             return "以下工具结果是本次分析的事实基础。\n" + report;
         });

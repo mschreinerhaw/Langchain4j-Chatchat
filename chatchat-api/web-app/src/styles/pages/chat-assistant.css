@@ -1414,6 +1414,14 @@
   white-space: nowrap;
 }
 
+.runtime-event-identity {
+  color: #718096;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .runtime-stage-children {
   margin-top: 5px;
   color: #98a2b3;

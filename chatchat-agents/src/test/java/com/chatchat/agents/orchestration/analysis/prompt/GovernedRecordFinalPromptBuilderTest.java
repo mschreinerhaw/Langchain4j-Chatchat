@@ -16,15 +16,13 @@ class GovernedRecordFinalPromptBuilderTest {
             "producer-returned metric directly at its declared grain",
             "formula, inputs and scope", "without prescribing repetitive labels",
             "The model owns analytical reasoning", "active Agent role",
-            "not a requirement to expose a confidence label",
-            "adaptiveAnalysisPrompt", "not a mandatory",
-            "Choose the report structure, headings, order, depth and narrative flow yourself",
+            "not a requirement to expose a confidence label", "not a mandatory",
             "Write at a depth", "proportionate to the usable evidence",
             "inspect contrary records before using words such as all",
-            "explicit user", "formatting takes precedence", "evidence-backed Markdown tables",
             "sole author of the final report", "Runtime will not",
-            "combine explanatory prose", "You decide the useful tables",
-            "adaptive reasoning loop", "not as mandatory",
+            "Adaptive report generation principles", "Do not apply a canned business template",
+            "Let content determine form", "Never present an inference as a",
+            "same fact or number across summary", "Match claim strength to evidence strength",
             "complete user-facing Markdown report", "orders summary", "遵守业务口径")
             .doesNotContain("machine-readable output shape", "claimAssessments", "anomaly degree multiplied");
         assertThat(prompt.length()).isLessThan(9000);

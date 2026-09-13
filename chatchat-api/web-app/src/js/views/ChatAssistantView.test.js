@@ -129,4 +129,38 @@ describe("restored assistant result deduplication", () => {
     }));
     expect(refreshed[0].detail).toContain("立即展示后续步骤");
   });
+
+  it("completes a runtime tool when its observation arrives in a later stream batch", () => {
+    const running = mergeExecutionSteps([], [{
+      eventId: "runtime-step-1", sequence: 10, type: "RUNTIME_STEP", status: "RUNNING",
+      payload: JSON.stringify({ payload: { stepId: "step-1", toolName: "template_query", action: "execute" } })
+    }]);
+    const completed = mergeExecutionSteps(running, [{
+      eventId: "runtime-observation-1", sequence: 11, type: "RUNTIME_OBSERVATION", status: "RUNNING",
+      payload: JSON.stringify({ payload: { source: "template_query", contentPreview: "completed" } })
+    }]);
+
+    expect(completed).toHaveLength(1);
+    expect(completed[0]).toEqual(expect.objectContaining({
+      id: "runtime-tool:step-1:template_query", toolName: "template_query", status: "done"
+    }));
+  });
+
+  it("keeps the structured model review phase aligned across start and completion events", () => {
+    const event = (eventId, sequence, eventState) => ({
+      eventId, sequence, type: "RUNTIME_OBSERVATION", status: "RUNNING",
+      payload: JSON.stringify({ payload: { metadata: {
+        eventKind: "MODEL_INFERENCE", eventState,
+        modelPhase: "tool_result_review", stepId: "step-1"
+      } } })
+    });
+    const started = mergeExecutionSteps([], [event("review-started", 20, "STARTED")]);
+    const completed = mergeExecutionSteps(started, [event("review-completed", 21, "COMPLETED")]);
+
+    expect(completed).toHaveLength(1);
+    expect(completed[0]).toEqual(expect.objectContaining({
+      id: "runtime-observation:model-inference:tool_result_review:step-1",
+      title: "模型审查工具结果", status: "done"
+    }));
+  });
 });

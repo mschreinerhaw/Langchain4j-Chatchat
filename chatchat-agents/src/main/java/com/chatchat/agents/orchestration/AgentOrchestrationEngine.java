@@ -3585,8 +3585,26 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 )
             );
         }
-        long startedAt = System.currentTimeMillis();
+        long reviewLifecycleStartedAt = System.currentTimeMillis();
         String runId = request.runId();
+        recordLifecyclePhase(
+            runtimeAttributes,
+            null,
+            "model_inference",
+            "Model is reviewing the completed tool result.",
+            metadataOf(
+                "eventKind", "MODEL_INFERENCE",
+                "eventState", "STARTED",
+                "modelPhase", "tool_result_review",
+                "stepId", request.step() == null ? null : request.step().id(),
+                "toolName", request.execution().toolName(),
+                "attempt", request.attempt(),
+                "maxAttempts", request.maxAttempts()
+            )
+        );
+        Throwable reviewFailure = null;
+        try {
+        long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
@@ -3820,6 +3838,29 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return satisfied
             ? InterpretationPlanRuntime.StepReview.accepted(reason, metadata)
             : InterpretationPlanRuntime.StepReview.rejected(reason, metadata);
+        } catch (RuntimeException | Error failure) {
+            reviewFailure = failure;
+            throw failure;
+        } finally {
+            recordLifecyclePhase(
+                runtimeAttributes,
+                null,
+                "model_inference",
+                reviewFailure == null
+                    ? "Model completed tool result review."
+                    : "Model tool result review failed.",
+                metadataOf(
+                    "eventKind", "MODEL_INFERENCE",
+                    "eventState", reviewFailure == null ? "COMPLETED" : "FAILED",
+                    "modelPhase", "tool_result_review",
+                    "stepId", request.step() == null ? null : request.step().id(),
+                    "toolName", request.execution().toolName(),
+                    "attempt", request.attempt(),
+                    "maxAttempts", request.maxAttempts(),
+                    "durationMs", Math.max(0L, System.currentTimeMillis() - reviewLifecycleStartedAt)
+                )
+            );
+        }
     }
 
     /**

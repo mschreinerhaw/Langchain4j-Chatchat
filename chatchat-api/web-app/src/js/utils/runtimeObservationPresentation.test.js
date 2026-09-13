@@ -44,4 +44,30 @@ describe("runtime observation presentation", () => {
     });
     expect(runtimeObservationIdentity(payload)).toBe("dag-validation:rewrite");
   });
+
+  it("maps model tool-result review start and completion to one observable phase", () => {
+    const started = { metadata: {
+      eventKind: "MODEL_INFERENCE", eventState: "STARTED",
+      modelPhase: "tool_result_review", stepId: "step-2"
+    } };
+    const completed = { metadata: { ...started.metadata, eventState: "COMPLETED" } };
+
+    expect(runtimeObservationIdentity(started)).toBe("model-inference:tool_result_review:step-2");
+    expect(runtimeObservationIdentity(completed)).toBe(runtimeObservationIdentity(started));
+    expect(runtimeObservationPresentation(started)).toEqual({
+      title: "模型审查工具结果", toolName: "model_inference", status: "active"
+    });
+    expect(runtimeObservationPresentation(completed).status).toBe("done");
+  });
+
+  it("renders lifecycle observations as backend phases instead of tool results", () => {
+    const payload = { metadata: {
+      type: "lifecycle", lifecyclePhase: "final_synthesis", stage: "initial"
+    } };
+
+    expect(runtimeObservationPresentation(payload)).toEqual({
+      title: "生成回答", toolName: "agent_lifecycle", status: "active"
+    });
+    expect(runtimeObservationIdentity(payload)).toBe("lifecycle:final_synthesis:initial");
+  });
 });

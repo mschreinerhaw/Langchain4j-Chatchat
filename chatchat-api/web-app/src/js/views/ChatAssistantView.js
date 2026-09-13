@@ -844,6 +844,7 @@ function normalizeExecutionStep(step = {}, index = 0) {
     toolName: step.toolName || "",
     timestamp: step.timestamp || step.createTime || Date.now(),
     order: step.order,
+    phaseOrder: step.phaseOrder,
     latencyMs: step.latencyMs
   };
 }
@@ -1059,6 +1060,7 @@ function agentEventToExecutionStep(event = {}) {
     return {
       ...base,
       title: runtimeToolName ? "\u8c03\u7528\u5de5\u5177" : "\u751f\u6210\u6267\u884c\u8ba1\u5212",
+      toolName: runtimeToolName,
       detail: compactText([
         runtimePayload.action,
         runtimeToolName,
@@ -1235,6 +1237,12 @@ function initialExecutionSteps(agentName = "") {
 
 export function mergeExecutionSteps(previousSteps = [], events = []) {
   const activeRuntimeTools = new Map();
+  previousSteps.forEach((step) => {
+    if (String(step?.type || "").toUpperCase() === "RUNTIME_STEP"
+        && step?.status === "active" && step?.toolName) {
+      activeRuntimeTools.set(step.toolName, step.id);
+    }
+  });
   const eventSteps = events
     .filter(Boolean)
     .sort((left, right) => eventOrderValue(left) - eventOrderValue(right))
@@ -2277,14 +2285,15 @@ export default {
             finish(resolve, event);
           },
           heartbeat: (heartbeat) => {
-            const timestamp = Number(heartbeat?.timestamp || Date.now());
-            assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], [{
-              type: "HEARTBEAT",
+            // A heartbeat proves that the stream is alive, but its task status is
+            // deliberately coarse. Keep it separate from the semantic timeline so
+            // WAIT_MODEL cannot reactivate an older phase after Runtime has already
+            // published a tool or analysis event.
+            assistantMessage.runtimeHeartbeat = {
               status: heartbeat?.status || "RUNNING",
-              sequence: heartbeat?.cursor || cursor,
-              createTime: timestamp,
-              payload: JSON.stringify(heartbeat || {})
-            }]);
+              timestamp: Number(heartbeat?.timestamp || Date.now()),
+              cursor: heartbeat?.cursor || cursor
+            };
             if (this.isActiveRun(runContext)) {
               this.messages = [...runContext.messages];
             }

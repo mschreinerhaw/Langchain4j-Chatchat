@@ -16,6 +16,15 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const eventState = upper(metadata.eventState);
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
+  if (eventKind === "MODEL_INFERENCE") {
+    const phase = upper(metadata.modelPhase);
+    const title = phase === "TOOL_RESULT_REVIEW" ? "模型审查工具结果" : "模型分析中";
+    return {
+      title,
+      toolName: "model_inference",
+      status: eventState === "FAILED" ? "error" : (eventState === "COMPLETED" ? "done" : "active")
+    };
+  }
   if (type.startsWith("BUSINESS_ANALYSIS_") || type === "BUSINESS_ANALYSIS_PROGRESS") {
     if (stage === "DATA_PREPARATION_STARTED") {
       return { title: "准备业务数据", toolName: "业务分析", status: "active" };
@@ -57,6 +66,22 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
       ? { title: "执行计划校验失败", toolName: "dag_validation", status: "warning" }
       : { title: "执行计划校验通过", toolName: "dag_validation", status: "done" };
   }
+  if (type === "LIFECYCLE") {
+    const lifecyclePhase = upper(metadata.lifecyclePhase);
+    const phases = {
+      PROBLEM_IDENTIFICATION: { title: "理解问题", status: "done" },
+      TOOL_DISCOVERY: { title: "发现可用能力", status: "done" },
+      PLAN_GENERATION: { title: "生成执行计划", status: "done" },
+      PLAN_EVALUATION: { title: "校验执行计划", status: "done" },
+      STEP_EXECUTION: { title: "执行计划", status: "active" },
+      FINAL_SYNTHESIS: { title: "生成回答", status: "active" },
+      DRIVER_CHALLENGE_REPAIR: { title: "补充分析", status: "active" }
+    };
+    return {
+      ...(phases[lifecyclePhase] || { title: "后端处理中", status: "active" }),
+      toolName: "agent_lifecycle"
+    };
+  }
   if (metadata.success === false || type === "TOOL_FAILURE") {
     return { title: "工具执行失败", status: "error" };
   }
@@ -65,12 +90,18 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
 
 export function runtimeObservationIdentity(runtimePayload = {}) {
   const metadata = objectValue(runtimePayload.metadata);
+  if (upper(metadata.eventKind) === "MODEL_INFERENCE") {
+    return `model-inference:${metadata.modelPhase || "unknown"}:${metadata.stepId || "run"}`;
+  }
   if (upper(metadata.type) === "BUSINESS_ANALYSIS_PROGRESS" && metadata.progressId) {
     return `business-analysis:${metadata.progressId}`;
   }
   if (upper(metadata.eventKind) === "DAG_VALIDATION"
       || (upper(metadata.type) === "LIFECYCLE" && ("valid" in metadata || "executable" in metadata))) {
     return `dag-validation:${metadata.stage || "unknown"}`;
+  }
+  if (upper(metadata.type) === "LIFECYCLE" && metadata.lifecyclePhase) {
+    return `lifecycle:${metadata.lifecyclePhase}:${metadata.stage || "run"}`;
   }
   if (upper(metadata.eventKind) !== "DAG_REPAIR") return "";
   const repairEvent = objectValue(metadata.repairEvent);

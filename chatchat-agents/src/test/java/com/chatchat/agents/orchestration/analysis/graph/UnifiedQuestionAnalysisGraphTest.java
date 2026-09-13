@@ -74,7 +74,7 @@ class UnifiedQuestionAnalysisGraphTest {
             AnalysisEvidenceSpillStore.disabled(), metadata, () -> {});
 
         assertThat(outcomes.get("dataset1").summary().content()).contains("Returned value is 1");
-        assertThat(calls.get()).isEqualTo(2);
+        assertThat(calls.get()).isEqualTo(3);
         assertThat(metadata).doesNotContainKey("unifiedAnalysisContractRepairAttempted");
     }
 
@@ -329,13 +329,20 @@ class UnifiedQuestionAnalysisGraphTest {
         assertThat(outcomes.get("dataset3").summary().datasetSummary().evidence().toString()).contains("dataset3.records[5001]");
     }
 
-    @Test void supplementaryEvidenceIsBoundedToOneFollowUpModelRound() {
+    @Test void everyConfiguredEvidenceReadGetsAFollowUpInterpretationRound() {
         List<Dataset> datasets = List.of(new Dataset(
             "dataset1", Map.of(), List.of(Map.of("VALUE", 1), Map.of("VALUE", 2))));
         var calls = new AtomicInteger();
         ChatModel model = new ChatModel() {
             @Override public String chat(String prompt) {
-                calls.incrementAndGet();
+                int call = calls.incrementAndGet();
+                if (call == 2) {
+                    assertThat(prompt).contains("dataset1.records[1]");
+                }
+                if (call == 3) {
+                    assertThat(prompt).contains("dataset1.records[1]", "dataset1.records[2]");
+                    return product("dataset1");
+                }
                 return ModelProtocolJson.compact(Map.of(
                     "schemaVersion", "unified_question_analysis.v1",
                     "findings", List.of(Map.of(
@@ -348,7 +355,7 @@ class UnifiedQuestionAnalysisGraphTest {
                         "confidence", "HIGH")),
                     "evidenceRequests", List.of(Map.of(
                         "operation", "READ_RECORDS", "datasetReference", "dataset1",
-                        "fromRecord", 1, "limit", 1))));
+                        "fromRecord", call, "limit", 1))));
             }
         };
 
@@ -356,7 +363,7 @@ class UnifiedQuestionAnalysisGraphTest {
             scope, new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(),
             new LinkedHashMap<>(), () -> {});
 
-        assertThat(calls.get()).isEqualTo(2);
+        assertThat(calls.get()).isEqualTo(3);
     }
 
     @Test void preservesCompletedAnalysisAndRepairsDeclaredMethodologyCoverage() {

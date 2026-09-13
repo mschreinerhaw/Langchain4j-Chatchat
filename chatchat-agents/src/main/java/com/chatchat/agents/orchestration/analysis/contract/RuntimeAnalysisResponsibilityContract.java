@@ -20,7 +20,8 @@ public final class RuntimeAnalysisResponsibilityContract {
             - Evidence artifacts distinguish source observations, calculations and model interpretations for audit.
               This protocol metadata is not a requirement to expose a confidence label, alternative explanation,
               verification checklist or repetitive qualification in every user-facing sentence. Add those only when
-              the active analysis contract or the material ambiguity of a conclusion makes them useful.
+              the active analysis contract or the material ambiguity of a conclusion makes them useful. Evidence
+              governance classifies and traces support; it does not censor supported analytical breadth.
             - Source records remain authoritative for current-case identities, values and declared meanings. Domain
               knowledge may guide interpretation and analysis, while any stronger domain rule must come from the
               active Agent/knowledge/policy context rather than from a Runtime hard-coded example.

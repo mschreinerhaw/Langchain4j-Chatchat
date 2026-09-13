@@ -188,4 +188,41 @@ describe("restored assistant result deduplication", () => {
     expect(terminal.find((step) => step.id === "event:tool-call-running"))
       .toEqual(expect.objectContaining({ status: "active", blocksParent: true }));
   });
+
+  it("closes a tool call when its result references the call event", () => {
+    const steps = mergeExecutionSteps([], [{
+      eventId: "wait-tool", sequence: 40, type: "STATUS", status: "WAIT_TOOL",
+      payload: JSON.stringify({ toolName: "api_template_execute" })
+    }, {
+      eventId: "tool-call", parentEventId: "wait-tool", sequence: 41,
+      type: "TOOL_CALL", status: "WAIT_TOOL",
+      payload: JSON.stringify({ toolName: "api_template_execute" })
+    }, {
+      eventId: "tool-result", parentEventId: "tool-call", sequence: 42,
+      type: "TOOL_RESULT", status: "RUNNING",
+      payload: JSON.stringify({ toolName: "api_template_execute", success: true })
+    }]);
+
+    expect(steps.find((step) => step.id === "event:tool-call"))
+      .toEqual(expect.objectContaining({ status: "done", stateKey: "tool-call:tool-call" }));
+    expect(steps.find((step) => step.id === "event:tool-result"))
+      .toEqual(expect.objectContaining({ status: "done", stateKey: "tool-call:tool-call" }));
+  });
+
+  it("closes point-in-time analysis stages when later progress arrives", () => {
+    const steps = mergeExecutionSteps([], [{
+      eventId: "thinking", sequence: 50, type: "THINK", status: "RUNNING",
+      payload: JSON.stringify({ action: "analyze evidence" })
+    }, {
+      eventId: "answer", sequence: 51, type: "ANSWER", status: "SUCCESS",
+      payload: JSON.stringify({ message: "report generated" })
+    }, {
+      eventId: "complete", sequence: 52, type: "COMPLETE", status: "SUCCESS",
+      payload: JSON.stringify({ message: "task completed" })
+    }]);
+
+    expect(steps.find((step) => step.id === "event:thinking"))
+      .toEqual(expect.objectContaining({ status: "done", blocksParent: false }));
+    expect(steps.every((step) => step.status !== "active")).toBe(true);
+  });
 });

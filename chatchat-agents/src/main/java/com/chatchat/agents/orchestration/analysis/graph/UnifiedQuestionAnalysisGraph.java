@@ -99,7 +99,11 @@ public final class UnifiedQuestionAnalysisGraph {
                 List<Map<String, Object>> requestedEvidence = new ArrayList<>();
                 int modelCalls = 0;
                 boolean allRestored = true;
-                for (int round = 1; round <= maximumEvidenceRounds; round++) {
+                // maximumEvidenceRounds is the number of bounded read opportunities, not the
+                // number of model turns. Each accepted final read needs one subsequent model
+                // turn to interpret it; otherwise the last configured read is silently skipped.
+                int maximumModelRounds = maximumEvidenceRounds + 1;
+                for (int round = 1; round <= maximumModelRounds; round++) {
                     Object boundedEvidence = evidenceAccess.fitViews(evidence, INITIAL_EVIDENCE_CHARS);
                     Object boundedRequests = evidenceAccess.fitRequestedEvidence(requestedEvidence, REQUESTED_EVIDENCE_CHARS);
                     String prompt = adaptivePrompt[0].compiledPrompt() + "\n"
@@ -143,8 +147,10 @@ public final class UnifiedQuestionAnalysisGraph {
                         + (reportDraftEnabled
                             ? "Also write reportMarkdown as the final user-facing answer in the user's language. It must directly answer every requested item, lead with supported facts, preserve caveats and suitability limits, avoid runtime identifiers, and stay focused (normally within 6000 Chinese characters or 3200 English words; use less for sparse evidence and never omit a material supported finding merely to meet this guidance). Do not merely restate the JSON fields. "
                             : "Set reportMarkdown to an empty string. ")
-                        + "Evidence round " + round + "/" + maximumEvidenceRounds + ". "
-                        + (round == maximumEvidenceRounds
+                        + "Analysis round " + round + "/" + maximumModelRounds
+                        + " (bounded evidence reads available through round "
+                        + maximumEvidenceRounds + "). "
+                        + (round == maximumModelRounds
                             ? "No more requests are available; return bounded conclusions and limitations. " : "")
                         + "Requested evidence: " + ModelProtocolJson.compact(boundedRequests) + "\n"
                         + "Question plan: " + ModelProtocolJson.compact(evidenceAccess.fitControlContext(promptPlan(plan), 4_000))
@@ -219,7 +225,7 @@ public final class UnifiedQuestionAnalysisGraph {
                     boolean methodologyRepairPending = enforcePlannedMethodology
                         && !maps(product.get("findings")).isEmpty()
                         && !methodologyGaps.isEmpty()
-                        && round < maximumEvidenceRounds;
+                        && round < maximumModelRounds;
                     var requests = maps(product.get("evidenceRequests"));
                     // A missing methodology disposition is a small protocol gap, not a reason
                     // to replay the complete evidence and regenerate every accepted finding.
@@ -269,7 +275,7 @@ public final class UnifiedQuestionAnalysisGraph {
                     } else {
                         metadata.put("unifiedAnalysisMethodologyGaps", List.of());
                     }
-                    if (!requests.isEmpty() && round < maximumEvidenceRounds) {
+                    if (!requests.isEmpty() && round <= maximumEvidenceRounds) {
                         int accepted = 0;
                         for (var evidenceRequest : requests) {
                             guard.run();

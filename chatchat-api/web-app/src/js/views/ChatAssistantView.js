@@ -1016,7 +1016,10 @@ function eventStepId(event = {}, payload = {}) {
 
 function eventStateKey(event = {}, payload = {}) {
   const type = normalizeEventType(event);
-  if (["TOOL_CALL", "TOOL_RESULT"].includes(type)) {
+  if (type === "TOOL_CALL") {
+    return `tool-call:${event.eventId || eventOrderValue(event)}`;
+  }
+  if (type === "TOOL_RESULT") {
     return `tool-call:${event.parentEventId || event.eventId || eventOrderValue(event)}`;
   }
   if (type === "RUNTIME_OBSERVATION") {
@@ -1325,12 +1328,18 @@ export function mergeExecutionSteps(previousSteps = [], events = []) {
   // Only a newer event from the same backend state chain can close a child.
   // Unrelated events and the parent terminal event do not prove it ended.
   return steps.map((step, index) => {
+    const isOpen = ["active", "running", "repairing", "pending"]
+      .includes(String(step.status || "").toLowerCase());
+    // THINK, heartbeat and runtime phase events are point-in-time progress markers
+    // without a paired completion event. Once later backend progress exists, they
+    // cannot still be the currently running phase.
+    if (!step.blocksParent && index < steps.length - 1 && isOpen) {
+      return { ...step, status: "done" };
+    }
     if (!step.blocksParent || !step.stateKey || latestByStateKey.get(step.stateKey) === index) {
       return step;
     }
-    return ["active", "running", "repairing", "pending"].includes(String(step.status || "").toLowerCase())
-      ? { ...step, status: "done" }
-      : step;
+    return isOpen ? { ...step, status: "done" } : step;
   });
 }
 

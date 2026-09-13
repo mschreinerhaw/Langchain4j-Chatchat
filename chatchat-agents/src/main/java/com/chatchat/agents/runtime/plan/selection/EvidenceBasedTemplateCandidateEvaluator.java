@@ -60,7 +60,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         // A second-pass coverage audit has already compared the complete selected set
         // against the literal question. Reapplying the first-pass score reducer here can
         // silently collapse complementary detail/history templates back to one aggregate.
-        if (!Boolean.TRUE.equals(metadata.get("templateSelectionCoverageAudited"))) {
+        if (!Boolean.TRUE.equals(metadata.get("templateSelectionCoverageAudited"))
+            && !completeAuthorizedSelection(output, selectedIds, evaluations, metadata)) {
             selectedIds = narrowToNecessaryTemplates(selectedIds, evaluations);
         }
         Set<String> parameterBlocked = unresolvedParameterTemplateIds(
@@ -155,6 +156,70 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         // Do not discard an explicit selection when the reviewer omitted its evaluation.
         selectedIds.stream().filter(id -> !byId.containsKey(normalize(id))).forEach(narrowed::add);
         return List.copyOf(new LinkedHashSet<>(narrowed));
+    }
+
+    /**
+     * A reviewer that explicitly accepts every authorized candidate with sufficient coverage has
+     * already made a complete execution decision. Re-ranking that set by score or overlapping
+     * question-aspect labels is unsafe: a broad summary and a detail/history source can share the
+     * same aspect while providing different evidence required by synthesis.
+     */
+    private boolean completeAuthorizedSelection(Object output,
+                                                List<String> selectedIds,
+                                                List<Map<String, Object>> evaluations,
+                                                Map<String, Object> metadata) {
+        if (!"SUFFICIENT".equalsIgnoreCase(text(first(metadata,
+            "coverageDecision", "coverage_decision")))) {
+            return false;
+        }
+        Set<String> authorizedIds = templateIds(output, 0);
+        if (authorizedIds.isEmpty()) return false;
+        Set<String> selected = selectedIds.stream()
+            .map(this::normalize)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (!selected.equals(authorizedIds)) return false;
+
+        Map<String, Map<String, Object>> evaluationsById = new LinkedHashMap<>();
+        evaluations.forEach(item -> {
+            String id = text(first(item, "templateId", "template_id"));
+            if (id != null) evaluationsById.putIfAbsent(normalize(id), item);
+        });
+        return authorizedIds.stream().allMatch(id -> {
+            Map<String, Object> evaluation = evaluationsById.get(id);
+            return evaluation != null && acceptedEvaluation(evaluation);
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private Set<String> templateIds(Object value, int depth) {
+        if (value == null || depth > 8) return Set.of();
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                Set<String> nested = templateIds(item, depth + 1);
+                if (!nested.isEmpty()) return nested;
+            }
+            return Set.of();
+        }
+        if (!(value instanceof Map<?, ?> raw)) return Set.of();
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        Object candidates = map.get("templates") instanceof Iterable<?> ? map.get("templates")
+            : map.get("candidates") instanceof Iterable<?> ? map.get("candidates") : null;
+        if (candidates instanceof Iterable<?> iterable) {
+            LinkedHashSet<String> ids = new LinkedHashSet<>();
+            for (Object item : iterable) {
+                if (!(item instanceof Map<?, ?> rawTemplate)) continue;
+                String id = templateId(new LinkedHashMap<>((Map<String, Object>) rawTemplate));
+                if (id != null) ids.add(normalize(id));
+            }
+            if (!ids.isEmpty()) return Set.copyOf(ids);
+        }
+        for (String key : List.of(
+            "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
+            "routingProjection", "coverage", "preview")) {
+            Set<String> nested = templateIds(map.get(key), depth + 1);
+            if (!nested.isEmpty()) return nested;
+        }
+        return Set.of();
     }
 
     private Map<String, Object> requirementMatch(Map<String, Object> metadata,

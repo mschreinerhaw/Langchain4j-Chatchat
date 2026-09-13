@@ -194,6 +194,53 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
+    void preservesAllEightFullyReviewedAuthorizedTemplatesForRuntimeBatchExecution() {
+        List<String> templateIds = List.of(
+            "livedata_cx_mncg_wtls",
+            "livedata_cx_mncg_khzc_r",
+            "livedata_cx_mncg_zcxzmx",
+            "livedata_cx_mncg_zjmxls",
+            "livedata_cx_mncg_jgmxls",
+            "livedata_cx_mncg_qcfx",
+            "livedata_cx_mncg_zjyels",
+            "livedata_cx_mncg_zqyels"
+        );
+        List<Map<String, Object>> templates = templateIds.stream()
+            .map(id -> Map.<String, Object>of("templateId", id))
+            .toList();
+        List<Map<String, Object>> evaluations = new java.util.ArrayList<>();
+        for (int index = 0; index < templateIds.size(); index++) {
+            evaluations.add(Map.of(
+                "templateId", templateIds.get(index),
+                "decision", "accept",
+                "totalScore", 1.0 - (index * 0.025),
+                "analysisRole", "TARGET",
+                "matchedQuestionAspects", index == 0
+                    ? List.of("trades", "assets", "profit", "preference")
+                    : List.of(index % 2 == 0 ? "assets" : "trades")
+            ));
+        }
+
+        EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+            new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                Map.of("templates", templates),
+                Map.of(
+                    "selectedTemplateIds", templateIds,
+                    "rejectedTemplateIds", List.of(),
+                    "deferredTemplateIds", List.of(),
+                    "coverageDecision", "SUFFICIENT",
+                    "templateEvaluations", evaluations
+                ));
+
+        assertThat(evaluation.selectedCount()).isEqualTo(8);
+        assertThat(evaluation.selectedIds()).containsExactlyElementsOf(templateIds);
+        Map<?, ?> projected = (Map<?, ?>) evaluation.output();
+        assertThat((List<?>) projected.get("templates")).hasSize(8);
+        assertThat(projected.get("runtimeTemplateSelection").toString())
+            .contains("selectedCount=8");
+    }
+
+    @Test
     void rejectsToolDeclaredSelectionWhenContextAwareReviewerIsUnavailable() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(

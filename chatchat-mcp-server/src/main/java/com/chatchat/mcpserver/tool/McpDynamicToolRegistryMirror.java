@@ -9,6 +9,7 @@ import jakarta.annotation.PreDestroy;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Mirrors contributed MCP publications into the Agent ToolRegistry descriptor plane. */
 @Component
@@ -16,6 +17,7 @@ public class McpDynamicToolRegistryMirror {
 
     private static volatile McpDynamicToolRegistryMirror instance;
     private final ToolRegistry registry;
+    private final Map<String, McpSchema.Tool> publishedContracts = new ConcurrentHashMap<>();
 
     public McpDynamicToolRegistryMirror(ToolRegistry registry) {
         this.registry = registry;
@@ -34,12 +36,21 @@ public class McpDynamicToolRegistryMirror {
 
     static void unpublishIfAvailable(String toolName) {
         McpDynamicToolRegistryMirror current = instance;
-        if (current != null) current.registry.unregisterTool(toolName);
+        if (current != null) {
+            current.publishedContracts.remove(toolName);
+            current.registry.unregisterTool(toolName);
+        }
+    }
+
+    /** Returns the governed MCP contract mirrored for the named local tool. */
+    public McpSchema.Tool publishedContract(String toolName) {
+        return toolName == null ? null : publishedContracts.get(toolName);
     }
 
     private void publish(ToolPublication publication) {
         io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification governed =
             McpToolPublicationReviewer.governedSpecification(publication);
+        publishedContracts.put(publication.toolName(), governed.tool());
         registry.registerTool(publication.toolName(), publication.descriptor().metadata(),
             new ToolRegistry.EnhancedTool() {
                 @Override public com.chatchat.common.tool.ToolMetadata getMetadata() {

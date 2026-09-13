@@ -7,6 +7,9 @@ import com.chatchat.agents.runtime.plan.transformation.BuiltInPlanPassOperations
 import com.chatchat.agents.runtime.plan.transformation.InterpretationPlanTransformationPipeline;
 import com.chatchat.agents.runtime.plan.transformation.PlanTransformationContext;
 import com.chatchat.agents.runtime.plan.transformation.PlanTransformationWorkspace;
+import com.chatchat.agents.runtime.plan.template.TemplateWorkflowPlugin;
+import com.chatchat.agents.runtime.plan.template.TemplateWorkflowPluginRegistry;
+import com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.common.tool.ToolMetadata;
@@ -30,23 +33,37 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     private final ToolRegistry toolRegistry;
     private final McpCapabilityHierarchy capabilityHierarchy;
     private final Map<String, ToolWorkflowRole> workflowRoles;
+    private final Map<String, TemplateWorkflowTool> workflowTools;
+    private final TemplateWorkflowPluginRegistry templateWorkflowPlugins;
 
     public InterpretationPlanOptimizer() {
         this(null);
     }
 
     public InterpretationPlanOptimizer(ToolRegistry toolRegistry) {
+        this(toolRegistry, TemplateWorkflowPluginRegistry.load());
+    }
+
+    /** Runtime injection seam for application and third-party asset workflow plugins. */
+    public InterpretationPlanOptimizer(ToolRegistry toolRegistry,
+                                       TemplateWorkflowPluginRegistry templateWorkflowPlugins) {
         this.toolRegistry = toolRegistry;
+        this.templateWorkflowPlugins = templateWorkflowPlugins == null
+            ? TemplateWorkflowPluginRegistry.load() : templateWorkflowPlugins;
         this.capabilityHierarchy = toolRegistry == null
             ? McpCapabilityHierarchy.empty() : new RegistryMcpCapabilityHierarchy(toolRegistry);
         Map<String, ToolWorkflowRole> snapshot = new LinkedHashMap<>();
+        Map<String, TemplateWorkflowTool> toolSnapshot = new LinkedHashMap<>();
         if (toolRegistry != null) {
             try {
                 Set<String> names = toolRegistry.getAllToolNames();
                 if (names != null) {
                     names.stream().filter(Objects::nonNull).forEach(name -> {
                         ToolWorkflowRole role = toolRegistry.getWorkflowRole(name);
-                        if (role != null) snapshot.put(name, role);
+                        if (role != null) {
+                            snapshot.put(name, role);
+                            toolSnapshot.put(name, workflowTool(name, role));
+                        }
                     });
                 }
             } catch (RuntimeException ignored) {
@@ -54,6 +71,7 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             }
         }
         this.workflowRoles = Map.copyOf(snapshot);
+        this.workflowTools = Map.copyOf(toolSnapshot);
     }
 
     public OptimizationResult optimize(InterpretationPlan plan) {
@@ -418,26 +436,12 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         List<InterpretationPlan.Step> executors = steps.stream()
             .filter(this::isTemplateExecutionStep)
             .toList();
-        // A published business template query may own routing and authorization itself.
-        // Asset discovery is mandatory only for the legacy inferred topology; an
-        // authoritative workflow still needs Runtime-owned template bindings.
-        if (templates.isEmpty() || executors.isEmpty()
-            || (mayRepairWorkflowEdges && assets.isEmpty())) {
+        if (templates.isEmpty() || executors.isEmpty()) {
             return new TemplateDagRepairResult(steps, edges, dependencies, bindings, false);
         }
 
         boolean changed = false;
         for (InterpretationPlan.Step template : templates) {
-            InterpretationPlan.Step asset = bestProtocolPredecessor(template, assets);
-            if (asset == null) {
-                continue;
-            }
-            if (mayRepairWorkflowEdges) {
-                changed |= addDependency(steps, template.id(), asset.id());
-                changed |= addRequiredDependencyContract(
-                    dependencies, asset.id(), template.id(),
-                    "Template discovery requires the current task asset evidence.");
-            }
             int templateIndex = indexOfStep(steps, template.id());
             if (templateIndex >= 0) {
                 InterpretationPlan.Step current = steps.get(templateIndex);
@@ -454,6 +458,11 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             }
         }
         for (InterpretationPlan.Step executor : executors) {
+            TemplateWorkflowTool executorTool = workflowTool(executor.toolName());
+            TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executorTool).orElse(null);
+            if (plugin == null) {
+                continue;
+            }
             int executorIndex = indexOfStep(steps, executor.id());
             if (executorIndex >= 0) {
                 InterpretationPlan.Step current = steps.get(executorIndex);
@@ -470,7 +479,10 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
                     changed = true;
                 }
             }
-            List<InterpretationPlan.Step> branchPredecessors = templates.stream()
+            List<InterpretationPlan.Step> compatibleTemplates = templates.stream()
+                .filter(template -> plugin.accepts(workflowTool(template.toolName()), executorTool))
+                .toList();
+            List<InterpretationPlan.Step> branchPredecessors = compatibleTemplates.stream()
                 .filter(template -> dependsOnTransitively(
                     executor.id(), template.id(), steps, new LinkedHashSet<>()))
                 .toList();
@@ -479,26 +491,39 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             // can bind a SQL executor to an unrelated host/API discovery merely because
             // that sibling has a later step id.
             List<InterpretationPlan.Step> configuredPredecessors = branchPredecessors.isEmpty()
-                && mayRepairWorkflowEdges ? templates : branchPredecessors;
+                && mayRepairWorkflowEdges ? compatibleTemplates : branchPredecessors;
             InterpretationPlan.Step template = bestProtocolPredecessor(executor, configuredPredecessors);
             if (template == null) {
                 continue;
+            }
+            List<InterpretationPlan.Step> compatibleAssets = assets.stream()
+                .filter(asset -> plugin.accepts(workflowTool(asset.toolName()), executorTool))
+                .toList();
+            InterpretationPlan.Step asset = bestProtocolPredecessor(template, compatibleAssets);
+            if (plugin.requiresAssetDiscovery() && asset == null) {
+                continue;
+            }
+            if (asset != null && mayRepairWorkflowEdges) {
+                changed |= addDependency(steps, template.id(), asset.id());
+                changed |= addRequiredDependencyContract(
+                    dependencies, asset.id(), template.id(),
+                    "Required by template workflow plugin " + plugin.id() + ".");
             }
             if (mayRepairWorkflowEdges) {
                 changed |= addDependency(steps, executor.id(), template.id());
                 changed |= addRequiredDependencyContract(
                     dependencies, template.id(), executor.id(),
-                    "Template execution requires a selected template contract.");
+                    "Required by template workflow plugin " + plugin.id() + ".");
             }
             if (!hasTemplateIdBinding(bindings, template.id(), executor.id())) {
                 bindings.add(new InterpretationPlan.Binding(
-                    template.id(), "$.templates[0].templateId", executor.id(),
-                    "$.templateId", "jsonpath", true));
+                    template.id(), plugin.templateIdOutputPath(), executor.id(),
+                    plugin.templateIdInputPath(), "jsonpath", true));
                 changed = true;
             }
-            if (!hasEdgeContract(edges, template.id(), executor.id(), "$.templates[0].templateId")) {
+            if (!hasEdgeContract(edges, template.id(), executor.id(), plugin.templateIdOutputPath())) {
                 edges.add(new InterpretationPlan.EdgeContract(
-                    template.id(), executor.id(), "$.templates[0].templateId", "string", true));
+                    template.id(), executor.id(), plugin.templateIdOutputPath(), "string", true));
                 changed = true;
             }
         }
@@ -682,6 +707,25 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         ToolWorkflowRole snapshotted = toolName == null ? null : workflowRoles.get(toolName);
         if (snapshotted != null) return snapshotted;
         return ToolWorkflowContract.resolveRole(toolName, null);
+    }
+
+    private TemplateWorkflowTool workflowTool(String toolName) {
+        TemplateWorkflowTool snapshotted = toolName == null ? null : workflowTools.get(toolName);
+        return snapshotted != null ? snapshotted : workflowTool(toolName, workflowRole(toolName));
+    }
+
+    private TemplateWorkflowTool workflowTool(String toolName, ToolWorkflowRole role) {
+        ToolMetadata metadata = toolRegistry == null || toolName == null
+            ? null : toolRegistry.getToolMetadata(toolName);
+        String protocolFamily = ToolWorkflowContract.declaredProtocolFamily(metadata).orElse(null);
+        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> mcpMeta = metadataMap(extra.get("mcpToolMeta"));
+        String assetType = mapValue(mcpMeta, "assetType", "asset_type", "targetKind", "target_kind");
+        if (assetType == null) {
+            assetType = mapValue(extra, "assetType", "asset_type", "targetKind", "target_kind");
+        }
+        return new TemplateWorkflowTool(toolName, role, protocolFamily, assetType);
     }
 
     ToolWorkflowRole workflowRoleFor(String toolName) {

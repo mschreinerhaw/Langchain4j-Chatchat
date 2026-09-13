@@ -21,6 +21,29 @@ import static org.mockito.Mockito.when;
 class SkillCatalogServiceTest {
 
     @Test
+    void resolvesExplicitBindingsWhenRemoteMcpCatalogIsTemporarilyEmpty() {
+        SkillCatalogService service = new SkillCatalogService(
+            mock(SkillConfigRepository.class),
+            mock(SkillConfigVersionRepository.class),
+            new ObjectMapper(),
+            mock(JdbcTemplate.class),
+            summaryContractService());
+        String discovery = "mcp_chatchat_mcp_server_customer_service_template_query";
+        String executor = "mcp_chatchat_mcp_server_api_template_execute";
+        SkillDefinition skill = new SkillDefinition(
+            "busi_data_query", "Business data query", null, List.of(), List.of(), "agent_chat",
+            null, null, null, List.of(), List.of(), List.of(discovery, executor), List.of(), List.of(),
+            List.of(new SkillToolConfig(discovery, "Discovery", "mcp", null, List.of(), "read", 5, true)),
+            null, Map.of(), null, null, List.of(), SkillCatalogService.MARKET_STATUS_PUBLISHED, false);
+
+        assertThat(service.resolveTools(
+            skill,
+            List.of("image_understanding", executor, discovery),
+            Map.of()))
+            .containsExactlyInAnyOrder(discovery, executor);
+    }
+
+    @Test
     void roleChatPersistenceRemovesToolAndDatabaseExecutionConfiguration() {
         SkillConfigRepository repository = mock(SkillConfigRepository.class);
         SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);

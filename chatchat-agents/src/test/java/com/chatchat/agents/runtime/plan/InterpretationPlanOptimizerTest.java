@@ -452,6 +452,10 @@ class InterpretationPlanOptimizerTest {
         String assetTool = "mcp_chatchat_mcp_server_api_asset_query";
         String templateTool = "mcp_chatchat_mcp_server_api_template_query";
         String executeTool = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = workflowRegistry(Map.of(
+            assetTool, ToolWorkflowRole.ASSET_DISCOVERY,
+            templateTool, ToolWorkflowRole.TEMPLATE_DISCOVERY,
+            executeTool, ToolWorkflowRole.TEMPLATE_EXECUTION), "mcp.api-template.v1");
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
             new InterpretationPlan.Intent("tool_execution", "Execute the selected API template", "medium"),
@@ -473,7 +477,7 @@ class InterpretationPlanOptimizerTest {
                 new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of())
         );
 
-        InterpretationPlanOptimizer.OptimizationResult result = new InterpretationPlanOptimizer().optimize(plan);
+        InterpretationPlanOptimizer.OptimizationResult result = new InterpretationPlanOptimizer(registry).optimize(plan);
 
         InterpretationPlan.Step asset = stepByTool(result.plan(), assetTool);
         InterpretationPlan.Step template = stepByTool(result.plan(), templateTool);
@@ -613,6 +617,9 @@ class InterpretationPlanOptimizerTest {
     void classifiesCanonicalContractEnrichmentAsNormalizationAndIsIdempotent() {
         String queryTool = "mcp_chatchat_mcp_server_http_capability_query";
         String executeTool = "mcp_chatchat_mcp_server_http_request_execute";
+        ToolRegistry registry = workflowRegistry(Map.of(
+            queryTool, ToolWorkflowRole.TEMPLATE_DISCOVERY,
+            executeTool, ToolWorkflowRole.TEMPLATE_EXECUTION), "mcp.http-template.v1");
         InterpretationPlan source = new InterpretationPlan(
             "1.0",
             new InterpretationPlan.Intent("data_query", "inspect runtime state", "low"),
@@ -638,7 +645,7 @@ class InterpretationPlanOptimizerTest {
         List<Map<String, Object>> authoritativeDag = List.of(
             Map.of("tool", queryTool, "dependsOnTools", List.of()),
             Map.of("tool", executeTool, "dependsOnTools", List.of(queryTool)));
-        InterpretationPlanOptimizer optimizer = new InterpretationPlanOptimizer();
+        InterpretationPlanOptimizer optimizer = new InterpretationPlanOptimizer(registry);
 
         InterpretationPlanOptimizer.OptimizationResult first =
             optimizer.optimize(source, authoritativeDag);
@@ -661,6 +668,20 @@ class InterpretationPlanOptimizerTest {
             .filter(step -> toolName.equals(step.toolName()))
             .findFirst()
             .orElseThrow();
+    }
+
+    private ToolRegistry workflowRegistry(Map<String, ToolWorkflowRole> roles, String protocolFamily) {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(roles.keySet());
+        roles.forEach((toolName, role) -> {
+            when(registry.getWorkflowRole(toolName)).thenReturn(role);
+            when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+                .id(toolName)
+                .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+                    ToolWorkflowContract.declaration(role, protocolFamily, "parameters")))
+                .build());
+        });
+        return registry;
     }
 
     @Test

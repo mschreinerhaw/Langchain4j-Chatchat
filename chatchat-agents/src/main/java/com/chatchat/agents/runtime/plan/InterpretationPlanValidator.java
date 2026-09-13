@@ -1,9 +1,13 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+import com.chatchat.agents.runtime.plan.template.TemplateWorkflowPlugin;
+import com.chatchat.agents.runtime.plan.template.TemplateWorkflowPluginRegistry;
+import com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 
 import java.util.ArrayList;
@@ -23,6 +27,17 @@ import java.util.Set;
  * Runtime validator for planner-produced InterpretationPlan JSON.
  */
 public class InterpretationPlanValidator {
+
+    private final TemplateWorkflowPluginRegistry templateWorkflowPlugins;
+
+    public InterpretationPlanValidator() {
+        this(TemplateWorkflowPluginRegistry.load());
+    }
+
+    public InterpretationPlanValidator(TemplateWorkflowPluginRegistry templateWorkflowPlugins) {
+        this.templateWorkflowPlugins = templateWorkflowPlugins == null
+            ? TemplateWorkflowPluginRegistry.load() : templateWorkflowPlugins;
+    }
 
     private static final String HIGH = "high";
     private static final Set<String> RAW_SQL_PARAMETER_KEYS = Set.of(
@@ -69,9 +84,6 @@ public class InterpretationPlanValidator {
     );
     private static final Set<String> RUNTIME_OWNED_DISCOVERY_INPUT_KEYS = Set.of(
         "filters", "filtersschemaversion", "trace"
-    );
-    private static final Set<String> RUNTIME_OWNED_TEMPLATE_INPUT_KEYS = Set.of(
-        "parameters", "params", "arguments"
     );
 
     /**
@@ -1247,17 +1259,28 @@ public class InterpretationPlanValidator {
             }
         }
         for (InterpretationPlan.Step executeStep : executeSteps) {
-            boolean dependsOnTemplate = templateSteps.stream()
+            TemplateWorkflowTool executionTool = workflowTool(executeStep.toolName(), toolRegistry);
+            TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executionTool).orElse(null);
+            if (plugin == null) {
+                state.error("plan.steps[" + executeStep.id() + "]",
+                    "No template workflow plugin accepts execution protocol: "
+                        + executionTool.protocolFamily());
+                continue;
+            }
+            List<InterpretationPlan.Step> compatibleTemplates = templateSteps.stream()
+                .filter(template -> plugin.accepts(
+                    workflowTool(template.toolName(), toolRegistry), executionTool))
+                .toList();
+            boolean dependsOnTemplate = compatibleTemplates.stream()
                 .anyMatch(template -> dependsOnTransitively(
                     executeStep.id(), template.id(), stepsById, new HashSet<>()));
             boolean selectedTemplateBinding = plan.plan().bindings() != null
                 && plan.plan().bindings().stream()
                     .filter(java.util.Objects::nonNull)
-                    .anyMatch(binding -> templateSteps.stream().anyMatch(step -> step.id().equals(binding.from()))
+                    .anyMatch(binding -> compatibleTemplates.stream().anyMatch(step -> step.id().equals(binding.from()))
                         && executeStep.id().equals(binding.to())
-                        && containsNormalized(binding.outputPath(), "templateId")
-                        && (containsNormalized(binding.inputField(), "templateId")
-                            || "template".equals(normalizeField(binding.inputField()))));
+                        && plugin.acceptsTemplateIdBinding(
+                            binding.outputPath(), binding.inputField()));
             boolean runtimeOwnedDiagnosticBatch = runtimeOwnedDiagnosticBatch(
                 plan, executeStep, toolRegistry);
             if (!dependsOnTemplate || (!selectedTemplateBinding && !runtimeOwnedDiagnosticBatch)) {
@@ -1265,6 +1288,36 @@ public class InterpretationPlanValidator {
                     "Template-governed execution requires a dependency and Runtime-owned scalar templateId binding from template discovery; a model literal is not provenance.");
             }
         }
+    }
+
+    private TemplateWorkflowTool workflowTool(String toolName, ToolRegistry registry) {
+        ToolMetadata metadata = registry == null || toolName == null
+            ? null : registry.getToolMetadata(toolName);
+        ToolWorkflowRole role = workflowRole(toolName, registry);
+        String family = ToolWorkflowContract.declaredProtocolFamily(metadata).orElse(null);
+        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        Map<String, Object> mcpMeta = stringMap(extra.get("mcpToolMeta"));
+        String assetType = textValue(mcpMeta, "assetType", "asset_type", "targetKind", "target_kind");
+        if (assetType == null) {
+            assetType = textValue(extra, "assetType", "asset_type", "targetKind", "target_kind");
+        }
+        return new TemplateWorkflowTool(toolName, role, family, assetType);
+    }
+
+    private Map<String, Object> stringMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) return Map.of();
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> { if (key != null) result.put(String.valueOf(key), item); });
+        return result;
+    }
+
+    private String textValue(Map<String, Object> values, String... keys) {
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value).trim();
+        }
+        return null;
     }
 
     /**
@@ -1514,8 +1567,10 @@ public class InterpretationPlanValidator {
         // reviewed the admitted template contract. An empty object in the planner DAG therefore
         // means "no model-supplied overrides", not "required input missing". The Runtime will
         // retain it for a zero-argument template or populate it from verified user/tool evidence.
-        if (RUNTIME_OWNED_TEMPLATE_INPUT_KEYS.contains(key)
-            && dependsOnTemplateDiscovery(plan, step, toolRegistry)) {
+        TemplateWorkflowTool executionTool = workflowTool(step.toolName(), toolRegistry);
+        TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executionTool).orElse(null);
+        if (plugin != null && plugin.runtimeOwnsExecutionInput(parameterName)
+            && dependsOnCompatibleTemplateDiscovery(plan, step, executionTool, plugin, toolRegistry)) {
             return true;
         }
         if (!"template".equals(key) && !"templateid".equals(key) && !"templatecode".equals(key)) {
@@ -1535,6 +1590,30 @@ public class InterpretationPlanValidator {
             .filter(candidate -> candidate != null && candidate.id() != null && step.dependsOn().contains(candidate.id()))
             .anyMatch(candidate -> candidate.mcpToolAction()
                 && templateDiscoveryTool(candidate.toolName(), toolRegistry));
+    }
+
+    private boolean dependsOnCompatibleTemplateDiscovery(InterpretationPlan plan,
+                                                          InterpretationPlan.Step step,
+                                                          TemplateWorkflowTool executionTool,
+                                                          TemplateWorkflowPlugin plugin,
+                                                          ToolRegistry toolRegistry) {
+        if (plan == null || step == null || plugin == null || executionTool == null) {
+            return false;
+        }
+        Map<Integer, InterpretationPlan.Step> stepsById = new LinkedHashMap<>();
+        for (InterpretationPlan.Step candidate : plan.steps()) {
+            if (candidate != null && candidate.id() != null) {
+                stepsById.put(candidate.id(), candidate);
+            }
+        }
+        return plan.steps().stream()
+            .filter(Objects::nonNull)
+            .filter(candidate -> candidate.mcpToolAction()
+                && templateDiscoveryTool(candidate.toolName(), toolRegistry))
+            .filter(candidate -> plugin.accepts(
+                workflowTool(candidate.toolName(), toolRegistry), executionTool))
+            .anyMatch(candidate -> dependsOnTransitively(
+                step.id(), candidate.id(), stepsById, new HashSet<>()));
     }
 
     private boolean templateDiscoveryTool(String toolName, ToolRegistry registry) {

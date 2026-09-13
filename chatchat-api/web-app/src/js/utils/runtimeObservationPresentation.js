@@ -48,6 +48,15 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
       ? { title: "检测到 DAG 漂移", toolName: "dag_validation", status: "warning" }
       : { title: "DAG 审核通过", toolName: "dag_validation", status: "done" };
   }
+  // Compatibility for lifecycle events persisted by older Runtime builds. They
+  // already carry typed validation flags, but did not yet publish eventKind.
+  // Do not inspect contentPreview here: status must stay protocol-driven.
+  if (type === "LIFECYCLE" && ("valid" in metadata || "executable" in metadata)) {
+    const failed = metadata.valid === false || metadata.executable === false;
+    return failed
+      ? { title: "执行计划校验失败", toolName: "dag_validation", status: "warning" }
+      : { title: "执行计划校验通过", toolName: "dag_validation", status: "done" };
+  }
   if (metadata.success === false || type === "TOOL_FAILURE") {
     return { title: "工具执行失败", status: "error" };
   }
@@ -58,6 +67,10 @@ export function runtimeObservationIdentity(runtimePayload = {}) {
   const metadata = objectValue(runtimePayload.metadata);
   if (upper(metadata.type) === "BUSINESS_ANALYSIS_PROGRESS" && metadata.progressId) {
     return `business-analysis:${metadata.progressId}`;
+  }
+  if (upper(metadata.eventKind) === "DAG_VALIDATION"
+      || (upper(metadata.type) === "LIFECYCLE" && ("valid" in metadata || "executable" in metadata))) {
+    return `dag-validation:${metadata.stage || "unknown"}`;
   }
   if (upper(metadata.eventKind) !== "DAG_REPAIR") return "";
   const repairEvent = objectValue(metadata.repairEvent);

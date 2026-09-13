@@ -13,6 +13,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
+import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -1605,6 +1606,81 @@ class AgentPlannerTest {
         assertThat(audit.get("status")).isEqualTo("NORMALIZED");
         assertThat(audit.get("changeKind")).isEqualTo("CONTRACT_ENRICHMENT");
         assertThat(audit.get("materialTopologyChanged")).isEqualTo(false);
+    }
+
+    @Test
+    void authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct() {
+        String firstDiscovery = "mcp_chatchat_mcp_server_template_query";
+        String secondDiscovery = "mcp_chatchat_mcp_server_sql_datasource_template_query";
+        String execute = "mcp_chatchat_mcp_server_sql_query_execute";
+        TestToolRegistry registry = new TestToolRegistry() {
+            @Override
+            public ToolWorkflowRole getWorkflowRole(String toolName) {
+                if (firstDiscovery.equals(toolName) || secondDiscovery.equals(toolName)) {
+                    return ToolWorkflowRole.TEMPLATE_DISCOVERY;
+                }
+                if (execute.equals(toolName)) {
+                    return ToolWorkflowRole.TEMPLATE_EXECUTION;
+                }
+                return super.getWorkflowRole(toolName);
+            }
+
+            @Override
+            public ToolMetadata getToolMetadata(String toolName) {
+                ToolWorkflowRole role = firstDiscovery.equals(toolName) || secondDiscovery.equals(toolName)
+                    ? ToolWorkflowRole.TEMPLATE_DISCOVERY
+                    : execute.equals(toolName) ? ToolWorkflowRole.TEMPLATE_EXECUTION : null;
+                if (role != null) {
+                    return ToolMetadata.builder().id(toolName).riskLevel("low")
+                        .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+                            ToolWorkflowContract.declaration(
+                                role, "mcp.sql-template.v1", "parameters")))
+                        .build();
+                }
+                return super.getToolMetadata(toolName);
+            }
+        };
+        AgentPlanner planner = new AgentPlanner(registry, new ObjectMapper());
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"data_query","goal":"query governed data","risk_level":"low"},
+              "context":{"key_facts":[],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_template_query","input":{},"depends_on":[]},
+                {"id":2,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_sql_datasource_template_query","input":{},"depends_on":[]},
+                {"id":3,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_sql_query_execute","input":{"parameters":{}},"depends_on":[2]},
+                {"id":4,"action_type":"final_answer","tool_name":"","input":{"answer":"done"},"depends_on":[1,3]}
+              ],"edge_contracts":[],"dependency_contracts":[],"bindings":[
+                {"from":2,"output_path":"$.templates[0].templateId","to":3,"input_field":"$.templateId","type":"jsonpath","required":true}
+              ]},
+              "execution_policy":{"max_steps":4,"allow_parallel":false,
+                "allow_tool":["mcp_chatchat_mcp_server_template_query","mcp_chatchat_mcp_server_sql_datasource_template_query","mcp_chatchat_mcp_server_sql_query_execute"],"deny_tool":[]},
+              "review":{"self_check":{"completeness_score":0.8,"hallucination_risk":0.1,
+                "tool_sufficiency":false,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """;
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", firstDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", secondDiscovery, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(secondDiscovery)));
+
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "query governed data", "",
+            List.of(firstDiscovery, secondDiscovery, execute), List.of(), List.of(), List.of(),
+            List.of(firstDiscovery, secondDiscovery, execute), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1, "authoritativeWorkflowDag", authoritativeDag));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.decision().executionPlan().get("interpretationPlanRuntimeIssues"))
+            .isEqualTo(List.of());
     }
 
     @Test

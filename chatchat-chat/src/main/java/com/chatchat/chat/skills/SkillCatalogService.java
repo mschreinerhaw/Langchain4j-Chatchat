@@ -210,10 +210,31 @@ public class SkillCatalogService {
             .filter(config -> Boolean.TRUE.equals(config.enabled()))
             .toList();
 
-        if ((boundMcpServiceIds.isEmpty() && boundMcpToolNames.isEmpty() && enabledToolConfigs.isEmpty())
-            || mcpToolsByServiceId == null
-            || mcpToolsByServiceId.isEmpty()) {
+        if (boundMcpServiceIds.isEmpty() && boundMcpToolNames.isEmpty() && enabledToolConfigs.isEmpty()) {
             return applyPrefixSelection(sortedAllTools, prefixes);
+        }
+
+        // The remote MCP catalog may be temporarily empty while the runtime
+        // registry has already recovered. Explicit Agent bindings remain safe
+        // to resolve against allTools, which is the authoritative executable
+        // registry. Dropping them here produces an empty frontend capability
+        // list and a misleading RESOURCE_PREFLIGHT_FAILED run.
+        if (mcpToolsByServiceId == null || mcpToolsByServiceId.isEmpty()) {
+            Set<String> executableTools = new LinkedHashSet<>(sortedAllTools);
+            LinkedHashSet<String> selected = new LinkedHashSet<>(applyPrefixSelection(sortedAllTools, prefixes));
+            boundMcpToolNames.stream()
+                .filter(executableTools::contains)
+                .sorted()
+                .forEach(selected::add);
+            enabledToolConfigs.stream()
+                .filter(config -> config.toolName() != null && executableTools.contains(config.toolName()))
+                .sorted(Comparator
+                    .comparingInt((SkillToolConfig config) -> config.callWeight() == null ? 5 : config.callWeight())
+                    .reversed()
+                    .thenComparing(config -> config.toolName().toLowerCase(Locale.ROOT)))
+                .map(SkillToolConfig::toolName)
+                .forEach(selected::add);
+            return List.copyOf(selected);
         }
 
         Set<String> registeredMcpTools = new LinkedHashSet<>();

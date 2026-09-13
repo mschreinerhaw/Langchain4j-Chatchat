@@ -846,13 +846,16 @@ public class AgentPlanner implements AgentPlanningPort {
                                                             List<String> issues) {
         for (Map<String, Object> node : authoritativeWorkflowNodes(rawDag)) {
             String tool = stringValue(firstObject(node, "tool", "toolName"));
-            Integer targetStepId = firstToolStepId(toolStepIds, tool);
+            // A configured DAG edge names one concrete publisher tool. Role aliases are
+            // intentionally broader (all template-discovery tools share one role) and would
+            // bind an edge to whichever discovery tool happened to appear first in the plan.
+            Integer targetStepId = firstConcreteToolStepId(toolStepIds, tool);
             if (targetStepId == null) {
                 continue;
             }
             for (String dependencyTool : stringList(firstObject(
                 node, "dependsOnTools", "depends_on_tools", "dependsOn", "depends_on"))) {
-                Integer dependencyStepId = firstToolStepId(toolStepIds, dependencyTool);
+                Integer dependencyStepId = firstConcreteToolStepId(toolStepIds, dependencyTool);
                 if (dependencyStepId == null) {
                     issues.add("Authoritative workflow dependency tool is missing from InterpretationPlan: "
                         + dependencyTool + " -> " + tool);

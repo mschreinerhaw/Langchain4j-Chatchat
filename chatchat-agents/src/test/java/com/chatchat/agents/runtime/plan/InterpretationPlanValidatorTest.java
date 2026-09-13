@@ -3,6 +3,8 @@ package com.chatchat.agents.runtime.plan;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -136,8 +138,16 @@ class InterpretationPlanValidatorTest {
             review(true)
         );
 
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(asset)).thenReturn(
+            workflowMetadata(asset, ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-template.v1"));
+        when(toolRegistry.getToolMetadata(query)).thenReturn(
+            workflowMetadata(query, ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.api-template.v1"));
+        when(toolRegistry.getToolMetadata(execute)).thenReturn(
+            workflowMetadata(execute, ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.api-template.v1"));
+
         InterpretationPlanValidator.ValidationResult result = validator.validate(
-            plan, mock(ToolRegistry.class), Set.of(asset, query, execute));
+            plan, toolRegistry, Set.of(asset, query, execute));
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
@@ -420,9 +430,13 @@ class InterpretationPlanValidatorTest {
             "mcp_chatchat_mcp_server_database_ops_template_search"
         )) {
             when(toolRegistry.hasTool(toolName)).thenReturn(true);
+            ToolWorkflowRole role = toolName.contains("asset_search")
+                ? ToolWorkflowRole.ASSET_DISCOVERY : ToolWorkflowRole.TEMPLATE_DISCOVERY;
             when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
                 .id(toolName)
                 .riskLevel("low")
+                .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+                    ToolWorkflowContract.declaration(role, "mcp.sql-template.v1", "filters")))
                 .parameters(List.of(
                     requiredParameter("filters", "object"),
                     requiredParameter("filtersSchemaVersion", "string"),
@@ -460,6 +474,11 @@ class InterpretationPlanValidatorTest {
             ToolMetadata.ToolMetadataBuilder metadata = ToolMetadata.builder()
                 .id(toolName)
                 .riskLevel("low");
+            ToolWorkflowRole role = asset.equals(toolName) ? ToolWorkflowRole.ASSET_DISCOVERY
+                : template.equals(toolName) ? ToolWorkflowRole.TEMPLATE_DISCOVERY
+                : ToolWorkflowRole.TEMPLATE_EXECUTION;
+            metadata.metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(role, "mcp.api-template.v1", "parameters")));
             if (execute.equals(toolName)) {
                 metadata.parameters(List.of(
                     requiredParameter("templateId", "string"),
@@ -739,15 +758,11 @@ class InterpretationPlanValidatorTest {
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_asset_query")).thenReturn(true);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_datasource_asset_query"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_datasource_asset_query")
-                .riskLevel("low")
-                .build());
+            .thenReturn(workflowMetadata("mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                ToolWorkflowRole.ASSET_DISCOVERY, "mcp.sql-template.v1"));
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_query_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(workflowMetadata("mcp_chatchat_mcp_server_sql_query_execute",
+                ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.sql-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -825,8 +840,11 @@ class InterpretationPlanValidatorTest {
             "mcp_chatchat_mcp_server_sql_query_execute"
         )) {
             when(toolRegistry.hasTool(toolName)).thenReturn(true);
-            when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-                .id(toolName).riskLevel("low").build());
+            ToolWorkflowRole role = toolName.contains("asset_search") ? ToolWorkflowRole.ASSET_DISCOVERY
+                : toolName.contains("template_search") ? ToolWorkflowRole.TEMPLATE_DISCOVERY
+                : ToolWorkflowRole.TEMPLATE_EXECUTION;
+            when(toolRegistry.getToolMetadata(toolName)).thenReturn(
+                workflowMetadata(toolName, role, "mcp.sql-template.v1"));
         }
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1017,22 +1035,16 @@ class InterpretationPlanValidatorTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_api_asset_query")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_api_asset_query"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_api_asset_query")
-                .riskLevel("low")
-                .build());
+            .thenReturn(workflowMetadata("mcp_chatchat_mcp_server_api_asset_query",
+                ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-template.v1"));
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_database_query_template_query")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_database_query_template_query"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_database_query_template_query")
-                .riskLevel("low")
-                .build());
+            .thenReturn(workflowMetadata("mcp_chatchat_mcp_server_database_query_template_query",
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, "mcp.sql-template.v1"));
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
         when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
-            .thenReturn(ToolMetadata.builder()
-                .id("mcp_chatchat_mcp_server_sql_query_execute")
-                .riskLevel("low")
-                .build());
+            .thenReturn(workflowMetadata("mcp_chatchat_mcp_server_sql_query_execute",
+                ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.sql-template.v1"));
 
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -1105,8 +1117,11 @@ class InterpretationPlanValidatorTest {
             "mcp_chatchat_mcp_server_database_ops_template_search",
             "mcp_chatchat_mcp_server_sql_query_execute")) {
             when(toolRegistry.hasTool(toolName)).thenReturn(true);
-            when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-                .id(toolName).riskLevel("low").build());
+            ToolWorkflowRole role = toolName.contains("asset_search") ? ToolWorkflowRole.ASSET_DISCOVERY
+                : toolName.contains("template_search") ? ToolWorkflowRole.TEMPLATE_DISCOVERY
+                : ToolWorkflowRole.TEMPLATE_EXECUTION;
+            when(toolRegistry.getToolMetadata(toolName)).thenReturn(
+                workflowMetadata(toolName, role, "mcp.sql-template.v1"));
         }
 
         InterpretationPlan plan = new InterpretationPlan(
@@ -1558,6 +1573,17 @@ class InterpretationPlanValidatorTest {
             .name(name)
             .type(type)
             .required(true)
+            .build();
+    }
+
+    private ToolMetadata workflowMetadata(String toolName,
+                                          ToolWorkflowRole role,
+                                          String protocolFamily) {
+        return ToolMetadata.builder()
+            .id(toolName)
+            .riskLevel("low")
+            .metadata(Map.of(ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(role, protocolFamily, "parameters")))
             .build();
     }
 

@@ -4915,6 +4915,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         record.put("valid", evaluation != null && evaluation.valid());
         record.put("executable", evaluation != null && evaluation.executable());
         record.put("approvalRequired", evaluation != null && evaluation.approvalRequired());
+        // This metadata is part of the UI event contract. Without it a rejected
+        // plan is persisted as a generic lifecycle observation and disappears
+        // from the execution timeline, while later successful tool evidence is
+        // still rendered in green. Keep the presentation machine-readable; the
+        // client must not infer a DAG failure from localized log text.
+        record.put("eventKind", "DAG_VALIDATION");
+        record.put("eventState", evaluation != null && evaluation.valid() && evaluation.executable()
+            ? "PASSED"
+            : "FAILED");
         record.put("errors", evaluation == null || evaluation.errors() == null ? List.of() : evaluation.errors());
         record.put("warnings", evaluation == null || evaluation.warnings() == null ? List.of() : evaluation.warnings());
         record.put(

@@ -1,0 +1,6 @@
+com.chatchat.agents.runtime.plan.template.ApiTemplateWorkflowPlugin
+com.chatchat.agents.runtime.plan.template.SqlTemplateWorkflowPlugin
+com.chatchat.agents.runtime.plan.template.PythonTemplateWorkflowPlugin
+com.chatchat.agents.runtime.plan.template.SshTemplateWorkflowPlugin
+com.chatchat.agents.runtime.plan.template.HttpTemplateWorkflowPlugin
+com.chatchat.agents.runtime.plan.template.LegacyRoleOnlyTemplateWorkflowPlugin

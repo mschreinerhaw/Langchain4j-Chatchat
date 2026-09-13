@@ -304,9 +304,20 @@ export default {
     isExecutionRunning(message = {}) {
       const status = String(message.status || "").toLowerCase();
       const runningStatus = ["running", "streaming", "processing", "executing", "finalizing"].includes(status);
+      const unfinishedChildren = this.hasUnfinishedExecutionSteps(message);
       return message.role === "assistant"
-        && (!!message.streaming || (this.loading && runningStatus) || (runningStatus && !message.content))
-        && !["failed", "cancelled", "empty", "partial", "completed", "waiting"].includes(status);
+        && (!!message.streaming || unfinishedChildren
+          || (this.loading && runningStatus) || (runningStatus && !message.content))
+        && !["failed", "cancelled", "empty", "partial", "waiting"].includes(status);
+    },
+    hasUnfinishedExecutionSteps(message = {}) {
+      const unfinished = new Set([
+        "pending", "active", "running", "repairing", "streaming",
+        "processing", "executing", "finalizing", "wait", "waiting"
+      ]);
+      const visit = (steps) => (Array.isArray(steps) ? steps : []).some((step) =>
+        unfinished.has(String(step?.status || "").toLowerCase()) || visit(step?.children));
+      return visit(message.steps);
     },
     isResultFinalizing(message = {}) {
       return message.role === "assistant"
@@ -316,25 +327,11 @@ export default {
       const steps = Array.isArray(message.steps) ? message.steps : [];
       const running = this.isExecutionRunning(message);
       const visible = running && !steps.length ? this.defaultRunningSteps(message) : steps;
-      const messageStatus = String(message.status || "").toLowerCase();
-      const terminalStepStatus = ["completed", "complete", "success", "succeeded", "done"].includes(messageStatus)
-        ? "done"
-        : ["failed", "error"].includes(messageStatus)
-          ? "error"
-          : messageStatus === "cancelled"
-            ? "cancelled"
-            : messageStatus === "partial"
-              ? "partial"
-              : messageStatus === "empty"
-                ? "empty"
-                : "";
       const normalized = visible.map((step, index) => ({
         id: step.id || `${message.id || "message"}-step-${index}`,
         title: step.title || "\u6267\u884c\u6b65\u9aa4",
         detail: step.detail || "",
-        status: terminalStepStatus && ["active", "running", "repairing"].includes(String(step.status || "").toLowerCase())
-          ? terminalStepStatus
-          : (step.status || "pending"),
+        status: step.status || "pending",
         type: step.type || "",
         toolName: step.toolName || "",
         sequence: Number(step.order) || null,
@@ -544,6 +541,10 @@ export default {
       return Math.max(5, Math.min(98, Math.round(progress * 100)));
     },
     runtimeStatusLabel(message = {}) {
+      const parentTerminalOverride = ["failed", "cancelled", "partial", "waiting"].includes(message.status);
+      if (!parentTerminalOverride && this.hasUnfinishedExecutionSteps(message)) {
+        return "Run";
+      }
       if (this.isResultFinalizing(message)) {
         return "整理结果";
       }

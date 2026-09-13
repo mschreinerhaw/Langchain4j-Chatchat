@@ -166,9 +166,26 @@ describe("restored assistant result deduplication", () => {
     const completed = mergeExecutionSteps(started, [event("review-completed", 21, "COMPLETED")]);
 
     expect(completed).toHaveLength(2);
+    expect(completed[0]).toEqual(expect.objectContaining({
+      id: "event:review-started", status: "done"
+    }));
     expect(completed[1]).toEqual(expect.objectContaining({
       id: "event:review-completed",
       title: "模型审查工具结果", status: "done"
     }));
+  });
+
+  it("does not close an unfinished child when only the parent task completes", () => {
+    const running = mergeExecutionSteps([], [{
+      eventId: "tool-call-running", sequence: 30, type: "TOOL_CALL", status: "RUNNING",
+      payload: JSON.stringify({ toolName: "template_execute" })
+    }]);
+    const terminal = mergeExecutionSteps(running, [{
+      eventId: "task-complete", sequence: 31, type: "COMPLETE", status: "SUCCESS",
+      payload: JSON.stringify({ message: "parent completed" })
+    }]);
+
+    expect(terminal.find((step) => step.id === "event:tool-call-running"))
+      .toEqual(expect.objectContaining({ status: "active", blocksParent: true }));
   });
 });

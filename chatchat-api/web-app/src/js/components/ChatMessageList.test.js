@@ -106,7 +106,7 @@ describe("tool execution evidence", () => {
     expect(groups[0].children).toHaveLength(2);
   });
 
-  it("closes stale running steps when the task is already terminal", () => {
+  it("does not complete a parent while a child event is still active", () => {
     const completed = {
       id: "message-terminal",
       role: "assistant",
@@ -124,13 +124,15 @@ describe("tool execution evidence", () => {
     };
 
     const visible = methods.visibleExecutionSteps.call(context, completed);
-    expect(visible[0].status).toBe("done");
+    expect(visible[0].status).toBe("active");
     const stages = methods.runtimeProcessSteps.call(context, completed);
     expect(stages).toHaveLength(1);
     expect(stages[0]).toEqual(expect.objectContaining({
       id: "stale-runtime-step",
-      status: "done"
+      status: "active"
     }));
+    expect(methods.hasUnfinishedExecutionSteps.call(context, completed)).toBe(true);
+    expect(methods.runtimeStatusLabel.call(context, completed)).toBe("Run");
   });
 
   it("recognizes supporting datasets as evidence attachments", () => {

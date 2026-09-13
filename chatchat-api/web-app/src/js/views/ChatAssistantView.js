@@ -842,6 +842,8 @@ function normalizeExecutionStep(step = {}, index = 0) {
     status: ["pending", "active", "done", "partial", "empty", "error", "cancelled", "warning", "repairing", "repaired"].includes(status) ? status : "pending",
     type: step.type || "",
     toolName: step.toolName || "",
+    stateKey: step.stateKey || "",
+    blocksParent: step.blocksParent === true,
     timestamp: step.timestamp || step.createTime || Date.now(),
     order: step.order,
     phaseOrder: step.phaseOrder,
@@ -1012,6 +1014,40 @@ function eventStepId(event = {}, payload = {}) {
   return event?.eventId || `${type || "event"}-${eventOrderValue(event)}`;
 }
 
+function eventStateKey(event = {}, payload = {}) {
+  const type = normalizeEventType(event);
+  if (["TOOL_CALL", "TOOL_RESULT"].includes(type)) {
+    return `tool-call:${event.parentEventId || event.eventId || eventOrderValue(event)}`;
+  }
+  if (type === "RUNTIME_OBSERVATION") {
+    const identity = runtimeObservationIdentity(runtimePayloadOf(payload));
+    return identity ? `runtime-observation:${identity}` : "";
+  }
+  if (["STATUS", "COMPLETE", "ERROR", "RUNTIME_FAILED", "RUNTIME_CANCELLED"].includes(type)) {
+    return "task-runtime-state";
+  }
+  if (["NEEDS_CONFIRMATION", "RUNTIME_CONFIRMATION"].includes(type)) {
+    return "runtime-confirmation";
+  }
+  return "";
+}
+
+function eventBlocksParent(event = {}, payload = {}) {
+  const type = normalizeEventType(event);
+  if (["TOOL_CALL", "TOOL_RESULT", "STATUS", "COMPLETE", "ERROR", "RUNTIME_FAILED",
+    "RUNTIME_CANCELLED", "NEEDS_CONFIRMATION", "RUNTIME_CONFIRMATION"].includes(type)) {
+    return true;
+  }
+  if (type !== "RUNTIME_OBSERVATION") {
+    return false;
+  }
+  const metadata = runtimePayloadOf(payload).metadata || {};
+  const eventKind = String(metadata.eventKind || "").toUpperCase();
+  const metadataType = String(metadata.type || "").toUpperCase();
+  return ["MODEL_INFERENCE", "DAG_REPAIR"].includes(eventKind)
+    || metadataType === "BUSINESS_ANALYSIS_PROGRESS";
+}
+
 function agentEventToExecutionStep(event = {}) {
   if (!event) {
     return null;
@@ -1026,6 +1062,8 @@ function agentEventToExecutionStep(event = {}) {
     id: stepId,
     type,
     toolName,
+    stateKey: eventStateKey(event, payload),
+    blocksParent: eventBlocksParent(event, payload),
     timestamp: event.createTime || Date.now(),
     order: eventOrderValue(event),
     phaseOrder: eventOrderValue(event),
@@ -1278,16 +1316,21 @@ export function mergeExecutionSteps(previousSteps = [], events = []) {
   });
   const steps = [...byId.values()]
     .sort((left, right) => stepPhaseOrder(left) - stepPhaseOrder(right));
-  const hasTerminal = events.some(isTerminalAgentEvent);
-  if (hasTerminal) {
-    return steps.map((step) => step.status === "active" ? { ...step, status: "done" } : step);
-  }
-  return steps.map((step, index) => {
-    if (step.status === "active" && index < steps.length - 1
-      && !step.id.startsWith("runtime-observation:business-analysis:")) {
-      return { ...step, status: "done" };
+  const latestByStateKey = new Map();
+  steps.forEach((step, index) => {
+    if (step.blocksParent && step.stateKey) {
+      latestByStateKey.set(step.stateKey, index);
     }
-    return step;
+  });
+  // Only a newer event from the same backend state chain can close a child.
+  // Unrelated events and the parent terminal event do not prove it ended.
+  return steps.map((step, index) => {
+    if (!step.blocksParent || !step.stateKey || latestByStateKey.get(step.stateKey) === index) {
+      return step;
+    }
+    return ["active", "running", "repairing", "pending"].includes(String(step.status || "").toLowerCase())
+      ? { ...step, status: "done" }
+      : step;
   });
 }
 

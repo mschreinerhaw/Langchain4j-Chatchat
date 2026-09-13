@@ -545,31 +545,16 @@ public class AgentPlanner implements AgentPlanningPort {
             );
         List<String> runtimeIssues = validateRuntimePlanRules(interpretationPlan, validationContext);
         Map<String, Object> validationMetadata = new LinkedHashMap<>(validationMetadata(validation, runtimeIssues));
-        validationMetadata.put("dagRepair", dagRepair.auditMetadata());
-        validationMetadata.put("dagRepairValidationState",
+        // The optimizer deterministically compiles a model-authored plan into the
+        // executable workflow (ordering, companion discovery steps and contracts).
+        // That is normal planning, not a runtime recovery. Keep the audit details
+        // without publishing a DAG_REPAIR event; genuine repairs are emitted only
+        // after an INVALID_PLAN execution result enters the bounded rewrite path.
+        validationMetadata.put("planTransformation", dagRepair.auditMetadata());
+        validationMetadata.put("planTransformationValidationState",
             validation.valid() && runtimeIssues.isEmpty() ? "ACCEPTED" : "REJECTED");
         if (!optimization.appliedPasses().isEmpty()) {
             validationMetadata.put("interpretationPlanOptimizationPasses", optimization.appliedPasses());
-        }
-        if (optimization.appliedPasses().contains("AuthoritativeWorkflowDagPass")
-            && dagRepair.materialTopologyChanged()) {
-            boolean repairedCandidateValid = validation.valid() && runtimeIssues.isEmpty();
-            String repairState = repairedCandidateValid ? "APPLIED" : "REJECTED";
-            String repairCode = repairedCandidateValid
-                ? "AUTHORITATIVE_WORKFLOW_DAG_RESTORED"
-                : "AUTHORITATIVE_WORKFLOW_DAG_RESTORED_PLAN_INVALID";
-            Map<String, Object> repairEvent = Map.of(
-                "contractVersion", "runtime_dag_governance.v1",
-                "eventKind", "DAG_REPAIR",
-                "eventState", repairState,
-                "repairCode", repairCode,
-                "topologyRestored", dagRepair.materialTopologyChanged(),
-                "candidateValid", repairedCandidateValid,
-                "source", "user_defined_mcp_workflow"
-            );
-            validationMetadata.put("eventKind", "DAG_REPAIR");
-            validationMetadata.put("eventState", repairState);
-            validationMetadata.put("repairEvent", repairEvent);
         }
         if (validationContext != null && validationContext.budgetCaps() != null
             && validationContext.budgetCaps().configured()) {

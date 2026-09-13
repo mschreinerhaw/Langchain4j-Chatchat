@@ -1177,9 +1177,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         plannerStep.put("observationCount", observations.size());
         plannerSteps.add(plannerStep);
         runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
-        planEvolutionAuditor.recordPlannerRepair(
-            requestRuntimeAttributes, metadata,
-            decision.executionPlan() == null ? null : decision.executionPlan().get("repairEvent"));
         recordLifecyclePhase(
             requestRuntimeAttributes,
             metadata,

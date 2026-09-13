@@ -172,8 +172,6 @@ final class InterpretationAnalysisSession {
         }
         host.planSnapshotService.saveGenerated(
                 "initial", plan, tenantId, requestId, runtimeAttributes, metadata);
-        host.planEvolutionAuditor.recordEvolution(
-                null, plan, 1, "INITIAL", List.of(), runtimeAttributes, metadata);
         validator = new InterpretationPlanValidator();
         Map<String, Object> pipelineRuntimeAttributes = runtimeAttributes;
         runtime =

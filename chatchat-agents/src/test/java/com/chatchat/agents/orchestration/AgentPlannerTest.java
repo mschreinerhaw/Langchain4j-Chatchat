@@ -177,10 +177,9 @@ class AgentPlannerTest {
             .findFirst().orElseThrow();
         assertThat(standardStep.dependsOn()).isEmpty();
         assertThat(result.decision().executionPlan())
-            .containsEntry("eventKind", "DAG_REPAIR")
-            .containsEntry("eventState", "APPLIED");
-        assertThat(((Map<?, ?>) result.decision().executionPlan().get("repairEvent")).get("repairCode"))
-            .isEqualTo("AUTHORITATIVE_WORKFLOW_DAG_RESTORED");
+            .containsKey("planTransformation")
+            .containsEntry("planTransformationValidationState", "ACCEPTED")
+            .doesNotContainKeys("eventKind", "eventState", "repairEvent");
     }
 
     @Test
@@ -237,14 +236,10 @@ class AgentPlannerTest {
             .orElseThrow();
         assertThat(finalStep.dependsOn()).containsExactlyInAnyOrder(1, 2);
         assertThat(result.decision().executionPlan())
-            .containsEntry("eventKind", "DAG_REPAIR")
-            .containsEntry("eventState", "APPLIED")
-            .containsEntry("plannerGenerationCount", 1);
-        Map<?, ?> repairEvent = (Map<?, ?>) result.decision().executionPlan().get("repairEvent");
-        assertThat(repairEvent.get("repairCode"))
-            .isEqualTo("AUTHORITATIVE_WORKFLOW_DAG_RESTORED");
-        assertThat(repairEvent.get("topologyRestored")).isEqualTo(true);
-        assertThat(repairEvent.get("candidateValid")).isEqualTo(true);
+            .containsKey("planTransformation")
+            .containsEntry("planTransformationValidationState", "ACCEPTED")
+            .containsEntry("plannerGenerationCount", 1)
+            .doesNotContainKeys("eventKind", "eventState", "repairEvent");
     }
 
     @Test
@@ -1654,7 +1649,7 @@ class AgentPlannerTest {
         assertThat(result.plan().valid()).isTrue();
         assertThat(result.decision().executionPlan())
             .doesNotContainKeys("eventKind", "eventState", "repairEvent");
-        Map<?, ?> audit = (Map<?, ?>) result.decision().executionPlan().get("dagRepair");
+        Map<?, ?> audit = (Map<?, ?>) result.decision().executionPlan().get("planTransformation");
         assertThat(audit.get("status")).isEqualTo("NORMALIZED");
         assertThat(audit.get("changeKind")).isEqualTo("CONTRACT_ENRICHMENT");
         assertThat(audit.get("materialTopologyChanged")).isEqualTo(false);

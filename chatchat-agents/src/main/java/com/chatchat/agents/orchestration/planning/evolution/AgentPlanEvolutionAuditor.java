@@ -91,9 +91,10 @@ public final class AgentPlanEvolutionAuditor {
         );
     }
 
+    /** Records an explicitly classified planner repair supplied by a caller. */
     public void recordPlannerRepair(Map<String, Object> runtimeAttributes,
-                                             Map<String, Object> metadata,
-                                             Object rawRepairEvent) {
+                                    Map<String, Object> metadata,
+                                    Object rawRepairEvent) {
         Map<String, Object> repairEvent = asMap(rawRepairEvent);
         if (!"DAG_REPAIR".equalsIgnoreCase(stringValue(repairEvent.get("eventKind")))
             || repairEvent.isEmpty()) {

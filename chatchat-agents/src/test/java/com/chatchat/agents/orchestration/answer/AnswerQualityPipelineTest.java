@@ -179,6 +179,7 @@ class AnswerQualityPipelineTest {
             "sourceStage", "DRIVER",
             "renderedText", analysis
         ));
+        metadata.put("analysisDriverReturnedDatasetCount", 1);
 
         AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
             model, "analyze", "", List.of(), metadata, List.of("result.records[0].value=42"),
@@ -188,9 +189,9 @@ class AnswerQualityPipelineTest {
         assertThat(result.answer()).doesNotContain("analysis is impossible");
         assertThat(result.metadata())
             .containsEntry("answerReviewRewriteApplied", false)
-            .containsEntry("answerReviewRewriteSkippedReason", "governed_analysis_report")
-            .containsEntry("answerCriticAuthority", "advisory_only")
-            .containsEntry("answerCriticSkippedReason", "analysis_runtime_owns_claim_logic")
+            .containsEntry("answerReviewRewriteSkippedReason", "analysis_model_owns_report")
+            .containsEntry("answerCriticAuthority", "none")
+            .containsEntry("answerCriticSkippedReason", "analysis_model_owns_report")
             .containsEntry("analysisPublicationPolicy", "PUBLISH_SUPPORTED_DATA_REGARDLESS_OF_UTILITY");
         verifyNoInteractions(model);
     }

@@ -308,13 +308,19 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                 if (Boolean.TRUE.equals(values.get("deterministicMandatoryWorkflowFailure"))
                     || Boolean.TRUE.equals(values.get("fatalExecutionBlocked"))) {
                     values.put("failedToolLimitationsSuppressedForExecutionFailure", true);
+                } else if (isModelOwnedDataAnalysisReport(values)) {
+                    values.put("failedToolLimitationsSuppressedForModelOwnedAnalysis", true);
                 } else {
                     finalAnswer = userFacingPolicy.appendFailedToolLimitations(finalAnswer, toolEvidence);
                 }
             }
         }
-        finalAnswer = userFacingPolicy.applyUserFacingSectionPolicy(finalAnswer, query, values);
-        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(
+        if (isModelOwnedDataAnalysisReport(values)) {
+            values.put("userFacingSectionPolicySkippedReason", "analysis_model_owns_report");
+        } else {
+            finalAnswer = userFacingPolicy.applyUserFacingSectionPolicy(finalAnswer, query, values);
+        }
+        finalAnswer = bindReturnedEvidenceUnlessModelOwnedAnalysis(
             finalAnswer, values, observations, toolEvidence, "final_assembly");
         if (!finalAnswer.equals(selectedAnswer == null ? "" : selectedAnswer)) {
             values.put("finalAnswerSanitized", true);
@@ -335,7 +341,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         attachEvidenceAnswerContract(finalAnswer, values, observations);
         finalAnswer = answerEvidenceAuditService.attachLedger(
             finalAnswer, values, observations, toolEvidence);
-        finalAnswer = userFacingPolicy.applyUserFacingEvidenceReferencePolicy(finalAnswer, query, values);
+        if (isModelOwnedDataAnalysisReport(values)) {
+            values.put("userFacingEvidenceReferencePolicySkippedReason", "analysis_model_owns_report");
+        } else {
+            finalAnswer = userFacingPolicy.applyUserFacingEvidenceReferencePolicy(finalAnswer, query, values);
+        }
         values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         attachGovernedSummaryResult(finalAnswer, values, traces, observations);
         String userFacingAnswer = UserFacingAnswerSanitizer.sanitize(finalAnswer);
@@ -431,8 +441,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
-        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
-            userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
+        finalAnswer = bindReturnedEvidenceUnlessModelOwnedAnalysis(finalAnswer, metadata,
+            effectiveObservations, userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewForPublication(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
@@ -469,8 +479,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
-        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
-            userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
+        finalAnswer = bindReturnedEvidenceUnlessModelOwnedAnalysis(finalAnswer, metadata,
+            effectiveObservations, userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewForPublication(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
@@ -508,8 +518,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             activeChatModel, query, systemPrompt, finalAnswer, observations, traces, metadata);
         List<String> effectiveObservations = enhancement.observations();
         List<InteractionToolTrace> effectiveTraces = enhancement.traces();
-        finalAnswer = answerEvidenceAuditService.bindReturnedEvidence(finalAnswer, metadata, effectiveObservations,
-            userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
+        finalAnswer = bindReturnedEvidenceUnlessModelOwnedAnalysis(finalAnswer, metadata,
+            effectiveObservations, userFacingPolicy.toolResultEvidence(effectiveTraces), "pre_review");
         recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
         AgentAnswerReview review = reviewForPublication(activeChatModel, query, systemPrompt,
             effectiveObservations, finalAnswer, metadata);
@@ -537,20 +547,17 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                                                    List<String> observations,
                                                    String answer,
                                                    Map<String, Object> metadata) {
-        if (isGovernedAnalysisReport(metadata)) {
-            if (!Boolean.TRUE.equals(metadata.get("governedAnalysisPublicationReviewEnabled"))) {
-                metadata.put("answerReviewAuthority", "advisory_only");
-                metadata.put("answerReviewSkippedReason", "governed_publication_review_disabled");
-                return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer,
-                    "Governed publication review is disabled.");
-            }
-            // Structured claim admission validates analysis artifacts, but the final model can still
-            // accidentally promote a hypothesis to a fact while turning those artifacts into prose.
-            // Review the rendered report against the complete governed evidence and allow a model
-            // repair. This preserves analytical freedom while enforcing the fact/inference boundary
-            // at the actual publication surface.
-            metadata.put("answerReviewAuthority", "evidence_analysis_repair");
-            metadata.remove("answerReviewSkippedReason");
+        if (isModelOwnedDataAnalysisReport(metadata)) {
+            // Runtime supplies the governed datasets and provenance. The analysis model owns the
+            // reasoning and the complete report, so a Runtime reviewer must never judge or rewrite it.
+            metadata.remove("modelAnalysisReviewContext");
+            metadata.remove("modelEvidenceReviewRewriteAllowed");
+            metadata.remove("governedAnalysisPublicationReviewEnabled");
+            metadata.put("answerReviewAuthority", "none");
+            metadata.put("answerReviewSkipped", true);
+            metadata.put("answerReviewSkippedReason", "analysis_model_owns_report");
+            return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer,
+                "Runtime review skipped: the analysis model owns the report.");
         }
         return answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
             observations, answer, metadata);
@@ -584,8 +591,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         List<InteractionToolTrace> traces,
         Map<String, Object> metadata
     ) {
-        if (isGovernedAnalysisReport(metadata)) {
-            metadata.put("finalSummaryEnhancementSkippedReason", "analysis_runtime_owns_claim_logic");
+        if (isModelOwnedDataAnalysisReport(metadata)) {
+            metadata.put("finalSummaryEnhancementSkippedReason", "analysis_model_owns_report");
             return FinalSummaryWebSearchEnhancer.Enhancement.skipped(observations, traces);
         }
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
@@ -1173,6 +1180,39 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         }
         Map<String, Object> contract = objectMap(metadata.get("analysisReportContract"));
         return "DRIVER_REPORT".equals(stringValue(contract.get("reportType")));
+    }
+
+    private boolean isModelOwnedDataAnalysisReport(Map<String, Object> metadata) {
+        if (!isGovernedAnalysisReport(metadata)) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(metadata.get("returnedDataAnalysisRequired"))
+            || Boolean.TRUE.equals(metadata.get("finalClaimPublicationContractActive"))) {
+            return true;
+        }
+        for (String key : List.of("analysisDriverReturnedDatasetCount", "recordAnalysisDatasetCount",
+            "analysisObservedReturnedRecordCount", "recordAnalysisReturnedRecordCount")) {
+            Object value = metadata.get(key);
+            if (value instanceof Number number && number.longValue() > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String bindReturnedEvidenceUnlessModelOwnedAnalysis(
+        String answer,
+        Map<String, Object> metadata,
+        List<String> observations,
+        List<Map<String, Object>> toolEvidence,
+        String phase
+    ) {
+        if (isModelOwnedDataAnalysisReport(metadata)) {
+            metadata.put("answerEvidenceBindingSkippedReason", "analysis_model_owns_report");
+            return answer;
+        }
+        return answerEvidenceAuditService.bindReturnedEvidence(
+            answer, metadata, observations, toolEvidence, phase);
     }
 
     /**

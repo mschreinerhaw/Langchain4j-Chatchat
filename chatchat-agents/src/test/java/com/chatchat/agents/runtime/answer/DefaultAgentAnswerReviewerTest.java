@@ -99,6 +99,25 @@ class DefaultAgentAnswerReviewerTest {
     }
 
     @Test
+    void repairPromptPreservesClearlyLabeledBusinessAnalysis() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+
+        String prompt = reviewer.buildPrompt(
+            "Analyze the customer's trading style and recommend services",
+            null,
+            List.of("model_analysis_repair_v1 complete executed evidence: observed-period holdings and trades"),
+            "Based on the observed period, the account appears aggressive and may value faster market data."
+        );
+
+        assertThat(prompt)
+            .contains("does not prohibit analysis, interpretation, domain-informed hypotheses")
+            .contains("PARTIAL coverage alone is not a reason to reject")
+            .contains("do not require citations for explicitly labeled interpretation")
+            .contains("Model knowledge may inform explicitly labeled interpretation")
+            .contains("make the smallest wording qualification and preserve the conclusion");
+    }
+
+    @Test
     void acceptsAnswerWhenReviewerPayloadAcceptsIt() {
         DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
         QueueChatModel chatModel = new QueueChatModel(

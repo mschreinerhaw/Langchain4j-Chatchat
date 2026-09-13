@@ -99,8 +99,8 @@ final class AnswerQualityCoordinator {
             return selectedAnswer;
         }
         if (governedAnalysisReport(metadata)) {
-            put(metadata, "answerCriticAuthority", "advisory_only");
-            put(metadata, "answerCriticSkippedReason", "analysis_runtime_owns_claim_logic");
+            put(metadata, "answerCriticAuthority", "none");
+            put(metadata, "answerCriticSkippedReason", "analysis_model_owns_report");
             return selectedAnswer;
         }
         QualityContext context = prepareContext(query, systemPrompt, observations, metadata);

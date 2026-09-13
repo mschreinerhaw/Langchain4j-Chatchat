@@ -112,13 +112,9 @@ class AgentAnswerFinalizerTaskAssessmentTest {
     }
 
     @Test
-    void publishesEvidenceRepairForGovernedAnalysisInsteadOfRestoringOriginalDraft() {
+    void publishesGovernedAnalysisWithoutCallingRuntimeReviewer() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
-            new AgentAnswerReview(
-                AgentAnswerReview.REVISED,
-                "## Reviewed report\n\nThe observed day suggests active trading; it does not establish a persistent trait.",
-                "A one-day hypothesis was presented as a persistent fact."
-            );
+            { throw new AssertionError("Runtime reviewer must not be called for an analysis report"); };
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             reviewer,
             new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
@@ -128,7 +124,7 @@ class AgentAnswerFinalizerTaskAssessmentTest {
             "reportType", "DRIVER_REPORT",
             "renderedText", "## Original report\n\nThe customer is always an aggressive trader."
         ));
-        metadata.put("governedAnalysisPublicationReviewEnabled", true);
+        metadata.put("analysisDriverReturnedDatasetCount", 1);
         metadata.put("modelEvidenceReviewRewriteAllowed", true);
         metadata.put("modelAnalysisReviewContext", "One observed trading day with returned records.");
 
@@ -144,14 +140,15 @@ class AgentAnswerFinalizerTaskAssessmentTest {
             "final_answer"
         );
 
-        assertThat(result.answer())
-            .contains("suggests active trading")
-            .doesNotContain("always an aggressive trader");
+        assertThat(result.answer()).isEqualTo(
+            "## Original report\n\nThe customer is always an aggressive trader.");
         assertThat(result.metadata())
-            .containsEntry("answerDecision", AnswerDecisionEngine.REVIEWER_REWRITE)
-            .containsEntry("answerReviewRewriteApplied", true)
-            .containsEntry("governedAnalysisPublicationRepairApplied", true)
-            .doesNotContainKey("postAnalysisRewriteRejected");
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerReviewAuthority", "none")
+            .containsEntry("answerReviewSkipped", true)
+            .containsEntry("answerReviewSkippedReason", "analysis_model_owns_report")
+            .doesNotContainKeys("modelAnalysisReviewContext", "modelEvidenceReviewRewriteAllowed",
+                "governedAnalysisPublicationRepairApplied");
     }
 
     @Test

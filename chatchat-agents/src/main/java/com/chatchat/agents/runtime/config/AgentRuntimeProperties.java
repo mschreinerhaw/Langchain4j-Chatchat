@@ -47,7 +47,7 @@ public class AgentRuntimeProperties {
     private boolean answerQualityPipelineEnabled = true;
     private boolean answerCriticEnabled = true;
     private boolean answerRepairEnabled = true;
-    /** Reviews the rendered governed report against complete evidence before publication. */
+    /** Legacy review switch for non-data final responses; model-owned data reports always bypass it. */
     private boolean governedAnalysisPublicationReviewEnabled = false;
     private long answerCriticTimeoutMs = 45_000;
     /** Hard wall-clock budget for one Agent execution; zero keeps the legacy unlimited behavior. */

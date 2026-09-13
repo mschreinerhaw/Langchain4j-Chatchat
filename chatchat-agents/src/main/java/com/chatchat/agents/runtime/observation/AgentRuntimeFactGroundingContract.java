@@ -16,18 +16,18 @@ public final class AgentRuntimeFactGroundingContract {
         Map<String, Object> contract = new LinkedHashMap<>();
         contract.put("contractVersion", CONTRACT_VERSION);
         contract.put("factAuthority", "TOOL_STRUCTURED_OUTPUT");
-        contract.put("modelRole", "INTERPRET_AND_SUMMARIZE_WITHIN_FACT_BOUNDARY");
-        contract.put("runtimeRole", "PRESERVE_VALIDATE_AND_REWRITE_ON_FACT_MUTATION");
+        contract.put("modelRole", "OWNS_ANALYSIS_REASONING_AND_REPORT");
+        contract.put("runtimeRole", "SUPPLY_SCOPED_COMPLETE_TRACEABLE_DATA");
         contract.put("invariants", List.of(
             "Tool structured output defines the immutable fact boundary.",
             "Every structured dataset follows summary_governance.v1 when analysisContext is present: use it for data identity, field semantics, analytical semantics, quality, analysis policy, source extensions, and explicit inter-result relationships only.",
             "Summary-governance context is not returned business data and field metadata is not a presentation-label mapping.",
             "Every analysis chunk carries traceable_chunk_evidence.v1 identity, position, content digest, exact fact references, command context and a Runtime raw-replay locator.",
             "An unstructured, conflicted, incomplete or fact-validation-failed chunk must be replayed from its full Runtime record before final synthesis; chunk narrative never overrides raw evidence.",
-            "The model may explain, relate, and summarize facts, but must not add, rename, replace, or contradict them.",
+            "The model may calculate, explain, relate, interpret, hypothesize, profile, and recommend; it must not add, rename, replace, or contradict facts presented as retrieved observations.",
             "Identifiers, counts, statuses, completeness flags, database layers, schemas, tables, fields, and execution results remain exact.",
-            "Inferences and recommendations must be explicitly separated from observed facts and must never be presented as retrieved objects.",
-            "Missing evidence must be reported as missing; it must not be filled with examples, conventions, or model knowledge.",
+            "Inferences and recommendations must remain distinguishable from observed facts and must never be presented as retrieved objects; concise epistemic wording is sufficient.",
+            "Missing factual evidence must not be silently filled in as retrieved data. Clearly labeled hypotheses, examples, domain context, scenarios, and conditional recommendations remain allowed.",
             "Missing evidence and capability limits are relevant only when they block an explicitly requested deliverable; they must never expand the task scope.",
             "A tool contract's unsupported or not-assessed claims describe its capability boundary, not additional user requirements or automatic follow-up work.",
             "Partial data is a normal result: analyze every returned dataset first and report unavailable dimensions separately.",
@@ -43,26 +43,25 @@ public final class AgentRuntimeFactGroundingContract {
         ));
         contract.put("enforcementStages", List.of(
             "planning",
-            "tool_result_review",
-            "final_synthesis",
-            "answer_review"
+            "tool_execution",
+            "evidence_delivery"
         ));
-        contract.put("onViolation", "REWRITE_FROM_ORIGINAL_TOOL_EVIDENCE_OR_RETURN_SAFE_LIMITATION");
+        contract.put("onViolation", "REPORT_DATA_SUPPLY_OR_PROVENANCE_FAILURE");
         return Map.copyOf(contract);
     }
 
     public static String promptSection() {
         return """
             Agent Runtime fact-grounding contract (contractVersion=agent_runtime_fact_grounding_v1):
-            - Structured tool output is the immutable fact boundary and has priority over model assumptions or prior knowledge.
+            - Structured tool output is the immutable boundary for claims presented as retrieved facts and has priority over model assumptions or prior knowledge. It is not a boundary on clearly labeled analysis.
             - Summary-governance contract (summary_governance.v1): for every structured dataset, use analysisContext to understand source identity, capability, business meaning, schema semantics, analytical semantics, quality, analysis policy, source extensions, and explicit relationships. Apply this contract uniformly across API, database, asset analysis, and future data structures.
-            - analysisContext is semantic input, not returned business data. Field metadata explains meaning but never renames returned keys in tables, charts, exports, or factual references. Infer no relationship that the context or returned facts do not establish.
+            - analysisContext is semantic input, not returned business data. Field metadata explains meaning but never renames returned keys in tables, charts, exports, or factual references. Do not present a relationship that the context or returned facts do not establish as an observed fact; clearly labeled analytical hypotheses remain allowed.
             - Traceable chunk evidence contract (traceable_chunk_evidence.v1): every chunk is identified by dataset, chunk index, exact record range and SHA-256 content digest. Ground material conclusions in its validated facts and exact record/value references. Preserve command descriptions, result references and explicit relationships as context, never as returned facts.
             - Raw replay contract: when a chunk capsule is unstructured, contains rejected facts or conflicts, marks rawReplayRecommended, or comes from an incomplete source, use the attached full raw replay. Raw records are authoritative and override inconsistent chunk narrative. Chunking is a processing boundary, never a result-size limit.
-            - The model may interpret, connect, and summarize observed facts, but must not add, rename, replace, omit material qualifiers from, or contradict them.
+            - The model may calculate, interpret, connect, hypothesize, profile, discuss scenarios and recommend actions. It must not add, rename, replace, omit material qualifiers from, or contradict facts presented as observed tool output.
             - Preserve exact identifiers, counts, statuses, completeness/truncation flags, database layers, schemas, tables, fields, and execution outcomes.
-            - Keep explicit inference/recommendation separate from observed facts. Never present inferred examples or naming conventions as retrieved results.
-            - When evidence is missing, state the missing evidence; do not fill the gap with model knowledge.
+            - Keep inference/recommendation distinguishable from observed facts. Qualifiers such as "appears", "suggests", "may", "based on the observed period", or an equivalent heading are enough; never present inferred examples or naming conventions as retrieved results.
+            - Do not silently fill missing factual fields with model knowledge and present them as returned data. Model knowledge may still support clearly labeled interpretation, hypotheses, examples, scenarios and conditional advice when useful to the user's requested analysis.
             - Scope is defined by the current user request. Mention missing evidence or capability limits only when they materially block an explicitly requested deliverable; never expand the answer, hypothesis set, or follow-up plan merely because a tool advertises additional unsupported dimensions.
             - Tool fields such as unsupportedClaims, notAssessedClaims, capability limits, and coverage exclusions are guardrails, not a task checklist. Do not copy them into missing evidence, limitations, hypotheses, recommendations, or next actions unless the current user request explicitly requires that claim.
             - Partial-result presentation contract: analyze every successfully returned dataset first. Put missing dimensions in a short coverage/limitation section after the available-data analysis; do not replace the requested report with an API inventory or capability analysis.
@@ -78,7 +77,7 @@ public final class AgentRuntimeFactGroundingContract {
             - Never present illustrative/manual SQL, shell commands, scripts, or validation snippets as executed, authorized, retrieved, or factual tool output unless their exact text was returned by an authorized tool.
             - If the user explicitly asks to draft SQL, DDL, commands, or scripts, you may generate a clearly labeled non-executed draft for human review. Use observed facts where available, mark assumptions and unresolved choices, and never imply Runtime executed or approved it.
             - Preserve asset contract semantics exactly: displayName/name is the asset label, assetId/id is the asset identifier, and toolName is the bound execution tool. Never relabel toolName as displayName.
-            - Runtime must validate the final answer and rewrite it from original tool evidence when fact mutation is detected.
+            - Runtime supplies data and provenance only. It does not review, score, censor, qualify, supplement or rewrite the analysis model's report.
 
             """;
     }

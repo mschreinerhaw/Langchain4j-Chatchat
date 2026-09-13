@@ -85,10 +85,10 @@ public class AnswerDecisionEngine {
             if (quality != null) {
                 attachQualityMetadata(metadata, quality);
             }
-            metadata.put("answerReviewAuthority", "diagnostic_only");
+            metadata.put("answerReviewAuthority", governedAnalysis ? "none" : "diagnostic_only");
             metadata.put("answerReviewRewriteApplied", false);
             metadata.put("answerReviewRewriteSkippedReason",
-                governedAnalysis ? "governed_analysis_report" : "protected_business_result");
+                governedAnalysis ? "analysis_model_owns_report" : "protected_business_result");
             return decision(
                 candidate,
                 NO_REWRITE,

@@ -905,8 +905,9 @@ public final class AnswerEvidenceLedgerCompiler {
             return "Answer evidence preflight (contractVersion=" + CLAIM_LEDGER_VERSION + "): status=" + status
                 + ", coverage=" + coverage + ", criticalUnboundClaims=" + criticalUnboundClaims
                 + ", unknownReferences=" + unknownReferences
-                + ". Reject unsupported high-risk claims and unknown citations; require each numeric, date, causal, "
-                + "or definitive claim to carry a returned evidence reference near that claim.";
+                + ". This is a provenance diagnostic, not a semantic publication veto. PARTIAL coverage is advisory. "
+                + "Reject fabricated/unknown citations or material returned-fact mutations; do not require evidence "
+                + "references for clearly labeled interpretation, hypotheses, scenarios, or conditional recommendations.";
         }
     }
 

@@ -11,19 +11,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentRuntimeFactGroundingContractTest {
 
     @Test
-    void exposesCanonicalFactBoundaryAndAllEnforcementStages() {
+    void exposesCanonicalDataSupplyBoundaryWithoutAnswerEnforcement() {
         Map<String, Object> contract = AgentRuntimeFactGroundingContract.metadata();
 
         assertThat(contract)
             .containsEntry("contractVersion", "agent_runtime_fact_grounding_v1")
             .containsEntry("factAuthority", "TOOL_STRUCTURED_OUTPUT")
-            .containsEntry("modelRole", "INTERPRET_AND_SUMMARIZE_WITHIN_FACT_BOUNDARY")
-            .containsEntry("runtimeRole", "PRESERVE_VALIDATE_AND_REWRITE_ON_FACT_MUTATION");
+            .containsEntry("modelRole", "OWNS_ANALYSIS_REASONING_AND_REPORT")
+            .containsEntry("runtimeRole", "SUPPLY_SCOPED_COMPLETE_TRACEABLE_DATA")
+            .containsEntry("onViolation", "REPORT_DATA_SUPPLY_OR_PROVENANCE_FAILURE");
         assertThat(contract.get("enforcementStages")).isEqualTo(List.of(
-            "planning", "tool_result_review", "final_synthesis", "answer_review"
+            "planning", "tool_execution", "evidence_delivery"
         ));
         assertThat(AgentRuntimeFactGroundingContract.promptSection())
-            .contains("immutable fact boundary")
+            .contains("immutable boundary for claims presented as retrieved facts")
             .contains("must not add, rename, replace")
             .contains("not a task checklist")
             .contains("never expand the answer, hypothesis set, or follow-up plan")
@@ -40,6 +41,6 @@ class AgentRuntimeFactGroundingContractTest {
             .contains("DATA_RETURNED, EMPTY_RESULT, NOT_EXECUTED, BLOCKED, and FAILED")
             .contains("Convert YYYYMMDD to YYYY-MM-DD without changing any digit")
             .contains("do not replace the requested report with an API inventory")
-            .contains("rewrite it from original tool evidence");
+            .contains("does not review, score, censor, qualify, supplement or rewrite");
     }
 }

@@ -205,7 +205,6 @@ chatchat:
     answer-quality-pipeline-enabled: true
     answer-critic-enabled: true
     answer-repair-enabled: true
-    governed-analysis-publication-review-enabled: ${CHATCHAT_AGENT_GOVERNED_ANALYSIS_PUBLICATION_REVIEW_ENABLED:true}
     answer-critic-timeout-ms: 45000
     # Lossless processing boundaries; these values never truncate returned evidence.
     record-analysis-chunk-max-chars: 12000

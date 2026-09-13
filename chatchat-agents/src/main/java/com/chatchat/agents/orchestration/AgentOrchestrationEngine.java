@@ -1430,7 +1430,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("batchFinalizationModelCalls", 1);
             metadata.put("answerReviewSkipped", true);
             metadata.put("answerReviewSkipReason",
-                "batch diagnostics reserve the single post-execution model call for final synthesis");
+                "analysis model output is final; Runtime only supplies batch data");
             return answerFinalizer.finishExecution(synthesizedAnswer, traces, metadata, observations);
         }
         if (governedPublicationReview && (hasBatchExecutionTrace(traces)

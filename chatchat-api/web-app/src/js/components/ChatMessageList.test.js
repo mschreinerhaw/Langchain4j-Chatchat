@@ -17,6 +17,30 @@ function render(source) {
 }
 
 describe("tool execution evidence", () => {
+  it("keeps backend lifecycle observations visible without counting them as tool calls", () => {
+    const message = {
+      role: "assistant",
+      status: "failed",
+      streaming: false,
+      steps: [
+        { id: "runtime-start", type: "RUNTIME_STARTED", title: "后端执行中", status: "done" },
+        {
+          id: "planner-observation",
+          type: "RUNTIME_OBSERVATION",
+          title: "计划校验",
+          toolName: "mcp_chatchat_mcp_server_api_template_query",
+          status: "done"
+        },
+        { id: "runtime-failed", type: "RUNTIME_FAILED", title: "运行失败", status: "error" }
+      ],
+      traces: []
+    };
+
+    expect(methods.runtimeToolCalls.call(context, message)).toHaveLength(0);
+    expect(methods.runtimeProcessSteps.call(context, message).map((step) => step.title))
+      .toEqual(["后端执行中", "计划校验", "运行失败"]);
+  });
+
   it("recognizes supporting datasets as evidence attachments", () => {
     expect(methods.isSupportingDatasetVisualization({
       presentationChannel: "supporting_dataset",

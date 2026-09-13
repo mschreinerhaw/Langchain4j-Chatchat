@@ -31,6 +31,58 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools() {
+        String asset = "mcp_chatchat_mcp_server_api_service_query";
+        String template = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String response = """
+            {
+              "version":"1.0",
+              "intent":{"type":"mixed","goal":"query customer trading and assets","risk_level":"low"},
+              "context":{"key_facts":["customer: 070200046604"],"assumptions":[],"missing_info":[],"constraints":[]},
+              "plan":{"steps":[
+                {"id":1,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_api_service_query",
+                 "input":{"query":"customer trading and assets"},"depends_on":[]},
+                {"id":2,"action_type":"mcp_tool","tool_name":"mcp_chatchat_mcp_server_api_template_execute",
+                 "input":{"templateId":"{{step1.templateId}}","parameters":{"customer_id":"070200046604"}},
+                 "depends_on":[1]},
+                {"id":3,"action_type":"final_answer","tool_name":"","input":{"answer":"pending evidence"},
+                 "depends_on":[2]}
+              ]},
+              "execution_policy":{"max_steps":3,"allow_parallel":true,
+                "allow_tool":["mcp_chatchat_mcp_server_api_service_query","mcp_chatchat_mcp_server_api_template_execute"],
+                "deny_tool":[],"max_rewrite_times":1,"fallback_mode":"partial_result"},
+              "review":{"self_check":{"completeness_score":1.0,"hallucination_risk":0.0,
+                "tool_sufficiency":true,"missing_steps":[]},"fallback_plan":[]}
+            }
+            """;
+        ChatModel model = new ChatModel() {
+            @Override
+            public String chat(String message) {
+                return response;
+            }
+        };
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", asset, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(asset)));
+
+        PlannerExecutionResult result = planner.decideNextAction(
+            model, "query customer 070200046604", "", List.of(asset, execute),
+            List.of(), List.of(), List.of(), List.of(asset, execute), true,
+            false, null, null,
+            Map.of("plannerMaxRepairAttempts", 1, "authoritativeWorkflowDag", authoritativeDag));
+
+        assertThat(result.plan().valid()).isTrue();
+        assertThat(result.decision().reason()).isNotEqualTo("invalid_interpretation_plan");
+        assertThat(result.decision().interpretationPlan().steps())
+            .extracting(InterpretationPlan.Step::toolName).contains(template);
+        assertThat(result.decision().interpretationPlan().executionPolicy().maxSteps()).isEqualTo(4);
+        assertThat(result.decision().interpretationPlan().executionPolicy().allowTool()).contains(template);
+        assertThat(result.decision().interpretationPlan().executionPolicy().maxRewriteTimes()).isEqualTo(1);
+    }
+
+    @Test
     void plainMarkdownCannotBecomeAnAdmittedPlanAfterBoundedRepair() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         AtomicInteger calls = new AtomicInteger();
@@ -1870,7 +1922,10 @@ class AgentPlannerTest {
             "mcp_chatchat_mcp_server_sql_datasource_template_query",
             "mcp_chatchat_mcp_server_sql_query_execute",
             "mcp_chatchat_mcp_server_linux_command_execute",
-            "tenant_semantic_gateway"
+            "tenant_semantic_gateway",
+            "mcp_chatchat_mcp_server_api_service_query",
+            "mcp_chatchat_mcp_server_api_template_query",
+            "mcp_chatchat_mcp_server_api_template_execute"
         );
 
         private TestToolRegistry() {
@@ -1915,6 +1970,23 @@ class AgentPlannerTest {
                         List.of("Use the signed semantic selector."),
                         List.of("Preserve the signed semantic selector."))));
             }
+            if (toolName.startsWith("mcp_chatchat_mcp_server_api_")) {
+                ToolWorkflowRole role = getWorkflowRole(toolName);
+                String remoteName = toolName.substring("mcp_chatchat_mcp_server_".length());
+                String protocol = role == ToolWorkflowRole.ASSET_DISCOVERY
+                    ? "mcp.api-service-asset.v1"
+                    : role == ToolWorkflowRole.TEMPLATE_DISCOVERY
+                        ? "mcp.api-template-discovery.v1" : "mcp.api-template.v1";
+                Map<String, Object> workflowMetadata = new java.util.LinkedHashMap<>();
+                workflowMetadata.put("remoteToolName", remoteName);
+                workflowMetadata.put("assetType", "api_service");
+                workflowMetadata.put(ToolWorkflowContract.METADATA_KEY,
+                    ToolWorkflowContract.declaration(role, protocol, "parameters"));
+                if (role == ToolWorkflowRole.TEMPLATE_EXECUTION) {
+                    workflowMetadata.put("templateDiscoveryTool", "api_template_query");
+                }
+                builder.metadata(workflowMetadata);
+            }
             if (includeApplicability && "mcp_chatchat_mcp_server_sql_query_execute".equals(toolName)) {
                 builder.description("SQL execution gateway").metadata(Map.of(
                     "mcpToolMeta", Map.of(
@@ -1931,6 +2003,15 @@ class AgentPlannerTest {
 
         @Override
         public ToolWorkflowRole getWorkflowRole(String toolName) {
+            if ("mcp_chatchat_mcp_server_api_service_query".equals(toolName)) {
+                return ToolWorkflowRole.ASSET_DISCOVERY;
+            }
+            if ("mcp_chatchat_mcp_server_api_template_query".equals(toolName)) {
+                return ToolWorkflowRole.TEMPLATE_DISCOVERY;
+            }
+            if ("mcp_chatchat_mcp_server_api_template_execute".equals(toolName)) {
+                return ToolWorkflowRole.TEMPLATE_EXECUTION;
+            }
             if (toolName != null && (toolName.endsWith("database_capability_query")
                 || toolName.endsWith("server_capability_query"))) {
                 return ToolWorkflowRole.ASSET_DISCOVERY;
@@ -1977,7 +2058,9 @@ class AgentPlannerTest {
                 || "mcp_chatchat_mcp_server_asset_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_template_query".equals(toolName)
                 || "mcp_chatchat_mcp_server_sql_datasource_asset_query".equals(toolName)
-                || "mcp_chatchat_mcp_server_sql_datasource_template_query".equals(toolName)) {
+                || "mcp_chatchat_mcp_server_sql_datasource_template_query".equals(toolName)
+                || "mcp_chatchat_mcp_server_api_service_query".equals(toolName)
+                || "mcp_chatchat_mcp_server_api_template_query".equals(toolName)) {
                 return List.of();
             }
             return List.of(ToolParameter.builder().name("template").type("string").required(true).build());

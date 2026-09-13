@@ -68,6 +68,31 @@
           <div class="runtime-progress-track" aria-hidden="true">
             <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
           </div>
+          <div v-if="runtimeProcessSteps(message).length" class="runtime-execution-body">
+            <ol class="runtime-stage-grid" aria-label="后端执行过程">
+              <li
+                v-for="step in runtimeProcessSteps(message)"
+                :key="step.id"
+                :class="stepStatusClass(step)"
+              >
+                <span class="runtime-step-glyph" aria-hidden="true"></span>
+                <div>
+                  <b>{{ step.title }}</b>
+                  <small v-if="step.detail">{{ step.detail }}</small>
+                </div>
+                <em>{{ runtimeStageStatusText(step) }}</em>
+              </li>
+            </ol>
+            <aside v-if="runtimeEvents(message).length" class="runtime-event-stream">
+              <strong>实时事件</strong>
+              <ol>
+                <li v-for="event in runtimeEvents(message)" :key="event.id">
+                  <time>{{ event.time }}</time>
+                  <span>{{ event.label }}</span>
+                </li>
+              </ol>
+            </aside>
+          </div>
           <div
             v-if="isResultFinalizing(message)"
             class="result-finalizing"

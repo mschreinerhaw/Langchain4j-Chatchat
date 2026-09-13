@@ -507,22 +507,24 @@ public class AgentPlanner implements AgentPlanningPort {
             interpretationPlan,
             validationContext == null ? null : validationContext.agentWorkflow());
         InterpretationPlan sourcePlan = interpretationPlan;
+        InterpretationPlanOptimizer planOptimizer = new InterpretationPlanOptimizer(toolRegistry);
         InterpretationPlanOptimizer.OptimizationResult optimization =
-            new InterpretationPlanOptimizer(toolRegistry).optimize(
+            planOptimizer.optimize(
                 interpretationPlan,
                 validationContext == null ? null : validationContext.authoritativeWorkflowDag()
             );
         if (optimization.plan() != null) {
             InterpretationPlan optimized = optimization.plan();
-            // Planning-time optimization repairs the graph before validation. The model's
-            // already budget-capped execution policy remains authoritative here; runtime
-            // policy tuning must not silently expand an explicit zero-rewrite budget.
+            // Planning-time optimization repairs the graph before validation. Preserve the
+            // request/model rewrite budget while retaining optimizer-owned graph capacity
+            // and companion-tool authorization required by materialized workflow nodes.
             interpretationPlan = new InterpretationPlan(
                 optimized.version(),
                 optimized.intent(),
                 optimized.context(),
                 optimized.plan(),
-                interpretationPlan.executionPolicy(),
+                mergePlanningOptimizationPolicy(
+                    interpretationPlan.executionPolicy(), optimized.executionPolicy()),
                 optimized.review()
             );
         }
@@ -532,11 +534,14 @@ public class AgentPlanner implements AgentPlanningPort {
             optimization.appliedPasses(),
             optimization.repairResult().stepIdMappings(),
             optimization.repairResult().passFailures());
+        LinkedHashSet<String> validationTools = new LinkedHashSet<>(
+            validationContext == null ? List.of() : normalizeList(validationContext.availableTools()));
+        validationTools.addAll(planOptimizer.runtimeCompanionTools(interpretationPlan));
         InterpretationPlanValidator.ValidationResult validation =
             interpretationPlanValidator.validate(
                 interpretationPlan,
                 toolRegistry,
-                new LinkedHashSet<>(validationContext == null ? List.of() : normalizeList(validationContext.availableTools()))
+                validationTools
             );
         List<String> runtimeIssues = validateRuntimePlanRules(interpretationPlan, validationContext);
         Map<String, Object> validationMetadata = new LinkedHashMap<>(validationMetadata(validation, runtimeIssues));
@@ -774,6 +779,40 @@ public class AgentPlanner implements AgentPlanningPort {
         validateAssetDiscoveryIsNotGuessed(plan, context, toolStepIds, issues);
         validateWebSearchCrawlerSplit(plan, context, stepsById, toolStepIds, finalStep, issues);
         return issues;
+    }
+
+    private InterpretationPlan.ExecutionPolicy mergePlanningOptimizationPolicy(
+        InterpretationPlan.ExecutionPolicy source,
+        InterpretationPlan.ExecutionPolicy optimized
+    ) {
+        if (source == null) {
+            return optimized;
+        }
+        if (optimized == null) {
+            return source;
+        }
+        LinkedHashSet<String> allowedTools = new LinkedHashSet<>(
+            source.allowTool() == null ? List.of() : source.allowTool());
+        if (optimized.allowTool() != null) {
+            allowedTools.addAll(optimized.allowTool());
+        }
+        Integer maxSteps = source.maxSteps();
+        if (optimized.maxSteps() != null && (maxSteps == null || optimized.maxSteps() > maxSteps)) {
+            maxSteps = optimized.maxSteps();
+        }
+        return new InterpretationPlan.ExecutionPolicy(
+            maxSteps,
+            optimized.allowParallel() == null ? source.allowParallel() : optimized.allowParallel(),
+            List.copyOf(allowedTools),
+            source.denyTool(),
+            source.timeoutMs(),
+            source.maxRewriteTimes(),
+            source.fallbackMode(),
+            source.toolPriority(),
+            source.costBudget(),
+            source.latencyBudgetMs(),
+            source.accuracyVsSpeed()
+        );
     }
 
     private void validateOptionalToolDecisions(InterpretationPlan plan,

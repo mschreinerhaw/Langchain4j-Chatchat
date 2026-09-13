@@ -393,6 +393,12 @@ export default {
           order: index
         }));
     },
+    runtimeProcessSteps(message = {}) {
+      const toolEventTypes = new Set(["TOOL_CALL", "TOOL_RESULT"]);
+      return this.runtimeStageCards(message)
+        .filter((step) => !toolEventTypes.has(String(step.type || "").toUpperCase()))
+        .slice(-12);
+    },
     runtimeStepMatchesStage(step = {}, stage = {}) {
       const text = `${step.title || ""} ${step.detail || ""} ${step.type || ""} ${step.toolName || ""}`.toLowerCase();
       const hasAny = (terms) => terms.some((term) => text.includes(String(term).toLowerCase()));
@@ -513,9 +519,9 @@ export default {
       const explicit = steps.filter((step) => ["TOOL_CALL", "TOOL_RESULT"].includes(String(step.type || "").toUpperCase()));
       const governance = steps.filter((step) => String(step.type || "").toUpperCase() === "RUNTIME_OBSERVATION"
         && ["warning", "repairing", "repaired"].includes(String(step.status || "").toLowerCase()));
-      const selected = (explicit.length
-        ? [...governance, ...explicit]
-        : steps.filter((step) => String(step.type || "").toUpperCase().startsWith("RUNTIME_")))
+      // Runtime lifecycle observations describe backend progress; they are not tool calls.
+      // Only explicit tool events (plus tool-governance warnings) belong in this panel.
+      const selected = [...governance, ...explicit]
         .sort((left, right) => Number(left.timestamp || 0) - Number(right.timestamp || 0));
       if (selected.length) {
         return selected.map((step, index) => {

@@ -3718,6 +3718,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (!deferredTemplateIds.isEmpty()) {
             metadata.put("deferredTemplateIds", deferredTemplateIds);
         }
+        List<String> coverageAuditDeferredTemplateIds = stringList(firstObject(
+            payload, "coverage_audit_deferred_template_ids", "coverageAuditDeferredTemplateIds"));
+        if (!coverageAuditDeferredTemplateIds.isEmpty()) {
+            metadata.put("coverageAuditDeferredTemplateIds", coverageAuditDeferredTemplateIds);
+        }
         Object templateEvaluations = firstObject(payload, "template_evaluations", "templateEvaluations");
         if (templateEvaluations instanceof Iterable<?>) {
             metadata.put("templateEvaluations", templateEvaluations);
@@ -4048,7 +4053,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             + "provisional rejection as internally contradictory when its reason says a candidate contains "
             + "the very behavior, activity or measure explicitly requested by the user. Candidate disposition is "
             + "three-state: selected means execute now, deferred means potentially useful but not required or not "
-            + "assessable, and rejected requires explicit evidence that the candidate is irrelevant. Never compute "
+            + "assessable, and rejected requires explicit evidence that the candidate is irrelevant. Candidates in "
+            + "corrected_deferred_template_ids are supplementary analysis sources: Runtime will load their data for "
+            + "the synthesis model even when they are not primary selections. Never compute "
             + "rejected as all returned ids minus selected ids. If the query text is visibly damaged by replacement "
             + "characters or repeated question marks, do not infer hidden intent and do not reject candidates because "
             + "of the missing text. " + CROSS_ASSET_RELATIONSHIP_REVIEW_RULE + " Return strict JSON only: "
@@ -4067,6 +4074,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> audit = parseJsonObject(rawAudit);
         List<String> corrected = stringList(firstObject(
             audit, "corrected_selected_template_ids", "correctedSelectedTemplateIds"));
+        List<String> correctedDeferred = stringList(firstObject(
+            audit, "corrected_deferred_template_ids", "correctedDeferredTemplateIds"));
         Set<String> returned = candidates.stream()
             .map(candidate -> stringValue(firstObject(candidate,
                 "templateId", "template_id", "id", "code", "template")))
@@ -4085,6 +4094,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         LinkedHashSet<String> auditedSelection = new LinkedHashSet<>();
         selected.stream().filter(returned::contains).forEach(auditedSelection::add);
         corrected.stream().filter(returned::contains).forEach(auditedSelection::add);
+        // A coverage-audit deferral means supplementary rather than irrelevant.
+        // Load it through the same execution/binding path so its records reach the
+        // business datasets and final synthesis model. Explicit rejection remains
+        // the only disposition that prevents loading.
+        correctedDeferred.stream().filter(returned::contains).forEach(auditedSelection::add);
         auditedRejected.forEach(auditedSelection::remove);
         List<String> auditedSelected = List.copyOf(auditedSelection);
         List<String> finalAuditedRejected = auditedRejected.stream()
@@ -4114,6 +4128,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> revised = new LinkedHashMap<>(provisional);
         revised.put("selected_template_ids", auditedSelected);
         revised.put("rejected_template_ids", finalAuditedRejected);
+        revised.put("coverage_audit_deferred_template_ids", correctedDeferred.stream()
+            .filter(returned::contains)
+            .filter(id -> !finalAuditedRejected.contains(id))
+            .distinct()
+            .toList());
         revised.put("deferred_template_ids", returned.stream()
             .filter(id -> !auditedSelected.contains(id))
             .filter(id -> !finalAuditedRejected.contains(id)).toList());

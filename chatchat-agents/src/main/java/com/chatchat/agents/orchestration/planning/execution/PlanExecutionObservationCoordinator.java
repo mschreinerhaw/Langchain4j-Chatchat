@@ -56,7 +56,8 @@ public final class PlanExecutionObservationCoordinator {
         InterpretationPlanRuntime.StepExecution step) {
         if (step == null || step.metadata() == null || step.metadata().isEmpty()) return null;
         Map<String, Object> feedback = new LinkedHashMap<>();
-        for (String key : List.of("selectedTemplateIds", "deferredTemplateIds", "rejectedTemplateIds",
+        for (String key : List.of("selectedTemplateIds", "deferredTemplateIds",
+            "coverageAuditDeferredTemplateIds", "rejectedTemplateIds",
             "templateEvaluations", "refinedIntent", "runtimeSelectedTemplateIds",
             "runtimeTemplateCandidateEvaluations", "runtimeTemplateSelectionReason",
             "templateExecutionReview", "templateReselectionRequired")) {

@@ -3982,6 +3982,40 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void coverageAuditLoadsCorrectedDeferredTemplatesForAnalysis() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(
+            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+                + "\"deferred_template_ids\":[\"trade\",\"position\"]}",
+            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+                + "\"requested_aspects\":[\"assets\",\"trading preferences\"],"
+                + "\"corrected_selected_template_ids\":[\"asset\"],"
+                + "\"corrected_deferred_template_ids\":[\"trade\",\"position\"],"
+                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[]}"
+        );
+        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+        InterpretationPlanRuntime.StepExecution execution =
+            new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+                Map.of("templates", List.of(
+                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+                    Map.of("templateId", "trade", "title", "Transaction history"),
+                    Map.of("templateId", "position", "title", "Position details"))),
+                null, null, null, 10L);
+
+        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+            model, "analyze assets and trading preferences", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(
+                null, null, execution, Map.of(), 1, 1, "run-load-deferred-analysis"));
+
+        assertThat(review.metadata())
+            .containsEntry("selectedTemplateIds", List.of("asset", "trade", "position"))
+            .containsEntry("coverageAuditDeferredTemplateIds", List.of("trade", "position"))
+            .doesNotContainKey("deferredTemplateIds");
+        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
+    }
+
+    @Test
     void completeFirstPassTemplateReviewIsReusedWithoutAQualityReducingSecondSelection() {
         ChatModel model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn(

@@ -105,47 +105,27 @@
                 <div>
                   <b>{{ step.title }}</b>
                   <small v-if="step.detail">{{ step.detail }}</small>
-                </div>
-                <em>{{ runtimeStageStatusText(step, message) }}</em>
-              </li>
-            </ol>
-            <aside
-              v-if="runtimeEvents(message).length"
-              class="runtime-event-stream"
-              aria-live="polite"
-              aria-relevant="additions"
-            >
-              <strong>实时事件</strong>
-              <ol>
-                <li
-                  v-for="group in runtimeEventGroups(message)"
-                  :key="group.id"
-                  :class="{ 'runtime-event-group': group.grouped, active: group.active }"
-                >
-                  <details v-if="group.grouped" :open="group.active">
-                    <summary>
-                      <time>{{ group.time }}</time>
-                      <code>{{ group.toolName }}</code>
-                      <small>{{ group.children.length }} 个子步骤 · {{ group.statusText }}</small>
-                    </summary>
+                  <details
+                    v-if="step.children && step.children.length"
+                    class="runtime-stage-children"
+                    :open="step.status === 'active'"
+                  >
+                    <summary>{{ step.children.length }} 个执行明细</summary>
                     <ol>
-                      <li v-for="child in group.children" :key="child.id">
-                        <time>{{ child.time }}</time>
+                      <li v-for="child in step.children" :key="child.id">
+                        <time>{{ child.displayTime }}</time>
                         <span>
                           <b>{{ child.title }}</b>
                           <small v-if="child.detail">{{ child.detail }}</small>
                         </span>
-                        <em>{{ child.statusText }}</em>
+                        <em>{{ runtimeStageStatusText(child, message) }}</em>
                       </li>
                     </ol>
                   </details>
-                  <template v-else>
-                    <time>{{ group.time }}</time>
-                    <span>{{ group.label }}</span>
-                  </template>
-                </li>
-              </ol>
-            </aside>
+                </div>
+                <em>{{ runtimeStageStatusText(step, message) }}</em>
+              </li>
+            </ol>
           </div>
           <div
             v-if="isResultFinalizing(message)"

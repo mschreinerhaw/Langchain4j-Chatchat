@@ -438,10 +438,92 @@ export default {
         }));
     },
     runtimeProcessSteps(message = {}) {
-      const toolEventTypes = new Set(["TOOL_CALL", "TOOL_RESULT"]);
-      return this.runtimeStageCards(message)
-        .filter((step) => !toolEventTypes.has(String(step.type || "").toUpperCase()))
-        .slice(-12);
+      const stages = [];
+      const stagesByKey = new Map();
+      let currentStage = null;
+      this.runtimeStageCards(message)
+        .filter((step) => String(step.status || "").toLowerCase() !== "pending")
+        .forEach((step) => {
+          if (this.isPrimaryRuntimeStage(step)) {
+            const presented = this.runtimePrimaryPresentation(step);
+            const key = this.runtimePrimaryStageKey(presented);
+            const existing = stagesByKey.get(key);
+            if (existing) {
+              existing.status = presented.status;
+              existing.timestamp = presented.timestamp;
+              existing.detail = presented.detail || existing.detail;
+              currentStage = existing;
+              return;
+            }
+            currentStage = { ...presented, children: [] };
+            stagesByKey.set(key, currentStage);
+            stages.push(currentStage);
+            return;
+          }
+          if (!currentStage) {
+            currentStage = {
+              id: `${message.id || "message"}-backend-details`,
+              title: "后端处理中",
+              detail: "正在执行后台任务",
+              status: "active",
+              timestamp: step.timestamp,
+              children: []
+            };
+            stages.push(currentStage);
+          }
+          currentStage.children.push(this.runtimeChildPresentation(step));
+        });
+      return stages.slice(-12);
+    },
+    isPrimaryRuntimeStage(step = {}) {
+      const type = String(step.type || "").toUpperCase();
+      const toolName = String(step.toolName || "").toLowerCase();
+      if (["TOOL_CALL", "TOOL_RESULT"].includes(type)) return false;
+      if (String(step.id || "").startsWith("runtime-tool:")) return true;
+      if (["agent_lifecycle", "model_inference", "dag_validation", "dag_repair", "业务分析"].includes(toolName)) return true;
+      return type !== "RUNTIME_OBSERVATION";
+    },
+    runtimePrimaryStageKey(step = {}) {
+      const title = String(step.title || "");
+      if (title.includes("生成回答")) return "business:final-answer";
+      if (title.includes("生成执行计划")) return "business:planning";
+      if (title.includes("DAG") || title.includes("校验执行计划")) return "business:plan-validation";
+      if (title.includes("模型审查")) return `business:model-review:${step.id || "run"}`;
+      return String(step.id || `${title}:${step.timestamp || 0}`);
+    },
+    runtimePrimaryPresentation(step = {}) {
+      const toolName = String(step.toolName || "").toLowerCase();
+      if (!String(step.id || "").startsWith("runtime-tool:")) {
+        const isInternalStage = ["agent_lifecycle", "model_inference", "dag_validation", "dag_repair"]
+          .includes(toolName);
+        return { ...step, detail: isInternalStage ? "" : step.detail };
+      }
+      let title = "调用业务能力";
+      if (toolName.includes("api_service_query") || toolName.includes("capability_query")) title = "定位数据服务";
+      else if (toolName.includes("template_query") || toolName.includes("template_search")) title = "匹配业务模板";
+      else if (toolName.includes("template_execute")) title = "查询业务数据";
+      else if (toolName.includes("sql_query") || toolName.includes("data_query")) title = "执行数据查询";
+      return { ...step, title, detail: "" };
+    },
+    runtimeChildPresentation(step = {}) {
+      const toolName = String(step.toolName || "").toLowerCase();
+      let title = String(step.title || "执行明细");
+      if (toolName.includes("interpretation_plan")) title = "更新执行计划";
+      else if (toolName.includes("dag_repair") || toolName.includes("dag_validation")) title = "校验执行计划";
+      else if (toolName.includes("template_query") || toolName.includes("template_search")) title = "匹配业务模板";
+      else if (toolName.includes("template_execute")) title = "执行数据查询";
+      else if (toolName.includes("evidence") || toolName.includes("observation")) title = "校验返回数据";
+      else if (toolName.includes("analysis")) title = "分析返回数据";
+      else if (["agent", "final_answer"].includes(toolName)) title = "整理阶段结果";
+      else if (["工具返回结果", "执行明细"].includes(title)) title = "处理后台结果";
+      const rawDetail = String(step.detail || "").trim();
+      const internalDetail = /(?:contractVersion|InterpretationPlan|mcp_|\{\s*["'])/i.test(rawDetail);
+      return {
+        ...step,
+        title,
+        detail: internalDetail ? "" : rawDetail,
+        displayTime: this.formatTime(Number(step.timestamp || Date.now()))
+      };
     },
     runtimeStepMatchesStage(step = {}, stage = {}) {
       const text = `${step.title || ""} ${step.detail || ""} ${step.type || ""} ${step.toolName || ""}`.toLowerCase();
@@ -478,12 +560,13 @@ export default {
       if (!this.isExecutionRunning(message) && !message.streaming) {
         return this.runtimeStatusLabel(message);
       }
-      const active = this.runtimeStageCards(message)
+      const active = [...this.runtimeProcessSteps(message)]
+        .reverse()
         .find((step) => String(step.status || "").toLowerCase() === "active");
       return active?.title || (this.isExecutionRunning(message) ? "Runtime Working" : this.executionTitle(message));
     },
     runtimeActivityDetail(message = {}) {
-      const active = [...this.runtimeStageCards(message)]
+      const active = [...this.runtimeProcessSteps(message)]
         .reverse()
         .find((step) => String(step.status || "").toLowerCase() === "active");
       if (active?.detail) {

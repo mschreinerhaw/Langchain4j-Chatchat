@@ -69,8 +69,13 @@ describe("tool execution evidence", () => {
     };
 
     expect(methods.runtimeToolCalls.call(context, message)).toHaveLength(0);
-    expect(methods.runtimeProcessSteps.call(context, message).map((step) => step.title))
-      .toEqual(["后端执行中", "计划校验", "运行失败"]);
+    const stages = methods.runtimeProcessSteps.call(context, message);
+    expect(stages.map((step) => step.id)).toEqual(["runtime-start", "runtime-failed"]);
+    expect(stages[0].children).toHaveLength(1);
+    expect(stages[0].children[0]).toEqual(expect.objectContaining({
+      id: "planner-observation",
+      title: "匹配业务模板"
+    }));
   });
 
   it("groups child events from the same tool inside the realtime event stream", () => {

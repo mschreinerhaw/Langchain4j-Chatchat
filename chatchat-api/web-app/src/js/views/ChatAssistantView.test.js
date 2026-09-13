@@ -103,4 +103,30 @@ describe("restored assistant result deduplication", () => {
     expect(second).toHaveLength(2);
     expect(second.map((step) => step.id)).toEqual(["receive-question", "planning"]);
   });
+
+  it("refreshes the active model step from stream heartbeats without adding duplicate rows", () => {
+    const waiting = mergeExecutionSteps([], [{
+      eventId: "event-wait-model",
+      sequence: 3,
+      type: "STATUS",
+      status: "WAIT_MODEL",
+      createTime: 1_000,
+      payload: JSON.stringify({ message: "Agent task is waiting for model inference" })
+    }]);
+    const refreshed = mergeExecutionSteps(waiting, [{
+      sequence: 3,
+      type: "HEARTBEAT",
+      status: "WAIT_MODEL",
+      createTime: 3_000,
+      payload: "{}"
+    }]);
+
+    expect(refreshed).toHaveLength(1);
+    expect(refreshed[0]).toEqual(expect.objectContaining({
+      id: "model-inference",
+      status: "active",
+      timestamp: 3_000
+    }));
+    expect(refreshed[0].detail).toContain("立即展示后续步骤");
+  });
 });

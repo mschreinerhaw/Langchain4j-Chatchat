@@ -866,6 +866,21 @@
   gap: 10px;
 }
 
+.runtime-execution-details {
+  display: grid;
+  gap: 10px;
+}
+
+.runtime-execution-panel.collapsed {
+  gap: 0;
+  padding-block: 10px;
+}
+
+.runtime-execution-panel.collapsed .runtime-run-mark {
+  width: 26px;
+  height: 26px;
+}
+
 .runtime-run-mark {
   width: 30px;
   height: 30px;
@@ -929,6 +944,31 @@
   color: #1d4ed8;
   font-size: 11px;
   line-height: 1.2;
+}
+
+.runtime-step-summary {
+  color: #7c8799;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+.runtime-collapse-button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #d8e1ee;
+  border-radius: 6px;
+  background: #fff;
+  color: #667085;
+  cursor: pointer;
+}
+
+.runtime-collapse-button:hover {
+  border-color: #b8c8df;
+  background: #f5f8fc;
+  color: #344054;
 }
 
 .runtime-execution-panel.completed {
@@ -1175,10 +1215,86 @@
 
 .runtime-execution-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.32fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   align-items: start;
   margin-top: 12px;
+}
+
+.runtime-live-activity {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  overflow: hidden;
+  border: 1px solid #d7e4f7;
+  border-radius: 8px;
+  background: linear-gradient(100deg, #f8fbff 0%, #f1f7ff 50%, #f8fbff 100%);
+}
+
+.runtime-live-activity::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  transform: translateX(-140%);
+  animation: runtime-live-scan 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.runtime-live-spinner {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #bfdbfe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: runtime-live-spin 0.8s linear infinite;
+}
+
+.runtime-live-activity > div,
+.runtime-live-activity > time {
+  position: relative;
+  z-index: 1;
+}
+
+.runtime-live-activity > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.runtime-live-activity strong {
+  color: #344054;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.runtime-live-activity small {
+  color: #7c8799;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.runtime-live-activity time {
+  color: #667085;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@keyframes runtime-live-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes runtime-live-scan {
+  0%, 20% { transform: translateX(-140%); }
+  75%, 100% { transform: translateX(400%); }
 }
 
 .runtime-stage-grid {
@@ -1289,7 +1405,7 @@
   padding: 10px;
   border: 1px solid #dbe5f2;
   border-radius: 7px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .runtime-event-stream ol {

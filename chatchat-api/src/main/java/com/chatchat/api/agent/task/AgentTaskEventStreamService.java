@@ -23,6 +23,7 @@ public class AgentTaskEventStreamService {
 
     private static final long MAX_TIMEOUT_MS = 1_800_000L;
     private static final long DEFAULT_POLL_INTERVAL_MS = 250L;
+    private static final long HEARTBEAT_INTERVAL_MS = 2_000L;
     private static final Set<String> TERMINAL_STATUSES = Set.of(
         "SUCCESS", "FAILED", "CANCELLED", "KILLED", "REJECTED", "TIMEOUT_CANCELLED",
         "PARTIAL", "PARTIAL_SUCCESS", "EMPTY",
@@ -78,7 +79,7 @@ public class AgentTaskEventStreamService {
                         "status", current.status() == null ? "" : current.status(),
                         "cursor", cursor,
                         "timestamp", now));
-                    nextHeartbeat = now + 10_000L;
+                    nextHeartbeat = now + HEARTBEAT_INTERVAL_MS;
                 }
                 sleep(pollIntervalMs);
             }

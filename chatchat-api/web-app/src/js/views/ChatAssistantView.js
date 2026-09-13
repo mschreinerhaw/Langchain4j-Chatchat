@@ -952,6 +952,15 @@ function eventStepId(event = {}, payload = {}) {
     }
     return `status:${status || "runtime"}`;
   }
+  if (type === "HEARTBEAT") {
+    if (status === "WAIT_MODEL") {
+      return "model-inference";
+    }
+    if (status === "WAIT_TOOL") {
+      return "tool-execution";
+    }
+    return "backend-running";
+  }
   if (type === "PLAN") {
     return "planning";
   }
@@ -1165,6 +1174,19 @@ function agentEventToExecutionStep(event = {}) {
       title: statusTitle(status),
       detail: compactText(payload.message || displayToolName || "", 96),
       status: failed ? (status === "CANCELLED" || status === "KILLED" ? "cancelled" : "error") : "active"
+    };
+  }
+  if (type === "HEARTBEAT") {
+    const detail = status === "WAIT_MODEL"
+      ? "模型正在生成可执行计划，返回后将立即展示后续步骤"
+      : status === "WAIT_TOOL"
+        ? "工具仍在执行，结果返回后将自动继续"
+        : "任务连接正常，新的执行事件将实时显示";
+    return {
+      ...base,
+      title: statusTitle(status),
+      detail,
+      status: "active"
     };
   }
   if (type === "NEEDS_CONFIRMATION") {
@@ -2253,6 +2275,19 @@ export default {
               return;
             }
             finish(resolve, event);
+          },
+          heartbeat: (heartbeat) => {
+            const timestamp = Number(heartbeat?.timestamp || Date.now());
+            assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], [{
+              type: "HEARTBEAT",
+              status: heartbeat?.status || "RUNNING",
+              sequence: heartbeat?.cursor || cursor,
+              createTime: timestamp,
+              payload: JSON.stringify(heartbeat || {})
+            }]);
+            if (this.isActiveRun(runContext)) {
+              this.messages = [...runContext.messages];
+            }
           },
           done: () => {
             if (!settled) finish(reject, new Error("Agent task event stream ended before a terminal event"));

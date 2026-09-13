@@ -17,6 +17,38 @@ function render(source) {
 }
 
 describe("tool execution evidence", () => {
+  it("collapses completed execution steps by default and allows reopening them", () => {
+    const collapseContext = {
+      ...context,
+      expandedExecutionMessageIds: new Set(),
+      loading: false
+    };
+    const completed = {
+      id: "message-completed",
+      role: "assistant",
+      status: "completed",
+      streaming: false,
+      content: "report",
+      steps: [{ id: "step-1", status: "done", title: "完成分析" }]
+    };
+
+    expect(methods.executionStepsExpanded.call(collapseContext, completed)).toBe(false);
+    methods.toggleExecutionSteps.call(collapseContext, completed);
+    expect(methods.executionStepsExpanded.call(collapseContext, completed)).toBe(true);
+    expect(methods.executionStepsExpanded.call(collapseContext, {
+      ...completed,
+      id: "message-running",
+      status: "streaming",
+      streaming: true,
+      content: ""
+    })).toBe(true);
+    expect(methods.executionStepsExpanded.call(collapseContext, {
+      ...completed,
+      id: "message-failed",
+      status: "failed"
+    })).toBe(true);
+  });
+
   it("keeps backend lifecycle observations visible without counting them as tool calls", () => {
     const message = {
       role: "assistant",

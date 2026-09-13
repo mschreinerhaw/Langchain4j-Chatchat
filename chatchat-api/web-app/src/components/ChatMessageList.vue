@@ -50,7 +50,7 @@
         <section
           v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)"
           class="runtime-execution-panel"
-          :class="{ compact: !!message.content, running: isExecutionRunning(message) || message.streaming, completed: runtimeStatusLabel(message) === '完成' }"
+          :class="{ compact: !!message.content, running: isExecutionRunning(message) || message.streaming, completed: runtimeStatusLabel(message) === '完成', collapsed: !executionStepsExpanded(message) }"
         >
           <header class="runtime-execution-header">
             <div class="runtime-run-mark" aria-hidden="true">
@@ -61,12 +61,38 @@
               <strong>{{ runtimeRunId(message) }}</strong>
             </div>
             <div class="runtime-run-meta">
+              <small v-if="!executionStepsExpanded(message)" class="runtime-step-summary">{{ executionStepSummary(message) }}</small>
               <small v-if="runtimeElapsed(message)">{{ runtimeElapsed(message) }}</small>
               <b>{{ runtimeStatusLabel(message) }}</b>
+              <button
+                v-if="executionStepsCollapsible(message)"
+                type="button"
+                class="runtime-collapse-button"
+                :aria-expanded="executionStepsExpanded(message).toString()"
+                :title="executionStepsExpanded(message) ? '收起执行过程' : '展开执行过程'"
+                @click="toggleExecutionSteps(message)"
+              >
+                <ChevronDown v-if="executionStepsExpanded(message)" :size="15" />
+                <ChevronRight v-else :size="15" />
+              </button>
             </div>
           </header>
+          <div v-show="executionStepsExpanded(message)" class="runtime-execution-details">
           <div class="runtime-progress-track" aria-hidden="true">
             <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
+          </div>
+          <div
+            v-if="isExecutionRunning(message) || message.streaming"
+            class="runtime-live-activity"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="runtime-live-spinner" aria-hidden="true"></span>
+            <div>
+              <strong>{{ runtimeCurrentStage(message) }}</strong>
+              <small>{{ runtimeActivityDetail(message) }}</small>
+            </div>
+            <time>{{ runtimeElapsed(message) }}</time>
           </div>
           <div v-if="runtimeProcessSteps(message).length" class="runtime-execution-body">
             <ol class="runtime-stage-grid" aria-label="后端执行过程">
@@ -80,7 +106,7 @@
                   <b>{{ step.title }}</b>
                   <small v-if="step.detail">{{ step.detail }}</small>
                 </div>
-                <em>{{ runtimeStageStatusText(step) }}</em>
+                <em>{{ runtimeStageStatusText(step, message) }}</em>
               </li>
             </ol>
             <aside
@@ -112,6 +138,7 @@
               <small>校验结果结构 · 提炼业务重点 · 准备清晰呈现</small>
             </div>
             <span class="result-finalizing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          </div>
           </div>
         </section>
         <section

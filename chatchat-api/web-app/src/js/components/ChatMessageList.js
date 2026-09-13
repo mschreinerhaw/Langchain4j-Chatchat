@@ -149,8 +149,11 @@ export default {
       codeCopyResetTimers: new Set(),
       collapsedToolCallMessageIds: new Set(),
       expandedCompletedToolCallMessageIds: new Set(),
+      expandedExecutionMessageIds: new Set(),
       expandedMetadataCatalogMessageIds: new Set(),
       reasoningModal: null,
+      runtimeClock: Date.now(),
+      runtimeClockTimer: null,
       feedbackOptions: [
         { value: "useful", label: "\u6709\u7528" },
         { value: "adopted", label: "\u91c7\u7eb3" },
@@ -173,12 +176,20 @@ export default {
       return this.messages.some((message) => message.streaming || this.isExecutionRunning(message));
     }
   },
+  mounted() {
+    this.runtimeClockTimer = window.setInterval(() => {
+      this.runtimeClock = Date.now();
+    }, 1_000);
+  },
   beforeUnmount() {
     if (this.copiedResetTimer) {
       window.clearTimeout(this.copiedResetTimer);
     }
     this.codeCopyResetTimers.forEach((timer) => window.clearTimeout(timer));
     this.codeCopyResetTimers.clear();
+    if (this.runtimeClockTimer) {
+      window.clearInterval(this.runtimeClockTimer);
+    }
   },
   methods: {
     isSupportingDatasetVisualization(spec = {}) {
@@ -248,6 +259,42 @@ export default {
     shouldShowSteps(message = {}) {
       return message.role === "assistant"
         && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
+    },
+    executionMessageKey(message = {}) {
+      return String(message.id || message.taskId || message.runId || "");
+    },
+    executionStepsCollapsible(message = {}) {
+      const status = String(message.status || "").toLowerCase();
+      return !this.isExecutionRunning(message)
+        && !message.streaming
+        && !this.isResultFinalizing(message)
+        && !["failed", "cancelled", "error"].includes(status);
+    },
+    executionStepsExpanded(message = {}) {
+      if (!this.executionStepsCollapsible(message)) {
+        return true;
+      }
+      const key = this.executionMessageKey(message);
+      return !!key && this.expandedExecutionMessageIds.has(key);
+    },
+    toggleExecutionSteps(message = {}) {
+      if (!this.executionStepsCollapsible(message)) {
+        return;
+      }
+      const key = this.executionMessageKey(message);
+      if (!key) {
+        return;
+      }
+      if (this.expandedExecutionMessageIds.has(key)) {
+        this.expandedExecutionMessageIds.delete(key);
+      } else {
+        this.expandedExecutionMessageIds.add(key);
+      }
+    },
+    executionStepSummary(message = {}) {
+      const steps = this.runtimeProcessSteps(message);
+      const tools = this.runtimeToolCalls(message);
+      return `${steps.length} 个步骤${tools.length ? ` · ${tools.length} 次工具调用` : ""}`;
     },
     messageHasRenderableContent(message = {}) {
       return !!String(message.content || "").trim() || !!this.extractUiResponse(message)?.answer;
@@ -372,7 +419,7 @@ export default {
       if (!running && !(recorded > 0)) {
         return "";
       }
-      const elapsed = Math.max(0, running ? Date.now() - started : recorded);
+      const elapsed = Math.max(0, running ? Number(this.runtimeClock || Date.now()) - started : recorded);
       if (elapsed < 1000) {
         return "0.0s";
       }
@@ -438,6 +485,15 @@ export default {
         .find((step) => String(step.status || "").toLowerCase() === "active");
       return active?.title || (this.isExecutionRunning(message) ? "Runtime Working" : this.executionTitle(message));
     },
+    runtimeActivityDetail(message = {}) {
+      const active = [...this.runtimeStageCards(message)]
+        .reverse()
+        .find((step) => String(step.status || "").toLowerCase() === "active");
+      if (active?.detail) {
+        return active.detail;
+      }
+      return "保持连接中，后端产生新步骤后会立即显示";
+    },
     runtimeProgress(message = {}) {
       if (this.isResultFinalizing(message)) {
         return 98;
@@ -480,37 +536,37 @@ export default {
       }
       return this.isExecutionRunning(message) || message.streaming ? "Run" : "完成";
     },
-    runtimeStageStatusText(step = {}) {
+    runtimeStageStatusText(step = {}, message = {}) {
       const status = String(step.status || "pending").toLowerCase();
       if (status === "done") {
-        return "Complete";
+        return "已完成";
       }
       if (status === "active") {
-        return "Running";
+        const elapsed = this.runtimeElapsed(message);
+        return elapsed ? `进行中 · ${elapsed}` : "进行中";
       }
       if (status === "partial") {
-        return "Partial";
+        return "部分完成";
       }
       if (status === "empty") {
-        return "Skipped";
+        return "已跳过";
       }
       if (status === "error") {
-        return "Error";
+        return "失败";
       }
       if (status === "cancelled") {
-        return "Cancelled";
+        return "已取消";
       }
-      return "Waiting";
+      return "等待中";
     },
     runtimeEvents(message = {}) {
       const cards = this.runtimeStageCards(message)
         .filter((step) => !["pending"].includes(String(step.status || "").toLowerCase()))
         .slice(-6);
-      const base = Number(message.timestamp || Date.now());
-      return cards.map((step, index) => ({
+      return cards.map((step) => ({
         id: `${step.id}-event`,
-        time: this.formatTime(base + index * 1000),
-        label: `${step.title} - ${this.runtimeStageStatusText(step)}`
+        time: this.formatTime(Number(step.timestamp || message.timestamp || Date.now())),
+        label: `${step.title} · ${this.runtimeStageStatusText(step, message)}`
       }));
     },
     runtimeToolCalls(message = {}) {

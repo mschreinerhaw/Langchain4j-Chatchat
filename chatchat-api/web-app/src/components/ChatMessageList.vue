@@ -117,9 +117,32 @@
             >
               <strong>实时事件</strong>
               <ol>
-                <li v-for="event in runtimeEvents(message)" :key="event.id">
-                  <time>{{ event.time }}</time>
-                  <span>{{ event.label }}</span>
+                <li
+                  v-for="group in runtimeEventGroups(message)"
+                  :key="group.id"
+                  :class="{ 'runtime-event-group': group.grouped, active: group.active }"
+                >
+                  <details v-if="group.grouped" :open="group.active">
+                    <summary>
+                      <time>{{ group.time }}</time>
+                      <code>{{ group.toolName }}</code>
+                      <small>{{ group.children.length }} 个子步骤 · {{ group.statusText }}</small>
+                    </summary>
+                    <ol>
+                      <li v-for="child in group.children" :key="child.id">
+                        <time>{{ child.time }}</time>
+                        <span>
+                          <b>{{ child.title }}</b>
+                          <small v-if="child.detail">{{ child.detail }}</small>
+                        </span>
+                        <em>{{ child.statusText }}</em>
+                      </li>
+                    </ol>
+                  </details>
+                  <template v-else>
+                    <time>{{ group.time }}</time>
+                    <span>{{ group.label }}</span>
+                  </template>
                 </li>
               </ol>
             </aside>
@@ -140,54 +163,6 @@
             <span class="result-finalizing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
           </div>
           </div>
-        </section>
-        <section
-          v-if="message.role === 'assistant' && runtimeToolCalls(message).length"
-          class="runtime-tool-timeline"
-          aria-label="工具调用过程"
-        >
-          <header>
-            <button
-              type="button"
-              :aria-expanded="toolCallsExpanded(message).toString()"
-              @click="toggleToolCalls(message)"
-            >
-              <span class="runtime-tool-heading">
-                <ChevronDown v-if="toolCallsExpanded(message)" :size="15" />
-                <ChevronRight v-else :size="15" />
-                <strong>工具调用</strong>
-              </span>
-              <small
-                class="runtime-tool-summary-status"
-                :class="runtimeToolStatusClass(message)"
-                aria-live="polite"
-              >
-                <i aria-hidden="true"></i>
-                {{ runtimeToolStatusLabel(message) }}
-              </small>
-            </button>
-          </header>
-          <ol v-show="toolCallsExpanded(message)">
-            <li
-              v-for="call in runtimeToolCalls(message)"
-              :key="call.id"
-              :class="toolCallStateClass(call)"
-            >
-              <span class="runtime-tool-status" aria-hidden="true">
-                <Wrench v-if="toolCallRepaired(call)" :size="14" stroke-width="2.5" />
-                <TriangleAlert v-else-if="toolCallWarning(call)" :size="14" stroke-width="2.4" />
-                <RefreshCw v-else-if="toolCallRepairing(call)" :size="14" stroke-width="2.4" />
-                <CircleX v-else-if="toolCallFailed(call)" :size="14" stroke-width="2.4" />
-                <Check v-else-if="toolCallDone(call)" :size="14" stroke-width="2.6" />
-                <i v-else></i>
-              </span>
-              <div>
-                <code>{{ call.name }}</code>
-                <small v-if="call.detail">{{ call.detail }}</small>
-              </div>
-              <em>{{ toolCallStatusLabel(call) }}</em>
-            </li>
-          </ol>
         </section>
         <EnterpriseUiArtifactRenderer
           v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"

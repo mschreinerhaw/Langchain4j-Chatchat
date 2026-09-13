@@ -73,6 +73,32 @@ describe("tool execution evidence", () => {
       .toEqual(["后端执行中", "计划校验", "运行失败"]);
   });
 
+  it("groups child events from the same tool inside the realtime event stream", () => {
+    const groupContext = { ...context, loading: false };
+    const message = {
+      id: "message-tool-group",
+      role: "assistant",
+      status: "completed",
+      streaming: false,
+      timestamp: 1_000,
+      steps: [
+        { id: "repair-1", type: "RUNTIME_OBSERVATION", title: "恢复 DAG", detail: "已恢复工作流", toolName: "dag_repair", status: "repaired", timestamp: 1_100 },
+        { id: "repair-2", type: "RUNTIME_OBSERVATION", title: "校验 DAG", detail: "校验通过", toolName: "dag_repair", status: "repaired", timestamp: 1_200 }
+      ]
+    };
+
+    const groups = methods.runtimeEventGroups.call(groupContext, message);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toEqual(expect.objectContaining({
+      id: "tool:dag_repair",
+      grouped: true,
+      toolName: "dag_repair",
+      active: false,
+      statusText: "已修复"
+    }));
+    expect(groups[0].children).toHaveLength(2);
+  });
+
   it("recognizes supporting datasets as evidence attachments", () => {
     expect(methods.isSupportingDatasetVisualization({
       presentationChannel: "supporting_dataset",

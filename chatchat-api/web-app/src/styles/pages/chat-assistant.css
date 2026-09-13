@@ -1352,9 +1352,11 @@
 }
 
 .runtime-stage-grid li.active .runtime-step-glyph {
-  background: #2563eb;
-  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.14);
-  animation: runtime-pulse 1.25s ease-in-out infinite;
+  border-color: #cbd5e1;
+  border-top-color: #2563eb;
+  background: transparent;
+  box-shadow: none;
+  animation: runtime-step-spin 760ms linear infinite;
 }
 
 .runtime-stage-grid li.error .runtime-step-glyph,
@@ -1427,16 +1429,105 @@
   animation: runtime-event-enter 180ms ease-out both;
 }
 
-.runtime-execution-panel.running .runtime-event-stream li:last-child span::after {
+.runtime-execution-panel.running .runtime-event-stream > ol > li:last-child:not(.runtime-event-group) > span::after,
+.runtime-execution-panel.running .runtime-event-stream > ol > li.runtime-event-group.active:last-child summary code::after {
   content: "";
   display: inline-block;
-  width: 5px;
-  height: 11px;
-  margin-left: 5px;
-  vertical-align: -2px;
-  border-radius: 1px;
-  background: #98a2b3;
-  animation: runtime-event-cursor 900ms steps(1, end) infinite;
+  width: 9px;
+  height: 9px;
+  margin-left: 6px;
+  vertical-align: -1px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  background: transparent;
+  animation: runtime-event-spinner 760ms linear infinite;
+}
+
+.runtime-event-stream > ol > li.runtime-event-group {
+  display: block;
+}
+
+.runtime-event-group details {
+  border: 1px solid #e5eaf2;
+  border-radius: 6px;
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.runtime-event-group summary {
+  display: grid;
+  grid-template-columns: 44px minmax(110px, auto) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.runtime-event-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.runtime-event-group summary::before {
+  content: "›";
+  position: absolute;
+  margin-left: -1px;
+  color: #98a2b3;
+  transform: translateX(-7px) rotate(0deg);
+  transition: transform 0.16s ease;
+}
+
+.runtime-event-group details[open] summary::before {
+  transform: translateX(-7px) rotate(90deg);
+}
+
+.runtime-event-group summary code {
+  color: #344054;
+  font-size: 11px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.runtime-event-group summary small {
+  color: #7c8799;
+  font-family: inherit;
+  font-size: 10px;
+  text-align: right;
+}
+
+.runtime-event-group details > ol {
+  display: grid;
+  gap: 0;
+  margin: 0 8px 7px 52px;
+  padding: 4px 0 0 10px;
+  border-left: 1px solid #d8e1ee;
+}
+
+.runtime-event-group details > ol > li {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 5px 0;
+  animation: none;
+}
+
+.runtime-event-group details > ol > li span {
+  display: grid;
+  gap: 2px;
+}
+
+.runtime-event-group details > ol > li b {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.runtime-event-group details > ol > li small,
+.runtime-event-group details > ol > li em {
+  color: #98a2b3;
+  font-family: inherit;
+  font-size: 10px;
+  font-style: normal;
 }
 
 @keyframes runtime-event-enter {
@@ -1444,9 +1535,8 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes runtime-event-cursor {
-  0%, 48% { opacity: 1; }
-  49%, 100% { opacity: 0; }
+@keyframes runtime-event-spinner {
+  to { transform: rotate(360deg); }
 }
 
 .runtime-event-stream > strong {
@@ -1715,14 +1805,8 @@
   }
 }
 
-@keyframes runtime-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.18);
-  }
+@keyframes runtime-step-spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 820px) {
@@ -2264,6 +2348,7 @@
   font-size: 12px;
   font-weight: 650;
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
 }
 

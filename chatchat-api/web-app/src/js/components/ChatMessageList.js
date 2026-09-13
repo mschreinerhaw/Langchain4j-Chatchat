@@ -1,5 +1,5 @@
 import MarkdownIt from "markdown-it";
-import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, RefreshCw, Trash2, TriangleAlert, Wrench } from "@lucide/vue";
+import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, Trash2 } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import ReportMarkdown from "../../components/ReportMarkdown.vue";
 import { defineAsyncComponent } from "vue";
@@ -110,10 +110,7 @@ export default {
     CircleX,
     Copy,
     FileDown,
-    RefreshCw,
     Trash2,
-    TriangleAlert,
-    Wrench,
     ResponseReferences,
     EnterpriseUiArtifactRenderer
   },
@@ -557,17 +554,69 @@ export default {
       if (status === "cancelled") {
         return "已取消";
       }
+      if (status === "warning") {
+        return "检测到问题";
+      }
+      if (status === "repairing") {
+        return "修复中";
+      }
+      if (status === "repaired") {
+        return "已修复";
+      }
       return "等待中";
     },
     runtimeEvents(message = {}) {
       const cards = this.runtimeStageCards(message)
         .filter((step) => !["pending"].includes(String(step.status || "").toLowerCase()))
-        .slice(-6);
+        .slice(-20);
       return cards.map((step) => ({
         id: `${step.id}-event`,
         time: this.formatTime(Number(step.timestamp || message.timestamp || Date.now())),
+        title: step.title,
+        detail: step.detail || "",
+        toolName: step.toolName || "",
+        status: String(step.status || "pending").toLowerCase(),
+        statusText: this.runtimeStageStatusText(step, message),
         label: `${step.title} · ${this.runtimeStageStatusText(step, message)}`
       }));
+    },
+    runtimeEventGroups(message = {}) {
+      const groups = [];
+      const toolGroups = new Map();
+      this.runtimeEvents(message).forEach((event) => {
+        const toolName = String(event.toolName || "").trim();
+        if (!toolName) {
+          groups.push({
+            ...event,
+            grouped: false,
+            children: [event],
+            active: event.status === "active"
+          });
+          return;
+        }
+        const key = `tool:${toolName}`;
+        let group = toolGroups.get(key);
+        if (!group) {
+          group = {
+            id: key,
+            grouped: true,
+            toolName,
+            label: toolName,
+            time: event.time,
+            children: [],
+            active: false
+          };
+          toolGroups.set(key, group);
+          groups.push(group);
+        }
+        group.children.push(event);
+        group.time = event.time;
+        group.active = group.active || ["active", "repairing"].includes(event.status);
+        group.statusText = group.active
+          ? "进行中"
+          : event.status === "error" ? "失败" : event.status === "repaired" ? "已修复" : "已完成";
+      });
+      return groups.slice(-12);
     },
     runtimeToolCalls(message = {}) {
       const steps = this.visibleExecutionSteps(message)

@@ -199,7 +199,9 @@ class UnifiedQuestionAnalysisGraphTest {
                 calls.incrementAndGet();
                 assertThat(computed.get()).isEqualTo(1);
                 assertThat(prompt).contains("ONE_QUESTION_ALL_BOUND_DATASETS", "dataset1", "dataset5");
-                return product("dataset1");
+                return product(java.util.stream.IntStream.rangeClosed(1, 5)
+                    .mapToObj(index -> detailedFinding("dataset" + index, index,
+                        "Dataset " + index + " observation")).toList());
             }
         };
         var metadata = new LinkedHashMap<String, Object>();
@@ -210,9 +212,9 @@ class UnifiedQuestionAnalysisGraphTest {
         assertThat(outcomes).hasSize(5);
         assertThat(outcomes.get("dataset1").summary().datasetSummary().position())
             .containsEntry("datasetReference", "dataset1");
-        assertThat(outcomes.get("dataset5").summary().content()).doesNotContain("value is 1");
+        assertThat(outcomes.get("dataset5").summary().content()).contains("Dataset 5 observation");
         assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1);
-        assertThat(metadata).containsEntry("unifiedAnalysisStatus", "COMPLETED_WITH_LIMITATIONS");
+        assertThat(metadata).containsEntry("unifiedAnalysisStatus", "COMPLETED");
         assertThat(metadata.get("unifiedAnalysisGraphNodes").toString())
             .contains("analysis_planning", "data_computation", "generate_findings", "validate_findings");
     }
@@ -243,7 +245,11 @@ class UnifiedQuestionAnalysisGraphTest {
                     "does not censor supported analytical breadth")
                     .doesNotContain("claimBoundaryPolicy", "baselinePolicy",
                         "OBJECTIVE_RELEVANCE_X_MATERIALITY_X_CONFIDENCE");
-                return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"bounded\"]}";
+                return product("customer_trades").replace("\"limitations\":[]",
+                    "\"methodologyCoverage\":["
+                        + "{\"method\":\"COMPARE\",\"status\":\"LIMITED\",\"findingIndexes\":[],\"limitation\":\"No baseline\"},"
+                        + "{\"method\":\"CONTRIBUTION\",\"status\":\"LIMITED\",\"findingIndexes\":[],\"limitation\":\"One record\"}],"
+                        + "\"limitations\":[]");
             }
         };
         var metadata = new LinkedHashMap<String, Object>();
@@ -269,7 +275,7 @@ class UnifiedQuestionAnalysisGraphTest {
                     .estimate(prompt).tokens()).isLessThanOrEqualTo(12_000);
                 assertThat(prompt).contains("FULL_SCAN_PROFILE_WITH_SELECTED_RECORDS", "verifiedCalculations")
                     .doesNotContain("fund-50");
-                return "{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"bounded\"]}";
+                return product("market");
             }
         };
 
@@ -312,8 +318,17 @@ class UnifiedQuestionAnalysisGraphTest {
                             "datasetReference", "dataset3", "fromRecord", 5001, "limit", 1))));
                 }
                 assertThat(prompt).contains("dataset3.records[5001]", "label-5001");
-                return product("dataset3").replace("records[1]", "records[5001]")
-                    .replace("value is 1", "value is 5001").replace("\"1\"", "\"5001\"");
+                List<Map<String, Object>> findings = new ArrayList<>();
+                for (int index = 1; index <= 5; index++) {
+                    Map<String, Object> finding = new LinkedHashMap<>(detailedFinding(
+                        "dataset" + index, index, "Dataset " + index + " observation"));
+                    if (index == 3) {
+                        finding.put("recordRefs", List.of("dataset3.records[5001]"));
+                        finding.put("supportingValues", List.of("\"VALUE\":5001"));
+                    }
+                    findings.add(Map.copyOf(finding));
+                }
+                return product(findings);
             }
         };
         var metadata = new LinkedHashMap<String, Object>();
@@ -421,6 +436,55 @@ class UnifiedQuestionAnalysisGraphTest {
             "alternativeExplanations=[No longitudinal evidence]");
     }
 
+    @Test void repairsMandatoryDatasetCoverageBeforeCompletingAnalysis() {
+        List<Dataset> datasets = List.of(
+            new Dataset("first", Map.of(), List.of(Map.<String, Object>of("VALUE", 1))),
+            new Dataset("second", Map.of(), List.of(Map.<String, Object>of("VALUE", 2))));
+        AtomicInteger calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                calls.incrementAndGet();
+                if (prompt.contains("previous unified analysis is incomplete")) {
+                    assertThat(prompt).contains("second", "cannot be published");
+                    return product(List.of(detailedFinding("first", 1, "First observation"),
+                        detailedFinding("second", 2, "Second observation")));
+                }
+                return product("first");
+            }
+        };
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        var outcomes = new UnifiedQuestionAnalysisGraph().execute(
+            "analyze every dataset", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(), metadata, () -> { });
+
+        assertThat(outcomes).containsKeys("first", "second");
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(metadata).containsEntry("unifiedAnalysisDatasetCoverageComplete", true)
+            .containsEntry("unifiedAnalysisDatasetCoverageRepairAttempts", 1)
+            .containsEntry("unifiedAnalysisDatasetsPendingCoverage", List.of());
+    }
+
+    @Test void refusesToCompleteWhenAProvidedDatasetRemainsUnanalyzed() {
+        List<Dataset> datasets = List.of(
+            new Dataset("first", Map.of(), List.of(Map.<String, Object>of("VALUE", 1))),
+            new Dataset("second", Map.of(), List.of(Map.<String, Object>of("VALUE", 2))));
+        AtomicInteger calls = new AtomicInteger();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                calls.incrementAndGet();
+                return product("first");
+            }
+        };
+
+        assertThatThrownBy(() -> new UnifiedQuestionAnalysisGraph().execute(
+            "analyze every dataset", datasets, () -> datasets, model, scope,
+            new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(),
+            new LinkedHashMap<>(), () -> { }))
+            .hasMessageContaining("datasets without evidence-bound findings=[second]");
+        assertThat(calls.get()).isEqualTo(3);
+    }
+
     private static Map<String, Object> detailedFinding(String dataset, int value, String claim) {
         Map<String, Object> finding = new LinkedHashMap<>();
         finding.put("datasetReference", dataset);
@@ -458,5 +522,10 @@ class UnifiedQuestionAnalysisGraphTest {
         finding.put("caveats", List.of());
         return ModelProtocolJson.compact(Map.of("schemaVersion", "unified_question_analysis.v1",
             "findings", List.of(finding), "limitations", List.of()));
+    }
+
+    private static String product(List<Map<String, Object>> findings) {
+        return ModelProtocolJson.compact(Map.of("schemaVersion", "unified_question_analysis.v1",
+            "findings", findings, "limitations", List.of()));
     }
 }

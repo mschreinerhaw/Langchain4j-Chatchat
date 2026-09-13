@@ -225,4 +225,25 @@ describe("restored assistant result deduplication", () => {
       .toEqual(expect.objectContaining({ status: "done", blocksParent: false }));
     expect(steps.every((step) => step.status !== "active")).toBe(true);
   });
+
+  it("keeps Skill extraction and application visible as separate timeline events", () => {
+    const event = (eventId, sequence, stage, eventState) => ({
+      eventId, sequence, type: "RUNTIME_OBSERVATION", status: "RUNNING",
+      payload: JSON.stringify({ payload: { contentPreview: stage, metadata: {
+        eventKind: "KNOWLEDGE_SKILLS", eventState, stage
+      } } })
+    });
+    const steps = mergeExecutionSteps([], [
+      event("skills-extracted", 60, "SKILLS_EXTRACTED", "COMPLETED"),
+      event("skills-applied", 61, "CONTEXT_APPLIED", "APPLIED")
+    ]);
+
+    expect(steps.map((step) => step.title)).toEqual([
+      "\u63d0\u53d6 Knowledge Skills", "\u5e94\u7528 Knowledge Skills"
+    ]);
+    expect(steps.map((step) => step.stateKey)).toEqual([
+      "runtime-observation:knowledge-skills:SKILLS_EXTRACTED",
+      "runtime-observation:knowledge-skills:CONTEXT_APPLIED"
+    ]);
+  });
 });

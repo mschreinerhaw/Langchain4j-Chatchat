@@ -3718,6 +3718,7 @@ public class AgentTaskService {
                 copyRawMetadataValue(knowledge, knowledgeMetadata, "maxTokens");
                 copyRawMetadataValue(knowledge, knowledgeMetadata, "truncated");
                 copyRawMetadataValue(knowledge, knowledgeMetadata, "skillTypes");
+                copyRawMetadataValue(knowledge, knowledgeMetadata, "activatedSkills");
                 copyRawMetadataValue(knowledge, knowledgeMetadata, "sources");
                 copyRawMetadataValue(knowledge, knowledgeMetadata, "usageContract");
                 if (!knowledge.isEmpty()) {

@@ -40,6 +40,7 @@ public final class UnifiedQuestionAnalysisGraph {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAX_INPUT_TOKENS = 20_000;
     private static final int MAX_EVIDENCE_ROUNDS = 2;
+    private static final int MAX_DATASET_COVERAGE_REPAIR_ATTEMPTS = 2;
     private static final int INITIAL_EVIDENCE_CHARS = 42_000;
     private static final int REQUESTED_EVIDENCE_CHARS = 10_000;
     private static final ContextTokenEstimator TOKENS = new ContextTokenEstimator();
@@ -138,7 +139,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Analyze all available question-relevant evidence even when coverage is partial. Missing history or fields block only dependent claims, never the entire analysis. "
                         + "Lead with supported findings and their business implications; propose evidence-bound actions where supported. Describe the actual sample and period. Missing values are not zero. "
                         + "Do not replace available analysis with an indicator framework or only a request for more data. "
-                        + "Final findings must address the supported parts of the question across sources. Emit material evidence-bound findings for every non-empty question-relevant dataset; this is a coverage floor, not a one-finding-per-dataset limit. Preserve distinct question-relevant measures, comparisons and exceptions as separate findings where their definitions or evidence differ. A limitation may replace a finding only when those returned fields truly cannot answer any part of the question. Build a question-level conclusion from complementary source findings instead of producing one description per dataset. Use returned observations to characterize the observed-period state and behavior; reserve long-term persistence claims for historical-data limitations. Never describe a returned question-relevant dataset as missing. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
+                        + "Final findings must address the supported parts of the question across sources. Emit material evidence-bound findings for every non-empty question-relevant dataset. Every non-empty bound dataset is mandatory analysis input and must have at least one evidence-bound dataset finding; the workflow rejects an answer that omits one. This is a coverage floor, not a one-finding-per-dataset limit. Preserve distinct question-relevant measures, comparisons and exceptions as separate findings where their definitions or evidence differ. A limitation may qualify a finding but cannot replace analysis of a returned non-empty dataset. Build a question-level conclusion from complementary source findings instead of producing one description per dataset. Use returned observations to characterize the observed-period state and behavior; reserve long-term persistence claims for historical-data limitations. Never describe a returned question-relevant dataset as missing. State residual limitations after supported findings; do not claim complete coverage when evidence is partial. "
                         + "Keep one value/unit/period/population definition for each metric. "
                         + "Do not attribute an observed outcome to a behavior, strategy or mechanism unless the evidence establishes that relationship. Where the relationship is plausible but unverified, retain it as an explicit hypothesis and use scenarios to show what would follow if it holds or does not hold. "
                         + "Do not make the executive conclusion stronger than the detailed evidence, do not contradict a finding later in limitations, and do not issue an action without the finding that motivates it. Use meaningful prose, remove duplicate findings and expose no runtime IDs. "
@@ -331,6 +332,57 @@ public final class UnifiedQuestionAnalysisGraph {
                     }
                     break;
                 }
+                Set<String> known = new LinkedHashSet<>(prepared.sources().keySet());
+                List<String> missingDatasets = datasetsWithoutEvidenceBoundFindings(
+                    bound, maps(generated.get("findings")));
+                int mandatoryDatasetCount = Math.toIntExact(bound.stream()
+                    .filter(dataset -> dataset.recordCount() > 0).count());
+                metadata.put("unifiedAnalysisMandatoryDatasetCount", mandatoryDatasetCount);
+                metadata.put("unifiedAnalysisDatasetCoverageRepairAttempts", 0);
+                for (int attempt = 1;
+                     !missingDatasets.isEmpty() && attempt <= MAX_DATASET_COVERAGE_REPAIR_ATTEMPTS;
+                     attempt++) {
+                    if (model == null) break;
+                    guard.run();
+                    modelCalls++;
+                    metadata.put("unifiedAnalysisDatasetCoverageRepairAttempts", attempt);
+                    metadata.put("unifiedAnalysisDatasetsPendingCoverage", List.copyOf(missingDatasets));
+                    LOG.warn("Unified analysis dataset coverage repair requested partition={} attempt={} missingDatasets={}",
+                        scope.partitionKey(), attempt, missingDatasets);
+                    String repairPrompt = "The previous unified analysis is incomplete and cannot be published. "
+                        + "Return a complete replacement " + VERSION + " JSON object. Preserve every supported prior finding "
+                        + "and add at least one evidence-bound dataset finding for EACH missing dataset. Every finding must cite "
+                        + "original recordRefs and exact supportingValues. Limitations may qualify findings but may not substitute "
+                        + "for analyzing a returned non-empty dataset. Do not request more evidence. "
+                        + (reportDraftEnabled
+                            ? "Rewrite reportMarkdown so it includes the repaired findings from every dataset. "
+                            : "Set reportMarkdown to an empty string. ")
+                        + "Missing datasets: " + ModelProtocolJson.compact(missingDatasets)
+                        + "\nPrevious product: " + boundedRawResponse(ModelProtocolJson.compact(generated))
+                        + "\nBound evidence: " + ModelProtocolJson.compact(
+                            evidenceAccess.fitViews(evidence, INITIAL_EVIDENCE_CHARS));
+                    Map<String, Object> repaired = parse(model.chat(repairPrompt));
+                    if (!valid(repaired) || !boundFindings(repaired, known)) continue;
+                    List<String> repairedMissing = datasetsWithoutEvidenceBoundFindings(
+                        bound, maps(repaired.get("findings")));
+                    if (repairedMissing.size() < missingDatasets.size()) {
+                        generated.clear();
+                        generated.putAll(repaired);
+                        missingDatasets = repairedMissing;
+                    }
+                }
+                metadata.put("unifiedAnalysisModelCalls", modelCalls);
+                metadata.put("unifiedAnalysisFindingCount", maps(generated.get("findings")).size());
+                metadata.put("unifiedAnalysisDatasetsPendingCoverage", List.copyOf(missingDatasets));
+                metadata.put("unifiedAnalysisDatasetCoverageComplete", missingDatasets.isEmpty());
+                metadata.put("unifiedAnalysisCoveredDatasetCount",
+                    mandatoryDatasetCount - missingDatasets.size());
+                if (!missingDatasets.isEmpty()) {
+                    throw new IllegalStateException(
+                        "Unified analysis cannot complete: datasets without evidence-bound findings=" + missingDatasets);
+                }
+                LOG.info("Unified analysis mandatory dataset coverage complete partition={} coveredDatasets={} findings={}",
+                    scope.partitionKey(), mandatoryDatasetCount, maps(generated.get("findings")).size());
                 return AnalysisExecutionGraph.Status.READY;
             }),
             new AnalysisExecutionGraph.Step("validate_findings", () -> {
@@ -528,6 +580,23 @@ public final class UnifiedQuestionAnalysisGraph {
             result.add(Map.copyOf(finding));
         }
         return List.copyOf(result);
+    }
+
+    private List<String> datasetsWithoutEvidenceBoundFindings(
+        List<Dataset> datasets, List<Map<String, Object>> findings) {
+        Map<String, Integer> occurrences = new LinkedHashMap<>();
+        List<String> missing = new ArrayList<>();
+        for (Dataset dataset : datasets) {
+            String reference = unique(dataset.reference(), occurrences);
+            if (dataset.recordCount() <= 0) continue;
+            boolean covered = findings.stream().anyMatch(finding ->
+                reference.equals(String.valueOf(finding.getOrDefault("datasetReference", "")))
+                    && !String.valueOf(finding.getOrDefault("claim", "")).isBlank()
+                    && finding.get("recordRefs") instanceof Collection<?> refs && !refs.isEmpty()
+                    && finding.get("supportingValues") instanceof Collection<?> values && !values.isEmpty());
+            if (!covered) missing.add(reference);
+        }
+        return List.copyOf(missing);
     }
 
     private List<Map<String, Object>> normalizeQuestionFindings(

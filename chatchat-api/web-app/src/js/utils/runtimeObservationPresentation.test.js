@@ -6,6 +6,37 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it("shows Knowledge Skill extraction and application as distinct auditable events", () => {
+    const extracted = { metadata: {
+      eventKind: "KNOWLEDGE_SKILLS", eventState: "COMPLETED",
+      stage: "SKILLS_EXTRACTED", skillCount: 2
+    } };
+    const applied = { metadata: {
+      eventKind: "KNOWLEDGE_SKILLS", eventState: "APPLIED",
+      stage: "CONTEXT_APPLIED", applied: true, sourceCount: 3
+    } };
+
+    expect(runtimeObservationPresentation(extracted)).toEqual({
+      title: "\u63d0\u53d6 Knowledge Skills", toolName: "knowledge_skills", status: "done"
+    });
+    expect(runtimeObservationPresentation(applied)).toEqual({
+      title: "\u5e94\u7528 Knowledge Skills", toolName: "knowledge_skills", status: "done"
+    });
+    expect(runtimeObservationIdentity(extracted)).toBe("knowledge-skills:SKILLS_EXTRACTED");
+    expect(runtimeObservationIdentity(applied)).toBe("knowledge-skills:CONTEXT_APPLIED");
+  });
+
+  it("shows an explicit warning when Knowledge Skills were not applied", () => {
+    const payload = { metadata: {
+      eventKind: "KNOWLEDGE_SKILLS", eventState: "NOT_APPLIED",
+      stage: "CONTEXT_APPLIED", applied: false, status: "not_configured"
+    } };
+
+    expect(runtimeObservationPresentation(payload)).toEqual({
+      title: "Knowledge Skills \u672a\u5e94\u7528", toolName: "knowledge_skills", status: "warning"
+    });
+  });
+
   it("renders a typed plan validation failure as a visible warning", () => {
     const payload = {
       metadata: {

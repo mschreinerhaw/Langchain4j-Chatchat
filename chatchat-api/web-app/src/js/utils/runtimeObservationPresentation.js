@@ -16,6 +16,21 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const eventState = upper(metadata.eventState);
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
+  if (eventKind === "KNOWLEDGE_SKILLS") {
+    if (stage === "SKILLS_EXTRACTED") {
+      return {
+        title: "\u63d0\u53d6 Knowledge Skills",
+        toolName: "knowledge_skills",
+        status: eventState === "FAILED" ? "error" : "done"
+      };
+    }
+    const applied = eventState === "APPLIED" || metadata.applied === true;
+    return {
+      title: applied ? "\u5e94\u7528 Knowledge Skills" : "Knowledge Skills \u672a\u5e94\u7528",
+      toolName: "knowledge_skills",
+      status: applied ? "done" : "warning"
+    };
+  }
   if (eventKind === "MODEL_INFERENCE") {
     const phase = upper(metadata.modelPhase);
     const title = phase === "TOOL_RESULT_REVIEW" ? "模型审查工具结果" : "模型分析中";
@@ -90,6 +105,9 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
 
 export function runtimeObservationIdentity(runtimePayload = {}) {
   const metadata = objectValue(runtimePayload.metadata);
+  if (upper(metadata.eventKind) === "KNOWLEDGE_SKILLS") {
+    return `knowledge-skills:${metadata.stage || "unknown"}`;
+  }
   if (upper(metadata.eventKind) === "MODEL_INFERENCE") {
     return `model-inference:${metadata.modelPhase || "unknown"}:${metadata.stepId || "run"}`;
   }

@@ -171,6 +171,8 @@ class AgentTaskServiceTest {
                     "maxTokens", 1500,
                     "truncated", false,
                     "skillTypes", List.of("CONCEPT", "METRIC"),
+                    "activatedSkills", List.of(Map.of(
+                        "instanceId", "metric-1", "skillType", "METRIC", "priority", 1)),
                     "sources", List.of(source))))
             .build();
         Method compile = AgentTaskService.class.getDeclaredMethod("compileExecutionResult", InteractionResponse.class);
@@ -190,6 +192,8 @@ class AgentTaskServiceTest {
             .containsEntry("domainKnowledgeSkillCount", 4);
         assertThat(knowledge)
             .containsEntry("used", true)
+            .containsEntry("activatedSkills", List.of(Map.of(
+                "instanceId", "metric-1", "skillType", "METRIC", "priority", 1)))
             .containsEntry("sources", List.of(source))
             .doesNotContainKey("compiledContext");
     }

@@ -5721,12 +5721,39 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                                                   Map<String, Object> metadata) {
         Map<String, Object> knowledge = objectMap(runtimeAttributes == null
             ? null : runtimeAttributes.get(com.chatchat.common.knowledge.KnowledgeContext.RUNTIME_ATTRIBUTE));
-        if (knowledge.isEmpty() || !Boolean.TRUE.equals(knowledge.get("used"))) return;
+        if (knowledge.isEmpty()) return;
         List<Map<String, Object>> sources = objectMapList(knowledge.get("sources"));
-        Map<String, Object> event = metadataOf(
-            "type", "domain_knowledge_compiled",
+        List<Map<String, Object>> activatedSkills = objectMapList(knowledge.get("activatedSkills"));
+        String activatedSkillSummary = activatedSkills.stream()
+            .map(skill -> firstNonBlank(stringValue(skill.get("skillType")), "UNKNOWN")
+                + ":" + firstNonBlank(stringValue(skill.get("goal")), stringValue(skill.get("instanceId"))))
+            .toList().toString();
+        Map<String, Object> extractedEvent = metadataOf(
+            "type", "knowledge_skill_lifecycle",
+            "eventKind", "KNOWLEDGE_SKILLS",
+            "eventState", "COMPLETED",
+            "stage", "SKILLS_EXTRACTED",
             "schemaVersion", knowledge.get("schemaVersion"),
             "status", knowledge.get("status"),
+            "skillCount", activatedSkills.size(),
+            "activatedSkills", activatedSkills,
+            "skillTypes", knowledge.getOrDefault("skillTypes", List.of())
+        );
+        runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
+            "Knowledge Skill extraction completed: " + activatedSkills.size() + " skill(s) "
+                + activatedSkillSummary,
+            "knowledge_skills", extractedEvent);
+        boolean applied = Boolean.TRUE.equals(knowledge.get("used"));
+        Map<String, Object> appliedEvent = metadataOf(
+            "type", "knowledge_skill_lifecycle",
+            "eventKind", "KNOWLEDGE_SKILLS",
+            "eventState", applied ? "APPLIED" : "NOT_APPLIED",
+            "stage", "CONTEXT_APPLIED",
+            "schemaVersion", knowledge.get("schemaVersion"),
+            "status", knowledge.get("status"),
+            "applied", applied,
+            "skillCount", activatedSkills.size(),
+            "activatedSkills", activatedSkills,
             "sourceCount", sources.size(),
             "sources", sources.stream().map(source -> metadataOf(
                 "documentId", source.get("documentId"),
@@ -5744,7 +5771,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         metadata.put("domainKnowledgeSourceCount", sources.size());
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
             "领域知识已完成规划、检索与上下文编译，共绑定 " + sources.size() + " 个来源。",
-            "knowledge_runtime", event);
+            "knowledge_skills", appliedEvent);
     }
 
 }

@@ -175,9 +175,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
         runtimeAttributes.put("plannerOptionalTools", toolPolicy.optionalTools());
-        if (domainKnowledge.used()) {
-            runtimeAttributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, domainKnowledge.toRuntimeProjection());
-        }
+        // Always propagate the governed projection. An empty/not-applied plan is still an
+        // auditable Skill outcome and must not disappear from the Runtime event stream.
+        runtimeAttributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, domainKnowledge.toRuntimeProjection());
         if (!agentRoleContext.isEmpty()) {
             runtimeAttributes.put(AgentRoleAnalysisContext.RUNTIME_ATTRIBUTE, agentRoleContext);
         }

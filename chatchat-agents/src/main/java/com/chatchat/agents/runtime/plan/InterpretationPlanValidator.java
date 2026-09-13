@@ -1302,7 +1302,14 @@ public class InterpretationPlanValidator {
         if (assetType == null) {
             assetType = textValue(extra, "assetType", "asset_type", "targetKind", "target_kind");
         }
-        return new TemplateWorkflowTool(toolName, role, family, assetType);
+        String parentToolName = textValue(extra, "parentRemoteToolName", "parentToolName");
+        if (parentToolName == null && registry != null) {
+            parentToolName = new com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy(registry)
+                .node(toolName)
+                .map(com.chatchat.common.mcp.capability.McpCapabilityNode::parentToolName)
+                .orElse(null);
+        }
+        return new TemplateWorkflowTool(toolName, role, family, assetType, parentToolName);
     }
 
     private Map<String, Object> stringMap(Object value) {

@@ -83,7 +83,12 @@
                 <em>{{ runtimeStageStatusText(step) }}</em>
               </li>
             </ol>
-            <aside v-if="runtimeEvents(message).length" class="runtime-event-stream">
+            <aside
+              v-if="runtimeEvents(message).length"
+              class="runtime-event-stream"
+              aria-live="polite"
+              aria-relevant="additions"
+            >
               <strong>实时事件</strong>
               <ol>
                 <li v-for="event in runtimeEvents(message)" :key="event.id">

@@ -457,6 +457,19 @@ export function fetchGenericAgentRuntimeSnapshot() {
   return apiRequest("/agent/runtime/snapshot");
 }
 
+export function streamAgentTaskEvents(taskId, filters = {}, handlers = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) params.set("tenantId", filters.tenantId);
+  if (filters.afterSequence) params.set("afterSequence", String(filters.afterSequence));
+  if (filters.limit) params.set("limit", String(filters.limit));
+  if (filters.pollIntervalMs) params.set("pollIntervalMs", String(filters.pollIntervalMs));
+  if (filters.timeoutMs) params.set("timeoutMs", String(filters.timeoutMs));
+  return fetchEventStreamGet(
+    `/agent/tasks/${encodeURIComponent(taskId)}/events/stream?${params.toString()}`,
+    handlers
+  );
+}
+
 export function fetchGenericAgentProductionQuality(filters = {}) {
   const params = new URLSearchParams();
   if (filters.tenantId) {

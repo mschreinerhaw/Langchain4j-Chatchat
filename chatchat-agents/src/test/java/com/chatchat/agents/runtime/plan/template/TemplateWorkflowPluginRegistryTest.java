@@ -99,6 +99,36 @@ class TemplateWorkflowPluginRegistryTest {
         assertThat(validation.issues()).isEmpty();
     }
 
+    @Test
+    void keepsSelectedTemplateGroupChildAndAuthorizesItAsParentCompanion() {
+        String parent = "api_template_query";
+        String child = "customer_service_template_query";
+        String executor = "api_template_execute";
+        ToolRegistry tools = registry(Map.of(
+            parent, metadata(ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                "mcp.api-template-discovery.v1", "api_service"),
+            child, metadata(ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                "mcp.authorized-template-query.v1", "api_service", Map.of(
+                    "parentRemoteToolName", parent)),
+            executor, metadata(ToolWorkflowRole.TEMPLATE_EXECUTION,
+                "mcp.api-template.v1", "api_service", Map.of(
+                    "templateDiscoveryTool", parent))
+        ));
+        InterpretationPlan source = plan(List.of(
+            step(1, child, List.of()),
+            step(2, executor, List.of())
+        ));
+
+        InterpretationPlanOptimizer optimizer = new InterpretationPlanOptimizer(tools);
+        InterpretationPlan optimized = optimizer.optimize(source).plan();
+
+        InterpretationPlan.Step execution = optimized.steps().stream()
+            .filter(step -> executor.equals(step.toolName())).findFirst().orElseThrow();
+        assertThat(execution.dependsOn()).contains(1);
+        assertThat(optimized.steps()).noneMatch(step -> parent.equals(step.toolName()));
+        assertThat(optimizer.runtimeCompanionTools(optimized)).containsExactly(child);
+    }
+
     private ToolRegistry registry(Map<String, ToolMetadata> metadata) {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getAllToolNames()).thenReturn(metadata.keySet());
@@ -111,11 +141,16 @@ class TemplateWorkflowPluginRegistryTest {
     }
 
     private ToolMetadata metadata(ToolWorkflowRole role, String family, String assetType) {
-        return ToolMetadata.builder().metadata(Map.of(
-            ToolWorkflowContract.METADATA_KEY,
-            ToolWorkflowContract.declaration(role, family, "input"),
-            "assetType", assetType
-        )).build();
+        return metadata(role, family, assetType, Map.of());
+    }
+
+    private ToolMetadata metadata(ToolWorkflowRole role, String family, String assetType,
+                                  Map<String, Object> extra) {
+        Map<String, Object> values = new java.util.LinkedHashMap<>(extra);
+        values.put(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(role, family, "input"));
+        values.put("assetType", assetType);
+        return ToolMetadata.builder().metadata(values).build();
     }
 
     private InterpretationPlan.Step step(int id, String tool, List<Integer> dependencies) {

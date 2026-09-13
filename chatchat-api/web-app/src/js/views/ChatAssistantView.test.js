@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import ChatAssistantView, { collapseDuplicateAssistantResults } from "./ChatAssistantView";
+import ChatAssistantView, {
+  collapseDuplicateAssistantResults,
+  mergeExecutionSteps
+} from "./ChatAssistantView";
 
 describe("restored assistant result deduplication", () => {
   it("routes a role Agent to the tool-free role-chat mode", () => {
@@ -79,5 +82,25 @@ describe("restored assistant result deduplication", () => {
     const second = { role: "assistant", content: "Second", taskId: "task-2" };
 
     expect(collapseDuplicateAssistantResults([first, second])).toHaveLength(2);
+  });
+
+  it("appends ordered runtime events incrementally without dropping earlier rows", () => {
+    const first = mergeExecutionSteps([], [{
+      eventId: "event-1",
+      sequence: 1,
+      type: "QUESTION",
+      status: "RUNNING",
+      payload: "{}"
+    }]);
+    const second = mergeExecutionSteps(first, [{
+      eventId: "event-2",
+      sequence: 2,
+      type: "PLAN",
+      status: "RUNNING",
+      payload: "{}"
+    }]);
+
+    expect(second).toHaveLength(2);
+    expect(second.map((step) => step.id)).toEqual(["receive-question", "planning"]);
   });
 });

@@ -227,8 +227,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             if (plugin == null || declared == null) continue;
             plan.steps().stream()
                 .filter(this::isTemplateDiscoveryStep)
-                .filter(step -> sameProtocolTool(step.toolName(), declared))
-                .filter(step -> plugin.accepts(workflowTool(step.toolName()), executorTool))
+                .filter(step -> plugin.acceptsDiscoveryRelation(
+                    workflowTool(step.toolName()), executorTool, declared))
                 .map(InterpretationPlan.Step::toolName)
                 .forEach(companions::add);
         }
@@ -256,7 +256,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
                     originalExecutor.id(), step.id(), steps, new LinkedHashSet<>()));
             if (alreadyGoverned) continue;
 
-            InterpretationPlan.Step companion = compatibleTemplateDiscoveryTool(executorTool, plugin);
+            InterpretationPlan.Step companion = compatibleTemplateDiscoveryTool(
+                executorTool, plugin, steps);
             if (companion == null) continue;
             InterpretationPlan.Step asset = steps.stream().filter(this::isAssetDiscoveryStep)
                 .filter(step -> plugin.accepts(workflowTool(step.toolName()), executorTool))
@@ -299,15 +300,25 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     }
 
     private InterpretationPlan.Step compatibleTemplateDiscoveryTool(
-        TemplateWorkflowTool executorTool, TemplateWorkflowPlugin plugin
+        TemplateWorkflowTool executorTool,
+        TemplateWorkflowPlugin plugin,
+        List<InterpretationPlan.Step> planSteps
     ) {
         String declared = declaredTemplateDiscoveryTool(executorTool.toolName());
         if (declared == null) return null;
+        Set<String> materializedTools = (planSteps == null ? List.<InterpretationPlan.Step>of() : planSteps)
+            .stream().filter(this::isTemplateDiscoveryStep)
+            .map(InterpretationPlan.Step::toolName).filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         return workflowTools.values().stream()
             .filter(tool -> tool.role() == ToolWorkflowRole.TEMPLATE_DISCOVERY)
-            .filter(tool -> sameProtocolTool(tool.toolName(), declared))
-            .filter(tool -> plugin.accepts(tool, executorTool))
-            .sorted(Comparator.comparing(TemplateWorkflowTool::toolName))
+            .filter(tool -> plugin.acceptsDiscoveryRelation(tool, executorTool, declared))
+            // A planner-selected fixed group is authoritative. Otherwise retain
+            // the stable parent as the non-ambiguous fallback.
+            .sorted(Comparator
+                .comparing((TemplateWorkflowTool tool) -> !materializedTools.contains(tool.toolName()))
+                .thenComparing(tool -> tool.groupedTemplateDiscovery() ? 0 : 1)
+                .thenComparing(TemplateWorkflowTool::toolName))
             .map(tool -> new InterpretationPlan.Step(
                 null, "mcp_tool", tool.toolName(), Map.of(), List.of(), null, null))
             .findFirst().orElse(null);
@@ -859,7 +870,13 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         if (assetType == null) {
             assetType = mapValue(extra, "assetType", "asset_type", "targetKind", "target_kind");
         }
-        return new TemplateWorkflowTool(toolName, role, protocolFamily, assetType);
+        String parentToolName = mapValue(extra, "parentRemoteToolName", "parentToolName");
+        if (parentToolName == null) {
+            parentToolName = capabilityHierarchy.node(toolName)
+                .map(com.chatchat.common.mcp.capability.McpCapabilityNode::parentToolName)
+                .orElse(null);
+        }
+        return new TemplateWorkflowTool(toolName, role, protocolFamily, assetType, parentToolName);
     }
 
     ToolWorkflowRole workflowRoleFor(String toolName) {

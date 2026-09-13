@@ -14,6 +14,7 @@ import {
   saveConversationHistory,
   sendInteractionMessage,
   sendInteractionMessageStream,
+  streamAgentTaskEvents,
   submitAgentTaskFeedback,
   updateWorkshopAgent,
   uploadChatImage,
@@ -1210,7 +1211,7 @@ function initialExecutionSteps(agentName = "") {
   ];
 }
 
-function mergeExecutionSteps(previousSteps = [], events = []) {
+export function mergeExecutionSteps(previousSteps = [], events = []) {
   const activeRuntimeTools = new Map();
   const eventSteps = events
     .filter(Boolean)
@@ -1240,6 +1241,12 @@ function mergeExecutionSteps(previousSteps = [], events = []) {
     return previousSteps.length ? previousSteps : initialExecutionSteps();
   }
   const byId = new Map();
+  previousSteps
+    .filter((step) => !["submitted", "waiting-events"].includes(String(step?.id || "")))
+    .forEach((step, index) => {
+      const normalized = normalizeExecutionStep(step, index);
+      byId.set(normalized.id, normalized);
+    });
   eventSteps.forEach((step, index) => {
     const normalized = normalizeExecutionStep(step, index);
     byId.set(normalized.id, mergeStepState(byId.get(normalized.id), normalized));
@@ -1619,6 +1626,9 @@ export default {
       this.stopAgentTaskCancelledListener = null;
     }
     this.clearConfirmationTimer();
+    Object.values(this.runningContexts).forEach((context) => {
+      context?.taskEventStreamController?.abort();
+    });
   },
   watch: {
     selectedConversation(conversation) {
@@ -2034,12 +2044,18 @@ export default {
 
       const refreshSteps = () => this.refreshAgentTaskSteps(runContext.taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
       await refreshSteps();
-      const event = await this.waitForAgentTaskResult(
-        runContext.taskId,
-        this.effectiveTenantId(),
-        refreshSteps,
-        () => this.isRunTracked(runContext)
-      );
+      let event;
+      try {
+        event = await this.waitForAgentTaskEventStream(
+          runContext.taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
+      } catch (streamError) {
+        event = await this.waitForAgentTaskResult(
+          runContext.taskId,
+          this.effectiveTenantId(),
+          refreshSteps,
+          () => this.isRunTracked(runContext)
+        );
+      }
       await refreshSteps();
       const eventPayload = parseJsonPayload(event?.payload);
       const eventType = String(event?.type || "").toUpperCase();
@@ -2197,6 +2213,56 @@ export default {
         await sleep(300);
       }
       throw agentTaskPollingStoppedError();
+    },
+    waitForAgentTaskEventStream(taskId, tenantId, runContext, assistantMessage, query = "") {
+      if (!taskId) {
+        return Promise.reject(new Error("Agent task was not created"));
+      }
+      const controller = new AbortController();
+      runContext.taskEventStreamController?.abort();
+      runContext.taskEventStreamController = controller;
+      let settled = false;
+      let cursor = Math.max(0, Number(runContext.taskEventSequence || 0));
+      return new Promise((resolve, reject) => {
+        const finish = (callback, value) => {
+          if (settled) return;
+          settled = true;
+          runContext.taskEventSequence = cursor;
+          runContext.taskEventStreamController = null;
+          callback(value);
+          controller.abort();
+        };
+        streamAgentTaskEvents(taskId, {
+          tenantId,
+          afterSequence: cursor,
+          limit: AGENT_TASK_EVENT_LIMIT,
+          pollIntervalMs: 250,
+          timeoutMs: 1_800_000
+        }, {
+          signal: controller.signal,
+          event: (event) => {
+            cursor = Math.max(cursor, Number(event?.sequence || 0));
+            runContext.taskEventSequence = cursor;
+            assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], [event]);
+            if (this.isActiveRun(runContext)) {
+              this.messages = [...runContext.messages];
+              this.scrollMessages();
+            }
+            if (!isTerminalAgentEvent(event)) {
+              this.emitActiveConversationSnapshot(query || runContext.question || "", "running", runContext);
+              return;
+            }
+            finish(resolve, event);
+          },
+          done: () => {
+            if (!settled) finish(reject, new Error("Agent task event stream ended before a terminal event"));
+          },
+          timeout: () => finish(reject, new Error("Agent task event stream timed out")),
+          error: (payload) => finish(reject, new Error(payload?.message || "Agent task event stream failed"))
+        }).catch((error) => {
+          if (!settled && !controller.signal.aborted) finish(reject, error);
+        });
+      });
     },
     async refreshAgentTaskSteps(taskId, tenantId, runContext, assistantMessage, query = "") {
       if (!taskId || !assistantMessage) {
@@ -3218,12 +3284,18 @@ export default {
       const refreshSteps = () => this.refreshAgentTaskSteps(taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
       try {
         await refreshSteps();
-        const event = await this.waitForAgentTaskResult(
-          taskId,
-          this.effectiveTenantId(),
-          refreshSteps,
-          () => this.isRunTracked(runContext)
-        );
+        let event;
+        try {
+          event = await this.waitForAgentTaskEventStream(
+            taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
+        } catch (streamError) {
+          event = await this.waitForAgentTaskResult(
+            taskId,
+            this.effectiveTenantId(),
+            refreshSteps,
+            () => this.isRunTracked(runContext)
+          );
+        }
         await refreshSteps();
         const finalStatus = await this.applyRestoredAgentTaskEvent(event, runContext, assistantMessage, query);
         await this.saveHistory(query, finalStatus, runContext);

@@ -36,6 +36,24 @@ public interface TemplateWorkflowPlugin {
         return accepts(candidate);
     }
 
+    /**
+     * Matches either the executor-declared parent discovery tool or one of its
+     * dynamically published, fixed template-group children. The child name is
+     * already an authoritative group selection; Runtime must keep it and invoke
+     * its parent bridge instead of widening the query back to the parent scope.
+     */
+    default boolean acceptsDiscoveryRelation(TemplateWorkflowTool candidate,
+                                             TemplateWorkflowTool executionTool,
+                                             String declaredParentToolName) {
+        if (!accepts(candidate, executionTool) || declaredParentToolName == null
+            || declaredParentToolName.isBlank()) {
+            return false;
+        }
+        return sameTool(candidate.toolName(), declaredParentToolName)
+            || (candidate.groupedTemplateDiscovery()
+                && sameTool(candidate.parentToolName(), declaredParentToolName));
+    }
+
     default String templateIdOutputPath() {
         return "$.templates[0].templateId";
     }
@@ -97,5 +115,9 @@ public interface TemplateWorkflowPlugin {
 
     private static String normalizeField(String value) {
         return normalizePath(value);
+    }
+
+    private static boolean sameTool(String left, String right) {
+        return !normalizePath(left).isEmpty() && normalizePath(left).equals(normalizePath(right));
     }
 }

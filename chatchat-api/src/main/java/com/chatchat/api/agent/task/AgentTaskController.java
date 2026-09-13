@@ -40,6 +40,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -69,6 +71,7 @@ public class AgentTaskController {
     private final AgentTodoService todoService;
     private final InterpretationPlanStore interpretationPlanStore;
     private final AgentTaskFeedbackQueueService feedbackQueueService;
+    private final AgentTaskEventStreamService taskEventStreamService;
 
     /**
      * Performs the submit operation.
@@ -273,6 +276,19 @@ public class AgentTaskController {
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
+    }
+
+    @GetMapping(value = "/{taskId}/events/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Stream ordered Agent task events")
+    public SseEmitter streamEvents(@RequestParam("tenantId") String tenantId,
+                                   @PathVariable("taskId") String taskId,
+                                   @RequestParam(value = "afterSequence", defaultValue = "0") long afterSequence,
+                                   @RequestParam(value = "limit", defaultValue = "100") int limit,
+                                   @RequestParam(value = "pollIntervalMs", defaultValue = "250") long pollIntervalMs,
+                                   @RequestParam(value = "timeoutMs", defaultValue = "1800000") long timeoutMs,
+                                   HttpServletRequest servletRequest) {
+        return taskEventStreamService.stream(scopedTenantId(servletRequest, tenantId), taskId,
+            afterSequence, limit, pollIntervalMs, timeoutMs);
     }
 
     @GetMapping("/{taskId}/plan")

@@ -130,15 +130,51 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisSummaryScheduledTaskCount", 1);
         request.metadata().put("recordAnalysisSummaryWorkerCount", 0);
         request.metadata().put("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
+        String analysisGraphId = request.isolationScope().runId() + ":unified-question-analysis";
         observe(request, "已启动数据分析图，全部 " + datasets.size() + " 个数据集共同参与规划、计算和结论生成。",
-            "analysis_graph", metadataOf("type", "unified_question_analysis_started", "datasetCount", datasets.size(), "modelTaskCount", 1));
-        var outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(
-            profiles, configuration.adaptivePromptModelEnabled(), configuration.maximumEvidenceRounds(),
-            configuration.reportDraftEnabled()).execute(
-            request.query(), datasets, computation, request.model(), request.isolationScope(),
-            request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
+            "analysis_graph", metadataOf("type", "unified_question_analysis_started",
+                "eventKind", "ANALYSIS_GRAPH", "eventState", "STARTED", "graphId", analysisGraphId,
+                "datasetCount", datasets.size(), "modelTaskCount", 1));
+        Map<String, AnalysisDispatchCoordinator.Outcome> outcomes;
+        try {
+            outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(
+                profiles, configuration.adaptivePromptModelEnabled(), configuration.maximumEvidenceRounds(),
+                configuration.reportDraftEnabled()).execute(
+                request.query(), datasets, computation, request.model(), request.isolationScope(),
+                request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
+        } catch (RuntimeException failure) {
+            observe(request, "数据分析图未完成，禁止生成报告。",
+                "analysis_graph", metadataOf("type", "unified_question_analysis_failed",
+                    "eventKind", "ANALYSIS_GRAPH", "eventState",
+                    request.cancellationCheck().getAsBoolean() ? "CANCELLED" : "FAILED",
+                    "graphId", analysisGraphId, "datasetCount", datasets.size(),
+                    "errorType", failure.getClass().getSimpleName()));
+            throw failure;
+        }
         lifecycle = lifecycle.datasetsDispatched(datasets.size());
-        return reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared);
+        CoverageBundle coverage;
+        try {
+            coverage = reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared);
+        } catch (RuntimeException failure) {
+            observe(request, "数据分析结果质量验收失败，禁止生成报告。",
+                "analysis_graph", metadataOf("type", "unified_question_analysis_failed",
+                    "eventKind", "ANALYSIS_GRAPH", "eventState", "FAILED", "graphId", analysisGraphId,
+                    "datasetCount", datasets.size(), "errorType", failure.getClass().getSimpleName()));
+            throw failure;
+        }
+        if (coverage.evidenceTraceComplete()) {
+            observe(request, "全部 " + datasets.size() + " 个数据集均已通过完整证据分析验收。",
+                "analysis_graph", metadataOf("type", "unified_question_analysis_completed",
+                    "eventKind", "ANALYSIS_GRAPH", "eventState", "COMPLETED", "graphId", analysisGraphId,
+                    "datasetCount", datasets.size(), "outcomeCount", outcomes.size()));
+        } else {
+            observe(request, "仍有数据集未通过完整分析验收，禁止生成报告并进入修复。",
+                "analysis_graph", metadataOf("type", "unified_question_analysis_failed",
+                    "eventKind", "ANALYSIS_GRAPH", "eventState", "FAILED", "graphId", analysisGraphId,
+                    "datasetCount", datasets.size(), "outcomeCount", outcomes.size(),
+                    "degradedDatasetCount", request.metadata().getOrDefault("analysisDegradedDatasetCount", 0)));
+        }
+        return coverage;
     }
 
     private List<AnalysisEvidenceCoordinator.Dataset> externalizeLargeDatasets(
@@ -335,12 +371,20 @@ public final class AnalysisCoverageCoordinator {
             prompt.append("Cross-dataset deterministic findings (authoritative calculations): ")
                 .append(ModelProtocolJson.compact(bundleInsights.toMap())).append("\n");
         }
+        boolean allAnalysisProductsAccepted = workerReports.size() == datasets.size()
+            && workerReports.stream().allMatch(report -> report.productStatus()
+                == DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+        request.metadata().put("analysisAllDatasetProductsAccepted", allAnalysisProductsAccepted);
+        request.metadata().put("analysisDegradedDatasetCount", workerReports.stream()
+            .filter(report -> report.productStatus()
+                == DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_DEGRADED).count());
         boolean coverageComplete = counters.processed == counters.returned;
         boolean traceComplete = counters.processed > 0
             && governedSummaries.size() == counters.iterations
             && governedSummaries.stream().allMatch(evidenceCoordinator::hasTraceableEvidence)
             && governedSummaries.stream().map(AnalysisSummaryResult::resultId).distinct().count()
-                == governedSummaries.size();
+                == governedSummaries.size()
+            && allAnalysisProductsAccepted;
         if (hierarchy.finalInputs().isEmpty()) {
             traceComplete = false;
             prompt.append("The unified analysis produced no evidence-bound findings. Publish the "

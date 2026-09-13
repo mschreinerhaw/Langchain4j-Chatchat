@@ -81,7 +81,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             .parentEventId(parentQuestionEventId(latest))
             .toolName(toolName(event))
             .type(taskEventType(event.type()))
-            .status(taskStatus(event.type()))
+            .status(taskStatus(event))
             .payload(writePayload(event))
             .errorCode(errorCode(event))
             .createTime(event.createdAt())
@@ -259,9 +259,24 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         };
     }
 
-    private String taskStatus(AgentRunEventType type) {
+    private String taskStatus(AgentRunEvent event) {
+        AgentRunEventType type = event == null ? null : event.type();
         if (type == null) {
             return "RUNNING";
+        }
+        if (type == AgentRunEventType.OBSERVATION_RECORDED) {
+            Object rawMetadata = event.payload() == null ? null : event.payload().get("metadata");
+            Map<?, ?> metadata = rawMetadata instanceof Map<?, ?> values ? values : Map.of();
+            Object rawEventState = metadata.containsKey("eventState")
+                ? metadata.get("eventState") : "COMPLETED";
+            String eventState = String.valueOf(rawEventState)
+                .trim().toUpperCase(java.util.Locale.ROOT);
+            return switch (eventState) {
+                case "STARTED", "RUNNING", "ACTIVE" -> "RUNNING";
+                case "FAILED", "ERROR" -> "FAILED";
+                case "CANCELLED", "CANCELED" -> "CANCELLED";
+                default -> "SUCCESS";
+            };
         }
         return switch (type) {
             case RUN_SUBMITTED -> "PENDING";
@@ -311,7 +326,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             runtimePayload.remove("executionResult");
         }
         runtimePayload = compactRuntimePayload(event, runtimePayload);
-        String status = taskStatus(event.type());
+        String status = taskStatus(event);
         String answer = terminalAnswer(event, runtimePayload);
         Map<String, Object> uiResponse = terminalUiResponse(status, answer, runtimePayload);
         Map<String, Object> payload = new LinkedHashMap<>();

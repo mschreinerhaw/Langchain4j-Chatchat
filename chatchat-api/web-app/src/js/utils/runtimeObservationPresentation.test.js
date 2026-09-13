@@ -6,6 +6,31 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe("runtime observation presentation", () => {
+  it("keeps the analysis graph active until its matching completion event", () => {
+    const started = { metadata: {
+      eventKind: "ANALYSIS_GRAPH", eventState: "STARTED",
+      type: "unified_question_analysis_started", graphId: "run-1:analysis"
+    } };
+    const completed = { metadata: {
+      ...started.metadata, eventState: "COMPLETED", type: "unified_question_analysis_completed"
+    } };
+
+    expect(runtimeObservationPresentation(started)).toEqual({
+      title: "分析全部数据", toolName: "analysis_graph", status: "active"
+    });
+    expect(runtimeObservationPresentation(completed)).toEqual({
+      title: "全部数据分析完成", toolName: "analysis_graph", status: "done"
+    });
+    expect(runtimeObservationIdentity(started)).toBe("analysis-graph:run-1:analysis");
+    expect(runtimeObservationIdentity(completed)).toBe(runtimeObservationIdentity(started));
+  });
+
+  it("treats legacy graph-start observations as active", () => {
+    expect(runtimeObservationPresentation({ metadata: {
+      type: "unified_question_analysis_started", datasetCount: 9
+    } })).toEqual({ title: "分析全部数据", toolName: "analysis_graph", status: "active" });
+  });
+
   it("shows Knowledge Skill extraction and application as distinct auditable events", () => {
     const extracted = { metadata: {
       eventKind: "KNOWLEDGE_SKILLS", eventState: "COMPLETED",

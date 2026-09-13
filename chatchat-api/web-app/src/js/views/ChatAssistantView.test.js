@@ -246,4 +246,43 @@ describe("restored assistant result deduplication", () => {
       "runtime-observation:knowledge-skills:CONTEXT_APPLIED"
     ]);
   });
+
+  it("does not close the analysis graph before its matching completion event", () => {
+    const observation = (eventId, sequence, eventState, type) => ({
+      eventId, sequence, type: "RUNTIME_OBSERVATION", status: "RUNNING",
+      payload: JSON.stringify({ payload: { metadata: {
+        eventKind: "ANALYSIS_GRAPH", eventState, type,
+        graphId: "run-1:unified-question-analysis"
+      } } })
+    });
+    const running = mergeExecutionSteps([], [
+      observation("graph-start", 70, "STARTED", "unified_question_analysis_started"),
+      { eventId: "model-progress", sequence: 71, type: "THINK", status: "RUNNING",
+        payload: JSON.stringify({ action: "repair missing datasets" }) }
+    ]);
+
+    expect(running.find((step) => step.id === "event:graph-start"))
+      .toEqual(expect.objectContaining({ status: "active", blocksParent: true }));
+
+    const completed = mergeExecutionSteps(running, [
+      observation("graph-complete", 72, "COMPLETED", "unified_question_analysis_completed")
+    ]);
+    expect(completed.find((step) => step.id === "event:graph-start"))
+      .toEqual(expect.objectContaining({ status: "done" }));
+    expect(completed.find((step) => step.id === "event:graph-complete"))
+      .toEqual(expect.objectContaining({ status: "done" }));
+  });
+
+  it("closes stale wait-tool status when the final answer arrives", () => {
+    const steps = mergeExecutionSteps([], [{
+      eventId: "wait-tool", sequence: 80, type: "STATUS", status: "WAIT_TOOL",
+      payload: JSON.stringify({ toolName: "api_template_execute" })
+    }, {
+      eventId: "answer", sequence: 81, type: "ANSWER", status: "SUCCESS",
+      payload: JSON.stringify({ answer: "report" })
+    }]);
+
+    expect(steps.find((step) => step.id === "event:wait-tool"))
+      .toEqual(expect.objectContaining({ status: "done" }));
+  });
 });

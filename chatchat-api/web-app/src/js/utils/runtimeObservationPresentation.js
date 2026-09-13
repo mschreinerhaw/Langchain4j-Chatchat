@@ -16,6 +16,17 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const eventState = upper(metadata.eventState);
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
+  if (eventKind === "ANALYSIS_GRAPH" || type.startsWith("UNIFIED_QUESTION_ANALYSIS_")) {
+    const state = eventState || (type.endsWith("_STARTED") ? "STARTED"
+      : type.endsWith("_FAILED") ? "FAILED" : "COMPLETED");
+    return {
+      title: state === "STARTED" ? "分析全部数据" : state === "COMPLETED"
+        ? "全部数据分析完成" : state === "CANCELLED" ? "数据分析已取消" : "数据分析未完成",
+      toolName: "analysis_graph",
+      status: state === "STARTED" ? "active" : state === "COMPLETED"
+        ? "done" : state === "CANCELLED" ? "cancelled" : "error"
+    };
+  }
   if (eventKind === "KNOWLEDGE_SKILLS") {
     if (stage === "SKILLS_EXTRACTED") {
       return {
@@ -105,6 +116,10 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
 
 export function runtimeObservationIdentity(runtimePayload = {}) {
   const metadata = objectValue(runtimePayload.metadata);
+  if (upper(metadata.eventKind) === "ANALYSIS_GRAPH"
+      || upper(metadata.type).startsWith("UNIFIED_QUESTION_ANALYSIS_")) {
+    return `analysis-graph:${metadata.graphId || "unified-question-analysis"}`;
+  }
   if (upper(metadata.eventKind) === "KNOWLEDGE_SKILLS") {
     return `knowledge-skills:${metadata.stage || "unknown"}`;
   }

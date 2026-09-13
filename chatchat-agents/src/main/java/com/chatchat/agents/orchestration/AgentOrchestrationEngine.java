@@ -2240,10 +2240,27 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return result == null ? "" : firstNonBlank(result.finalAnswer(), "");
         }
         List<AgentObservation> storedObservations = storedInterpretationPlanObservations(runtimeAttributes);
-        RecordCoverageBundle recordCoverage = precomputedRecordCoverage == null
+        RecordCoverageBundle coverageCandidate = precomputedRecordCoverage == null
             ? buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult,
                 runtimeAttributes, metadata, cancellationCheck)
             : precomputedRecordCoverage;
+        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()) {
+            metadata.put("analysisCompletionBarrierRepairAttempt", 1);
+            recordLifecyclePhase(runtimeAttributes, metadata, "analysis_completion_repair",
+                "Dataset analysis quality gate is incomplete; re-analyzing all retained data before final synthesis.",
+                metadataOf("reuseExistingDataset", true, "dataAcquisitionAllowed", false,
+                    "returnedRecordCount", coverageCandidate.returnedRecordCount()));
+            coverageCandidate = buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult,
+                runtimeAttributes, metadata, cancellationCheck);
+        }
+        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()) {
+            metadata.put("analysisCompletionBarrierPassed", false);
+            metadata.put("analysisFinalAdmissionBlocked", true);
+            throw new IllegalStateException(
+                "Final answer blocked: not every returned dataset passed complete evidence-bound analysis validation");
+        }
+        metadata.put("analysisCompletionBarrierPassed", true);
+        final RecordCoverageBundle recordCoverage = coverageCandidate;
         List<InterpretationPlanRuntime.ExecutionResult> resolvedAttemptResults =
             resolvedSummaryEvidenceAttempts(attemptResults);
         InterpretationPlanRuntime.ExecutionResult resolvedResult = resolvedAttemptResults.isEmpty()

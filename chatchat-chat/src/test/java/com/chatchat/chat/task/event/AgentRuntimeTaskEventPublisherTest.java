@@ -41,6 +41,27 @@ class AgentRuntimeTaskEventPublisherTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
+    void mapsObservationLifecycleStateInsteadOfMarkingEveryObservationRunning() {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository, eventStore, mock(AgentEventBus.class), objectMapper);
+        AgentTaskLatestEntity task = task("task-analysis-graph-lifecycle");
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+
+        publisher.publish(AgentRunEvent.of(task.getTaskId(), AgentRunEventType.OBSERVATION_RECORDED,
+            "analysis started", Map.of("metadata", Map.of(
+                "eventKind", "ANALYSIS_GRAPH", "eventState", "STARTED"))));
+        publisher.publish(AgentRunEvent.of(task.getTaskId(), AgentRunEventType.OBSERVATION_RECORDED,
+            "analysis completed", Map.of("metadata", Map.of(
+                "eventKind", "ANALYSIS_GRAPH", "eventState", "COMPLETED"))));
+
+        assertThat(eventStore.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), 10))
+            .extracting(AgentEvent::getStatus)
+            .containsExactly("RUNNING", "SUCCESS");
+    }
+
+    @Test
     void bridgesRuntimeStepToTaskEventStore() {
         AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
         InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();

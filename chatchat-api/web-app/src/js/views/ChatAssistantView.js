@@ -1026,7 +1026,7 @@ function eventStateKey(event = {}, payload = {}) {
     const identity = runtimeObservationIdentity(runtimePayloadOf(payload));
     return identity ? `runtime-observation:${identity}` : "";
   }
-  if (["STATUS", "COMPLETE", "ERROR", "RUNTIME_FAILED", "RUNTIME_CANCELLED"].includes(type)) {
+  if (["STATUS", "ANSWER", "RESULT", "COMPLETE", "ERROR", "RUNTIME_FAILED", "RUNTIME_CANCELLED"].includes(type)) {
     return "task-runtime-state";
   }
   if (["NEEDS_CONFIRMATION", "RUNTIME_CONFIRMATION"].includes(type)) {
@@ -1037,7 +1037,7 @@ function eventStateKey(event = {}, payload = {}) {
 
 function eventBlocksParent(event = {}, payload = {}) {
   const type = normalizeEventType(event);
-  if (["TOOL_CALL", "TOOL_RESULT", "STATUS", "COMPLETE", "ERROR", "RUNTIME_FAILED",
+  if (["TOOL_CALL", "TOOL_RESULT", "STATUS", "ANSWER", "RESULT", "COMPLETE", "ERROR", "RUNTIME_FAILED",
     "RUNTIME_CANCELLED", "NEEDS_CONFIRMATION", "RUNTIME_CONFIRMATION"].includes(type)) {
     return true;
   }
@@ -1047,8 +1047,9 @@ function eventBlocksParent(event = {}, payload = {}) {
   const metadata = runtimePayloadOf(payload).metadata || {};
   const eventKind = String(metadata.eventKind || "").toUpperCase();
   const metadataType = String(metadata.type || "").toUpperCase();
-  return ["MODEL_INFERENCE", "DAG_REPAIR"].includes(eventKind)
-    || metadataType === "BUSINESS_ANALYSIS_PROGRESS";
+  return ["MODEL_INFERENCE", "DAG_REPAIR", "ANALYSIS_GRAPH"].includes(eventKind)
+    || metadataType === "BUSINESS_ANALYSIS_PROGRESS"
+    || metadataType.startsWith("UNIFIED_QUESTION_ANALYSIS_");
 }
 
 function agentEventToExecutionStep(event = {}) {

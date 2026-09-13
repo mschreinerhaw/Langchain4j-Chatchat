@@ -198,6 +198,11 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     @Override
     public void repairTemplateExecutionDag(PlanTransformationWorkspace workspace,
                                            PlanTransformationContext context) {
+        TemplateDiscoveryMaterialization materialized = materializeTemplateDiscoverySteps(
+            workspace.steps(), workspace.dependencyContracts(), workspace.executionPolicy());
+        workspace.steps(materialized.steps());
+        workspace.dependencyContracts(materialized.dependencyContracts());
+        workspace.executionPolicy(materialized.executionPolicy());
         boolean mayRepairWorkflowEdges = configuredWorkflowNodes(context.authoritativeWorkflowDag()).isEmpty();
         TemplateDagRepairResult result = repairTemplateExecutionDag(
             workspace.steps(), workspace.edgeContracts(), workspace.dependencyContracts(),
@@ -206,7 +211,136 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         workspace.edgeContracts(result.edgeContracts());
         workspace.dependencyContracts(result.dependencyContracts());
         workspace.bindings(result.bindings());
-        markChanged(workspace, "TemplateExecutionDagRepairPass", result.changed());
+        markChanged(workspace, "TemplateExecutionDagRepairPass",
+            materialized.changed() || result.changed());
+    }
+
+    /** Tools authorized by an executor's publisher contract and materialized into this plan. */
+    public Set<String> runtimeCompanionTools(InterpretationPlan plan) {
+        if (plan == null || plan.steps() == null) return Set.of();
+        Set<String> companions = new LinkedHashSet<>();
+        for (InterpretationPlan.Step executor : plan.steps()) {
+            if (!isTemplateExecutionStep(executor)) continue;
+            TemplateWorkflowTool executorTool = workflowTool(executor.toolName());
+            TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executorTool).orElse(null);
+            String declared = declaredTemplateDiscoveryTool(executor.toolName());
+            if (plugin == null || declared == null) continue;
+            plan.steps().stream()
+                .filter(this::isTemplateDiscoveryStep)
+                .filter(step -> sameProtocolTool(step.toolName(), declared))
+                .filter(step -> plugin.accepts(workflowTool(step.toolName()), executorTool))
+                .map(InterpretationPlan.Step::toolName)
+                .forEach(companions::add);
+        }
+        return Set.copyOf(companions);
+    }
+
+    private TemplateDiscoveryMaterialization materializeTemplateDiscoverySteps(
+        List<InterpretationPlan.Step> sourceSteps,
+        List<InterpretationPlan.DependencyContract> sourceDependencies,
+        InterpretationPlan.ExecutionPolicy sourcePolicy
+    ) {
+        List<InterpretationPlan.Step> steps = new ArrayList<>(sourceSteps);
+        List<InterpretationPlan.DependencyContract> dependencies = new ArrayList<>(sourceDependencies);
+        boolean changed = false;
+        int nextId = steps.stream().filter(Objects::nonNull).map(InterpretationPlan.Step::id)
+            .filter(Objects::nonNull).max(Integer::compareTo).orElse(0) + 1;
+        for (InterpretationPlan.Step originalExecutor : List.copyOf(steps)) {
+            if (!isTemplateExecutionStep(originalExecutor)) continue;
+            TemplateWorkflowTool executorTool = workflowTool(originalExecutor.toolName());
+            TemplateWorkflowPlugin plugin = templateWorkflowPlugins.resolve(executorTool).orElse(null);
+            if (plugin == null) continue;
+            boolean alreadyGoverned = steps.stream().filter(this::isTemplateDiscoveryStep)
+                .filter(step -> plugin.accepts(workflowTool(step.toolName()), executorTool))
+                .anyMatch(step -> dependsOnTransitively(
+                    originalExecutor.id(), step.id(), steps, new LinkedHashSet<>()));
+            if (alreadyGoverned) continue;
+
+            InterpretationPlan.Step companion = compatibleTemplateDiscoveryTool(executorTool, plugin);
+            if (companion == null) continue;
+            InterpretationPlan.Step asset = steps.stream().filter(this::isAssetDiscoveryStep)
+                .filter(step -> plugin.accepts(workflowTool(step.toolName()), executorTool))
+                .filter(step -> dependsOnTransitively(
+                    originalExecutor.id(), step.id(), steps, new LinkedHashSet<>()))
+                .max(Comparator.comparingInt(step -> step.id() == null ? Integer.MIN_VALUE : step.id()))
+                .orElse(null);
+            if (plugin.requiresAssetDiscovery() && asset == null) continue;
+
+            InterpretationPlan.Step existing = steps.stream()
+                .filter(this::isTemplateDiscoveryStep)
+                .filter(step -> sameProtocolTool(step.toolName(), companion.toolName()))
+                .findFirst().orElse(null);
+            Integer templateId;
+            if (existing == null) {
+                templateId = nextId++;
+                InterpretationPlan.Step injected = new InterpretationPlan.Step(
+                    templateId, "mcp_tool", companion.toolName(),
+                    plugin.templateDiscoveryInput(asset == null ? Map.of() : asset.input()),
+                    asset == null ? List.of() : List.of(asset.id()), null, null);
+                int executorIndex = indexOfStep(steps, originalExecutor.id());
+                steps.add(executorIndex < 0 ? steps.size() : executorIndex, injected);
+                changed = true;
+            } else {
+                templateId = existing.id();
+                if (asset != null) changed |= addDependency(steps, templateId, asset.id());
+            }
+            if (asset != null) {
+                changed |= addRequiredDependencyContract(dependencies, asset.id(), templateId,
+                    "Materialized by template workflow plugin " + plugin.id() + ".");
+            }
+            // Preserve configured executor dependencies and add the plugin-owned invariant.
+            changed |= addDependency(steps, originalExecutor.id(), templateId);
+            changed |= addRequiredDependencyContract(dependencies, templateId, originalExecutor.id(),
+                "Materialized by template workflow plugin " + plugin.id() + ".");
+        }
+        InterpretationPlan.ExecutionPolicy policy = expandPolicyForMaterializedSteps(sourcePolicy, steps);
+        changed |= !Objects.equals(policy, sourcePolicy);
+        return new TemplateDiscoveryMaterialization(steps, dependencies, policy, changed);
+    }
+
+    private InterpretationPlan.Step compatibleTemplateDiscoveryTool(
+        TemplateWorkflowTool executorTool, TemplateWorkflowPlugin plugin
+    ) {
+        String declared = declaredTemplateDiscoveryTool(executorTool.toolName());
+        if (declared == null) return null;
+        return workflowTools.values().stream()
+            .filter(tool -> tool.role() == ToolWorkflowRole.TEMPLATE_DISCOVERY)
+            .filter(tool -> sameProtocolTool(tool.toolName(), declared))
+            .filter(tool -> plugin.accepts(tool, executorTool))
+            .sorted(Comparator.comparing(TemplateWorkflowTool::toolName))
+            .map(tool -> new InterpretationPlan.Step(
+                null, "mcp_tool", tool.toolName(), Map.of(), List.of(), null, null))
+            .findFirst().orElse(null);
+    }
+
+    private String declaredTemplateDiscoveryTool(String executorName) {
+        ToolMetadata metadata = toolRegistry == null || executorName == null
+            ? null : toolRegistry.getToolMetadata(executorName);
+        Map<String, Object> extra = metadata == null || metadata.getMetadata() == null
+            ? Map.of() : metadata.getMetadata();
+        String declared = mapValue(extra, "templateDiscoveryTool", "template_discovery_tool");
+        return declared != null ? declared
+            : mapValue(metadataMap(extra.get("mcpToolMeta")),
+                "templateDiscoveryTool", "template_discovery_tool");
+    }
+
+    private InterpretationPlan.ExecutionPolicy expandPolicyForMaterializedSteps(
+        InterpretationPlan.ExecutionPolicy policy, List<InterpretationPlan.Step> steps
+    ) {
+        if (policy == null) return null;
+        LinkedHashSet<String> allowed = new LinkedHashSet<>(
+            policy.allowTool() == null ? List.of() : policy.allowTool());
+        steps.stream().filter(this::isTemplateDiscoveryStep)
+            .map(InterpretationPlan.Step::toolName).filter(Objects::nonNull).forEach(allowed::add);
+        int maxSteps = Math.max(policy.maxSteps() == null ? 0 : policy.maxSteps(), steps.size());
+        if (maxSteps == (policy.maxSteps() == null ? 0 : policy.maxSteps())
+            && allowed.equals(new LinkedHashSet<>(policy.allowTool() == null ? List.of() : policy.allowTool()))) {
+            return policy;
+        }
+        return new InterpretationPlan.ExecutionPolicy(
+            maxSteps, policy.allowParallel(), List.copyOf(allowed), policy.denyTool(), policy.timeoutMs(),
+            policy.maxRewriteTimes(), policy.fallbackMode(), policy.toolPriority(), policy.costBudget(),
+            policy.latencyBudgetMs(), policy.accuracyVsSpeed());
     }
 
     @Override
@@ -229,7 +363,7 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     @Override
     public void applyParallelHint(PlanTransformationWorkspace workspace,
                                   PlanTransformationContext context) {
-        ParallelResult result = parallelHint(workspace.sourcePlan(), workspace.steps());
+        ParallelResult result = parallelHint(workspace.executionPolicy(), workspace.steps());
         workspace.executionPolicy(result.executionPolicy());
         markChanged(workspace, "ParallelHintPass", result.changed());
     }
@@ -1051,8 +1185,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         return new OrderingResult(ordered, changed);
     }
 
-    private ParallelResult parallelHint(InterpretationPlan plan, List<InterpretationPlan.Step> steps) {
-        InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
+    private ParallelResult parallelHint(InterpretationPlan.ExecutionPolicy policy,
+                                        List<InterpretationPlan.Step> steps) {
         if (policy == null || policy.allowParallel() != null) {
             return new ParallelResult(policy, false);
         }
@@ -1462,6 +1596,14 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
         List<InterpretationPlan.EdgeContract> edgeContracts,
         List<InterpretationPlan.DependencyContract> dependencyContracts,
         List<InterpretationPlan.Binding> bindings,
+        boolean changed
+    ) {
+    }
+
+    private record TemplateDiscoveryMaterialization(
+        List<InterpretationPlan.Step> steps,
+        List<InterpretationPlan.DependencyContract> dependencyContracts,
+        InterpretationPlan.ExecutionPolicy executionPolicy,
         boolean changed
     ) {
     }

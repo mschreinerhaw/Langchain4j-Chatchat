@@ -670,6 +670,81 @@ class InterpretationPlanOptimizerTest {
             .orElseThrow();
     }
 
+    @Test
+    void materializesPublisherDeclaredApiTemplateDiscoveryIntoAuthoritativeDag() {
+        String asset = "mcp_chatchat_mcp_server_api_service_query";
+        String template = "mcp_chatchat_mcp_server_api_template_query";
+        String execute = "mcp_chatchat_mcp_server_api_template_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getAllToolNames()).thenReturn(Set.of(asset, template, execute));
+        when(registry.getWorkflowRole(asset)).thenReturn(ToolWorkflowRole.ASSET_DISCOVERY);
+        when(registry.getWorkflowRole(template)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(execute)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(asset)).thenReturn(workflowMetadata(
+            asset, "api_service_query", ToolWorkflowRole.ASSET_DISCOVERY,
+            "mcp.api-service-asset.v1", Map.of("assetType", "api_service")));
+        when(registry.getToolMetadata(template)).thenReturn(workflowMetadata(
+            template, "api_template_query", ToolWorkflowRole.TEMPLATE_DISCOVERY,
+            "mcp.api-template-discovery.v1", Map.of("assetType", "api_service")));
+        when(registry.getToolMetadata(execute)).thenReturn(workflowMetadata(
+            execute, "api_template_execute", ToolWorkflowRole.TEMPLATE_EXECUTION,
+            "mcp.api-template.v1", Map.of(
+                "assetType", "api_service", "templateDiscoveryTool", "api_template_query")));
+        InterpretationPlan source = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "customer trading analysis", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", asset,
+                    Map.of("query", "查询客户交易和资产并总结偏好"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", execute,
+                    Map.of("templateId", "{{step_1.templateId}}"), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of(), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3, false, List.of(asset, execute), List.of(), 30_000),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()), List.of()));
+        List<Map<String, Object>> authoritativeDag = List.of(
+            Map.of("tool", asset, "dependsOnTools", List.of()),
+            Map.of("tool", execute, "dependsOnTools", List.of(asset)));
+
+        InterpretationPlanOptimizer optimizer = new InterpretationPlanOptimizer(registry);
+        InterpretationPlanOptimizer.OptimizationResult result =
+            optimizer.optimize(source, authoritativeDag);
+        InterpretationPlan executable = result.plan();
+        InterpretationPlan.Step assetStep = stepByTool(executable, asset);
+        InterpretationPlan.Step templateStep = stepByTool(executable, template);
+        InterpretationPlan.Step executeStep = stepByTool(executable, execute);
+
+        assertThat(result.appliedPasses()).contains("TemplateExecutionDagRepairPass");
+        assertThat(templateStep.dependsOn()).containsExactly(assetStep.id());
+        assertThat(executeStep.dependsOn()).contains(assetStep.id(), templateStep.id());
+        assertThat(templateStep.input()).extractingByKey("filters").asInstanceOf(
+            org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("intent", "查询客户交易和资产并总结偏好");
+        assertThat(executeStep.input()).doesNotContainKeys("templateId", "template_id");
+        assertThat(executable.plan().bindings()).anySatisfy(binding -> {
+            assertThat(binding.from()).isEqualTo(templateStep.id());
+            assertThat(binding.to()).isEqualTo(executeStep.id());
+        });
+        assertThat(executable.executionPolicy().maxSteps()).isEqualTo(4);
+        assertThat(executable.executionPolicy().allowTool()).contains(template);
+        assertThat(optimizer.runtimeCompanionTools(executable)).containsExactly(template);
+        assertThat(new InterpretationPlanValidator().validate(
+            executable, registry, Set.of(asset, template, execute),
+            authoritativeDag, "customer-analysis").valid()).isTrue();
+    }
+
+    private ToolMetadata workflowMetadata(String localName, String remoteName,
+                                          ToolWorkflowRole role, String protocolFamily,
+                                          Map<String, Object> additions) {
+        Map<String, Object> metadata = new LinkedHashMap<>(additions);
+        metadata.put("remoteToolName", remoteName);
+        metadata.put(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(role, protocolFamily, "parameters"));
+        return ToolMetadata.builder().id(localName).metadata(metadata).build();
+    }
+
     private ToolRegistry workflowRegistry(Map<String, ToolWorkflowRole> roles, String protocolFamily) {
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getAllToolNames()).thenReturn(roles.keySet());

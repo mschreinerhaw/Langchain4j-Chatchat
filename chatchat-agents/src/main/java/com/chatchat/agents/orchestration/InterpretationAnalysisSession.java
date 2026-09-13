@@ -231,7 +231,7 @@ final class InterpretationAnalysisSession {
                 validator.validate(
                         plan,
                         host.toolRegistry,
-                        new LinkedHashSet<>(tools == null ? List.of() : tools),
+                        new LinkedHashSet<>(executionTools(plan)),
                         authoritativeWorkflowDag,
                         authoritativeWorkflowTaskId);
         host.recordInterpretationPlanEvaluation(
@@ -251,7 +251,7 @@ final class InterpretationAnalysisSession {
                             requestId,
                             conversationId,
                             userId,
-                            tools,
+                            executionTools(plan),
                             host.workflowAttemptAttributes(runtimeAttributes, 0));
             InterpretationPlanRuntime.ExecutionResult resumedResult =
                     host.planExecutionBridge.consume(plan, ToolCallFingerprint.forPlan(plan));
@@ -536,7 +536,7 @@ final class InterpretationAnalysisSession {
             rewrittenValidation = validator.validate(
                 rewrittenPlan,
                 host.toolRegistry,
-                new LinkedHashSet<>(tools == null ? List.of() : tools));
+                new LinkedHashSet<>(executionTools(rewrittenPlan)));
         }
         List<String> authoritativeRewritePasses = List.of();
         Map<String, Object> authoritativeRewriteRepair = Map.of();
@@ -557,7 +557,7 @@ final class InterpretationAnalysisSession {
                     validator.validate(
                             rewrittenPlan,
                             host.toolRegistry,
-                            new LinkedHashSet<>(tools == null ? List.of() : tools),
+                            new LinkedHashSet<>(executionTools(rewrittenPlan)),
                             rewriteWorkflowDag,
                             authoritativeWorkflowTaskId);
         }
@@ -661,7 +661,7 @@ final class InterpretationAnalysisSession {
                         requestId,
                         conversationId,
                         userId,
-                        tools,
+                        executionTools(currentPlan),
                         rewriteExecutionAttributes);
         host.suspendForDurablePlanExecution(
                 initialPipelinePlan,
@@ -1050,6 +1050,18 @@ final class InterpretationAnalysisSession {
                         "interpretation_plan_failed");
         return END;
     }
+
+    /**
+     * Extends the request-scoped allow-list only with discovery tools explicitly
+     * declared by an executor publisher and materialized by its workflow plugin.
+     */
+    private List<String> executionTools(InterpretationPlan executablePlan) {
+        LinkedHashSet<String> scoped = new LinkedHashSet<>(tools == null ? List.of() : tools);
+        scoped.addAll(new InterpretationPlanOptimizer(host.toolRegistry)
+            .runtimeCompanionTools(executablePlan));
+        return List.copyOf(scoped);
+    }
+
     Phase execute(Phase phase) {
         return switch (phase) {
             case PREPARE -> prepare();

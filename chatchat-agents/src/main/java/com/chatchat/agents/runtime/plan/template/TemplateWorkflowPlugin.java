@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.plan.template;
 
 import com.chatchat.common.tool.ToolWorkflowRole;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -56,6 +57,15 @@ public interface TemplateWorkflowPlugin {
     /** Some assets can use a business-scoped template discovery tool without a separate asset lookup. */
     default boolean requiresAssetDiscovery() {
         return false;
+    }
+
+    /**
+     * Compiles the input for a Runtime-injected template-discovery node from the
+     * closest asset-discovery input. Asset plugins own this shape because it is
+     * part of their published protocol rather than a planner convention.
+     */
+    default Map<String, Object> templateDiscoveryInput(Map<String, Object> assetInput) {
+        return Map.of();
     }
 
     /**

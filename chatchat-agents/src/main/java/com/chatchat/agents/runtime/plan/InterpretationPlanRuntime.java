@@ -336,11 +336,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         InterpretationPlan optimizedPlan = optimization.plan() == null ? request.plan() : optimization.plan();
         Object agentWorkflow = request.attributes() == null ? null : request.attributes().get("mcpWorkflow");
         InterpretationPlan executablePlan = AgentWorkflowApprovalPolicy.apply(optimizedPlan, agentWorkflow);
+        LinkedHashSet<String> effectiveAllowedTools = new LinkedHashSet<>(safeList(request.allowedTools()));
+        effectiveAllowedTools.addAll(optimizer.runtimeCompanionTools(executablePlan));
+        ExecutionRequest governedRequest = request.withPlanAttributesAndAllowedTools(
+            executablePlan, request.attributes(), List.copyOf(effectiveAllowedTools));
         String executionTraceId = executionTraceId(request, startedAt);
         InterpretationPlanValidator.ValidationResult validation = validator.validate(
             executablePlan,
             request.toolRegistry(),
-            new LinkedHashSet<>(safeList(request.allowedTools())),
+            effectiveAllowedTools,
             authoritativeWorkflowDag,
             authoritativeWorkflowTaskId
         );
@@ -351,7 +355,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         executableAttributes.put("dagRepair", optimization.repairResult().auditMetadata());
         executableAttributes.put("dagRepairValidationState", validation.valid() ? "ACCEPTED" : "REJECTED");
-        ExecutionRequest validatedRequest = request.withPlanAndAttributes(
+        ExecutionRequest validatedRequest = governedRequest.withPlanAndAttributes(
             executablePlan,
             executableAttributes
         );
@@ -374,9 +378,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ), validatedRequest, planStepIds(executablePlan));
         }
         Map<String, Object> resourcePreflight = preflightPlanResources(
-            executablePlan, request.plan(), request);
+            executablePlan, request.plan(), governedRequest);
         executableAttributes.put("planResourcePreflight", resourcePreflight);
-        ExecutionRequest executableRequest = request.withPlanAndAttributes(executablePlan, executableAttributes);
+        ExecutionRequest executableRequest = validatedRequest.withPlanAndAttributes(executablePlan, executableAttributes);
         if (!Boolean.TRUE.equals(resourcePreflight.get("valid"))) {
             return withDiagnosticRun(ExecutionResult.failed(
                 "RESOURCE_PREFLIGHT_FAILED",
@@ -9057,6 +9061,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     ) {
         private ExecutionRequest withPlanAndAttributes(InterpretationPlan nextPlan, Map<String, Object> nextAttributes) {
             return new ExecutionRequest(nextPlan, toolRegistry, allowedTools, tenantId, requestId, conversationId, userId, nextAttributes);
+        }
+
+        private ExecutionRequest withPlanAttributesAndAllowedTools(
+            InterpretationPlan nextPlan, Map<String, Object> nextAttributes, List<String> nextAllowedTools
+        ) {
+            return new ExecutionRequest(nextPlan, toolRegistry, nextAllowedTools,
+                tenantId, requestId, conversationId, userId, nextAttributes);
         }
     }
 

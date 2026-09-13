@@ -74,7 +74,8 @@ describe("tool execution evidence", () => {
     expect(stages[0].children).toHaveLength(1);
     expect(stages[0].children[0]).toEqual(expect.objectContaining({
       id: "planner-observation",
-      title: "匹配业务模板"
+      title: "计划校验",
+      toolName: "mcp_chatchat_mcp_server_api_template_query"
     }));
   });
 
@@ -102,6 +103,33 @@ describe("tool execution evidence", () => {
       statusText: "已修复"
     }));
     expect(groups[0].children).toHaveLength(2);
+  });
+
+  it("closes stale running steps when the task is already terminal", () => {
+    const completed = {
+      id: "message-terminal",
+      role: "assistant",
+      status: "completed",
+      streaming: false,
+      content: "report",
+      steps: [{
+        id: "stale-runtime-step",
+        type: "RUNTIME_OBSERVATION",
+        title: "后端处理中",
+        detail: "正在执行后台任务",
+        status: "active",
+        timestamp: 1_000
+      }]
+    };
+
+    const visible = methods.visibleExecutionSteps.call(context, completed);
+    expect(visible[0].status).toBe("done");
+    const stages = methods.runtimeProcessSteps.call(context, completed);
+    expect(stages).toHaveLength(1);
+    expect(stages[0]).toEqual(expect.objectContaining({
+      id: "stale-runtime-step",
+      status: "done"
+    }));
   });
 
   it("recognizes supporting datasets as evidence attachments", () => {

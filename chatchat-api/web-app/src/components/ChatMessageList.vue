@@ -81,19 +81,6 @@
           <div class="runtime-progress-track" aria-hidden="true">
             <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
           </div>
-          <div
-            v-if="isExecutionRunning(message) || message.streaming"
-            class="runtime-live-activity"
-            role="status"
-            aria-live="polite"
-          >
-            <span class="runtime-live-spinner" aria-hidden="true"></span>
-            <div>
-              <strong>{{ runtimeCurrentStage(message) }}</strong>
-              <small>{{ runtimeActivityDetail(message) }}</small>
-            </div>
-            <time>{{ runtimeElapsed(message) }}</time>
-          </div>
           <div v-if="runtimeProcessSteps(message).length" class="runtime-execution-body">
             <ol class="runtime-stage-grid" aria-label="后端执行过程">
               <li
@@ -103,12 +90,15 @@
               >
                 <span class="runtime-step-glyph" aria-hidden="true"></span>
                 <div>
-                  <b>{{ step.title }}</b>
+                  <span class="runtime-step-heading">
+                    <b>{{ step.title }}</b>
+                    <time>{{ step.displayTime }}</time>
+                  </span>
                   <small v-if="step.detail">{{ step.detail }}</small>
                   <details
                     v-if="step.children && step.children.length"
                     class="runtime-stage-children"
-                    :open="step.status === 'active'"
+                    :open="isExecutionRunning(message) || step.status === 'active'"
                   >
                     <summary>{{ step.children.length }} 个执行明细</summary>
                     <ol>

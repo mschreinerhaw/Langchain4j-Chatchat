@@ -1401,6 +1401,19 @@
   color: #7c8799;
 }
 
+.runtime-step-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.runtime-step-heading time {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .runtime-stage-children {
   margin-top: 5px;
   color: #98a2b3;

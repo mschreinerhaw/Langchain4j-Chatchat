@@ -316,11 +316,25 @@ export default {
       const steps = Array.isArray(message.steps) ? message.steps : [];
       const running = this.isExecutionRunning(message);
       const visible = running && !steps.length ? this.defaultRunningSteps(message) : steps.slice(-40);
+      const messageStatus = String(message.status || "").toLowerCase();
+      const terminalStepStatus = ["completed", "complete", "success", "succeeded", "done"].includes(messageStatus)
+        ? "done"
+        : ["failed", "error"].includes(messageStatus)
+          ? "error"
+          : messageStatus === "cancelled"
+            ? "cancelled"
+            : messageStatus === "partial"
+              ? "partial"
+              : messageStatus === "empty"
+                ? "empty"
+                : "";
       const normalized = visible.map((step, index) => ({
         id: step.id || `${message.id || "message"}-step-${index}`,
         title: step.title || "\u6267\u884c\u6b65\u9aa4",
         detail: step.detail || "",
-        status: step.status || "pending",
+        status: terminalStepStatus && ["active", "running", "repairing"].includes(String(step.status || "").toLowerCase())
+          ? terminalStepStatus
+          : (step.status || "pending"),
         type: step.type || "",
         toolName: step.toolName || "",
         timestamp: step.timestamp || message.timestamp || Date.now(),
@@ -461,15 +475,9 @@ export default {
             return;
           }
           if (!currentStage) {
-            currentStage = {
-              id: `${message.id || "message"}-backend-details`,
-              title: "后端处理中",
-              detail: "正在执行后台任务",
-              status: "active",
-              timestamp: step.timestamp,
-              children: []
-            };
+            currentStage = { ...this.runtimeChildPresentation(step), children: [] };
             stages.push(currentStage);
+            return;
           }
           currentStage.children.push(this.runtimeChildPresentation(step));
         });
@@ -492,36 +500,14 @@ export default {
       return String(step.id || `${title}:${step.timestamp || 0}`);
     },
     runtimePrimaryPresentation(step = {}) {
-      const toolName = String(step.toolName || "").toLowerCase();
-      if (!String(step.id || "").startsWith("runtime-tool:")) {
-        const isInternalStage = ["agent_lifecycle", "model_inference", "dag_validation", "dag_repair"]
-          .includes(toolName);
-        return { ...step, detail: isInternalStage ? "" : step.detail };
-      }
-      let title = "调用业务能力";
-      if (toolName.includes("api_service_query") || toolName.includes("capability_query")) title = "定位数据服务";
-      else if (toolName.includes("template_query") || toolName.includes("template_search")) title = "匹配业务模板";
-      else if (toolName.includes("template_execute")) title = "查询业务数据";
-      else if (toolName.includes("sql_query") || toolName.includes("data_query")) title = "执行数据查询";
-      return { ...step, title, detail: "" };
-    },
-    runtimeChildPresentation(step = {}) {
-      const toolName = String(step.toolName || "").toLowerCase();
-      let title = String(step.title || "执行明细");
-      if (toolName.includes("interpretation_plan")) title = "更新执行计划";
-      else if (toolName.includes("dag_repair") || toolName.includes("dag_validation")) title = "校验执行计划";
-      else if (toolName.includes("template_query") || toolName.includes("template_search")) title = "匹配业务模板";
-      else if (toolName.includes("template_execute")) title = "执行数据查询";
-      else if (toolName.includes("evidence") || toolName.includes("observation")) title = "校验返回数据";
-      else if (toolName.includes("analysis")) title = "分析返回数据";
-      else if (["agent", "final_answer"].includes(toolName)) title = "整理阶段结果";
-      else if (["工具返回结果", "执行明细"].includes(title)) title = "处理后台结果";
-      const rawDetail = String(step.detail || "").trim();
-      const internalDetail = /(?:contractVersion|InterpretationPlan|mcp_|\{\s*["'])/i.test(rawDetail);
       return {
         ...step,
-        title,
-        detail: internalDetail ? "" : rawDetail,
+        displayTime: this.formatTime(Number(step.timestamp || Date.now()))
+      };
+    },
+    runtimeChildPresentation(step = {}) {
+      return {
+        ...step,
         displayTime: this.formatTime(Number(step.timestamp || Date.now()))
       };
     },
@@ -555,24 +541,6 @@ export default {
         return hasAny(["answer", "assembly", "response", "final"]);
       }
       return false;
-    },
-    runtimeCurrentStage(message = {}) {
-      if (!this.isExecutionRunning(message) && !message.streaming) {
-        return this.runtimeStatusLabel(message);
-      }
-      const active = [...this.runtimeProcessSteps(message)]
-        .reverse()
-        .find((step) => String(step.status || "").toLowerCase() === "active");
-      return active?.title || (this.isExecutionRunning(message) ? "Runtime Working" : this.executionTitle(message));
-    },
-    runtimeActivityDetail(message = {}) {
-      const active = [...this.runtimeProcessSteps(message)]
-        .reverse()
-        .find((step) => String(step.status || "").toLowerCase() === "active");
-      if (active?.detail) {
-        return active.detail;
-      }
-      return "保持连接中，后端产生新步骤后会立即显示";
     },
     runtimeProgress(message = {}) {
       if (this.isResultFinalizing(message)) {

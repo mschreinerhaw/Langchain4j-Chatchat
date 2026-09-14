@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration.workflow;
 
+import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
@@ -54,6 +55,8 @@ public final class MandatoryWorkflowRecoveryPolicy {
         Map<String, Object> input = arguments == null ? Map.of() : arguments;
         Object rawCalls = firstObject(input, "calls", "toolCalls", "tool_calls");
         if (rawCalls instanceof List<?> calls && !calls.isEmpty()) {
+            boolean runtimeOwnedTemplateBatch = Boolean.TRUE.equals(
+                input.get(AgentToolArgumentResolver.RUNTIME_OWNED_TEMPLATE_BATCH_MARKER));
             List<String> missing = new ArrayList<>();
             for (int index = 0; index < calls.size(); index++) {
                 Object rawCall = calls.get(index);
@@ -67,6 +70,16 @@ public final class MandatoryWorkflowRecoveryPolicy {
                     new LinkedHashMap<>((Map<String, Object>) call), "arguments", "input");
                 if (!(rawChildArguments instanceof Map<?, ?> childArguments)) {
                     missing.add("calls[" + index + "].arguments");
+                    continue;
+                }
+                // The template compiler deliberately retains an admitted child whose
+                // parameter contract cannot be completed as a terminal preflight result.
+                // ToolRuntimeService consumes this marker without invoking the child, so
+                // applying the executor's required-input schema to it would reject the whole
+                // failure-isolated batch before any executable sibling can run. Only trust the
+                // marker on a Runtime-owned batch; planner-authored data cannot bypass schema
+                // validation this way.
+                if (runtimeOwnedTemplateBatch && hasPreflightFailure(call)) {
                     continue;
                 }
                 for (String childMissing : missingRequiredInputs(
@@ -92,6 +105,12 @@ public final class MandatoryWorkflowRecoveryPolicy {
             }
         }
         return List.copyOf(missing);
+    }
+
+    private boolean hasPreflightFailure(Map<?, ?> call) {
+        Object value = call.containsKey("preflightErrorCode")
+            ? call.get("preflightErrorCode") : call.get("preflight_error_code");
+        return value != null && !String.valueOf(value).isBlank();
     }
 
     private Object requiredValue(Map<String, Object> input, String parameterName) {

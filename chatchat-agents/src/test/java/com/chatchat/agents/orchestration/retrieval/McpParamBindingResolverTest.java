@@ -4,6 +4,8 @@ import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
 
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolWorkflowContract;
+import com.chatchat.common.tool.ToolWorkflowRole;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,6 +16,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpParamBindingResolverTest {
 
     private final McpParamBindingResolver resolver = new McpParamBindingResolver();
+
+    @Test
+    void explicitDiscoveryRoleWinsOverExecutorProtocolFamily() {
+        String toolName = "mcp_runtime_capability_bridge";
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id(toolName)
+            .categories(List.of("mcp"))
+            .metadata(Map.of(
+                "remoteToolName", "runtime_capability_bridge",
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "query", Map.of("type", "string"),
+                        "filters", Map.of("type", "object"),
+                        "limit", Map.of("type", "integer")),
+                    "required", List.of()),
+                "mcpToolMeta", Map.of(
+                    "workflowContract", ToolWorkflowContract.declaration(
+                        ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "mcp.ssh-template.v1",
+                        "intent+filters"))))
+            .build();
+
+        Map<String, Object> result = resolver.resolve(
+            toolName,
+            metadata,
+            Map.of("query", "inspect the named logical runtime target"),
+            "inspect the named logical runtime target");
+
+        assertThat(result)
+            .doesNotContainKeys("reason", "template", "parameters")
+            .containsKey("filters");
+        assertThat(result.get("filters")).isInstanceOfSatisfying(Map.class, filters ->
+            assertThat(filters).containsEntry("intent", "inspect the named logical runtime target"));
+    }
 
     @Test
     void createsReplayableRuntimeTraceForAssetDiscoveryWithExplicitFilters() {

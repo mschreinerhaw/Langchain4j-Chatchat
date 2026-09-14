@@ -144,8 +144,22 @@ public class McpParamBindingResolver {
             return values;
         }
         String remoteToolName = remoteToolName(toolName, metadata);
+        ToolWorkflowRole workflowRole = workflowRole(remoteToolName, metadata);
         String protocolFamily = ToolWorkflowContract.declaredProtocolFamily(metadata)
             .map(value -> value.toLowerCase(Locale.ROOT)).orElse("");
+        // A protocol family describes how members of a workflow interoperate; it does not
+        // identify the current tool's operation. Discovery bridges intentionally publish the
+        // executor family they feed (for example an SSH or SQL template family). Dispatching on
+        // that family before the explicit workflow role misclassifies the bridge as its executor,
+        // strips the discovery query, and leaves downstream execution without a canonical asset.
+        // Publisher-owned role metadata is therefore authoritative. Name/family matching below
+        // remains only the compatibility path for legacy DIRECT tools.
+        if (workflowRole == ToolWorkflowRole.ASSET_DISCOVERY) {
+            return bindDiscoveryQuery(toolName, metadata, values, userQuery, false);
+        }
+        if (workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+            return bindDiscoveryQuery(toolName, metadata, values, userQuery, true);
+        }
         if (protocolFamily.contains("ssh") || protocolFamily.contains("shell")
             || sameTool(remoteToolName, "linux_command_execute")
             || sameTool(remoteToolName, "ssh_linux_execute")) {
@@ -159,12 +173,6 @@ public class McpParamBindingResolver {
         if (protocolFamily.contains("sql") || protocolFamily.contains("database")
             || sameTool(remoteToolName, "sql_query_execute")) {
             return bindSqlQuery(values, userQuery);
-        }
-        if (workflowRole(remoteToolName, metadata) == ToolWorkflowRole.ASSET_DISCOVERY) {
-            return bindDiscoveryQuery(toolName, metadata, values, userQuery, false);
-        }
-        if (workflowRole(remoteToolName, metadata) == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            return bindDiscoveryQuery(toolName, metadata, values, userQuery, true);
         }
         return values;
     }

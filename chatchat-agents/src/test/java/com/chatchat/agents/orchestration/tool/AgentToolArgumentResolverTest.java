@@ -9,6 +9,7 @@ import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,46 @@ import static org.mockito.Mockito.when;
 class AgentToolArgumentResolverTest {
 
     private final AgentToolArgumentResolver resolver = new AgentToolArgumentResolver(new AgentToolNameResolver(), 5);
+
+    @Test
+    void defaultArgumentPipelinePreservesCapabilityDiscoveryIntentForExecutorProtocolFamily() {
+        String toolName = "mcp_runtime_opaque_capability_bridge";
+        String query = "inspect the named logical runtime target";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .categories(List.of("mcp"))
+            .metadata(Map.of(
+                "remoteToolName", "opaque_capability_bridge",
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "query", Map.of("type", "string"),
+                        "filters", Map.of("type", "object"),
+                        "limit", Map.of("type", "integer")),
+                    "required", List.of()),
+                "mcpToolMeta", Map.of(
+                    "workflowContract", ToolWorkflowContract.declaration(
+                        ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                        "mcp.ssh-template.v1",
+                        "intent+filters"))))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+
+        Map<String, Object> defaults = contractResolver.defaultToolArguments(toolName, query, 5);
+        Map<String, Object> result = contractResolver.applyToolDefaults(
+            toolName, defaults, List.of(), List.of(), query, 5);
+
+        assertThat(result)
+            .doesNotContainKeys("reason", "template", "parameters")
+            .containsKey("filters");
+        assertThat(result.get("filters")).isInstanceOfSatisfying(Map.class, filters -> {
+            assertThat(filters).containsEntry("intent", query);
+            assertThat(filters.get("queryTerms")).isInstanceOfSatisfying(List.class,
+                terms -> assertThat(terms).isNotEmpty());
+        });
+    }
 
     @Test
     void injectsUniqueObservedAssetIntoFallbackTemplateDiscovery() {

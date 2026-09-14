@@ -9234,8 +9234,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         Map<String, Object> metadata
     ) {
         public StepReview {
-            if (metadata == null) {
+            if (metadata == null || metadata.isEmpty()) {
                 metadata = Map.of();
+            } else {
+                Map<String, Object> sanitized = new LinkedHashMap<>();
+                metadata.forEach((key, value) -> {
+                    if (key != null && value != null) sanitized.put(key, value);
+                });
+                metadata = Map.copyOf(sanitized);
             }
         }
 

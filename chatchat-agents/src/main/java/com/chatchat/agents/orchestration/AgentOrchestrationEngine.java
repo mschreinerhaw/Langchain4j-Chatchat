@@ -5633,7 +5633,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> auditMetadata
     ) {
         MandatoryCandidateReview {
-            auditMetadata = auditMetadata == null ? Map.of() : Map.copyOf(auditMetadata);
+            if (auditMetadata == null || auditMetadata.isEmpty()) {
+                auditMetadata = Map.of();
+            } else {
+                Map<String, Object> sanitized = new LinkedHashMap<>();
+                auditMetadata.forEach((key, value) -> {
+                    if (key != null && value != null) sanitized.put(key, value);
+                });
+                auditMetadata = Map.copyOf(sanitized);
+            }
         }
 
         static MandatoryCandidateReview notRequired() {

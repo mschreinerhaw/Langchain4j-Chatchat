@@ -24,7 +24,8 @@ public record DatasetCompletionSnapshot(
     }
 
     public boolean allRequiredDatasetsProcessed() {
-        return analyzedDatasetCount + failedDatasetCount == expectedDatasetCount;
+        return analyzedDatasetCount + failedDatasetCount + excludedDatasetCount
+            == expectedDatasetCount;
     }
 
     public boolean partial() {

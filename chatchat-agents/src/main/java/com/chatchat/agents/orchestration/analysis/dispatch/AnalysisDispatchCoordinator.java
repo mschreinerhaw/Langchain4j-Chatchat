@@ -6,6 +6,7 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
 import com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionRegistry;
 import com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState;
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetReferenceSequence;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -60,15 +61,18 @@ public final class AnalysisDispatchCoordinator {
     }
 
     public DispatchBatch dispatch(DispatchRequest request) {
+        return dispatch(request, null);
+    }
+
+    public DispatchBatch dispatch(DispatchRequest request, DatasetExecutionRegistry authoritativeRegistry) {
         List<AnalysisTask> tasks = new ArrayList<>();
         Map<String, String> taskIdsByDataset = new LinkedHashMap<>();
-        Map<String, Integer> occurrences = new LinkedHashMap<>();
+        DatasetReferenceSequence references = new DatasetReferenceSequence(
+            request.datasets().stream().map(DatasetInput::reference).toList());
         int index = 0;
         for (DatasetInput dataset : request.datasets()) {
             index++;
-            int occurrence = occurrences.merge(dataset.reference(), 1, Integer::sum);
-            String evidenceReference = occurrence == 1
-                ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+            String evidenceReference = references.next(dataset.reference());
             Map<String, Object> governedContext = summaryProtocol.govern(
                 evidenceReference,
                 AgentRoleAnalysisContext.attach(dataset.analysisContext(), request.runtimeAttributes()),
@@ -103,11 +107,14 @@ public final class AnalysisDispatchCoordinator {
             taskIdsByDataset.put(evidenceReference, taskId);
         }
         if (tasks.isEmpty()) return DispatchBatch.disabled();
-        DatasetExecutionRegistry registry = new DatasetExecutionRegistry();
+        DatasetExecutionRegistry registry = authoritativeRegistry == null
+            ? new DatasetExecutionRegistry() : authoritativeRegistry;
         tasks.forEach(task -> {
-            registry.expect(task.datasetReference(), request.isolationScope().runId(),
-                integer(task.analysisContext().get("sourceStepId")),
-                text(task.analysisContext().get("sourceName")), task.inputSha256());
+            if (authoritativeRegistry == null) {
+                registry.expect(task.datasetReference(), request.isolationScope().runId(),
+                    integer(task.analysisContext().get("sourceStepId")),
+                    text(task.analysisContext().get("sourceName")), task.inputSha256());
+            }
             registry.analyzing(task.datasetReference());
         });
         ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatched = dispatcher.dispatch(
@@ -187,7 +194,8 @@ public final class AnalysisDispatchCoordinator {
         String error
     ) {
         public boolean success() {
-            return summary != null && !"FAILED".equalsIgnoreCase(status);
+            return summary != null && ("SUCCESS".equalsIgnoreCase(status)
+                || "FALLBACK".equalsIgnoreCase(status));
         }
 
         private static Outcome failed(String status, String workerId, long durationMs, String error) {

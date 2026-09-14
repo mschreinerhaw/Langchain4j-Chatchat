@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 
 /** In-process bounded worker implementation of the analysis task dispatcher port. */
@@ -66,9 +67,13 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
         Map<String, SubmittedTask> submitted = new LinkedHashMap<>();
         for (AnalysisTask task : safeTasks) {
             long submittedAt = System.nanoTime();
+            long effectiveHeartbeatIntervalMs = Math.min(heartbeatIntervalMs,
+                Math.max(10L, task.timeoutMs() / 2L));
+            TaskLease lease = new TaskLease(Math.max(1_000L,
+                Math.max(task.timeoutMs(), effectiveHeartbeatIntervalMs * 3L)));
             Future<AnalysisTaskResult> future = executor.submit(() ->
-                execute(task, worker, progressListener, submittedAt, workerCount));
-            submitted.put(task.taskId(), new SubmittedTask(task, future));
+                execute(task, worker, progressListener, submittedAt, workerCount, lease));
+            submitted.put(task.taskId(), new SubmittedTask(task, future, lease));
         }
         log.info("analysisTaskDispatcherStarted mode=LOCAL taskCount={} workerCount={}",
             submitted.size(), workerCount);
@@ -80,13 +85,16 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
         ModelSummaryWorker<AnalysisTask, AnalysisDatasetSummary> worker,
         ModelSummaryProgressListener progressListener,
         long submittedAt,
-        int workerCount
+        int workerCount,
+        TaskLease lease
     ) {
         String workerId = Thread.currentThread().getName();
         long startedAt = System.nanoTime();
         ModelSummaryProgressListener listener = progressListener == null
             ? ModelSummaryProgressListener.NOOP : progressListener;
+        lease.claim();
         ModelSummaryProgressReporter reporter = (stage, details) -> {
+            lease.heartbeat();
             try {
                 listener.onProgress(progress(task, workerId, stage, details));
             } catch (RuntimeException telemetryFailure) {
@@ -108,12 +116,14 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
                 thread.setDaemon(true);
                 return thread;
             });
+        long effectiveHeartbeatIntervalMs = Math.min(heartbeatIntervalMs,
+            Math.max(10L, task.timeoutMs() / 2L));
         ScheduledFuture<?> heartbeat = heartbeatExecutor.scheduleAtFixedRate(
             () -> reporter.report("WORKER_HEARTBEAT", Map.of(
                 "elapsedMs", elapsedMillis(startedAt),
-                "heartbeatIntervalMs", heartbeatIntervalMs,
+                "heartbeatIntervalMs", effectiveHeartbeatIntervalMs,
                 "heartbeatAt", System.currentTimeMillis())),
-            heartbeatIntervalMs, heartbeatIntervalMs, TimeUnit.MILLISECONDS);
+            effectiveHeartbeatIntervalMs, effectiveHeartbeatIntervalMs, TimeUnit.MILLISECONDS);
         try {
             AnalysisDatasetSummary summary = worker.execute(task, reporter);
             task.isolationScope().requireSamePartition(summary.isolationScope());
@@ -163,8 +173,32 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
 
     private record SubmittedTask(
         AnalysisTask task,
-        Future<AnalysisTaskResult> future
+        Future<AnalysisTaskResult> future,
+        TaskLease lease
     ) { }
+
+    private static final class TaskLease {
+        private final long timeoutMs;
+        private final AtomicLong lastHeartbeatNanos = new AtomicLong();
+
+        private TaskLease(long timeoutMs) {
+            this.timeoutMs = Math.max(1L, timeoutMs);
+        }
+
+        private void claim() {
+            lastHeartbeatNanos.set(System.nanoTime());
+        }
+
+        private void heartbeat() {
+            lastHeartbeatNanos.set(System.nanoTime());
+        }
+
+        private boolean expired() {
+            long heartbeat = lastHeartbeatNanos.get();
+            return heartbeat > 0L
+                && System.nanoTime() - heartbeat > TimeUnit.MILLISECONDS.toNanos(timeoutMs);
+        }
+    }
 
     private static final class LocalDispatchBatch
         implements ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> {
@@ -202,13 +236,21 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
                     throw new CancellationException(
                         "Agent run was cancelled while awaiting analysis task " + taskId);
                 }
+                long leaseTimeoutMs = submitted.lease().timeoutMs;
+                if (submitted.lease().expired()) {
+                    submitted.future().cancel(true);
+                    TimeoutException expired = new TimeoutException(
+                        "Worker heartbeat lease expired after " + leaseTimeoutMs + " ms");
+                    return AnalysisTaskResult.failed(submitted.task(), "local-dispatcher",
+                        leaseTimeoutMs, expired);
+                }
                 try {
                     return submitted.future().get(
-                        1L, TimeUnit.SECONDS);
+                        Math.min(1_000L, Math.max(25L, leaseTimeoutMs / 4L)),
+                        TimeUnit.MILLISECONDS);
                 } catch (TimeoutException ignored) {
-                    // No absolute Worker-result timeout: a live Worker may legitimately spend
-                    // longer than one model request on chunking and reduction. Keep polling the
-                    // global cancellation/deadline while heartbeat events prove liveness.
+                    // A live Worker may legitimately spend longer than one model request on
+                    // chunking and reduction. Continue only while its heartbeat lease is valid.
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                     submitted.future().cancel(true);

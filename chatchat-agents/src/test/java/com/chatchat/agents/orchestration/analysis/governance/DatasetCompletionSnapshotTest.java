@@ -11,7 +11,7 @@ class DatasetCompletionSnapshotTest {
     @Test
     void treatsTerminalFailuresAsProcessedAndExposesPartialStatus() {
         DatasetCompletionSnapshot snapshot = new DatasetCompletionSnapshot(
-            3, 1, 2, 1, List.of("a", "b"), List.of("c"), List.of("empty"));
+            4, 1, 2, 1, List.of("a", "b"), List.of("c"), List.of("empty"));
 
         assertThat(snapshot.allRequiredDatasetsProcessed()).isTrue();
         assertThat(snapshot.partial()).isTrue();

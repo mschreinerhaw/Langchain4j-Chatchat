@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.graph;
 
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset;
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetReferenceSequence;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator.Outcome;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
@@ -396,8 +397,8 @@ public final class UnifiedQuestionAnalysisGraph {
             }),
             new AnalysisExecutionGraph.Step("validate_findings", () -> {
                 Set<String> known = new LinkedHashSet<>();
-                Map<String, Integer> occurrences = new LinkedHashMap<>();
-                for (Dataset dataset : bound) known.add(unique(dataset.reference(), occurrences));
+                DatasetReferenceSequence knownReferences = references(bound);
+                for (Dataset dataset : bound) known.add(knownReferences.next(dataset.reference()));
                 List<Map<String, Object>> normalizedFindings = normalizeFindings(
                     maps(generated.get("findings")));
                 generated.put("findings", normalizedFindings);
@@ -415,13 +416,13 @@ public final class UnifiedQuestionAnalysisGraph {
                     if (!known.contains(finding.get("datasetReference")))
                         throw new IllegalStateException("Finding cites an unbound dataset");
                 }
-                occurrences.clear();
+                DatasetReferenceSequence outcomeReferences = references(bound);
                 List<String> datasetsWithoutFindings = new ArrayList<>();
                 int datasetIndex = 0;
                 for (Dataset dataset : bound) {
                     guard.run();
                     datasetIndex++;
-                    String reference = unique(dataset.reference(), occurrences);
+                    String reference = outcomeReferences.next(dataset.reference());
                     var findings = maps(generated.get("findings")).stream()
                         .filter(finding -> reference.equals(finding.get("datasetReference"))).toList();
                     if (findings.isEmpty()) datasetsWithoutFindings.add(reference);
@@ -457,7 +458,10 @@ public final class UnifiedQuestionAnalysisGraph {
                         reference, Math.toIntExact(dataset.recordCount()), false, -1,
                         List.of(chunk), summary, 0, 0, 0, 0, 0, 0, false, List.of(summary.resultId()),
                         Map.of("analysisMode", VERSION, "modelTaskCount", 0));
-                    outcomes.put(reference, new Outcome(result, "SUCCESS", "unified-validation", 0, ""));
+                    outcomes.put(reference, new Outcome(result,
+                        findings.isEmpty() ? "SKIPPED" : "SUCCESS",
+                        "unified-validation", 0,
+                        findings.isEmpty() ? "No validated finding was produced for this dataset" : ""));
                 }
                 List<AnalysisSummaryResult> validatedSummaries = outcomes.values().stream()
                     .filter(Outcome::success).map(Outcome::summary)
@@ -477,9 +481,8 @@ public final class UnifiedQuestionAnalysisGraph {
         return Map.copyOf(outcomes);
     }
 
-    private String unique(String reference, Map<String, Integer> occurrences) {
-        int count = occurrences.merge(reference, 1, Integer::sum);
-        return count == 1 ? reference : reference + "#occurrence-" + count;
+    private DatasetReferenceSequence references(List<Dataset> datasets) {
+        return new DatasetReferenceSequence(datasets.stream().map(Dataset::reference).toList());
     }
     private String boundedAuditValue(Object value) {
         String text = String.valueOf(value).replace('\n', ' ').replace('\r', ' ');
@@ -593,10 +596,10 @@ public final class UnifiedQuestionAnalysisGraph {
 
     private List<String> datasetsWithoutEvidenceBoundFindings(
         List<Dataset> datasets, List<Map<String, Object>> findings) {
-        Map<String, Integer> occurrences = new LinkedHashMap<>();
+        DatasetReferenceSequence references = references(datasets);
         List<String> missing = new ArrayList<>();
         for (Dataset dataset : datasets) {
-            String reference = unique(dataset.reference(), occurrences);
+            String reference = references.next(dataset.reference());
             if (dataset.recordCount() <= 0) continue;
             boolean covered = findings.stream().anyMatch(finding ->
                 reference.equals(String.valueOf(finding.getOrDefault("datasetReference", "")))

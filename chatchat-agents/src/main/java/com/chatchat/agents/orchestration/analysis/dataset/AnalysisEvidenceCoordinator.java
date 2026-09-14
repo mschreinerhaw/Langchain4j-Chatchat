@@ -87,11 +87,22 @@ public final class AnalysisEvidenceCoordinator {
         List<Dataset> datasets = new ArrayList<>();
         List<Map<String, Object>> excluded = new ArrayList<>();
         for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
-            if (step == null || !step.success()) continue;
+            if (step == null) continue;
+            String stepReference = firstNonBlank(step.toolName(),
+                "plan-step-" + (step.stepId() == null ? "unknown" : step.stepId()));
+            if (!step.success()) {
+                if (step.toolName() != null && !step.toolName().isBlank()
+                    && !McpToolNamePolicy.isRoutingDiscovery(step.toolName())) {
+                    excluded.add(metadataOf("datasetReference", stepReference,
+                        "toolName", step.toolName(), "reason", "SOURCE_EXECUTION_FAILED",
+                        "accountingStatus", "FAILED", "executionStatus", "FAILED",
+                        "error", firstNonBlank(step.errorMessage(), "tool execution failed")));
+                }
+                continue;
+            }
             Object resolved = resolveEvidenceData(step);
             if (resolved instanceof ToolCallBatchResult batch) {
                 for (ToolCallResult child : batch.results()) {
-                    if (!"SUCCESS".equalsIgnoreCase(child.status()) || !child.evidenceUsable()) continue;
                     String templateReference = firstNonBlank(child.templateId(),
                         firstNonBlank(child.templateCode(), "result"));
                     // One template may be invoked for multiple entity bindings. A template-only
@@ -100,12 +111,24 @@ public final class AnalysisEvidenceCoordinator {
                     // therefore part of the dataset partition, without interpreting business fields.
                     String reference = child.callId() == null || child.callId().isBlank()
                         ? templateReference : templateReference + "#" + child.callId();
+                    if (!"SUCCESS".equalsIgnoreCase(child.status())) {
+                        excluded.add(metadataOf("datasetReference", reference,
+                            "toolName", child.toolName(), "reason", "SOURCE_EXECUTION_FAILED",
+                            "accountingStatus", "FAILED", "executionStatus", child.status()));
+                        continue;
+                    }
+                    if (!child.evidenceUsable()) {
+                        excluded.add(metadataOf("datasetReference", reference,
+                            "toolName", child.toolName(), "reason", "SOURCE_EVIDENCE_UNUSABLE",
+                            "accountingStatus", "EXCLUDED", "executionStatus", child.status()));
+                        continue;
+                    }
                     List<Dataset> childDatasets = outputDatasets(
                         child.output(), reference, toolMetadata(child.toolName()));
                     if (childDatasets.isEmpty()) {
                         excluded.add(metadataOf("datasetReference", reference,
                             "toolName", child.toolName(), "reason", "NO_NON_EMPTY_STRUCTURED_RECORDS",
-                            "executionStatus", child.status()));
+                            "accountingStatus", "EXCLUDED", "executionStatus", child.status()));
                     } else {
                         datasets.addAll(withTemplateRequirementMatch(childDatasets,
                             firstNonBlank(child.templateId(), child.templateCode()), templateMatches));
@@ -115,9 +138,16 @@ public final class AnalysisEvidenceCoordinator {
             }
             if (step.toolName() == null || step.toolName().isBlank()
                 || McpToolNamePolicy.isRoutingDiscovery(step.toolName())) continue;
-            datasets.addAll(withTemplateRequirementMatch(
+            List<Dataset> stepDatasets = withTemplateRequirementMatch(
                 outputDatasets(resolved, step.toolName(), toolMetadata(step.toolName())),
-                null, templateMatches));
+                null, templateMatches);
+            if (stepDatasets.isEmpty()) {
+                excluded.add(metadataOf("datasetReference", stepReference,
+                    "toolName", step.toolName(), "reason", "NO_NON_EMPTY_STRUCTURED_RECORDS",
+                    "accountingStatus", "EXCLUDED", "executionStatus", "SUCCESS"));
+            } else {
+                datasets.addAll(stepDatasets);
+            }
         }
         List<Dataset> scopedDatasets = datasets.stream()
             .map(dataset -> new Dataset(dataset.reference(),
@@ -149,12 +179,11 @@ public final class AnalysisEvidenceCoordinator {
     ) {
         Map<String, Long> counts = datasets.stream().collect(java.util.stream.Collectors.groupingBy(
             Dataset::reference, LinkedHashMap::new, java.util.stream.Collectors.counting()));
-        Map<String, Integer> occurrences = new LinkedHashMap<>();
+        DatasetReferenceSequence references = new DatasetReferenceSequence(
+            datasets.stream().map(Dataset::reference).toList());
         List<DatasetRelationshipPlan.Dataset> governed = new ArrayList<>();
         for (Dataset dataset : datasets) {
-            int occurrence = occurrences.merge(dataset.reference(), 1, Integer::sum);
-            String reference = occurrence == 1
-                ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+            String reference = references.next(dataset.reference());
             Map<String, Object> context = protocol.govern(
                 reference, dataset.analysisContext(), dataset.records());
             if (counts.getOrDefault(dataset.reference(), 0L) > 1L) {

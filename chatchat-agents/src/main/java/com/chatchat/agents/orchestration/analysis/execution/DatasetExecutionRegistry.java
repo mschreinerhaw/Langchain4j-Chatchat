@@ -34,6 +34,12 @@ public final class DatasetExecutionRegistry {
             error == null || error.isBlank() ? List.of("dataset analysis failed") : List.of(error), false);
     }
 
+    public synchronized void skipped(String datasetId, String reason) {
+        replace(datasetId, DatasetAnalysisStatus.SKIPPED, List.of(), List.of(),
+            reason == null || reason.isBlank() ? List.of("dataset analysis produced no finding")
+                : List.of(reason), false);
+    }
+
     public synchronized List<DatasetExecutionState> snapshot() {
         return List.copyOf(states.values());
     }
@@ -57,6 +63,8 @@ public final class DatasetExecutionRegistry {
                 || value.status() == DatasetAnalysisStatus.TRUNCATED).count());
         result.put("failedCount", values.stream().filter(value ->
             value.status() == DatasetAnalysisStatus.FAILED).count());
+        result.put("skippedCount", values.stream().filter(value ->
+            value.status() == DatasetAnalysisStatus.SKIPPED).count());
         result.put("missingDatasetIds", new ArrayList<>(missingDatasetIds()));
         result.put("synthesisReady", synthesisReady());
         return Map.copyOf(result);

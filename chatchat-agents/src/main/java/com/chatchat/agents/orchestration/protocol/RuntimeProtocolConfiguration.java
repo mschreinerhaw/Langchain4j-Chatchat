@@ -68,7 +68,8 @@ public class RuntimeProtocolConfiguration {
         havingValue = "local", matchIfMissing = true)
     public ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>
         analysisModelSummaryDispatcher(AgentRuntimeProperties properties) {
-        return new LocalAnalysisTaskDispatcher(properties.analysisSummaryWorkerCount());
+        return new LocalAnalysisTaskDispatcher(properties.analysisSummaryWorkerCount(),
+            properties.analysisSummaryWorkerHeartbeatIntervalMs());
     }
 
     @Bean

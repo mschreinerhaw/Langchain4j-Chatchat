@@ -4,6 +4,7 @@ import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresentationContract;
 import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetReferenceSequence;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
 import com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionRegistry;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
@@ -92,8 +93,10 @@ public final class AnalysisCoverageCoordinator {
     }
 
     public CoverageBundle analyze(Request request) {
+        request.metadata().put("analysisDatasetProjectionAttempted", true);
         AnalysisEvidenceCoordinator.Projection projection = evidenceCoordinator.project(
             request.result(), request.runtimeAttributes());
+        request.metadata().put("analysisDatasetProjectionCompleted", true);
         List<AnalysisEvidenceCoordinator.Dataset> datasets = externalizeLargeDatasets(
             projection.datasets(), request);
         request.metadata().put("analysisEvidenceSnapshotFingerprint",
@@ -106,14 +109,18 @@ public final class AnalysisCoverageCoordinator {
             "数据集未进入分析：" + excluded.get("datasetReference") + "（未返回非空结构化记录）。",
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
-        if (datasets.isEmpty()) return CoverageBundle.empty();
+        if (datasets.isEmpty()) {
+            writeEmptyProjectionCompletion(request, projection.excludedDatasets());
+            boolean sourceFailed = projection.excludedDatasets().stream().anyMatch(
+                item -> "FAILED".equals(item.get("accountingStatus")));
+            return new CoverageBundle("", "", List.of(), 0, 0, 0, false,
+                !sourceFailed, true, !sourceFailed, 0, List.of(), List.of());
+        }
 
         DatasetExecutionRegistry datasetRegistry = new DatasetExecutionRegistry();
-        Map<String, Integer> registryOccurrences = new LinkedHashMap<>();
+        DatasetReferenceSequence registryReferences = datasetReferences(datasets);
         for (AnalysisEvidenceCoordinator.Dataset dataset : datasets) {
-            int occurrence = registryOccurrences.merge(dataset.reference(), 1, Integer::sum);
-            String reference = occurrence == 1
-                ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+            String reference = registryReferences.next(dataset.reference());
             datasetRegistry.expect(reference, request.isolationScope().runId(),
                 integerValue(dataset.analysisContext().get("sourceStepId")),
                 textValue(dataset.analysisContext().get("sourceName")), dataset.handle().contentSha256());
@@ -130,14 +137,13 @@ public final class AnalysisCoverageCoordinator {
                 "type", "dataset_relationship_plan", "relationshipPlan", relationshipPlan.toMap()));
 
         Map<String, PreparedCalculation> prepared = new LinkedHashMap<>();
-        Map<String, Integer> calculationOccurrences = new LinkedHashMap<>();
+        DatasetReferenceSequence calculationReferences = datasetReferences(datasets);
         List<String> availableDatasets = datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList();
         java.util.function.Supplier<List<AnalysisEvidenceCoordinator.Dataset>> computation = () -> {
             List<AnalysisEvidenceCoordinator.Dataset> preparedDatasets = new ArrayList<>();
             for (var dataset : datasets) {
                 request.cancellationGuard().run();
-                int occurrence = calculationOccurrences.merge(dataset.reference(), 1, Integer::sum);
-                String reference = occurrence == 1 ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+                String reference = calculationReferences.next(dataset.reference());
                 datasetRegistry.analyzing(reference);
                 request.metadata().put("datasetExecutionRegistry", datasetRegistry.snapshotMap());
                 var inputs = new ArrayList<DeterministicInsightEngine.DatasetInput>();
@@ -173,7 +179,7 @@ public final class AnalysisCoverageCoordinator {
         Map<String, AnalysisDispatchCoordinator.Outcome> outcomes;
         try {
             outcomes = mode == DatasetAnalysisMode.PER_DATASET_WORKERS
-                ? dispatchPerDataset(request, computation.get())
+                ? dispatchPerDataset(request, computation.get(), datasetRegistry)
                 : new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(
                     profiles, configuration.adaptivePromptModelEnabled(), configuration.maximumEvidenceRounds(),
                     configuration.reportDraftEnabled()).execute(
@@ -225,7 +231,8 @@ public final class AnalysisCoverageCoordinator {
     }
 
     private Map<String, AnalysisDispatchCoordinator.Outcome> dispatchPerDataset(
-        Request request, List<AnalysisEvidenceCoordinator.Dataset> datasets
+        Request request, List<AnalysisEvidenceCoordinator.Dataset> datasets,
+        DatasetExecutionRegistry datasetRegistry
     ) {
         List<AnalysisDispatchCoordinator.DatasetInput> inputs = datasets.stream()
             .map(dataset -> new AnalysisDispatchCoordinator.DatasetInput(
@@ -236,16 +243,15 @@ public final class AnalysisCoverageCoordinator {
                 request.model(), request.query(), "", inputs, request.isolationScope(),
                 request.runtimeAttributes(), request.cancellationCheck());
         Map<String, AnalysisDispatchCoordinator.Outcome> outcomes = new LinkedHashMap<>();
-        try (AnalysisDispatchCoordinator.DispatchBatch batch = dispatchCoordinator.dispatch(dispatchRequest)) {
+        try (AnalysisDispatchCoordinator.DispatchBatch batch = dispatchCoordinator.dispatch(
+            dispatchRequest, datasetRegistry)) {
             request.metadata().put("recordAnalysisSummaryParallel", batch.isParallel());
             request.metadata().put("recordAnalysisSummaryScheduledTaskCount", batch.taskCount());
             request.metadata().put("recordAnalysisSummaryWorkerCount", batch.workerCount());
             request.metadata().put("recordAnalysisWorkerTransportMode", batch.mode());
-            Map<String, Integer> occurrences = new LinkedHashMap<>();
+            DatasetReferenceSequence references = datasetReferences(datasets);
             for (AnalysisEvidenceCoordinator.Dataset dataset : datasets) {
-                int occurrence = occurrences.merge(dataset.reference(), 1, Integer::sum);
-                String reference = occurrence == 1 ? dataset.reference()
-                    : dataset.reference() + "#occurrence-" + occurrence;
+                String reference = references.next(dataset.reference());
                 outcomes.put(reference, batch.await(reference));
             }
             request.metadata().put("datasetWorkerExecutionRegistry",
@@ -309,19 +315,17 @@ public final class AnalysisCoverageCoordinator {
         List<Map<String, Object>> insightDecisions = new ArrayList<>();
         List<Map<String, Object>> presentationViews = new ArrayList<>();
         List<Map<String, Object>> datasetDepthMetrics = new ArrayList<>();
-        List<Map<String, Object>> failures = new ArrayList<>();
+        List<Map<String, Object>> failures = new ArrayList<>(sourceFailureDatasets(request.metadata()));
         List<DataAnalysisWorkerSupervision.WorkerReport> workerReports = new ArrayList<>();
         AnalysisProductValidator workerSupervisor = new AnalysisProductValidator();
-        Map<String, Integer> occurrences = new LinkedHashMap<>();
+        DatasetReferenceSequence references = datasetReferences(datasets);
         Counters counters = new Counters();
 
         int datasetIndex = 0;
         for (AnalysisEvidenceCoordinator.Dataset dataset : datasets) {
             datasetIndex++;
             request.cancellationGuard().run();
-            int occurrence = occurrences.merge(dataset.reference(), 1, Integer::sum);
-            String reference = occurrence == 1
-                ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+            String reference = references.next(dataset.reference());
             counters.returned += Math.toIntExact(dataset.recordCount());
             counters.sourceComplete &= dataset.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
@@ -331,6 +335,10 @@ public final class AnalysisCoverageCoordinator {
                 evidenceCoordinator::hasTraceableEvidence);
             workerReports.add(workerReport);
             observeWorkerSupervision(request, workerReport, datasetIndex, datasets.size());
+            if (outcome != null && "SKIPPED".equalsIgnoreCase(outcome.status())) {
+                datasetRegistry.skipped(reference, outcome.error());
+                continue;
+            }
             if (!workerReport.acceptedForSynthesis()) {
                 datasetRegistry.failed(reference, outcome == null
                     ? "missing analysis result" : outcome.error());
@@ -427,9 +435,19 @@ public final class AnalysisCoverageCoordinator {
                 == com.chatchat.agents.orchestration.analysis.execution.DatasetAnalysisStatus.FAILED)
             .map(com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState::datasetId)
             .toList();
+        List<String> sourceFailedReferences = sourceFailedDatasetReferences(request.metadata());
+        failedReferences = java.util.stream.Stream.concat(
+            failedReferences.stream(), sourceFailedReferences.stream()).distinct().toList();
         List<String> excludedReferences = excludedDatasetReferences(request.metadata());
+        List<String> skippedReferences = datasetRegistry.snapshot().stream()
+            .filter(state -> state.status()
+                == com.chatchat.agents.orchestration.analysis.execution.DatasetAnalysisStatus.SKIPPED)
+            .map(com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState::datasetId)
+            .toList();
+        excludedReferences = java.util.stream.Stream.concat(
+            excludedReferences.stream(), skippedReferences.stream()).distinct().toList();
         DatasetCompletionSnapshot completion = new DatasetCompletionSnapshot(
-            datasets.size(), excludedReferences.size(), successfulReferences.size(),
+            datasets.size() + projectionAccountingCount(request.metadata()), excludedReferences.size(), successfulReferences.size(),
             failedReferences.size(), successfulReferences, failedReferences, excludedReferences);
         request.metadata().put("datasetCompletionSnapshot", completion.toMap());
         request.metadata().put("analysisCompletionOutcome",
@@ -809,12 +827,75 @@ public final class AnalysisCoverageCoordinator {
         List<String> references = new ArrayList<>();
         for (Object value : values) {
             if (!(value instanceof Map<?, ?> item)) continue;
+            if ("FAILED".equals(String.valueOf(item.get("accountingStatus")))) continue;
             Object reference = item.get("datasetReference");
             if (reference != null && !String.valueOf(reference).isBlank()) {
                 references.add(String.valueOf(reference));
             }
         }
         return references.stream().distinct().toList();
+    }
+
+    private List<String> sourceFailedDatasetReferences(Map<String, Object> metadata) {
+        if (metadata == null
+            || !(metadata.get("recordAnalysisExcludedDatasets") instanceof Iterable<?> values)) {
+            return List.of();
+        }
+        List<String> references = new ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof Map<?, ?> item)
+                || !"FAILED".equals(String.valueOf(item.get("accountingStatus")))) continue;
+            Object reference = item.get("datasetReference");
+            if (reference != null && !String.valueOf(reference).isBlank()) {
+                references.add(String.valueOf(reference));
+            }
+        }
+        return references.stream().distinct().toList();
+    }
+
+    private List<Map<String, Object>> sourceFailureDatasets(Map<String, Object> metadata) {
+        if (metadata == null
+            || !(metadata.get("recordAnalysisExcludedDatasets") instanceof Iterable<?> values)) {
+            return List.of();
+        }
+        List<Map<String, Object>> failures = new ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof Map<?, ?> item)
+                || !"FAILED".equals(String.valueOf(item.get("accountingStatus")))) continue;
+            Map<String, Object> failure = new LinkedHashMap<>();
+            item.forEach((key, entry) -> failure.put(String.valueOf(key), entry));
+            failures.add(Map.copyOf(failure));
+        }
+        return List.copyOf(failures);
+    }
+
+    private int projectionAccountingCount(Map<String, Object> metadata) {
+        return excludedDatasetReferences(metadata).size()
+            + sourceFailedDatasetReferences(metadata).size();
+    }
+
+    private DatasetReferenceSequence datasetReferences(
+        List<AnalysisEvidenceCoordinator.Dataset> datasets
+    ) {
+        return new DatasetReferenceSequence(datasets.stream()
+            .map(AnalysisEvidenceCoordinator.Dataset::reference).toList());
+    }
+
+    private void writeEmptyProjectionCompletion(
+        Request request, List<Map<String, Object>> projectionExclusions
+    ) {
+        List<String> failed = sourceFailedDatasetReferences(request.metadata());
+        List<String> excluded = excludedDatasetReferences(request.metadata());
+        DatasetCompletionSnapshot completion = new DatasetCompletionSnapshot(
+            failed.size() + excluded.size(), excluded.size(), 0, failed.size(),
+            List.of(), failed, excluded);
+        request.metadata().put("datasetCompletionSnapshot", completion.toMap());
+        request.metadata().put("analysisCompletionOutcome",
+            failed.isEmpty() ? "NO_DATA" : "FAILED");
+        request.metadata().put("recordAnalysisFailedDatasetCount", failed.size());
+        request.metadata().put("recordAnalysisFailedDatasets", projectionExclusions.stream()
+            .filter(item -> "FAILED".equals(item.get("accountingStatus"))).toList());
+        request.metadata().put("recordAnalysisAllWorkersFailed", !failed.isEmpty());
     }
 
     private Map<String, Object> datasetDepthMetric(

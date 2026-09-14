@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -77,6 +78,44 @@ class LocalAnalysisTaskDispatcherTest {
                 .extracting(ModelSummaryProgress::stage,
                     ModelSummaryProgress::workReference)
                 .containsExactly("WORKER_HEARTBEAT", "slow"));
+        }
+    }
+
+    @Test
+    void failsTaskWhenWorkerHeartbeatLeaseExpires() {
+        GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
+            "tenant-1", "run-1", "request-1", "conversation-1", "user-1");
+        AnalysisTask stalled = task(scope, "stalled", 1, 80L);
+        CountDownLatch neverReleased = new CountDownLatch(1);
+        LocalAnalysisTaskDispatcher dispatcher = new LocalAnalysisTaskDispatcher(1, 20L);
+
+        try (ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> batch = dispatcher.dispatch(
+            List.of(stalled),
+            (task, reporter) -> {
+                try {
+                    neverReleased.await();
+                    return null;
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("worker interrupted", interrupted);
+                }
+            },
+            () -> false,
+            progress -> {
+                if ("WORKER_HEARTBEAT".equals(progress.stage())) {
+                    try {
+                        neverReleased.await();
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            })) {
+            AnalysisTaskResult result = batch.await(stalled.taskId());
+
+            assertThat(result.status()).isEqualTo("FAILED");
+            assertThat(result.error()).contains("heartbeat lease expired");
+        } finally {
+            neverReleased.countDown();
         }
     }
 

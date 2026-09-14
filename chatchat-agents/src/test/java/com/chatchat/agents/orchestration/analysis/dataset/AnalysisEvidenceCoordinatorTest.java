@@ -121,6 +121,36 @@ class AnalysisEvidenceCoordinatorTest {
             .containsExactly(1L, 1L);
     }
 
+    @Test
+    void accountsForEmptyNonBatchToolResults() {
+        AnalysisEvidenceCoordinator.Projection projection = coordinator().project(
+            result(step("runtime_empty_source", Map.of("records", List.of()))));
+
+        assertThat(projection.datasets()).isEmpty();
+        assertThat(projection.excludedDatasets()).singleElement().satisfies(excluded ->
+            assertThat(excluded)
+                .containsEntry("datasetReference", "runtime_empty_source")
+                .containsEntry("accountingStatus", "EXCLUDED")
+                .containsEntry("reason", "NO_NON_EMPTY_STRUCTURED_RECORDS"));
+    }
+
+    @Test
+    void accountsForFailedNonBatchToolSteps() {
+        InterpretationPlanRuntime.StepExecution failed = new InterpretationPlanRuntime.StepExecution(
+            7, "mcp_tool", "runtime_failed_source", false, null,
+            "upstream unavailable", null, null, 12);
+
+        AnalysisEvidenceCoordinator.Projection projection = coordinator().project(result(failed));
+
+        assertThat(projection.datasets()).isEmpty();
+        assertThat(projection.excludedDatasets()).singleElement().satisfies(excluded ->
+            assertThat(excluded)
+                .containsEntry("datasetReference", "runtime_failed_source")
+                .containsEntry("accountingStatus", "FAILED")
+                .containsEntry("reason", "SOURCE_EXECUTION_FAILED")
+                .containsEntry("error", "upstream unavailable"));
+    }
+
     private AnalysisEvidenceCoordinator coordinator() {
         RuntimeAnalysisContextProtocol context = mock(RuntimeAnalysisContextProtocol.class);
         when(context.adapt(anyString(), any(), any())).thenReturn(Map.of());

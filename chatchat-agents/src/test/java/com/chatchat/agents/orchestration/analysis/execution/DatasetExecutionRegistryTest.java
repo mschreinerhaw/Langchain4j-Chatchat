@@ -26,4 +26,19 @@ class DatasetExecutionRegistryTest {
         assertThat(registry.snapshot()).extracting(DatasetExecutionState::status)
             .containsExactly(DatasetAnalysisStatus.ANALYZED, DatasetAnalysisStatus.FAILED);
     }
+
+    @Test
+    void skippedDatasetIsTerminalButNotAnalyzed() {
+        DatasetExecutionRegistry registry = new DatasetExecutionRegistry();
+        registry.expect("dataset-empty", "run-1", 1, "source", "raw-empty");
+
+        registry.skipped("dataset-empty", "no validated finding");
+
+        assertThat(registry.synthesisReady()).isTrue();
+        assertThat(registry.snapshotMap())
+            .containsEntry("analyzedCount", 0L)
+            .containsEntry("skippedCount", 1L);
+        assertThat(registry.snapshot()).extracting(DatasetExecutionState::status)
+            .containsExactly(DatasetAnalysisStatus.SKIPPED);
+    }
 }

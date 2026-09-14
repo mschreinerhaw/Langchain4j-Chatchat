@@ -188,9 +188,10 @@ public final class DatasetAnalysisNode implements DataAnalysisParticipant<
                 modelSummaryRequired);
             String checkpointKey = task.datasetReference() + "#chunk-" + (offset + 1);
             AtomicInteger attemptCount = new AtomicInteger();
-            AnalysisSummaryResult summary = spillReference == null ? null
-                : checkpointService.restore(task.isolationScope(), checkpointKey,
-                    checkpointInputSha256);
+            boolean checkpointEligible = spillStore.isEnabled();
+            AnalysisSummaryResult summary = checkpointEligible
+                ? checkpointService.restore(task.isolationScope(), checkpointKey,
+                    checkpointInputSha256) : null;
             boolean restoredCheckpoint = summary != null;
             if (restoredCheckpoint) {
                 restoredCheckpointCount++;
@@ -202,7 +203,7 @@ public final class DatasetAnalysisNode implements DataAnalysisParticipant<
             if (summary == null) {
                 summary = summarizeChunk(model, task, position, chunk, modelSummaryRequired,
                     attemptCount, progress, cancellationCheck);
-                if (spillReference != null
+                if (checkpointEligible
                     && !"STRUCTURED_RECORD_FALLBACK".equals(summary.outcome())) {
                     checkpointService.persist(task.isolationScope(), checkpointKey,
                         checkpointInputSha256, summary);
@@ -286,7 +287,7 @@ public final class DatasetAnalysisNode implements DataAnalysisParticipant<
             "analysisContext", task.analysisContext(),
             "originalUserQuestion", task.originalUserQuestion(),
             "chunkSummaries", summaries.stream().map(this::checkpointProjection).toList()));
-        boolean checkpointEligible = spillStore.isEnabled() && plan.oversized();
+        boolean checkpointEligible = spillStore.isEnabled();
         AnalysisSummaryResult datasetSummary = checkpointEligible
             ? checkpointService.restore(task.isolationScope(), checkpointKey, inputSha256) : null;
         boolean restored = datasetSummary != null;

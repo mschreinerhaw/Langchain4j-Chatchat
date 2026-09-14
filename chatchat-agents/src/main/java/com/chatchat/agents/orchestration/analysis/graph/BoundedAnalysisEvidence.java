@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.analysis.graph;
 
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset;
+import com.chatchat.agents.orchestration.analysis.dataset.DatasetReferenceSequence;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.analysis.AnalysisEvidenceSpillStore;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -25,10 +26,10 @@ final class BoundedAnalysisEvidence {
     Prepared prepare(List<Dataset> datasets, AnalysisEvidenceSpillStore store,
                      GovernanceIsolationScope scope, Map<String, Object> metadata, Runnable guard) {
         Map<String, Dataset> sources = new LinkedHashMap<>();
-        Map<String, Integer> occurrences = new LinkedHashMap<>();
+        DatasetReferenceSequence references = new DatasetReferenceSequence(
+            datasets.stream().map(Dataset::reference).toList());
         for (Dataset dataset : datasets) {
-            int count = occurrences.merge(dataset.reference(), 1, Integer::sum);
-            String ref = count == 1 ? dataset.reference() : dataset.reference() + "#occurrence-" + count;
+            String ref = references.next(dataset.reference());
             if (sources.putIfAbsent(ref, dataset) != null) throw new IllegalStateException("Dataset reference collision: " + ref);
         }
         List<Map<String, Object>> direct = new ArrayList<>();

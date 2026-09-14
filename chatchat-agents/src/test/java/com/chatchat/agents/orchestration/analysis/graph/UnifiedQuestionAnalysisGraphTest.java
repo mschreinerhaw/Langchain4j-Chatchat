@@ -484,6 +484,8 @@ class UnifiedQuestionAnalysisGraphTest {
             metadata, () -> { });
 
         assertThat(outcomes).containsKeys("first", "second");
+        assertThat(outcomes.get("first").status()).isEqualTo("SUCCESS");
+        assertThat(outcomes.get("second").status()).isEqualTo("SKIPPED");
         assertThat(metadata)
             .containsEntry("unifiedAnalysisDatasetCoverageComplete", false)
             .containsEntry("unifiedAnalysisUncoveredDatasets", List.of("second"))

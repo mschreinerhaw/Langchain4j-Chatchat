@@ -53,6 +53,9 @@ final class SemanticGapEvidenceBridge {
                     + "runId={} errorType={} error={}",
                 text(runtimeAttributes == null ? null : runtimeAttributes.get(runIdAttribute)),
                 ex.getClass().getName(), ex.getMessage());
+            if (Boolean.TRUE.equals(metadata.get("analysisDatasetProjectionAttempted"))) {
+                throw ex;
+            }
             return emptyResult.get();
         }
     }

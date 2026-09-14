@@ -417,9 +417,12 @@ export function fetchAgentScheduleNotificationHistory(scheduleId, filters = {}) 
   return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/notification-history?${params.toString()}`);
 }
 
-export function fetchAgentTaskEvents(taskId, limit = 50, tenantId = "") {
+export function fetchAgentTaskEvents(taskId, limit = 50, tenantId = "", afterSequence = 0) {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
+  if (Number(afterSequence) > 0) {
+    params.set("afterSequence", String(afterSequence));
+  }
   if (tenantId) {
     params.set("tenantId", tenantId);
   }

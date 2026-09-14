@@ -263,6 +263,7 @@ public class AgentTaskController {
      * @param tenantId the tenant id value
      * @param taskId the task id value
      * @param limit the limit value
+     * @param afterSequence optional exclusive event sequence cursor
      * @return the operation result
      */
     @GetMapping("/{taskId}/events")
@@ -270,9 +271,13 @@ public class AgentTaskController {
     public ApiResponse<List<AgentEvent>> events(@RequestParam("tenantId") String tenantId,
                                                 @PathVariable("taskId") String taskId,
                                                 @RequestParam(value = "limit", defaultValue = "50") int limit,
+                                                @RequestParam(value = "afterSequence", required = false) Long afterSequence,
                                                 HttpServletRequest servletRequest) {
         try {
-            return ApiResponse.success(taskService.listEvents(scopedTenantId(servletRequest, tenantId), taskId, limit));
+            String scopedTenant = scopedTenantId(servletRequest, tenantId);
+            return ApiResponse.success(afterSequence == null
+                ? taskService.listEvents(scopedTenant, taskId, limit)
+                : taskService.listEventsAfter(scopedTenant, taskId, Math.max(0L, afterSequence), limit));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }

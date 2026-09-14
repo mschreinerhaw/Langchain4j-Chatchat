@@ -162,6 +162,17 @@ class AgentTaskControllerTest {
             .andExpect(jsonPath("$.data[*].type", hasItem("TOOL_RESULT")))
             .andExpect(jsonPath("$.data[*].type", hasItem("COMPLETE")));
 
+        long lastEventSequence = task.path("data").path("lastEventSequence").asLong();
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/events")
+                .param("tenantId", "tenant-001")
+                .param("afterSequence", String.valueOf(lastEventSequence - 1L))
+                .param("limit", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].sequence").value(lastEventSequence))
+            .andExpect(jsonPath("$.data[0].type").value("COMPLETE"));
+
         mockMvc.perform(get("/api/v1/agent/tasks/runtime")
                 .param("tenantId", "tenant-001")
                 .param("latestLimit", "5"))

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import ChatAssistantView, {
   collapseDuplicateAssistantResults,
   finalizeExecutionUi,
-  mergeExecutionSteps
+  mergeExecutionSteps,
+  normalizeMessages
 } from "./ChatAssistantView";
 
 describe("restored assistant result deduplication", () => {
@@ -212,6 +213,22 @@ describe("restored assistant result deduplication", () => {
     }));
     expect(finalized.steps[0].status).toBe("error");
     expect(finalized.steps[0].children[0].status).toBe("error");
+  });
+
+  it("closes stale active rows when a completed conversation is restored", () => {
+    const [restored] = normalizeMessages([{
+      id: "completed-message",
+      role: "assistant",
+      content: "分析报告",
+      status: "running",
+      streaming: true,
+      steps: [{ id: "analysis-progress", status: "active", title: "处理业务数据" }]
+    }], "completed");
+
+    expect(restored).toEqual(expect.objectContaining({
+      status: "completed", streaming: false, executionTerminal: true
+    }));
+    expect(restored.steps[0]).toEqual(expect.objectContaining({ status: "done" }));
   });
 
   it("closes a tool call when its result references the call event", () => {

@@ -123,11 +123,16 @@ function isWaitingConfirmationMessage(message, conversationStatus = "") {
     || traces.some(isConfirmationTrace);
 }
 
-function normalizeMessages(messages, status = "") {
+export function normalizeMessages(messages, status = "") {
   if (!Array.isArray(messages)) {
     return [];
   }
   const allowEmptyAssistant = status === "running" || status === "pending";
+  const terminalStatuses = [
+    "completed", "success", "partial", "empty", "failed", "cancelled",
+    "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+  ];
+  const conversationTerminal = terminalStatuses.includes(String(status).toLowerCase());
   return collapseDuplicateAssistantResults(collapseDuplicateRestoredTurns(dedupeAdjacentUserMessages(messages
     .filter((message) => {
       if (!message || !message.role) {
@@ -137,8 +142,19 @@ function normalizeMessages(messages, status = "") {
     })
     .map((message) => {
       const waitingConfirmation = isWaitingConfirmationMessage(message, status);
-      const streaming = !waitingConfirmation
+      const rawMessageStatus = String(message.status || "").toLowerCase();
+      const staleActiveMessage = [
+        "running", "streaming", "processing", "executing", "finalizing"
+      ].includes(rawMessageStatus);
+      const streaming = !waitingConfirmation && !conversationTerminal
         && (!!message.streaming || message.status === "streaming" || message.status === "running");
+      const messageStatus = waitingConfirmation
+        ? "waiting"
+        : conversationTerminal && (staleActiveMessage || message.streaming)
+          ? status
+          : (message.status || (streaming ? "streaming" : "completed"));
+      const terminal = terminalStatuses.includes(String(messageStatus).toLowerCase());
+      const normalizedSteps = normalizeMessageSteps(message);
       return {
         id: message.id || uid(),
         role: message.role,
@@ -146,7 +162,7 @@ function normalizeMessages(messages, status = "") {
         timestamp: message.timestamp || Date.now(),
         sources: waitingConfirmation ? [] : normalizeMessageSources(message),
         traces: waitingConfirmation ? [] : normalizeMessageTraces(message),
-        steps: normalizeMessageSteps(message),
+        steps: terminal ? closeOpenExecutionSteps(normalizedSteps, messageStatus) : normalizedSteps,
         visualizationSpec: waitingConfirmation ? null : normalizeMessageVisualization(message),
         uiResponse: waitingConfirmation ? null : (message.uiResponse || message.metadata?.uiResponse || null),
         evidencePremises: waitingConfirmation ? [] : firstArray(message.evidencePremises, message.metadata?.evidencePremises),
@@ -157,7 +173,8 @@ function normalizeMessages(messages, status = "") {
         analysisSourceMessageId: message.analysisSourceMessageId || message.metadata?.analysisSourceMessageId || "",
         analysisSelection: message.analysisSelection || message.metadata?.analysisSelection || null,
         streaming,
-        status: waitingConfirmation ? "waiting" : (message.status || (streaming ? "streaming" : "completed")),
+        status: messageStatus,
+        executionTerminal: message.executionTerminal === true || terminal,
         taskId: message.taskId || "",
         feedbackTime: message.feedbackTime || "",
         feedbackAction: message.feedbackAction || "",
@@ -2442,8 +2459,13 @@ export default {
         return;
       }
       try {
-        const events = await fetchAgentTaskEvents(taskId, AGENT_TASK_EVENT_LIMIT, tenantId);
+        const afterSequence = Math.max(0, Number(runContext?.taskEventSequence || 0));
+        const events = await fetchAgentTaskEvents(
+          taskId, AGENT_TASK_EVENT_LIMIT, tenantId, afterSequence);
         assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], Array.isArray(events) ? events : []);
+        const latestSequence = (Array.isArray(events) ? events : []).reduce(
+          (maximum, event) => Math.max(maximum, Number(event?.sequence || 0)), afterSequence);
+        if (runContext) runContext.taskEventSequence = latestSequence;
         const terminalEvent = terminalEventFromEvents(events);
         if (terminalEvent) {
           Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalUiStatus(terminalEvent)));

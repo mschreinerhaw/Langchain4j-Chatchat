@@ -341,17 +341,32 @@ export default {
       const steps = Array.isArray(message.steps) ? message.steps : [];
       const running = this.isExecutionRunning(message);
       const visible = running && !steps.length ? this.defaultRunningSteps(message) : steps;
-      const normalized = visible.map((step, index) => ({
-        id: step.id || `${message.id || "message"}-step-${index}`,
-        title: step.title || "\u6267\u884c\u6b65\u9aa4",
-        detail: step.detail || "",
-        status: step.status || "pending",
-        type: step.type || "",
-        toolName: step.toolName || "",
-        sequence: Number(step.order) || null,
-        timestamp: step.timestamp || message.timestamp || Date.now(),
-        latencyMs: step.latencyMs
-      }));
+      const parentStatus = String(message.status || "").toLowerCase();
+      const terminal = message.executionTerminal || [
+        "completed", "success", "partial", "empty", "failed", "cancelled",
+        "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+      ].includes(parentStatus);
+      const terminalStepStatus = ["failed"].includes(parentStatus)
+        ? "error" : ["cancelled", "killed", "rejected", "timeout_cancelled"].includes(parentStatus)
+          ? "cancelled" : "done";
+      const openStatuses = new Set([
+        "active", "pending", "running", "repairing", "streaming",
+        "processing", "executing", "finalizing", "wait", "waiting"
+      ]);
+      const normalized = visible.map((step, index) => {
+        const stepStatus = String(step.status || "pending").toLowerCase();
+        return {
+          id: step.id || `${message.id || "message"}-step-${index}`,
+          title: step.title || "\u6267\u884c\u6b65\u9aa4",
+          detail: step.detail || "",
+          status: terminal && openStatuses.has(stepStatus) ? terminalStepStatus : (step.status || "pending"),
+          type: step.type || "",
+          toolName: step.toolName || "",
+          sequence: Number(step.order) || null,
+          timestamp: step.timestamp || message.timestamp || Date.now(),
+          latencyMs: step.latencyMs
+        };
+      });
       if (!running || normalized.some((step) => String(step.status || "").toLowerCase() === "active")) {
         return normalized;
       }

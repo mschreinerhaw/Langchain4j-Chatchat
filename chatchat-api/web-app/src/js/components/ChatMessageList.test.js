@@ -124,12 +124,12 @@ describe("tool execution evidence", () => {
     };
 
     const visible = methods.visibleExecutionSteps.call(context, completed);
-    expect(visible[0].status).toBe("active");
+    expect(visible[0].status).toBe("done");
     const stages = methods.runtimeProcessSteps.call(context, completed);
     expect(stages).toHaveLength(1);
     expect(stages[0]).toEqual(expect.objectContaining({
       id: "stale-runtime-step",
-      status: "active"
+      status: "done"
     }));
     expect(methods.hasUnfinishedExecutionSteps.call(context, completed)).toBe(false);
     expect(methods.isExecutionRunning.call(context, completed)).toBe(false);

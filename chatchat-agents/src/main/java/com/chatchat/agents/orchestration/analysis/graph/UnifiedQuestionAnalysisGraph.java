@@ -378,8 +378,17 @@ public final class UnifiedQuestionAnalysisGraph {
                 metadata.put("unifiedAnalysisCoveredDatasetCount",
                     mandatoryDatasetCount - missingDatasets.size());
                 if (!missingDatasets.isEmpty()) {
-                    throw new IllegalStateException(
-                        "Unified analysis cannot complete: datasets without evidence-bound findings=" + missingDatasets);
+                    List<Object> limitations = new ArrayList<>();
+                    if (generated.get("limitations") instanceof List<?> existing) {
+                        limitations.addAll(existing);
+                    }
+                    limitations.add("PARTIAL: datasets without evidence-bound findings=" + missingDatasets);
+                    generated.put("limitations", List.copyOf(limitations));
+                    metadata.put("unifiedAnalysisUncoveredDatasets", List.copyOf(missingDatasets));
+                    metadata.put("unifiedAnalysisOutcome", "PARTIAL");
+                } else {
+                    metadata.put("unifiedAnalysisUncoveredDatasets", List.of());
+                    metadata.put("unifiedAnalysisOutcome", "SUCCESS");
                 }
                 LOG.info("Unified analysis mandatory dataset coverage complete partition={} coveredDatasets={} findings={}",
                     scope.partitionKey(), mandatoryDatasetCount, maps(generated.get("findings")).size());

@@ -210,6 +210,8 @@ chatchat:
     record-analysis-chunk-max-chars: 12000
     record-analysis-chunk-max-rows: 50
     analysis-summary-worker-count: 4
+    analysis-per-dataset-worker-threshold: 3
+    analysis-per-dataset-worker-total-chars-threshold: 24000
     analysis-summary-worker-max-retries: 3
     # Worker completion has no independent wall-clock timeout. Model calls use the configured
     # system model/request timeout; these values govern Worker liveness only.

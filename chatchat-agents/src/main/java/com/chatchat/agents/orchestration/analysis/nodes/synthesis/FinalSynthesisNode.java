@@ -698,7 +698,33 @@ public final class FinalSynthesisNode {
         }
         request.metadata().put("analysisOutputAdmissionReason", admission.reason());
         request.metadata().put("analysisOutputAdmitted", true);
-        return answer;
+        String completion = datasetCompletionAppendix(request.metadata());
+        if (completion.isBlank() || answer.contains("## 数据集完整性")
+            || answer.contains("## 观察值完整性")) return answer;
+        request.metadata().put("recordAnalysisCoverageAppendixApplied", true);
+        return answer.stripTrailing() + "\n\n" + completion;
+    }
+
+    private String datasetCompletionAppendix(Map<String, Object> metadata) {
+        if (metadata == null) {
+            return "";
+        }
+        List<String> truncatedObservations = strings(metadata.get("truncatedObservationSources"));
+        if (!(metadata.get("datasetCompletionSnapshot") instanceof Map<?, ?> raw)) {
+            return truncatedObservations.isEmpty() ? "" : "## 观察值完整性\n\n"
+                + "- 已截断来源：" + String.join("、", truncatedObservations);
+        }
+        List<String> successful = strings(raw.get("successfulDatasetReferences"));
+        List<String> failed = strings(raw.get("failedDatasetReferences"));
+        List<String> excluded = strings(raw.get("excludedDatasetReferences"));
+        boolean partial = Boolean.TRUE.equals(raw.get("partial"));
+        String appendix = "## 数据集完整性\n\n"
+            + "- 状态：" + (partial ? "PARTIAL" : "COMPLETE") + "\n"
+            + "- 成功分析：" + (successful.isEmpty() ? "无" : String.join("、", successful)) + "\n"
+            + "- 分析失败：" + (failed.isEmpty() ? "无" : String.join("、", failed)) + "\n"
+            + "- 排除数据集：" + (excluded.isEmpty() ? "无" : String.join("、", excluded));
+        return truncatedObservations.isEmpty() ? appendix : appendix + "\n"
+            + "- 已截断观察来源：" + String.join("、", truncatedObservations);
     }
 
     private void recordWithheld(PresentationRequest request, String reason) {

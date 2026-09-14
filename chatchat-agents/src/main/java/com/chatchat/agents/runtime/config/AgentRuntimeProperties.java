@@ -70,6 +70,10 @@ public class AgentRuntimeProperties {
     private long analysisSummaryWorkerHeartbeatIntervalMs = 10_000;
     /** Remote Worker lease window. Missing heartbeats mean unreachable, not model failure. */
     private long analysisSummaryWorkerHeartbeatTimeoutMs = 30_000;
+    /** Dataset count at which analysis switches from the unified fast path to isolated workers. */
+    private int analysisPerDatasetWorkerThreshold = 3;
+    /** Aggregate dataset size that switches to isolated workers even for a small dataset count. */
+    private long analysisPerDatasetWorkerTotalCharsThreshold = 24_000L;
     /** Spills oversized loop-analysis mirrors outside the JVM without truncating source evidence. */
     private boolean analysisSpillEnabled = true;
     /** Must be different from rocksDbPath because RocksDB does not allow two independent handles on one path. */
@@ -206,6 +210,14 @@ public class AgentRuntimeProperties {
     public long analysisSummaryWorkerHeartbeatTimeoutMs() {
         return Math.max(analysisSummaryWorkerHeartbeatIntervalMs() * 2,
             analysisSummaryWorkerHeartbeatTimeoutMs);
+    }
+
+    public int analysisPerDatasetWorkerThreshold() {
+        return Math.max(1, analysisPerDatasetWorkerThreshold);
+    }
+
+    public long analysisPerDatasetWorkerTotalCharsThreshold() {
+        return Math.max(2_000L, analysisPerDatasetWorkerTotalCharsThreshold);
     }
 
     public String analysisSpillRocksDbPath() {

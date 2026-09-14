@@ -942,6 +942,28 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
+    void appendsDeterministicDatasetCompletionListsToPartialReport() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new StructuredFindingMerger());
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("datasetCompletionSnapshot", Map.of(
+            "partial", true,
+            "successfulDatasetReferences", List.of("dataset-a"),
+            "failedDatasetReferences", List.of("dataset-b"),
+            "excludedDatasetReferences", List.of("dataset-empty")));
+        metadata.put("truncatedObservationSources", List.of("text-tool-result"));
+
+        String answer = coordinator.presentGovernedAnalysis("# 分析报告\n\n已分析可用数据。",
+            new FinalSynthesisNode.PresentationRequest("", List.of(), 1, false,
+                false, true, true, List.of(claimSummary()), List.of(claimSummary()), metadata));
+
+        assertThat(answer).contains("## 数据集完整性", "状态：PARTIAL", "dataset-a",
+            "dataset-b", "dataset-empty", "已截断观察来源", "text-tool-result");
+        assertThat(metadata).containsEntry("recordAnalysisCoverageAppendixApplied", true);
+    }
+
+    @Test
     void missingBodyAndFailedRepairNeverPublishFindingFields() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),

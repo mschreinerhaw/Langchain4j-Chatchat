@@ -358,7 +358,7 @@ final class BoundedAnalysisEvidence {
 
     Object fitViews(List<Map<String, Object>> views, int budget) {
         if (views == null || views.isEmpty()) return List.of();
-        int share = Math.max(500, budget / views.size());
+        int share = Math.max(2_000, budget / views.size());
         return views.stream().map(view -> view.containsKey("records")
             ? fit(view, share)
             : boundDatasetView(view, share)).toList();

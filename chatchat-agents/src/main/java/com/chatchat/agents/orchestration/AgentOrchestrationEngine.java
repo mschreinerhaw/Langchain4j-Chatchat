@@ -13,6 +13,7 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetExecut
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDatasetActivityExecutor;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisWorkerRetryPolicy;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisProgressRecorder;
+import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
 import com.chatchat.agents.orchestration.analysis.dispatch.LocalAnalysisTaskDispatcher;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
@@ -284,6 +285,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final AnalysisSummaryGovernanceCoordinator summaryGovernanceCoordinator;
     private final FinalSynthesisNode analysisSynthesisCoordinator;
     private final AnalysisCoverageCoordinator analysisCoverageCoordinator;
+    private final AnalysisDispatchCoordinator analysisDispatchCoordinator;
     private final DatasetAnalysisNode analysisDatasetWorker;
     private final AnalysisDatasetActivityExecutor analysisDatasetActivityExecutor;
     private final AnalysisProgressRecorder analysisProgressRecorder;
@@ -511,6 +513,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             resolvedRuntimeProperties.analysisSummaryWorkerHeartbeatTimeoutMs();
         this.analysisTaskDispatcher = new LocalAnalysisTaskDispatcher(
             this.analysisSummaryWorkerCount, this.analysisSummaryWorkerHeartbeatIntervalMs);
+        this.analysisDispatchCoordinator = new AnalysisDispatchCoordinator(
+            this.analysisDatasetWorker, this.analysisProgressRecorder,
+            new AnalysisDispatchCoordinator.Configuration(
+                this.recordAnalysisChunkMaxRows, this.recordAnalysisChunkMaxChars,
+                this.analysisSpillThresholdBytes, this.analysisSummaryWorkerMaxRetries,
+                this.analysisSummaryWorkerHeartbeatIntervalMs,
+                this.analysisSummaryWorkerHeartbeatTimeoutMs),
+            this.analysisSummaryGovernanceBridge, this.analysisTaskDispatcher);
         this.analysisEvidenceCoordinator = new AnalysisEvidenceCoordinator(
             this.toolRegistry, this.toolRuntimeService, this.structuredDataProjector,
             this.recordChunkPlanner, this.recordAnalysisChunkMaxChars,
@@ -520,13 +530,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.runResultAdapter, AGENT_RUN_ID_ATTRIBUTE, this.analysisEvidenceCoordinator,
             this.deterministicInsightEngine,
             this.analysisSynthesisCoordinator, this.analysisEvidenceSpillStore,
+            this.analysisDispatchCoordinator,
             new AnalysisCoverageCoordinator.Configuration(
                 this.analysisSummaryWorkerMaxRetries,
                 this.analysisSummaryWorkerHeartbeatIntervalMs,
                 this.analysisSummaryWorkerHeartbeatTimeoutMs,
                 resolvedRuntimeProperties.isAdaptiveAnalysisPromptModelEnabled(),
                 resolvedRuntimeProperties.unifiedAnalysisMaxEvidenceRounds(),
-                resolvedRuntimeProperties.isUnifiedAnalysisReportDraftEnabled()));
+                resolvedRuntimeProperties.isUnifiedAnalysisReportDraftEnabled(),
+                resolvedRuntimeProperties.analysisPerDatasetWorkerThreshold(),
+                resolvedRuntimeProperties.analysisPerDatasetWorkerTotalCharsThreshold()));
         InterpretationPlanStore resolvedPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -592,6 +605,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             this.analysisSummaryGovernanceBridge = protocol;
             this.summaryGovernanceCoordinator.setProtocol(protocol);
             this.analysisDatasetWorker.setSummaryProtocol(protocol);
+            this.analysisDispatchCoordinator.setSummaryProtocol(protocol);
             this.answerFinalizer.setAnalysisSummaryProtocol(protocol);
         }
     }
@@ -603,6 +617,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     ) {
         if (dispatcher != null) {
             this.analysisTaskDispatcher = dispatcher;
+            this.analysisDispatchCoordinator.setDispatcher(dispatcher);
         }
     }
 
@@ -718,9 +733,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     registry.require(DataAnalysisSummaryProtocol.class);
         this.summaryGovernanceCoordinator.setProtocol(this.analysisSummaryGovernanceBridge);
         this.analysisDatasetWorker.setSummaryProtocol(this.analysisSummaryGovernanceBridge);
+        this.analysisDispatchCoordinator.setSummaryProtocol(this.analysisSummaryGovernanceBridge);
         this.analysisTaskDispatcher =
             (ModelSummaryDispatcher<AnalysisTask, AnalysisDatasetSummary, AnalysisTaskResult>)
                 (ModelSummaryDispatcher<?, ?, ?>) registry.require(ModelSummaryDispatcher.class);
+        this.analysisDispatchCoordinator.setDispatcher(this.analysisTaskDispatcher);
         this.hierarchicalAnalysisReducer =
             (ModelSummaryReducer<AnalysisSummaryResult, StructuredFindingMerger.Context,
                 StructuredFindingMerger.Result>) (ModelSummaryReducer<?, ?, ?>)
@@ -2244,7 +2261,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             ? buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult,
                 runtimeAttributes, metadata, cancellationCheck)
             : precomputedRecordCoverage;
-        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()) {
+        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()
+            && !partialDatasetAnalysisAvailable(metadata)) {
             metadata.put("analysisCompletionBarrierRepairAttempt", 1);
             recordLifecyclePhase(runtimeAttributes, metadata, "analysis_completion_repair",
                 "Dataset analysis quality gate is incomplete; re-analyzing all retained data before final synthesis.",
@@ -2253,19 +2271,26 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             coverageCandidate = buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult,
                 runtimeAttributes, metadata, cancellationCheck);
         }
-        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()) {
+        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()
+            && !partialDatasetAnalysisAvailable(metadata)) {
             metadata.put("analysisCompletionBarrierPassed", false);
             metadata.put("analysisFinalAdmissionBlocked", true);
             throw new IllegalStateException(
                 "Final answer blocked: not every returned dataset passed complete evidence-bound analysis validation");
         }
+        boolean partialDatasetAnalysis = partialDatasetAnalysisAvailable(metadata);
         metadata.put("analysisCompletionBarrierPassed", true);
+        metadata.put("analysisCompletionBarrierOutcome",
+            partialDatasetAnalysis ? "PARTIAL" : "COMPLETE");
+        metadata.put("analysisFinalAdmissionBlocked", false);
         final RecordCoverageBundle recordCoverage = coverageCandidate;
         List<InterpretationPlanRuntime.ExecutionResult> resolvedAttemptResults =
             resolvedSummaryEvidenceAttempts(attemptResults);
         InterpretationPlanRuntime.ExecutionResult resolvedResult = resolvedAttemptResults.isEmpty()
             ? result
             : resolvedAttemptResults.get(resolvedAttemptResults.size() - 1);
+        recordTruncatedObservationSources(
+            resolvedAttemptResults, observations, storedObservations, metadata);
         recordLifecyclePhase(
             runtimeAttributes,
             metadata,
@@ -2385,6 +2410,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("analysisDriverRepairFinished", true);
         }
         return synthesis.content();
+    }
+
+    private boolean partialDatasetAnalysisAvailable(Map<String, Object> metadata) {
+        if (metadata == null || !"PARTIAL".equals(metadata.get("analysisCompletionOutcome"))) {
+            return false;
+        }
+        Object count = metadata.get("recordAnalysisSuccessfulDatasetCount");
+        return count instanceof Number number && number.intValue() > 0;
     }
 
     private boolean driverChallengeRepairRequired(Map<String, Object> metadata) {
@@ -2898,6 +2931,43 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();
+    }
+
+    private void recordTruncatedObservationSources(
+        List<InterpretationPlanRuntime.ExecutionResult> results,
+        List<String> observations,
+        List<AgentObservation> storedObservations,
+        Map<String, Object> metadata
+    ) {
+        if (metadata == null) return;
+        int summaryEvidenceBudget = Math.min(
+            contextBudget.availableEvidenceTokens(), SUMMARY_EVIDENCE_TOKEN_BUDGET);
+        boolean compressionEnabled = estimateSummaryEvidenceSize(
+            results, observations, storedObservations).tokens() > summaryEvidenceBudget;
+        if (!compressionEnabled) {
+            metadata.put("truncatedObservationSources", List.of());
+            return;
+        }
+        LinkedHashSet<String> sources = new LinkedHashSet<>();
+        if (storedObservations != null) {
+            for (AgentObservation observation : storedObservations) {
+                if (observation == null) continue;
+                String metadataEvidence = stringify(summaryObservationMetadata(observation.metadata()));
+                if (stringValue(observation.content()).length() > SUMMARY_COMPRESSED_OBSERVATION_CHARS
+                    || metadataEvidence.length() > SUMMARY_COMPRESSED_OBSERVATION_CHARS) {
+                    sources.add(firstNonBlank(observation.source(), "stored-observation"));
+                }
+            }
+        }
+        if (observations != null) {
+            for (int index = 0; index < observations.size(); index++) {
+                if (stringValue(observations.get(index)).length() > SUMMARY_COMPRESSED_OBSERVATION_CHARS) {
+                    sources.add("in-memory-observation[" + index + "]");
+                }
+            }
+        }
+        metadata.put("truncatedObservationSources", List.copyOf(sources));
+        metadata.put("observationInputTruncated", !sources.isEmpty());
     }
 
 

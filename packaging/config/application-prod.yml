@@ -169,6 +169,8 @@ chatchat:
     record-analysis-chunk-max-chars: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_CHARS:12000}
     record-analysis-chunk-max-rows: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_ROWS:50}
     analysis-summary-worker-count: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_COUNT:4}
+    analysis-per-dataset-worker-threshold: ${CHATCHAT_AGENT_ANALYSIS_PER_DATASET_WORKER_THRESHOLD:3}
+    analysis-per-dataset-worker-total-chars-threshold: ${CHATCHAT_AGENT_ANALYSIS_PER_DATASET_WORKER_TOTAL_CHARS_THRESHOLD:24000}
     analysis-summary-worker-max-retries: ${CHATCHAT_AGENT_ANALYSIS_SUMMARY_WORKER_MAX_RETRIES:3}
     # Worker completion has no independent wall-clock timeout. Model calls use the configured
     # system model/request timeout; these values govern Worker liveness only.

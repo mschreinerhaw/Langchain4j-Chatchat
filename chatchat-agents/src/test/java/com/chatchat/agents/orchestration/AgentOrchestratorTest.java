@@ -370,7 +370,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void analyzesIndependentDatasetsTogetherWithoutWorkerFanOut()
+    void analyzesIndependentDatasetsWithPerDatasetWorkerFanOut()
         throws Exception {
         CountDownLatch workersStarted = new CountDownLatch(2);
         AtomicInteger activeWorkers = new AtomicInteger();
@@ -402,6 +402,7 @@ class AgentOrchestratorTest {
         AgentRuntimeProperties properties = new AgentRuntimeProperties();
         properties.setAnalysisSummaryWorkerCount(2);
         properties.setAnalysisSummaryWorkerHeartbeatTimeoutMs(5_000);
+        properties.setAnalysisPerDatasetWorkerThreshold(2);
         ToolRegistry registry = mock(ToolRegistry.class);
         ObjectMapper mapper = new ObjectMapper();
         AgentOrchestrator orchestrator = new AgentOrchestrator(
@@ -416,15 +417,16 @@ class AgentOrchestratorTest {
         AgentOrchestrator.RecordCoverageBundle coverage = orchestrator.buildRecordCoverageBundle(
             model, "analyze both datasets", result, Map.of(), metadata, () -> false);
 
-        assertThat(maximumActiveWorkers.get()).isZero();
+        assertThat(maximumActiveWorkers.get()).isGreaterThanOrEqualTo(2);
         assertThat(coverage.summaryResults()).extracting(summary ->
             String.valueOf(summary.position().get("datasetReference")))
             .containsExactly("dataset_a", "dataset_b");
         assertThat(coverage.coverageComplete()).isTrue();
         assertThat(metadata)
-            .containsEntry("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH")
-            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
-            .containsEntry("recordAnalysisSummaryWorkerCount", 0);
+            .containsEntry("recordAnalysisSummaryDispatchMode", "PER_DATASET_WORKERS")
+            .containsEntry("recordAnalysisSummaryScheduledTaskCount", 2)
+            .containsEntry("recordAnalysisSummaryWorkerCount", 2)
+            .containsEntry("analysisFinalInputMode", "PER_DATASET_SUMMARIES");
     }
 
     @Test
@@ -472,7 +474,7 @@ class AgentOrchestratorTest {
                 .doesNotContainKeys("workerId", "taskId"));
         assertThat(progress).allSatisfy(observation -> assertThat(observation.content())
             .doesNotContain("Driver", "Worker", "driver", "worker"));
-        assertThat(metadata).containsEntry("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH")
+        assertThat(metadata).containsEntry("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION")
             .containsEntry("recordAnalysisSummaryScheduledTaskCount", 1)
             .containsEntry("recordAnalysisSummaryWorkerCount", 0);
     }
@@ -526,7 +528,7 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void unifiedAnalysisHasNoPerDatasetModelFailureBoundary() {
+    void perDatasetAnalysisContinuesAfterIsolatedWorkerFailure() {
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String prompt) {
@@ -544,6 +546,7 @@ class AgentOrchestratorTest {
         AgentRuntimeProperties properties = new AgentRuntimeProperties();
         properties.setAnalysisSummaryWorkerCount(2);
         properties.setAnalysisSummaryWorkerMaxRetries(0);
+        properties.setAnalysisPerDatasetWorkerThreshold(2);
         ToolRegistry registry = mock(ToolRegistry.class);
         ObjectMapper mapper = new ObjectMapper();
         InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
@@ -585,10 +588,17 @@ class AgentOrchestratorTest {
                 Map.of("__agentRunId", "partial-worker-run"), metadata, () -> false);
 
         assertThat(coverage.returnedRecordCount()).isEqualTo(2);
-        assertThat(coverage.processedRecordCount()).isEqualTo(2);
-        assertThat(coverage.coverageComplete()).isTrue();
-        assertThat(metadata).containsEntry("unifiedAnalysisModelCalls", 1)
-            .containsEntry("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
+        assertThat(coverage.processedRecordCount()).isEqualTo(1);
+        assertThat(coverage.coverageComplete()).isFalse();
+        assertThat(coverage.evidenceTraceComplete()).isTrue();
+        assertThat(metadata)
+            .containsEntry("recordAnalysisSummaryDispatchMode", "PER_DATASET_WORKERS")
+            .containsEntry("analysisCompletionOutcome", "PARTIAL")
+            .containsEntry("recordAnalysisSuccessfulDatasetCount", 1)
+            .containsEntry("recordAnalysisFailedDatasetCount", 1);
+        assertThat((Map<String, Object>) metadata.get("datasetCompletionSnapshot"))
+            .containsEntry("partial", true)
+            .containsEntry("allRequiredDatasetsProcessed", true);
     }
 
     @Test

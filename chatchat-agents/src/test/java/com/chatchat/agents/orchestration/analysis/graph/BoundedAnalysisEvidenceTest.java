@@ -92,7 +92,13 @@ class BoundedAnalysisEvidenceTest {
         var rows = rows();
         var store = store(new ConcurrentHashMap<>());
         var model = mock(dev.langchain4j.model.chat.ChatModel.class);
-        when(model.chat(anyString())).thenReturn("{\"schemaVersion\":\"unified_question_analysis.v1\",\"findings\":[],\"limitations\":[\"No supported conclusion\"]}");
+        when(model.chat(anyString())).thenReturn("""
+            {"schemaVersion":"unified_question_analysis.v1","findings":[{
+              "datasetReference":"d","claimClass":"OBSERVED_RETURNED_FACT",
+              "claim":"The first returned value is 0","recordRefs":["d.records[1]"],
+              "supportingValues":[{"recordRef":"d.records[1]","value":0}]
+            }],"limitations":[]}
+            """);
         var graph = new UnifiedQuestionAnalysisGraph();
         var protocol = new com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisNodeProtocol();
         var metadata = new LinkedHashMap<String, Object>();

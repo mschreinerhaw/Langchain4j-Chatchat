@@ -465,7 +465,7 @@ class UnifiedQuestionAnalysisGraphTest {
             .containsEntry("unifiedAnalysisDatasetsPendingCoverage", List.of());
     }
 
-    @Test void refusesToCompleteWhenAProvidedDatasetRemainsUnanalyzed() {
+    @Test void recordsPartialOutcomeWhenAProvidedDatasetRemainsUnanalyzed() {
         List<Dataset> datasets = List.of(
             new Dataset("first", Map.of(), List.of(Map.<String, Object>of("VALUE", 1))),
             new Dataset("second", Map.of(), List.of(Map.<String, Object>of("VALUE", 2))));
@@ -477,11 +477,17 @@ class UnifiedQuestionAnalysisGraphTest {
             }
         };
 
-        assertThatThrownBy(() -> new UnifiedQuestionAnalysisGraph().execute(
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        var outcomes = new UnifiedQuestionAnalysisGraph().execute(
             "analyze every dataset", datasets, () -> datasets, model, scope,
             new AnalysisNodeProtocol(), AnalysisEvidenceSpillStore.disabled(),
-            new LinkedHashMap<>(), () -> { }))
-            .hasMessageContaining("datasets without evidence-bound findings=[second]");
+            metadata, () -> { });
+
+        assertThat(outcomes).containsKeys("first", "second");
+        assertThat(metadata)
+            .containsEntry("unifiedAnalysisDatasetCoverageComplete", false)
+            .containsEntry("unifiedAnalysisUncoveredDatasets", List.of("second"))
+            .containsEntry("unifiedAnalysisOutcome", "PARTIAL");
         assertThat(calls.get()).isEqualTo(3);
     }
 

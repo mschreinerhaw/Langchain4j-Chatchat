@@ -43,6 +43,7 @@ public final class AnalysisCoverageCoordinator {
     private final AnalysisEvidenceCoordinator evidenceCoordinator;
     private final DeterministicInsightEngine insightEngine;
     private final FinalSynthesisNode synthesisCoordinator;
+    private final AnalysisDispatchCoordinator dispatchCoordinator;
     private final MergedFindingValidator reducerSupervisor = new MergedFindingValidator();
     private final AnalysisGovernanceStateCoordinator governanceStateCoordinator =
         new AnalysisGovernanceStateCoordinator();
@@ -62,6 +63,7 @@ public final class AnalysisCoverageCoordinator {
         DeterministicInsightEngine insightEngine,
         FinalSynthesisNode synthesisCoordinator,
         AnalysisEvidenceSpillStore spillStore,
+        AnalysisDispatchCoordinator dispatchCoordinator,
         Configuration configuration
     ) {
         this.resultAdapter = resultAdapter;
@@ -69,8 +71,20 @@ public final class AnalysisCoverageCoordinator {
         this.evidenceCoordinator = evidenceCoordinator;
         this.insightEngine = insightEngine;
         this.synthesisCoordinator = synthesisCoordinator;
+        this.dispatchCoordinator = dispatchCoordinator;
         this.spillStore = spillStore == null ? AnalysisEvidenceSpillStore.disabled() : spillStore;
         this.configuration = configuration;
+    }
+
+    /** Compatibility constructor for tests and embedders that only use the unified fast path. */
+    public AnalysisCoverageCoordinator(
+        AgentRunResultAdapter resultAdapter, String runIdAttribute,
+        AnalysisEvidenceCoordinator evidenceCoordinator, DeterministicInsightEngine insightEngine,
+        FinalSynthesisNode synthesisCoordinator, AnalysisEvidenceSpillStore spillStore,
+        Configuration configuration
+    ) {
+        this(resultAdapter, runIdAttribute, evidenceCoordinator, insightEngine,
+            synthesisCoordinator, spillStore, null, configuration);
     }
 
     public void setSpillStore(AnalysisEvidenceSpillStore store) {
@@ -141,25 +155,33 @@ public final class AnalysisCoverageCoordinator {
             }
             return List.copyOf(preparedDatasets);
         };
-        request.metadata().put("recordAnalysisSummaryParallel", false);
-        request.metadata().put("recordAnalysisSummaryScheduledTaskCount", 1);
-        request.metadata().put("recordAnalysisSummaryWorkerCount", 0);
-        request.metadata().put("recordAnalysisSummaryDispatchMode", "UNIFIED_QUESTION_GRAPH");
-        String analysisGraphId = request.isolationScope().runId() + ":unified-question-analysis";
-        observe(request, "已启动数据分析图，全部 " + datasets.size() + " 个数据集共同参与规划、计算和结论生成。",
-            "analysis_graph", metadataOf("type", "unified_question_analysis_started",
+        DatasetAnalysisMode mode = selectMode(datasets);
+        request.metadata().put("datasetAnalysisMode", mode.name());
+        request.metadata().put("recordAnalysisSummaryDispatchMode", mode.name());
+        if (mode == DatasetAnalysisMode.UNIFIED_QUESTION) {
+            request.metadata().put("recordAnalysisSummaryParallel", false);
+            request.metadata().put("recordAnalysisSummaryScheduledTaskCount", 1);
+            request.metadata().put("recordAnalysisSummaryWorkerCount", 0);
+        }
+        String analysisGraphId = request.isolationScope().runId() + ":dataset-analysis";
+        observe(request, mode == DatasetAnalysisMode.PER_DATASET_WORKERS
+                ? "已按数据集启动独立分析 Worker，共 " + datasets.size() + " 个任务。"
+                : "已启动小数据集统一分析快路径，共 " + datasets.size() + " 个数据集。",
+            "analysis_graph", metadataOf("type", "dataset_analysis_started",
                 "eventKind", "ANALYSIS_GRAPH", "eventState", "STARTED", "graphId", analysisGraphId,
-                "datasetCount", datasets.size(), "modelTaskCount", 1));
+                "datasetCount", datasets.size(), "analysisMode", mode.name()));
         Map<String, AnalysisDispatchCoordinator.Outcome> outcomes;
         try {
-            outcomes = new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(
-                profiles, configuration.adaptivePromptModelEnabled(), configuration.maximumEvidenceRounds(),
-                configuration.reportDraftEnabled()).execute(
-                request.query(), datasets, computation, request.model(), request.isolationScope(),
-                request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
+            outcomes = mode == DatasetAnalysisMode.PER_DATASET_WORKERS
+                ? dispatchPerDataset(request, computation.get())
+                : new com.chatchat.agents.orchestration.analysis.graph.UnifiedQuestionAnalysisGraph(
+                    profiles, configuration.adaptivePromptModelEnabled(), configuration.maximumEvidenceRounds(),
+                    configuration.reportDraftEnabled()).execute(
+                    request.query(), datasets, computation, request.model(), request.isolationScope(),
+                    request.summaryProtocol(), spillStore, request.metadata(), request.cancellationGuard());
         } catch (RuntimeException failure) {
-            observe(request, "数据分析图未完成，禁止生成报告。",
-                "analysis_graph", metadataOf("type", "unified_question_analysis_failed",
+            observe(request, "数据分析调度未完成。",
+                "analysis_graph", metadataOf("type", "dataset_analysis_failed",
                     "eventKind", "ANALYSIS_GRAPH", "eventState",
                     request.cancellationCheck().getAsBoolean() ? "CANCELLED" : "FAILED",
                     "graphId", analysisGraphId, "datasetCount", datasets.size(),
@@ -172,25 +194,65 @@ public final class AnalysisCoverageCoordinator {
             coverage = reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared,
                 datasetRegistry);
         } catch (RuntimeException failure) {
-            observe(request, "数据分析结果质量验收失败，禁止生成报告。",
-                "analysis_graph", metadataOf("type", "unified_question_analysis_failed",
+            observe(request, "数据分析结果质量验收失败。",
+                "analysis_graph", metadataOf("type", "dataset_analysis_failed",
                     "eventKind", "ANALYSIS_GRAPH", "eventState", "FAILED", "graphId", analysisGraphId,
                     "datasetCount", datasets.size(), "errorType", failure.getClass().getSimpleName()));
             throw failure;
         }
-        if (coverage.evidenceTraceComplete()) {
+        if (coverage.evidenceTraceComplete() && coverage.coverageComplete()) {
             observe(request, "全部 " + datasets.size() + " 个数据集均已通过完整证据分析验收。",
-                "analysis_graph", metadataOf("type", "unified_question_analysis_completed",
+                "analysis_graph", metadataOf("type", "dataset_analysis_completed",
                     "eventKind", "ANALYSIS_GRAPH", "eventState", "COMPLETED", "graphId", analysisGraphId,
                     "datasetCount", datasets.size(), "outcomeCount", outcomes.size()));
         } else {
-            observe(request, "仍有数据集未通过完整分析验收，禁止生成报告并进入修复。",
-                "analysis_graph", metadataOf("type", "unified_question_analysis_failed",
-                    "eventKind", "ANALYSIS_GRAPH", "eventState", "FAILED", "graphId", analysisGraphId,
+            observe(request, "部分数据集未通过分析验收，将以 PARTIAL 结果继续综合并显式披露。",
+                "analysis_graph", metadataOf("type", "dataset_analysis_partial",
+                    "eventKind", "ANALYSIS_GRAPH", "eventState", "PARTIAL", "graphId", analysisGraphId,
                     "datasetCount", datasets.size(), "outcomeCount", outcomes.size(),
                     "degradedDatasetCount", request.metadata().getOrDefault("analysisDegradedDatasetCount", 0)));
         }
         return coverage;
+    }
+
+    private DatasetAnalysisMode selectMode(List<AnalysisEvidenceCoordinator.Dataset> datasets) {
+        long estimatedChars = datasets.stream().mapToLong(dataset ->
+            dataset.handle().estimatedSizeBytes().orElse(dataset.recordCount() * 512L)).sum();
+        return dispatchCoordinator != null
+            && (datasets.size() >= configuration.perDatasetWorkerThreshold()
+                || estimatedChars >= configuration.perDatasetWorkerTotalCharsThreshold())
+            ? DatasetAnalysisMode.PER_DATASET_WORKERS : DatasetAnalysisMode.UNIFIED_QUESTION;
+    }
+
+    private Map<String, AnalysisDispatchCoordinator.Outcome> dispatchPerDataset(
+        Request request, List<AnalysisEvidenceCoordinator.Dataset> datasets
+    ) {
+        List<AnalysisDispatchCoordinator.DatasetInput> inputs = datasets.stream()
+            .map(dataset -> new AnalysisDispatchCoordinator.DatasetInput(
+                dataset.reference(), dataset.analysisContext(), dataset.records()))
+            .toList();
+        AnalysisDispatchCoordinator.DispatchRequest dispatchRequest =
+            new AnalysisDispatchCoordinator.DispatchRequest(
+                request.model(), request.query(), "", inputs, request.isolationScope(),
+                request.runtimeAttributes(), request.cancellationCheck());
+        Map<String, AnalysisDispatchCoordinator.Outcome> outcomes = new LinkedHashMap<>();
+        try (AnalysisDispatchCoordinator.DispatchBatch batch = dispatchCoordinator.dispatch(dispatchRequest)) {
+            request.metadata().put("recordAnalysisSummaryParallel", batch.isParallel());
+            request.metadata().put("recordAnalysisSummaryScheduledTaskCount", batch.taskCount());
+            request.metadata().put("recordAnalysisSummaryWorkerCount", batch.workerCount());
+            request.metadata().put("recordAnalysisWorkerTransportMode", batch.mode());
+            Map<String, Integer> occurrences = new LinkedHashMap<>();
+            for (AnalysisEvidenceCoordinator.Dataset dataset : datasets) {
+                int occurrence = occurrences.merge(dataset.reference(), 1, Integer::sum);
+                String reference = occurrence == 1 ? dataset.reference()
+                    : dataset.reference() + "#occurrence-" + occurrence;
+                outcomes.put(reference, batch.await(reference));
+            }
+            request.metadata().put("datasetWorkerExecutionRegistry",
+                batch.datasets().stream().map(
+                    com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState::toMap).toList());
+        }
+        return Map.copyOf(outcomes);
     }
 
     private List<AnalysisEvidenceCoordinator.Dataset> externalizeLargeDatasets(
@@ -246,6 +308,7 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("runtimeReturnedReportDatasets", List.of());
         List<Map<String, Object>> insightDecisions = new ArrayList<>();
         List<Map<String, Object>> presentationViews = new ArrayList<>();
+        List<Map<String, Object>> datasetDepthMetrics = new ArrayList<>();
         List<Map<String, Object>> failures = new ArrayList<>();
         List<DataAnalysisWorkerSupervision.WorkerReport> workerReports = new ArrayList<>();
         AnalysisProductValidator workerSupervisor = new AnalysisProductValidator();
@@ -288,6 +351,9 @@ public final class AnalysisCoverageCoordinator {
                 continue;
             }
             AnalysisDatasetSummary summary = outcome.summary();
+            datasetDepthMetrics.add(datasetDepthMetric(
+                reference, summary.datasetSummary(), Math.toIntExact(dataset.recordCount())));
+            request.metadata().put("analysisDatasetDepthMetrics", List.copyOf(datasetDepthMetrics));
             datasetRegistry.analyzed(reference, List.of(summary.datasetSummary().content()),
                 evidenceIds(summary), truncatedDataset(request.metadata(), reference));
             counters.analyzed++;
@@ -349,6 +415,29 @@ public final class AnalysisCoverageCoordinator {
             .map(com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState::toMap)
             .toList());
         request.metadata().put("missingDatasets", datasetRegistry.missingDatasetIds());
+        List<String> successfulReferences = datasetRegistry.snapshot().stream()
+            .filter(state -> state.status()
+                == com.chatchat.agents.orchestration.analysis.execution.DatasetAnalysisStatus.ANALYZED
+                || state.status()
+                == com.chatchat.agents.orchestration.analysis.execution.DatasetAnalysisStatus.TRUNCATED)
+            .map(com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState::datasetId)
+            .toList();
+        List<String> failedReferences = datasetRegistry.snapshot().stream()
+            .filter(state -> state.status()
+                == com.chatchat.agents.orchestration.analysis.execution.DatasetAnalysisStatus.FAILED)
+            .map(com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState::datasetId)
+            .toList();
+        List<String> excludedReferences = excludedDatasetReferences(request.metadata());
+        DatasetCompletionSnapshot completion = new DatasetCompletionSnapshot(
+            datasets.size(), excludedReferences.size(), successfulReferences.size(),
+            failedReferences.size(), successfulReferences, failedReferences, excludedReferences);
+        request.metadata().put("datasetCompletionSnapshot", completion.toMap());
+        request.metadata().put("analysisCompletionOutcome",
+            completion.partial() ? "PARTIAL" : failedReferences.isEmpty() ? "SUCCESS" : "FAILED");
+        prompt.append("Dataset completion snapshot: ")
+            .append(ModelProtocolJson.compact(completion.toMap())).append("\n")
+            .append("The final report must explicitly list successful, failed, and excluded datasets. ")
+            .append("When any failed or excluded dataset exists, label the report PARTIAL and never infer facts from it.\n");
         if (!datasetRegistry.synthesisReady()) {
             throw new IllegalStateException("Dataset synthesis barrier is not ready; missing="
                 + datasetRegistry.missingDatasetIds());
@@ -380,23 +469,39 @@ public final class AnalysisCoverageCoordinator {
         // findings back through the legacy per-dataset/relationship Reducer destroys question-level
         // meaning and can discard model-owned calibrated inferences. Preserve the validated unified
         // products as the final synthesis inputs; Runtime continues to audit evidence bindings.
-        DeterministicInsightEngine.Result bundleInsights = insightEngine.analyzeBundle(
-            request.isolationScope(), insightDatasets);
-        List<String> uncovered = datasetSummaries.stream()
-            .filter(summary -> summary.content() == null || summary.content().isBlank())
-            .map(AnalysisSummaryResult::scope).toList();
-        StructuredFindingMerger.Result hierarchy = new StructuredFindingMerger.Result(
-            relationshipPlan, List.copyOf(datasetSummaries), List.of(),
-            List.copyOf(datasetSummaries), uncovered);
-        lifecycle = lifecycle.finalSummaryCompleted(datasetSummaries.size());
-        request.metadata().put("analysisFinalInputMode", "UNIFIED_QUESTION_FINDINGS");
-        request.metadata().put("analysisLegacyReducerBypassed", true);
+        boolean workerMode = DatasetAnalysisMode.PER_DATASET_WORKERS.name().equals(
+            request.metadata().get("datasetAnalysisMode"));
+        DeterministicInsightEngine.Result bundleInsights;
+        StructuredFindingMerger.Result hierarchy;
+        if (workerMode) {
+            FinalSynthesisNode.HierarchicalSynthesisResult synthesis =
+                synthesisCoordinator.synthesizeHierarchy(
+                    new FinalSynthesisNode.HierarchicalSynthesisRequest(
+                        instruction -> request.model().chat(instruction), request.isolationScope(),
+                        relationshipPlan, request.query(), List.copyOf(datasetSummaries),
+                        List.copyOf(insightDatasets), lifecycle, request.runtimeAttributes()));
+            bundleInsights = synthesis.crossDatasetInsights();
+            hierarchy = synthesis.hierarchy();
+            lifecycle = synthesis.lifecycle();
+        } else {
+            bundleInsights = insightEngine.analyzeBundle(request.isolationScope(), insightDatasets);
+            List<String> uncovered = datasetSummaries.stream()
+                .filter(summary -> summary.content() == null || summary.content().isBlank())
+                .map(AnalysisSummaryResult::scope).toList();
+            hierarchy = new StructuredFindingMerger.Result(
+                relationshipPlan, List.copyOf(datasetSummaries), List.of(),
+                List.copyOf(datasetSummaries), uncovered);
+            lifecycle = lifecycle.finalSummaryCompleted(datasetSummaries.size());
+        }
+        request.metadata().put("analysisFinalInputMode", workerMode
+            ? "PER_DATASET_SUMMARIES" : "UNIFIED_QUESTION_FINDINGS");
+        request.metadata().put("analysisLegacyReducerBypassed", !workerMode);
         observe(request, "统一问题分析结果已完成证据绑定，可进入最终报告综合。",
             "analysis_summary_governance", metadataOf(
                 "type", "unified_analysis_ready_for_synthesis",
                 "analysisResultCount", datasetSummaries.size(),
-                "uncoveredDatasetCount", uncovered.size(),
-                "legacyReducerBypassed", true));
+                "uncoveredDatasetCount", hierarchy.uncoveredDatasets().size(),
+                "legacyReducerBypassed", !workerMode));
         if (bundleInsights.executed()
             && (!bundleInsights.findings().isEmpty() || !bundleInsights.issues().isEmpty())) {
             insightResults.add(bundleInsights.toMap());
@@ -415,8 +520,7 @@ public final class AnalysisCoverageCoordinator {
             && governedSummaries.size() == counters.iterations
             && governedSummaries.stream().allMatch(evidenceCoordinator::hasTraceableEvidence)
             && governedSummaries.stream().map(AnalysisSummaryResult::resultId).distinct().count()
-                == governedSummaries.size()
-            && allAnalysisProductsAccepted;
+                == governedSummaries.size();
         if (hierarchy.finalInputs().isEmpty()) {
             traceComplete = false;
             prompt.append("The unified analysis produced no evidence-bound findings. Publish the "
@@ -697,6 +801,61 @@ public final class AnalysisCoverageCoordinator {
         metadata.put("recordAnalysisExcludedDatasetCount", excluded.size());
     }
 
+    private List<String> excludedDatasetReferences(Map<String, Object> metadata) {
+        if (metadata == null
+            || !(metadata.get("recordAnalysisExcludedDatasets") instanceof Iterable<?> values)) {
+            return List.of();
+        }
+        List<String> references = new ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof Map<?, ?> item)) continue;
+            Object reference = item.get("datasetReference");
+            if (reference != null && !String.valueOf(reference).isBlank()) {
+                references.add(String.valueOf(reference));
+            }
+        }
+        return references.stream().distinct().toList();
+    }
+
+    private Map<String, Object> datasetDepthMetric(
+        String reference, AnalysisSummaryResult summary, int totalRecords
+    ) {
+        List<Map<String, Object>> findings = new ArrayList<>();
+        findings.addAll(mapValues(summary.evidence().get("observedFactClaims")));
+        findings.addAll(mapValues(summary.evidence().get("insights")));
+        long citedRecords = findings.stream()
+            .flatMap(finding -> stringValues(finding.get("recordRefs")).stream())
+            .distinct().count();
+        Map<String, Object> metric = new LinkedHashMap<>();
+        metric.put("datasetReference", reference);
+        metric.put("findingCount", findings.size());
+        metric.put("citedRecordRefCount", citedRecords);
+        metric.put("totalRecordCount", Math.max(0, totalRecords));
+        metric.put("citedRecordRatio", totalRecords <= 0 ? 0D
+            : Math.min(1D, (double) citedRecords / totalRecords));
+        metric.put("advisoryOnly", true);
+        return Map.copyOf(metric);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> mapValues(Object value) {
+        if (!(value instanceof Iterable<?> values)) return List.of();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : values) {
+            if (item instanceof Map<?, ?> map) result.add((Map<String, Object>) map);
+        }
+        return List.copyOf(result);
+    }
+
+    private List<String> stringValues(Object value) {
+        if (!(value instanceof Iterable<?> values)) return List.of();
+        List<String> result = new ArrayList<>();
+        for (Object item : values) {
+            if (item != null && !String.valueOf(item).isBlank()) result.add(String.valueOf(item));
+        }
+        return List.copyOf(result);
+    }
+
     private void writeResultMetadata(Request request, int datasetCount,
         DatasetRelationshipPlan relationships, DataAnalysisLifecycle lifecycle,
         StructuredFindingMerger.Result hierarchy, List<AnalysisSummaryResult> summaries,
@@ -771,9 +930,24 @@ public final class AnalysisCoverageCoordinator {
 
     public record Configuration(int maximumRetries, long heartbeatIntervalMs,
                                 long heartbeatTimeoutMs, boolean adaptivePromptModelEnabled,
-                                int maximumEvidenceRounds, boolean reportDraftEnabled) {
+                                int maximumEvidenceRounds, boolean reportDraftEnabled,
+                                int perDatasetWorkerThreshold,
+                                long perDatasetWorkerTotalCharsThreshold) {
+        public Configuration {
+            perDatasetWorkerThreshold = Math.max(1, perDatasetWorkerThreshold);
+            perDatasetWorkerTotalCharsThreshold = Math.max(2_000L,
+                perDatasetWorkerTotalCharsThreshold);
+        }
         public Configuration(int maximumRetries, long heartbeatIntervalMs, long heartbeatTimeoutMs) {
-            this(maximumRetries, heartbeatIntervalMs, heartbeatTimeoutMs, true, 2, false);
+            this(maximumRetries, heartbeatIntervalMs, heartbeatTimeoutMs, true, 2, false,
+                3, 24_000L);
+        }
+        public Configuration(int maximumRetries, long heartbeatIntervalMs, long heartbeatTimeoutMs,
+                             boolean adaptivePromptModelEnabled, int maximumEvidenceRounds,
+                             boolean reportDraftEnabled) {
+            this(maximumRetries, heartbeatIntervalMs, heartbeatTimeoutMs,
+                adaptivePromptModelEnabled, maximumEvidenceRounds, reportDraftEnabled,
+                3, 24_000L);
         }
     }
 

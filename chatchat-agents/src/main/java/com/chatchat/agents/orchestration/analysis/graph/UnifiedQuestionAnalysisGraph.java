@@ -6,6 +6,7 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoord
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget;
 import com.chatchat.agents.orchestration.analysis.prompt.AdaptiveBusinessAnalysisPromptSynthesizer;
 import com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisResponsibilityContract;
 import com.chatchat.agents.orchestration.analysis.contract.AnalyticalReasoningArcContract;
@@ -39,11 +40,8 @@ public final class UnifiedQuestionAnalysisGraph {
     }
     private static final String VERSION = "unified_question_analysis.v1";
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final int MAX_INPUT_TOKENS = 20_000;
     private static final int MAX_EVIDENCE_ROUNDS = 2;
     private static final int MAX_DATASET_COVERAGE_REPAIR_ATTEMPTS = 2;
-    private static final int INITIAL_EVIDENCE_CHARS = 42_000;
-    private static final int REQUESTED_EVIDENCE_CHARS = 10_000;
     private static final ContextTokenEstimator TOKENS = new ContextTokenEstimator();
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(UnifiedQuestionAnalysisGraph.class);
 
@@ -56,6 +54,17 @@ public final class UnifiedQuestionAnalysisGraph {
         var generated = new LinkedHashMap<String, Object>();
         var outcomes = new LinkedHashMap<String, Outcome>();
         var evidenceAccess = new BoundedAnalysisEvidence();
+        SynthesisContextBudget contextBudget = SynthesisContextBudget.fromRuntime(metadata);
+        int maximumInputTokens = contextBudget.inputTokens();
+        // Evidence projection is measured again with the mixed-language token estimator before
+        // invocation. Two characters per available input token preserves useful long-text
+        // navigation while the final input+output guard remains authoritative.
+        int initialEvidenceChars = Math.max(1_000, maximumInputTokens > Integer.MAX_VALUE / 2
+            ? Integer.MAX_VALUE : maximumInputTokens * 2);
+        int requestedEvidenceChars = Math.max(500,
+            initialEvidenceChars / Math.max(2, maximumEvidenceRounds + 1));
+        metadata.put(SynthesisContextBudget.RUNTIME_KEY, contextBudget.toMap());
+        metadata.put("unifiedAnalysisInputTokenBudget", maximumInputTokens);
         var evidenceView = new BoundedAnalysisEvidence.Prepared[1];
         var adaptivePrompt = new AdaptiveBusinessAnalysisPromptSynthesizer.Result[1];
         metadata.put("textExtractionModelCalls", 0);
@@ -106,8 +115,8 @@ public final class UnifiedQuestionAnalysisGraph {
                 // turn to interpret it; otherwise the last configured read is silently skipped.
                 int maximumModelRounds = maximumEvidenceRounds + 1;
                 for (int round = 1; round <= maximumModelRounds; round++) {
-                    Object boundedEvidence = evidenceAccess.fitViews(evidence, INITIAL_EVIDENCE_CHARS);
-                    Object boundedRequests = evidenceAccess.fitRequestedEvidence(requestedEvidence, REQUESTED_EVIDENCE_CHARS);
+                    Object boundedEvidence = evidenceAccess.fitViews(evidence, initialEvidenceChars);
+                    Object boundedRequests = evidenceAccess.fitRequestedEvidence(requestedEvidence, requestedEvidenceChars);
                     String prompt = adaptivePrompt[0].compiledPrompt() + "\n"
                         + "Execute unified question analysis (" + VERSION + "). All datasets below belong to one question. "
                         + "Generate findings around the question, not separate dataset reports. Preserve dataset boundaries; never implicitly join tables. "
@@ -158,7 +167,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Question plan: " + ModelProtocolJson.compact(evidenceAccess.fitControlContext(promptPlan(plan), 4_000))
                         + "\nBound evidence: " + ModelProtocolJson.compact(boundedEvidence);
                     var promptSize = TOKENS.estimate(prompt);
-                    if (promptSize.tokens() > MAX_INPUT_TOKENS) throw new IllegalStateException(
+                    if (promptSize.tokens() > maximumInputTokens) throw new IllegalStateException(
                         "Unified analysis control context exceeds token budget after bounded projection: " + promptSize.tokens());
                     metadata.put("unifiedAnalysisMaxPromptTokens", Math.max(promptSize.tokens(),
                         ((Number) metadata.getOrDefault("unifiedAnalysisMaxPromptTokens", 0L)).longValue()));
@@ -361,7 +370,7 @@ public final class UnifiedQuestionAnalysisGraph {
                         + "Missing datasets: " + ModelProtocolJson.compact(missingDatasets)
                         + "\nPrevious product: " + boundedRawResponse(ModelProtocolJson.compact(generated))
                         + "\nBound evidence: " + ModelProtocolJson.compact(
-                            evidenceAccess.fitViews(evidence, INITIAL_EVIDENCE_CHARS));
+                            evidenceAccess.fitViews(evidence, initialEvidenceChars));
                     Map<String, Object> repaired = parse(model.chat(repairPrompt));
                     if (!valid(repaired) || !boundFindings(repaired, known)) continue;
                     List<String> repairedMissing = datasetsWithoutEvidenceBoundFindings(

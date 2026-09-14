@@ -15,6 +15,29 @@ class GovernedFinalClaimContractTest {
     private final GovernedFinalClaimContract contract = new GovernedFinalClaimContract();
 
     @Test
+    void boundsLargeClaimLedgerAndDeclaresEveryDowngradedClaimId() {
+        List<Map<String, Object>> artifacts = new java.util.ArrayList<>();
+        for (int index = 0; index < 50; index++) {
+            artifacts.add(artifact("claim-" + index, "material finding " + index + " " + "detail ".repeat(80),
+                List.of("dataset-" + index + ".records[1]"), List.of("\"VALUE\":" + index), List.of()));
+        }
+        var compilation = contract.compile(List.of(artifactSummary("dataset", artifacts)));
+        var budget = new com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget(
+            8_000, 0, 0, 2_000, 6_000, 1_500, 500, 1_000, 1_000);
+
+        String prompt = contract.appendNarrativeInstruction("write", compilation, budget);
+        GovernedFinalClaimContract.LedgerProjection projection =
+            contract.projectLedger(compilation, budget.claimLedgerTokens());
+
+        assertThat(new com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator()
+            .estimate(projection.toMap()).tokens()).isLessThanOrEqualTo(budget.claimLedgerTokens());
+        assertThat(prompt).contains("truncatedClaimIds", "truncatedClaimCount");
+        assertThat(projection.truncatedClaimIds()).isNotEmpty();
+        assertThat(projection.entries().size() + projection.truncatedClaimIds().size())
+            .isGreaterThanOrEqualTo(50);
+    }
+
+    @Test
     void legacyPromptEntryAlsoUsesMarkdownWithoutPerClaimReviewForms() {
         String prompt = contract.appendSelectionInstruction("original", contract.compile(List.of(summary())));
         assertThat(prompt).contains("complete model-authored Markdown report", "visualization_spec.v2",

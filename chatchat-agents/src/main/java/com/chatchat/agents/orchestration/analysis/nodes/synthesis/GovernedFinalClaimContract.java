@@ -7,6 +7,8 @@ import com.chatchat.agents.orchestration.analysis.report.VerifiedReportDataCatal
 
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget;
 import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLayerGovernanceContract;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -471,9 +473,14 @@ final class GovernedFinalClaimContract {
     }
 
     String appendNarrativeInstruction(String prompt, Compilation compilation) {
-        List<Map<String, Object>> ledger = compilation == null
-            ? List.of()
-            : compilation.claims().values().stream().map(Claim::toPromptMap).toList();
+        return appendNarrativeInstruction(prompt, compilation,
+            SynthesisContextBudget.fromRuntime(Map.of()));
+    }
+
+    String appendNarrativeInstruction(String prompt, Compilation compilation,
+                                      SynthesisContextBudget budget) {
+        LedgerProjection ledger = projectLedger(compilation,
+            budget == null ? 0 : budget.claimLedgerTokens());
         return (prompt == null ? "" : prompt)
             + "\n\nFinal deliverable: return only the complete model-authored Markdown report. "
             + "Choose its title, organization, depth, tables and explanatory narrative from the user's "
@@ -494,7 +501,72 @@ final class GovernedFinalClaimContract {
             + "Preserve its separate observation, interpretation and implication fields and its method/scope semantics. "
             + "Question-level synthesis artifacts are valid only through their basisClaimIds. Use the analysis-layer "
             + "ranking, conflict and sufficiency judgments from the pipeline context; focus this call on clear expression. "
-            + "Completed analysis artifact ledger: " + ModelProtocolJson.compact(ledger);
+            + "Completed analysis artifact ledger: " + ModelProtocolJson.compact(ledger.toMap());
+    }
+
+    LedgerProjection projectLedger(Compilation compilation, int tokenBudget) {
+        if (compilation == null || compilation.claims().isEmpty()) {
+            return new LedgerProjection(List.of(), List.of(), 0, 0);
+        }
+        ContextTokenEstimator estimator = new ContextTokenEstimator();
+        List<String> allClaimIds = compilation.claims().keySet().stream().toList();
+        long envelopeReserve = estimator.estimate(Map.of(
+            "totalClaimCount", allClaimIds.size(), "includedClaimCount", 0,
+            "truncatedClaimCount", allClaimIds.size(), "truncatedClaimIds", allClaimIds,
+            "estimatedTokens", tokenBudget,
+            "truncationPolicy", "FULL_THEN_EVIDENCE_REFERENCED_COMPACT")).tokens();
+        long remaining = Math.max(0, tokenBudget - envelopeReserve);
+        List<Map<String, Object>> entries = new ArrayList<>();
+        List<String> truncated = new ArrayList<>();
+        List<Claim> prioritized = compilation.claims().values().stream()
+            .sorted(java.util.Comparator.comparingLong(this::claimPriority).reversed()
+                .thenComparing(Claim::claimId)).toList();
+        for (Claim claim : prioritized) {
+            Map<String, Object> full = claim.toPromptMap();
+            long fullTokens = estimator.estimate(full).tokens();
+            if (fullTokens <= remaining) {
+                entries.add(full);
+                remaining -= fullTokens;
+                continue;
+            }
+            truncated.add(claim.claimId());
+            Map<String, Object> compact = claim.toCompactPromptMap();
+            long compactTokens = estimator.estimate(compact).tokens();
+            if (compactTokens <= remaining) {
+                entries.add(compact);
+                remaining -= compactTokens;
+            }
+        }
+        return new LedgerProjection(List.copyOf(entries), List.copyOf(truncated),
+            compilation.claims().size(), Math.max(0, tokenBudget - remaining));
+    }
+
+    private long claimPriority(Claim claim) {
+        long score = claim.observedFact() ? 1_000_000L : 0;
+        String claimClass = text(claim.claimClass()).toUpperCase(java.util.Locale.ROOT);
+        if (claimClass.contains("DERIVED") || claimClass.contains("AUTHORIZED")
+            || claimClass.contains("GOVERNED_ANALYSIS")) score += 300_000L;
+        else if (claimClass.contains("INFERENCE")) score += 100_000L;
+        String status = text(claim.governanceStatus()).toUpperCase(java.util.Locale.ROOT);
+        if (status.contains("REVIEW") || status.contains("CONFLICT")) score += 500_000L;
+        if (java.util.stream.Stream.concat(claim.caveats().stream(), claim.reviewReasons().stream())
+            .map(value -> value.toUpperCase(java.util.Locale.ROOT))
+            .anyMatch(value -> value.contains("CONFLICT"))) score += 500_000L;
+        String significance = text(claim.significance()).toUpperCase(java.util.Locale.ROOT);
+        if (Set.of("P0", "CRITICAL", "HIGH").contains(significance)) score += 100_000L;
+        else if (Set.of("P1", "MEDIUM").contains(significance)) score += 50_000L;
+        score += Math.min(10_000, claim.recordRefs().size() * 100L);
+        return score;
+    }
+
+    record LedgerProjection(List<Map<String, Object>> entries, List<String> truncatedClaimIds,
+                            int totalClaimCount, long estimatedTokens) {
+        Map<String, Object> toMap() {
+            return Map.of("claims", entries, "totalClaimCount", totalClaimCount,
+                "includedClaimCount", entries.size(), "truncatedClaimCount", truncatedClaimIds.size(),
+                "truncatedClaimIds", truncatedClaimIds, "estimatedTokens", estimatedTokens,
+                "truncationPolicy", "FULL_THEN_EVIDENCE_REFERENCED_COMPACT");
+        }
     }
 
     Projection publishNarrative(String body, Compilation compilation) {
@@ -921,6 +993,18 @@ final class GovernedFinalClaimContract {
             if (!supportingValues.isEmpty()) result.put("supportingValues", supportingValues);
             if (!basisClaimIds.isEmpty()) result.put("basisClaimIds", basisClaimIds);
             result.putAll(analysis);
+            return Map.copyOf(result);
+        }
+
+        private Map<String, Object> toCompactPromptMap() {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("claimId", claimId);
+            result.put("claim", text);
+            result.put("claimClass", claimClass);
+            if (sourceScope != null && !sourceScope.isBlank()) result.put("sourceScope", sourceScope);
+            if (!recordRefs.isEmpty()) result.put("evidenceRefs", recordRefs);
+            if (!basisClaimIds.isEmpty()) result.put("basisClaimIds", basisClaimIds);
+            result.put("detailProjection", "COMPACT");
             return Map.copyOf(result);
         }
 

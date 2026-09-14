@@ -3174,6 +3174,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> metadata,
         BooleanSupplier cancellationCheck
     ) {
+        metadata.put(com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget.RUNTIME_KEY,
+            com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget
+                .from(contextBudget).toMap());
         AnalysisCoverageCoordinator.CoverageBundle coverage = analysisCoverageCoordinator.analyze(
             new AnalysisCoverageCoordinator.Request(
                 activeChatModel, query, result, runtimeAttributes, metadata, cancellationCheck,

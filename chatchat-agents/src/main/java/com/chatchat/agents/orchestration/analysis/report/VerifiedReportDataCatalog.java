@@ -78,7 +78,6 @@ public final class VerifiedReportDataCatalog {
         Map<String, ReturnedReportDataset> datasets = new LinkedHashMap<>();
         if (metadata.get("runtimeReturnedReportDatasets") instanceof List<?> returned) {
             for (Object raw : returned) {
-                if (datasets.size() >= 12) break;
                 if (raw instanceof ReturnedReportDataset dataset) datasets.putIfAbsent(dataset.reference(), dataset);
             }
         }
@@ -88,20 +87,33 @@ public final class VerifiedReportDataCatalog {
     public Data get(String id) { return entries.get(id); }
     public ReturnedReportDataset dataset(String reference) { return datasets.get(reference); }
     public List<Map<String, Object>> datasetPromptView() {
+        return datasetPromptProjection(32_000).datasets();
+    }
+    public DatasetPromptProjection datasetPromptProjection(int tokenBudget) {
         List<Map<String, Object>> projected = new ArrayList<>();
-        int characters = 0;
+        List<String> omitted = new ArrayList<>();
+        var estimator = new com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator();
+        long tokens = 0;
         for (var dataset : datasets.values().stream().sorted(java.util.Comparator.comparing(ReturnedReportDataset::reference)).toList()) {
             Map<String, Object> view = dataset.promptView();
-            int size = com.chatchat.agents.protocol.ModelProtocolJson.compact(view).length();
-            if (characters + size > 32000) break;
+            long size = estimator.estimate(view).tokens();
+            if (tokens + size > Math.max(0, tokenBudget)) {
+                omitted.add(dataset.reference());
+                continue;
+            }
             projected.add(view);
-            characters += size;
+            tokens += size;
         }
-        return List.copyOf(projected);
+        return new DatasetPromptProjection(List.copyOf(projected), List.copyOf(omitted), tokens);
     }
+    public List<String> datasetReferences() { return datasets.keySet().stream().sorted().toList(); }
     public int datasetCount() { return datasets.size(); }
     public List<Map<String, Object>> promptView() {
         return entries.values().stream().sorted(java.util.Comparator.comparing(Data::id)).map(Data::toMap).toList();
     }
     private static String safe(String text) { return text == null ? "" : text; }
+
+    public record DatasetPromptProjection(List<Map<String, Object>> datasets,
+                                          List<String> omittedDatasetReferences,
+                                          long estimatedTokens) {}
 }

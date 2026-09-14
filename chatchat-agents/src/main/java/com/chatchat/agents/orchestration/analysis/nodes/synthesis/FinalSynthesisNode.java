@@ -18,6 +18,8 @@ import com.chatchat.agents.orchestration.analysis.governance.AnalysisSummaryGove
 import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
 import com.chatchat.agents.orchestration.model.AgentDeadlineExceededException;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget;
 import com.chatchat.agents.runtime.answer.AnswerCandidateCollector;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -177,6 +179,8 @@ public final class FinalSynthesisNode {
         request.metadata().put("analysisDriverInputReportCount", claimSources.size());
         GovernedFinalClaimContract.Compilation claimCompilation =
             finalClaimContract.compile(claimSources);
+        SynthesisContextBudget synthesisBudget = SynthesisContextBudget.fromRuntime(request.metadata());
+        request.metadata().put(SynthesisContextBudget.RUNTIME_KEY, synthesisBudget.toMap());
         boolean synthesisBarrierReady =
             Boolean.TRUE.equals(request.metadata().get("analysisSynthesisBarrierReady"));
         boolean claimBoundPublication = claimCompilation.active() && synthesisBarrierReady;
@@ -192,7 +196,8 @@ public final class FinalSynthesisNode {
                 "NO_ADMITTED_CLAIMS_ADVISORY");
         }
         Map<String, Object> pipelineContext = driverPipelineContext.build(
-            request.summaryResults(), claimSources, request.runtimeAttributes(), request.metadata());
+            request.summaryResults(), claimSources, request.runtimeAttributes(), request.metadata(),
+            synthesisBudget);
         request.metadata().put("analysisDriverPipelineContext", pipelineContext);
         request.metadata().put("analysisDriverPipelineContextSchemaVersion",
             AnalysisSynthesisContext.SCHEMA_VERSION);
@@ -204,7 +209,7 @@ public final class FinalSynthesisNode {
                 + "\n\nBinding report-composition pipeline context (not evidence): "
                 + ModelProtocolJson.compact(pipelineContext);
         String modelPrompt = finalClaimContract.appendNarrativeInstruction(
-            driverPrompt, claimCompilation);
+            driverPrompt, claimCompilation, synthesisBudget);
         VerifiedReportDataCatalog reportData = VerifiedReportDataCatalog.fromRuntime(request.metadata());
         request.metadata().remove("analyticalReport");
         request.metadata().remove("claimAcceptance");
@@ -220,15 +225,31 @@ public final class FinalSynthesisNode {
             request.metadata().put("analysisDriverEvidenceInputMode",
                 "ADMITTED_CLAIM_LEDGER_WITH_EXACT_SUPPORTING_VALUES");
         }
-        List<Map<String, Object>> datasetPromptView = reportData.datasetPromptView();
+        VerifiedReportDataCatalog.DatasetPromptProjection datasetProjection =
+            reportData.datasetPromptProjection(synthesisBudget.datasetTokens());
+        List<Map<String, Object>> datasetPromptView = datasetProjection.datasets();
         modelPrompt += "\nVerified returned datasets for model-authored report tables and analysis "
             + "(bounded source projection, not a required outline): "
             + ModelProtocolJson.compact(Map.of("datasets", datasetPromptView,
-                "omittedDatasetCount", reportData.datasetCount() - datasetPromptView.size()));
+                "omittedDatasetCount", datasetProjection.omittedDatasetReferences().size(),
+                "omittedDatasetReferences", datasetProjection.omittedDatasetReferences()));
         request.metadata().put("analysisDriverReturnedDatasetsIncluded", !datasetPromptView.isEmpty());
         request.metadata().put("analysisDriverReturnedDatasetCount", datasetPromptView.size());
         // Put calibration last so a large evidence contract cannot dilute the publication boundary.
         modelPrompt += finalReportCalibrationRules();
+        ContextTokenEstimator.Size finalPromptSize = new ContextTokenEstimator().estimate(modelPrompt);
+        request.metadata().put("analysisDriverModelPromptEstimatedTokens", finalPromptSize.tokens());
+        request.metadata().put("analysisDriverInputTokenBudget", synthesisBudget.inputTokens());
+        request.metadata().put("analysisDriverReservedOutputTokens", synthesisBudget.reservedOutputTokens());
+        request.metadata().put("analysisDriverNarrativeOmittedDatasetReferences",
+            datasetProjection.omittedDatasetReferences());
+        if (finalPromptSize.tokens() > synthesisBudget.inputTokens()) {
+            request.metadata().put("analysisDriverModelInvoked", false);
+            request.metadata().put("analysisDriverContextBudgetExceeded", true);
+            throw new IllegalStateException("Final synthesis input requires " + finalPromptSize.tokens()
+                + " estimated tokens but the active model runtime allows "
+                + synthesisBudget.inputTokens() + " after output reservation");
+        }
         boolean selfContainedCurrentTableBrief = Boolean.TRUE.equals(
             request.metadata().get("selfContainedCurrentTableBrief"));
         String unifiedReportDraft = claimBoundPublication || selfContainedCurrentTableBrief || retainedUnifiedDraft

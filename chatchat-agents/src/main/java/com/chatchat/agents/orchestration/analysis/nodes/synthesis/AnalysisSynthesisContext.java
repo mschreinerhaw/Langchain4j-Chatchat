@@ -4,6 +4,8 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.protocol.AnalysisArtifactProtocol;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget;
 import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
 import com.chatchat.common.knowledge.KnowledgeContext;
 
@@ -21,6 +23,15 @@ final class AnalysisSynthesisContext {
                               List<AnalysisSummaryResult> reducerReports,
                               Map<String, Object> runtimeAttributes,
                               Map<String, Object> metadata) {
+        return build(workerReports, reducerReports, runtimeAttributes, metadata,
+            SynthesisContextBudget.fromRuntime(metadata));
+    }
+
+    Map<String, Object> build(List<AnalysisSummaryResult> workerReports,
+                              List<AnalysisSummaryResult> reducerReports,
+                              Map<String, Object> runtimeAttributes,
+                              Map<String, Object> metadata,
+                              SynthesisContextBudget budget) {
         List<AnalysisSummaryResult> workers = workerReports == null ? List.of() : workerReports;
         List<AnalysisSummaryResult> reducers = reducerReports == null ? List.of() : reducerReports;
         Map<String, Object> result = new LinkedHashMap<>();
@@ -40,7 +51,15 @@ final class AnalysisSynthesisContext {
         result.put(KnowledgeContext.RUNTIME_ATTRIBUTE,
             value(runtimeAttributes, KnowledgeContext.RUNTIME_ATTRIBUTE, Map.of()));
         result.put("adaptiveAnalysisPrompt", adaptivePrompt(metadata));
-        result.put("modelAnalysisInputs", modelAnalysisInputs(reducers.isEmpty() ? workers : reducers));
+        ModelInputProjection modelInputs = modelAnalysisInputs(
+            reducers.isEmpty() ? workers : reducers, budget.pipelineTokens());
+        result.put("modelAnalysisInputs", modelInputs.toMap());
+        Map<String, Object> completion = map(value(metadata, "datasetCompletionSnapshot", Map.of()));
+        Map<String, Object> coverage = new LinkedHashMap<>(completion);
+        coverage.put("narrativeOmittedDatasetReferences", modelInputs.omittedSourceReferences());
+        coverage.put("narrativeIncludedDatasetReferences", modelInputs.includedSourceReferences());
+        coverage.put("narrativeInputEstimatedTokens", modelInputs.estimatedTokens());
+        result.put("datasetCoverage", Map.copyOf(coverage));
         result.put("completedAnalysisJudgments", value(metadata,
             "unifiedAnalysisJudgments", collectFirst(reducers.isEmpty() ? workers : reducers,
                 "analysisJudgments", Map.of())));
@@ -88,37 +107,95 @@ final class AnalysisSynthesisContext {
         return Map.of();
     }
 
-    private Map<String, Object> modelAnalysisInputs(List<AnalysisSummaryResult> sources) {
-        int remaining = 18_000;
+    private ModelInputProjection modelAnalysisInputs(List<AnalysisSummaryResult> sources,
+                                                      int tokenBudget) {
+        ContextTokenEstimator estimator = new ContextTokenEstimator();
+        long remaining = Math.max(0, tokenBudget);
         List<Map<String, Object>> reports = new ArrayList<>();
-        for (AnalysisSummaryResult source : sources) {
-            if (source == null || remaining == 0 || reports.size() >= 16) continue;
+        List<String> included = new ArrayList<>();
+        List<String> omitted = new ArrayList<>();
+        List<AnalysisSummaryResult> prioritized = sources.stream().filter(java.util.Objects::nonNull)
+            .sorted(java.util.Comparator.comparingLong(this::priorityScore).reversed()
+                .thenComparing(this::sourceReference)).toList();
+        for (int index = 0; index < prioritized.size(); index++) {
+            AnalysisSummaryResult source = prioritized.get(index);
+            String sourceReference = sourceReference(source);
+            if (remaining <= 0) { omitted.add(sourceReference); continue; }
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("reportId", source.resultId());
-            item.put("sourceScope", source.position().getOrDefault("datasetReference", source.scope()));
+            item.put("sourceScope", sourceReference);
             // Carry declared definitions, not raw records or inferred domain semantics.
             Object semantics = source.evidence().get("analysisSemanticContract");
             if (semantics == null) semantics = new com.chatchat.agents.orchestration.analysis.contract.AnalysisSemanticContractCompiler()
                 .compile(source.analysisContext());
             String declared = ModelProtocolJson.compact(semantics);
-            int semanticChars = Math.min(declared.length(), Math.min(4_000, remaining));
+            long fairShare = Math.max(64, remaining / Math.max(1, prioritized.size() - index));
+            int semanticChars = fittedPrefix(declared, Math.max(32, fairShare / 2), estimator);
             item.put("declaredSemantics", declared.substring(0, semanticChars));
             item.put("semanticsTruncated", semanticChars < declared.length());
-            remaining -= semanticChars;
             String narrative = source.content() == null ? "" : source.content();
             boolean eligible = com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy
                 .admitWorkerNarrative(narrative).admitted();
-            int narrativeChars = eligible ? Math.min(narrative.length(), Math.min(4_000, remaining)) : 0;
+            int narrativeChars = eligible ? fittedPrefix(narrative, Math.max(32, fairShare / 2), estimator) : 0;
             item.put("modelNarrative", narrative.substring(0, narrativeChars));
             item.put("narrativeTruncated", eligible && narrativeChars < narrative.length());
             item.put("narrativeEligible", eligible);
-            remaining -= narrativeChars;
-            reports.add(Map.copyOf(item));
+            Map<String, Object> immutable = Map.copyOf(item);
+            long itemTokens = estimator.estimate(immutable).tokens();
+            if (itemTokens > remaining) {
+                omitted.add(sourceReference);
+                continue;
+            }
+            remaining -= itemTokens;
+            reports.add(immutable);
+            included.add(sourceReference);
         }
-        return Map.of("reports", List.copyOf(reports),
-            "omittedReportCount", sources.stream().filter(java.util.Objects::nonNull).count() - reports.size(),
-            "purpose", "Model analysis and producer-declared semantics; verify conclusions against the evidence ledger. "
-                + "Truncated inputs are excerpts, not complete definitions. Missing semantics remain unknown.");
+        List<String> includedReferences = included.stream().distinct().toList();
+        List<String> omittedReferences = omitted.stream().distinct()
+            .filter(reference -> !includedReferences.contains(reference)).toList();
+        return new ModelInputProjection(List.copyOf(reports), includedReferences,
+            omittedReferences, Math.max(0, tokenBudget - remaining));
+    }
+
+    private long priorityScore(AnalysisSummaryResult source) {
+        Map<String, Object> evidence = source.evidence() == null ? Map.of() : source.evidence();
+        long conflicts = iterable(evidence.get("conflicts")).size();
+        long claims = iterable(evidence.get("claimAdmissionDecisions")).size()
+            + iterable(evidence.get("analysisItems")).size()
+            + iterable(evidence.get("observedFactClaims")).size();
+        Object records = source.position().get("recordCount");
+        long recordCount = records instanceof Number number ? Math.max(0, number.longValue()) : 0;
+        return conflicts * 1_000_000L + claims * 10_000L + Math.min(9_999, recordCount);
+    }
+
+    private String sourceReference(AnalysisSummaryResult source) {
+        return String.valueOf(source.position().getOrDefault("datasetReference", source.scope()));
+    }
+
+    private int fittedPrefix(String value, long tokenBudget, ContextTokenEstimator estimator) {
+        if (value == null || value.isEmpty() || tokenBudget <= 0) return 0;
+        if (estimator.estimate(value).tokens() <= tokenBudget) return value.length();
+        int low = 0, high = value.length();
+        while (low < high) {
+            int middle = (low + high + 1) >>> 1;
+            if (estimator.estimate(value.substring(0, middle)).tokens() <= tokenBudget) low = middle;
+            else high = middle - 1;
+        }
+        return low;
+    }
+
+    private record ModelInputProjection(List<Map<String, Object>> reports,
+                                        List<String> includedSourceReferences,
+                                        List<String> omittedSourceReferences,
+                                        long estimatedTokens) {
+        Map<String, Object> toMap() {
+            return Map.of("reports", reports, "omittedReportCount", omittedSourceReferences.size(),
+                "omittedSourceReferences", omittedSourceReferences,
+                "includedSourceReferences", includedSourceReferences,
+                "estimatedTokens", estimatedTokens,
+                "purpose", "Model analysis and producer-declared semantics; verify conclusions against the evidence ledger. "
+                    + "Truncated inputs are excerpts, not complete definitions. Missing semantics remain unknown.");
+        }
     }
 
     // Consolidated reports already carry analytical content. Keep upstream identities for audit

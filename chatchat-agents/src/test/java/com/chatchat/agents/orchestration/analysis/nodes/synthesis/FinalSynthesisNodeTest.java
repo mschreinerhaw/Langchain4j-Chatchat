@@ -32,6 +32,29 @@ import static org.mockito.Mockito.when;
 class FinalSynthesisNodeTest {
 
     @Test
+    void refusesToInvokeDriverWhenInputWouldConsumeReservedOutputCapacity() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(),
+            new AnswerCandidateCollector(), new StructuredFindingMerger());
+        ChatModel model = mock(ChatModel.class);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        var budget = new com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget(
+            2_000, 0, 0, 1_000, 1_000, 250, 300, 200, 150);
+        metadata.put(com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget.RUNTIME_KEY,
+            budget.toMap());
+        var request = new FinalSynthesisNode.FinalModelSynthesisRequest(
+            model, "oversized ".repeat(5_000), "completed", "run-a", 1, 1, 0,
+            true, () -> "", candidate -> candidate, "", 0, 0, true, true, true,
+            0, 0, List.of(), List.of(), Map.of("agentRunId", "run-a"), metadata);
+
+        assertThatThrownBy(() -> coordinator.synthesizeFinal(request))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("after output reservation");
+        org.mockito.Mockito.verifyNoInteractions(model);
+        assertThat(metadata).containsEntry("analysisDriverContextBudgetExceeded", true)
+            .containsEntry("analysisDriverModelInvoked", false);
+    }
+
+    @Test
     void semanticExtractionFailureRetainsAlreadyAuthoredUnifiedReport() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(), new DeterministicInsightEngine(),

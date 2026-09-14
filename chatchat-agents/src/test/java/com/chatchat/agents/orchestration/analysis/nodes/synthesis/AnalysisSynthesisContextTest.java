@@ -53,4 +53,28 @@ class AnalysisSynthesisContextTest {
             .contains("dynamic_analysis_prompt.v1", "ANALYSIS_GUIDANCE_ONLY")
             .doesNotContain("EXECUTIVE_SUMMARY", "KEY_FINDINGS", "sectionTitles");
     }
+
+    @Test void namesCoverageOmissionsAndSchedulesEvidenceRichLateInputsFirst() {
+        var scope = GovernanceIsolationScope.runtime("tenant", "run", "request", "conversation", "user");
+        var ordinary = AnalysisSummaryResult.intermediateSummary(scope, "DATASET_SYNTHESIS", "first",
+            "ordinary ".repeat(500), "SUCCESS", Map.of("datasetReference", "first"), Map.of(),
+            Map.of(), List.of(), Map.of());
+        var important = AnalysisSummaryResult.intermediateSummary(scope, "DATASET_SYNTHESIS", "last",
+            "critical late finding", "SUCCESS", Map.of("datasetReference", "last", "recordCount", 100),
+            Map.of(), Map.of(), List.of(), Map.of("conflicts", List.of(Map.of("id", "conflict")),
+                "analysisItems", List.of(Map.of("finding", "critical"))));
+        var runtimeBudget = new com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget(
+            4_000, 0, 0, 1_000, 3_000, 300, 900, 600, 300);
+        var context = new AnalysisSynthesisContext().build(List.of(ordinary, important), List.of(),
+            Map.of(), Map.of("datasetCompletionSnapshot", Map.of("expectedDatasetCount", 2)), runtimeBudget);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> inputs = (Map<String, Object>) context.get("modelAnalysisInputs");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> reports = (List<Map<String, Object>>) inputs.get("reports");
+        String coverage = ModelProtocolJson.compact(context.get("datasetCoverage"));
+
+        assertThat(reports).isNotEmpty();
+        assertThat(reports.get(0).get("sourceScope")).isEqualTo("last");
+        assertThat(coverage).contains("expectedDatasetCount", "narrativeOmittedDatasetReferences");
+    }
 }

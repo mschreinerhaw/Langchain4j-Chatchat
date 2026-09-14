@@ -721,37 +721,6 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void newsSearchUsesOriginalTodayQueryAndRuntimeOwnedDateRange() throws Exception {
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
-        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "normalizeNewsSearchInput", InterpretationPlan.Step.class,
-            InterpretationPlanRuntime.ExecutionRequest.class, Map.class);
-        method.setAccessible(true);
-        String userQuery = "\u8bf7\u6839\u636e\u4eca\u65e5\u8d22\u7ecf\u8d44\u8baf\u751f\u6210A\u80a1\u6536\u76d8\u590d\u76d8";
-        Map<String, Object> input = new java.util.LinkedHashMap<>();
-        input.put("query", "2025\u5e744\u67088\u65e5 A\u80a1\u6536\u76d8\u590d\u76d8");
-        input.put("time_range", "today");
-        input.put("category", "finance");
-        InterpretationPlan.Step step = new InterpretationPlan.Step(
-            1, "mcp_tool", "mcp_chatchat_mcp_server_news_search", Map.of(), List.of(), null, null);
-        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
-            null, null, List.of(), "tenant", "request", "conversation", "user",
-            Map.of("originalUserQuery", userQuery, "timezone", "Asia/Shanghai"));
-
-        method.invoke(runtime, step, request, input);
-
-        java.time.ZoneId zone = java.time.ZoneId.of("Asia/Shanghai");
-        java.time.LocalDate today = java.time.LocalDate.now(zone);
-        assertThat(input.get("query")).isEqualTo(userQuery);
-        assertThat(java.time.Instant.parse(String.valueOf(input.get("startTime"))))
-            .isEqualTo(today.atStartOfDay(zone).toInstant());
-        assertThat(java.time.Instant.parse(String.valueOf(input.get("endTime"))))
-            .isAfter(today.atStartOfDay(zone).toInstant());
-        assertThat(input).doesNotContainKeys("time_range", "category");
-    }
-
-    @Test
     void executesReadyToolStepsInParallelAndThenFinalAnswer() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

@@ -5,6 +5,7 @@ import com.chatchat.agents.orchestration.analysis.contract.AnalysisContextPresen
 import com.chatchat.agents.orchestration.analysis.contract.SemanticInsightContractProvider;
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator;
 import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoordinator;
+import com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionRegistry;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode;
 import com.chatchat.agents.orchestration.analysis.nodes.merge.MergedFindingValidator;
@@ -93,6 +94,18 @@ public final class AnalysisCoverageCoordinator {
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
         if (datasets.isEmpty()) return CoverageBundle.empty();
 
+        DatasetExecutionRegistry datasetRegistry = new DatasetExecutionRegistry();
+        Map<String, Integer> registryOccurrences = new LinkedHashMap<>();
+        for (AnalysisEvidenceCoordinator.Dataset dataset : datasets) {
+            int occurrence = registryOccurrences.merge(dataset.reference(), 1, Integer::sum);
+            String reference = occurrence == 1
+                ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+            datasetRegistry.expect(reference, request.isolationScope().runId(),
+                integerValue(dataset.analysisContext().get("sourceStepId")),
+                textValue(dataset.analysisContext().get("sourceName")), dataset.handle().contentSha256());
+        }
+        request.metadata().put("datasetExecutionRegistry", datasetRegistry.snapshotMap());
+
         DatasetRelationshipPlan relationshipPlan = evidenceCoordinator.relationshipPlan(
             datasets, request.summaryProtocol());
         DataAnalysisLifecycle lifecycle = DataAnalysisLifecycle
@@ -111,6 +124,8 @@ public final class AnalysisCoverageCoordinator {
                 request.cancellationGuard().run();
                 int occurrence = calculationOccurrences.merge(dataset.reference(), 1, Integer::sum);
                 String reference = occurrence == 1 ? dataset.reference() : dataset.reference() + "#occurrence-" + occurrence;
+                datasetRegistry.analyzing(reference);
+                request.metadata().put("datasetExecutionRegistry", datasetRegistry.snapshotMap());
                 var inputs = new ArrayList<DeterministicInsightEngine.DatasetInput>();
                 var results = new ArrayList<Map<String, Object>>();
                 var decisions = new ArrayList<Map<String, Object>>();
@@ -154,7 +169,8 @@ public final class AnalysisCoverageCoordinator {
         lifecycle = lifecycle.datasetsDispatched(datasets.size());
         CoverageBundle coverage;
         try {
-            coverage = reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared);
+            coverage = reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared,
+                datasetRegistry);
         } catch (RuntimeException failure) {
             observe(request, "数据分析结果质量验收失败，禁止生成报告。",
                 "analysis_graph", metadataOf("type", "unified_question_analysis_failed",
@@ -210,7 +226,8 @@ public final class AnalysisCoverageCoordinator {
         DatasetRelationshipPlan relationshipPlan,
         DataAnalysisLifecycle initialLifecycle,
         Map<String, AnalysisDispatchCoordinator.Outcome> outcomes,
-        Map<String, PreparedCalculation> prepared
+        Map<String, PreparedCalculation> prepared,
+        DatasetExecutionRegistry datasetRegistry
     ) {
         StringBuilder prompt = new StringBuilder(
             "Returned-record evidence (record_grounded_analysis.v1). "
@@ -252,6 +269,8 @@ public final class AnalysisCoverageCoordinator {
             workerReports.add(workerReport);
             observeWorkerSupervision(request, workerReport, datasetIndex, datasets.size());
             if (!workerReport.acceptedForSynthesis()) {
+                datasetRegistry.failed(reference, outcome == null
+                    ? "missing analysis result" : outcome.error());
                 if (workerReport.productStatus()
                     == DataAnalysisWorkerSupervision.ProductStatus.EXECUTION_FAILED) {
                     recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
@@ -263,11 +282,14 @@ public final class AnalysisCoverageCoordinator {
                 continue;
             }
             if (!outcome.success()) {
+                datasetRegistry.failed(reference, outcome.error());
                 recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
                     datasets.size(), Math.toIntExact(dataset.recordCount()), outcome);
                 continue;
             }
             AnalysisDatasetSummary summary = outcome.summary();
+            datasetRegistry.analyzed(reference, List.of(summary.datasetSummary().content()),
+                evidenceIds(summary), truncatedDataset(request.metadata(), reference));
             counters.analyzed++;
             request.isolationScope().requireSamePartition(summary.datasetSummary().isolationScope());
             if (reportDatasets.size() < 12) {
@@ -320,6 +342,16 @@ public final class AnalysisCoverageCoordinator {
                     "datasetSummaryResultId", summary.datasetSummary().resultId(),
                     "summaryResultIds", summary.inputSummaryResultIds()));
             appendix.append("\n");
+        }
+
+        request.metadata().put("datasetExecutionRegistry", datasetRegistry.snapshotMap());
+        request.metadata().put("datasets", datasetRegistry.snapshot().stream()
+            .map(com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState::toMap)
+            .toList());
+        request.metadata().put("missingDatasets", datasetRegistry.missingDatasetIds());
+        if (!datasetRegistry.synthesisReady()) {
+            throw new IllegalStateException("Dataset synthesis barrier is not ready; missing="
+                + datasetRegistry.missingDatasetIds());
         }
 
         DataAnalysisWorkerSupervision.DriverReport supervision =
@@ -743,6 +775,37 @@ public final class AnalysisCoverageCoordinator {
         public Configuration(int maximumRetries, long heartbeatIntervalMs, long heartbeatTimeoutMs) {
             this(maximumRetries, heartbeatIntervalMs, heartbeatTimeoutMs, true, 2, false);
         }
+    }
+
+    private List<String> evidenceIds(AnalysisDatasetSummary summary) {
+        List<String> values = new ArrayList<>();
+        Object datasetEvidenceId = summary.datasetSummary().evidence().get("evidenceId");
+        if (datasetEvidenceId != null && !String.valueOf(datasetEvidenceId).isBlank()) {
+            values.add(String.valueOf(datasetEvidenceId));
+        }
+        summary.chunks().stream()
+            .map(chunk -> chunk.summary().evidence().get("evidenceId"))
+            .filter(java.util.Objects::nonNull)
+            .map(String::valueOf).filter(value -> !value.isBlank())
+            .filter(value -> !values.contains(value)).forEach(values::add);
+        return List.copyOf(values);
+    }
+
+    private boolean truncatedDataset(Map<String, Object> metadata, String reference) {
+        Object raw = metadata == null ? null : metadata.get("adaptiveAnalysisPromptTruncatedDatasets");
+        return raw instanceof List<?> values && values.stream()
+            .map(String::valueOf).anyMatch(reference::equals);
+    }
+
+    private Integer integerValue(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        if (value == null) return null;
+        try { return Integer.valueOf(String.valueOf(value)); }
+        catch (NumberFormatException ignored) { return null; }
+    }
+
+    private String textValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 
     public record Request(ChatModel model, String query,

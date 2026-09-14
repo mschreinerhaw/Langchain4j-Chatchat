@@ -58,7 +58,7 @@ public class AgentTaskEventStreamService {
             while (System.currentTimeMillis() <= deadline) {
                 List<AgentEvent> events = taskService.listEventsAfter(tenantId, taskId, cursor, limit);
                 for (AgentEvent event : events) {
-                    send(emitter, "event", event);
+                    sendEvent(emitter, event);
                     if (event.getSequence() != null) cursor = Math.max(cursor, event.getSequence());
                 }
                 AgentTaskResponse current = taskService.get(tenantId, taskId).orElseThrow();
@@ -134,6 +134,12 @@ public class AgentTaskEventStreamService {
 
     private void send(SseEmitter emitter, String name, Object data) throws IOException {
         emitter.send(SseEmitter.event().name(name).data(data));
+    }
+
+    private void sendEvent(SseEmitter emitter, AgentEvent event) throws IOException {
+        SseEmitter.SseEventBuilder builder = SseEmitter.event().name("event").data(event);
+        if (event.getSequence() != null) builder.id(String.valueOf(event.getSequence()));
+        emitter.send(builder);
     }
 
     private static final class StreamThreadFactory implements ThreadFactory {

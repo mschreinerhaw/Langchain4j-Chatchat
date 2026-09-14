@@ -226,7 +226,7 @@ class RocksDbAgentRunStoreTest {
             .build();
 
         store.start(request);
-        long afterStart = store.events("rocks-events-1").get(0).createdAt();
+        long afterStart = store.events("rocks-events-1").get(0).sequence();
         Thread.sleep(2);
         store.complete("rocks-events-1", AgentRunResult.builder()
             .runId("rocks-events-1")

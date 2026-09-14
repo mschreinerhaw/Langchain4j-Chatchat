@@ -511,8 +511,8 @@ export function fetchGenericAgentRuns(filters = {}) {
 
 export function fetchGenericAgentRunTimeline(runId, filters = {}) {
   const params = new URLSearchParams();
-  if (filters.afterCreatedAt) {
-    params.set("afterCreatedAt", String(filters.afterCreatedAt));
+  if (filters.afterSequence) {
+    params.set("afterSequence", String(filters.afterSequence));
   }
   if (filters.eventLimit) {
     params.set("eventLimit", String(filters.eventLimit));
@@ -552,8 +552,8 @@ export function cancelGenericAgentRun(runId) {
 
 export function streamGenericAgentRunEvents(runId, filters = {}, handlers = {}) {
   const params = new URLSearchParams();
-  if (filters.afterCreatedAt) {
-    params.set("afterCreatedAt", String(filters.afterCreatedAt));
+  if (filters.afterSequence) {
+    params.set("afterSequence", String(filters.afterSequence));
   }
   if (filters.limit) {
     params.set("limit", String(filters.limit));
@@ -1710,6 +1710,7 @@ async function fetchEventStream(path, payload, handlers) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
+  const eventState = { ids: new Set(), lastSequence: 0 };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -1719,11 +1720,11 @@ async function fetchEventStream(path, payload, handlers) {
     buffer += decoder.decode(value, { stream: true });
     const parts = buffer.split(/\r?\n\r?\n/);
     buffer = parts.pop() || "";
-    parts.forEach((part) => dispatchSseEvent(part, handlers));
+    parts.forEach((part) => dispatchSseEvent(part, handlers, eventState));
   }
 
   if (buffer.trim()) {
-    dispatchSseEvent(buffer, handlers);
+    dispatchSseEvent(buffer, handlers, eventState);
   }
 
   return {
@@ -1762,6 +1763,7 @@ async function fetchEventStreamGet(path, handlers = {}) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
+  const eventState = { ids: new Set(), lastSequence: 0 };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -1771,11 +1773,11 @@ async function fetchEventStreamGet(path, handlers = {}) {
     buffer += decoder.decode(value, { stream: true });
     const parts = buffer.split(/\r?\n\r?\n/);
     buffer = parts.pop() || "";
-    parts.forEach((part) => dispatchSseEvent(part, handlers));
+    parts.forEach((part) => dispatchSseEvent(part, handlers, eventState));
   }
 
   if (buffer.trim()) {
-    dispatchSseEvent(buffer, handlers);
+    dispatchSseEvent(buffer, handlers, eventState);
   }
 
   return {
@@ -1859,9 +1861,10 @@ function unwrapApiPayload(payload, path = "") {
   return payload;
 }
 
-function dispatchSseEvent(chunk, handlers) {
+function dispatchSseEvent(chunk, handlers, state = { ids: new Set(), lastSequence: 0 }) {
   const lines = chunk.split(/\r?\n/);
   const event = lines.find((line) => line.startsWith("event:"))?.slice(6).trim() || "message";
+  const eventId = lines.find((line) => line.startsWith("id:"))?.slice(3).trim() || "";
   const data = lines
     .filter((line) => line.startsWith("data:"))
     .map((line) => line.slice(5).trim())
@@ -1874,6 +1877,26 @@ function dispatchSseEvent(chunk, handlers) {
     payload = data;
   }
 
-  handlers[event]?.(payload);
-  handlers.message?.({ event, data: payload });
+  const sequence = Number(payload?.sequence ?? payload?.cursor ?? eventId ?? 0);
+  if (eventId && state.ids.has(eventId)) return;
+  if (event === "event" && Number.isFinite(sequence) && sequence > 0
+    && sequence <= state.lastSequence) return;
+  if (eventId) state.ids.add(eventId);
+  if (Number.isFinite(sequence) && sequence > 0) {
+    state.lastSequence = Math.max(state.lastSequence, sequence);
+  }
+  const invoke = (handler, value) => {
+    if (typeof handler !== "function") return;
+    try {
+      handler(value);
+    } catch (error) {
+      try {
+        handlers.handlerError?.({ event, eventId, error });
+      } catch (ignored) {
+        // Event handler diagnostics must not terminate transport processing.
+      }
+    }
+  };
+  invoke(handlers[event], payload);
+  invoke(handlers.message, { event, eventId, data: payload });
 }

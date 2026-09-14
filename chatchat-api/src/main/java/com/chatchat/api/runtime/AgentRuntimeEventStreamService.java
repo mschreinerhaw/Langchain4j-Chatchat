@@ -11,7 +11,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -27,7 +29,7 @@ public class AgentRuntimeEventStreamService {
     private final ExecutorService executor = Executors.newCachedThreadPool(new StreamThreadFactory());
 
     public SseEmitter streamEvents(String runId,
-                                   long afterCreatedAt,
+                                   long afterSequence,
                                    int limit,
                                    long pollIntervalMs,
                                    long timeoutMs) {
@@ -36,7 +38,7 @@ public class AgentRuntimeEventStreamService {
         executor.execute(() -> streamLoop(
             emitter,
             runId,
-            Math.max(0L, afterCreatedAt),
+            Math.max(0L, afterSequence),
             normalizeLimit(limit),
             normalizePollInterval(pollIntervalMs),
             safeTimeoutMs
@@ -57,6 +59,7 @@ public class AgentRuntimeEventStreamService {
                             long timeoutMs) {
         boolean hasDeadline = timeoutMs > 0;
         long deadlineAt = hasDeadline ? System.currentTimeMillis() + timeoutMs : Long.MAX_VALUE;
+        Set<String> sentEventIds = new LinkedHashSet<>();
         try {
             AgentRun initial = agentRuntime.find(runId).orElse(null);
             if (initial == null) {
@@ -71,10 +74,11 @@ public class AgentRuntimeEventStreamService {
                 "timestamp", System.currentTimeMillis()
             ));
             while (!hasDeadline || System.currentTimeMillis() <= deadlineAt) {
-                List<AgentRunEvent> events = agentRuntime.events(runId, cursor, limit);
+                List<AgentRunEvent> events = unseenEvents(runId, cursor, limit, sentEventIds);
                 for (AgentRunEvent event : events) {
-                    send(emitter, "event", event);
-                    cursor = Math.max(cursor, event.createdAt());
+                    sendEvent(emitter, event);
+                    sentEventIds.add(event.eventId());
+                    cursor = Math.max(cursor, event.sequence());
                 }
                 AgentRun current = agentRuntime.find(runId).orElse(null);
                 if (current == null) {
@@ -83,6 +87,14 @@ public class AgentRuntimeEventStreamService {
                     return;
                 }
                 if (isTerminal(current.status())) {
+                    // State and event persistence are independent observations. Re-read after the
+                    // terminal state is visible so the final event batch cannot be skipped.
+                    List<AgentRunEvent> finalEvents = unseenEvents(runId, cursor, limit, sentEventIds);
+                    for (AgentRunEvent event : finalEvents) {
+                        sendEvent(emitter, event);
+                        sentEventIds.add(event.eventId());
+                        cursor = Math.max(cursor, event.sequence());
+                    }
                     send(emitter, "done", Map.of(
                         "runId", runId,
                         "status", current.status().name(),
@@ -109,6 +121,15 @@ public class AgentRuntimeEventStreamService {
         } catch (Exception ex) {
             sendError(emitter, ex);
         }
+    }
+
+    private List<AgentRunEvent> unseenEvents(String runId,
+                                             long cursor,
+                                             int limit,
+                                             Set<String> sentEventIds) {
+        return agentRuntime.events(runId, cursor, limit).stream()
+            .filter(event -> !sentEventIds.contains(event.eventId()))
+            .toList();
     }
 
     private boolean isTerminal(AgentRunStatus status) {
@@ -142,6 +163,13 @@ public class AgentRuntimeEventStreamService {
 
     private void send(SseEmitter emitter, String name, Object data) throws IOException {
         emitter.send(SseEmitter.event().name(name).data(data));
+    }
+
+    private void sendEvent(SseEmitter emitter, AgentRunEvent event) throws IOException {
+        emitter.send(SseEmitter.event()
+            .id(String.valueOf(event.sequence()))
+            .name("event")
+            .data(event));
     }
 
     private void sendError(SseEmitter emitter, Exception ex) {

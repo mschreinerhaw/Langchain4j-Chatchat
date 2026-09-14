@@ -25,6 +25,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RuntimeOsArchitectureBoundaryTest {
 
     @Test
+    void runtimeOsDoesNotHardCodeBusinessToolIdentities() {
+        assertThat(allJava("chatchat-agents/src/main/java/com/chatchat/agents/runtime"))
+            .doesNotContain("customer_service_template_query", "finance_site_search",
+                "normalizeNewsSearchInput", "isNewsSearchTool", "news_search");
+        assertThat(source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java"))
+            .contains("publishedBatchExecutionMode", "batchExecutionMode")
+            .doesNotContain("contains(\"customer_service_template_query\")");
+    }
+
+    @Test
     void commonCoreIsFrameworkNeutralAndSpringAdaptersHaveExplicitOwnership() {
         assertThat(source("chatchat-common/pom.xml"))
             .doesNotContain("spring-boot", "hibernate-validator", "jakarta.validation",

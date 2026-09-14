@@ -282,13 +282,23 @@ public class AgentTaskController {
     @Operation(summary = "Stream ordered Agent task events")
     public SseEmitter streamEvents(@RequestParam("tenantId") String tenantId,
                                    @PathVariable("taskId") String taskId,
-                                   @RequestParam(value = "afterSequence", defaultValue = "0") long afterSequence,
+                                   @RequestParam(value = "afterSequence", required = false) Long afterSequence,
                                    @RequestParam(value = "limit", defaultValue = "100") int limit,
                                    @RequestParam(value = "pollIntervalMs", defaultValue = "250") long pollIntervalMs,
                                    @RequestParam(value = "timeoutMs", defaultValue = "1800000") long timeoutMs,
                                    HttpServletRequest servletRequest) {
         return taskEventStreamService.stream(scopedTenantId(servletRequest, tenantId), taskId,
-            afterSequence, limit, pollIntervalMs, timeoutMs);
+            eventCursor(afterSequence, servletRequest.getHeader("Last-Event-ID")),
+            limit, pollIntervalMs, timeoutMs);
+    }
+
+    private long eventCursor(Long afterSequence, String lastEventId) {
+        if (afterSequence != null) return Math.max(0L, afterSequence);
+        if (lastEventId != null && !lastEventId.isBlank()) {
+            try { return Math.max(0L, Long.parseLong(lastEventId.trim())); }
+            catch (NumberFormatException ignored) { }
+        }
+        return 0L;
     }
 
     @GetMapping("/{taskId}/plan")

@@ -80,9 +80,6 @@ import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -126,12 +123,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
     );
     private static final Pattern BINDING_PLACEHOLDER_PATTERN = Pattern.compile(
         "\\{\\{\\s*bindings\\.([A-Za-z0-9_.\\-\\[\\]]+)\\s*}}"
-    );
-    private static final Pattern RELATIVE_TODAY_PATTERN = Pattern.compile(
-        "(?iu)(?:\\btoday\\b|\u4eca\u5929|\u4eca\u65e5|\u672c\u65e5)"
-    );
-    private static final Pattern EXPLICIT_CALENDAR_DATE_PATTERN = Pattern.compile(
-        "(?iu)(?:\\b\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}\\b|\\d{4}\u5e74\\d{1,2}\u6708\\d{1,2}\u65e5)"
     );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
@@ -4300,7 +4291,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         public void establishRuntimeTemplateBinding(InterpretationPlan.Step s, Map<Integer, StepExecution> c, Map<String, Object> i) { InterpretationPlanRuntime.this.establishRuntimeTemplateBinding(s, c, i); }
         public void normalizeModelInvocationEnvelope(InterpretationPlan.Step s, Map<String, Object> i) { InterpretationPlanRuntime.this.normalizeModelInvocationEnvelope(s, i); }
         public void normalizeWebSearchInput(InterpretationPlan.Step s, ExecutionRequest r, Map<String, Object> i) { InterpretationPlanRuntime.this.normalizeWebSearchInput(s, r, i); }
-        public void normalizeNewsSearchInput(InterpretationPlan.Step s, ExecutionRequest r, Map<String, Object> i) { InterpretationPlanRuntime.this.normalizeNewsSearchInput(s, r, i); }
         public void applyPublishedInputAdapterContract(InterpretationPlan.Step s, ExecutionRequest r, Map<Integer, StepExecution> c, Map<String, Object> i) { InterpretationPlanRuntime.this.applyPublishedInputAdapterContract(s, r, c, i); }
         public Map<String, Object> applyStepInputEnricher(InterpretationPlan.Step s, ExecutionRequest r, Map<Integer, StepExecution> c, Map<String, Object> i) { return InterpretationPlanRuntime.this.applyStepInputEnricher(s, r, c, i); }
         public void normalizeDiscoveryRoutingInput(InterpretationPlan.Step s, ExecutionRequest r, Map<Integer, StepExecution> c, Map<String, Object> i) { InterpretationPlanRuntime.this.normalizeDiscoveryRoutingInput(s, r, c, i); }
@@ -4722,50 +4712,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         input.remove("queries");
         input.remove("max_results");
         input.remove("maxResults");
-    }
-
-    private void normalizeNewsSearchInput(InterpretationPlan.Step step,
-                                          ExecutionRequest request,
-                                          Map<String, Object> input) {
-        if (step == null || input == null || !isNewsSearchTool(step.toolName())) {
-            return;
-        }
-        String originalQuery = originalUserQuery(request);
-        if (originalQuery == null || originalQuery.isBlank()) {
-            return;
-        }
-        // The user's wording is authoritative. This removes stale dates invented by the planner.
-        input.put("query", originalQuery);
-        if (!RELATIVE_TODAY_PATTERN.matcher(originalQuery).find()
-            || EXPLICIT_CALENDAR_DATE_PATTERN.matcher(originalQuery).find()) {
-            return;
-        }
-        ZoneId zone = runtimeZoneId(request);
-        ZonedDateTime now = ZonedDateTime.now(zone);
-        LocalDate today = now.toLocalDate();
-        input.put("startTime", today.atStartOfDay(zone).toInstant().toString());
-        input.put("endTime", now.toInstant().toString());
-        input.remove("time_range");
-        input.remove("timeRange");
-        input.remove("category");
-        input.remove("max_results");
-        input.remove("maxResults");
-        log.info("InterpretationPlan resolved relative news date from Runtime stepId={} tool={} date={} timezone={}",
-            step.id(), step.toolName(), today, zone.getId());
-    }
-
-    private ZoneId runtimeZoneId(ExecutionRequest request) {
-        Map<String, Object> attributes = request == null ? null : request.attributes();
-        Object configured = attributes == null ? null : firstNonBlankObject(
-            attributes.get("timezone"), attributes.get("timeZone"), attributes.get("zoneId"));
-        if (configured != null) {
-            try {
-                return ZoneId.of(String.valueOf(configured).trim());
-            } catch (Exception ignored) {
-                // Request/model values cannot replace the server Runtime timezone when invalid.
-            }
-        }
-        return ZoneId.systemDefault();
     }
 
     @SuppressWarnings("unchecked")
@@ -5791,12 +5737,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Map<String, Object> batch = new LinkedHashMap<>();
         batch.put("batchId", "reviewed-template-step-" + step.id());
-        // This discovery contract contains independent customer data queries. Runtime owns this
-        // mode; a model-provided executionMode is deliberately ignored. Other diagnostic and
-        // mutation-capable batches remain sequential.
-        boolean parallelReadOnly = reviewedSelection != null
-            && normalize(reviewedSelection.toolName()).contains("customer_service_template_query");
-        batch.put("executionMode", parallelReadOnly ? "PARALLEL_READ_ONLY" : "SEQUENTIAL");
+        // Concurrency is publisher-governed capability metadata. Runtime never infers transport
+        // safety from a business tool name or from a model-provided executionMode.
+        batch.put("executionMode", publishedBatchExecutionMode(
+            reviewedSelection == null ? null : reviewedSelection.toolName(), toolRegistry));
         batch.put("stopOnFailure", false);
         batch.put("calls", calls);
         log.info("InterpretationPlan compiled reviewed template batch with terminal preflight coverage: "
@@ -5953,6 +5897,24 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         ToolMetadata metadata = toolName == null || toolRegistry == null
             ? null : toolRegistry.getToolMetadata(toolName);
         return ToolCallBatchSchema.supports(toolName, metadata);
+    }
+
+    private String publishedBatchExecutionMode(
+        String toolName,
+        com.chatchat.agents.tool.ToolRegistry toolRegistry
+    ) {
+        ToolMetadata metadata = toolName == null || toolRegistry == null
+            ? null : toolRegistry.getToolMetadata(toolName);
+        if (metadata == null || !"read".equalsIgnoreCase(metadata.getOperationType())) {
+            return "SEQUENTIAL";
+        }
+        Object declared = metadata.getMetadata() == null
+            ? null : metadata.getMetadata().get("batchExecutionMode");
+        if (declared == null && metadata.getInputPolicy() != null) {
+            declared = metadata.getInputPolicy().get("batchExecutionMode");
+        }
+        return "PARALLEL_READ_ONLY".equalsIgnoreCase(String.valueOf(declared))
+            ? "PARALLEL_READ_ONLY" : "SEQUENTIAL";
     }
 
     private List<String> reviewedSelectedTemplateIds(Map<Integer, StepExecution> completed) {
@@ -8492,8 +8454,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             || semantic.contains("web_page_analyze")
             || semantic.equals("site_intelligence_resolver")
             || semantic.contains("site_intelligence")
-            || semantic.equals("finance_site_search")
-            || semantic.contains("finance_site_search")
             || semantic.equals("generic_web_site_search")
             || semantic.contains("generic_web_site_search")
             || semantic.equals("web_site_search")
@@ -8531,11 +8491,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         String semantic = toolSemanticKey(toolName);
         return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute")
             || "sql_script_execute".equals(semantic) || semantic.endsWith("_sql_script_execute");
-    }
-
-    private boolean isNewsSearchTool(String toolName) {
-        String semantic = toolSemanticKey(toolName);
-        return semantic.equals("news_search") || semantic.endsWith("_news_search");
     }
 
     private boolean isLinuxCommandExecuteTool(String toolName) {

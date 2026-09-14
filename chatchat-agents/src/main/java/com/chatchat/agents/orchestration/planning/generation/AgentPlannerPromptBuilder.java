@@ -803,7 +803,6 @@ public final class AgentPlannerPromptBuilder {
         return isWebSearchTool(toolName)
             || semantic.equals("web_page_analyze") || semantic.contains("web_page_analyze")
             || semantic.equals("site_intelligence_resolver") || semantic.contains("site_intelligence")
-            || semantic.equals("finance_site_search") || semantic.contains("finance_site_search")
             || semantic.equals("generic_web_site_search") || semantic.contains("generic_web_site_search")
             || semantic.equals("web_site_search")
             || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));

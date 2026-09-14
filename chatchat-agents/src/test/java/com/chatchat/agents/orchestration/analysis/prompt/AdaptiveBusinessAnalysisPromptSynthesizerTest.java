@@ -94,6 +94,36 @@ public class AdaptiveBusinessAnalysisPromptSynthesizerTest {
         assertThat(metadata).containsEntry("adaptiveAnalysisPromptFallbackReason", "IllegalArgumentException");
     }
 
+    @Test void boundsPlanningMetadataWithoutDroppingLaterDatasetIdentities() {
+        var seen = new AtomicReference<String>();
+        ChatModel model = new ChatModel() {
+            @Override public String chat(String prompt) {
+                seen.set(prompt);
+                return response();
+            }
+        };
+        String oversizedDescription = "dataset-semantic-metadata-".repeat(1_200);
+        var datasets = List.of(
+            new Dataset("trades", Map.of("source", Map.of(
+                "displayName", "Trades", "description", oversizedDescription)), List.of(Map.of("value", 1))),
+            new Dataset("customers", Map.of("source", Map.of(
+                "displayName", "Customers", "description", oversizedDescription)), List.of(Map.of("value", 2))),
+            new Dataset("regions", Map.of("source", Map.of(
+                "displayName", "Regions", "description", oversizedDescription)), List.of(Map.of("value", 3)))
+        );
+        var metadata = new LinkedHashMap<String, Object>();
+
+        new AdaptiveBusinessAnalysisPromptSynthesizer().synthesize(
+            "compare every dataset", datasets, model, scope,
+            AnalysisEvidenceSpillStore.disabled(), metadata, () -> { });
+
+        assertThat(seen.get()).contains("\"datasetReference\":\"trades\"",
+            "\"datasetReference\":\"customers\"", "\"datasetReference\":\"regions\"");
+        assertThat(metadata).containsEntry("adaptiveAnalysisPromptInputTruncated", true);
+        assertThat(metadata.get("adaptiveAnalysisPromptTruncatedDatasets"))
+            .isEqualTo(List.of("trades", "customers", "regions"));
+    }
+
     @Test void reusesPromptContractByQuestionContextAndModelFingerprint() {
         Map<String, String> cache = new HashMap<>();
         var store = mock(AnalysisEvidenceSpillStore.class);

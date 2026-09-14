@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import ChatAssistantView, {
   collapseDuplicateAssistantResults,
+  finalizeExecutionUi,
   mergeExecutionSteps
 } from "./ChatAssistantView";
 
@@ -175,7 +176,7 @@ describe("restored assistant result deduplication", () => {
     }));
   });
 
-  it("does not close an unfinished child when only the parent task completes", () => {
+  it("closes every unfinished child when the authoritative task state completes", () => {
     const running = mergeExecutionSteps([], [{
       eventId: "tool-call-running", sequence: 30, type: "TOOL_CALL", status: "RUNNING",
       payload: JSON.stringify({ toolName: "template_execute" })
@@ -186,7 +187,31 @@ describe("restored assistant result deduplication", () => {
     }]);
 
     expect(terminal.find((step) => step.id === "event:tool-call-running"))
-      .toEqual(expect.objectContaining({ status: "active", blocksParent: true }));
+      .toEqual(expect.objectContaining({ status: "done", blocksParent: true }));
+  });
+
+  it("ignores replayed sequences and never appends stale running state", () => {
+    const completed = mergeExecutionSteps([], [{
+      eventId: "tool-call", sequence: 90, type: "TOOL_CALL", status: "SUCCESS",
+      payload: JSON.stringify({ toolName: "template_execute" })
+    }]);
+    const replayed = mergeExecutionSteps(completed, [{
+      eventId: "older-running", sequence: 89, type: "TOOL_CALL", status: "RUNNING",
+      payload: JSON.stringify({ toolName: "template_execute" })
+    }]);
+    expect(replayed).toEqual(completed);
+  });
+
+  it("finalizes message state and recursively closes open timeline rows", () => {
+    const finalized = finalizeExecutionUi({
+      role: "assistant", streaming: true, status: "running",
+      steps: [{ status: "active", children: [{ status: "pending" }] }]
+    }, "failed");
+    expect(finalized).toEqual(expect.objectContaining({
+      streaming: false, status: "failed", executionTerminal: true
+    }));
+    expect(finalized.steps[0].status).toBe("error");
+    expect(finalized.steps[0].children[0].status).toBe("error");
   });
 
   it("closes a tool call when its result references the call event", () => {

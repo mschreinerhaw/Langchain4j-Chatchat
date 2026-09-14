@@ -303,6 +303,13 @@ export default {
     },
     isExecutionRunning(message = {}) {
       const status = String(message.status || "").toLowerCase();
+      const terminalStatus = [
+        "completed", "success", "partial", "empty", "failed", "cancelled",
+        "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+      ].includes(status);
+      if (message.executionTerminal || terminalStatus) {
+        return false;
+      }
       const runningStatus = ["running", "streaming", "processing", "executing", "finalizing"].includes(status);
       const unfinishedChildren = this.hasUnfinishedExecutionSteps(message);
       return message.role === "assistant"
@@ -311,6 +318,13 @@ export default {
         && !["failed", "cancelled", "empty", "partial", "waiting"].includes(status);
     },
     hasUnfinishedExecutionSteps(message = {}) {
+      const parentStatus = String(message.status || "").toLowerCase();
+      if (message.executionTerminal || [
+        "completed", "success", "partial", "empty", "failed", "cancelled",
+        "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+      ].includes(parentStatus)) {
+        return false;
+      }
       const unfinished = new Set([
         "pending", "active", "running", "repairing", "streaming",
         "processing", "executing", "finalizing", "wait", "waiting"
@@ -541,8 +555,7 @@ export default {
       return Math.max(5, Math.min(98, Math.round(progress * 100)));
     },
     runtimeStatusLabel(message = {}) {
-      const parentTerminalOverride = ["failed", "cancelled", "partial", "waiting"].includes(message.status);
-      if (!parentTerminalOverride && this.hasUnfinishedExecutionSteps(message)) {
+      if (this.isExecutionRunning(message)) {
         return "Run";
       }
       if (this.isResultFinalizing(message)) {

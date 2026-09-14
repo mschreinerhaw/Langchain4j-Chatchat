@@ -37,7 +37,10 @@ public final class EvidenceCompletionLoop {
             Assessment next = assessor.assess(request.query(), List.copyOf(evidence));
             rounds.add(new Round(round, List.copyOf(missing), List.copyOf(added), next));
             if (added.isEmpty()) {
-                assessment = new Assessment(false, next.score(), next.missingSourceIds(),
+                List<String> unresolved = next.missingSourceIds().isEmpty()
+                    ? unresolvedSourceIds(request.sources(), evidence)
+                    : next.missingSourceIds();
+                assessment = new Assessment(false, next.score(), unresolved,
                     merge(next.gaps(), List.of("retrieval_returned_no_new_evidence")));
                 break;
             }
@@ -46,6 +49,14 @@ public final class EvidenceCompletionLoop {
         String stopReason = assessment.sufficient() ? "evidence_sufficient"
             : rounds.size() >= maxRounds ? "max_rounds_reached" : "no_new_evidence";
         return new Result(List.copyOf(evidence), assessment, List.copyOf(rounds), stopReason);
+    }
+
+    private List<String> unresolvedSourceIds(List<SourceContract> sources, List<EvidenceItem> evidence) {
+        Set<String> resolved = new LinkedHashSet<>();
+        safe(evidence).stream().map(EvidenceItem::sourceId)
+            .filter(value -> value != null && !value.isBlank()).forEach(resolved::add);
+        return safe(sources).stream().map(SourceContract::id)
+            .filter(id -> !resolved.contains(id)).toList();
     }
 
     private List<EvidenceItem> deduplicate(List<EvidenceItem> candidates, List<EvidenceItem> existing) {

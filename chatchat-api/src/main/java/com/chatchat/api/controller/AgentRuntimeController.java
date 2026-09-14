@@ -138,6 +138,7 @@ public class AgentRuntimeController {
     @GetMapping("/runs/{runId}/events")
     @Operation(summary = "Read Agent runtime events incrementally")
     public ApiResponse<List<AgentRunEvent>> events(@PathVariable("runId") String runId,
+                                                   @RequestParam(value = "afterSequence", required = false) Long afterSequence,
                                                    @RequestParam(value = "afterCreatedAt", required = false) Long afterCreatedAt,
                                                    @RequestParam(value = "limit", required = false) Integer limit,
                                                    HttpServletRequest request) {
@@ -148,7 +149,8 @@ public class AgentRuntimeController {
                     return ApiResponse.notFound("Agent run not found: " + runId);
                 }
             }
-            return ApiResponse.success(agentRuntime.events(runId, valueOrDefault(afterCreatedAt, 0L), valueOrDefault(limit, 100)));
+            return ApiResponse.success(agentRuntime.events(runId,
+                runtimeCursor(afterSequence, afterCreatedAt, null), valueOrDefault(limit, 100)));
         } catch (AccessDeniedException ex) {
             return ApiResponse.error(403, ex.getMessage());
         } catch (RuntimeException ex) {
@@ -159,6 +161,7 @@ public class AgentRuntimeController {
     @GetMapping(value = "/runs/{runId}/events/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "Stream Agent runtime events")
     public SseEmitter streamEvents(@PathVariable("runId") String runId,
+                                    @RequestParam(value = "afterSequence", required = false) Long afterSequence,
                                     @RequestParam(value = "afterCreatedAt", required = false) Long afterCreatedAt,
                                     @RequestParam(value = "limit", required = false) Integer limit,
                                     @RequestParam(value = "pollIntervalMs", required = false) Long pollIntervalMs,
@@ -176,7 +179,7 @@ public class AgentRuntimeController {
         }
         return eventStreamService.streamEvents(
             runId,
-            valueOrDefault(afterCreatedAt, 0L),
+            runtimeCursor(afterSequence, afterCreatedAt, request.getHeader("Last-Event-ID")),
             valueOrDefault(limit, 100),
             valueOrDefault(pollIntervalMs, 1_000L),
             valueOrDefault(timeoutMs, 0L)
@@ -257,6 +260,7 @@ public class AgentRuntimeController {
     @GetMapping("/runs/{runId}/timeline")
     @Operation(summary = "Read one Agent runtime timeline")
     public ApiResponse<AgentRunTimeline> timeline(@PathVariable("runId") String runId,
+                                                  @RequestParam(value = "afterSequence", required = false) Long afterSequence,
                                                   @RequestParam(value = "afterCreatedAt", required = false) Long afterCreatedAt,
                                                   @RequestParam(value = "eventLimit", required = false) Integer eventLimit,
                                                    @RequestParam(value = "afterStep", required = false) Integer afterStep,
@@ -268,7 +272,7 @@ public class AgentRuntimeController {
             return findAuthorized(runId, request)
                 .map(run -> ApiResponse.success(new AgentRunTimeline(
                     run,
-                    agentRuntime.events(runId, valueOrDefault(afterCreatedAt, 0L), valueOrDefault(eventLimit, 100)),
+                    agentRuntime.events(runId, runtimeCursor(afterSequence, afterCreatedAt, null), valueOrDefault(eventLimit, 100)),
                     agentRuntime.steps(runId, valueOrDefault(afterStep, 0), valueOrDefault(stepLimit, 100)),
                     agentRuntime.observations(runId, valueOrDefault(observationOffset, 0), valueOrDefault(observationLimit, 100))
                 )))
@@ -351,6 +355,18 @@ public class AgentRuntimeController {
 
     private long valueOrDefault(Long value, long fallback) {
         return value == null ? fallback : value;
+    }
+
+    private long runtimeCursor(Long afterSequence, Long legacyCursor, String lastEventId) {
+        if (afterSequence != null) return Math.max(0L, afterSequence);
+        if (lastEventId != null && !lastEventId.isBlank()) {
+            try {
+                return Math.max(0L, Long.parseLong(lastEventId.trim()));
+            } catch (NumberFormatException ignored) {
+                // Ignore a non-numeric transport event id and fall back to the query cursor.
+            }
+        }
+        return Math.max(0L, valueOrDefault(legacyCursor, 0L));
     }
 
     private Optional<AgentRun> findAuthorized(String runId, HttpServletRequest request) {

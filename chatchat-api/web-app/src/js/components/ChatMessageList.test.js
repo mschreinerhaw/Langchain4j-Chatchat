@@ -106,7 +106,7 @@ describe("tool execution evidence", () => {
     expect(groups[0].children).toHaveLength(2);
   });
 
-  it("does not complete a parent while a child event is still active", () => {
+  it("treats the authoritative parent terminal state as final despite a stale child event", () => {
     const completed = {
       id: "message-terminal",
       role: "assistant",
@@ -131,8 +131,9 @@ describe("tool execution evidence", () => {
       id: "stale-runtime-step",
       status: "active"
     }));
-    expect(methods.hasUnfinishedExecutionSteps.call(context, completed)).toBe(true);
-    expect(methods.runtimeStatusLabel.call(context, completed)).toBe("Run");
+    expect(methods.hasUnfinishedExecutionSteps.call(context, completed)).toBe(false);
+    expect(methods.isExecutionRunning.call(context, completed)).toBe(false);
+    expect(methods.runtimeStatusLabel.call(context, completed)).not.toBe("Run");
   });
 
   it("recognizes supporting datasets as evidence attachments", () => {

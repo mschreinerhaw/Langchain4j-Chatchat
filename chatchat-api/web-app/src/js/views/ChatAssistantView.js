@@ -1266,16 +1266,70 @@ function agentEventToExecutionStep(event = {}) {
 }
 
 function mergeStepState(previous = {}, next = {}) {
+  const previousStatus = String(previous.status || "").toLowerCase();
+  const nextStatus = String(next.status || "").toLowerCase();
+  const terminalStatuses = new Set(["done", "error", "cancelled"]);
+  const openStatuses = new Set(["active", "running", "repairing", "pending"]);
+  const previousOrder = Number(previous.order || 0);
+  const nextOrder = Number(next.order || 0);
+  if (previousOrder > 0 && nextOrder > 0 && nextOrder <= previousOrder) {
+    return previous;
+  }
+  const guardedStatus = terminalStatuses.has(previousStatus) && openStatuses.has(nextStatus)
+    ? previous.status
+    : next.status || previous.status || "pending";
   return {
     ...previous,
     ...next,
     title: next.title || previous.title || "\u6267\u884c\u6b65\u9aa4",
     detail: next.detail || previous.detail || "",
-    status: next.status || previous.status || "pending",
+    status: guardedStatus,
     timestamp: next.timestamp || previous.timestamp || Date.now(),
     order: next.order || previous.order || 0,
     phaseOrder: next.phaseOrder || previous.phaseOrder || 999,
     latencyMs: next.latencyMs ?? previous.latencyMs
+  };
+}
+
+function closeOpenExecutionSteps(steps = [], terminalStatus = "completed") {
+  const openStatuses = new Set([
+    "active", "pending", "running", "repairing", "streaming",
+    "processing", "executing", "finalizing", "wait", "waiting"
+  ]);
+  const normalizedTerminal = String(terminalStatus || "completed").toLowerCase();
+  const closedStatus = ["cancelled", "killed", "rejected"].includes(normalizedTerminal)
+    ? "cancelled"
+    : normalizedTerminal === "failed" ? "error" : "done";
+  return (Array.isArray(steps) ? steps : []).map((step) => ({
+    ...step,
+    status: openStatuses.has(String(step?.status || "").toLowerCase()) ? closedStatus : step.status,
+    children: Array.isArray(step?.children)
+      ? closeOpenExecutionSteps(step.children, normalizedTerminal)
+      : step?.children
+  }));
+}
+
+function terminalUiStatus(event = {}) {
+  const status = String(event?.status || "").toLowerCase();
+  const type = String(event?.type || "").toUpperCase();
+  if (["cancelled", "killed", "rejected", "timeout_cancelled"].includes(status)
+      || type === "RUNTIME_CANCELLED") return "cancelled";
+  if (["failed", "time_budget_exhausted", "model_budget_exhausted"].includes(status)
+      || ["ERROR", "RUNTIME_FAILED"].includes(type)) return "failed";
+  if (["partial", "partial_success"].includes(status) || type === "RESULT") return "partial";
+  if (["empty", "no_presentable_result"].includes(status)) return "empty";
+  if (status === "wait_confirmation" || type === "NEEDS_CONFIRMATION") return "waiting";
+  return "completed";
+}
+
+export function finalizeExecutionUi(message = {}, terminalStatus = "completed") {
+  const status = String(terminalStatus || "completed").toLowerCase();
+  return {
+    ...message,
+    streaming: false,
+    status,
+    executionTerminal: true,
+    steps: closeOpenExecutionSteps(message.steps, status)
   };
 }
 
@@ -1299,7 +1353,13 @@ function initialExecutionSteps(agentName = "") {
 }
 
 export function mergeExecutionSteps(previousSteps = [], events = []) {
-  const eventSteps = events
+  const previousSequence = previousSteps.reduce(
+    (maximum, step) => Math.max(maximum, Number(step?.order || 0)), 0);
+  const acceptedEvents = events.filter((event) => {
+    const sequence = Number(event?.sequence || 0);
+    return sequence <= 0 || sequence > previousSequence;
+  });
+  const eventSteps = acceptedEvents
     .filter(Boolean)
     .sort((left, right) => eventOrderValue(left) - eventOrderValue(right))
     .map((event) => agentEventToExecutionStep(event))
@@ -1326,9 +1386,9 @@ export function mergeExecutionSteps(previousSteps = [], events = []) {
       latestByStateKey.set(step.stateKey, index);
     }
   });
-  // Only a newer event from the same backend state chain can close a child.
-  // Unrelated events and the parent terminal event do not prove it ended.
-  return steps.map((step, index) => {
+  // While execution remains active, only a newer event from the same backend state chain closes
+  // a blocking child. The authoritative parent terminal state is applied to every open row below.
+  const merged = steps.map((step, index) => {
     const isOpen = ["active", "running", "repairing", "pending"]
       .includes(String(step.status || "").toLowerCase());
     // THINK, heartbeat and runtime phase events are point-in-time progress markers
@@ -1342,6 +1402,10 @@ export function mergeExecutionSteps(previousSteps = [], events = []) {
     }
     return isOpen ? { ...step, status: "done" } : step;
   });
+  const terminalEvent = terminalEventFromEvents(acceptedEvents);
+  return terminalEvent
+    ? closeOpenExecutionSteps(merged, terminalUiStatus(terminalEvent))
+    : merged;
 }
 
 function normalizeResponsePayload(response = {}) {
@@ -1448,6 +1512,13 @@ function pollAgentTaskResult(taskId, timeoutMs = AGENT_TASK_POLL_TIMEOUT_MS, ten
     params.set("tenantId", tenantId);
   }
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/result?${params.toString()}`);
+}
+
+function fetchAgentTaskSnapshot(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) params.set("tenantId", tenantId);
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}${query ? `?${query}` : ""}`);
 }
 
 function cancelAgentTask(taskId, tenantId = "") {
@@ -2319,7 +2390,11 @@ export default {
         }, {
           signal: controller.signal,
           event: (event) => {
-            cursor = Math.max(cursor, Number(event?.sequence || 0));
+            const eventSequence = Number(event?.sequence || 0);
+            if (eventSequence > 0 && eventSequence <= cursor) {
+              return;
+            }
+            cursor = Math.max(cursor, eventSequence);
             runContext.taskEventSequence = cursor;
             assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], [event]);
             if (this.isActiveRun(runContext)) {
@@ -2329,6 +2404,12 @@ export default {
             if (!isTerminalAgentEvent(event)) {
               this.emitActiveConversationSnapshot(query || runContext.question || "", "running", runContext);
               return;
+            }
+            Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalUiStatus(event)));
+            runContext.status = assistantMessage.status;
+            if (this.isActiveRun(runContext)) {
+              this.loading = false;
+              this.conversationStatus = assistantMessage.status;
             }
             finish(resolve, event);
           },
@@ -2364,6 +2445,14 @@ export default {
         const events = await fetchAgentTaskEvents(taskId, AGENT_TASK_EVENT_LIMIT, tenantId);
         assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], Array.isArray(events) ? events : []);
         const terminalEvent = terminalEventFromEvents(events);
+        if (terminalEvent) {
+          Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalUiStatus(terminalEvent)));
+          if (runContext) runContext.status = assistantMessage.status;
+          if (this.isActiveRun(runContext)) {
+            this.loading = false;
+            this.conversationStatus = assistantMessage.status;
+          }
+        }
         if (this.isActiveRun(runContext)) {
           this.messages = [...runContext.messages];
           this.scrollMessages();
@@ -3127,7 +3216,9 @@ export default {
         agentName: context.agentName || assistantMessage?.agentName || "",
         modelName: context.modelName || assistantMessage?.modelName || "",
         status,
-        streaming: !!assistantMessage?.streaming || isRuntimeStateActiveStatus(status)
+        streaming: !!assistantMessage?.streaming || isRuntimeStateActiveStatus(status),
+        lastEventSequence: Number(context.lastSequence || assistantMessage?.lastEventSequence || 0),
+        steps: Array.isArray(assistantMessage?.steps) ? assistantMessage.steps : []
       };
       if (isRuntimeStateActiveStatus(status)) {
         upsertChatRuntimeState(entry);
@@ -3371,6 +3462,30 @@ export default {
       }
       runContext.taskId = taskId;
       assistantMessage.taskId = taskId;
+      try {
+        const snapshot = await fetchAgentTaskSnapshot(taskId, this.effectiveTenantId());
+        if (snapshot && !isActiveAgentTaskStatus(snapshot.status || snapshot.canonicalState)) {
+          await this.refreshAgentTaskSteps(
+            taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
+          const terminalStatus = terminalUiStatus({ type: "STATUS", status: snapshot.status });
+          Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalStatus));
+          assistantMessage.content = assistantMessage.content || snapshot.answerSummary || "";
+          runContext.status = terminalStatus;
+          if (this.isActiveRun(runContext)) {
+            this.loading = false;
+            this.activeRunId = "";
+            this.conversationStatus = terminalStatus;
+            this.messages = [...runContext.messages];
+          }
+          this.removeRunContext(runContext);
+          await this.saveHistory(query, terminalStatus, runContext);
+          return;
+        }
+        runContext.taskEventSequence = Math.max(
+          Number(runContext.taskEventSequence || 0), Number(snapshot?.lastEventSequence || 0));
+      } catch (error) {
+        // Snapshot reconciliation is best-effort; the ordered event stream remains available.
+      }
       this.emitActiveConversationSnapshot(query, "running", runContext);
       await this.saveHistory(query, "running", runContext);
       const refreshSteps = () => this.refreshAgentTaskSteps(taskId, this.effectiveTenantId(), runContext, assistantMessage, query);

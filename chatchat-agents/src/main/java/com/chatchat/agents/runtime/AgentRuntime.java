@@ -32,7 +32,7 @@ public interface AgentRuntime extends RuntimeOsKernel<AgentRunRequest, AgentRunR
 
     List<AgentRunEvent> events(String runId);
 
-    List<AgentRunEvent> events(String runId, long afterCreatedAt, int limit);
+    List<AgentRunEvent> events(String runId, long afterSequence, int limit);
 
     List<AgentRunStep> steps(String runId);
 

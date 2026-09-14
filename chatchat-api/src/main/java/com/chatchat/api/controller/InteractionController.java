@@ -7,12 +7,17 @@ import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.task.core.AgentTaskResponse;
+import com.chatchat.chat.task.core.AgentTaskService;
+import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
+import com.chatchat.api.agent.task.AgentTaskEventStreamService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.interaction.UserFacingToolTraceProjector;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PreDestroy;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -25,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Unified interaction API that aligns with ChatChat-style multi-mode workflows.
@@ -38,6 +45,10 @@ public class InteractionController {
     private final InteractionOrchestrationService orchestrationService;
     private final SkillCatalogService skillCatalogService;
     private final EnterpriseAdminService enterpriseAdminService;
+    private final AgentTaskService agentTaskService;
+    private final AgentTaskEventStreamService agentTaskEventStreamService;
+    private final ExecutorService streamExecutor = Executors.newFixedThreadPool(
+        Math.max(2, Runtime.getRuntime().availableProcessors()), new InteractionStreamThreadFactory());
 
     /**
      * Performs the chat operation.
@@ -80,8 +91,17 @@ public class InteractionController {
             sendErrorEvent(emitter, e.getMessage());
             return emitter;
         }
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(() -> {
+        if (request != null && InteractionMode.from(request.getMode()) == InteractionMode.AGENT_CHAT) {
+            try {
+                AgentTaskResponse task = agentTaskService.submit(toAgentTask(request));
+                return agentTaskEventStreamService.stream(request.getTenantId(), task.taskId(),
+                    0L, 100, 250L, 1_800_000L);
+            } catch (RuntimeException failure) {
+                sendErrorEvent(emitter, "Interaction task submission failed: " + failure.getMessage());
+                return emitter;
+            }
+        }
+        streamExecutor.execute(() -> {
             try {
                 emitter.send(SseEmitter.event()
                     .name("start")
@@ -115,11 +135,34 @@ public class InteractionController {
                 sendErrorEvent(emitter, e.getMessage());
             } catch (Exception e) {
                 sendErrorEvent(emitter, "Interaction failed: " + e.getMessage());
-            } finally {
-                executor.shutdown();
             }
         });
         return emitter;
+    }
+
+    @PreDestroy
+    public void shutdownStreamExecutor() {
+        streamExecutor.shutdownNow();
+    }
+
+    private AgentTaskSubmitRequest toAgentTask(InteractionRequest request) {
+        AgentTaskSubmitRequest task = new AgentTaskSubmitRequest();
+        task.setTenantId(request.getTenantId());
+        task.setUserId(request.getUserId());
+        task.setAgentId(request.getSkillId());
+        task.setSessionId(request.getConversationId());
+        task.setQuery(request.getQuery());
+        task.setMode(request.getMode());
+        task.setSystemPrompt(request.getSystemPrompt());
+        task.setModelName(request.getModelName());
+        task.setSkillId(request.getSkillId());
+        task.setMaxResults(request.getMaxResults());
+        task.setHistoryWindow(request.getHistoryWindow());
+        task.setStream(true);
+        task.setAvailableTools(request.getAvailableTools());
+        task.setImageAnalysisIds(request.getImageAnalysisIds());
+        task.setToolInput(request.getToolInput());
+        return task;
     }
 
     /**
@@ -257,5 +300,17 @@ public class InteractionController {
     private String requestAttribute(HttpServletRequest request, String name) {
         Object value = request == null ? null : request.getAttribute(name);
         return value == null ? null : String.valueOf(value);
+    }
+
+    private static final class InteractionStreamThreadFactory implements ThreadFactory {
+        private final AtomicInteger sequence = new AtomicInteger();
+
+        @Override
+        public Thread newThread(Runnable runnable) {
+            Thread thread = new Thread(runnable,
+                "interaction-stream-" + sequence.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        }
     }
 }

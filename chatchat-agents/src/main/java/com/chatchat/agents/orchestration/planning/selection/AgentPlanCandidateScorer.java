@@ -700,7 +700,6 @@ public final class AgentPlanCandidateScorer {
         return semantic.contains("web_search")
             || semantic.contains("web_page_analyze")
             || semantic.contains("site_intelligence")
-            || semantic.contains("finance_site_search")
             || semantic.contains("generic_web_site_search")
             || semantic.equals("web_site_search")
             || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));

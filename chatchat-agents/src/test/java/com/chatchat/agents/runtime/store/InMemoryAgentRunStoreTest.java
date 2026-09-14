@@ -225,7 +225,7 @@ class InMemoryAgentRunStoreTest {
             .build();
 
         store.start(request);
-        long afterStart = store.events("incremental-events-1").get(0).createdAt();
+        long afterStart = store.events("incremental-events-1").get(0).sequence();
         Thread.sleep(2);
         store.complete("incremental-events-1", AgentRunResult.builder()
             .runId("incremental-events-1")

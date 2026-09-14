@@ -1,6 +1,8 @@
 package com.chatchat.chat.task.core;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
 public record AgentTaskResponse(
     String taskId,
@@ -25,8 +27,15 @@ public record AgentTaskResponse(
     String feedbackReasonCategory,
     Instant feedbackTime,
     Instant createTime,
-    Instant updateTime
+    Instant updateTime,
+    Instant finishedAt,
+    long lastEventSequence,
+    List<Map<String, Object>> datasets
 ) {
+
+    public AgentTaskResponse {
+        datasets = datasets == null ? List.of() : List.copyOf(datasets);
+    }
 
     /**
      * Creates the value from from.
@@ -35,6 +44,18 @@ public record AgentTaskResponse(
      * @return the operation result
      */
     static AgentTaskResponse from(AgentTaskLatestEntity entity) {
+        return from(entity, 0L);
+    }
+
+    static AgentTaskResponse from(AgentTaskLatestEntity entity, long lastEventSequence) {
+        AgentExecutionState state = AgentExecutionState.fromWire(entity.getCanonicalState());
+        return from(entity, lastEventSequence, state.terminal() ? entity.getUpdateTime() : null);
+    }
+
+    static AgentTaskResponse from(AgentTaskLatestEntity entity,
+                                  long lastEventSequence,
+                                  Instant finishedAt) {
+        AgentExecutionState state = AgentExecutionState.fromWire(entity.getCanonicalState());
         return new AgentTaskResponse(
             entity.getTaskId(),
             entity.getExecutionId(),
@@ -58,7 +79,18 @@ public record AgentTaskResponse(
             entity.getFeedbackReasonCategory(),
             entity.getFeedbackTime(),
             entity.getCreateTime(),
-            entity.getUpdateTime()
+            entity.getUpdateTime(),
+            state.terminal() ? finishedAt : null,
+            Math.max(0L, lastEventSequence),
+            List.of()
         );
+    }
+
+    public AgentTaskResponse withDatasets(List<Map<String, Object>> values) {
+        return new AgentTaskResponse(taskId, executionId, rootExecutionId, attemptId,
+            parentAttemptId, attemptNumber, canonicalState, tenantId, userId, agentId,
+            sessionId, status, question, answerSummary, errorMessage, feedbackUseful,
+            feedbackAdopted, feedbackResolved, feedbackComment, feedbackReasonCategory,
+            feedbackTime, createTime, updateTime, finishedAt, lastEventSequence, values);
     }
 }

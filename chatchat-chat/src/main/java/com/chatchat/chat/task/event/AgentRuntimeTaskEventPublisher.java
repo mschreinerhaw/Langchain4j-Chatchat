@@ -333,6 +333,7 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
         payload.put("message", displayMessage(event, answer));
         payload.put("runId", event.runId());
         payload.put("runtimeEventId", event.eventId());
+        payload.put("runtimeSequence", event.sequence());
         payload.put("runtimeEventType", event.type() == null ? null : event.type().name());
         payload.put("createdAt", event.createdAt());
         payload.put("payload", runtimePayload);

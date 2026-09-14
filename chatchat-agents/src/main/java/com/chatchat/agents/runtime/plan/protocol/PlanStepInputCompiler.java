@@ -24,7 +24,6 @@ public final class PlanStepInputCompiler {
         operations.establishRuntimeTemplateBinding(step, completed, input);
         operations.normalizeModelInvocationEnvelope(step, input);
         operations.normalizeWebSearchInput(step, request, input);
-        operations.normalizeNewsSearchInput(step, request, input);
         operations.applyPublishedInputAdapterContract(step, request, completed, input);
         Map<String, Object> retrievalGate = operations.applyStepInputEnricher(step, request, completed, input);
         operations.normalizeDiscoveryRoutingInput(step, request, completed, input);
@@ -67,7 +66,6 @@ public final class PlanStepInputCompiler {
                                              Map<Integer, InterpretationPlanRuntime.StepExecution> completed, Map<String, Object> input);
         void normalizeModelInvocationEnvelope(InterpretationPlan.Step step, Map<String, Object> input);
         void normalizeWebSearchInput(InterpretationPlan.Step step, InterpretationPlanRuntime.ExecutionRequest request, Map<String, Object> input);
-        void normalizeNewsSearchInput(InterpretationPlan.Step step, InterpretationPlanRuntime.ExecutionRequest request, Map<String, Object> input);
         void applyPublishedInputAdapterContract(InterpretationPlan.Step step, InterpretationPlanRuntime.ExecutionRequest request,
                                                 Map<Integer, InterpretationPlanRuntime.StepExecution> completed, Map<String, Object> input);
         Map<String, Object> applyStepInputEnricher(InterpretationPlan.Step step, InterpretationPlanRuntime.ExecutionRequest request,

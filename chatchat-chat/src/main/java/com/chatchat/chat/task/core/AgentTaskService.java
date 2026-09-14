@@ -357,7 +357,54 @@ public class AgentTaskService {
      * @return the get
      */
     public Optional<AgentTaskResponse> get(String tenantId, String taskId) {
-        return Optional.of(AgentTaskResponse.from(getTaskForTenant(tenantId, taskId)));
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
+        List<AgentEvent> events = eventStore.listByTask(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), 100_000);
+        long lastEventSequence = events.stream()
+            .map(AgentEvent::getSequence)
+            .filter(Objects::nonNull)
+            .max(Long::compareTo)
+            .orElse(0L);
+        Instant finishedAt = events.stream()
+            .filter(this::isTerminalSnapshotEvent)
+            .map(AgentEvent::getCreateTime)
+            .filter(timestamp -> timestamp > 0)
+            .max(Long::compareTo)
+            .map(Instant::ofEpochMilli)
+            .orElse(task.getUpdateTime());
+        return Optional.of(AgentTaskResponse.from(task, lastEventSequence, finishedAt)
+            .withDatasets(datasetSnapshot(events)));
+    }
+
+    private List<Map<String, Object>> datasetSnapshot(List<AgentEvent> events) {
+        if (events == null) return List.of();
+        for (int index = events.size() - 1; index >= 0; index--) {
+            String payload = events.get(index).getPayload();
+            if (payload == null || payload.isBlank()) continue;
+            try {
+                com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(payload);
+                com.fasterxml.jackson.databind.JsonNode datasets = root.path("payload").path("datasets");
+                if (!datasets.isArray()) datasets = root.path("datasets");
+                if (!datasets.isArray()) continue;
+                return objectMapper.convertValue(datasets,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+            } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException ignored) {
+                // A malformed observational event must not make the authoritative task snapshot unavailable.
+            }
+        }
+        return List.of();
+    }
+
+    private boolean isTerminalSnapshotEvent(AgentEvent event) {
+        if (event == null) return false;
+        String type = normalizeStatus(event.getType());
+        if (List.of("ANSWER", "RESULT", "ERROR", "COMPLETE", "RUNTIME_FAILED", "RUNTIME_CANCELLED")
+            .contains(type)) return true;
+        try {
+            return AgentExecutionState.fromWire(event.getStatus()).terminal();
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     /**

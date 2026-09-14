@@ -149,14 +149,19 @@ public class DatabaseAgentRunStore extends InMemoryAgentRunStore {
 
     @Override
     public List<AgentRunEvent> events(String runId) {
-        return find(runId).map(AgentRun::events).orElseGet(List::of);
+        List<AgentRunEvent> stored = find(runId).map(AgentRun::events).orElseGet(List::of);
+        List<AgentRunEvent> sequenced = new java.util.ArrayList<>(stored.size());
+        for (int index = 0; index < stored.size(); index++) {
+            sequenced.add(stored.get(index).withSequence(index + 1L));
+        }
+        return List.copyOf(sequenced);
     }
 
     @Override
-    public List<AgentRunEvent> events(String runId, long afterCreatedAt, int limit) {
+    public List<AgentRunEvent> events(String runId, long afterSequence, int limit) {
         int safeLimit = limit <= 0 ? 100 : Math.min(limit, 500);
         return events(runId).stream()
-            .filter(event -> event.createdAt() > afterCreatedAt)
+            .filter(event -> event.sequence() > afterSequence)
             .limit(safeLimit)
             .toList();
     }

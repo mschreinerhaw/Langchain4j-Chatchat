@@ -78,7 +78,8 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
                 return current;
             }
             AgentRunEvent submitted = AgentRunEvent.of(runId, AgentRunEventType.RUN_SUBMITTED,
-                "Agent run submitted", Map.of("requestId", firstText(request.getRequestId(), runId)));
+                "Agent run submitted", Map.of("requestId", firstText(request.getRequestId(), runId)))
+                .withSequence(1L);
             publishEvent(submitted);
             return AgentRun.builder()
                 .runId(runId)
@@ -108,7 +109,8 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             }
             List<AgentRunEvent> events = new ArrayList<>(base.events());
             AgentRunEvent started = AgentRunEvent.of(runId, AgentRunEventType.RUN_STARTED,
-                "Agent run started", Map.of("requestId", firstText(request.getRequestId(), runId)));
+                "Agent run started", Map.of("requestId", firstText(request.getRequestId(), runId)))
+                .withSequence(events.size() + 1L);
             events.add(started);
             publishEvent(started);
             Map<String, Object> metadata = new LinkedHashMap<>(base.metadata());
@@ -148,13 +150,14 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             List<AgentObservation> observations = mergeObservations(base.observations(), resultObservations);
             for (AgentRunStep step : newSteps) {
                 AgentRunEvent stepRecorded = AgentRunEvent.of(key, AgentRunEventType.STEP_RECORDED,
-                    "Agent step recorded", stepPayload(step));
+                    "Agent step recorded", stepPayload(step)).withSequence(events.size() + 1L);
                 events.add(stepRecorded);
                 publishEvent(stepRecorded);
             }
             for (AgentObservation observation : newObservations) {
                 AgentRunEvent observationRecorded = AgentRunEvent.of(key, AgentRunEventType.OBSERVATION_RECORDED,
-                    "Agent observation recorded", observationPayload(observation));
+                    "Agent observation recorded", observationPayload(observation))
+                    .withSequence(events.size() + 1L);
                 events.add(observationRecorded);
                 publishEvent(observationRecorded);
             }
@@ -162,7 +165,7 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             AgentRunEvent finished = AgentRunEvent.of(key,
                 completionEventType(status),
                 completionMessage(status),
-                completionPayload(result, status));
+                completionPayload(result, status)).withSequence(events.size() + 1L);
             events.add(finished);
             publishEvent(finished);
             return AgentRun.builder()
@@ -244,6 +247,14 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             if (errorCode != null) {
                 payload.put("errorCode", String.valueOf(errorCode));
             }
+            Object datasets = result.metadata().get("datasets");
+            if (datasets instanceof List<?>) {
+                payload.put("datasets", datasets);
+            }
+            Object missingDatasets = result.metadata().get("missingDatasets");
+            if (missingDatasets instanceof List<?>) {
+                payload.put("missingDatasets", missingDatasets);
+            }
         }
         return payload;
     }
@@ -265,7 +276,7 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             steps.add(step);
             List<AgentRunEvent> events = new ArrayList<>(base.events());
             AgentRunEvent recorded = AgentRunEvent.of(key, AgentRunEventType.STEP_RECORDED,
-                "Agent step recorded", stepPayload(step));
+                "Agent step recorded", stepPayload(step)).withSequence(events.size() + 1L);
             events.add(recorded);
             publishEvent(recorded);
             return AgentRun.builder()
@@ -303,7 +314,8 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             observations.add(observation);
             List<AgentRunEvent> events = new ArrayList<>(base.events());
             AgentRunEvent recorded = AgentRunEvent.of(key, AgentRunEventType.OBSERVATION_RECORDED,
-                "Agent observation recorded", observationPayload(observation));
+                "Agent observation recorded", observationPayload(observation))
+                .withSequence(events.size() + 1L);
             events.add(recorded);
             publishEvent(recorded);
             return AgentRun.builder()
@@ -341,6 +353,7 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             AgentRunEvent stored = key.equals(event.runId()) ? event : new AgentRunEvent(
                 event.eventId(), key, event.type(), event.createdAt(), event.message(), event.payload());
             List<AgentRunEvent> events = new ArrayList<>(base.events());
+            stored = stored.withSequence(events.size() + 1L);
             events.add(stored);
             publishEvent(stored);
             return AgentRun.builder()
@@ -365,7 +378,8 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             }
             String message = firstText(reason, "Agent run cancelled");
             List<AgentRunEvent> events = new ArrayList<>(base.events());
-            AgentRunEvent cancelled = AgentRunEvent.of(key, AgentRunEventType.RUN_CANCELLED, message, Map.of("reason", message));
+            AgentRunEvent cancelled = AgentRunEvent.of(key, AgentRunEventType.RUN_CANCELLED, message,
+                Map.of("reason", message)).withSequence(events.size() + 1L);
             events.add(cancelled);
             publishEvent(cancelled);
             Map<String, Object> metadata = new LinkedHashMap<>(base.metadata());
@@ -401,7 +415,8 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
             }
             String message = error == null ? "Agent run failed" : firstText(error.getMessage(), error.getClass().getSimpleName());
             List<AgentRunEvent> events = new ArrayList<>(base.events());
-            AgentRunEvent failed = AgentRunEvent.of(key, AgentRunEventType.RUN_FAILED, message, Map.of("errorMessage", message));
+            AgentRunEvent failed = AgentRunEvent.of(key, AgentRunEventType.RUN_FAILED, message,
+                Map.of("errorMessage", message)).withSequence(events.size() + 1L);
             events.add(failed);
             publishEvent(failed);
             Map<String, Object> metadata = new LinkedHashMap<>(base.metadata());
@@ -445,16 +460,21 @@ public class InMemoryAgentRunStore extends AbstractAgentRunStore implements Inte
 
     @Override
     public List<AgentRunEvent> events(String runId) {
-        return find(runId)
+        List<AgentRunEvent> stored = find(runId)
             .map(AgentRun::events)
             .orElseGet(List::of);
+        List<AgentRunEvent> sequenced = new ArrayList<>(stored.size());
+        for (int index = 0; index < stored.size(); index++) {
+            sequenced.add(stored.get(index).withSequence(index + 1L));
+        }
+        return List.copyOf(sequenced);
     }
 
     @Override
-    public List<AgentRunEvent> events(String runId, long afterCreatedAt, int limit) {
+    public List<AgentRunEvent> events(String runId, long afterSequence, int limit) {
         int safeLimit = recordLimit(limit);
         return events(runId).stream()
-            .filter(event -> event.createdAt() > afterCreatedAt)
+            .filter(event -> event.sequence() > afterSequence)
             .limit(safeLimit)
             .toList();
     }

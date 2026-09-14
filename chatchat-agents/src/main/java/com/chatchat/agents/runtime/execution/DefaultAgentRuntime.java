@@ -170,8 +170,8 @@ public class DefaultAgentRuntime implements AgentRuntime {
     }
 
     @Override
-    public List<AgentRunEvent> events(String runId, long afterCreatedAt, int limit) {
-        return runStore.events(runId, afterCreatedAt, limit);
+    public List<AgentRunEvent> events(String runId, long afterSequence, int limit) {
+        return runStore.events(runId, afterSequence, limit);
     }
 
     @Override

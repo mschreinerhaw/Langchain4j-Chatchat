@@ -582,7 +582,7 @@ export default {
           observations: Array.isArray(timeline?.observations) ? timeline.observations : [],
           trace: trace || null
         };
-        this.streamCursor = this.events.reduce((cursor, event) => Math.max(cursor, event.createdAt || 0), 0);
+        this.streamCursor = this.events.reduce((cursor, event) => Math.max(cursor, event.sequence || 0), 0);
       } catch (error) {
         this.error = error.message || "Failed to load run timeline.";
       } finally {
@@ -682,7 +682,7 @@ export default {
       streamGenericAgentRunEvents(
         this.selectedRunId,
         {
-          afterCreatedAt: this.streamCursor,
+          afterSequence: this.streamCursor,
           limit: 100,
           pollIntervalMs: 1000
         },
@@ -750,9 +750,10 @@ export default {
       if (exists) {
         return;
       }
-      const events = [...this.events, event].sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0));
+      const events = [...this.events, event].sort((left, right) =>
+        (left.sequence || 0) - (right.sequence || 0));
       this.timeline = { ...this.timeline, events };
-      this.streamCursor = Math.max(this.streamCursor, event.createdAt || 0);
+      this.streamCursor = Math.max(this.streamCursor, event.sequence || 0);
     },
     startAutoRefresh() {
       this.stopAutoRefresh();

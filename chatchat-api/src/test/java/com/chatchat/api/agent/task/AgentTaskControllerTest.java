@@ -140,6 +140,10 @@ class AgentTaskControllerTest {
 
         org.assertj.core.api.Assertions.assertThat(task.path("data").path("answerSummary").asText())
             .contains("????");
+        org.assertj.core.api.Assertions.assertThat(task.path("data").path("finishedAt").asText())
+            .isNotBlank();
+        org.assertj.core.api.Assertions.assertThat(task.path("data").path("lastEventSequence").asLong())
+            .isGreaterThanOrEqualTo(3L);
 
         mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
                 .param("tenantId", "tenant-001")

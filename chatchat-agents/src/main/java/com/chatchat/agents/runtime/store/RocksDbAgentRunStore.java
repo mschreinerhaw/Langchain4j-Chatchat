@@ -245,14 +245,21 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
 
     @Override
     public List<AgentRunEvent> events(String runId) {
-        List<AgentRunEvent> indexedEvents = indexedEvents(runId, 0, Integer.MAX_VALUE);
-        return indexedEvents.isEmpty() ? super.events(runId) : indexedEvents;
+        List<AgentRunEvent> indexedEvents = indexedEvents(runId, Integer.MAX_VALUE);
+        if (indexedEvents.isEmpty()) return super.events(runId);
+        List<AgentRunEvent> sequenced = new ArrayList<>(indexedEvents.size());
+        for (int index = 0; index < indexedEvents.size(); index++) {
+            sequenced.add(indexedEvents.get(index).withSequence(index + 1L));
+        }
+        return List.copyOf(sequenced);
     }
 
     @Override
-    public List<AgentRunEvent> events(String runId, long afterCreatedAt, int limit) {
-        List<AgentRunEvent> indexedEvents = indexedEvents(runId, afterCreatedAt, recordLimit(limit));
-        return indexedEvents.isEmpty() ? super.events(runId, afterCreatedAt, limit) : indexedEvents;
+    public List<AgentRunEvent> events(String runId, long afterSequence, int limit) {
+        return events(runId).stream()
+            .filter(event -> event.sequence() > afterSequence)
+            .limit(recordLimit(limit))
+            .toList();
     }
 
     @Override
@@ -682,7 +689,7 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
         }
     }
 
-    private List<AgentRunEvent> indexedEvents(String runId, long afterCreatedAt, int limit) {
+    private List<AgentRunEvent> indexedEvents(String runId, int limit) {
         if (db == null || runId == null || runId.isBlank() || limit <= 0) {
             return List.of();
         }
@@ -692,9 +699,7 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
             RocksIterator iterator = prefixIterator.iterator();
             while (iterator.isValid() && startsWith(iterator.key(), prefix) && events.size() < limit) {
                 AgentRunEvent event = objectMapper.readValue(iterator.value(), AgentRunEvent.class);
-                if (event.createdAt() > afterCreatedAt) {
-                    events.add(event);
-                }
+                events.add(event);
                 iterator.next();
             }
             return events;

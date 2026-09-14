@@ -778,6 +778,7 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             observations.forEach(ob -> prompt.append("- ").append(ob).append("\n"));
             prompt.append("</tool_evidence>\n");
         }
+        appendDatasetEvidence(prompt, metadata);
         prompt.append("\nUser question: ").append(query);
         String promptText = prompt.toString();
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
@@ -811,6 +812,34 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             firstNonBlank(runId, ""),
             ModelProtocolJson.prettyJsonForLog(answer));
         return sanitizeFinalMarkdown(answer);
+    }
+
+    private void appendDatasetEvidence(StringBuilder prompt, Map<String, Object> metadata) {
+        Object rawDatasets = metadata == null ? null : metadata.get("datasets");
+        if (!(rawDatasets instanceof List<?> datasets) || datasets.isEmpty()) return;
+        prompt.append("<dataset_evidence>\n");
+        prompt.append("Each section is an independent dataset boundary. Synthesize across all sections; ")
+            .append("do not let an earlier or larger dataset replace a later one.\n");
+        for (Object dataset : datasets) {
+            if (!(dataset instanceof Map<?, ?> value)) continue;
+            Object id = value.get("datasetId");
+            Object status = value.get("status");
+            prompt.append("<dataset id=\"").append(xml(String.valueOf(id)))
+                .append("\" status=\"").append(xml(String.valueOf(status))).append("\">\n")
+                .append(ModelProtocolJson.compact(value)).append("\n</dataset>\n");
+        }
+        prompt.append("</dataset_evidence>\n");
+        Object missing = metadata.get("missingDatasets");
+        if (missing instanceof List<?> values && !values.isEmpty()) {
+            prompt.append("Dataset completeness gate: the following datasets are missing: ")
+                .append(ModelProtocolJson.compact(values))
+                .append(". The answer must be explicitly PARTIAL and list every missing dataset.\n");
+        }
+    }
+
+    private String xml(String value) {
+        return value == null ? "" : value.replace("&", "&amp;")
+            .replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private String sanitizeFinalMarkdown(String answer) {

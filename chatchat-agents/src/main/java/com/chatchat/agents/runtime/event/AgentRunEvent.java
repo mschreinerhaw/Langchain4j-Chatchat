@@ -13,6 +13,7 @@ public record AgentRunEvent(
     String runId,
     AgentRunEventType type,
     long createdAt,
+    long sequence,
     String message,
     Map<String, Object> payload
 ) implements RuntimeEvent {
@@ -20,11 +21,23 @@ public record AgentRunEvent(
     public AgentRunEvent {
         eventId = eventId == null || eventId.isBlank() ? UUID.randomUUID().toString() : eventId;
         createdAt = createdAt <= 0 ? System.currentTimeMillis() : createdAt;
+        sequence = Math.max(0L, sequence);
         payload = payload == null ? Map.of() : new LinkedHashMap<>(payload);
     }
 
+    /** Compatibility constructor for persisted/runtime callers created before sequence support. */
+    public AgentRunEvent(String eventId, String runId, AgentRunEventType type, long createdAt,
+                         String message, Map<String, Object> payload) {
+        this(eventId, runId, type, createdAt, 0L, message, payload);
+    }
+
     public static AgentRunEvent of(String runId, AgentRunEventType type, String message, Map<String, Object> payload) {
-        return new AgentRunEvent(null, runId, type, System.currentTimeMillis(), message, payload);
+        return new AgentRunEvent(null, runId, type, System.currentTimeMillis(), 0L, message, payload);
+    }
+
+    public AgentRunEvent withSequence(long value) {
+        return sequence == value ? this
+            : new AgentRunEvent(eventId, runId, type, createdAt, value, message, payload);
     }
 
     @Override

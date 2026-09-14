@@ -135,13 +135,21 @@ public final class AgentPlanPhaseActivityCoordinator {
 
     public PlanNodePersistenceResult persist(PlanNodePersistenceCommand command) {
         PlanExecutionContinuation current = command.continuation();
+        Map<String, Object> nextContext = new LinkedHashMap<>(current.context());
+        List<Map<String, Object>> attemptHistory = attemptHistory(nextContext.get("stepAttemptHistory"));
         Map<Integer, InterpretationPlanRuntime.StepExecution> completed = current.completedSteps()
             .stream().filter(Objects::nonNull).filter(step -> step.stepId() != null)
             .collect(Collectors.toMap(InterpretationPlanRuntime.StepExecution::stepId, step -> step,
                 (left, right) -> right, LinkedHashMap::new));
         command.waveResults().stream().filter(Objects::nonNull)
             .filter(step -> step.stepId() != null)
-            .forEach(step -> completed.put(step.stepId(), step));
+            .forEach(step -> {
+                InterpretationPlanRuntime.StepExecution previous = completed.put(step.stepId(), step);
+                if (previous != null) {
+                    attemptHistory.add(attemptRecord(previous, attemptHistory.size() + 1, true));
+                }
+                attemptHistory.add(attemptRecord(step, attemptHistory.size() + 1, false));
+            });
         Set<Integer> remaining = new LinkedHashSet<>(current.remainingStepIds());
         command.waveResults().stream().filter(Objects::nonNull)
             .map(InterpretationPlanRuntime.StepExecution::stepId)
@@ -150,14 +158,41 @@ public final class AgentPlanPhaseActivityCoordinator {
         command.waveResults().stream().filter(Objects::nonNull)
             .filter(step -> !step.success()).map(InterpretationPlanRuntime.StepExecution::stepId)
             .filter(Objects::nonNull).forEach(failed::add);
+        command.waveResults().stream().filter(Objects::nonNull)
+            .filter(InterpretationPlanRuntime.StepExecution::success)
+            .map(InterpretationPlanRuntime.StepExecution::stepId)
+            .filter(Objects::nonNull).forEach(failed::remove);
+        nextContext.put("stepAttemptHistory", List.copyOf(attemptHistory));
         PlanExecutionContinuation next = new PlanExecutionContinuation(
             current.schemaVersion(), current.sessionId(), current.plan(),
             new ArrayList<>(remaining), new ArrayList<>(completed.values()),
             current.skippedStepIds(), new ArrayList<>(failed),
-            current.decisionCount() + 1, current.context());
+            current.decisionCount() + 1, nextContext);
         String status = failed.isEmpty()
             ? (remaining.isEmpty() ? "COMPLETED" : "RUNNING") : "FAILED";
         return new PlanNodePersistenceResult(next, status);
+    }
+
+    private List<Map<String, Object>> attemptHistory(Object raw) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (raw instanceof Collection<?> values) {
+            values.stream().filter(Map.class::isInstance)
+                .map(this::map).forEach(result::add);
+        }
+        return result;
+    }
+
+    private Map<String, Object> attemptRecord(InterpretationPlanRuntime.StepExecution step,
+                                               int sequence, boolean superseded) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("sequence", sequence);
+        value.put("stepId", step.stepId());
+        value.put("actionType", step.actionType());
+        value.put("toolName", step.toolName());
+        value.put("success", step.success());
+        value.put("superseded", superseded);
+        value.put("metadata", step.metadata());
+        return java.util.Collections.unmodifiableMap(value);
     }
 
     private Map<Integer, Map<String, Object>> parameterOverrides(Map<String, Object> metadata) {

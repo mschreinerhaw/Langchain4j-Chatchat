@@ -4,6 +4,8 @@ import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTask;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisTaskResult;
+import com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionRegistry;
+import com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionState;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
@@ -101,6 +103,13 @@ public final class AnalysisDispatchCoordinator {
             taskIdsByDataset.put(evidenceReference, taskId);
         }
         if (tasks.isEmpty()) return DispatchBatch.disabled();
+        DatasetExecutionRegistry registry = new DatasetExecutionRegistry();
+        tasks.forEach(task -> {
+            registry.expect(task.datasetReference(), request.isolationScope().runId(),
+                integer(task.analysisContext().get("sourceStepId")),
+                text(task.analysisContext().get("sourceName")), task.inputSha256());
+            registry.analyzing(task.datasetReference());
+        });
         ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatched = dispatcher.dispatch(
             tasks,
             (task, reporter) -> {
@@ -113,7 +122,7 @@ public final class AnalysisDispatchCoordinator {
                 request.runtimeAttributes(), request.isolationScope(), progress));
         log.info("analysisTaskDriverDispatched mode={} taskCount={} workerCount={}",
             dispatched.mode(), dispatched.taskCount(), dispatched.workerCount());
-        return new DispatchBatch(dispatched, tasks, taskIdsByDataset);
+        return new DispatchBatch(dispatched, tasks, taskIdsByDataset, registry);
     }
 
     private void checkCancelled(BooleanSupplier cancellationCheck) {
@@ -124,6 +133,15 @@ public final class AnalysisDispatchCoordinator {
     }
 
     private String nonNull(String value) { return value == null ? "" : value; }
+
+    private Integer integer(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        if (value == null) return null;
+        try { return Integer.valueOf(String.valueOf(value)); }
+        catch (NumberFormatException ignored) { return null; }
+    }
+
+    private String text(Object value) { return value == null ? "" : String.valueOf(value); }
 
     public record Configuration(
         int maximumChunkRows,
@@ -186,24 +204,30 @@ public final class AnalysisDispatchCoordinator {
         private final ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatched;
         private final Map<String, AnalysisTask> tasksById;
         private final Map<String, String> taskIdsByDataset;
+        private final DatasetExecutionRegistry registry;
 
         private DispatchBatch(ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> dispatched,
                               List<AnalysisTask> tasks,
-                              Map<String, String> taskIdsByDataset) {
+                              Map<String, String> taskIdsByDataset,
+                              DatasetExecutionRegistry registry) {
             this.dispatched = dispatched;
             Map<String, AnalysisTask> indexed = new LinkedHashMap<>();
             tasks.forEach(task -> indexed.put(task.taskId(), task));
             this.tasksById = Map.copyOf(indexed);
             this.taskIdsByDataset = Map.copyOf(taskIdsByDataset);
+            this.registry = registry;
         }
 
         private static DispatchBatch disabled() {
-            return new DispatchBatch(null, List.of(), Map.of());
+            return new DispatchBatch(null, List.of(), Map.of(), new DatasetExecutionRegistry());
         }
 
         public Outcome await(String datasetReference) {
             String taskId = taskIdsByDataset.get(datasetReference);
             if (taskId == null || dispatched == null) {
+                if (registry.snapshot().stream().anyMatch(state -> state.datasetId().equals(datasetReference))) {
+                    registry.failed(datasetReference, "missing dispatched analysis task");
+                }
                 return Outcome.failed("MISSING", "driver", 0L, "missing dispatched analysis task");
             }
             AnalysisTask task = tasksById.get(taskId);
@@ -214,12 +238,16 @@ public final class AnalysisDispatchCoordinator {
                 log.warn("analysisTaskDriverFallback taskId={} status={} error={}", taskId,
                     result == null ? "MISSING" : result.status(),
                     result == null ? "missing worker result" : result.error());
+                registry.failed(datasetReference,
+                    result == null ? "missing worker result" : result.error());
                 return Outcome.failed(result == null ? "MISSING" : result.status(),
                     result == null ? "unknown-worker" : result.workerId(),
                     result == null ? 0L : result.durationMs(),
                     result == null ? "missing worker result" : result.error());
             }
             task.isolationScope().requireSamePartition(result.summary().isolationScope());
+            registry.analyzed(datasetReference, List.of(result.summary().datasetSummary().content()),
+                evidenceIds(result.summary()), false);
             return new Outcome(result.summary(), Outcome.fallback(result.status(), "SUCCESS"),
                 Outcome.fallback(result.workerId(), "unknown-worker"),
                 Math.max(0L, result.durationMs()), "");
@@ -231,6 +259,16 @@ public final class AnalysisDispatchCoordinator {
         public int taskCount() { return dispatched == null ? 0 : dispatched.taskCount(); }
         public int workerCount() { return dispatched == null ? 0 : dispatched.workerCount(); }
         public String mode() { return dispatched == null ? "NONE" : dispatched.mode(); }
+        public List<DatasetExecutionState> datasets() { return registry.snapshot(); }
+        public List<String> missingDatasetIds() { return registry.missingDatasetIds(); }
+        public boolean synthesisReady() { return registry.synthesisReady(); }
         @Override public void close() { if (dispatched != null) dispatched.close(); }
+
+        private List<String> evidenceIds(AnalysisDatasetSummary summary) {
+            List<String> values = new ArrayList<>();
+            Object id = summary.datasetSummary().evidence().get("evidenceId");
+            if (id != null && !String.valueOf(id).isBlank()) values.add(String.valueOf(id));
+            return List.copyOf(values);
+        }
     }
 }

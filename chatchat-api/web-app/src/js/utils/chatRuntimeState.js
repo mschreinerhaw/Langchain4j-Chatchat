@@ -27,6 +27,8 @@ function normalizeEntry(entry = {}) {
     modelName: String(entry.modelName || "").trim(),
     status,
     streaming: entry.streaming !== false,
+    lastEventSequence: Math.max(0, Number(entry.lastEventSequence || 0)),
+    steps: Array.isArray(entry.steps) ? entry.steps.map((step) => ({ ...step })) : [],
     lastSync: Number(entry.lastSync || now())
   };
 }
@@ -176,10 +178,11 @@ export function mergeChatRuntimeState(conversation = {}) {
     timestamp: entry.lastSync || now(),
     sources: [],
     traces: [],
-    steps: [],
+    steps: entry.steps,
     streaming: entry.streaming !== false,
     status: activeStatus,
     taskId: entry.taskId || "",
+    lastEventSequence: entry.lastEventSequence,
     agentName: entry.agentName || "",
     modelName: entry.modelName || ""
   };

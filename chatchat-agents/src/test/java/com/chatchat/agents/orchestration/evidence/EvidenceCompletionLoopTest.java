@@ -50,4 +50,20 @@ class EvidenceCompletionLoopTest {
         assertThat(result.rounds()).hasSize(2);
         assertThat(result.stopReason()).isEqualTo("max_rounds_reached");
     }
+
+    @Test
+    void reportsUnresolvedSourceIdsWhenRetrievalReturnsNoEvidence() {
+        EvidenceCompletionLoop.Result result = new EvidenceCompletionLoop().run(
+            new EvidenceCompletionLoop.Request("q", 2, List.of(
+                new EvidenceCompletionLoop.SourceContract("source-a", "generic", Map.of()),
+                new EvidenceCompletionLoop.SourceContract("source-b", "generic", Map.of())), List.of()),
+            request -> List.of(),
+            (query, evidence) -> new EvidenceCompletionLoop.Assessment(
+                false, 0D, List.of(), List.of("coverage incomplete")));
+
+        assertThat(result.stopReason()).isEqualTo("no_new_evidence");
+        assertThat(result.assessment().missingSourceIds())
+            .containsExactly("source-a", "source-b");
+        assertThat(result.assessment().gaps()).contains("retrieval_returned_no_new_evidence");
+    }
 }

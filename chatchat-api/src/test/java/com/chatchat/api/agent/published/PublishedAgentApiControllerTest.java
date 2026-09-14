@@ -3,6 +3,7 @@ package com.chatchat.api.agent.published;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.task.core.AgentExecutionState;
 import com.chatchat.chat.task.core.AgentTaskResponse;
 import com.chatchat.chat.task.core.AgentTaskService;
 import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
@@ -268,7 +269,8 @@ class PublishedAgentApiControllerTest {
         return new AgentTaskResponse(
             "task-1", "execution-1", "execution-1", "attempt-1", null, 1, canonicalState,
             "tenant-a", userId, "finance-agent", "conversation-1", status, "How is revenue?",
-            "Revenue grew 12%.", null, null, null, null, null, null, null, now, now
+            "Revenue grew 12%.", null, null, null, null, null, null, null, now, now,
+            AgentExecutionState.fromWire(canonicalState).terminal() ? now : null, 0L, List.of()
         );
     }
 

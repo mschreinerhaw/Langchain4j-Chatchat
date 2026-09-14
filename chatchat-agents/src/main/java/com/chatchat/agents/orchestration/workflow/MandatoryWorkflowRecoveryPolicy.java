@@ -72,14 +72,17 @@ public final class MandatoryWorkflowRecoveryPolicy {
                     missing.add("calls[" + index + "].arguments");
                     continue;
                 }
-                // The template compiler deliberately retains an admitted child whose
-                // parameter contract cannot be completed as a terminal preflight result.
-                // ToolRuntimeService consumes this marker without invoking the child, so
-                // applying the executor's required-input schema to it would reject the whole
-                // failure-isolated batch before any executable sibling can run. Only trust the
-                // marker on a Runtime-owned batch; planner-authored data cannot bypass schema
-                // validation this way.
-                if (runtimeOwnedTemplateBatch && hasPreflightFailure(call)) {
+                // A Runtime-owned batch has already been compiled from reviewed discovery
+                // contracts. Its children are deliberately failure-isolated: the tool runtime
+                // validates every actual child invocation and materializes invalid/preflight
+                // children as terminal batch results. Reapplying the executor's scalar schema at
+                // this envelope boundary turns one incomplete child (or a publisher field filled
+                // only at the child runtime boundary) into a rejection of the entire batch. That
+                // recreates the exact "compiled but never executed" evidence gap this recovery
+                // path exists to prevent. The marker cannot be supplied by a planner/model: the
+                // argument resolver removes it and only restores it after deterministic
+                // compilation from observed contracts.
+                if (runtimeOwnedTemplateBatch) {
                     continue;
                 }
                 for (String childMissing : missingRequiredInputs(
@@ -105,12 +108,6 @@ public final class MandatoryWorkflowRecoveryPolicy {
             }
         }
         return List.copyOf(missing);
-    }
-
-    private boolean hasPreflightFailure(Map<?, ?> call) {
-        Object value = call.containsKey("preflightErrorCode")
-            ? call.get("preflightErrorCode") : call.get("preflight_error_code");
-        return value != null && !String.valueOf(value).isBlank();
     }
 
     private Object requiredValue(Map<String, Object> input, String parameterName) {

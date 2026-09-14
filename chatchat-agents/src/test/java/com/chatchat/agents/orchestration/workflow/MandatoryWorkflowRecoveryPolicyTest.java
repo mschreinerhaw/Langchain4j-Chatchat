@@ -40,6 +40,25 @@ class MandatoryWorkflowRecoveryPolicyTest {
     }
 
     @Test
+    void runtimeOwnedBatchDefersScalarChildValidationToFailureIsolatedToolRuntime() {
+        MandatoryWorkflowRecoveryPolicy policy = policy();
+        Map<String, Object> batch = Map.of(
+            "executionMode", "SEQUENTIAL",
+            "calls", List.of(
+                Map.of(
+                    "callId", "runtime-bound",
+                    "toolName", EXECUTOR,
+                    "arguments", Map.of("template", "RUNTIME_TEMPLATE")),
+                Map.of(
+                    "callId", "ready",
+                    "toolName", EXECUTOR,
+                    "arguments", completeArguments("READY_TEMPLATE"))),
+            AgentToolArgumentResolver.RUNTIME_OWNED_TEMPLATE_BATCH_MARKER, true);
+
+        assertThat(policy.missingRequiredInputs(EXECUTOR, batch)).isEmpty();
+    }
+
+    @Test
     void plannerBatchCannotUsePreflightMarkerToBypassRequiredInputValidation() {
         MandatoryWorkflowRecoveryPolicy policy = policy();
         Map<String, Object> batch = Map.of(

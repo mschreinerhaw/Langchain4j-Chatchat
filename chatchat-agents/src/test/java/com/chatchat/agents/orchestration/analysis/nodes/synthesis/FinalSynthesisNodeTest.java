@@ -1051,6 +1051,24 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
+    void genericRuntimePreservesDomainWordingFromTheModel() {
+        var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
+            passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
+            new StructuredFindingMerger());
+        var model = mock(ChatModel.class);
+        String report = "# 分析报告\n\n当日实现盈亏为正，账户处于满仓/重仓状态。";
+        when(model.chat(any(String.class))).thenReturn(report);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("analysisSynthesisBarrierReady", true);
+
+        var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
+
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).isEqualTo(report);
+        assertThat(metadata).doesNotContainKey("analysisFinancialWordingCalibrated");
+    }
+
+    @Test
     void auditsInlineVisualizationOnActualPublicationPathWithoutRegeneratingTheReport() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());

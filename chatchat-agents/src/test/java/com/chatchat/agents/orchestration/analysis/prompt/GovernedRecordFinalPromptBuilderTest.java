@@ -24,7 +24,8 @@ class GovernedRecordFinalPromptBuilderTest {
             "Let content determine form", "Never present an inference as a",
             "same fact or number across summary", "Match claim strength to evidence strength",
             "complete user-facing Markdown report", "orders summary", "遵守业务口径")
-            .doesNotContain("machine-readable output shape", "claimAssessments", "anomaly degree multiplied");
+            .contains("in the user's language")
+            .doesNotContain("in Chinese", "machine-readable output shape", "claimAssessments", "anomaly degree multiplied");
         assertThat(prompt.length()).isLessThan(9000);
     }
 

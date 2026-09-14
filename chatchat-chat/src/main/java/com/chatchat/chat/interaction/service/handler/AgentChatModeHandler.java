@@ -413,14 +413,15 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             builder.append(systemPrompt.trim()).append("\n\n");
         }
         builder.append("<domain_knowledge>\n")
-            .append(knowledge.compiledContext().trim())
+            .append(PromptBoundaryEscaper.escapeMarkupText(knowledge.compiledContext().trim()))
             .append("\n</domain_knowledge>\n\n")
             .append("Knowledge and tool evidence contract:\n")
             .append("1. Treat domain_knowledge only as definitions, policies, business rules, and interpretation guidance.\n")
             .append("2. Treat observations returned by MCP/API/SQL tools in this run as <tool_evidence> for current facts.\n")
             .append("3. Current factual conclusions and calculations must be grounded primarily in tool_evidence.\n")
             .append("4. Never treat example numbers, historical cases, or sample customers in domain_knowledge as current facts.\n")
-            .append("5. If a knowledge rule cannot be mapped to the retrieved data, state the limitation explicitly.\n");
+            .append("5. If a knowledge rule cannot be mapped to the retrieved data, state the limitation explicitly.\n")
+            .append("6. If knowledge entries conflict, report the conflict; do not silently choose one.\n");
         return builder.toString();
     }
 

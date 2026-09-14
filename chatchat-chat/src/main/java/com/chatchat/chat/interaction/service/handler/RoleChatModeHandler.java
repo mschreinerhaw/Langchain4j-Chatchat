@@ -153,9 +153,10 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         }
         if (hasText(knowledgeContext)) {
             prompt.append("\n<domain_knowledge>\n")
-                .append(knowledgeContext.trim())
+                .append(PromptBoundaryEscaper.escapeMarkupText(knowledgeContext.trim()))
                 .append("\n</domain_knowledge>\n")
-                .append("Use this context for definitions, rules and interpretation; do not treat examples as current facts.\n");
+                .append("Use this context for definitions, rules and interpretation; do not treat examples as current facts. ")
+                .append("If entries conflict, report the conflict instead of silently choosing one.\n");
         }
         String responseContract = responseContract(request);
         if (hasText(responseContract)) {

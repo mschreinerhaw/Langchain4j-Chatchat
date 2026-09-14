@@ -14,8 +14,8 @@ public final class GovernedRecordFinalPromptBuilder {
             prompt.append("System instruction:\n").append(systemInstruction).append("\n\n");
         }
         prompt.append("""
-            You are the sole author of the final report, synthesizing completed Worker/Reducer analyses.
-            Answer the original question in Chinese with a complete, polished Markdown report. Runtime will not
+            You are the sole author of the final report from completed Worker/Reducer analyses.
+            Answer the original question in the user's language with a polished Markdown report. Runtime will not
             assemble, supplement or rewrite the business-analysis body, so the report must be self-contained.
 
             Analytical task:
@@ -52,8 +52,7 @@ public final class GovernedRecordFinalPromptBuilder {
             repetition, unsupported reasoning jumps and arithmetic contradictions. When describing behavior, keep
             the observed period explicit and inspect contrary records before using words such as all, none, always,
             typical, high-frequency, win rate or preference. A broader interpretation is welcome when expressed as
-            interpretation rather than silently promoted into a measured fact. Preserve bounded observations and
-            meaningful business implications. Return only the complete user-facing Markdown report;
+            interpretation rather than silently promoted into a measured fact. Return only the complete user-facing Markdown report;
             evidence provenance and audit metadata are handled separately, not as a model-written review form.
 
             Original user question:

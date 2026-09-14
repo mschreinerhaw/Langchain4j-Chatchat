@@ -624,19 +624,6 @@ public final class FinalSynthesisNode {
 
     private String sanitizeReport(String answer, FinalModelSynthesisRequest request) {
         String cleaned = AnalysisOutputAdmissionPolicy.sanitizeNarrative(answer);
-        if (cleaned != null) {
-            String calibrated = cleaned
-                .replace("当日实现盈亏", "当日盈亏")
-                .replace("，表现优异。", "，当日为正值；未提供比较基准，不能据此判断表现水平。")
-                .replace("当日估算收益率约为", "总资产较上日增加约")
-                .replace("当前呈现极重仓特征", "当前呈现证券资产占比接近全部资产的截面特征")
-                .replace("满仓/重仓状态", "证券资产占比接近全部资产的状态")
-                .replace("单日高仓位", "单日接近全额的证券资产占比");
-            if (!java.util.Objects.equals(cleaned, calibrated)) {
-                request.metadata().put("analysisFinancialWordingCalibrated", true);
-                cleaned = calibrated;
-            }
-        }
         if (!java.util.Objects.equals(answer, cleaned)) {
             request.metadata().put("analysisReportSanitized", true);
         }

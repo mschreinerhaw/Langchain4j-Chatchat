@@ -22,6 +22,15 @@ public final class AnalysisExecutionOutcomeRecorder {
         boolean governanceReached
     ) {
         List<Map<String, Object>> gaps = unresolvedGaps(metadata, synthesisInputs);
+        boolean sourceExecutionFailed = "FAILED".equals(String.valueOf(
+            metadata.get("analysisCompletionOutcome")))
+            || number(metadata.get("recordAnalysisFailedDatasetCount")) > 0;
+        boolean projectionCompleted = Boolean.TRUE.equals(
+            metadata.get("analysisDatasetProjectionCompleted"));
+        // A successful query returning zero rows is an observed fact, not a transport/data
+        // failure. Only an explicit source failure is classified as DATA_FAILURE.
+        boolean dataAcquisitionCompleted = returnedRecordCount > 0
+            || projectionCompleted && !sourceExecutionFailed;
         boolean dataAvailable = returnedRecordCount > 0;
         boolean workersAccepted = number(metadata.get("analysisAcceptedWorkerCount")) > 0
             || !summaryResults.isEmpty();
@@ -35,7 +44,7 @@ public final class AnalysisExecutionOutcomeRecorder {
         boolean workerChallenge = maps(metadata.get("analysisDriverChallenges"))
             .stream().anyMatch(challenge ->
                 "WORKER_REPORT".equals(text(challenge.get("targetLayer"))));
-        if (!dataAvailable) {
+        if (!dataAcquisitionCompleted) {
             status = AnalysisExecutionOutcome.ExecutionStatus.EXECUTION_FAILED;
             category = AnalysisExecutionOutcome.FailureCategory.DATA_FAILURE;
             retry = AnalysisExecutionOutcome.RetryDirective.none();
@@ -63,7 +72,7 @@ public final class AnalysisExecutionOutcomeRecorder {
         }
         AnalysisExecutionOutcome executionOutcome = new AnalysisExecutionOutcome(
             AnalysisExecutionOutcome.SCHEMA_VERSION, status, category,
-            dataAvailable ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
+            dataAcquisitionCompleted ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
                 : AnalysisExecutionOutcome.PhaseStatus.FAILED,
             workersAccepted ? AnalysisExecutionOutcome.PhaseStatus.COMPLETED
                 : AnalysisExecutionOutcome.PhaseStatus.REJECTED,
@@ -83,6 +92,7 @@ public final class AnalysisExecutionOutcomeRecorder {
         metadata.put("analysisDataRequeryAllowed", retry.dataAcquisitionAllowed());
         metadata.put("returnedDataAnalysisRequired", dataAvailable);
         metadata.put("rawAnalysisOutputWithheld", dataAvailable);
+        metadata.put("validEmptyEvidence", dataAcquisitionCompleted && !dataAvailable);
         metadata.put("supportingDatasetChannel", "supporting_dataset");
         metadata.put("supportingDatasetPrimaryDisplayAllowed", false);
         metadata.put("supportingDatasetDefaultCollapsed", true);

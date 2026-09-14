@@ -27,6 +27,22 @@ class AgentWorkflowDecisionEngineTest {
     private final AgentWorkflowDecisionEngine engine = new AgentWorkflowDecisionEngine();
 
     @Test
+    void optionalWorkflowStepIsNotPromotedToMandatoryEvidence() {
+        Map<String, Object> workflow = Map.of("steps", List.of(
+            Map.of("id", "primary", "tool", "primary_provider", "required", true),
+            Map.of("id", "enrichment", "tool", "enrichment_provider", "required", false)
+        ));
+
+        WorkflowMandatoryResolution resolution = engine.resolveWorkflowMandatoryTools(
+            List.of("primary_provider", "enrichment_provider"),
+            Map.of("mcpWorkflow", workflow), "analyze available evidence");
+
+        assertThat(resolution.tools()).containsExactly("primary_provider");
+        assertThat(resolution.authoritativeDag()).extracting(WorkflowDagNode::toolName)
+            .containsExactly("primary_provider");
+    }
+
+    @Test
     void parentTraceDoesNotCompleteGovernedPublishedChild() {
         String parent = "mcp_chatchat_mcp_server_api_service_query";
         String child = "mcp_chatchat_mcp_server_customer_service_template_query";

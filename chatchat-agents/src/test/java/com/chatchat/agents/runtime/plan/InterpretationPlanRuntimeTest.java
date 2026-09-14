@@ -521,7 +521,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void preservesCommittedIndependentEvidenceWhenParallelSiblingFails() {
+    void preservesCommittedIndependentEvidenceByDefaultWhenParallelSiblingFails() {
         String failingTool = "orders_query";
         String successfulTool = "positions_query";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -557,11 +557,7 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(
             new InterpretationPlanRuntime.ExecutionRequest(
                 plan, toolRegistry, List.of(failingTool, successfulTool),
-                "tenant-1", "request-partial-barrier", "conversation", "user", Map.of(
-                    DagGovernanceContractProvider.CONTRACT_ATTRIBUTE, Map.of(
-                        "rules", Map.of("execution", Map.of("continueIndependentBranches", true))
-                    )
-                )));
+                "tenant-1", "request-partial-barrier", "conversation", "user", Map.of()));
 
         assertThat(result.success()).isTrue();
         assertThat(result.status()).isEqualTo("completed_with_partial_evidence");
@@ -627,6 +623,7 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlanRuntime.ExecutionRequest(
                 plan, toolRegistry, List.of("metadata_search"),
                 "tenant", "request", "conversation", "user", Map.of(
+                    "mandatoryTools", List.of("metadata_search"),
                     DagGovernanceContractProvider.CONTRACT_ATTRIBUTE, Map.of(
                         "contractId", "runtime_dag_governance.v3",
                         "contractVersion", "runtime_dag_governance.v3",
@@ -642,6 +639,7 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.status()).isEqualTo("completed");
         assertThat(result.finalAnswer()).isEqualTo("report the evidence gap");
         assertThat(result.metadata())
+            .containsEntry("requiredPlanStepIds", List.of(1))
             .containsEntry("dagGovernanceContractId", "runtime_dag_governance.v3")
             .containsEntry("dagGovernanceContractVersion", "runtime_dag_governance.v3")
             .containsEntry("dagGovernanceContractChecksum", "sha-v3");
@@ -7839,7 +7837,7 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.steps())
             .extracting(InterpretationPlanRuntime.StepExecution::stepId)
             .containsExactly(1);
-        assertThat(result.metadata().get("requiredPlanStepIds")).isEqualTo(List.of(1));
+        assertThat(result.metadata().get("requiredPlanStepIds")).isEqualTo(List.of());
         assertThat(result.metadata().get("completedPlanStepIds")).isEqualTo(List.of(1));
     }
 

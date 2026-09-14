@@ -1757,6 +1757,58 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryRecoveryCarriesCapabilityBridgeAssetResolutionIntoEveryBatchChild() {
+        String discoveryTool = "mcp_runtime_server_capability_query";
+        String executionTool = "mcp_runtime_linux_command_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getWorkflowRole(discoveryTool)).thenReturn(ToolWorkflowRole.TEMPLATE_DISCOVERY);
+        when(registry.getWorkflowRole(executionTool)).thenReturn(ToolWorkflowRole.TEMPLATE_EXECUTION);
+        when(registry.getToolMetadata(executionTool)).thenReturn(ToolMetadata.builder()
+            .id(executionTool)
+            .parameters(List.of(
+                ToolParameter.builder().name("template").type("string").required(true).build(),
+                ToolParameter.builder().name("executionContext").type("object").required(true).build()))
+            .build());
+        AgentToolArgumentResolver contractResolver =
+            new AgentToolArgumentResolver(new AgentToolNameResolver(), 5, registry);
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName(discoveryTool)
+            .success(true)
+            .output("""
+                {
+                  "assetResolution":{"status":"RESOLVED","selected":{
+                    "id":"asset-runtime-1","name":"runtime-selected-host",
+                    "environment":"TEST","toolName":"registered-host-transport"}},
+                  "runtimeTemplateSelection":{"selectedTemplateIds":["TEMPLATE_A","TEMPLATE_B"]},
+                  "templates":[
+                    {"templateId":"TEMPLATE_A","parameterContract":{"executionTool":"linux_command_execute"},
+                     "parameterSchema":{"type":"object","properties":{},"required":[]}},
+                    {"templateId":"TEMPLATE_B","parameterContract":{"executionTool":"linux_command_execute"},
+                     "parameterSchema":{"type":"object","properties":{},"required":[]}}
+                  ]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = contractResolver.applyDeterministicDependencyContracts(
+            executionTool, Map.of(), List.of(discovery), "inspect the selected runtime target");
+
+        assertThat(result.get("calls")).isInstanceOfSatisfying(List.class, calls -> {
+            assertThat(calls).hasSize(2);
+            for (Object rawCall : calls) {
+                Map<String, Object> arguments = (Map<String, Object>)
+                    ((Map<String, Object>) rawCall).get("arguments");
+                assertThat((Map<String, Object>) arguments.get("executionContext"))
+                    .containsEntry("assetId", "asset-runtime-1")
+                    .containsEntry("assetName", "runtime-selected-host")
+                    .containsEntry("env", "TEST")
+                    .containsEntry("assetToolName", "registered-host-transport");
+            }
+        });
+    }
+
+    @Test
     void mandatoryRecoveryRejectsExecutorWithoutCompatibleDiscoveredTemplate() {
         InteractionToolTrace discovery = InteractionToolTrace.builder()
             .toolName("mcp_runtime_database_template_search")

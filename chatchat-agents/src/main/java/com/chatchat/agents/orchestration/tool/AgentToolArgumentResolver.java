@@ -1367,15 +1367,40 @@ public class AgentToolArgumentResolver {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> selectedAsset(Object output) {
-        if (!(output instanceof Map<?, ?> root)) {
+        return selectedAsset(output, 0);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> selectedAsset(Object value, int depth) {
+        if (!(value instanceof Map<?, ?> raw) || depth > 10) {
             return Map.of();
         }
-        Object selected = nested((Map<String, Object>) root, "queryIr", "asset", "selected");
-        if (selected == null) {
-            selected = nested((Map<String, Object>) root,
-                "routingProjection", "queryIr", "asset", "selected");
+        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+        for (String key : List.of("selectedAsset", "selected_asset")) {
+            if (map.get(key) instanceof Map<?, ?> selected) {
+                return new LinkedHashMap<>((Map<String, Object>) selected);
+            }
         }
-        return selected instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
+        Object queryIrSelected = nested(map, "queryIr", "asset", "selected");
+        if (queryIrSelected instanceof Map<?, ?> selected) {
+            return new LinkedHashMap<>((Map<String, Object>) selected);
+        }
+        for (String key : List.of("assetResolution", "asset_resolution")) {
+            Map<String, Object> resolution = mutableMap(map.get(key));
+            Object resolved = resolution.get("selected");
+            if (resolved instanceof Map<?, ?> selected) {
+                return new LinkedHashMap<>((Map<String, Object>) selected);
+            }
+        }
+        for (String key : List.of(
+            "data", "result", "payload", "structuredContent", "structured_content",
+            "body", "preview", "routingProjection", "routing_projection")) {
+            Map<String, Object> selected = selectedAsset(map.get(key), depth + 1);
+            if (!selected.isEmpty()) {
+                return selected;
+            }
+        }
+        return Map.of();
     }
 
     @SuppressWarnings("unchecked")

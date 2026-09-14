@@ -104,7 +104,6 @@ public final class AnalysisOutputAdmissionPolicy {
             || normalized.contains("required tool")
             || normalized.contains("technical reason")
             || normalized.contains("必需工具")
-            || normalized.contains("未满足必需证据")
             || normalized.contains("执行已结束，但结果整理失败")
             || normalized.contains("工具轨迹")
             || normalized.contains("mcp_tool_error")

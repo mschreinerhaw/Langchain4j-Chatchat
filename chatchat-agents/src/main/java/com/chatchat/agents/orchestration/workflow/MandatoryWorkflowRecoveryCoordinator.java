@@ -84,20 +84,14 @@ public final class MandatoryWorkflowRecoveryCoordinator {
         }
         request.metadata().put("mandatoryWorkflowExecutionTools", fallbackTools);
         for (String fallbackTool : fallbackTools) {
-            String failedTool = failedMandatoryTool(request.mandatoryTools(), request.traces());
-            if (failedTool != null) {
-                stop(request, failedTool, "Mandatory workflow fallback stopped because required tool "
-                    + failedTool + " already produced a failure observation.");
-                return;
-            }
             if (policy.shouldSuppressLegacyFallback(fallbackTool, request.metadata())) {
                 request.metadata().put("mandatoryWorkflowFallbackSuppressed", true);
                 request.metadata().put("mandatoryWorkflowFallbackSuppressedTool", fallbackTool);
                 request.metadata().put("mandatoryWorkflowFallbackSuppressionReason", "GOVERNED_DIAGNOSTIC_EXECUTOR_FAILED");
-                stop(request, fallbackTool, "Mandatory workflow fallback did not invoke " + fallbackTool
+                defer(request, fallbackTool, "Mandatory workflow fallback did not invoke " + fallbackTool
                     + " because the governed diagnostic DAG already attempted that executor and failed. "
                     + "A scalar legacy fallback cannot replace its reviewed multi-result execution contract.");
-                return;
+                continue;
             }
             completedTools = completedTools(runtimeAttributes, request.traces());
             if (fallbackTool == null || !request.tools().contains(fallbackTool)
@@ -108,20 +102,31 @@ public final class MandatoryWorkflowRecoveryCoordinator {
                 request.traces(), request.metadata(), request.observations())) {
                 return;
             }
+            List<String> unresolvedDependencies = topology.unresolvedDependencies(
+                value(runtimeAttributes, "authoritativeWorkflowDag"),
+                value(runtimeAttributes, "mcpWorkflow"), fallbackTool, completedTools);
+            if (!unresolvedDependencies.isEmpty()) {
+                request.metadata().put("mandatoryWorkflowUnresolvedDependencies:" + fallbackTool,
+                    unresolvedDependencies);
+                defer(request, fallbackTool, "Mandatory workflow fallback deferred " + fallbackTool
+                    + " because declared predecessor evidence is incomplete: "
+                    + unresolvedDependencies + ".");
+                continue;
+            }
             List<InteractionToolTrace> predecessors = topology.predecessorTraces(
                 value(runtimeAttributes, "authoritativeWorkflowDag"), request.mandatoryTools(),
                 fallbackTool, request.traces());
             if (!reviewCompletedDiscoveryPredecessors(
                 request, predecessors, reviewedDiscoveryTraces, candidateReviewer)) {
-                return;
+                continue;
             }
             predecessors = reviewedTraces(predecessors, reviewedDiscoveryTraces);
             Map<String, Object> predecessorReview = resultReviewer.reviewPredecessors(fallbackTool, predecessors);
             if (!Boolean.TRUE.equals(predecessorReview.get("satisfied"))) {
                 appendReview(request.metadata(), predecessorReview);
-                stop(request, String.valueOf(predecessorReview.getOrDefault("predecessorToolName", fallbackTool)),
+                defer(request, String.valueOf(predecessorReview.getOrDefault("predecessorToolName", fallbackTool)),
                     "Mandatory workflow fallback stopped by predecessor result review: " + stringify(predecessorReview));
-                return;
+                continue;
             }
             Map<String, Object> configured = candidateInputs.input(runtimeAttributes, fallbackTool);
             Map<String, Object> arguments = toolArguments.applyToolDefaults(fallbackTool,
@@ -137,17 +142,17 @@ public final class MandatoryWorkflowRecoveryCoordinator {
                     "The predecessor evidence did not authorize a compatible invocation contract.");
                 request.metadata().put("mandatoryWorkflowContractCode", code);
                 request.metadata().put("mandatoryWorkflowContractError", error);
-                stop(request, fallbackTool, "Mandatory workflow fallback did not invoke " + fallbackTool
+                defer(request, fallbackTool, "Mandatory workflow fallback did not invoke " + fallbackTool
                     + " because its runtime-owned dependency contract was not executable: " + code + " - " + error);
-                return;
+                continue;
             }
             List<String> missing = policy.missingRequiredInputs(fallbackTool, arguments);
             if (!missing.isEmpty()) {
                 request.metadata().put("mandatoryWorkflowMissingRequiredInputs", missing);
-                stop(request, fallbackTool, "Mandatory workflow fallback did not invoke " + fallbackTool
+                defer(request, fallbackTool, "Mandatory workflow fallback did not invoke " + fallbackTool
                     + " because required inputs could not be proven from completed predecessor evidence: "
                     + String.join(", ", missing) + ".");
-                return;
+                continue;
             }
             Map<String, Object> originalArguments = new LinkedHashMap<>(arguments);
             ModelAssistedRetrievalBridge.EnrichmentResult enrichment = retrievalBridge.enrichWithGate(
@@ -186,15 +191,15 @@ public final class MandatoryWorkflowRecoveryCoordinator {
                 return;
             }
             if (execution.trace() == null || !execution.trace().isSuccess()) {
-                request.metadata().put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
-                return;
+                defer(request, fallbackTool, "Mandatory workflow provider failed; independent recovery paths remain eligible.");
+                continue;
             }
             Map<String, Object> resultReview = resultReviewer.review(fallbackTool, execution.output());
             request.observations().add("Mandatory workflow local result review: " + stringify(resultReview));
             appendReview(request.metadata(), resultReview);
             if (!Boolean.TRUE.equals(resultReview.get("satisfied"))) {
-                request.metadata().put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
-                return;
+                defer(request, fallbackTool, "Mandatory workflow provider result did not satisfy its local contract.");
+                continue;
             }
             SemanticReview semantic = candidateReviewer.review(fallbackTool, arguments, execution.output());
             if (semantic.required()) {
@@ -202,10 +207,10 @@ public final class MandatoryWorkflowRecoveryCoordinator {
                 request.observations().add("Mandatory workflow semantic candidate review: "
                     + stringify(semantic.auditMetadata()));
                 if (!semantic.satisfied()) {
-                    request.metadata().put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
+                    defer(request, fallbackTool, "Mandatory workflow provider failed semantic candidate review.");
                     request.metadata().put("mandatoryWorkflowSemanticReviewBlocked", true);
                     request.metadata().put("mandatoryWorkflowSemanticReviewReason", semantic.reason());
-                    return;
+                    continue;
                 }
                 reviewedDiscoveryTraces.put(fallbackTool,
                     projectedTrace(execution.trace(), semantic.projectedOutput(), semantic));
@@ -264,7 +269,8 @@ public final class MandatoryWorkflowRecoveryCoordinator {
             request.observations().add("Mandatory workflow semantic candidate review reused completed discovery: "
                 + stringify(semantic.auditMetadata()));
             if (!semantic.satisfied()) {
-                request.metadata().put("mandatoryWorkflowStoppedOnFailure", trace.getToolName());
+                defer(request, trace.getToolName(),
+                    "Mandatory workflow predecessor failed semantic candidate review.");
                 request.metadata().put("mandatoryWorkflowSemanticReviewBlocked", true);
                 request.metadata().put("mandatoryWorkflowSemanticReviewReason", semantic.reason());
                 return false;
@@ -374,8 +380,13 @@ public final class MandatoryWorkflowRecoveryCoordinator {
         return tools.stream().anyMatch(tool -> toolNames.sameToolName(expected, tool));
     }
 
-    private void stop(Request request, String tool, String observation) {
-        request.metadata().put("mandatoryWorkflowStoppedOnFailure", tool);
+    @SuppressWarnings("unchecked")
+    private void defer(Request request, String tool, String observation) {
+        List<Map<String, Object>> deferred = request.metadata().get("mandatoryWorkflowDeferredProviders")
+            instanceof List<?> values
+            ? new ArrayList<>((List<Map<String, Object>>) values) : new ArrayList<>();
+        deferred.add(Map.of("toolName", tool == null ? "" : tool, "reason", observation));
+        request.metadata().put("mandatoryWorkflowDeferredProviders", List.copyOf(deferred));
         request.observations().add(observation);
     }
 

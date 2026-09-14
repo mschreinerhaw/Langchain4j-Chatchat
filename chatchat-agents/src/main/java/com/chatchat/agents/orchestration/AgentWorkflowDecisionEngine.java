@@ -104,7 +104,8 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
                 declaredSteps.add(new WorkflowToolStep(
                     order, index, decision.toolName(),
                     workflowStepAliases(step, stepTool, decision.toolName()), dependencies,
-                    decision.outcome() == ToolExecutionOutcome.EXECUTE));
+                    decision.outcome() == ToolExecutionOutcome.EXECUTE,
+                    !Boolean.FALSE.equals(required)));
                 if (decision.outcome() != ToolExecutionOutcome.EXECUTE
                     && decision.outcome() != ToolExecutionOutcome.DEFER_TO_PLANNER) {
                     skippedDecisions.add(decision);
@@ -119,7 +120,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         List<WorkflowToolStep> dependencyOrdered = dependencyOrderedSteps(resolvedSteps);
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
         dependencyOrdered.stream()
-            .filter(WorkflowToolStep::executable)
+            .filter(step -> step.executable() && step.required())
             .map(WorkflowToolStep::toolName)
             .forEach(tool -> ordered.put(tool, Boolean.TRUE));
         List<WorkflowDagNode> authoritativeDag = dependencyOrdered.stream()
@@ -264,7 +265,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
                 alias.equalsIgnoreCase(reference)));
             result.add(new WorkflowToolStep(
                 step.order(), step.sourceIndex(), step.toolName(),
-                new ArrayList<>(aliases), new ArrayList<>(dependencies), step.executable()));
+                new ArrayList<>(aliases), new ArrayList<>(dependencies), step.executable(), step.required()));
         }
         return result;
     }
@@ -370,7 +371,7 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         List<String> dependencies = new ArrayList<>(step.dependencies());
         dependencies.add(dependency);
         return new WorkflowToolStep(step.order(), step.sourceIndex(), step.toolName(),
-            step.aliases(), dependencies, step.executable());
+            step.aliases(), dependencies, step.executable(), step.required());
     }
 
     /**
@@ -821,7 +822,8 @@ public class AgentWorkflowDecisionEngine implements AgentWorkflowDecisionPort {
         String toolName,
         List<String> aliases,
         List<String> dependencies,
-        boolean executable
+        boolean executable,
+        boolean required
     ) {
         private WorkflowToolStep {
             aliases = aliases == null ? List.of() : List.copyOf(aliases);

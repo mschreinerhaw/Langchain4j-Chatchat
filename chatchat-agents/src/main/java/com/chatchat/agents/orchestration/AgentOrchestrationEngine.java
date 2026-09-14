@@ -923,6 +923,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             requiredToolNames,
             workflowMandatoryTools
         );
+        // Plan execution and final admission consume the same immutable evidence contract.
+        // This prevents model-authored supporting steps from being promoted to mandatory evidence.
+        requestRuntimeAttributes.put("mandatoryTools", List.copyOf(mandatoryTools));
+        requestRuntimeAttributes.put("requiredToolExecutions", List.copyOf(requiredToolExecutionContracts));
         ChatModel activeChatModel = chatModelResolver.resolveChatModel(modelName);
         requestRuntimeAttributes.putIfAbsent("checkpointModelConfig",
             chatModelResolver.checkpointModelConfiguration(modelName, activeChatModel));
@@ -4443,13 +4447,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 Map<String, Object> selected = projectAssetIdentity(asMap(asset.get("selected")));
                 if (!selected.isEmpty()) return selected;
             }
+            for (String key : List.of("assetResolution", "asset_resolution")) {
+                Map<String, Object> resolution = asMap(map.get(key));
+                Map<String, Object> selected = projectAssetIdentity(asMap(resolution.get("selected")));
+                if (!selected.isEmpty()) return selected;
+            }
             if ((map.containsKey("targetKind") || map.containsKey("assetType"))
                 && map.get("selected") instanceof Map<?, ?>) {
                 Map<String, Object> selected = projectAssetIdentity(asMap(map.get("selected")));
                 if (!selected.isEmpty()) return selected;
             }
             for (String nestedKey : List.of(
-                "data", "result", "payload", "structuredContent", "body", "preview", "queryIr")) {
+                "data", "result", "payload", "structuredContent", "structured_content",
+                "body", "preview", "queryIr", "routingProjection", "routing_projection")) {
                 Map<String, Object> nested = findSelectedAssetContext(map.get(nestedKey), depth + 1);
                 if (!nested.isEmpty()) return nested;
             }
@@ -5454,6 +5464,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     Set<String> completedWorkflowToolsFromEvents(Map<String, Object> runtimeAttributes,
                                                          Set<String> fallbackCompletedTools) {
         Set<String> completed = new LinkedHashSet<>(fallbackCompletedTools == null ? Set.of() : fallbackCompletedTools);
+        // The execution snapshot is the synchronous completion barrier shared by parallel DAG
+        // workers. Merge it before consulting the event journal so an asynchronously published
+        // terminal event cannot make an already committed tool look unattempted.
+        completed.addAll(metadataStringList(runtimeAttributes, "workflowCompletedTools"));
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
         if (runId == null || runId.isBlank()) {
             return completed;

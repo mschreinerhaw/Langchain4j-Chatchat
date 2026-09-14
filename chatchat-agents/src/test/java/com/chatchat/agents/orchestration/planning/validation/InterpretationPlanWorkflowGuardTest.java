@@ -142,7 +142,7 @@ class InterpretationPlanWorkflowGuardTest {
     }
 
     @Test
-    void blocksFinalAnswerWhenAnyPlannedStepWasNotCompleted() {
+    void allowsSynthesisWhenOnlyAnUnmarkedSupportingStepWasNotCompleted() {
         InterpretationPlanRuntime.ExecutionResult result = result(
             List.of(
                 execution(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query", true),
@@ -162,10 +162,30 @@ class InterpretationPlanWorkflowGuardTest {
             List.of("mcp_chatchat_mcp_server_sql_datasource_template_query")
         );
 
+        assertThat(evaluated.allowed()).isTrue();
+        assertThat(evaluated.code()).isEqualTo("mcp_workflow_complete");
+        assertThat(evaluated.missingPlanStepIds()).isEmpty();
+        assertThat(evaluated.metadata()).containsEntry("strictPlanStepCompletion", false);
+    }
+
+    @Test
+    void blocksWhenAnExplicitMandatoryEvidenceStepWasNotCompleted() {
+        InterpretationPlan plan = planWithSteps(List.of(
+            new InterpretationPlan.Step(1, "mcp_tool", "primary_provider", Map.of(), List.of(), null, null),
+            new InterpretationPlan.Step(2, "reasoning", "", Map.of(), List.of(1), null,
+                new InterpretationPlan.Validation(true, "evidence-bound normalization", null)),
+            new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+        ));
+        InterpretationPlanRuntime.ExecutionResult result = result(
+            List.of(execution(1, "mcp_tool", "primary_provider", true)),
+            Map.of("completedPlanStepIds", List.of(1)));
+
+        InterpretationPlanWorkflowGuard.GuardResult evaluated = guard.evaluate(
+            plan, result, List.of("primary_provider"), List.of());
+
         assertThat(evaluated.allowed()).isFalse();
         assertThat(evaluated.code()).isEqualTo("interpretation_plan_steps_incomplete");
         assertThat(evaluated.missingPlanStepIds()).containsExactly(2);
-        assertThat(evaluated.metadata()).containsEntry("strictPlanStepCompletion", true);
     }
 
     @Test

@@ -87,6 +87,17 @@ public final class MandatoryWorkflowTopology {
         return successfulTraces(mandatoryTools.subList(0, fallbackIndex), traces);
     }
 
+    /** Returns only declared predecessors that have not committed successful evidence. */
+    public List<String> unresolvedDependencies(Object authoritativeWorkflowDag,
+                                               Object mcpWorkflow,
+                                               String toolName,
+                                               Set<String> completedTools) {
+        return dependencies(authoritativeWorkflowDag, mcpWorkflow, toolName).stream()
+            .filter(dependency -> completedTools == null || completedTools.stream()
+                .noneMatch(completed -> toolNames.sameToolName(dependency, completed)))
+            .toList();
+    }
+
     private Set<String> dependencies(Object dag, Object workflow, String tool) {
         Set<String> dependencies = new LinkedHashSet<>();
         List<String> authoritative = authoritativeDependencies(dag, tool);

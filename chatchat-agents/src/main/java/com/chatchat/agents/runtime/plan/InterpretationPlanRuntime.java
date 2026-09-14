@@ -392,6 +392,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ));
         Map<Integer, StepExecution> completed = new LinkedHashMap<>();
         Set<Integer> remaining = new LinkedHashSet<>(stepsById.keySet());
+        Set<Integer> requiredPlanStepIds = requiredPlanStepIds(executablePlan, executableRequest);
         List<StepExecution> executions = new ArrayList<>();
         String runId = runId(executableRequest);
         Set<Integer> reusedPlanStepIds = seedReusableStepExecutions(
@@ -648,7 +649,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 .findFirst()
                 .orElse(null);
             boolean independentCommitAllowed = preBarrierFailure != null && (
-                dagGovernanceBoolean(executableRequest, "execution", "continueIndependentBranches", false)
+                dagGovernanceBoolean(executableRequest, "execution", "continueIndependentBranches", true)
                     || waveResults.stream().filter(step -> !step.success())
                     .anyMatch(step -> "continue_with_partial_evidence".equals(
                         dependencyFailurePolicy(executablePlan, step.stepId()))));
@@ -736,7 +737,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     continue;
                 }
                 if (dagGovernanceBoolean(executableRequest, "execution",
-                    "continueIndependentBranches", false)) {
+                    "continueIndependentBranches", true)) {
                     Set<Integer> failedStepIds = waveResults.stream()
                         .filter(step -> step != null && !step.success() && step.stepId() != null)
                         .map(StepExecution::stepId)
@@ -796,7 +797,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                     "executionTraceId", executionTraceId,
                     "workflowExecutionAttempt", workflowExecutionAttempt(executableRequest),
                     "planExecutionScope", planExecutionScope(executableRequest),
-                    "requiredPlanStepIds", new ArrayList<>(stepsById.keySet()),
+                    "requiredPlanStepIds", new ArrayList<>(requiredPlanStepIds),
                     "decisionCount", decisionCount
                 ),
                 finalAnswer,
@@ -819,7 +820,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 "workflowExecutionAttempt", workflowExecutionAttempt(executableRequest),
                 "planExecutionScope", planExecutionScope(executableRequest),
                 "stepCount", executions.size(),
-                "requiredPlanStepIds", new ArrayList<>(stepsById.keySet()),
+                "requiredPlanStepIds", new ArrayList<>(requiredPlanStepIds),
                 "completedPlanStepIds", new ArrayList<>(completed.keySet()),
                 "reusedPlanStepIds", new ArrayList<>(reusedPlanStepIds),
                 "recoveryStatus", checkpointRecovery.status(),
@@ -1126,6 +1127,51 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             && policies.stream().allMatch("continue_with_partial_evidence"::equals)
             ? "continue_with_partial_evidence"
             : "stop";
+    }
+
+    /**
+     * Resolves the plan nodes that provide mandatory evidence. Supporting/reasoning nodes are
+     * intentionally excluded unless the plan explicitly marks their validation as required.
+     * Tool identity is compared through the Runtime semantic-name protocol, never by a
+     * business-specific tool list.
+     */
+    private Set<Integer> requiredPlanStepIds(InterpretationPlan plan, ExecutionRequest request) {
+        if (plan == null || plan.steps() == null || plan.steps().isEmpty()) {
+            return Set.of();
+        }
+        Set<String> mandatoryToolKeys = new LinkedHashSet<>();
+        Object configured = request == null || request.attributes() == null
+            ? null : request.attributes().get("mandatoryTools");
+        if (configured instanceof Iterable<?> values) {
+            for (Object value : values) {
+                String key = toolSemanticKey(value == null ? null : String.valueOf(value));
+                if (!key.isBlank()) mandatoryToolKeys.add(key);
+            }
+        }
+        Set<Integer> required = new LinkedHashSet<>();
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step == null || step.id() == null || step.finalAnswerAction()) continue;
+            boolean explicitlyRequired = step.validation() != null
+                && Boolean.TRUE.equals(step.validation().required());
+            String toolKey = toolSemanticKey(step.toolName());
+            boolean mandatoryProvider = !toolKey.isBlank() && mandatoryToolKeys.stream()
+                .anyMatch(requiredKey -> requiredKey.equals(toolKey)
+                    || requiredKey.endsWith("_" + toolKey)
+                    || toolKey.endsWith("_" + requiredKey));
+            if (explicitlyRequired || mandatoryProvider) {
+                required.add(step.id());
+            }
+        }
+        if (plan.plan() != null && plan.plan().diagnosticProfile() != null
+            && plan.plan().diagnosticProfile().checks() != null) {
+            plan.plan().diagnosticProfile().checks().stream()
+                .filter(Objects::nonNull)
+                .filter(check -> Boolean.TRUE.equals(check.required()))
+                .flatMap(check -> check.stepIds().stream())
+                .filter(Objects::nonNull)
+                .forEach(required::add);
+        }
+        return Collections.unmodifiableSet(required);
     }
 
     private ExecutionResult withDiagnosticRun(ExecutionResult result,
@@ -6161,20 +6207,40 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (Boolean.FALSE.equals(booleanValue(scoped))) return Map.of();
         Map<String, Object> context = new LinkedHashMap<>();
         putIfPresent(context, "assetId", firstValueAtAnyPath(output,
+            "$.assetResolution.selected.id",
+            "$.assetResolution.selected.assetId",
+            "$.selectedAsset.id",
+            "$.selectedAsset.assetId",
             "$.queryIr.asset.selected.id",
             "$.queryIr.asset.selected.assetId"));
         putIfPresent(context, "assetName", firstValueAtAnyPath(output,
+            "$.assetResolution.selected.name",
+            "$.assetResolution.selected.displayName",
+            "$.selectedAsset.name",
+            "$.selectedAsset.displayName",
             "$.queryIr.asset.selected.name",
             "$.queryIr.asset.selected.displayName",
             "$.queryIr.asset.selected.title"));
         putIfPresent(context, "assetDisplayName", firstValueAtAnyPath(output,
+            "$.assetResolution.selected.displayName",
+            "$.assetResolution.selected.name",
+            "$.selectedAsset.displayName",
+            "$.selectedAsset.name",
             "$.queryIr.asset.selected.title",
             "$.queryIr.asset.selected.displayName",
             "$.queryIr.asset.selected.name"));
         putIfPresent(context, "assetToolName", firstValueAtAnyPath(output,
+            "$.assetResolution.selected.toolName",
+            "$.assetResolution.selected.tool_name",
+            "$.selectedAsset.toolName",
+            "$.selectedAsset.tool_name",
             "$.queryIr.asset.selected.toolName",
             "$.queryIr.asset.selected.tool_name"));
         putIfPresent(context, "env", firstValueAtAnyPath(output,
+            "$.assetResolution.selected.environment",
+            "$.assetResolution.selected.env",
+            "$.selectedAsset.environment",
+            "$.selectedAsset.env",
             "$.queryIr.asset.selected.environment",
             "$.queryIr.asset.selected.env"));
         return context.containsKey("assetId") ? context : Map.of();
@@ -7452,12 +7518,20 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         output = routingCapableOutput(output);
         Map<String, Object> context = new LinkedHashMap<>();
         Object assetName = firstValueAtAnyPath(output,
+            "$.assetResolution.selected.name",
+            "$.assetResolution.selected.displayName",
+            "$.selectedAsset.name",
+            "$.selectedAsset.displayName",
             "$.assets[0].asset.name",
             "$.assets[0].asset.displayName",
             "$.assets[0].name",
             "$.asset.name",
             "$.name");
         Object env = firstValueAtAnyPath(output,
+            "$.assetResolution.selected.environment",
+            "$.assetResolution.selected.env",
+            "$.selectedAsset.environment",
+            "$.selectedAsset.env",
             "$.assets[0].asset.environment",
             "$.assets[0].asset.env",
             "$.assets[0].environment",
@@ -7471,16 +7545,28 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             "$.asset.databaseRole",
             "$.databaseRole");
         Object assetId = firstValueAtAnyPath(output,
+            "$.assetResolution.selected.id",
+            "$.assetResolution.selected.assetId",
+            "$.selectedAsset.id",
+            "$.selectedAsset.assetId",
             "$.assets[0].asset.id",
             "$.assets[0].asset.assetId",
             "$.assets[0].assetId",
             "$.asset.id",
             "$.asset.assetId");
         Object displayName = firstValueAtAnyPath(output,
+            "$.assetResolution.selected.displayName",
+            "$.assetResolution.selected.name",
+            "$.selectedAsset.displayName",
+            "$.selectedAsset.name",
             "$.assets[0].asset.displayName",
             "$.assets[0].displayName",
             "$.asset.displayName");
         Object assetToolName = firstValueAtAnyPath(output,
+            "$.assetResolution.selected.toolName",
+            "$.assetResolution.selected.tool_name",
+            "$.selectedAsset.toolName",
+            "$.selectedAsset.tool_name",
             "$.assets[0].asset.toolName",
             "$.assets[0].toolName",
             "$.asset.toolName");

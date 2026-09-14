@@ -178,7 +178,7 @@ public final class AgentPlannerPromptBuilder {
             prompt.append("- Required tools are ordered by workflow or runtime policy: ").append(mandatoryTools).append("\n");
             prompt.append("- If no required tool has been observed yet, include the first required tool as the first executable mcp_tool step.\n");
             prompt.append("- Do not place a tool from a later workflow stage before earlier required stages have succeeded.\n");
-            prompt.append("- Each later required tool step MUST depend_on the immediately previous required tool step, preserving the configured Agent workflow order.\n");
+            prompt.append("- Add depends_on only when the later step consumes output from the earlier step or the authoritative workflow DAG declares that dependency. Independent evidence providers should remain independent and may run in parallel.\n");
             prompt.append("- Tools listed in the same workflow parallel stage may be represented as independent steps with the same dependencies.\n");
             prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, include the mandatory tools before final_answer.\n\n");
         }

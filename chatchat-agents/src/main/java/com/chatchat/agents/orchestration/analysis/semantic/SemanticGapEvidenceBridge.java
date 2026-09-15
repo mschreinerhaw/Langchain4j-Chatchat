@@ -53,9 +53,12 @@ final class SemanticGapEvidenceBridge {
                     + "runId={} errorType={} error={}",
                 text(runtimeAttributes == null ? null : runtimeAttributes.get(runIdAttribute)),
                 ex.getClass().getName(), ex.getMessage());
-            if (Boolean.TRUE.equals(metadata.get("analysisDatasetProjectionAttempted"))) {
-                throw ex;
-            }
+            // Projection/claim extraction is an analysis-quality stage, not the source-data
+            // execution boundary. Preserve the failure for diagnostics and continue with the
+            // caller's bounded fallback; only cancellation may terminate the run here.
+            metadata.put("semanticClaimPreflightFailureDisposition",
+                "ADVISORY_CONTINUE_WITH_AVAILABLE_DATA");
+            metadata.put("analysisHumanReviewRequired", true);
             return emptyResult.get();
         }
     }

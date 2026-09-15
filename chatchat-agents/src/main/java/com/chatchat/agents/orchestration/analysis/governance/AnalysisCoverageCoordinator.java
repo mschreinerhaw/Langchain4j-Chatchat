@@ -329,6 +329,19 @@ public final class AnalysisCoverageCoordinator {
             counters.returned += Math.toIntExact(dataset.recordCount());
             counters.sourceComplete &= dataset.records().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
+            // Returned data exists independently of the Worker product. Capture the bounded
+            // Driver projection before validating model-authored analysis so a Worker protocol
+            // failure cannot erase source evidence from final synthesis.
+            if (reportDatasets.size() < 12) {
+                reportDatasets.add(com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture(
+                    reference, dataset.records(), dataset.analysisContext()));
+                request.metadata().put("runtimeReturnedReportDatasets", List.copyOf(reportDatasets));
+            }
+            if ("PYTHON_JSON_STDOUT_RECORDS".equals(dataset.analysisContext().get("projectionMode"))) {
+                observedData.addAll(com.chatchat.agents.orchestration.analysis.report.ObservedReportData.capture(
+                    reference, dataset.records()));
+                request.metadata().put("runtimeObservedReportData", List.copyOf(observedData));
+            }
             AnalysisDispatchCoordinator.Outcome outcome = outcomes.get(reference);
             DataAnalysisWorkerSupervision.WorkerReport workerReport = workerSupervisor.inspect(
                 reference, Math.toIntExact(dataset.recordCount()), outcome,
@@ -366,16 +379,6 @@ public final class AnalysisCoverageCoordinator {
                 evidenceIds(summary), truncatedDataset(request.metadata(), reference));
             counters.analyzed++;
             request.isolationScope().requireSamePartition(summary.datasetSummary().isolationScope());
-            if (reportDatasets.size() < 12) {
-                reportDatasets.add(com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture(
-                    reference, dataset.records(), dataset.analysisContext()));
-                request.metadata().put("runtimeReturnedReportDatasets", List.copyOf(reportDatasets));
-            }
-            if ("PYTHON_JSON_STDOUT_RECORDS".equals(dataset.analysisContext().get("projectionMode"))) {
-                observedData.addAll(com.chatchat.agents.orchestration.analysis.report.ObservedReportData.capture(
-                    reference, dataset.records()));
-                request.metadata().put("runtimeObservedReportData", List.copyOf(observedData));
-            }
             datasetSummaries.add(summary.datasetSummary());
             counters.iterative |= summary.oversized();
             if (!summary.oversized()) {
@@ -467,21 +470,13 @@ public final class AnalysisCoverageCoordinator {
         DataAnalysisLifecycle lifecycle = initialLifecycle.workersReconciled(
             supervision.acceptedWorkerCount(), supervision.rejectedWorkerCount());
         if (!supervision.synthesisReady()) {
-            prompt.append("Driver synthesis barrier is blocked: no Worker produced an admitted "
-                + "business-analysis product. Raw returned records must not be summarized or published.\n");
-            StructuredFindingMerger.Result hierarchy = new StructuredFindingMerger.Result(
-                relationshipPlan, List.of(), List.of(), List.of(),
-                datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList());
-            boolean coverageComplete = false;
-            boolean traceComplete = false;
-            appendCoverage(prompt, hierarchy, failures, counters, coverageComplete, traceComplete);
-            writeResultMetadata(request, datasets.size(), relationshipPlan, lifecycle, hierarchy,
-                governedSummaries, failures, insightResults, insightDecisions, presentationViews,
-                counters, coverageComplete, traceComplete);
-            return new CoverageBundle(prompt.toString(), appendix.toString(), List.of(),
-                counters.returned, 0, counters.iterations, counters.iterative,
-                false, counters.sourceComplete, false, counters.rawReplay,
-                List.of(), List.of());
+            prompt.append("No Worker produced a reviewable analysis narrative. This is an analysis-layer "
+                + "failure, not absence of data. Continue Driver synthesis from the bounded returned-data "
+                + "projection, disclose the Worker failure, and do not label unverified claims as verified.\n");
+            request.metadata().put("analysisWorkerFallbackToReturnedData", true);
+            request.metadata().put("analysisHumanReviewRequired", true);
+            request.metadata().put("analysisSynthesisBarrierStatus",
+                "READY_WITHOUT_REVIEWABLE_WORKER_REPORT");
         }
         // The unified question graph has already analyzed all datasets together. Routing its
         // findings back through the legacy per-dataset/relationship Reducer destroys question-level

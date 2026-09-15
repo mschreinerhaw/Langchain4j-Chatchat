@@ -2265,24 +2265,23 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             ? buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult,
                 runtimeAttributes, metadata, cancellationCheck)
             : precomputedRecordCoverage;
-        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()
-            && !partialDatasetAnalysisAvailable(metadata)) {
-            metadata.put("analysisCompletionBarrierRepairAttempt", 1);
-            recordLifecyclePhase(runtimeAttributes, metadata, "analysis_completion_repair",
-                "Dataset analysis quality gate is incomplete; re-analyzing all retained data before final synthesis.",
+        boolean traceReviewRequired = coverageCandidate.returnedRecordCount() > 0
+            && !coverageCandidate.evidenceTraceComplete();
+        if (traceReviewRequired) {
+            // Trace completeness grades claim-level verification. Replaying every retained
+            // dataset usually reproduces the same model/schema mismatch and must not become a
+            // publication veto when records already exist. Let the Driver analyse the available
+            // products and bounded returned-data projection, with an explicit review marker.
+            metadata.put("analysisCompletionBarrierReviewRequired", true);
+            metadata.put("analysisCompletionBarrierReason", "EVIDENCE_TRACE_INCOMPLETE");
+            metadata.put("analysisCompletionBarrierRepairSkipped", true);
+            recordLifecyclePhase(runtimeAttributes, metadata, "analysis_completion_review",
+                "Returned data is available; incomplete claim trace is advisory and final synthesis will continue with limitations.",
                 metadataOf("reuseExistingDataset", true, "dataAcquisitionAllowed", false,
                     "returnedRecordCount", coverageCandidate.returnedRecordCount()));
-            coverageCandidate = buildRecordCoverageBundle(activeChatModel, query, cumulativeEvidenceResult,
-                runtimeAttributes, metadata, cancellationCheck);
         }
-        if (coverageCandidate.returnedRecordCount() > 0 && !coverageCandidate.evidenceTraceComplete()
-            && !partialDatasetAnalysisAvailable(metadata)) {
-            metadata.put("analysisCompletionBarrierPassed", false);
-            metadata.put("analysisFinalAdmissionBlocked", true);
-            throw new IllegalStateException(
-                "Final answer blocked: not every returned dataset passed complete evidence-bound analysis validation");
-        }
-        boolean partialDatasetAnalysis = partialDatasetAnalysisAvailable(metadata);
+        boolean partialDatasetAnalysis = partialDatasetAnalysisAvailable(metadata)
+            || traceReviewRequired;
         metadata.put("analysisCompletionBarrierPassed", true);
         metadata.put("analysisCompletionBarrierOutcome",
             partialDatasetAnalysis ? "PARTIAL" : "COMPLETE");

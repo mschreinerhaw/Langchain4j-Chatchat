@@ -75,18 +75,20 @@ class SemanticGapEvidenceBridgeTest {
     }
 
     @Test
-    void preflightDoesNotDowngradeDatasetProjectionFailures() {
+    void datasetProjectionFailureRemainsAdvisoryWhenDataMayStillBeAvailable() {
         SemanticClaimCoordinator bridge = new SemanticClaimCoordinator(
             mock(AgentRunResultAdapter.class), "agentRunId");
         Map<String, Object> metadata = new java.util.LinkedHashMap<>();
         metadata.put("analysisDatasetProjectionAttempted", true);
 
-        assertThatThrownBy(() -> bridge.preflight(
+        assertThat(bridge.preflight(
             () -> { throw new IllegalStateException("projection failed"); },
             () -> "legacy", Map.of(), metadata))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessage("projection failed");
-        assertThat(metadata).containsEntry("semanticClaimPreflightFailed", true);
+            .isEqualTo("legacy");
+        assertThat(metadata).containsEntry("semanticClaimPreflightFailed", true)
+            .containsEntry("semanticClaimPreflightFailureDisposition",
+                "ADVISORY_CONTINUE_WITH_AVAILABLE_DATA")
+            .containsEntry("analysisHumanReviewRequired", true);
     }
 
     @Test

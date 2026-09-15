@@ -145,8 +145,18 @@ public final class FinalSynthesisNode {
         if ((Boolean.TRUE.equals(request.metadata().get("semanticClaimPreflightFailed")) || noFindings)
             && !retainedUnifiedDraft
             && request.metadata().get("analysisObservedReturnedRecordCount") instanceof Number rows && rows.longValue() > 0) {
-            throw new IllegalStateException("Analysis failed with " + rows.longValue()
-                + " returned records present; final synthesis cannot treat missing analysis products as empty source data.");
+            // Missing structured findings means claim extraction needs review; it does not mean
+            // the returned records disappeared. The Driver prompt below still receives the
+            // bounded verified dataset projection and must produce a limited analysis.
+            request.metadata().put("analysisSemanticExtractionAdvisory", true);
+            request.metadata().put("analysisHumanReviewRequired", true);
+            request.metadata().put("semanticClaimPreflightFailureDisposition",
+                "ADVISORY_DRIVER_ANALYSIS_FROM_RETURNED_DATA");
+            log.warn("analysisSemanticExtractionAdvisory runId={} returnedRecordCount={} "
+                    + "preflightFailed={} findingCount={}",
+                request.runId(), rows.longValue(),
+                request.metadata().get("semanticClaimPreflightFailed"),
+                request.metadata().get("unifiedAnalysisFindingCount"));
         }
         if (retainedUnifiedDraft) {
             request.metadata().put("analysisSemanticExtractionAdvisory", true);

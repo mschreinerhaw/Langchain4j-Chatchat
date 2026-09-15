@@ -78,18 +78,29 @@ class FinalSynthesisNodeTest {
         "tenant-a", "user-a", "run-a", "request-a", "conversation-a");
 
     @Test
-    void emptyFindingsFromNonemptyDataCannotPublishAnEmptyDataNarrative() {
+    void emptyStructuredFindingsFromNonemptyDataStillInvokeLimitedDriverAnalysis() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
-            mock(AnalysisSummaryGovernanceCoordinator.class), new DeterministicInsightEngine(),
+            passthroughGovernance(), new DeterministicInsightEngine(),
             new AnswerCandidateCollector(), new StructuredFindingMerger());
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("analysisObservedReturnedRecordCount", 41L);
         metadata.put("unifiedAnalysisFindingCount", 0);
         var model = mock(ChatModel.class);
-        assertThatThrownBy(() -> coordinator.synthesizeFinal(request(model, metadata, value -> value, () -> "fallback", true)))
-            .hasMessageContaining("41 returned records present");
-        org.mockito.Mockito.verifyNoInteractions(model);
-        assertThat(metadata).containsEntry("interpretationPlanFinalResultProduced", false);
+        when(model.chat(any(String.class))).thenReturn(
+            "# Limited analysis\n\nThe returned records can still be analysed; structured claim extraction needs review.");
+
+        var result = coordinator.synthesizeFinal(
+            request(model, metadata, value -> value, () -> "fallback", true));
+
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("returned records can still be analysed");
+        verify(model).chat(any(String.class));
+        assertThat(metadata)
+            .containsEntry("analysisSemanticExtractionAdvisory", true)
+            .containsEntry("analysisHumanReviewRequired", true)
+            .containsEntry("semanticClaimPreflightFailureDisposition",
+                "ADVISORY_DRIVER_ANALYSIS_FROM_RETURNED_DATA")
+            .containsEntry("interpretationPlanFinalResultProduced", true);
     }
 
     @Test

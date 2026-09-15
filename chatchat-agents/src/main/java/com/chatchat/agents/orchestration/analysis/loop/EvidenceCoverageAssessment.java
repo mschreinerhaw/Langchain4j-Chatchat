@@ -28,7 +28,12 @@ public final class EvidenceCoverageAssessment {
             .filter(item -> usable.stream().noneMatch(evidence -> matches(item, evidence)))
             .map(Requirement::id)
             .toList();
-        boolean evidenceAvailable = !usable.isEmpty();
+        // A governed worker/reducer summary is evidence: it was produced by binding, validating and
+        // reviewing successfully-retrieved records. Treating it as usable keeps a run that retrieved
+        // and analysed data from collapsing to "no available evidence" just because structured claim
+        // admission published nothing; the report then degrades to ANALYZE_WITH_LIMITATIONS.
+        boolean governedSummaryAvailable = governedAnalysisSummaryPresent(metadata);
+        boolean evidenceAvailable = !usable.isEmpty() || governedSummaryAvailable;
         boolean latestSufficient = truthy(latest.get("sufficient"));
         boolean conflictsRemain = size(latest.get("conflicts")) > 0;
         boolean gapsRemain = size(latest.getOrDefault(
@@ -44,7 +49,8 @@ public final class EvidenceCoverageAssessment {
                     ? EvidenceGrade.LIMITED : EvidenceGrade.PARTIAL_USABLE)
                 : EvidenceGrade.INSUFFICIENT;
         return new Result(grade, evidenceAvailable, requiredEvidenceMissing,
-            missingRequired, requirements.size(), usable.size(), gapsRemain, conflictsRemain);
+            missingRequired, requirements.size(), Math.max(usable.size(), governedSummaryAvailable ? 1 : 0),
+            gapsRemain, conflictsRemain);
     }
 
     private List<Requirement> requirements(Map<String, Object> latest,
@@ -120,6 +126,23 @@ public final class EvidenceCoverageAssessment {
             result.add(java.util.Collections.unmodifiableMap(converted));
         }
         return List.copyOf(result);
+    }
+
+    private boolean governedAnalysisSummaryPresent(Map<String, Object> metadata) {
+        if (metadata == null) return false;
+        // These counters are written by the reducer governance stage once governed worker/reducer
+        // reports have been reviewed over successfully-retrieved records.
+        if (positive(metadata.get("analysisReducerReviewableReportCount"))
+            || positive(metadata.get("analysisReducerAdmittedReportCount"))) {
+            return true;
+        }
+        String barrier = text(metadata.get("analysisSynthesisBarrierStatus"));
+        return barrier.equals("READY") || barrier.equals("READY_WITH_REDUCER_REVIEW_NOTES");
+    }
+
+    private boolean positive(Object value) {
+        Integer parsed = integer(value);
+        return parsed != null && parsed > 0;
     }
 
     private boolean meaningful(Object value) {

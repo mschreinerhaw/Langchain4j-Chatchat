@@ -78,6 +78,34 @@ class EvidenceCoverageAssessmentTest {
         assertThat(result.grade().synthesisAllowed()).isFalse();
     }
 
+    @Test
+    void governedWorkerSummaryKeepsRetrievedRunFromCollapsingToNoEvidence() {
+        var result = assessment.assess(
+            List.of(Map.of("toolEvidence", List.of(),
+                "remainingMissing", List.of("structured published claims"))),
+            Map.of("evidenceRequirement", "REQUIRED",
+                "analysisReducerReviewableReportCount", 2,
+                "analysisSynthesisBarrierStatus", "READY_WITH_REDUCER_REVIEW_NOTES"));
+
+        assertThat(result.evidenceAvailable()).isTrue();
+        assertThat(result.requiredEvidenceMissing()).isFalse();
+        assertThat(result.grade()).isEqualTo(EvidenceGrade.PARTIAL_USABLE);
+        assertThat(result.grade().synthesisAllowed()).isTrue();
+    }
+
+    @Test
+    void noGovernedReducerReportLeavesEmptyRetrievalInsufficient() {
+        var result = assessment.assess(
+            List.of(Map.of("toolEvidence", List.of(),
+                "remainingMissing", List.of("everything"))),
+            Map.of("evidenceRequirement", "REQUIRED",
+                "analysisReducerReviewableReportCount", 0,
+                "analysisSynthesisBarrierStatus", "READY_WITHOUT_REDUCER_REPORT"));
+
+        assertThat(result.evidenceAvailable()).isFalse();
+        assertThat(result.grade()).isEqualTo(EvidenceGrade.INSUFFICIENT);
+    }
+
     private TaskContract contract(List<TaskContract.EvidenceItem> evidenceItems) {
         return new TaskContract(TaskContract.CONTRACT_VERSION, "analysis", "goal",
             TaskContract.EvidenceRequirement.REQUIRED, false, "answer", List.of(), evidenceItems);

@@ -141,6 +141,56 @@ class AnalysisNodeProtocolTest {
             .contains("operation=OBSERVE", "259,106,965.42");
     }
 
+    @Test
+    void bindsGovernedObservationsToFreeFormCommandOutputRecords() {
+        String reference = "CHECK_DOCKER_OVERVIEW#template-4#payload";
+        var rows = List.<Map<String, Object>>of(Map.of(
+            "stepId", 2,
+            "stdout", "Server:\n Containers: 11\n  Running: 4\n  Stopped: 7\n"
+                + " Total Memory: 2.9GiB\n docker.service - active (running)"));
+
+        // The evidence lives inside the stdout blob, so the model can only cite it through the
+        // record path; per-field binding used to reject every such claim and collapse the run to
+        // "no available evidence".
+        var insight = bridge.validateProduct(isolationScope,
+            bridge.position(reference, 1, 1, 1, 1, 1),
+            bridge.govern(reference, Map.of(), rows), rows, "Analyze docker runtime health", """
+            {"summary":"Docker daemon is active with 2.9GiB total memory","insights":[{
+              "claimClass":"OBSERVED_RETURNED_FACT","operation":"OBSERVE",
+              "claim":"Docker daemon is active (running) with 2.9GiB total memory",
+              "significance":"Confirms container runtime health",
+              "recordRefs":["%s.records[1]"],
+              "supportingValues":{"%s.records[1]":{"status":"active (running)","memory":"2.9GiB"}},
+              "confidence":"HIGH","caveats":[]}]}
+            """.formatted(reference, reference));
+        assertThat(insight.evidence()).containsEntry("rejectedInsightCount", 0);
+        assertThat(insight.evidence().get("insights").toString())
+            .contains("active (running)", "2.9GiB");
+
+        var fact = bridge.validateProduct(isolationScope,
+            bridge.position(reference, 1, 1, 1, 1, 1),
+            bridge.govern(reference, Map.of(), rows), rows, "Analyze docker runtime health", """
+            {"summary":"Docker daemon is active (running)","facts":[{
+              "claim":"Docker daemon is active (running)",
+              "recordRefs":["%s.records[1]"],
+              "exactValues":{"%s.records[1]":{"status":"active (running)"}}}],"insights":[]}
+            """.formatted(reference, reference));
+        assertThat(fact.evidence()).containsEntry("rejectedFactCount", 0);
+        assertThat((List<?>) fact.evidence().get("observedFactClaims")).hasSize(1);
+
+        // A lone ambiguous digit that also appears in the blob must still be rejected: it is not a
+        // specific quoted value, matching the Worker's own caution about undeclared columns.
+        var ambiguous = bridge.validateProduct(isolationScope,
+            bridge.position(reference, 1, 1, 1, 1, 1),
+            bridge.govern(reference, Map.of(), rows), rows, "Analyze docker runtime health", """
+            {"summary":"Ambiguous single-digit citation","facts":[{"claim":"Value is 4",
+              "recordRefs":["%s.records[1]"],
+              "exactValues":{"%s.records[1]":{"count":4}}}],"insights":[]}
+            """.formatted(reference, reference));
+        assertThat(ambiguous.evidence()).containsEntry("rejectedFactCount", 1);
+        assertThat((List<?>) ambiguous.evidence().get("observedFactClaims")).isEmpty();
+    }
+
     private AnalysisSummaryResult validateStructuredValues(List<Map<String, Object>> rows, String values) {
         return bridge.validateProduct(isolationScope, bridge.position("sample", 1, 1, 1, 2, 2),
             bridge.govern("sample", Map.of(), rows), rows, "Observe returned values",

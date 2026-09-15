@@ -25,6 +25,24 @@ class AnalysisLoopCoordinatorTest {
         assertThat(AnalysisFlowState.read(metadata).iteration()).isEqualTo(3);
         assertThat(metadata).containsEntry("evidenceAugmentationContinueLoop", false);
     }
+    @Test void governedWorkerSummaryDegradesRequiredRunToLimitedInsteadOfNoEvidence() {
+        Map<String,Object> metadata = new LinkedHashMap<>(Map.of(
+            "evidenceRequirement", "REQUIRED",
+            "analysisReducerReviewableReportCount", 2,
+            "analysisSynthesisBarrierStatus", "READY_WITH_REDUCER_REVIEW_NOTES"));
+        Map<String,Object> retrievedButUnpublished = Map.of(
+            "toolEvidence", List.of(),
+            "remainingMissing", List.of("structured published claims"));
+
+        var decision = coordinator.decide(retrievedButUnpublished, true, false, false, metadata);
+        coordinator.recordDecision(decision, 1, Map.of(), metadata);
+        coordinator.recordStop(metadata, List.of(retrievedButUnpublished), "evidence_iteration_limit", 1);
+
+        assertThat(AnalysisFlowState.read(metadata).decision())
+            .isEqualTo(EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS);
+        assertThat(metadata).containsEntry("evidenceAugmentationAnswerAllowed", true);
+    }
+
     @Test void strictNoEvidenceAndAuthorizationDoNotBecomeBestEffortAnswers() {
         Map<String,Object> metadata = new LinkedHashMap<>(Map.of("evidenceRequirement", "STRICT"));
         var decision = coordinator.decide(Map.of(), false, true, false, metadata);

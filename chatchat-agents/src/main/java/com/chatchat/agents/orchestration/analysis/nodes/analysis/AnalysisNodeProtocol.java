@@ -425,6 +425,14 @@ public final class AnalysisNodeProtocol
                     && exactValueSupported(position, records, recordRefs, value))
                 .distinct()
                 .toList();
+            if (exactValues.isEmpty()) {
+                // Command/log/text datasets return their facts inside a free-form text field
+                // (stdout, output, message ...) rather than discrete columns, so per-field
+                // binding cannot anchor them. Accept the model's quoted values when they are
+                // literally present in the cited record, matching exactValueSupported semantics.
+                exactValues = textEvidenceValues(position, records, recordRefs,
+                    candidate.get("exactValues"));
+            }
             if (claim == null || claim.isBlank() || recordRefs.isEmpty() || exactValues.isEmpty()) {
                 rejectedFacts++;
                 continue;
@@ -735,6 +743,15 @@ public final class AnalysisNodeProtocol
                 values = declaredFieldValues(position, records, references,
                     strings(candidate.get("inputFields")));
             }
+            if (values.isEmpty()) {
+                // Command/log/text datasets expose their evidence as free-form text (stdout,
+                // output, message ...) rather than discrete columns, so field binding yields
+                // nothing. Accept the model's quoted values when they are literally present in
+                // the cited record, so a governed insight over shell/log output is not rejected
+                // as unsupported and silently collapsed into "no evidence".
+                values = textEvidenceValues(position, records, references,
+                    candidate.get("supportingValues"));
+            }
             SemanticOperation operation = SemanticOperation.from(string(candidate.get("operation")));
             if ("OBSERVED_RETURNED_FACT".equals(claimClass)) {
                 // A value copied from a cited returned field is an observation even when the
@@ -959,6 +976,91 @@ public final class AnalysisNodeProtocol
             }
         }
         return false;
+    }
+
+    /**
+     * Last-resort evidence binding for command/log/text datasets. Such records return their
+     * facts inside a free-form text field (stdout, output, message ...) instead of discrete
+     * columns, so the field-oriented binding above can never anchor a value. This accepts the
+     * literal values the model quoted only when they are genuinely present in the cited record,
+     * i.e. the exact same substring guarantee exactValueSupported enforces. It therefore widens
+     * acceptance without fabricating evidence, so a governed observation over shell/log output is
+     * not rejected as unsupported and the run does not collapse to "no available evidence".
+     */
+    private List<String> textEvidenceValues(DataAnalysisPosition position,
+                                            List<Map<String, Object>> records,
+                                            List<String> references, Object citedValues) {
+        if (records == null || references == null || references.isEmpty()
+            || !textualRecords(position, records, references)) {
+            return List.of();
+        }
+        List<String> collected = new ArrayList<>();
+        collectLiteralValues(citedValues, collected);
+        List<String> supported = new ArrayList<>();
+        for (String literal : collected) {
+            if (specificSupportingLiteral(literal)
+                && exactValueSupported(position, records, references, literal)) {
+                supported.add(literal);
+            }
+        }
+        return supported.stream().distinct().toList();
+    }
+
+    private boolean textualRecords(DataAnalysisPosition position,
+                                   List<Map<String, Object>> records, List<String> references) {
+        for (String reference : references) {
+            if (reference.equals(position.toMap().get("recordPath"))) {
+                for (Map<String, Object> record : records) if (freeFormTextRecord(record)) return true;
+                continue;
+            }
+            Integer index = recordIndex(position, reference);
+            if (index == null) continue;
+            int localIndex = index - position.recordFrom();
+            if (localIndex >= 0 && localIndex < records.size()
+                && freeFormTextRecord(records.get(localIndex))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean freeFormTextRecord(Map<String, Object> record) {
+        if (record == null) return false;
+        for (Map.Entry<String, Object> entry : record.entrySet()) {
+            if (!(entry.getValue() instanceof CharSequence text)) continue;
+            String value = text.toString();
+            if (value.length() >= 80) return true;
+            String key = String.valueOf(entry.getKey()).toLowerCase(java.util.Locale.ROOT);
+            if (key.contains("stdout") || key.contains("stderr") || key.contains("output")
+                || key.contains("text") || key.contains("log") || key.contains("result")
+                || key.contains("content") || key.contains("message") || key.contains("command")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void collectLiteralValues(Object value, List<String> collected) {
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if ("recordRef".equals(String.valueOf(entry.getKey()))) continue;
+                collectLiteralValues(entry.getValue(), collected);
+            }
+        } else if (value instanceof Iterable<?> items) {
+            for (Object item : items) collectLiteralValues(item, collected);
+        } else if (value instanceof CharSequence || value instanceof Number || value instanceof Boolean) {
+            String literal = String.valueOf(value).trim();
+            if (!literal.isEmpty()) collected.add(literal);
+        }
+    }
+
+    private boolean specificSupportingLiteral(String literal) {
+        if (literal == null) return false;
+        String value = literal.trim();
+        // Exclude lone characters (e.g. the ambiguous "0"/"1" columns Workers explicitly flag as
+        // semantically undeclared) and whole-field text blobs; keep concrete quoted values.
+        if (value.length() < 2 || value.length() > 200) return false;
+        return !value.contains(".records[");
     }
 
     private String recordContentSha256(List<Map<String, Object>> records) {

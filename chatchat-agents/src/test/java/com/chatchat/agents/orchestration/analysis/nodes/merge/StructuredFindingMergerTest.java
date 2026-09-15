@@ -256,6 +256,25 @@ class StructuredFindingMergerTest {
     }
 
     @Test
+    void reducerPreservesEveryWorkerOutputWithoutQualityFilteringOrTruncation() {
+        String longOutput = "x".repeat(30_000) + "-tail";
+        AnalysisSummaryResult first = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "assets", "chunkIndex", 1), Map.of(),
+            longOutput, "MODEL_SUMMARY");
+        AnalysisSummaryResult duplicate = AnalysisSummaryResult.chunk(scope,
+            Map.of("datasetReference", "assets", "chunkIndex", 2), Map.of(),
+            longOutput, "MODEL_SUMMARY");
+
+        AnalysisSummaryResult result = new StructuredFindingMerger().reduceDataset(
+            prompt -> "unused", scope, "assets", List.of(first, duplicate), "");
+
+        assertThat(result.content()).isEqualTo(longOutput + "\n\n" + longOutput);
+        assertThat(result.content()).endsWith("-tail");
+        assertThat(result.inputSummaryResultIds()).containsExactly(
+            first.resultId(), duplicate.resultId());
+    }
+
+    @Test
     void reducerPublishesOnlyLineageBoundDerivedArtifacts() {
         AnalysisSummaryResult first = artifactChunk(
             "metrics", "claim:waits", "Allocation waits are 0", "0");

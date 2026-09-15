@@ -114,9 +114,8 @@ final class AnalysisSynthesisContext {
         List<Map<String, Object>> reports = new ArrayList<>();
         List<String> included = new ArrayList<>();
         List<String> omitted = new ArrayList<>();
-        List<AnalysisSummaryResult> prioritized = sources.stream().filter(java.util.Objects::nonNull)
-            .sorted(java.util.Comparator.comparingLong(this::priorityScore).reversed()
-                .thenComparing(this::sourceReference)).toList();
+        List<AnalysisSummaryResult> prioritized = sources.stream()
+            .filter(java.util.Objects::nonNull).toList();
         for (int index = 0; index < prioritized.size(); index++) {
             AnalysisSummaryResult source = prioritized.get(index);
             String sourceReference = sourceReference(source);
@@ -134,8 +133,7 @@ final class AnalysisSynthesisContext {
             item.put("declaredSemantics", declared.substring(0, semanticChars));
             item.put("semanticsTruncated", semanticChars < declared.length());
             String narrative = source.content() == null ? "" : source.content();
-            boolean eligible = com.chatchat.agents.orchestration.analysis.governance.AnalysisOutputAdmissionPolicy
-                .admitWorkerNarrative(narrative).admitted();
+            boolean eligible = !narrative.isBlank();
             int narrativeChars = eligible ? fittedPrefix(narrative, Math.max(32, fairShare / 2), estimator) : 0;
             item.put("modelNarrative", narrative.substring(0, narrativeChars));
             item.put("narrativeTruncated", eligible && narrativeChars < narrative.length());
@@ -155,17 +153,6 @@ final class AnalysisSynthesisContext {
             .filter(reference -> !includedReferences.contains(reference)).toList();
         return new ModelInputProjection(List.copyOf(reports), includedReferences,
             omittedReferences, Math.max(0, tokenBudget - remaining));
-    }
-
-    private long priorityScore(AnalysisSummaryResult source) {
-        Map<String, Object> evidence = source.evidence() == null ? Map.of() : source.evidence();
-        long conflicts = iterable(evidence.get("conflicts")).size();
-        long claims = iterable(evidence.get("claimAdmissionDecisions")).size()
-            + iterable(evidence.get("analysisItems")).size()
-            + iterable(evidence.get("observedFactClaims")).size();
-        Object records = source.position().get("recordCount");
-        long recordCount = records instanceof Number number ? Math.max(0, number.longValue()) : 0;
-        return conflicts * 1_000_000L + claims * 10_000L + Math.min(9_999, recordCount);
     }
 
     private String sourceReference(AnalysisSummaryResult source) {

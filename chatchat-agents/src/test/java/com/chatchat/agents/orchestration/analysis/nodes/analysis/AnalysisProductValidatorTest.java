@@ -12,14 +12,14 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class AnalysisProductValidatorTest {
+class WorkerPreprocessingCollectorTest {
 
     private final GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
         "tenant", "user", "run", "request", "conversation");
-    private final AnalysisProductValidator supervisor = new AnalysisProductValidator();
+    private final WorkerPreprocessingCollector supervisor = new WorkerPreprocessingCollector();
 
     @Test
-    void acceptsOnlyStructuredTraceableWorkerAnalysis() {
+    void collectsStructuredWorkerPreprocessingOutput() {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
@@ -38,12 +38,12 @@ class AnalysisProductValidatorTest {
             "dataset-a", 1, outcome(dataset(chunk, "SUCCESS")), ignored -> true);
 
         assertThat(report.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
         assertThat(report.acceptedForSynthesis()).isTrue();
     }
 
     @Test
-    void acceptsFactOnlyWorkerReportAfterExactValueValidation() {
+    void collectsFactOnlyWorkerPreprocessingOutput() {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "Observed account metrics", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
@@ -63,12 +63,12 @@ class AnalysisProductValidatorTest {
             "dataset-a", 1, outcome(dataset(chunk, "SUCCESS")), ignored -> true);
 
         assertThat(report.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
         assertThat(report.acceptedForSynthesis()).isTrue();
     }
 
     @Test
-    void acceptsEvidenceBoundDynamicAnalysisWithoutDuplicatedInsight() {
+    void collectsDynamicWorkerPreprocessingOutput() {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "Metric catalog was analyzed", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
@@ -90,12 +90,12 @@ class AnalysisProductValidatorTest {
             "dataset-a", 1, outcome(dataset(chunk, "SUCCESS")), ignored -> true);
 
         assertThat(report.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
         assertThat(report.acceptedForSynthesis()).isTrue();
     }
 
     @Test
-    void acceptsEvidenceBoundWorkerProductWithHumanReviewNotes() {
+    void collectsWorkerOutputRegardlessOfReviewNotes() {
         AnalysisSummaryResult chunk = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
@@ -114,12 +114,12 @@ class AnalysisProductValidatorTest {
             "dataset-a", 1, outcome(dataset(chunk, "SUCCESS")), ignored -> true);
 
         assertThat(report.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
         assertThat(report.acceptedForSynthesis()).isTrue();
     }
 
     @Test
-    void executionFallbackIsTerminalButNotAcceptedAsAnalysis() {
+    void collectsFallbackContentWithoutJudgingItsAnalysisQuality() {
         AnalysisSummaryResult chunk = chunk(
             "STRUCTURED_RECORD_FALLBACK", "[{\"value\":1}]", Map.of(
                 "structured", false, "evidenceId", "evidence-1"));
@@ -127,13 +127,13 @@ class AnalysisProductValidatorTest {
             "dataset-a", 1, outcome(dataset(chunk, "FALLBACK")), ignored -> true);
 
         assertThat(report.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
-        assertThat(report.acceptedForSynthesis()).isFalse();
-        assertThat(report.reasons()).contains("RAW_RECORD_PRODUCT_IS_NOT_ANALYSIS");
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
+        assertThat(report.acceptedForSynthesis()).isTrue();
+        assertThat(report.reasons()).isEmpty();
     }
 
     @Test
-    void degradesTraceableUnstructuredNarrativeButRejectsRuntimeProtocolText() {
+    void collectsUnstructuredAndProtocolTextForDriverInterpretation() {
         AnalysisSummaryResult narrative = chunk(
             "MODEL_SUMMARY", "customer assets were analyzed", Map.of("evidenceId", "evidence-1"));
         AnalysisSummaryResult protocol = chunk(
@@ -145,16 +145,15 @@ class AnalysisProductValidatorTest {
             "dataset-a", 1, outcome(dataset(protocol, "SUCCESS")), ignored -> true);
 
         assertThat(narrativeReport.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_DEGRADED);
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
         assertThat(narrativeReport.acceptedForSynthesis()).isTrue();
-        assertThat(narrativeReport.reasons()).contains("ANALYSIS_PROTOCOL_DEGRADED");
         assertThat(rejected.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_NOT_PRODUCED);
-        assertThat(rejected.acceptedForSynthesis()).isFalse();
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
+        assertThat(rejected.acceptedForSynthesis()).isTrue();
     }
 
     @Test
-    void degradesStructuredWorkerOutputWithoutDemandAndMetricAssessment() {
+    void collectsStructuredWorkerOutputWithoutDemandAndMetricAssessment() {
         AnalysisSummaryResult incomplete = chunk("MODEL_SUMMARY", "业务分析结论", Map.of(
             "structured", true,
             "evidenceId", "evidence-1",
@@ -169,9 +168,8 @@ class AnalysisProductValidatorTest {
             "dataset-a", 1, outcome(dataset(incomplete, "SUCCESS")), ignored -> true);
 
         assertThat(report.productStatus())
-            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_DEGRADED);
+            .isEqualTo(DataAnalysisWorkerSupervision.ProductStatus.PREPROCESSING_AVAILABLE);
         assertThat(report.acceptedForSynthesis()).isTrue();
-        assertThat(report.reasons()).contains("ANALYSIS_PROTOCOL_DEGRADED");
     }
 
     private AnalysisDispatchCoordinator.Outcome outcome(AnalysisDatasetSummary summary) {

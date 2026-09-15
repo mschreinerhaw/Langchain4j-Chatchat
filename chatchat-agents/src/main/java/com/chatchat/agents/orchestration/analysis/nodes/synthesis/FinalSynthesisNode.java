@@ -320,8 +320,7 @@ public final class FinalSynthesisNode {
 
         answer = sanitizeReport(answer, request);
         boolean authoredNarrative = answer != null && !answer.stripLeading().startsWith("{")
-            && !answer.stripLeading().startsWith("```json")
-            && AnalysisOutputAdmissionPolicy.admit(answer).admitted();
+            && !answer.stripLeading().startsWith("```json");
         if (claimBoundPublication && authoredNarrative) {
             request.metadata().remove("analysisDriverReview");
             request.metadata().put("analysisDriverReviewCompleted", false);
@@ -405,6 +404,13 @@ public final class FinalSynthesisNode {
                 request.metadata().put("analysisHumanReviewRequired", true);
                 recordHumanReviewAdvisory(request, "ANALYSIS_RECOVERY", recovery.reason());
             }
+        }
+        if (!admission.admitted() && answer != null && !answer.isBlank()) {
+            // A non-empty Driver model response is the analysis result. Runtime classifiers may
+            // describe its shape, but must never overrule the model and suppress publication.
+            request.metadata().put("analysisOutputClassifierAdvisory", admission.reason());
+            admission = new AnalysisOutputAdmissionPolicy.Admission(
+                true, "MODEL_OUTPUT_PRESENT_CLASSIFIER_ADVISORY");
         }
         request.metadata().put("analysisOutputAdmissionReason", admission.reason());
         request.metadata().put("analysisOutputAdmitted", admission.admitted());
@@ -705,17 +711,16 @@ public final class FinalSynthesisNode {
     /** Preserve the final model body; coverage and source records belong in metadata. */
     public String presentGovernedAnalysis(String answer, PresentationRequest request) {
         request.metadata().put("recordAnalysisCoverageAppendixApplied", false);
-        if (Boolean.TRUE.equals(request.metadata().get("rawAnalysisOutputWithheld"))) {
-            return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
-        }
         AnalysisOutputAdmissionPolicy.Admission admission = AnalysisOutputAdmissionPolicy.admit(answer);
-        if (!admission.admitted()
-            || Boolean.TRUE.equals(request.metadata().get("interpretationPlanDeterministicSummaryFallback"))) {
-            recordWithheld(request, admission.admitted()
-                ? "MODEL_AUTHORED_REPORT_REQUIRED" : admission.reason());
+        if (answer == null || answer.isBlank()) {
+            recordWithheld(request, admission.reason());
             return AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE;
         }
-        request.metadata().put("analysisOutputAdmissionReason", admission.reason());
+        if (!admission.admitted()) {
+            request.metadata().put("analysisOutputClassifierAdvisory", admission.reason());
+        }
+        request.metadata().put("analysisOutputAdmissionReason",
+            admission.admitted() ? admission.reason() : "MODEL_OUTPUT_PRESENT_CLASSIFIER_ADVISORY");
         request.metadata().put("analysisOutputAdmitted", true);
         String completion = datasetCompletionAppendix(request.metadata());
         if (completion.isBlank() || answer.contains("## 数据集完整性")

@@ -309,7 +309,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void nonEmptyModelResponseStillCannotPublishRawRuntimeEnvelope() {
+    void nonEmptyModelResponseIsPublishedWithClassifierAdvisory() {
         AnalysisSummaryGovernanceCoordinator governance = mock(AnalysisSummaryGovernanceCoordinator.class);
         when(governance.finalizeSummary(any())).thenAnswer(invocation -> {
             AnalysisSummaryGovernanceCoordinator.FinalSummaryRequest request = invocation.getArgument(0);
@@ -333,18 +333,15 @@ class FinalSynthesisNodeTest {
         FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             request(model, metadata, candidate -> candidate, () -> "unused", true));
 
-        assertThat(result.content())
-            .contains("数据分析暂时不可用", "复用已获取的数据")
-            .doesNotContain("未通过发布准入", "发布治理");
-        assertThat(result.generated()).isFalse();
+        assertThat(result.content()).contains("_aggregation", "可用执行结果", "toolName");
+        assertThat(result.generated()).isTrue();
         assertThat(metadata)
-            .containsEntry("analysisOutputAdmitted", false)
-            .containsEntry("rawAnalysisOutputWithheld", true)
-            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS");
+            .containsEntry("analysisOutputAdmitted", true)
+            .containsEntry("analysisOutputClassifierAdvisory", "EXECUTION_MANIFEST_NOT_ANALYSIS");
     }
 
     @Test
-    void presentationFailsClosedWhenReturnedDataHasNoGovernedWorkerAnalysis() {
+    void presentationDoesNotSuppressNonEmptyDriverOutput() {
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId",
             mock(AnalysisSummaryGovernanceCoordinator.class),
@@ -358,10 +355,10 @@ class FinalSynthesisNodeTest {
                 "raw appendix", List.of(List.of("raw")), 1, false,
                 true, true, true, List.of(), List.of(), metadata));
 
-        assertThat(answer).isEqualTo(AnalysisOutputAdmissionPolicy.WITHHELD_MESSAGE);
+        assertThat(answer).contains("可用执行结果", "raw rows");
         assertThat(metadata)
-            .containsEntry("rawAnalysisOutputWithheld", true)
-            .containsEntry("analysisOutputAdmitted", false);
+            .containsEntry("analysisOutputAdmitted", true)
+            .containsEntry("analysisOutputClassifierAdvisory", "EXECUTION_MANIFEST_NOT_ANALYSIS");
     }
 
     @Test
@@ -449,7 +446,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void finalModelFailurePublishesOnlyAdmittedEvidenceBoundClaims() {
+    void finalModelFailureDoesNotLetRuntimeAuthorAnAnalysis() {
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -462,15 +459,13 @@ class FinalSynthesisNodeTest {
         FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), false));
 
-        assertThat(result.generated()).isTrue();
-        assertThat(result.content()).contains(
-            "Evidence-backed partial result", "返回记录显示数值为 42", "Limitations");
-        assertThat(metadata).containsEntry("analysisOutputAdmitted", true)
-            .containsEntry("analysisExecutionStatus", "COMPLETED")
+        assertThat(result.generated()).isFalse();
+        assertThat(result.content()).contains("数据分析暂时不可用");
+        assertThat(metadata).containsEntry("analysisOutputAdmitted", false)
+            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
             .doesNotContainKey("interpretationPlanDeterministicClaimFallback");
-        assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("publicationMode"))
-            .isEqualTo("GOVERNED_CLAIM_PARTIAL_DELIVERY");
-        verify(model).chat(any(String.class));
+        assertThat(metadata).doesNotContainKey("analyticalReport");
+        verify(model, org.mockito.Mockito.times(2)).chat(any(String.class));
     }
 
     @Test
@@ -960,9 +955,7 @@ class FinalSynthesisNodeTest {
         assertThat(metadata).doesNotContainKey("claimAcceptance");
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenThrow(new IllegalStateException("unavailable"));
         coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
-        assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("publicationMode"))
-            .isEqualTo("GOVERNED_CLAIM_PARTIAL_DELIVERY");
-        assertThat(metadata).doesNotContainKey("claimAcceptance");
+        assertThat(metadata).doesNotContainKeys("analyticalReport", "claimAcceptance");
     }
 
     @Test

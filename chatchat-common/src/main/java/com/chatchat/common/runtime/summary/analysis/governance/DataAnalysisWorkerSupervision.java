@@ -5,14 +5,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Immutable, framework-neutral Driver view of Worker execution and analysis quality. */
+/** Immutable, framework-neutral Driver view of Worker preprocessing completion. */
 public final class DataAnalysisWorkerSupervision {
 
     public static final String SCHEMA_VERSION = "data_analysis_worker_supervision.v1";
 
     public enum ProductStatus {
+        PREPROCESSING_AVAILABLE,
+        PREPROCESSING_EMPTY,
+        /** @deprecated retained for serialized-state compatibility. */
+        @Deprecated
         ANALYSIS_ACCEPTED,
+        /** @deprecated Worker quality is not a runtime concern. */
+        @Deprecated
         ANALYSIS_DEGRADED,
+        /** @deprecated use {@link #PREPROCESSING_EMPTY}. */
+        @Deprecated
         ANALYSIS_NOT_PRODUCED,
         EXECUTION_FAILED
     }
@@ -54,12 +62,14 @@ public final class DataAnalysisWorkerSupervision {
         }
 
         public boolean acceptedForSynthesis() {
-            return productStatus == ProductStatus.ANALYSIS_ACCEPTED
+            return productStatus == ProductStatus.PREPROCESSING_AVAILABLE
+                || productStatus == ProductStatus.ANALYSIS_ACCEPTED
                 || productStatus == ProductStatus.ANALYSIS_DEGRADED;
         }
 
         public boolean fullyCompliant() {
-            return productStatus == ProductStatus.ANALYSIS_ACCEPTED;
+            return productStatus == ProductStatus.PREPROCESSING_AVAILABLE
+                || productStatus == ProductStatus.ANALYSIS_ACCEPTED;
         }
 
         public Map<String, Object> toMap() {
@@ -129,8 +139,9 @@ public final class DataAnalysisWorkerSupervision {
         List<WorkerReport> workers = reports == null ? List.of() : List.copyOf(reports);
         int accepted = (int) workers.stream().filter(WorkerReport::acceptedForSynthesis).count();
         int rejected = workers.size() - accepted;
-        boolean allFullyCompliant = workers.stream().allMatch(WorkerReport::fullyCompliant);
-        BarrierStatus barrier = accepted == expectedWorkerCount && rejected == 0 && allFullyCompliant
+        boolean allPreprocessingAvailable = workers.stream().allMatch(WorkerReport::fullyCompliant);
+        BarrierStatus barrier = accepted == expectedWorkerCount && rejected == 0
+            && allPreprocessingAvailable
             ? BarrierStatus.READY
             : accepted > 0 ? BarrierStatus.READY_WITH_LIMITATIONS : BarrierStatus.BLOCKED;
         return new DriverReport(SCHEMA_VERSION, expectedWorkerCount, workers.size(),

@@ -9,9 +9,8 @@ import com.chatchat.agents.orchestration.analysis.dispatch.AnalysisDispatchCoord
 import com.chatchat.agents.orchestration.analysis.execution.DatasetExecutionRegistry;
 import com.chatchat.agents.orchestration.analysis.insight.DeterministicInsightEngine;
 import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode;
-import com.chatchat.agents.orchestration.analysis.nodes.merge.MergedFindingValidator;
 import com.chatchat.agents.orchestration.analysis.nodes.merge.StructuredFindingMerger;
-import com.chatchat.agents.orchestration.analysis.nodes.analysis.AnalysisProductValidator;
+import com.chatchat.agents.orchestration.analysis.nodes.analysis.WorkerPreprocessingCollector;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisDatasetSummary;
 import com.chatchat.agents.orchestration.analysis.model.AnalysisSummaryResult;
 import com.chatchat.agents.orchestration.analysis.model.DatasetRelationshipPlan;
@@ -22,7 +21,6 @@ import com.chatchat.agents.runtime.governance.GovernanceIsolationScope;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisLifecycle;
 import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.runtime.summary.analysis.contract.AnalysisLoopContract;
 import com.chatchat.common.runtime.summary.analysis.spi.DataAnalysisSummaryProtocol;
 import com.chatchat.common.runtime.summary.analysis.governance.DataAnalysisWorkerSupervision;
 import dev.langchain4j.model.chat.ChatModel;
@@ -36,7 +34,7 @@ import java.util.function.BooleanSupplier;
 
 import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
 
-/** Reconciles Worker outputs into complete, traceable synthesis inputs. */
+/** Collects Worker preprocessing outputs and organizes them for Driver synthesis. */
 public final class AnalysisCoverageCoordinator {
 
     private final AgentRunResultAdapter resultAdapter;
@@ -45,9 +43,6 @@ public final class AnalysisCoverageCoordinator {
     private final DeterministicInsightEngine insightEngine;
     private final FinalSynthesisNode synthesisCoordinator;
     private final AnalysisDispatchCoordinator dispatchCoordinator;
-    private final MergedFindingValidator reducerSupervisor = new MergedFindingValidator();
-    private final AnalysisGovernanceStateCoordinator governanceStateCoordinator =
-        new AnalysisGovernanceStateCoordinator();
     private final Configuration configuration;
     private AnalysisEvidenceSpillStore spillStore;
     private com.chatchat.agents.orchestration.analysis.prompt.DomainAnalysisProfileProvider profiles =
@@ -200,19 +195,19 @@ public final class AnalysisCoverageCoordinator {
             coverage = reconcile(request, datasets, relationshipPlan, lifecycle, outcomes, prepared,
                 datasetRegistry);
         } catch (RuntimeException failure) {
-            observe(request, "数据分析结果质量验收失败。",
+            observe(request, "Worker 结果汇集或编排失败。",
                 "analysis_graph", metadataOf("type", "dataset_analysis_failed",
                     "eventKind", "ANALYSIS_GRAPH", "eventState", "FAILED", "graphId", analysisGraphId,
                     "datasetCount", datasets.size(), "errorType", failure.getClass().getSimpleName()));
             throw failure;
         }
         if (coverage.evidenceTraceComplete() && coverage.coverageComplete()) {
-            observe(request, "全部 " + datasets.size() + " 个数据集均已通过完整证据分析验收。",
+            observe(request, "全部 " + datasets.size() + " 个数据集的预处理结果均已收集。",
                 "analysis_graph", metadataOf("type", "dataset_analysis_completed",
                     "eventKind", "ANALYSIS_GRAPH", "eventState", "COMPLETED", "graphId", analysisGraphId,
                     "datasetCount", datasets.size(), "outcomeCount", outcomes.size()));
         } else {
-            observe(request, "部分数据集未通过分析验收，将以 PARTIAL 结果继续综合并显式披露。",
+            observe(request, "部分数据集的预处理或来源覆盖不完整，Driver 将基于现有输入继续分析。",
                 "analysis_graph", metadataOf("type", "dataset_analysis_partial",
                     "eventKind", "ANALYSIS_GRAPH", "eventState", "PARTIAL", "graphId", analysisGraphId,
                     "datasetCount", datasets.size(), "outcomeCount", outcomes.size(),
@@ -317,7 +312,7 @@ public final class AnalysisCoverageCoordinator {
         List<Map<String, Object>> datasetDepthMetrics = new ArrayList<>();
         List<Map<String, Object>> failures = new ArrayList<>(sourceFailureDatasets(request.metadata()));
         List<DataAnalysisWorkerSupervision.WorkerReport> workerReports = new ArrayList<>();
-        AnalysisProductValidator workerSupervisor = new AnalysisProductValidator();
+        WorkerPreprocessingCollector workerSupervisor = new WorkerPreprocessingCollector();
         DatasetReferenceSequence references = datasetReferences(datasets);
         Counters counters = new Counters();
 
@@ -352,21 +347,9 @@ public final class AnalysisCoverageCoordinator {
                 datasetRegistry.skipped(reference, outcome.error());
                 continue;
             }
-            if (!workerReport.acceptedForSynthesis()) {
+            if (outcome == null || outcome.summary() == null) {
                 datasetRegistry.failed(reference, outcome == null
-                    ? "missing analysis result" : outcome.error());
-                if (workerReport.productStatus()
-                    == DataAnalysisWorkerSupervision.ProductStatus.EXECUTION_FAILED) {
-                    recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
-                        datasets.size(), Math.toIntExact(dataset.recordCount()), outcome);
-                } else {
-                    recordRejectedWorkerProduct(request, prompt, appendix, failures, reference,
-                        datasetIndex, datasets.size(), Math.toIntExact(dataset.recordCount()), outcome, workerReport);
-                }
-                continue;
-            }
-            if (!outcome.success()) {
-                datasetRegistry.failed(reference, outcome.error());
+                    ? "missing preprocessing result" : outcome.error());
                 recordFailure(request, prompt, appendix, failures, reference, datasetIndex,
                     datasets.size(), Math.toIntExact(dataset.recordCount()), outcome);
                 continue;
@@ -470,13 +453,12 @@ public final class AnalysisCoverageCoordinator {
         DataAnalysisLifecycle lifecycle = initialLifecycle.workersReconciled(
             supervision.acceptedWorkerCount(), supervision.rejectedWorkerCount());
         if (!supervision.synthesisReady()) {
-            prompt.append("No Worker produced a reviewable analysis narrative. This is an analysis-layer "
+            prompt.append("No Worker preprocessing output was available. This is a preprocessing "
                 + "failure, not absence of data. Continue Driver synthesis from the bounded returned-data "
-                + "projection, disclose the Worker failure, and do not label unverified claims as verified.\n");
+                + "projection and disclose the preprocessing failure.\n");
             request.metadata().put("analysisWorkerFallbackToReturnedData", true);
-            request.metadata().put("analysisHumanReviewRequired", true);
             request.metadata().put("analysisSynthesisBarrierStatus",
-                "READY_WITHOUT_REVIEWABLE_WORKER_REPORT");
+                "READY_WITHOUT_WORKER_PREPROCESSING");
         }
         // The unified question graph has already analyzed all datasets together. Routing its
         // findings back through the legacy per-dataset/relationship Reducer destroys question-level
@@ -522,12 +504,12 @@ public final class AnalysisCoverageCoordinator {
                 .append(ModelProtocolJson.compact(bundleInsights.toMap())).append("\n");
         }
         boolean allAnalysisProductsAccepted = workerReports.size() == datasets.size()
-            && workerReports.stream().allMatch(report -> report.productStatus()
-                == DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_ACCEPTED);
+            && workerReports.stream().allMatch(
+                DataAnalysisWorkerSupervision.WorkerReport::acceptedForSynthesis);
         request.metadata().put("analysisAllDatasetProductsAccepted", allAnalysisProductsAccepted);
-        request.metadata().put("analysisDegradedDatasetCount", workerReports.stream()
-            .filter(report -> report.productStatus()
-                == DataAnalysisWorkerSupervision.ProductStatus.ANALYSIS_DEGRADED).count());
+        request.metadata().put("analysisDegradedDatasetCount", 0L);
+        request.metadata().put("analysisUnavailablePreprocessingDatasetCount", workerReports.stream()
+            .filter(report -> !report.acceptedForSynthesis()).count());
         boolean coverageComplete = counters.processed == counters.returned;
         boolean traceComplete = counters.processed > 0
             && governedSummaries.size() == counters.iterations
@@ -563,57 +545,6 @@ public final class AnalysisCoverageCoordinator {
             List.copyOf(governedSummaries), hierarchy.finalInputs());
     }
 
-    private void writeReducerGovernanceMetadata(
-        Request request,
-        MergedFindingValidator.Review review,
-        AnalysisGovernanceStateCoordinator.State governanceState
-    ) {
-        Map<String, Object> metadata = request.metadata();
-        if (metadata == null) return;
-        metadata.put("analysisReducerAdmissionDecisions", review.admissionDecisions());
-        long admittedCount = review.admissionDecisions().stream()
-            .filter(decision -> Boolean.TRUE.equals(decision.get("admitted"))).count();
-        metadata.put("analysisReducerAdmittedReportCount", admittedCount);
-        metadata.put("analysisReducerReviewableReportCount", review.admittedInputs().size());
-        metadata.put("analysisReducerRejectedReportCount", review.rejectedCount());
-        metadata.put("analysisSuggestedRepairRequests", review.repairRequests());
-        metadata.put("analysisRepairRequests", List.of());
-        metadata.put("analysisRepairRequired", false);
-        List<Map<String, Object>> gapRequests = toGapRequests(governanceState.activeRepairRequests());
-        metadata.put("analysisGapRequests", gapRequests);
-        metadata.put("gapRequests", gapRequests);
-        metadata.put("analysisGapsAdvisoryOnly", true);
-        metadata.put("analysisAdvisoryGapCount", gapRequests.size());
-        metadata.put("analysisSynthesisBarrierReady", true);
-        metadata.put("analysisSynthesisBarrierStatus", review.admittedInputs().isEmpty()
-            ? "READY_WITHOUT_REDUCER_REPORT"
-            : review.rejectedCount() == 0 ? "READY" : "READY_WITH_REDUCER_REVIEW_NOTES");
-    }
-
-    private List<Map<String, Object>> toGapRequests(List<Map<String, Object>> repairs) {
-        if (repairs == null || repairs.isEmpty()) return List.of();
-        return repairs.stream().map(repair -> new AnalysisLoopContract.GapRequest(
-                stringValue(repair.get("requestId")),
-                stringValue(repair.get("goal")),
-                stringList(repair.get("requiredCapabilities")),
-                stringValue(repair.get("requiredTimeScope")),
-                stringValue(repair.get("requiredGrain")),
-                AnalysisLoopContract.Criticality.CORE,
-                stringValue(repair.get("route")))
-            .toMap()).toList();
-    }
-
-    private List<String> stringList(Object value) {
-        if (!(value instanceof Iterable<?> iterable)) return List.of();
-        List<String> result = new ArrayList<>();
-        iterable.forEach(item -> {
-            if (item != null && !String.valueOf(item).isBlank()) {
-                result.add(String.valueOf(item).trim());
-            }
-        });
-        return result.stream().distinct().toList();
-    }
-
     private void observeWorkerSupervision(
         Request request,
         DataAnalysisWorkerSupervision.WorkerReport report,
@@ -621,12 +552,9 @@ public final class AnalysisCoverageCoordinator {
         int count
     ) {
         boolean accepted = report.acceptedForSynthesis();
-        String stage = report.fullyCompliant() ? "ANALYSIS_ACCEPTED"
-            : accepted ? "ANALYSIS_DEGRADED" : "ANALYSIS_REJECTED";
-        observe(request,
-            "第 " + index + "/" + count + " 组数据分析"
-                + (report.fullyCompliant() ? "已通过质量验收。"
-                    : accepted ? "已完成受限分析，保留可用结果及未决问题。" : "未通过质量验收，不会进入综合结论。"),
+        String stage = accepted ? "PREPROCESSING_AVAILABLE" : "PREPROCESSING_UNAVAILABLE";
+        observe(request, "第 " + index + "/" + count + " 组数据预处理"
+                + (accepted ? "已完成，结果将完整交给 Driver。" : "未产生可用输出，Driver 将使用已返回数据。"),
             "business_analysis_progress", metadataOf(
                 "type", "analysis_worker_supervision",
                 "stage", stage,
@@ -634,32 +562,6 @@ public final class AnalysisCoverageCoordinator {
                 "workIndex", index,
                 "workCount", count,
                 "workerReport", report.toMap()));
-    }
-
-    private void recordRejectedWorkerProduct(
-        Request request,
-        StringBuilder prompt,
-        StringBuilder appendix,
-        List<Map<String, Object>> failures,
-        String reference,
-        int index,
-        int count,
-        int records,
-        AnalysisDispatchCoordinator.Outcome outcome,
-        DataAnalysisWorkerSupervision.WorkerReport report
-    ) {
-        Map<String, Object> failure = metadataOf(
-            "workReference", reference, "workIndex", index, "workCount", count,
-            "recordCount", records, "status", report.productStatus().name(),
-            "durationMs", report.durationMs(), "error", String.join(",", report.reasons()),
-            "workerReport", report.toMap());
-        failures.add(failure);
-        prompt.append("- ").append(reference)
-            .append(" returned data but did not produce an admitted Worker analysis. "
-                + "Do not use its raw payload as a conclusion. Supervision: ")
-            .append(ModelProtocolJson.compact(report.toMap())).append("\n");
-        appendix.append("### ").append(reference)
-            .append("\n\n- 数据已返回，但分析质量验收未通过，本数据集未进入综合结论。\n\n");
     }
 
     private void writeSupervisionMetadata(
@@ -670,28 +572,31 @@ public final class AnalysisCoverageCoordinator {
             request.metadata().put("analysisWorkerSupervision", supervision.toMap());
             request.metadata().put("analysisWorkerSupervisionSchemaVersion",
                 DataAnalysisWorkerSupervision.SCHEMA_VERSION);
-            // Supervision describes product quality. It must not acquire publication veto
-            // authority: the Driver still runs and the human sees the available analysis or
-            // an explicit technical limitation.
+            // This is preprocessing accounting only. It has no semantic-quality or publication
+            // authority; every available Worker result is passed to the Driver.
             request.metadata().put("analysisSynthesisBarrierReady", true);
             request.metadata().put("analysisSynthesisBarrierStatus",
                 supervision.synthesisReady()
                     ? supervision.barrierStatus().name()
-                    : "READY_WITHOUT_REVIEWABLE_WORKER_REPORT");
+                    : "READY_WITHOUT_WORKER_PREPROCESSING");
             request.metadata().put("analysisRepairRequired", false);
             request.metadata().put("analysisAcceptedWorkerCount",
                 supervision.acceptedWorkerCount());
             request.metadata().put("analysisRejectedWorkerCount",
                 supervision.rejectedWorkerCount());
+            request.metadata().put("analysisAvailableWorkerPreprocessingCount",
+                supervision.acceptedWorkerCount());
+            request.metadata().put("analysisUnavailableWorkerPreprocessingCount",
+                supervision.rejectedWorkerCount());
         }
         observe(request,
             supervision.synthesisReady()
-                ? "数据分析任务已完成对账，可以开始综合结论。"
-                : "数据分析任务已完成对账；当前 Worker 结果需人工复核，Driver 继续形成可见说明。",
+                ? "Worker 预处理结果已收齐，正在交给 Driver 综合分析。"
+                : "Worker 预处理已完成对账；缺失部分由 Driver 根据已返回数据继续分析。",
             "business_analysis_progress", metadataOf(
                 "type", "analysis_driver_barrier",
                 "stage", supervision.synthesisReady()
-                    ? "SYNTHESIS_READY" : "SYNTHESIS_READY_WITH_REVIEW_NOTES",
+                    ? "PREPROCESSING_COLLECTED" : "PREPROCESSING_PARTIAL",
                 "workReference", supervision.expectedWorkerCount() == 1
                     ? supervision.workers().get(0).datasetReference() : "all-datasets",
                 "workIndex", supervision.terminalWorkerCount(),

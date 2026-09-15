@@ -54,7 +54,7 @@ class AnalysisSynthesisContextTest {
             .doesNotContain("EXECUTIVE_SUMMARY", "KEY_FINDINGS", "sectionTitles");
     }
 
-    @Test void namesCoverageOmissionsAndSchedulesEvidenceRichLateInputsFirst() {
+    @Test void namesCoverageOmissionsAndPreservesWorkerAssignmentOrder() {
         var scope = GovernanceIsolationScope.runtime("tenant", "run", "request", "conversation", "user");
         var ordinary = AnalysisSummaryResult.intermediateSummary(scope, "DATASET_SYNTHESIS", "first",
             "ordinary ".repeat(500), "SUCCESS", Map.of("datasetReference", "first"), Map.of(),
@@ -74,7 +74,7 @@ class AnalysisSynthesisContextTest {
         String coverage = ModelProtocolJson.compact(context.get("datasetCoverage"));
 
         assertThat(reports).isNotEmpty();
-        assertThat(reports.get(0).get("sourceScope")).isEqualTo("last");
+        assertThat(reports.get(0).get("sourceScope")).isEqualTo("first");
         assertThat(coverage).contains("expectedDatasetCount", "narrativeOmittedDatasetReferences");
     }
 }

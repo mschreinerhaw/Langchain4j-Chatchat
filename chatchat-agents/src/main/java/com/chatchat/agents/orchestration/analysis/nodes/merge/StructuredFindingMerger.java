@@ -30,14 +30,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 
-/** Reduces chunk evidence into dataset summaries and explicitly-related dataset groups. */
+/** Losslessly organizes Worker preprocessing outputs by dataset and relationship group. */
 public final class StructuredFindingMerger implements ModelSummaryReducer<
     AnalysisSummaryResult, StructuredFindingMerger.Context, StructuredFindingMerger.Result>,
     DataAnalysisParticipant<ModelSummaryModel, StructuredFindingMerger.Request,
         StructuredFindingMerger.Result> {
 
     public static final String SCHEMA_VERSION = "hierarchical_analysis_reduce.v1";
-    private static final int MAX_SUMMARY_INPUT_CHARS = 24_000;
+    private static final int MAX_LOG_CONTENT_CHARS = 4_000;
     private static final Logger log = LoggerFactory.getLogger(StructuredFindingMerger.class);
 
     public Result reduce(ModelSummaryModel model,
@@ -170,7 +170,6 @@ public final class StructuredFindingMerger implements ModelSummaryReducer<
         if (chunks == null || chunks.isEmpty()) {
             throw new IllegalArgumentException("dataset chunks are required");
         }
-        requiredQuestion(objective);
         AnalysisSummaryResult first = chunks.get(0);
         String content = chunks.size() == 1 ? first.content() : deterministicMerge(chunks);
         AnalysisSummaryResult result = AnalysisSummaryResult.intermediateSummary(
@@ -300,7 +299,7 @@ public final class StructuredFindingMerger implements ModelSummaryReducer<
         result.put("resultId", summary.resultId());
         result.put("scope", summary.scope());
         result.put("position", summary.position());
-        result.put("content", abbreviate(summary.content()));
+        result.put("content", abbreviateForLog(summary.content()));
         result.put("outcome", summary.outcome());
         Object roleContext = summary.analysisContext().get(
             AgentRoleAnalysisContext.ANALYSIS_CONTEXT_KEY);
@@ -377,32 +376,23 @@ public final class StructuredFindingMerger implements ModelSummaryReducer<
 
     private String deterministicMerge(List<AnalysisSummaryResult> inputs) {
         StringBuilder merged = new StringBuilder();
-        Set<String> seen = new java.util.LinkedHashSet<>();
         for (AnalysisSummaryResult input : inputs) {
-            if (!seen.add(input.content())) continue;
             if (!merged.isEmpty()) merged.append("\n\n");
-            merged.append(abbreviate(input.content()));
+            merged.append(input.content() == null ? "" : input.content());
         }
         return merged.toString();
     }
 
-    private String abbreviate(String content) {
+    private String abbreviateForLog(String content) {
         if (content == null) return "";
-        return content.length() <= MAX_SUMMARY_INPUT_CHARS
-            ? content : content.substring(0, MAX_SUMMARY_INPUT_CHARS) + "…";
+        return content.length() <= MAX_LOG_CONTENT_CHARS
+            ? content : content.substring(0, MAX_LOG_CONTENT_CHARS) + "…";
     }
 
     private String safe(String value) {
         if (value == null || value.isBlank()) return "Summarize the material returned evidence.";
         String normalized = value.replaceAll("\\s+", " ").trim();
         return normalized.length() <= 2_000 ? normalized : normalized.substring(0, 2_000);
-    }
-
-    private String requiredQuestion(String value) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("original user question is required for analysis reduction");
-        }
-        return value;
     }
 
     public record Result(

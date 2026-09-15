@@ -215,32 +215,65 @@ function assistantPresentationScore(message = {}) {
     + (message.taskId ? 2 : 0);
 }
 
+function hasAssistantPresentation(message = {}) {
+  return !!normalizedAnswerContent(message)
+    || !!message.visualizationSpec;
+}
+
+function isTerminalAssistantMessage(message = {}) {
+  return message.executionTerminal === true
+    || [
+      "completed", "success", "partial", "empty", "failed", "cancelled",
+      "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+    ].includes(String(message.status || "").toLowerCase());
+}
+
+function preferNextAssistantResult(previous = {}, next = {}) {
+  const previousHasPresentation = hasAssistantPresentation(previous);
+  const nextHasPresentation = hasAssistantPresentation(next);
+  if (previousHasPresentation !== nextHasPresentation) {
+    return nextHasPresentation;
+  }
+  const previousTerminal = isTerminalAssistantMessage(previous);
+  const nextTerminal = isTerminalAssistantMessage(next);
+  if (previousTerminal !== nextTerminal) {
+    return nextTerminal;
+  }
+  if (!!next.taskId !== !!previous.taskId) {
+    return !!next.taskId;
+  }
+  return assistantPresentationScore(next) > assistantPresentationScore(previous);
+}
+
 export function collapseDuplicateAssistantResults(messages = []) {
   const collapsed = [];
   for (const message of messages) {
     const previous = collapsed[collapsed.length - 1];
     const answer = normalizedAnswerContent(message);
+    const duplicateTask = previous?.role === "assistant"
+      && message?.role === "assistant"
+      && sameAssistantTask(previous, message);
     const duplicateAssistant = previous?.role === "assistant"
       && message?.role === "assistant"
-      && !!answer
-      && !!normalizedAnswerContent(previous)
-      && (normalizedAnswerContent(previous) === answer
+      && (duplicateTask
+        || (!!answer
+          && !!normalizedAnswerContent(previous)
+          && (normalizedAnswerContent(previous) === answer
         || (!!normalizedRawContent(previous)
           && normalizedRawContent(previous) === normalizedRawContent(message))
-        || sameAssistantTask(previous, message)
-        || (!!previous.taskId !== !!message.taskId));
+        || (!!previous.taskId !== !!message.taskId))));
     if (!duplicateAssistant) {
       collapsed.push(message);
       continue;
     }
-    const preferMessage = (!!message.taskId !== !!previous.taskId)
-      ? !!message.taskId
-      : assistantPresentationScore(message) > assistantPresentationScore(previous);
+    const preferMessage = preferNextAssistantResult(previous, message);
     if (preferMessage) {
       collapsed[collapsed.length - 1] = {
         ...message,
         id: previous.id || message.id,
-        timestamp: previous.timestamp || message.timestamp
+        timestamp: duplicateTask
+          ? (message.timestamp || previous.timestamp)
+          : (previous.timestamp || message.timestamp)
       };
     }
   }

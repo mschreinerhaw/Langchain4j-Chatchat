@@ -59,6 +59,67 @@ describe("restored assistant result deduplication", () => {
     ]);
   });
 
+  it("removes an empty running placeholder when the same restored task has a final result", () => {
+    const placeholder = {
+      id: "assistant-running",
+      role: "assistant",
+      content: "",
+      taskId: "task-restored",
+      streaming: true,
+      status: "running",
+      timestamp: 1_000,
+      steps: [
+        { id: "submitted", status: "done" },
+        { id: "syncing", status: "active" }
+      ]
+    };
+    const result = {
+      id: "assistant-result",
+      role: "assistant",
+      content: "Restored final answer",
+      taskId: "task-restored",
+      streaming: false,
+      status: "partial",
+      executionTerminal: true,
+      timestamp: 2_000,
+      steps: [{ id: "question", status: "done" }]
+    };
+
+    expect(normalizeMessages([placeholder, result], "partial")).toEqual([
+      expect.objectContaining({
+        id: "assistant-running",
+        content: "Restored final answer",
+        taskId: "task-restored",
+        streaming: false,
+        status: "partial",
+        timestamp: 2_000
+      })
+    ]);
+  });
+
+  it("does not let a stale same-task placeholder replace an already restored result", () => {
+    const result = {
+      id: "assistant-result",
+      role: "assistant",
+      content: "Restored final answer",
+      taskId: "task-restored",
+      streaming: false,
+      status: "completed",
+      executionTerminal: true
+    };
+    const placeholder = {
+      id: "assistant-running",
+      role: "assistant",
+      content: "",
+      taskId: "task-restored",
+      streaming: true,
+      status: "running",
+      steps: [{ id: "syncing", status: "active" }]
+    };
+
+    expect(collapseDuplicateAssistantResults([result, placeholder])).toEqual([result]);
+  });
+
   it("compares raw content when artifact answers are different", () => {
     const artifact = {
       id: "assistant-artifact",

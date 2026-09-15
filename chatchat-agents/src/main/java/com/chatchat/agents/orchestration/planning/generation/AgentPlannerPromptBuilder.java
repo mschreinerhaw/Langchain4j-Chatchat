@@ -136,6 +136,10 @@ public final class AgentPlannerPromptBuilder {
         prompt.append("- Template ids, template names, mcpToolName, and execution.callTool values returned by discovery are template names, not Agent Runtime workflow tool names.\n");
         prompt.append("- Do not put a returned template name into plan.steps[].tool_name. Put it into the template selector declared by the selected template contract and call only its configured workflow executor.\n");
         prompt.append("- Finding a template or asset is not execution evidence. final_answer must depend on the actual executor step or an explicit error/permission observation.\n\n");
+        prompt.append("Evidence importance contract:\n");
+        prompt.append("- For every evidence-producing step, set validation.evidence_requirement to REQUIRED, IMPORTANT, or OPTIONAL.\n");
+        prompt.append("- REQUIRED means the requested core conclusion cannot be made when that specific evidence item is absent; IMPORTANT and OPTIONAL gaps must not suppress usable partial results.\n");
+        prompt.append("- Classify evidence from the user goal and plan dependencies. Do not infer importance from tool names, dataset fields, industries, or fixed business keywords.\n\n");
         prompt.append("Sequential MCP batch contract:\n");
         prompt.append("- When two or more governed templates use an executor that declares template_execution and batch_execution, prefer one mcp_tool step whose input is {batchId, executionMode:\"SEQUENTIAL\", stopOnFailure:false, calls:[{callId,toolName,arguments}]}.\n");
         prompt.append("- Runtime owns a failure-isolated template execution layer: every compiled child must receive SUCCESS, EMPTY/RESULT_MISSING, BLOCKED, FAILED, or NOT_EXECUTED evidence. A child error must not stop later templates; stopOnFailure is compatibility-only and must be false.\n");

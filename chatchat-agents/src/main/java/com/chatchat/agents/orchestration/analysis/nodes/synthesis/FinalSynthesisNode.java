@@ -339,7 +339,8 @@ public final class FinalSynthesisNode {
             GovernedFinalClaimContract.Projection projection =
                 authoredNarrative ? finalClaimContract.publishNarrative(answer, claimCompilation)
                     : finalClaimContract.project(answer, claimCompilation, reportData);
-            boolean partialDelivery = "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(projection.reason());
+            boolean partialDelivery = "GOVERNED_CLAIM_PARTIAL_DELIVERY".equals(
+                projection.analyticalReport().get("publicationMode"));
             if (!projection.modelSelectionAccepted() && !partialDelivery) {
                 recordHumanReviewAdvisory(request, "DRIVER_DECISION", projection.reason());
             }

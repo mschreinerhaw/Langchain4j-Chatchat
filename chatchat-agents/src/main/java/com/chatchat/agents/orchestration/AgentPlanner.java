@@ -384,7 +384,8 @@ public class AgentPlanner implements AgentPlanningPort {
                 : TaskContract.EvidenceRequirement.OPTIONAL,
             !evidenceRequired,
             candidate == null ? "answer" : candidate.type(),
-            normalizeList(mandatoryTools)
+            normalizeList(mandatoryTools),
+            evidenceItems(decision == null ? null : decision.interpretationPlan(), mandatoryTools)
         );
         return new PlannerExecutionResult(planProduct, candidate, taskContract, decision);
     }
@@ -764,6 +765,33 @@ public class AgentPlanner implements AgentPlanningPort {
         validateAssetDiscoveryIsNotGuessed(plan, context, toolStepIds, issues);
         validateWebSearchCrawlerSplit(plan, context, stepsById, toolStepIds, finalStep, issues);
         return issues;
+    }
+
+    private List<TaskContract.EvidenceItem> evidenceItems(
+        InterpretationPlan plan, List<String> mandatoryTools
+    ) {
+        if (plan == null || plan.steps() == null) return List.of();
+        java.util.Set<String> mandatory = new java.util.LinkedHashSet<>(normalizeList(mandatoryTools));
+        List<TaskContract.EvidenceItem> items = new ArrayList<>();
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step == null || !step.mcpToolAction()) continue;
+            InterpretationPlan.Validation validation = step.validation();
+            TaskContract.EvidenceImportance importance = validation == null
+                ? null : validation.evidenceRequirement();
+            if (importance == null && validation != null && validation.required() != null) {
+                importance = validation.required()
+                    ? TaskContract.EvidenceImportance.REQUIRED
+                    : TaskContract.EvidenceImportance.OPTIONAL;
+            }
+            if (importance == null) {
+                importance = mandatory.contains(step.toolName())
+                    ? TaskContract.EvidenceImportance.REQUIRED
+                    : TaskContract.EvidenceImportance.IMPORTANT;
+            }
+            items.add(new TaskContract.EvidenceItem(
+                "step:" + step.id(), step.id(), step.toolName(), importance));
+        }
+        return List.copyOf(items);
     }
 
     private InterpretationPlan.ExecutionPolicy mergePlanningOptimizationPolicy(

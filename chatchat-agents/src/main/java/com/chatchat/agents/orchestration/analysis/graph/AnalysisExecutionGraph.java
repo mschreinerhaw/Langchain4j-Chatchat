@@ -14,7 +14,8 @@ import static org.bsc.langgraph4j.action.AsyncEdgeAction.edge_async;
 /** Invocation-local graph. No model, checkpoint store, executor or retry policy is created here. */
 public final class AnalysisExecutionGraph {
     public enum Status {
-        READY, NEEDS_CLARIFICATION, NEEDS_MORE_EVIDENCE, NO_EVIDENCE, BLOCKED, FAILED, CANCELLED,
+        READY, NEEDS_CLARIFICATION, NEEDS_MORE_EVIDENCE, NO_EVIDENCE,
+        EXACT_RESULT_UNAVAILABLE, BLOCKED, FAILED, CANCELLED,
         COMPLETED, COMPLETED_WITH_LIMITATIONS
     }
     public record Step(String name, Supplier<Status> action) {}

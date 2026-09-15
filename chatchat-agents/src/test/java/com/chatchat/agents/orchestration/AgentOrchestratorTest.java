@@ -4181,8 +4181,10 @@ class AgentOrchestratorTest {
                 plan, discovery, execution, Map.of(), 1, 1));
 
         assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry(
-            "toolResultReviewMode", "RUNTIME_DETERMINISTIC_TERMINAL_DISCOVERY_ADMISSION");
+        assertThat(review.metadata())
+            .containsEntry(
+                "toolResultReviewMode", "RUNTIME_DETERMINISTIC_TERMINAL_DISCOVERY_ADMISSION")
+            .doesNotContainKey("evidenceIterationSufficient");
         verify(model, never()).chat(anyString());
     }
 

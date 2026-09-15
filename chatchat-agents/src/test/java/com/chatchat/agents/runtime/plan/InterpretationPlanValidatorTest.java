@@ -1505,7 +1505,9 @@ class InterpretationPlanValidatorTest {
                 assertThat(step.actionType()).isEqualTo("final_answer");
                 assertThat(step.input()).containsEntry("answer", "done");
             });
-        assertThat(InterpretationPlanJsonSchema.SCHEMA).contains("final_answer", "deny_tool", "self_check");
+        assertThat(InterpretationPlanJsonSchema.SCHEMA).contains(
+            "final_answer", "deny_tool", "self_check", "evidence_requirement",
+            "REQUIRED", "IMPORTANT", "OPTIONAL");
     }
 
     @Test

@@ -188,7 +188,7 @@ final class GovernedFinalClaimContract {
 
     Projection project(String modelOutput, Compilation compilation, VerifiedReportDataCatalog dataCatalog) {
         if (compilation == null || compilation.claims().isEmpty()) {
-            return new Projection(false, "NO_ADMITTED_CLAIMS", "", List.of());
+            return partialDelivery("NO_ADMITTED_CLAIMS", compilation, List.of());
         }
         Map<String, Object> payload = parseObject(modelOutput);
         String schemaVersion = text(payload.get("schemaVersion"));
@@ -196,7 +196,8 @@ final class GovernedFinalClaimContract {
             && !LEGACY_SCHEMA_VERSION_V3.equals(schemaVersion)
             && !LEGACY_SCHEMA_VERSION_V2.equals(schemaVersion)
             && !LEGACY_SCHEMA_VERSION.equals(schemaVersion))) {
-            return withheld("FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
+            return partialDelivery("FINAL_CLAIM_SELECTION_PROTOCOL_INVALID", compilation,
+                compilation.claims().keySet());
         }
         List<NarrativeFinding> narrativeFindings = maps(payload.get("findings")).stream()
             .map(this::narrativeFinding).filter(java.util.Objects::nonNull).limit(20).toList();
@@ -241,23 +242,25 @@ final class GovernedFinalClaimContract {
                 .filter(java.util.Objects::nonNull)
                 .noneMatch(selectedClaim -> evidenceCovers(selectedClaim, observed)));
         if (selected.isEmpty() || unknownClaim) {
-            return withheld(unknownClaim
-                ? "UNKNOWN_FINAL_CLAIM_ID" : "EMPTY_FINAL_CLAIM_SELECTION");
+            return partialDelivery(unknownClaim
+                ? "UNKNOWN_FINAL_CLAIM_ID" : "EMPTY_FINAL_CLAIM_SELECTION", compilation, selected);
         }
         if (invalidAssociationBasis) {
-            return withheld("INVALID_METRIC_ASSOCIATION_BASIS");
+            return partialDelivery("INVALID_METRIC_ASSOCIATION_BASIS", compilation, selected);
         }
         if (invalidReviewBasis) {
-            return withheld("INVALID_MANAGEMENT_REVIEW_BASIS");
+            return partialDelivery("INVALID_MANAGEMENT_REVIEW_BASIS", compilation, selected);
         }
         if (incompleteSourceCoverage) {
-            return withheld("INCOMPLETE_ANALYSIS_SOURCE_COVERAGE");
+            return partialDelivery("INCOMPLETE_ANALYSIS_SOURCE_COVERAGE", compilation, selected);
         }
         if (incompleteObservedFactCoverage) {
-            return withheld("INCOMPLETE_OBSERVED_FACT_COVERAGE");
+            return partialDelivery("INCOMPLETE_OBSERVED_FACT_COVERAGE", compilation, selected);
         }
         String reportMarkdown = reportBody(payload);
-        if (reportMarkdown.isBlank()) return withheld("MODEL_REPORT_MARKDOWN_REQUIRED");
+        if (reportMarkdown.isBlank()) {
+            return partialDelivery("MODEL_REPORT_MARKDOWN_REQUIRED", compilation, selected);
+        }
         return new Projection(true, "MODEL_ANALYSIS_PUBLISHED_WITH_EVIDENCE_AUDIT",
             reportMarkdown, List.copyOf(selected), Map.of("publicationMode", "MODEL_REPORT_MARKDOWN"));
     }
@@ -386,7 +389,8 @@ final class GovernedFinalClaimContract {
     private Projection projectNarrative(Map<String, Object> payload, Compilation compilation,
                                          List<NarrativeFinding> findings, VerifiedReportDataCatalog dataCatalog) {
         if (findings.isEmpty()) {
-            return withheld("EMPTY_MANAGEMENT_FINDINGS");
+            return partialDelivery("EMPTY_MANAGEMENT_FINDINGS", compilation,
+                compilation.claims().keySet());
         }
         DemandAnalysis demandAnalysis = demandAnalysis(payload.get("demandAnalysis"));
         List<MetricAssociation> metricAssociations = maps(payload.get("metricAssociations")).stream()
@@ -436,7 +440,9 @@ final class GovernedFinalClaimContract {
             .filter(compilation.claims()::containsKey).forEach(selected::add));
 
         String reportMarkdown = reportBody(payload);
-        if (reportMarkdown.isBlank()) return withheld("MODEL_REPORT_MARKDOWN_REQUIRED");
+        if (reportMarkdown.isBlank()) {
+            return partialDelivery("MODEL_REPORT_MARKDOWN_REQUIRED", compilation, selected);
+        }
         Map<String, Object> report = new LinkedHashMap<>(evidenceReportMetadata(
             compilation, findings, demandAnalysis, catalog, blockIds));
         report.put("evidenceBindingAudit", Map.of(
@@ -583,6 +589,46 @@ final class GovernedFinalClaimContract {
     }
     private Projection withheld(String reason) {
         return new Projection(false, reason, "", List.of());
+    }
+
+    /**
+     * Publishes only already-admitted claim text when the model publication protocol cannot be
+     * accepted. This is a provenance-preserving degradation path: Runtime does not invent,
+     * reinterpret, or enrich domain content.
+     */
+    private Projection partialDelivery(String governanceReason, Compilation compilation,
+                                       Collection<String> requestedIds) {
+        Map<String, Claim> claims = compilation == null ? Map.of() : compilation.claims();
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        if (requestedIds != null) {
+            requestedIds.stream().filter(claims::containsKey).forEach(selected::add);
+        }
+        if (selected.isEmpty()) selected.addAll(claims.keySet());
+
+        StringBuilder markdown = new StringBuilder("## Evidence-backed partial result\n\n");
+        if (selected.isEmpty()) {
+            markdown.append("No evidence-bound claim passed the publication contract.\n");
+        } else {
+            for (String id : selected) {
+                Claim claim = claims.get(id);
+                if (claim != null) markdown.append("- ").append(claim.text()).append('\n');
+            }
+        }
+        markdown.append("\n## Limitations\n\n")
+            .append("The complete model-authored report was not published because the governance check returned `")
+            .append(governanceReason).append("`. Only admitted evidence-bound claims are shown.");
+
+        List<String> withheldIds = claims.keySet().stream()
+            .filter(id -> !selected.contains(id)).toList();
+        Map<String, Object> report = new LinkedHashMap<>();
+        report.put("publicationMode", "GOVERNED_CLAIM_PARTIAL_DELIVERY");
+        report.put("governanceReason", governanceReason);
+        report.put("selectedClaimIds", List.copyOf(selected));
+        report.put("withheldClaimIds", withheldIds);
+        report.put("evidenceClaims", compilation == null
+            ? List.of() : compilation.artifacts(selected));
+        return new Projection(false, governanceReason, markdown.toString(),
+            List.copyOf(selected), Map.copyOf(report));
     }
 
     // Structured data is retained solely as evidence metadata, never rendered as the report body.

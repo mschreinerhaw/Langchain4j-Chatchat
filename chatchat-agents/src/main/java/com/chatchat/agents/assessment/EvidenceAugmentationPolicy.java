@@ -16,7 +16,7 @@ public final class EvidenceAugmentationPolicy {
             return outcome(Decision.BLOCKED_AUTHORIZATION, false, false,
                 "The requested action requires authorization before the loop can continue.");
         }
-        if (resolved.evidenceSufficient()) {
+        if (resolved.evidenceSufficient() || resolved.evidenceGrade() == EvidenceGrade.SUFFICIENT) {
             return outcome(Decision.COMPLETE, true, false,
                 "The current evidence supports completion.");
         }
@@ -24,7 +24,7 @@ public final class EvidenceAugmentationPolicy {
             return outcome(Decision.RETRIEVE_MORE, true, true,
                 "A material evidence gap remains and an actionable bounded retrieval path is available.");
         }
-        if (resolved.evidenceAvailable()) {
+        if (resolved.evidenceAvailable() || resolved.evidenceGrade().synthesisAllowed()) {
             return outcome(Decision.ANALYZE_WITH_LIMITATIONS, true, false,
                 "Usable evidence exists, but the remaining gap cannot be closed within the current retrieval boundary.");
         }
@@ -32,7 +32,8 @@ public final class EvidenceAugmentationPolicy {
             return outcome(Decision.ANALYZE_WITH_LIMITATIONS, true, false,
                 "The task permits a best-effort answer without external evidence.");
         }
-        if (resolved.evidenceRequirement() == TaskContract.EvidenceRequirement.STRICT) {
+        if (resolved.requiredEvidenceMissing()
+            && resolved.evidenceRequirement() == TaskContract.EvidenceRequirement.STRICT) {
             return outcome(Decision.EXACT_RESULT_UNAVAILABLE, false, false,
                 "The task requires an exact result, but no usable evidence is available.");
         }
@@ -59,17 +60,33 @@ public final class EvidenceAugmentationPolicy {
         boolean materialGap,
         boolean explorationAvailable,
         boolean authorizationRequired,
-        TaskContract.EvidenceRequirement evidenceRequirement
+        TaskContract.EvidenceRequirement evidenceRequirement,
+        EvidenceGrade evidenceGrade,
+        boolean requiredEvidenceMissing
     ) {
         public Context {
             evidenceRequirement = evidenceRequirement == null
                 ? TaskContract.EvidenceRequirement.OPTIONAL
                 : evidenceRequirement;
+            evidenceGrade = evidenceGrade == null
+                ? (evidenceSufficient ? EvidenceGrade.SUFFICIENT
+                    : evidenceAvailable ? EvidenceGrade.PARTIAL_USABLE : EvidenceGrade.INSUFFICIENT)
+                : evidenceGrade;
+        }
+
+        public Context(boolean evidenceAvailable, boolean evidenceSufficient, boolean materialGap,
+                       boolean explorationAvailable, boolean authorizationRequired,
+                       TaskContract.EvidenceRequirement evidenceRequirement) {
+            this(evidenceAvailable, evidenceSufficient, materialGap, explorationAvailable,
+                authorizationRequired, evidenceRequirement,
+                evidenceSufficient ? EvidenceGrade.SUFFICIENT
+                    : evidenceAvailable ? EvidenceGrade.PARTIAL_USABLE : EvidenceGrade.INSUFFICIENT,
+                !evidenceAvailable && evidenceRequirement != TaskContract.EvidenceRequirement.OPTIONAL);
         }
 
         public static Context empty() {
             return new Context(false, false, false, false, false,
-                TaskContract.EvidenceRequirement.OPTIONAL);
+                TaskContract.EvidenceRequirement.OPTIONAL, EvidenceGrade.INSUFFICIENT, false);
         }
     }
 

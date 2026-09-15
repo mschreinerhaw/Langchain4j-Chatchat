@@ -31,9 +31,48 @@ class AnalysisLoopCoordinatorTest {
         coordinator.recordDecision(decision, 1, Map.of(), metadata);
         coordinator.recordStop(metadata, Map.of(), "budget_exhausted", 1);
         assertThat(AnalysisFlowState.read(metadata).decision()).isEqualTo(EvidenceAugmentationPolicy.Decision.EXACT_RESULT_UNAVAILABLE);
+        assertThat(AnalysisFlowState.read(metadata).admission())
+            .isEqualTo(com.chatchat.agents.orchestration.analysis.graph.AnalysisExecutionGraph.Status.EXACT_RESULT_UNAVAILABLE);
         assertThat(metadata).containsEntry("evidenceAugmentationAnswerAllowed", false);
         coordinator.recordDecision(coordinator.decide(Map.of(), false, true, true, metadata), 2, Map.of(), metadata);
         coordinator.recordStop(metadata, Map.of(), "authorization", 2);
         assertThat(AnalysisFlowState.read(metadata).decision()).isEqualTo(EvidenceAugmentationPolicy.Decision.BLOCKED_AUTHORIZATION);
+    }
+
+    @Test void closingLoopRetainsUsableEvidenceFromEarlierIterations() {
+        Map<String,Object> metadata = new LinkedHashMap<>(Map.of("evidenceRequirement", "REQUIRED"));
+        Map<String,Object> successful = Map.of(
+            "toolEvidence", List.of(Map.of("output", Map.of("rows", List.of(Map.of("value", 1))))),
+            "remainingMissing", List.of("another source"),
+            "confidence", 0.75);
+        Map<String,Object> emptyRetry = Map.of(
+            "toolEvidence", List.of(),
+            "remainingMissing", List.of("another source"),
+            "confidence", 0.0);
+        var decision = coordinator.decide(successful, true, true, false, metadata);
+        coordinator.recordDecision(decision, 1, Map.of(), metadata);
+
+        coordinator.recordStop(metadata, List.of(successful, emptyRetry), "dag_no_progress", 2);
+
+        assertThat(AnalysisFlowState.read(metadata).decision())
+            .isEqualTo(EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS);
+        assertThat(metadata).containsEntry("evidenceConfidence", 0.75);
+        assertThat(((Map<?, ?>) metadata.get("evidenceStopState")).get("evidenceHistorySize"))
+            .isEqualTo(2);
+    }
+
+    @Test void closingLoopStillRejectsRequiredSynthesisWhenEveryIterationIsEmpty() {
+        Map<String,Object> metadata = new LinkedHashMap<>(Map.of("evidenceRequirement", "REQUIRED"));
+        Map<String,Object> empty = Map.of(
+            "toolEvidence", List.of(),
+            "remainingMissing", List.of("required evidence"));
+        var decision = coordinator.decide(empty, false, true, false, metadata);
+        coordinator.recordDecision(decision, 1, Map.of(), metadata);
+
+        coordinator.recordStop(metadata, List.of(empty, empty), "evidence_iteration_limit", 2);
+
+        assertThat(AnalysisFlowState.read(metadata).decision())
+            .isEqualTo(EvidenceAugmentationPolicy.Decision.NO_EVIDENCE);
+        assertThat(metadata).containsEntry("evidenceAugmentationAnswerAllowed", false);
     }
 }

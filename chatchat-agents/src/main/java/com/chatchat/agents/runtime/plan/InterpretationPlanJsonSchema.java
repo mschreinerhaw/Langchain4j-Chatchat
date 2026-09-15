@@ -76,7 +76,12 @@ public final class InterpretationPlanJsonSchema {
                             "type": "string",
                             "enum": ["schema_check", "non_empty", "confidence_threshold", "manual_review"]
                           },
-                          "threshold": {"type": "number"}
+                          "threshold": {"type": "number"},
+                          "evidence_requirement": {
+                            "type": "string",
+                            "enum": ["REQUIRED", "IMPORTANT", "OPTIONAL"],
+                            "description": "Evidence importance for this step. REQUIRED is reserved for facts essential to the requested conclusion."
+                          }
                         }
                       }
                     }

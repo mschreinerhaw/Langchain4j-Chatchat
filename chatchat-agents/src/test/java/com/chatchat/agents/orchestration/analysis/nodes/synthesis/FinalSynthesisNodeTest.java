@@ -420,10 +420,11 @@ class FinalSynthesisNodeTest {
             claimBoundRequest(model, metadata, claimSummary(), true));
 
         assertThat(result.generated()).isTrue();
-        assertThat(result.content()).contains("# 客户分析", "返回记录显示数值为 42", "缺少历史基准");
-        assertThat(metadata).containsEntry("analysisDriverRepairAttemptCount", 1)
-            .containsEntry("analysisRecoverySource", "DRIVER_MODEL_REPAIR");
-        verify(model, org.mockito.Mockito.times(2)).chat(any(String.class));
+        assertThat(result.content()).contains(
+            "Evidence-backed partial result", "返回记录显示数值为 42", "Limitations");
+        assertThat(metadata).containsEntry(
+            "finalClaimSelectionReason", "FINAL_CLAIM_SELECTION_PROTOCOL_INVALID");
+        verify(model).chat(any(String.class));
         assertThat(metadata)
             .containsEntry("finalClaimPublicationContractActive", true)
             .containsEntry("analysisDriverReviewCompleted", false)
@@ -437,7 +438,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void finalModelFailureNeverSplicesLowerLayerEvidenceIntoAReport() {
+    void finalModelFailurePublishesOnlyAdmittedEvidenceBoundClaims() {
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -450,13 +451,15 @@ class FinalSynthesisNodeTest {
         FinalSynthesisNode.FinalSynthesisResult result = coordinator.synthesizeFinal(
             claimBoundRequest(model, metadata, claimSummary(), false));
 
-        assertThat(result.generated()).isFalse();
-        assertThat(result.content()).doesNotContain("返回记录显示数值为 42");
-        assertThat(metadata).containsEntry("analysisOutputAdmitted", false)
-            .containsEntry("analysisDriverRepairAttemptCount", 1)
-            .containsEntry("executionStatus", "NO_PRESENTABLE_ANALYSIS")
-            .doesNotContainKeys("analyticalReport", "interpretationPlanDeterministicClaimFallback");
-        verify(model, org.mockito.Mockito.times(2)).chat(any(String.class));
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains(
+            "Evidence-backed partial result", "返回记录显示数值为 42", "Limitations");
+        assertThat(metadata).containsEntry("analysisOutputAdmitted", true)
+            .containsEntry("analysisExecutionStatus", "COMPLETED")
+            .doesNotContainKey("interpretationPlanDeterministicClaimFallback");
+        assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("publicationMode"))
+            .isEqualTo("GOVERNED_CLAIM_PARTIAL_DELIVERY");
+        verify(model).chat(any(String.class));
     }
 
     @Test
@@ -946,7 +949,8 @@ class FinalSynthesisNodeTest {
         assertThat(metadata).doesNotContainKey("claimAcceptance");
         when(model.chat(org.mockito.ArgumentMatchers.anyString())).thenThrow(new IllegalStateException("unavailable"));
         coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
-        assertThat(metadata).doesNotContainKey("analyticalReport");
+        assertThat(((Map<?, ?>) metadata.get("analyticalReport")).get("publicationMode"))
+            .isEqualTo("GOVERNED_CLAIM_PARTIAL_DELIVERY");
         assertThat(metadata).doesNotContainKey("claimAcceptance");
     }
 
@@ -987,7 +991,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void missingBodyAndFailedRepairNeverPublishFindingFields() {
+    void missingBodyPublishesOnlyAdmittedClaimText() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(),
             new StructuredFindingMerger());
@@ -999,11 +1003,12 @@ class FinalSynthesisNodeTest {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("analysisSynthesisBarrierReady", true);
         var result = coordinator.synthesizeFinal(claimBoundRequest(model, metadata, claimSummary(), true));
-        assertThat(result.generated()).isFalse();
-        assertThat(result.content()).doesNotContain("FINDING_SENTINEL", "governed_management_synthesis", "42");
-        assertThat(metadata).containsEntry("finalClaimSelectionReason", "MODEL_REPORT_MARKDOWN_REQUIRED")
-            .containsEntry("analysisDriverRepairAttemptCount", 1);
-        verify(model, org.mockito.Mockito.times(2)).chat(any(String.class));
+        assertThat(result.generated()).isTrue();
+        assertThat(result.content()).contains("Evidence-backed partial result", "42", "Limitations")
+            .doesNotContain("FINDING_SENTINEL", "governed_management_synthesis");
+        assertThat(metadata).containsEntry(
+            "finalClaimSelectionReason", "MODEL_REPORT_MARKDOWN_REQUIRED");
+        verify(model).chat(any(String.class));
     }
 
     @Test

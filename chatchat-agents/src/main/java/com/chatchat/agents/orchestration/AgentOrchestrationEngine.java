@@ -3640,8 +3640,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 Map.of(
                     "toolResultReviewSkipped", true,
                     "toolResultReviewMode", "RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION",
-                    "templateExecutionSatisfied", true,
-                    "evidenceIterationSufficient", false
+                    "templateExecutionSatisfied", true
                 )
             );
         }
@@ -3657,8 +3656,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "Successful terminal web discovery is admitted as evidence; analytical relevance and limitations are evaluated by the unified analysis graph.",
                 Map.of(
                     "toolResultReviewSkipped", true,
-                    "toolResultReviewMode", "RUNTIME_DETERMINISTIC_TERMINAL_DISCOVERY_ADMISSION",
-                    "evidenceIterationSufficient", false
+                    "toolResultReviewMode", "RUNTIME_DETERMINISTIC_TERMINAL_DISCOVERY_ADMISSION"
                 )
             );
         }
@@ -3673,8 +3671,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "Successful metadata/schema discovery is admitted as evidence; relevance, semantic conflicts and suitability are evaluated by the unified analysis graph.",
                 Map.of(
                     "toolResultReviewSkipped", true,
-                    "toolResultReviewMode", "RUNTIME_DETERMINISTIC_METADATA_ADMISSION",
-                    "evidenceIterationSufficient", false
+                    "toolResultReviewMode", "RUNTIME_DETERMINISTIC_METADATA_ADMISSION"
                 )
             );
         }
@@ -5205,7 +5202,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
     EvidenceAugmentationPolicy.Outcome decideEvidenceAugmentation(
-        Map<String, Object> snapshot,
+        List<Map<String, Object>> evidenceHistory,
         InterpretationPlanRuntime.ExecutionResult result,
         boolean explorationAvailable,
         boolean authorizationRequired,
@@ -5225,8 +5222,21 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("semanticClaimPreflightReportRetained", true);
             metadata.put("semanticClaimPreflightFailureDisposition", "ADVISORY_REPORT_RETAINED");
         }
-        return analysisLoopCoordinator.decide(snapshot, result != null && result.success(),
+        return analysisLoopCoordinator.decide(evidenceHistory, result != null && result.success(),
             explorationAvailable, authorizationRequired, metadata);
+    }
+
+    /** Compatibility entry point for callers that have not accumulated iteration history yet. */
+    EvidenceAugmentationPolicy.Outcome decideEvidenceAugmentation(
+        Map<String, Object> evidenceSnapshot,
+        InterpretationPlanRuntime.ExecutionResult result,
+        boolean explorationAvailable,
+        boolean authorizationRequired,
+        Map<String, Object> metadata
+    ) {
+        return decideEvidenceAugmentation(evidenceSnapshot == null
+                ? List.of() : List.of(evidenceSnapshot),
+            result, explorationAvailable, authorizationRequired, metadata);
     }
 
     boolean evidenceExplorationAvailable(Map<String, Object> snapshot,
@@ -5261,11 +5271,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
 
     void recordEvidenceStopState(
         Map<String, Object> metadata,
-        Map<String, Object> snapshot,
+        List<Map<String, Object>> evidenceHistory,
         String stopReason,
         int iterations
     ) {
-        analysisLoopCoordinator.recordStop(metadata, snapshot, stopReason, iterations);
+        analysisLoopCoordinator.recordStop(metadata, evidenceHistory, stopReason, iterations);
     }
 
     List<InterpretationPlanRewriter.RequiredToolExecution> evidenceRefinementRequiredTools(

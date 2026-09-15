@@ -83,6 +83,38 @@ class AgentPlannerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void buildsItemLevelEvidenceContractFromPlannerSemantics() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        InterpretationPlan plan = new InterpretationPlan("1.0", null, null,
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "source-a", Map.of(), List.of(), null,
+                    new InterpretationPlan.Validation(null, "non_empty", null,
+                        com.chatchat.agents.assessment.TaskContract.EvidenceImportance.REQUIRED)),
+                new InterpretationPlan.Step(2, "mcp_tool", "source-b", Map.of(), List.of(), null,
+                    new InterpretationPlan.Validation(null, "non_empty", null,
+                        com.chatchat.agents.assessment.TaskContract.EvidenceImportance.OPTIONAL)),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of(), List.of(1), null, null))),
+            null, null);
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "evidenceItems", InterpretationPlan.class, List.class);
+        method.setAccessible(true);
+
+        List<com.chatchat.agents.assessment.TaskContract.EvidenceItem> items =
+            (List<com.chatchat.agents.assessment.TaskContract.EvidenceItem>) method.invoke(
+                planner, plan, List.of("source-b"));
+
+        assertThat(items).extracting(
+            com.chatchat.agents.assessment.TaskContract.EvidenceItem::importance)
+            .containsExactly(
+                com.chatchat.agents.assessment.TaskContract.EvidenceImportance.REQUIRED,
+                com.chatchat.agents.assessment.TaskContract.EvidenceImportance.OPTIONAL);
+        assertThat(items).extracting(
+            com.chatchat.agents.assessment.TaskContract.EvidenceItem::sourceTool)
+            .containsExactly("source-a", "source-b");
+    }
+
+    @Test
     void plainMarkdownCannotBecomeAnAdmittedPlanAfterBoundedRepair() {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         AtomicInteger calls = new AtomicInteger();

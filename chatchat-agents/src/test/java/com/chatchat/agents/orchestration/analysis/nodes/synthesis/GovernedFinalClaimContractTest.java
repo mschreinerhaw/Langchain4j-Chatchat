@@ -57,7 +57,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -71,7 +71,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("UNKNOWN_FINAL_CLAIM_ID");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -104,7 +104,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -138,7 +138,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -177,7 +177,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -220,7 +220,7 @@ class GovernedFinalClaimContractTest {
         assertThat(compilation.claimContractObserved()).isTrue();
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -249,7 +249,7 @@ class GovernedFinalClaimContractTest {
         assertThat(compilation.claims().values().toString())
             .contains("GOVERNED_ANALYSIS_ITEM", "Buffer allocation has no recorded wait",
                 "Innodb_buffer_pool_wait_free");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -270,7 +270,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("INCOMPLETE_ANALYSIS_SOURCE_COVERAGE");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -295,7 +295,7 @@ class GovernedFinalClaimContractTest {
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("INCOMPLETE_OBSERVED_FACT_COVERAGE");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test
@@ -586,9 +586,10 @@ class GovernedFinalClaimContractTest {
             """, compilation);
 
         assertThat(projection.modelSelectionAccepted()).isFalse();
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
         assertThat(projection.reason()).isEqualTo("MODEL_REPORT_MARKDOWN_REQUIRED");
-        assertThat(projection.analyticalReport()).isEmpty();
+        assertThat(projection.analyticalReport())
+            .containsEntry("publicationMode", "GOVERNED_CLAIM_PARTIAL_DELIVERY");
     }
 
     @Test
@@ -602,8 +603,8 @@ class GovernedFinalClaimContractTest {
                     "basisClaimIds", List.of("claim-1")))));
             var projection = contract.project(payload, compilation);
             assertThat(projection.modelSelectionAccepted()).isFalse();
-            assertThat(projection.markdown()).isEmpty();
-            assertThat(projection.selectedClaimIds()).isEmpty();
+            assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
+            assertThat(projection.selectedClaimIds()).containsExactly("claim-1");
         }
     }
 
@@ -628,7 +629,7 @@ class GovernedFinalClaimContractTest {
             """, contract.compile(List.of(summary())));
         assertThat(projection.modelSelectionAccepted()).isFalse();
         assertThat(projection.reason()).isEqualTo("EMPTY_MANAGEMENT_FINDINGS");
-        assertThat(projection.markdown()).isEmpty();
+        assertThat(projection.markdown()).contains("Evidence-backed partial result", "Limitations");
     }
 
     @Test

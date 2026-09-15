@@ -19,6 +19,7 @@ public final class AnalysisLoopCoordinator {
 
     private final EvidenceAugmentationPolicy augmentationPolicy = new EvidenceAugmentationPolicy();
     private final EvidenceExplorationPolicy explorationPolicy = new EvidenceExplorationPolicy();
+    private final EvidenceCoverageAssessment coverageAssessment = new EvidenceCoverageAssessment();
     private final AgentRunResultAdapter runResultAdapter;
     private final String runIdAttribute;
 
@@ -32,13 +33,28 @@ public final class AnalysisLoopCoordinator {
                                                      boolean explorationAvailable,
                                                      boolean authorizationRequired,
                                                      Map<String, Object> metadata) {
-        boolean sufficient = sufficient(snapshot);
-        boolean materialGap = !sufficient && (!executionSuccess
-            || size(snapshot == null ? null : snapshot.get("remainingMissing")) > 0
-            || size(snapshot == null ? null : snapshot.get("conflicts")) > 0);
+        return decide(snapshot == null ? List.of() : List.of(snapshot), executionSuccess,
+            explorationAvailable, authorizationRequired, metadata);
+    }
+
+    public EvidenceAugmentationPolicy.Outcome decide(List<Map<String, Object>> evidenceHistory,
+                                                     boolean executionSuccess,
+                                                     boolean explorationAvailable,
+                                                     boolean authorizationRequired,
+                                                     Map<String, Object> metadata) {
+        List<Map<String, Object>> snapshots = evidenceHistory == null
+            ? List.of() : evidenceHistory.stream().filter(java.util.Objects::nonNull).toList();
+        EvidenceCoverageAssessment.Result coverage = coverageAssessment.assess(
+            snapshots, metadata);
+        boolean sufficient = coverage.grade() == com.chatchat.agents.assessment.EvidenceGrade.SUFFICIENT;
+        boolean materialGap = !sufficient
+            && (!executionSuccess || coverage.requiredEvidenceMissing()
+                || coverage.gapsRemain() || coverage.conflictsRemain());
+        storeCoverage(metadata, coverage);
         return augmentationPolicy.decide(new EvidenceAugmentationPolicy.Context(
-            usableEvidence(snapshot), sufficient, materialGap, explorationAvailable,
-            authorizationRequired, evidenceRequirement(metadata)));
+            coverage.evidenceAvailable(), sufficient, materialGap, explorationAvailable,
+            authorizationRequired, evidenceRequirement(metadata), coverage.grade(),
+            coverage.requiredEvidenceMissing()));
     }
 
     public boolean explorationAvailable(Map<String, Object> snapshot,
@@ -58,7 +74,16 @@ public final class AnalysisLoopCoordinator {
         if (snapshot == null || !(snapshot.get("toolEvidence") instanceof Iterable<?> items)) return false;
         for (Object raw : items) {
             if (raw instanceof Map<?, ?> item
+                && !Boolean.FALSE.equals(item.get("success"))
                 && (meaningful(item.get("outputFacts")) || meaningful(item.get("output")))) return true;
+        }
+        return false;
+    }
+
+    public boolean usableEvidence(Iterable<? extends Map<String, Object>> evidenceHistory) {
+        if (evidenceHistory == null) return false;
+        for (Map<String, Object> snapshot : evidenceHistory) {
+            if (usableEvidence(snapshot)) return true;
         }
         return false;
     }
@@ -95,12 +120,32 @@ public final class AnalysisLoopCoordinator {
                            Map<String, Object> snapshot,
                            String stopReason,
                            int iterations) {
+        recordStop(metadata, snapshot == null ? List.of() : List.of(snapshot), stopReason, iterations);
+    }
+
+    public void recordStop(Map<String, Object> metadata,
+                           List<Map<String, Object>> evidenceHistory,
+                           String stopReason,
+                           int iterations) {
         if (metadata == null) return;
+        List<Map<String, Object>> snapshots = evidenceHistory == null
+            ? List.of()
+            : evidenceHistory.stream().filter(java.util.Objects::nonNull).toList();
+        Map<String, Object> snapshot = snapshots.isEmpty()
+            ? Map.of()
+            : snapshots.get(snapshots.size() - 1);
         AnalysisFlowState current = AnalysisFlowState.read(metadata);
         if (current != null) {
             if (current.decision() == EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE) {
                 // The execution owner closed the loop: no silent budget reset at synthesis.
-                var terminal = decide(snapshot, true, false, false, metadata);
+                EvidenceCoverageAssessment.Result coverage = coverageAssessment.assess(snapshots, metadata);
+                boolean historySufficient = coverage.grade()
+                    == com.chatchat.agents.assessment.EvidenceGrade.SUFFICIENT;
+                storeCoverage(metadata, coverage);
+                var terminal = augmentationPolicy.decide(new EvidenceAugmentationPolicy.Context(
+                    coverage.evidenceAvailable(), historySufficient, !historySufficient,
+                    false, false, evidenceRequirement(metadata), coverage.grade(),
+                    coverage.requiredEvidenceMissing()));
                 storeDecision(metadata, terminal, iterations, true, stopReason);
                 history(metadata, "evidenceAugmentationHistory").add(Map.of(
                     "iteration", iterations, "decision", terminal.decision().name(),
@@ -114,7 +159,11 @@ public final class AnalysisLoopCoordinator {
         Object remaining = snapshot == null ? List.of()
             : snapshot.getOrDefault("remainingMissing", snapshot.getOrDefault("missingEvidence", List.of()));
         if (remaining == null) remaining = List.of();
-        double confidence = number(snapshot == null ? null : snapshot.get("confidence"));
+        Map<String, Object> confidenceSnapshot = snapshots.stream()
+            .filter(this::usableEvidence)
+            .reduce((first, second) -> second)
+            .orElse(snapshot);
+        double confidence = number(confidenceSnapshot.get("confidence"));
         metadata.put("stopReason", stopReason);
         metadata.put("evidenceConfidence", confidence);
         metadata.put("remainingMissing", remaining);
@@ -122,7 +171,15 @@ public final class AnalysisLoopCoordinator {
         metadata.put("evidenceStopState", Map.of(
             "contractVersion", "agent_evidence_stop_v1", "stopReason", stopReason,
             "confidence", confidence, "remainingMissing", remaining,
-            "iterations", Math.max(0, iterations)));
+            "iterations", Math.max(0, iterations), "evidenceHistorySize", snapshots.size()));
+    }
+
+    private void storeCoverage(Map<String, Object> metadata,
+                               EvidenceCoverageAssessment.Result coverage) {
+        if (metadata == null || coverage == null) return;
+        metadata.put("evidenceGrade", coverage.grade().name());
+        metadata.put("evidenceCoverageAssessment", coverage.toMap());
+        metadata.put("missingRequiredEvidenceItems", coverage.missingRequiredEvidenceItems());
     }
 
     public TaskContract.EvidenceRequirement evidenceRequirement(Map<String, Object> metadata) {

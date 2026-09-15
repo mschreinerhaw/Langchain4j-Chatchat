@@ -30,7 +30,10 @@ final class ReportPublicationGraph {
             new AnalysisExecutionGraph.Step("PUBLISH", () -> {
                 if (!result.get().generated() || result.get().content() == null || result.get().content().isBlank())
                     return AnalysisExecutionGraph.Status.FAILED;
-                return "CLAIM_LEVEL_PARTIAL_DELIVERY".equals(request.metadata().get("finalClaimSelectionReason"))
+                Object analyticalReport = request.metadata().get("analyticalReport");
+                boolean partialDelivery = analyticalReport instanceof java.util.Map<?, ?> report
+                    && "GOVERNED_CLAIM_PARTIAL_DELIVERY".equals(report.get("publicationMode"));
+                return partialDelivery
                     || "completed_with_limitations".equals(request.stage())
                     || "ANALYZE_WITH_LIMITATIONS".equals(request.metadata().get("evidenceAugmentationDecision"))
                     || !request.coverageComplete() || !request.sourceContentComplete() || !request.evidenceTraceComplete()
@@ -55,6 +58,9 @@ final class ReportPublicationGraph {
     }
 
     private String admissionMessage(AnalysisExecutionGraph.Status status) {
+        if (status == AnalysisExecutionGraph.Status.EXACT_RESULT_UNAVAILABLE) {
+            return "The exact result required by this request is unavailable. Available evidence cannot support an exact conclusion.";
+        }
         return switch (status) {
             case NEEDS_CLARIFICATION -> "请补充分析所需的数据来源或输入条件后继续。";
             case NEEDS_MORE_EVIDENCE -> "必要证据仍在补充阶段，尚不能生成最终分析报告。";

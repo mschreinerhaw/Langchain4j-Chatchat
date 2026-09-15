@@ -214,8 +214,13 @@ public record InterpretationPlan(
     public record Validation(
         Boolean required,
         String rule,
-        Double threshold
+        Double threshold,
+        @JsonProperty("evidence_requirement")
+        com.chatchat.agents.assessment.TaskContract.EvidenceImportance evidenceRequirement
     ) {
+        public Validation(Boolean required, String rule, Double threshold) {
+            this(required, rule, threshold, null);
+        }
     }
 
     public record ExecutionPolicy(

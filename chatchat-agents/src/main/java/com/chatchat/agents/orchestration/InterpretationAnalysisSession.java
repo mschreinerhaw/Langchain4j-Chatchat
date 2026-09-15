@@ -350,7 +350,7 @@ final class InterpretationAnalysisSession {
                         && host.MAX_INTERPRETATION_PLAN_ATTEMPTS > 1;
         latestAugmentationDecision =
                 host.decideEvidenceAugmentation(
-                        firstEvidence,
+                        evidenceHistory,
                         firstResult,
                         host.evidenceExplorationAvailable(
                                 firstEvidence,
@@ -432,8 +432,8 @@ final class InterpretationAnalysisSession {
                 "structuralRepair", admission.structuralRepair(), "reason", admission.reason()));
         if (!admission.allowed()) {
             metadata.put("refinementStopReason", admission.reason());
-            host.recordEvidenceStopState(metadata, evidenceHistory.isEmpty() ? Map.of()
-                    : evidenceHistory.get(evidenceHistory.size() - 1), admission.reason(), evidenceHistory.size());
+            host.recordEvidenceStopState(
+                    metadata, evidenceHistory, admission.reason(), evidenceHistory.size());
             observations.add("Runtime skipped plan rewriting: " + admission.reason()
                     + ". Existing evidence and unresolved execution failures will be retained.");
             return FINALIZE;
@@ -746,7 +746,7 @@ final class InterpretationAnalysisSession {
         evidenceHistory.add(currentEvidence);
         latestAugmentationDecision =
                 host.decideEvidenceAugmentation(
-                        currentEvidence,
+                        evidenceHistory,
                         currentResult,
                         host.evidenceExplorationAvailable(
                                 currentEvidence,
@@ -802,7 +802,7 @@ final class InterpretationAnalysisSession {
     }
 
     Phase finalInitial() {
-        host.recordEvidenceStopState(metadata, firstEvidence, "evidence_sufficient", 1);
+        host.recordEvidenceStopState(metadata, evidenceHistory, "evidence_sufficient", 1);
         host.recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
         String synthesizedAnswer =
                 host.synthesizeInterpretationPlanAnswer(
@@ -833,7 +833,7 @@ final class InterpretationAnalysisSession {
 
     Phase finalRefined() {
         host.recordEvidenceStopState(
-                metadata, currentEvidence, "evidence_sufficient", rewriteCount + 1);
+                metadata, evidenceHistory, "evidence_sufficient", rewriteCount + 1);
         host.recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
         String synthesizedAnswer =
                 host.synthesizeInterpretationPlanAnswer(
@@ -863,8 +863,14 @@ final class InterpretationAnalysisSession {
     }
 
     Phase finalizeAnalysis() {
-        if (!usablePartialAnalysis
-                && evidenceHistory.stream().anyMatch(host::usableEvidenceAvailable)) {
+        boolean historyHasUsableEvidence =
+                evidenceHistory.stream().anyMatch(host::usableEvidenceAvailable);
+        boolean retrievalDecisionStillOpen =
+                latestAugmentationDecision != null
+                        && latestAugmentationDecision.decision()
+                                == EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE;
+        if (historyHasUsableEvidence
+                && (!usablePartialAnalysis || retrievalDecisionStillOpen)) {
             usablePartialAnalysis = true;
             latestAugmentationDecision =
                     host.evidenceAugmentationPolicy.decide(
@@ -904,7 +910,7 @@ final class InterpretationAnalysisSession {
         if (!evidenceHistory.isEmpty()) {
             host.recordEvidenceStopState(
                     metadata,
-                    evidenceHistory.get(evidenceHistory.size() - 1),
+                    evidenceHistory,
                     evidenceCompletionReason,
                     evidenceHistory.size());
         }

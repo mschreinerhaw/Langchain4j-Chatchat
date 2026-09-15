@@ -8,6 +8,7 @@ import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRun;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.assessment.TaskContract;
 import com.chatchat.common.runtime.summary.analysis.contract.AnalysisLoopContract;
 import dev.langchain4j.model.chat.ChatModel;
 
@@ -197,6 +198,7 @@ public final class InterpretationPlanEvidenceAnalyzer {
             .map(AnalysisLoopContract.GapRequest::toMap).toList());
         snapshot.put("gapFingerprint", analysisCoverage.gapFingerprint());
         snapshot.put("toolEvidence", toolEvidence);
+        snapshot.put("evidenceRequirements", evidenceRequirements(plan));
         if (diagnosticRun != null) {
             snapshot.put("diagnosticRun", diagnosticRun);
             snapshot.put("diagnosticCoverageComplete", diagnosticCoverageComplete);
@@ -529,6 +531,29 @@ public final class InterpretationPlanEvidenceAnalyzer {
             evidence.add(item);
         }
         return List.copyOf(evidence);
+    }
+
+    private List<Map<String, Object>> evidenceRequirements(InterpretationPlan plan) {
+        if (plan == null || plan.steps() == null) return List.of();
+        List<Map<String, Object>> requirements = new ArrayList<>();
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step == null || !step.mcpToolAction()) continue;
+            InterpretationPlan.Validation validation = step.validation();
+            TaskContract.EvidenceImportance importance = validation == null
+                ? null : validation.evidenceRequirement();
+            if (importance == null && validation != null && validation.required() != null) {
+                importance = validation.required()
+                    ? TaskContract.EvidenceImportance.REQUIRED
+                    : TaskContract.EvidenceImportance.OPTIONAL;
+            }
+            if (importance == null) importance = TaskContract.EvidenceImportance.IMPORTANT;
+            requirements.add(metadataOf(
+                "id", "step:" + step.id(),
+                "sourceStepId", step.id(),
+                "sourceTool", firstNonBlank(step.toolName(), ""),
+                "importance", importance.name()));
+        }
+        return List.copyOf(requirements);
     }
 
     /**

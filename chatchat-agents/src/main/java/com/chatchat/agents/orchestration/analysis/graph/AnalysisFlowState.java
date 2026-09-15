@@ -37,7 +37,8 @@ public record AnalysisFlowState(EvidenceAugmentationPolicy.Decision decision, in
             case COMPLETE, ANALYZE_WITH_LIMITATIONS -> AnalysisExecutionGraph.Status.READY;
             case RETRIEVE_MORE -> AnalysisExecutionGraph.Status.NEEDS_MORE_EVIDENCE;
             case BLOCKED_AUTHORIZATION -> AnalysisExecutionGraph.Status.BLOCKED;
-            case NO_EVIDENCE, EXACT_RESULT_UNAVAILABLE -> AnalysisExecutionGraph.Status.NO_EVIDENCE;
+            case NO_EVIDENCE -> AnalysisExecutionGraph.Status.NO_EVIDENCE;
+            case EXACT_RESULT_UNAVAILABLE -> AnalysisExecutionGraph.Status.EXACT_RESULT_UNAVAILABLE;
         };
     }
 }

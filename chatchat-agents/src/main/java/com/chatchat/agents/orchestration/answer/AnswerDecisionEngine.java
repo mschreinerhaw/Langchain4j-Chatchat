@@ -78,22 +78,32 @@ public class AnswerDecisionEngine {
             );
         }
 
-        if (protectedBusinessCandidate(request == null ? null : request.metadata())
-            && !candidate.isBlank()
-            && (evidence == null || !evidence.shouldReplaceWithGroundedEvidence())) {
-            boolean governedAnalysis = governedAnalysisCandidate(request == null ? null : request.metadata());
+        if (governedAnalysisCandidate(request == null ? null : request.metadata())
+            && !candidate.isBlank()) {
             if (quality != null) {
                 attachQualityMetadata(metadata, quality);
             }
-            metadata.put("answerReviewAuthority", governedAnalysis ? "none" : "diagnostic_only");
+            metadata.put("answerReviewAuthority", "none");
             metadata.put("answerReviewRewriteApplied", false);
-            metadata.put("answerReviewRewriteSkippedReason",
-                governedAnalysis ? "analysis_model_owns_report" : "protected_business_result");
+            metadata.put("answerReviewRewriteSkippedReason", "analysis_model_owns_report");
+            return decision(candidate, NO_REWRITE, "governed_analysis_report_retained",
+                "analysis_runtime", metadata);
+        }
+
+        if (protectedBusinessCandidate(request == null ? null : request.metadata())
+            && !candidate.isBlank()
+            && (evidence == null || !evidence.shouldReplaceWithGroundedEvidence())) {
+            if (quality != null) {
+                attachQualityMetadata(metadata, quality);
+            }
+            metadata.put("answerReviewAuthority", "diagnostic_only");
+            metadata.put("answerReviewRewriteApplied", false);
+            metadata.put("answerReviewRewriteSkippedReason", "protected_business_result");
             return decision(
                 candidate,
                 NO_REWRITE,
-                governedAnalysis ? "governed_analysis_report_retained" : "protected_business_result_retained",
-                governedAnalysis ? "analysis_runtime" : "planner_candidate",
+                "protected_business_result_retained",
+                "planner_candidate",
                 metadata
             );
         }

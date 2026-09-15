@@ -188,24 +188,8 @@ public final class AnalysisNodeProtocol
                 product -> product.capsule() == null ? new AnalysisProduct(product.raw(),
                     evidenceCapsule(isolationScope, position, governedContext, records, product.raw(),
                         objectiveContract, semanticContract)) : product,
-                product -> product.capsule().evidence().get("invalidInsightCount") instanceof Number invalid
-                    && invalid.intValue() > 0,
-                product -> {
-                    String raw = model.generate(prompt
-                        + "\nRepair the previous structured product once. Preserve supported claims. Fix only rejected claims using original records; never invent evidence. If impossible, remove the claim and state the limitation.\nPrevious product: "
-                        + product.raw() + "\nRuntime admission decisions: "
-                        + ModelProtocolJson.compact(product.capsule().evidence().get("claimAdmissionDecisions")));
-                    if (raw == null || raw.isBlank()) return product;
-                    EvidenceCapsule candidate = evidenceCapsule(isolationScope, position, governedContext,
-                        records, raw, objectiveContract, semanticContract);
-                    for (String key : List.of("insights", "facts")) {
-                        var retained = maps(candidate.evidence().get(key)).stream()
-                            .map(value -> value.get("claim")).collect(java.util.stream.Collectors.toSet());
-                        if (!maps(product.capsule().evidence().get(key)).stream()
-                            .allMatch(value -> retained.contains(value.get("claim")))) return product;
-                    }
-                    return new AnalysisProduct(raw, candidate);
-                });
+                product -> false,
+                product -> product);
             EvidenceCapsule capsule = execution.product().capsule();
             Map<String, Object> evidence = new LinkedHashMap<>(capsule.evidence());
             evidence.put("analysisNodeTransitions", execution.visitedNodes());
@@ -445,6 +429,9 @@ public final class AnalysisNodeProtocol
         }
         Map<String, Object> evidence = new LinkedHashMap<>(rawEvidence(
             isolationScope, position, governedContext, records, structured, false));
+        // Preserve the complete Worker product. Parsed fields below are navigation aids only;
+        // their structural diagnostics must never delete or rewrite model preprocessing.
+        evidence.put("workerModelOutput", modelOutput);
         evidence.put("facts", List.copyOf(facts));
         evidence.put("observedFactClaims", observedFactClaims(position, facts));
         evidence.put("entities", maps(payload.get("entities")));

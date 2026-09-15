@@ -724,6 +724,8 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .containsEntry("analysisSynthesisBlocked", false)
             .containsEntry("evidenceRefusalBlocked", false)
             .containsEntry("analysisOutputAdmitted", true)
+            .containsEntry("answerQualityEvaluationSkipped", true)
+            .containsEntry("answerQualityEvaluationSkippedReason", "analysis_model_owns_report")
             .containsEntry("executionStatus", "PARTIAL_RESULT_PRESENTED")
             .containsEntry("analysisExecutionStatus", "COMPLETED_WITH_HUMAN_REVIEW")
             .doesNotContainKey("evidenceRefusalBlockedReason");

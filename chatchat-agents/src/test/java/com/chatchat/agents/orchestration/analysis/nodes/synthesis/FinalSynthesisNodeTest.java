@@ -210,7 +210,7 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void internalDriverScaffoldTriggersSameDataRepairInsteadOfGovernanceFailureReport() {
+    void nonEmptyDriverOutputIsNotQualityJudgedOrRewrittenByRuntime() {
         FinalSynthesisNode coordinator = new FinalSynthesisNode(
             mock(AgentRunResultAdapter.class), "agentRunId", passthroughGovernance(),
             new DeterministicInsightEngine(), new AnswerCandidateCollector(),
@@ -235,16 +235,11 @@ class FinalSynthesisNodeTest {
                 List.of(worker), List.of(worker), Map.of("agentRunId", "run-a"), metadata));
 
         assertThat(result.generated()).isTrue();
-        assertThat(result.content())
-            .contains("no pending-write pressure", "8192", "262112")
-            .doesNotContain("分析未完成", "未通过发布准入", "You must analyze");
+        assertThat(result.content()).contains("You must analyze the existing data");
         assertThat(metadata)
-            .containsEntry("analysisRecoveryApplied", true)
-            .containsEntry("analysisRecoverySource", "DRIVER_MODEL_REPAIR")
-            .containsEntry("analysisDriverRepairReusedExistingData", true)
-            .containsEntry("analysisDriverRepairDataRequeryAllowed", false)
-            .containsEntry("analysisHumanReviewRequired", true)
+            .containsEntry("analysisOutputClassifierAdvisory", "INTERNAL_INSTRUCTION_NOT_ANALYSIS")
             .containsEntry("analysisOutputAdmitted", true);
+        verify(driver).chat(any(String.class));
     }
 
     @Test
@@ -793,13 +788,11 @@ class FinalSynthesisNodeTest {
     }
 
     @Test
-    void pendingRetrievalAndMissingRequiredEvidenceCannotInvokeFinalModel() {
+    void onlyUnfinishedRetrievalAndAuthorizationBlockTheDriver() {
         var coordinator = new FinalSynthesisNode(mock(AgentRunResultAdapter.class), "agentRunId",
             passthroughGovernance(), new DeterministicInsightEngine(), new AnswerCandidateCollector(), new StructuredFindingMerger());
         for (var decision : List.of(
             com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE,
-            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.NO_EVIDENCE,
-            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.EXACT_RESULT_UNAVAILABLE,
             com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.BLOCKED_AUTHORIZATION)) {
             ChatModel model = mock(ChatModel.class);
             Map<String,Object> metadata = new LinkedHashMap<>();
@@ -811,6 +804,23 @@ class FinalSynthesisNodeTest {
             assertThat(result.content()).isNotBlank();
             assertThat(metadata).containsEntry("analysisFinalAdmissionBlocked", true);
             org.mockito.Mockito.verifyNoInteractions(model);
+        }
+
+        for (var decision : List.of(
+            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.NO_EVIDENCE,
+            com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.EXACT_RESULT_UNAVAILABLE)) {
+            ChatModel model = mock(ChatModel.class);
+            when(model.chat(any(String.class))).thenReturn("Driver analysis based on the available inputs.");
+            Map<String,Object> metadata = new LinkedHashMap<>();
+            metadata.put(com.chatchat.agents.orchestration.analysis.graph.AnalysisFlowState.KEY,
+                new com.chatchat.agents.orchestration.analysis.graph.AnalysisFlowState(decision, 1, true, "bounded loop ended").toMap());
+            var result = coordinator.synthesizeFinal(request(model, metadata, candidate -> candidate,
+                () -> "fallback", true));
+            assertThat(result.generated()).isTrue();
+            assertThat(result.content()).contains("Driver analysis");
+            assertThat(metadata).containsEntry("analysisEvidenceStateAdvisory", decision.name())
+                .doesNotContainKey("analysisFinalAdmissionBlocked");
+            verify(model).chat(any(String.class));
         }
     }
 

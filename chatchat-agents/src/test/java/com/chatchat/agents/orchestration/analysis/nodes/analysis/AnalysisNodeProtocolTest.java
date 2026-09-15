@@ -202,7 +202,7 @@ class AnalysisNodeProtocolTest {
     }
 
     @Test
-    void repairsInvalidProductOnceUsingAdmissionDecisionsAndOriginalRecords() {
+    void preservesInvalidStructuredProductWithoutRuntimeQualityRepair() {
         var calls = new java.util.ArrayList<String>();
         var rows = List.<Map<String, Object>>of(Map.of("VALUE", 17));
         var result = bridge.summarize(prompt -> {
@@ -212,14 +212,14 @@ class AnalysisNodeProtocolTest {
                 : "{\"summary\":\"repaired with explicit limitation\",\"insights\":[],\"limitations\":[\"claim cannot be verified\"]}";
         }, isolationScope, bridge.position("sample", 1, 1, 1, 1, 1),
             bridge.govern("sample", Map.of(), rows), rows, "Inspect returned value");
-        assertThat(calls).hasSize(2);
-        assertThat(calls.get(1)).contains("CLAIM_SHAPE_INVALID", "sample.records[1]", "\"VALUE\":17",
-            "confidence (HIGH|MEDIUM|LOW)", "outputUnit", "alternativeExplanations");
-        assertThat(result.content()).contains("repaired with explicit limitation");
+        assertThat(calls).hasSize(1);
+        assertThat(result.content()).isEqualTo("initial");
+        assertThat(result.evidence()).containsEntry("workerModelOutput",
+            "{\"summary\":\"initial\",\"insights\":[{\"claim\":\"unsupported\"}]}");
     }
 
     @Test
-    void repairFailurePreservesOriginalProductInsteadOfFallingBackToRawRecords() {
+    void workerProductIsCollectedWithOnlyOneModelCall() {
         var calls = new java.util.concurrent.atomic.AtomicInteger();
         var rows = List.<Map<String, Object>>of(Map.of("VALUE", 17));
         var result = bridge.summarize(prompt -> {
@@ -227,7 +227,7 @@ class AnalysisNodeProtocolTest {
             return "{\"summary\":\"preserved analysis\",\"insights\":[{\"claim\":\"unsupported\"}]}";
         }, isolationScope, bridge.position("sample", 1, 1, 1, 1, 1),
             bridge.govern("sample", Map.of(), rows), rows, "Inspect returned value");
-        assertThat(calls.get()).isEqualTo(2);
+        assertThat(calls.get()).isEqualTo(1);
         assertThat(result.content()).contains("preserved analysis");
         assertThat(result.outcome()).isEqualTo("MODEL_SUMMARY");
     }

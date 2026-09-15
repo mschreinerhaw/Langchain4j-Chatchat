@@ -4,11 +4,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Technical payload classifier for analysis answers.
+ * Technical payload-shape classifier for analysis answers.
  *
  * <p>This classifier only distinguishes analysis prose from Runtime/tool protocol envelopes. It
- * never evaluates whether a business conclusion is acceptable; evidence strength and uncertainty
- * remain annotations for human review.</p>
+ * never evaluates whether a business conclusion is acceptable and has no publication authority;
+ * evidence strength and uncertainty remain annotations for human review.</p>
  */
 public final class AnalysisOutputAdmissionPolicy {
 
@@ -94,25 +94,6 @@ public final class AnalysisOutputAdmissionPolicy {
                     : "RUNTIME_ENVELOPE_NOT_ANALYSIS");
         }
         return new Admission(true, "ANALYSIS_NARRATIVE_ADMITTED");
-    }
-
-    public static Admission admitWorkerNarrative(String candidate) {
-        Admission publication = admit(candidate);
-        if (!publication.admitted()) return publication;
-        String normalized = candidate.toLowerCase(Locale.ROOT);
-        boolean runtimeProtocol = normalized.contains("tool call batch")
-            || normalized.contains("required tool")
-            || normalized.contains("technical reason")
-            || normalized.contains("必需工具")
-            || normalized.contains("执行已结束，但结果整理失败")
-            || normalized.contains("工具轨迹")
-            || normalized.contains("mcp_tool_error")
-            || normalized.contains("circuit_open")
-            || normalized.contains("illegalargumentexception");
-        if (runtimeProtocol) {
-            return new Admission(false, "RUNTIME_PROTOCOL_TEXT_NOT_ANALYSIS");
-        }
-        return new Admission(true, "LEGACY_ANALYSIS_NARRATIVE_DEGRADED");
     }
 
     public record Admission(boolean admitted, String reason) {

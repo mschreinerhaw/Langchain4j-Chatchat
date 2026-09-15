@@ -6,7 +6,7 @@ import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesis
 import com.chatchat.agents.orchestration.analysis.nodes.synthesis.FinalSynthesisNode.FinalSynthesisResult;
 import java.util.List;
 
-/** Admission and publication graph; the Driver supplies governed synthesis. */
+/** Mechanical publication graph; the Driver owns all analytical judgment. */
 final class ReportPublicationGraph {
     FinalSynthesisResult execute(FinalModelSynthesisRequest request,
         java.util.function.Function<FinalModelSynthesisRequest, FinalSynthesisResult> synthesis) {
@@ -21,7 +21,23 @@ final class ReportPublicationGraph {
                 if (Boolean.TRUE.equals(request.metadata().get("confirmationRequired")))
                     return AnalysisExecutionGraph.Status.BLOCKED;
                 AnalysisFlowState flow = AnalysisFlowState.read(request.metadata());
-                return flow == null ? AnalysisExecutionGraph.Status.READY : flow.admission();
+                if (flow != null) {
+                    request.metadata().put("analysisEvidenceStateAdvisory", flow.decision().name());
+                    request.metadata().put("analysisEvidenceStateReason", flow.stopReason());
+                    // Evidence sufficiency and exactness are inputs to the Driver, not Runtime
+                    // authority to suppress analysis. Only an unfinished retrieval loop or an
+                    // authorization boundary is a real execution barrier here.
+                    if (flow.decision()
+                        == com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.RETRIEVE_MORE
+                        && !flow.loopClosed()) {
+                        return AnalysisExecutionGraph.Status.NEEDS_MORE_EVIDENCE;
+                    }
+                    if (flow.decision()
+                        == com.chatchat.agents.assessment.EvidenceAugmentationPolicy.Decision.BLOCKED_AUTHORIZATION) {
+                        return AnalysisExecutionGraph.Status.BLOCKED;
+                    }
+                }
+                return AnalysisExecutionGraph.Status.READY;
             }),
             new AnalysisExecutionGraph.Step("judge_and_compose", () -> {
                 result.set(synthesis.apply(request));

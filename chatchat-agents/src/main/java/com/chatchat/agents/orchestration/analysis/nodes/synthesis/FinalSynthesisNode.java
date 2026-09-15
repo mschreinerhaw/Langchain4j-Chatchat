@@ -384,7 +384,7 @@ public final class FinalSynthesisNode {
         }
         AnalysisOutputAdmissionPolicy.Admission admission =
             AnalysisOutputAdmissionPolicy.admit(answer);
-        if (!admission.admitted()) {
+        if (!admission.admitted() && (answer == null || answer.isBlank())) {
             AnalysisRecovery recovery = recoverAnalysisNarrative(
                 request, modelPrompt, admission.reason());
             if (recovery.recovered()) {
@@ -414,6 +414,7 @@ public final class FinalSynthesisNode {
         }
         request.metadata().put("analysisOutputAdmissionReason", admission.reason());
         request.metadata().put("analysisOutputAdmitted", admission.admitted());
+        request.metadata().put("analysisOutputPresent", answer != null && !answer.isBlank());
         if (!admission.admitted()) {
             request.metadata().remove("analyticalReport");
             request.metadata().remove("claimAcceptance");
@@ -722,6 +723,7 @@ public final class FinalSynthesisNode {
         request.metadata().put("analysisOutputAdmissionReason",
             admission.admitted() ? admission.reason() : "MODEL_OUTPUT_PRESENT_CLASSIFIER_ADVISORY");
         request.metadata().put("analysisOutputAdmitted", true);
+        request.metadata().put("analysisOutputPresent", true);
         String completion = datasetCompletionAppendix(request.metadata());
         if (completion.isBlank() || answer.contains("## 数据集完整性")
             || answer.contains("## 观察值完整性")) return answer;
@@ -754,6 +756,7 @@ public final class FinalSynthesisNode {
     private void recordWithheld(PresentationRequest request, String reason) {
         request.metadata().put("analysisOutputAdmissionReason", reason);
         request.metadata().put("analysisOutputAdmitted", false);
+        request.metadata().put("analysisOutputPresent", false);
         request.metadata().put("rawAnalysisOutputWithheld", true);
         request.metadata().put("returnedDataAnalysisRequired", true);
         request.metadata().put("supportingDatasetPrimaryDisplayAllowed", false);

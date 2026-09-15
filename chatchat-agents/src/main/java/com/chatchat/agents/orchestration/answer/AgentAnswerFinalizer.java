@@ -451,16 +451,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "tool_budget_exceeded");
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
-        AnswerQualityEvaluator.QualityReport quality = answerQualityCoordinator.evaluate(
-            activeChatModel,
-            query,
-            systemPrompt,
-            effectiveObservations,
-            finalAnswer,
-            review,
-            signal,
-            metadata
-        );
+        AnswerQualityEvaluator.QualityReport quality = evaluateQualityUnlessModelOwnedAnalysis(
+            activeChatModel, query, systemPrompt, effectiveObservations, finalAnswer, review, signal, metadata);
         return finishWithDecision(activeChatModel, query, systemPrompt, finalAnswer, review, signal, quality,
             effectiveTraces, metadata, effectiveObservations);
     }
@@ -489,16 +481,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
-        AnswerQualityEvaluator.QualityReport quality = answerQualityCoordinator.evaluate(
-            activeChatModel,
-            query,
-            systemPrompt,
-            effectiveObservations,
-            finalAnswer,
-            review,
-            signal,
-            metadata
-        );
+        AnswerQualityEvaluator.QualityReport quality = evaluateQualityUnlessModelOwnedAnalysis(
+            activeChatModel, query, systemPrompt, effectiveObservations, finalAnswer, review, signal, metadata);
         return finishWithDecision(activeChatModel, query, systemPrompt, finalAnswer, review, signal, quality,
             effectiveTraces, metadata, effectiveObservations);
     }
@@ -528,16 +512,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, effectiveObservations, metadata);
-        AnswerQualityEvaluator.QualityReport quality = answerQualityCoordinator.evaluate(
-            activeChatModel,
-            query,
-            systemPrompt,
-            effectiveObservations,
-            finalAnswer,
-            review,
-            signal,
-            metadata
-        );
+        AnswerQualityEvaluator.QualityReport quality = evaluateQualityUnlessModelOwnedAnalysis(
+            activeChatModel, query, systemPrompt, effectiveObservations, finalAnswer, review, signal, metadata);
         return finishWithDecision(activeChatModel, query, systemPrompt, finalAnswer, review, signal, quality,
             effectiveTraces, metadata, effectiveObservations);
     }
@@ -562,6 +538,25 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         }
         return answerReviewCoordinator.review(activeChatModel, query, systemPrompt,
             observations, answer, metadata);
+    }
+
+    private AnswerQualityEvaluator.QualityReport evaluateQualityUnlessModelOwnedAnalysis(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        List<String> observations,
+        String answer,
+        AgentAnswerReview review,
+        AnswerDecisionEngine.EvidenceSignal signal,
+        Map<String, Object> metadata
+    ) {
+        if (isModelOwnedDataAnalysisReport(metadata)) {
+            metadata.put("answerQualityEvaluationSkipped", true);
+            metadata.put("answerQualityEvaluationSkippedReason", "analysis_model_owns_report");
+            return null;
+        }
+        return answerQualityCoordinator.evaluate(activeChatModel, query, systemPrompt,
+            observations, answer, review, signal, metadata);
     }
 
     public AgentOrchestrator.AgentExecutionResult finishProducedAnswerAfterCancellation(
@@ -1214,21 +1209,9 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
     }
 
     private boolean isModelOwnedDataAnalysisReport(Map<String, Object> metadata) {
-        if (!isGovernedAnalysisReport(metadata)) {
-            return false;
-        }
-        if (Boolean.TRUE.equals(metadata.get("returnedDataAnalysisRequired"))
-            || Boolean.TRUE.equals(metadata.get("finalClaimPublicationContractActive"))) {
-            return true;
-        }
-        for (String key : List.of("analysisDriverReturnedDatasetCount", "recordAnalysisDatasetCount",
-            "analysisObservedReturnedRecordCount", "recordAnalysisReturnedRecordCount")) {
-            Object value = metadata.get(key);
-            if (value instanceof Number number && number.longValue() > 0) {
-                return true;
-            }
-        }
-        return false;
+        // DRIVER_REPORT is the ownership boundary. Requiring extra counters here allowed stale
+        // or absent bookkeeping to hand the report back to Runtime quality heuristics.
+        return isGovernedAnalysisReport(metadata);
     }
 
     private String bindReturnedEvidenceUnlessModelOwnedAnalysis(
@@ -1426,6 +1409,11 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                 false,
                 null
             );
+        }
+        if (isModelOwnedDataAnalysisReport(metadata)) {
+            metadata.put("answerQualityEvaluationSkipped", true);
+            metadata.put("answerQualityEvaluationSkippedReason", "analysis_model_owns_report");
+            return AnswerDecisionEngine.EvidenceSignal.empty();
         }
         AnswerDecisionEngine.DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observations);
         List<AnswerDecisionEngine.GroundedDocumentEvidence> documentEvidence =

@@ -437,7 +437,7 @@ public final class StructuredFindingMerger implements ModelSummaryReducer<
                 "metrics", "rankings", "analyzedRelationships", "businessConclusions",
                 "conflicts", "limitations", "analysisQuality", "analysisDepth",
                 "analysisMethodExecution", "metricAssociations", "analysisItems", "claimAdmissionDecisions",
-                AnalysisArtifactProtocol.EVIDENCE_KEY)) {
+                "workerModelOutput", AnalysisArtifactProtocol.EVIDENCE_KEY)) {
                 Object value = evidence.get(key);
                 if (value != null && (!(value instanceof Map<?, ?> map) || !map.isEmpty())
                     && (!(value instanceof Collection<?> items) || !items.isEmpty())) {

@@ -119,6 +119,36 @@ class LocalAnalysisTaskDispatcherTest {
         }
     }
 
+    @Test
+    void returnsCompletedResultAfterItsStoppedHeartbeatLeaseHasAgedOut() throws Exception {
+        GovernanceIsolationScope scope = GovernanceIsolationScope.runtime(
+            "tenant-1", "run-1", "request-1", "conversation-1", "user-1");
+        AnalysisTask delayed = task(scope, "delayed-read", 1, 80L);
+        AnalysisDatasetSummary summary = mock(AnalysisDatasetSummary.class);
+        when(summary.isolationScope()).thenReturn(scope);
+        when(summary.outcome()).thenReturn("SUCCESS");
+        when(summary.chunks()).thenReturn(List.of());
+        CountDownLatch completed = new CountDownLatch(1);
+        LocalAnalysisTaskDispatcher dispatcher = new LocalAnalysisTaskDispatcher(1, 20L);
+
+        try (ModelSummaryDispatcher.DispatchBatch<AnalysisTaskResult> batch = dispatcher.dispatch(
+            List.of(delayed),
+            (task, reporter) -> {
+                completed.countDown();
+                return summary;
+            },
+            () -> false,
+            progress -> { })) {
+            completed.await();
+            Thread.sleep(1_100L);
+
+            AnalysisTaskResult result = batch.await(delayed.taskId());
+
+            assertThat(result.status()).isEqualTo("SUCCESS");
+            assertThat(result.summary()).isSameAs(summary);
+        }
+    }
+
     private AnalysisTask task(
         GovernanceIsolationScope scope,
         String dataset,

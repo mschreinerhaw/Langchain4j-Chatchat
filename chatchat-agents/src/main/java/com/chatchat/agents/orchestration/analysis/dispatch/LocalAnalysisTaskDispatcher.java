@@ -237,8 +237,18 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
                         "Agent run was cancelled while awaiting analysis task " + taskId);
                 }
                 long leaseTimeoutMs = submitted.lease().timeoutMs;
+                // A completed Worker intentionally stops heartbeating. Read its result before
+                // applying the live-Worker lease check; otherwise a result that completed while
+                // the driver awaited an earlier dataset is falsely reported as expired.
+                if (submitted.future().isDone()) {
+                    return completedResult(submitted);
+                }
                 if (submitted.lease().expired()) {
-                    submitted.future().cancel(true);
+                    // Cancellation and completion may race. Only declare the lease failure when
+                    // this call actually transitions the still-running Future to cancelled.
+                    if (!submitted.future().cancel(true)) {
+                        return completedResult(submitted);
+                    }
                     TimeoutException expired = new TimeoutException(
                         "Worker heartbeat lease expired after " + leaseTimeoutMs + " ms");
                     return AnalysisTaskResult.failed(submitted.task(), "local-dispatcher",
@@ -257,13 +267,32 @@ public final class LocalAnalysisTaskDispatcher implements ModelSummaryDispatcher
                     throw new CancellationException(
                         "Interrupted while awaiting analysis task " + taskId);
                 } catch (ExecutionException failed) {
-                    Throwable cause = failed.getCause();
-                    if (cause instanceof CancellationException cancelled) {
-                        throw cancelled;
-                    }
-                    return AnalysisTaskResult.failed(submitted.task(), "local-dispatcher", 0, cause);
+                    return failedResult(submitted, failed);
                 }
             }
+        }
+
+        private AnalysisTaskResult completedResult(SubmittedTask submitted) {
+            try {
+                return submitted.future().get();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new CancellationException(
+                    "Interrupted while reading completed analysis task " + submitted.task().taskId());
+            } catch (ExecutionException failed) {
+                return failedResult(submitted, failed);
+            }
+        }
+
+        private AnalysisTaskResult failedResult(
+            SubmittedTask submitted,
+            ExecutionException failed
+        ) {
+            Throwable cause = failed.getCause();
+            if (cause instanceof CancellationException cancelled) {
+                throw cancelled;
+            }
+            return AnalysisTaskResult.failed(submitted.task(), "local-dispatcher", 0, cause);
         }
 
         @Override

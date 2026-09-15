@@ -43,6 +43,29 @@ class AnalysisLoopCoordinatorTest {
         assertThat(metadata).containsEntry("evidenceAugmentationAnswerAllowed", true);
     }
 
+    @Test void degradedWorkerOnlyRunClosesAsLimitedAnalysisInsteadOfNoEvidence() {
+        Map<String,Object> metadata = new LinkedHashMap<>(Map.of(
+            "evidenceRequirement", "REQUIRED",
+            "recordAnalysisReturnedRecordCount", 37,
+            "analysisAcceptedWorkerCount", 10,
+            "analysisDegradedDatasetCount", 10,
+            "analysisReducerReviewableReportCount", 0,
+            "analysisSynthesisBarrierStatus", "READY_WITHOUT_REDUCER_REPORT"));
+        Map<String,Object> retrievedButStructurallyDegraded = Map.of(
+            "toolEvidence", List.of(),
+            "remainingMissing", List.of("structured published claims"));
+
+        var decision = coordinator.decide(
+            retrievedButStructurallyDegraded, true, false, false, metadata);
+        coordinator.recordDecision(decision, 1, Map.of(), metadata);
+        coordinator.recordStop(metadata, List.of(retrievedButStructurallyDegraded),
+            "no_verified_new_retrieval_path", 1);
+
+        assertThat(AnalysisFlowState.read(metadata).decision())
+            .isEqualTo(EvidenceAugmentationPolicy.Decision.ANALYZE_WITH_LIMITATIONS);
+        assertThat(metadata).containsEntry("evidenceAugmentationAnswerAllowed", true);
+    }
+
     @Test void strictNoEvidenceAndAuthorizationDoNotBecomeBestEffortAnswers() {
         Map<String,Object> metadata = new LinkedHashMap<>(Map.of("evidenceRequirement", "STRICT"));
         var decision = coordinator.decide(Map.of(), false, true, false, metadata);

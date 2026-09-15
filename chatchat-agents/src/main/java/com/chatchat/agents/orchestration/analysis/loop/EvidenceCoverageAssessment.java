@@ -28,12 +28,11 @@ public final class EvidenceCoverageAssessment {
             .filter(item -> usable.stream().noneMatch(evidence -> matches(item, evidence)))
             .map(Requirement::id)
             .toList();
-        // A governed worker/reducer summary is evidence: it was produced by binding, validating and
-        // reviewing successfully-retrieved records. Treating it as usable keeps a run that retrieved
-        // and analysed data from collapsing to "no available evidence" just because structured claim
-        // admission published nothing; the report then degrades to ANALYZE_WITH_LIMITATIONS.
-        boolean governedSummaryAvailable = governedAnalysisSummaryPresent(metadata);
-        boolean evidenceAvailable = !usable.isEmpty() || governedSummaryAvailable;
+        // Evidence existence is established by returned records or an accepted analysis product.
+        // Claim-schema validation only controls the verification label of individual claims; it
+        // must never rewrite non-empty returned data into "no evidence" or veto report synthesis.
+        boolean analysisEvidenceAvailable = analysisEvidencePresent(metadata);
+        boolean evidenceAvailable = !usable.isEmpty() || analysisEvidenceAvailable;
         boolean latestSufficient = truthy(latest.get("sufficient"));
         boolean conflictsRemain = size(latest.get("conflicts")) > 0;
         boolean gapsRemain = size(latest.getOrDefault(
@@ -49,7 +48,7 @@ public final class EvidenceCoverageAssessment {
                     ? EvidenceGrade.LIMITED : EvidenceGrade.PARTIAL_USABLE)
                 : EvidenceGrade.INSUFFICIENT;
         return new Result(grade, evidenceAvailable, requiredEvidenceMissing,
-            missingRequired, requirements.size(), Math.max(usable.size(), governedSummaryAvailable ? 1 : 0),
+            missingRequired, requirements.size(), Math.max(usable.size(), analysisEvidenceAvailable ? 1 : 0),
             gapsRemain, conflictsRemain);
     }
 
@@ -128,11 +127,16 @@ public final class EvidenceCoverageAssessment {
         return List.copyOf(result);
     }
 
-    private boolean governedAnalysisSummaryPresent(Map<String, Object> metadata) {
+    private boolean analysisEvidencePresent(Map<String, Object> metadata) {
         if (metadata == null) return false;
-        // These counters are written by the reducer governance stage once governed worker/reducer
-        // reports have been reviewed over successfully-retrieved records.
-        if (positive(metadata.get("analysisReducerReviewableReportCount"))
+        // These counters describe facts that already exist independently of the optional claim
+        // publication envelope. In particular, returned records remain evidence even if every
+        // model-authored claim needs review.
+        if (positive(metadata.get("analysisObservedReturnedRecordCount"))
+            || positive(metadata.get("recordAnalysisReturnedRecordCount"))
+            || positive(metadata.get("analysisAcceptedWorkerCount"))
+            || positive(metadata.get("recordAnalysisSuccessfulDatasetCount"))
+            || positive(metadata.get("analysisReducerReviewableReportCount"))
             || positive(metadata.get("analysisReducerAdmittedReportCount"))) {
             return true;
         }

@@ -94,6 +94,41 @@ class EvidenceCoverageAssessmentTest {
     }
 
     @Test
+    void returnedRecordsRemainEvidenceWhenEveryClaimNeedsReview() {
+        var result = assessment.assess(
+            List.of(Map.of("toolEvidence", List.of(),
+                "remainingMissing", List.of("structured published claims"))),
+            Map.of("evidenceRequirement", "REQUIRED",
+                "analysisObservedReturnedRecordCount", 37,
+                "recordAnalysisReturnedRecordCount", 37,
+                "analysisAcceptedWorkerCount", 10,
+                "analysisDegradedDatasetCount", 10,
+                "recordAnalysisSuccessfulDatasetCount", 10,
+                "analysisReducerReviewableReportCount", 0,
+                "analysisReducerAdmittedReportCount", 0,
+                "analysisSynthesisBarrierStatus", "READY_WITHOUT_REDUCER_REPORT"));
+
+        assertThat(result.evidenceAvailable()).isTrue();
+        assertThat(result.requiredEvidenceMissing()).isFalse();
+        assertThat(result.grade()).isEqualTo(EvidenceGrade.PARTIAL_USABLE);
+        assertThat(result.usableEvidenceCount()).isEqualTo(1);
+    }
+
+    @Test
+    void returnedRecordCountAloneCannotBeOverriddenByClaimValidation() {
+        var result = assessment.assess(
+            List.of(Map.of("toolEvidence", List.of())),
+            Map.of("evidenceRequirement", "REQUIRED",
+                "recordAnalysisReturnedRecordCount", 1,
+                "analysisAcceptedWorkerCount", 0,
+                "analysisReducerAdmittedReportCount", 0));
+
+        assertThat(result.evidenceAvailable()).isTrue();
+        assertThat(result.grade()).isEqualTo(EvidenceGrade.PARTIAL_USABLE);
+        assertThat(result.grade().synthesisAllowed()).isTrue();
+    }
+
+    @Test
     void noGovernedReducerReportLeavesEmptyRetrievalInsufficient() {
         var result = assessment.assess(
             List.of(Map.of("toolEvidence", List.of(),

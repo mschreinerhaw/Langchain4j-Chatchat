@@ -231,11 +231,11 @@ public class LuceneMcpSearchService {
         if (!enabled()) {
             return;
         }
-        if (openSearchSelected()) {
-            openSearchSearchService.indexAssets(docs);
-            return;
-        }
         try {
+            if (openSearchSelected()) {
+                openSearchSearchService.indexAssets(docs);
+                return;
+            }
             Map<String, List<AssetDoc>> docsByAssetType = safeAssetDocs(docs).stream()
                 .filter(doc -> normalizeAssetType(doc.assetType()) != null)
                 .collect(Collectors.groupingBy(
@@ -247,8 +247,9 @@ public class LuceneMcpSearchService {
                 rebuild(assetIndexPath(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
             }
         } catch (Exception ex) {
-            // Lucene is an acceleration index. Callers keep using the source registry as truth.
-            log.warn("MCP Lucene asset index rebuild failed docs={}: {}", docs == null ? 0 : docs.size(), ex.getMessage());
+            // The search engine is an acceleration index. Callers keep using the source registry as truth.
+            log.warn("MCP search asset index rebuild failed engine={} docs={}: {}",
+                searchEngineName(), docs == null ? 0 : docs.size(), ex.getMessage());
         }
     }
 
@@ -261,19 +262,19 @@ public class LuceneMcpSearchService {
             log.warn("MCP Lucene typed asset index rebuild skipped because assetType is blank");
             return;
         }
-        if (openSearchSelected()) {
-            openSearchSearchService.indexAssets(normalizedAssetType, docs);
-            return;
-        }
         try {
+            if (openSearchSelected()) {
+                openSearchSearchService.indexAssets(normalizedAssetType, docs);
+                return;
+            }
             rebuild(assetIndexPath(normalizedAssetType), safeAssetDocs(docs).stream()
                 .filter(doc -> normalizedAssetType.equals(normalizeAssetType(doc.assetType())))
                 .map(this::assetDocument)
                 .toList());
         } catch (Exception ex) {
-            // Lucene is an acceleration index. Callers keep using the source registry as truth.
-            log.warn("MCP Lucene {} asset index rebuild failed docs={}: {}",
-                normalizedAssetType, docs == null ? 0 : docs.size(), ex.getMessage());
+            // The search engine is an acceleration index. Callers keep using the source registry as truth.
+            log.warn("MCP search {} asset index rebuild failed engine={} docs={}: {}",
+                normalizedAssetType, searchEngineName(), docs == null ? 0 : docs.size(), ex.getMessage());
         }
     }
 
@@ -281,11 +282,11 @@ public class LuceneMcpSearchService {
         if (!enabled() || docs == null || docs.isEmpty()) {
             return;
         }
-        if (openSearchSelected()) {
-            openSearchSearchService.upsertAssets(docs);
-            return;
-        }
         try {
+            if (openSearchSelected()) {
+                openSearchSearchService.upsertAssets(docs);
+                return;
+            }
             Map<String, List<AssetDoc>> docsByAssetType = safeAssetDocs(docs).stream()
                 .filter(doc -> normalizeAssetType(doc.assetType()) != null)
                 .collect(Collectors.groupingBy(
@@ -297,8 +298,9 @@ public class LuceneMcpSearchService {
                 upsert(assetIndexPath(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
             }
         } catch (Exception ex) {
-            // Lucene is an acceleration index. Callers keep using the source registry as truth.
-            log.warn("MCP Lucene asset upsert failed docs={}: {}", docs.size(), ex.getMessage());
+            // The search engine is an acceleration index. Callers keep using the source registry as truth.
+            log.warn("MCP search asset upsert failed engine={} docs={}: {}",
+                searchEngineName(), docs.size(), ex.getMessage());
         }
     }
 
@@ -311,28 +313,29 @@ public class LuceneMcpSearchService {
             log.warn("MCP Lucene typed asset upsert skipped because assetType is blank");
             return;
         }
-        if (openSearchSelected()) {
-            openSearchSearchService.upsertAssets(normalizedAssetType, docs);
-            return;
-        }
         try {
+            if (openSearchSelected()) {
+                openSearchSearchService.upsertAssets(normalizedAssetType, docs);
+                return;
+            }
             upsert(assetIndexPath(normalizedAssetType), docs.stream()
                 .filter(doc -> normalizedAssetType.equals(normalizeAssetType(doc.assetType())))
                 .map(this::assetDocument)
                 .toList());
         } catch (Exception ex) {
-            // Lucene is an acceleration index. Callers keep using the source registry as truth.
-            log.warn("MCP Lucene {} asset upsert failed docs={}: {}", normalizedAssetType, docs.size(), ex.getMessage());
+            // The search engine is an acceleration index. Callers keep using the source registry as truth.
+            log.warn("MCP search {} asset upsert failed engine={} docs={}: {}",
+                normalizedAssetType, searchEngineName(), docs.size(), ex.getMessage());
         }
     }
 
     public void replaceSqlDatasourceAssets(String datasourceId, List<AssetDoc> docs) {
         if (!enabled() || datasourceId == null || datasourceId.isBlank()) return;
-        if (openSearchSelected()) {
-            openSearchSearchService.replaceSqlDatasourceAssets(datasourceId, docs);
-            return;
-        }
         try {
+            if (openSearchSelected()) {
+                openSearchSearchService.replaceSqlDatasourceAssets(datasourceId, docs);
+                return;
+            }
             Path path = assetIndexPath("sql_datasource");
             List<Document> documents = safeAssetDocs(docs).stream().map(this::assetDocument).toList();
             try (FSDirectory directory = FSDirectory.open(path);
@@ -356,7 +359,13 @@ public class LuceneMcpSearchService {
     public void replaceAssetAcrossIndexes(String assetId, List<String> assetTypes, AssetDoc doc) {
         if (!enabled() || assetId == null || assetId.isBlank() || assetTypes == null || assetTypes.isEmpty()) return;
         if (openSearchSelected()) {
-            openSearchSearchService.replaceAssetAcrossIndexes(assetId, assetTypes, doc);
+            try {
+                openSearchSearchService.replaceAssetAcrossIndexes(assetId, assetTypes, doc);
+            } catch (Exception ex) {
+                // OpenSearch is an acceleration index. Asset registry/database remains the source of truth.
+                log.warn("MCP OpenSearch cross-index asset replacement failed assetId={} assetTypes={}: {}",
+                    assetId, assetTypes, ex.getMessage());
+            }
             return;
         }
         for (String requestedType : assetTypes) {
@@ -858,6 +867,10 @@ public class LuceneMcpSearchService {
 
     private boolean openSearchSelected() {
         return properties != null && properties.isOpenSearchEngine() && openSearchEnabled();
+    }
+
+    private String searchEngineName() {
+        return openSearchSelected() ? "opensearch" : "lucene";
     }
 
     private boolean openSearchEnabled() {

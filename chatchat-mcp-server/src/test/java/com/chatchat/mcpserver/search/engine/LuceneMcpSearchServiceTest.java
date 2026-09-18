@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.search.engine;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -8,6 +9,11 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 class LuceneMcpSearchServiceTest {
 
@@ -228,6 +234,22 @@ class LuceneMcpSearchServiceTest {
         assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
             "sql_datasource", "orders", "DEV", "mysql", List.of(), 10
         ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("db-orders");
+    }
+
+    @Test
+    void openSearchBulkFailureDoesNotEscapeAssetIndexBoundary() {
+        LuceneSearchProperties properties = new LuceneSearchProperties();
+        properties.setEngine("opensearch");
+        OpenSearchMcpSearchService openSearch = mock(OpenSearchMcpSearchService.class);
+        doThrow(new IllegalStateException("bulk rejected"))
+            .when(openSearch).indexAssets(eq("api_service"), anyList());
+        LuceneMcpSearchService service = new LuceneMcpSearchService(
+            properties, new McpEmbeddingClient(properties, new ObjectMapper()), openSearch);
+
+        assertThatCode(() -> service.indexAssets("api_service", List.of(new LuceneMcpSearchService.AssetDoc(
+            "api-orders", "api_service", "orders", "Orders", "orders", null, null,
+            List.of(), "asset_registry"))))
+            .doesNotThrowAnyException();
     }
 
     @Test

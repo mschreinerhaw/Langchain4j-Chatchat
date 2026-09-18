@@ -41,10 +41,6 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
     public static final String TOOL_NAME = "api_template_query";
     private static final int DEFAULT_LIMIT = 10;
     private static final int MAX_LIMIT = 20;
-    private static final double RELATIVE_RETRIEVAL_FLOOR = 0.20;
-    private static final double STRONG_SEMANTIC_FLOOR = 0.60;
-    private static final double LOCAL_COVERAGE_FLOOR = 0.15;
-
     private final McpSyncServer mcpSyncServer;
     private final ApiServiceConfigService configService;
     private final ApiServiceCategoryService categoryService;
@@ -146,26 +142,21 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
                 LinkedHashMap::new
             ));
         Map<String, RetrievalEvidence> hitEvidence = hits.stream()
-            .map(hit -> apiTemplateHit(configsByToolName, hit, categoryResolution.category()))
+            .map(hit -> apiTemplateHit(configsByToolName, hit))
             .filter(item -> item != null)
             .collect(Collectors.toMap(
                 item -> item.config().getToolName(),
-                item -> new RetrievalEvidence(item.score(), item.vector()),
-                (left, right) -> new RetrievalEvidence(
-                    Math.max(left.score(), right.score()), left.vector() || right.vector()),
+                item -> new RetrievalEvidence(item.score()),
+                (left, right) -> new RetrievalEvidence(Math.max(left.score(), right.score())),
                 LinkedHashMap::new
             ));
-        double bestHitScore = hitEvidence.values().stream()
-            .mapToDouble(RetrievalEvidence::score).max().orElse(0.0D);
-        boolean browseMode = retrievalVariants.isEmpty();
-        boolean explicitSelection = !requestedTemplateIds.isEmpty();
+        boolean providerRanked = !hitEvidence.isEmpty();
         List<ScoredApiTemplate> matched = scopedConfigs.stream()
             .filter(config -> !text(config.getToolName()).isBlank())
             .filter(config -> !excludedTemplateIds.contains(config.getToolName()))
-            .map(config -> scoredTemplate(config, retrievalVariants, hitEvidence, bestHitScore,
-                categoryResolution.category(), browseMode, explicitSelection))
-            .filter(ScoredApiTemplate::qualified)
-            .sorted(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed()
+            .map(config -> scoredTemplate(config, retrievalVariants, hitEvidence))
+            .sorted(java.util.Comparator.comparing(ScoredApiTemplate::providerMatched).reversed()
+                .thenComparing(java.util.Comparator.comparingDouble(ScoredApiTemplate::score).reversed())
                 .thenComparing(item -> item.config().getToolName()))
             .toList();
         List<Map<String, Object>> templates = matched.stream()
@@ -201,11 +192,13 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
                 "runtimeSemanticReviewRequiredWhenMultiple", true,
-                "mcpRelevanceIsAdmissionFilter", true,
-                "relativeRetrievalFloor", RELATIVE_RETRIEVAL_FLOOR,
-                "localCoverageFloor", LOCAL_COVERAGE_FLOOR,
+                "engine", "api_template_provider_ranking_v3",
+                "mcpRelevanceIsAdmissionFilter", false,
+                "searchProviderHitIsCandidateBoundary", false,
+                "candidateTruthSource", "database registry",
+                "providerScorePolicy", "BM25/vector/hybrid score controls ordering when present; no application lexical coverage or relative-score threshold removes provider hits",
                 "querySegmentation", "NFKC normalization with identifier preservation, script-aware tokenization and Chinese bigrams",
-                "vectorRetrieval", "OpenSearch embedding/KNN evidence is admitted only when present and above the relative semantic floor; otherwise BM25/local coverage rules apply",
+                "vectorRetrieval", "OpenSearch embedding/KNN evidence improves provider ranking when configured; lexical provider scores remain valid without vectors",
                 "rawExecutionSpecReturned", false,
                 "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
@@ -224,7 +217,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
                 "hitCount", hitEvidence.size(),
                 "hitIds", hitEvidence.keySet().stream().limit(limit).toList(),
                 "candidateCount", matched.size(),
-                "candidatePolicy", "authorized_relevance_qualified_candidates",
+                "candidatePolicy", providerRanked
+                    ? "authorized_database_candidates_with_provider_ranking"
+                    : "authorized_registry_fallback_candidates",
                 "retrievedCandidateCount", hitEvidence.size(),
                 "qualifiedCandidateCount", matched.size(),
                 "categoryScoped", false,
@@ -472,8 +467,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
     }
 
     private ApiTemplateHit apiTemplateHit(Map<String, ApiServiceConfig> configsByToolName,
-                                          LuceneMcpSearchService.SearchHit hit,
-                                          BusinessCategory preferredCategory) {
+                                          LuceneMcpSearchService.SearchHit hit) {
         if (hit == null) {
             return null;
         }
@@ -484,35 +478,17 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
         if (config == null) {
             return null;
         }
-        double categoryBoost = preferredCategory != null && belongsTo(config, preferredCategory) ? 1.0 : 0.0;
-        boolean vector = hit.reasons() != null && hit.reasons().stream()
-            .anyMatch(reason -> reason != null && reason.startsWith("opensearch_vector:"));
-        return new ApiTemplateHit(config, hit.score() + categoryBoost, vector);
+        return new ApiTemplateHit(config, hit.score());
     }
 
     private ScoredApiTemplate scoredTemplate(ApiServiceConfig config,
                                              List<String> retrievalVariants,
-                                             Map<String, RetrievalEvidence> hitEvidence,
-                                             double bestHitScore,
-                                             BusinessCategory preferredCategory,
-                                             boolean browseMode,
-                                             boolean explicitSelection) {
+                                             Map<String, RetrievalEvidence> hitEvidence) {
         TemplateLexicalQuality lexical = templateLexicalQuality(config, retrievalVariants);
         RetrievalEvidence evidence = hitEvidence.get(config.getToolName());
-        Double retrievalScore = evidence == null ? null : evidence.score();
-        double relativeScore = retrievalScore == null || bestHitScore <= 0.0D
-            ? 0.0D
-            : retrievalScore / bestHitScore;
-        boolean indexQualified = retrievalScore != null
-            && relativeScore >= RELATIVE_RETRIEVAL_FLOOR
-            && (lexical.matchedTerms() > 0
-                || evidence.vector() && relativeScore >= STRONG_SEMANTIC_FLOOR);
-        boolean registryQualified = lexical.coverage() >= LOCAL_COVERAGE_FLOOR
-            && lexical.matchedTerms() >= (lexical.queryTerms() >= 4 ? 2 : 1);
-        boolean qualified = browseMode || explicitSelection || indexQualified || registryQualified;
-        double categoryBoost = preferredCategory != null && belongsTo(config, preferredCategory) ? 1.0D : 0.0D;
-        double score = (retrievalScore == null ? lexical.coverage() : retrievalScore) + categoryBoost;
-        return new ScoredApiTemplate(config, score, qualified, lexical.matchedTerms(), lexical.coverage());
+        double score = evidence == null ? lexical.coverage() : evidence.score();
+        return new ScoredApiTemplate(config, score, evidence != null,
+            lexical.matchedTerms(), lexical.coverage());
     }
 
     private TemplateLexicalQuality templateLexicalQuality(ApiServiceConfig config, List<String> retrievalVariants) {
@@ -583,7 +559,10 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
     }
 
     private boolean hasAssetScope(Map<String, Object> filters) {
-        return firstValue(filters, "toolName", "templateId", "template_id") != null;
+        return firstValue(filters,
+            "toolName", "templateId", "template_id", "name", "service", "target",
+            "businessGroup", "business_group", "group", "groupName", "group_name",
+            "groupDescription", "group_description", "labels") != null;
     }
 
     private boolean matchesApiServiceScope(ApiServiceConfig config, Map<String, Object> filters) {
@@ -729,7 +708,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
             "relevanceScore", scored.score(),
             "relevanceCoverage", scored.coverage(),
             "matchedTermCount", scored.matchedTerms(),
-            "relevanceStrategy", "api_template_hybrid_quality_gate_v2",
+            "relevanceStrategy", "api_template_provider_score_v3",
             "routing", mapOf(
                 "callTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
                 "templateId", config.getToolName(),
@@ -907,7 +886,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
 
     private record ScoredApiTemplate(ApiServiceConfig config,
                                      double score,
-                                     boolean qualified,
+                                     boolean providerMatched,
                                      int matchedTerms,
                                      double coverage) {
     }
@@ -923,10 +902,10 @@ public class ApiTemplateDiscoveryMcpToolPublisher implements com.chatchat.mcpser
         return signals.stream().filter(value -> value != null && !value.isBlank()).distinct().toList();
     }
 
-    private record ApiTemplateHit(ApiServiceConfig config, double score, boolean vector) {
+    private record ApiTemplateHit(ApiServiceConfig config, double score) {
     }
 
-    private record RetrievalEvidence(double score, boolean vector) {
+    private record RetrievalEvidence(double score) {
     }
 
     private record TemplateLexicalQuality(int queryTerms, int matchedTerms, double coverage) {

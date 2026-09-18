@@ -125,12 +125,32 @@ class OpsCapabilityBridgePublisherTest {
     }
 
     @Test
-    void ambiguousAssetCandidatesDoNotSilentlyBindFirstRegistryResult() {
+    void highestProviderScoreSelectsAssetWithoutAnAdditionalMarginGate() {
         AssetDiscoveryService assets = mock(AssetDiscoveryService.class);
         CommandTemplateDiscoveryService templates = mock(CommandTemplateDiscoveryService.class);
         when(assets.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("assets", java.util.List.of(
             asset("host-a", "Candidate A", "ssh_a", 0.70),
             asset("host-b", "Candidate B", "ssh_b", 0.64)
+        )));
+        OpsCapabilityBridgePublisher publisher = new OpsCapabilityBridgePublisher(
+            mock(McpSyncServer.class), assets, templates);
+
+        Map<String, Object> result = publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
+            Map.of("query", "inspect DEV host", "filters", Map.of("env", "DEV")));
+
+        verify(templates).query(argThat(input -> "Candidate A".equals(
+            ((Map<?, ?>) input.get("filters")).get("assetName"))));
+        assertThat(result.get("assetResolution").toString())
+            .contains("RESOLVED", "Candidate A", "host-a");
+    }
+
+    @Test
+    void equalTopProviderScoresRemainAmbiguous() {
+        AssetDiscoveryService assets = mock(AssetDiscoveryService.class);
+        CommandTemplateDiscoveryService templates = mock(CommandTemplateDiscoveryService.class);
+        when(assets.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("assets", java.util.List.of(
+            asset("host-a", "Candidate A", "ssh_a", 0.70),
+            asset("host-b", "Candidate B", "ssh_b", 0.70)
         )));
         OpsCapabilityBridgePublisher publisher = new OpsCapabilityBridgePublisher(
             mock(McpSyncServer.class), assets, templates);

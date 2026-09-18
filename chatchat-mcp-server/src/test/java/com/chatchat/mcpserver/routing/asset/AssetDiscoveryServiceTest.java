@@ -149,6 +149,79 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
+    void resolvesUniqueRegisteredAssetMentionBeforeLongIntentQualityFiltering() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        SshHostConfig testServer = sshHost("host-test", "\u6d4b\u8bd5\u670d\u52a1\u5668", "DEV", null);
+        when(hostService.listEnabled()).thenReturn(List.of(testServer));
+        when(datasourceService.listEnabled()).thenReturn(List.of());
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+            searchHit("host-test", "host-test", 1.472229F, "")
+        ));
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService,
+            new AssetMetadataFactory(new ObjectMapper()), searchService, new TargetKindRegistry());
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of("retrievalSignals", List.of(
+                "\u5e2e\u6211\u5206\u6790\u6d4b\u8bd5\u670d\u52a1\u5668\u914d\u7f6e\u4ee5\u53ca\u5f53\u524d\u670d\u52a1\u5668\u8fd0\u884c\u72b6\u51b5")),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        Map<?, ?> metadata = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        assertThat(((Map<?, ?>) metadata.get("asset")).get("name")).isEqualTo("\u6d4b\u8bd5\u670d\u52a1\u5668");
+        Map<?, ?> selection = (Map<?, ?>) ((Map<?, ?>) metadata.get("routingHints")).get("assetSelection");
+        assertThat(selection.get("strategy")).isEqualTo("asset_provider_score_v3");
+        assertThat(selection.get("score")).isEqualTo(1.472D);
+        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.atLeastOnce())
+            .searchAssets(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void preservesEqualTopProviderScoresForCallerAmbiguityHandling() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        when(hostService.listEnabled()).thenReturn(List.of(
+            sshHost("host-test", "\u6d4b\u8bd5\u670d\u52a1\u5668", "DEV", null),
+            sshHost("host-prod", "\u751f\u4ea7\u670d\u52a1\u5668", "PROD", null)
+        ));
+        when(datasourceService.listEnabled()).thenReturn(List.of());
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+            searchHit("host-test", "host-test", 1.0F, ""),
+            searchHit("host-prod", "host-prod", 1.0F, "")
+        ));
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService,
+            new AssetMetadataFactory(new ObjectMapper()), searchService, new TargetKindRegistry());
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of("retrievalSignals", List.of(
+                "\u5bf9\u6bd4\u6d4b\u8bd5\u670d\u52a1\u5668\u548c\u751f\u4ea7\u670d\u52a1\u5668\u8fd0\u884c\u72b6\u51b5")),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 2);
+        assertThat((List<?>) result.get("assets")).hasSize(2);
+        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.atLeastOnce())
+            .searchAssets(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void treatsLooseContextStringAsServiceFilter() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
@@ -466,7 +539,7 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
-    void removesBackendHitsWithoutAnyQueryEvidence() {
+    void trustsHighestBackendScoreWithoutApplyingASecondCoverageGate() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
@@ -495,7 +568,7 @@ class AssetDiscoveryServiceTest {
         ));
 
         assertThat(result).containsEntry("returnedCount", 1);
-        assertThat(result.toString()).contains("customer-warehouse").doesNotContain("bond-warehouse");
+        assertThat(result.toString()).contains("bond-warehouse").doesNotContain("customer-warehouse");
     }
 
     @Test

@@ -29,9 +29,6 @@ import java.util.Set;
 @Component
 @RequiredArgsConstructor
 public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
-    private static final double AUTO_ASSET_MIN_SCORE = 0.60D;
-    private static final double AUTO_ASSET_MIN_MARGIN = 0.15D;
-    private static final double AUTO_ASSET_SCORE_RATIO = 1.50D;
     public static final String LEGACY_TOOL_NAME = "ops_capability_query";
     public static final String SERVER_QUERY_TOOL = "server_capability_query";
     public static final String HTTP_QUERY_TOOL = "http_capability_query";
@@ -244,8 +241,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
             audit.put("selected", assetSummary(selected));
         }
         audit.put("candidates", candidates.stream().limit(10).map(this::assetSummary).toList());
-        audit.put("minimumScore", AUTO_ASSET_MIN_SCORE);
-        audit.put("minimumMargin", AUTO_ASSET_MIN_MARGIN);
+        audit.put("selectionBasis", "highest provider relevance score; exact ties remain ambiguous");
         return new AssetPreResolution(assetResult, selectedName, candidates.size(), Map.copyOf(audit));
     }
 
@@ -309,9 +305,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         if (!identityMatch.isEmpty()) return identityMatch;
         double first = assetScore(candidates.get(0));
         double second = assetScore(candidates.get(1));
-        if (first >= AUTO_ASSET_MIN_SCORE
-            && (first - second >= AUTO_ASSET_MIN_MARGIN
-                || (second > 0.0D && first / second >= AUTO_ASSET_SCORE_RATIO))) {
+        if (first > second) {
             return candidates.get(0);
         }
         return Map.of();

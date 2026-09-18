@@ -26,6 +26,11 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
     @Test
     void refreshKeepsApiAssetQueryInternalToTheApiBridge() {
         McpSyncServer server = mock(McpSyncServer.class);
+        when(server.listTools()).thenReturn(List.of(McpSchema.Tool.builder()
+            .name(ApiAssetDiscoveryMcpToolPublisher.TOOL_NAME)
+            .description("legacy API asset discovery tool")
+            .inputSchema(Map.of("type", "object"))
+            .build()));
         ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
             server,
             mock(ApiServiceConfigService.class),
@@ -141,7 +146,7 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void expandsAndQualityFiltersApiAssetCandidates() {
+    void expandsCandidatesAndUsesHighestSearchProviderScore() {
         ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
         LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
         java.util.ArrayList<ApiServiceConfig> configs = new java.util.ArrayList<>();
@@ -171,7 +176,7 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
         ));
 
         assertThat(result).containsEntry("returnedCount", 1);
-        assertThat(result.toString()).contains("customer_account_api").doesNotContain("bond_quote_api");
+        assertThat(result.toString()).contains("bond_quote_api").doesNotContain("customer_account_api");
         ArgumentCaptor<LuceneMcpSearchService.AssetSearchRequest> requestCaptor =
             ArgumentCaptor.forClass(LuceneMcpSearchService.AssetSearchRequest.class);
         verify(searchService).searchAssets(org.mockito.ArgumentMatchers.anyList(), requestCaptor.capture());

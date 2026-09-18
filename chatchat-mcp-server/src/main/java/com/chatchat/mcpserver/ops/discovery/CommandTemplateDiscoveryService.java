@@ -64,18 +64,6 @@ public class CommandTemplateDiscoveryService {
     public static final String TEMPLATE_SCHEMA_VERSION = "command_template.v1";
     public static final int DEFAULT_LIMIT = 10;
     public static final int MAX_LIMIT = 20;
-    // One generic intent-token hit (for example "data" -> "market_data") scores 28.
-    // Registry fallback requires more than that so a broad category word cannot
-    // promote an unrelated template when the search accelerator is unavailable.
-    private static final int TEMPLATE_MIN_RELEVANCE_SCORE = 30;
-    private static final double TEMPLATE_RELATIVE_SCORE_FLOOR = 0.20;
-    private static final double TEMPLATE_STRONG_SEMANTIC_FLOOR = 0.60;
-    private static final double TEMPLATE_MIN_QUERY_COVERAGE = 0.08;
-    // A compound operation request can legitimately contain many independent
-    // diagnostic dimensions while each executable template implements only one
-    // of them. Cap the admission denominator so additional sibling dimensions do
-    // not dilute a concrete template match below the quality gate.
-    private static final int TEMPLATE_QUERY_COVERAGE_DENOMINATOR_CAP = 12;
     private static final int TEMPLATE_RETRIEVAL_LIMIT = 100;
     private static final double INTENT_WEIGHT = 0.40;
     private static final double LEXICAL_WEIGHT = 0.30;
@@ -375,7 +363,7 @@ public class CommandTemplateDiscoveryService {
                     intent, "java", "java", riskLevel(template))))
             .toList();
         List<ScoredTemplate<JmxTemplateConfig>> matched = qualityRank(
-            candidates, filters, scoredComparator(scored -> scored.template().getCode()));
+            candidates, scoredComparator(scored -> scored.template().getCode()));
         boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
         log.info("template_query jmx search assetType={} filters={} registryTemplates={} luceneHits={} returned={} fallbackUsed={}",
             assetType, compactFilters(filters), templates.size(), luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed);
@@ -416,7 +404,7 @@ public class CommandTemplateDiscoveryService {
                     intent, "ssh_host", null, riskLevel(template))))
             .toList();
         List<ScoredTemplate<CommandTemplateConfig>> matched = qualityRank(
-            candidates, filters, scoredComparator(scored -> scored.template().getCode()));
+            candidates, scoredComparator(scored -> scored.template().getCode()));
         boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
         log.info("template_query ssh search assetType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={}",
             assetType, compactFilters(filters), intent.type(), templates.size(), candidates.size(), luceneHits.size(),
@@ -470,7 +458,7 @@ public class CommandTemplateDiscoveryService {
                     selectedSqlAssetType(datasources, assetScoped), riskLevel(template))))
             .toList();
         List<ScoredTemplate<SqlTemplateConfig>> matched = qualityRank(
-            candidates, filters, sqlScoredComparator(intent, filters));
+            candidates, sqlScoredComparator(intent, filters));
         boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
         log.info("template_query sql search assetType={} dbType={} filters={} normalizedIntent={} datasources={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, dbType, compactFilters(filters), intent.type(), datasources.size(), templates.size(), candidates.size(),
@@ -537,7 +525,6 @@ public class CommandTemplateDiscoveryService {
             .toList();
         List<ScoredTemplate<HttpEndpointConfig>> matched = qualityRank(
             candidates,
-            filters,
             scoredComparator(scored -> firstText(scored.template().getToolName(), scored.template().getName())));
         boolean fallbackUsed = luceneHits.isEmpty() && !matched.isEmpty();
         log.info("template_query http search assetType={} filters={} normalizedIntent={} endpoints={} candidates={} luceneHits={} returned={} fallbackUsed={}",
@@ -606,7 +593,7 @@ public class CommandTemplateDiscoveryService {
                     categoryResolution.category())))
             .toList();
         List<ScoredTemplate<DatabaseQueryConfig>> matched = qualityRank(
-            candidates, filters, scoredComparator(scored -> scored.template().getToolName()));
+            candidates, scoredComparator(scored -> scored.template().getToolName()));
         boolean fallbackUsed = registryFallback && !matched.isEmpty();
         log.info("template_query database-query search assetType={} category={} dbType={} filters={} normalizedIntent={} registryTemplates={} scopedTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, categoryResolution.category() == null ? null : categoryResolution.category().getCode(),
@@ -760,21 +747,21 @@ public class CommandTemplateDiscoveryService {
                 "templateIdSource", "templates[].templateId",
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
-                "engine", "mcp_template_hybrid_quality_gate_v3",
-                "orderedBy", "templates[] contains only authorized, executable and relevance-qualified candidates ranked by decisionScore",
+                "engine", "mcp_template_provider_ranking_v4",
+                "orderedBy", "database-authorized candidates are retained; search-provider hits come first in provider-score order and database decisionScore orders the remaining candidates",
                 "runtimeSemanticReviewRequiredWhenMultiple", true,
-                "mcpRelevanceIsAdmissionFilter", true,
-                "minimumRegistryRelevanceScore", TEMPLATE_MIN_RELEVANCE_SCORE,
-                "relativeScoreFloor", TEMPLATE_RELATIVE_SCORE_FLOOR,
-                "minimumQueryCoverage", TEMPLATE_MIN_QUERY_COVERAGE,
-                "queryCoverageDenominatorCap", TEMPLATE_QUERY_COVERAGE_DENOMINATOR_CAP,
-                "compoundIntentAdmission", "a specialist template may satisfy one independently requested capability; sibling capabilities do not dilute its lexical admission score",
+                "mcpRelevanceIsAdmissionFilter", false,
+                "searchProviderHitIsCandidateBoundary", false,
+                "candidateTruthSource", "database registry",
+                "providerScorePolicy", "BM25/vector/hybrid score controls ordering when present; no secondary lexical coverage threshold removes provider hits",
+                "registryFallbackPolicy", "when provider evidence is unavailable, decisionScore orders authorized registry candidates without an additional score floor",
+                "compoundIntentAdmission", "independent requested capabilities remain available for Runtime semantic review instead of being removed by aggregate coverage thresholds",
                 "querySegmentation", "NFKC normalization with identifier preservation, script-aware tokenization and Chinese bigrams",
                 "vectorRetrieval", "OpenSearch embedding/KNN evidence is fused when configured and index-compatible; otherwise retrieval degrades to segmented BM25/registry ranking",
                 "intentSynonymSource", "built-in zh/en intent synonyms plus chatchat.mcp.template-discovery.intent-synonyms and template intentSignals",
                 "languageSupport", "Models should generate bilingual Chinese and English retrieval terms in bilingualIntent, bilingualQuery, intentZh, or intentEn; the engine expands them into shared bilingual signals before retrieval and ranking.",
-                "selectionHint", "Runtime must semantically compare relevance-qualified candidates with the user request and project selected_template_ids before dependent execution.",
-                "fallback", "When the search index has no hit, only registry candidates that independently pass the relevance gate may be returned.",
+                "selectionHint", "Runtime must semantically compare ranked candidates with the user request and project selected_template_ids before dependent execution.",
+                "fallback", "When the search provider supplies no evidence, authorized registry candidates are returned in decisionScore order.",
                 "selectionFields", List.of("templateId", "name", "description", "capabilitySpec", "outputSchema", "dependencySpec", "templateConfig", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "sqlDisclosure", "Template discovery never returns raw SQL text or stored query bodies. Business database capabilities are exposed as dedicated MCP tools.",
                 "onEmptyResult", "No existing authorized template matched the request after asset, type and authorization filters. Do not suggest a new template name unless the user asks to administer templates."
@@ -2319,38 +2306,19 @@ public class CommandTemplateDiscoveryService {
     }
 
     private <T> List<ScoredTemplate<T>> qualityRank(List<ScoredTemplate<T>> candidates,
-                                                    Map<String, Object> retrievalFilters,
                                                     Comparator<ScoredTemplate<T>> comparator) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
         }
-        List<String> queryTokens = qualityQueryTokens(retrievalFilters);
-        if (queryTokens.isEmpty()) {
+        boolean providerRanked = candidates.stream()
+            .anyMatch(candidate -> luceneScore(candidate.relevance()) > 0.0D);
+        if (!providerRanked) {
             return candidates.stream().sorted(comparator).toList();
         }
-        int requiredMatches = 1;
-        int bestScore = candidates.stream()
-            .mapToInt(candidate -> candidate.relevance().score())
-            .max()
-            .orElse(0);
-        int scoreFloor = Math.max(
-            TEMPLATE_MIN_RELEVANCE_SCORE,
-            (int) Math.ceil(bestScore * TEMPLATE_RELATIVE_SCORE_FLOOR));
-        Set<String> normalizedQueryTokens = queryTokens.stream()
-            .map(this::normalize).filter(java.util.Objects::nonNull)
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        double bestVectorScore = candidates.stream()
-            .filter(candidate -> hasVectorEvidence(candidate.relevance()))
-            .mapToDouble(candidate -> luceneScore(candidate.relevance()))
-            .max()
-            .orElse(0.0D);
         return candidates.stream()
-            .filter(candidate -> (candidate.relevance().score() >= scoreFloor
-                    && passesLexicalCoverage(candidate.relevance(), normalizedQueryTokens, requiredMatches))
-                || (hasVectorEvidence(candidate.relevance())
-                    && bestVectorScore > 0.0D
-                    && luceneScore(candidate.relevance()) / bestVectorScore >= TEMPLATE_STRONG_SEMANTIC_FLOOR))
-            .sorted(comparator)
+            .sorted(Comparator.<ScoredTemplate<T>>comparingDouble(
+                    candidate -> -luceneScore(candidate.relevance()))
+                .thenComparing(comparator))
             .toList();
     }
 
@@ -2374,33 +2342,6 @@ public class CommandTemplateDiscoveryService {
         return List.copyOf(tokens);
     }
 
-    private boolean passesLexicalCoverage(Relevance relevance,
-                                          Set<String> queryTokens,
-                                          int requiredMatches) {
-        int matched = matchedIntentTermCount(relevance, queryTokens);
-        int denominator = Math.min(queryTokens.size(), TEMPLATE_QUERY_COVERAGE_DENOMINATOR_CAP);
-        double coverage = denominator == 0 ? 0.0D : matched / (double) denominator;
-        return matched >= requiredMatches && coverage >= TEMPLATE_MIN_QUERY_COVERAGE;
-    }
-
-    private int matchedIntentTermCount(Relevance relevance, Set<String> queryTokens) {
-        if (relevance == null || relevance.reasons() == null || queryTokens == null || queryTokens.isEmpty()) {
-            return 0;
-        }
-        return (int) relevance.reasons().stream()
-            .filter(reason -> reason != null && reason.startsWith("matched intent token '"))
-            .map(this::matchedReasonToken)
-            .filter(queryTokens::contains)
-            .distinct()
-            .count();
-    }
-
-    private String matchedReasonToken(String reason) {
-        int start = "matched intent token '".length();
-        int end = reason.indexOf('\'', start);
-        return end <= start ? "" : firstText(normalize(reason.substring(start, end)), "");
-    }
-
     private double luceneScore(Relevance relevance) {
         if (relevance == null || relevance.reasons() == null) {
             return 0.0D;
@@ -2418,14 +2359,6 @@ public class CommandTemplateDiscoveryService {
             }
         }
         return 0.0D;
-    }
-
-    private boolean hasVectorEvidence(Relevance relevance) {
-        return relevance != null && relevance.reasons() != null && relevance.reasons().stream()
-            .anyMatch(reason -> reason != null
-                && reason.startsWith("template index retrieval matched score=")
-                && reason.contains("channels=")
-                && reason.substring(reason.indexOf("channels=") + "channels=".length()).contains("vector"));
     }
 
     private int expandedTemplateRetrievalLimit(int requestedLimit, int universeSize) {
@@ -2980,7 +2913,7 @@ public class CommandTemplateDiscoveryService {
             "modelGenerated", modelGenerated,
             "generatedByEngine", generated.stream().toList(),
             "retrievalVariants", retrievalPlan.queries(),
-            "variantPolicy", "independent_recall_then_union_deduplicate_preserving_per_unit_evidence_with_user_intent_quality_gate",
+            "variantPolicy", "independent_recall_then_union_deduplicate_preserving_provider_scores_without_application_quality_gate",
             "fields", List.of("bilingualIntent", "bilingualQuery", "intentAliases", "keywords", "retrievalSignals",
                 "intentCandidates", "intentZh", "intentEn"),
             "languages", List.of("zh", "en")

@@ -357,9 +357,11 @@ public class AssetDiscoveryService {
                         ? replacement : current);
             });
         }
-        List<RankedAssetHit> ranked = bestByAssetId.values().stream()
+        List<RankedAssetHit> rankedAll = bestByAssetId.values().stream()
             .sorted(Comparator.comparingDouble((RankedAssetHit item) -> item.ranked().score()).reversed())
             .toList();
+        List<RankedAssetHit> ranked = highestScored(rankedAll,
+            item -> item.ranked().score());
         List<Map<String, Object>> luceneMatchedAll = ranked.stream()
             .map(item -> annotateSearchHit(item.ranked().value().metadata(), item.ranked().value().hit(),
                 item.ranked(), item.retrievalVariant()))
@@ -372,8 +374,8 @@ public class AssetDiscoveryService {
             return luceneMatched;
         }
         AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
-        log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits=0 fallbackReturned={} fuzzyFallbackUsed={}",
-            assetType, compactFilters(filters), assets.size(), fallback.assets().size(), fallback.fuzzyUsed());
+        log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits={} qualifiedAssetHits=0 fallbackReturned={} fuzzyFallbackUsed={}",
+            assetType, compactFilters(filters), assets.size(), hitCount, fallback.assets().size(), fallback.fuzzyUsed());
         return fallback.assets();
     }
 
@@ -420,7 +422,7 @@ public class AssetDiscoveryService {
             : new LinkedHashMap<>();
         double rawScore = hit.score();
         routingHints.put("assetSelection", mapOf(
-            "strategy", "asset_hybrid_quality_gate_v2",
+            "strategy", "asset_provider_score_v3",
             "source", hit.source() == null ? "asset_index" : hit.source(),
             "score", Math.round(rawScore * 1000.0D) / 1000.0D,
             "normalizedScore", round(relevance.normalizedBackendScore()),
@@ -455,10 +457,21 @@ public class AssetDiscoveryService {
                         ? replacement : current);
             });
         }
-        return applyLimit(bestByAssetId.values().stream()
+        List<RankedRegistryAsset> ranked = bestByAssetId.values().stream()
             .sorted(Comparator.comparingDouble((RankedRegistryAsset item) -> item.ranked().score()).reversed())
+            .toList();
+        return applyLimit(highestScored(ranked, item -> item.ranked().score()).stream()
             .map(item -> annotateRegistryQuality(item.ranked().value(), item.ranked(), item.retrievalVariant()))
             .toList(), limit);
+    }
+
+    private <T> List<T> highestScored(List<T> ranked,
+                                      java.util.function.ToDoubleFunction<T> score) {
+        if (ranked == null || ranked.isEmpty()) return List.of();
+        double highest = score.applyAsDouble(ranked.get(0));
+        return ranked.stream()
+            .takeWhile(item -> Math.abs(score.applyAsDouble(item) - highest) < 0.000001D)
+            .toList();
     }
 
     private DiscoveryQueryPlan retrievalPlan(Map<String, Object> filters) {
@@ -476,7 +489,7 @@ public class AssetDiscoveryService {
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
         routingHints.put("assetSelection", mapOf(
-            "strategy", "asset_registry_quality_gate_v2",
+            "strategy", "asset_registry_score_v3",
             "source", "asset_registry",
             "finalScore", round(relevance.score()),
             "queryCoverage", round(relevance.coverage()),

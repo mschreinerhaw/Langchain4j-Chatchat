@@ -11,18 +11,16 @@ import java.util.Set;
 /**
  * Backend-independent quality ranking for logical asset discovery.
  *
- * <p>The search backend is responsible for recall. This class uses candidate-local text,
- * query-term coverage and an IDF-style weight to decide which retrieved assets are relevant
- * enough to expose. It intentionally contains no domain or business keyword dictionaries.</p>
+ * <p>The search backend owns recall and relevance ordering. This class preserves provider scores
+ * and only calculates candidate-local lexical evidence for audit and registry-only fallback.
+ * Authorization, type and availability filtering happen before ranking; natural-language
+ * coverage is not a second admission gate. It intentionally contains no domain dictionaries.</p>
  */
 public final class AssetRelevanceRanker {
 
     private static final int CANDIDATE_MULTIPLIER = 4;
     private static final int MIN_EXTRA_CANDIDATES = 8;
     private static final int MAX_CANDIDATES = 100;
-    private static final double MIN_QUERY_COVERAGE = 0.34D;
-    private static final double MIN_RELATIVE_SCORE = 0.42D;
-
     private AssetRelevanceRanker() {
     }
 
@@ -65,25 +63,20 @@ public final class AssetRelevanceRanker {
             double backend = maxBackendScore > 0.0D
                 ? Math.max(0.0D, candidate.backendScore()) / maxBackendScore
                 : 0.0D;
-            double score = Math.min(1.0D,
-                coverage * 0.72D + (identityMatch ? 0.18D : 0.0D) + backend * 0.10D);
+            // The configured search backend owns relevance when it returned a score. Lexical
+            // coverage remains diagnostic evidence, but must not override or discard the backend's
+            // BM25/vector/hybrid ordering. Registry-only fallback has no provider score, so it uses
+            // the lightweight local score solely to establish an ordering.
+            double score = maxBackendScore > 0.0D
+                ? Math.max(0.0D, candidate.backendScore())
+                : Math.min(1.0D, coverage * 0.82D + (identityMatch ? 0.18D : 0.0D));
             ranked.add(new Ranked<>(candidate.value(), score, coverage, matched,
                 queryTerms.size(), identityMatch, backend, index));
         }
         ranked.sort(Comparator
             .comparingDouble((Ranked<T> item) -> item.score()).reversed()
             .thenComparingInt(Ranked::originalOrder));
-        if (queryTerms.isEmpty()) {
-            return ranked;
-        }
-        double bestScore = ranked.isEmpty() ? 0.0D : ranked.get(0).score();
-        int requiredMatches = queryTerms.size() <= 2 ? 1 : 2;
-        return ranked.stream()
-            .filter(item -> item.identityMatch()
-                || item.matchedTerms() >= requiredMatches
-                    && item.coverage() >= MIN_QUERY_COVERAGE
-                    && item.score() >= bestScore * MIN_RELATIVE_SCORE)
-            .toList();
+        return ranked;
     }
 
     private static <T> Map<String, Double> inverseDocumentFrequency(List<String> queryTerms,

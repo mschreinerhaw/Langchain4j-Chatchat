@@ -610,7 +610,7 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> irAsset = (Map<?, ?>) queryIr.get("asset");
         Map<?, ?> irIntent = (Map<?, ?>) queryIr.get("intent");
         Map<?, ?> selectedAsset = (Map<?, ?>) irAsset.get("selected");
-        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("returnedCount", 2);
         assertThat(selectedTemplate.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
         assertThat(selectedTemplate.get("matchReasons").toString()).contains("status");
         assertThat(selectedTemplate.get("mcpDecision").toString())
@@ -762,7 +762,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void doesNotReturnUnrelatedAuthorizedSqlCandidateWhenTemplateIndexIsUnavailable() {
+    void fallsBackToAuthorizedRegistryCandidatesWhenTemplateIndexIsUnavailable() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         CommandTemplateDiscoveryService service = service(
@@ -797,9 +797,9 @@ class CommandTemplateDiscoveryServiceTest {
             "limit", 10
         ));
 
-        assertThat((List<?>) result.get("templates")).isEmpty();
-        assertThat(result).containsEntry("returnedCount", 0);
-        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=false");
+        assertThat((List<?>) result.get("templates")).hasSize(1);
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true");
     }
 
     @Test
@@ -861,7 +861,10 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(result.get("resolutionTrace").toString())
             .contains("template_retrieval", "returnedCount=2", "fallbackUsed=true", "hitCount=0");
         assertThat(result.get("templateSelectionPolicy").toString())
-            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=true");
+            .contains("runtimeSemanticReviewRequiredWhenMultiple=true",
+                "mcpRelevanceIsAdmissionFilter=false",
+                "searchProviderHitIsCandidateBoundary=false",
+                "candidateTruthSource=database registry");
     }
 
     @Test
@@ -962,7 +965,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void lucenePartialHitRanksButDoesNotFilterAuthorizedSqlTemplates() {
+    void providerHitsRankAheadOfDatabaseCandidatesWithoutApplicationCoverageFiltering() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -1021,9 +1024,9 @@ class CommandTemplateDiscoveryServiceTest {
         List<String> templateIds = templates.stream()
             .map(item -> String.valueOf(((Map<?, ?>) item).get("templateId")))
             .toList();
-        assertThat(templateIds).containsExactly("MYSQL_INNODB_STATUS", "MYSQL_SHOW_STATUS");
+        assertThat(templateIds).containsExactly("MYSQL_SHOW_STATUS", "MYSQL_INNODB_STATUS");
         Map<?, ?> first = (Map<?, ?>) templates.get(0);
-        assertThat(first.get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
+        assertThat(first.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
         assertThat(first.get("rankingFeatures").toString())
             .contains("featureList", "intentMatch", "lexicalScore", "weightedScore");
         assertThat(result.get("resolutionTrace").toString())
@@ -1151,7 +1154,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void doesNotSubstituteUnrelatedTemplateWhenMetadataTemplateIsRetired() {
+    void trustsProviderOrderingWhenMetadataTemplateIsRetired() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -1220,11 +1223,12 @@ class CommandTemplateDiscoveryServiceTest {
         ));
 
         List<?> templates = (List<?>) result.get("templates");
-        assertThat(templates).isEmpty();
+        assertThat(templates).hasSize(2);
+        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("MYSQL_DATABASE_SIZE");
     }
 
     @Test
-    void returnsNoUnrelatedTemplateForChineseMetadataIntentWhenMetadataTemplateIsRetired() {
+    void keepsProviderHitForChineseMetadataIntentWithoutLocalCoverageVeto() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -1292,7 +1296,8 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> queryIr = (Map<?, ?>) result.get("queryIr");
         Map<?, ?> intent = (Map<?, ?>) queryIr.get("intent");
 
-        assertThat(templates).isEmpty();
+        assertThat(templates).hasSize(2);
+        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("MYSQL_DATABASE_SIZE");
         assertThat(intent.get("type")).isEqualTo("metadata_query");
         assertThat(result.get("templateSelectionPolicy").toString()).contains("Chinese and English");
     }

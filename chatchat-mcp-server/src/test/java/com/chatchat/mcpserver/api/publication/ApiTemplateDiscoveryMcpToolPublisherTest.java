@@ -282,9 +282,12 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         assertThat(result).containsEntry("returnedCount", 1);
         assertThat(result.get("templates").toString()).contains("order_status_api");
         assertThat(result.get("diagnostics").toString())
-            .contains("hitCount=0", "candidateCount=1", "authorized_relevance_qualified_candidates");
+            .contains("hitCount=0", "candidateCount=1", "authorized_registry_fallback_candidates");
         assertThat(result.get("templateSelectionPolicy").toString())
-            .contains("runtimeSemanticReviewRequiredWhenMultiple=true", "mcpRelevanceIsAdmissionFilter=true");
+            .contains("runtimeSemanticReviewRequiredWhenMultiple=true",
+                "mcpRelevanceIsAdmissionFilter=false",
+                "searchProviderHitIsCandidateBoundary=false",
+                "candidateTruthSource=database registry");
         verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
             && request.intentText() != null && request.intentText().contains("\u67e5\u8be2\u8ba2\u5355\u72b6\u6001")));
         verify(lucene, org.mockito.Mockito.atLeastOnce()).searchApiServiceTemplates(argThat(request -> request != null
@@ -292,7 +295,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
-    void queryDoesNotReturnUnrelatedRegistryCandidateWhenApiIndexHasNoHit() {
+    void queryFallsBackToAuthorizedRegistryCandidateWhenApiIndexHasNoHit() {
         ApiServiceConfig config = new ApiServiceConfig();
         config.setToolName("order_status_api");
         config.setTitle("Order status API");
@@ -309,10 +312,10 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
             "filters", Map.of("intent", "rotate database encryption keys")
         ));
 
-        assertThat(result).containsEntry("returnedCount", 0);
-        assertThat((List<?>) result.get("templates")).isEmpty();
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat((List<?>) result.get("templates")).hasSize(1);
         assertThat(result.get("diagnostics").toString())
-            .contains("retrievedCandidateCount=0", "qualifiedCandidateCount=0");
+            .contains("retrievedCandidateCount=0", "qualifiedCandidateCount=1");
     }
 
     @Test
@@ -452,8 +455,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
         when(lucene.enabled()).thenReturn(true);
         when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
-            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 20.0f, List.of("opensearch_vector:20.0")),
-            new LuceneMcpSearchService.SearchHit("generic_lookup_api", "template", 8.0f, List.of("default"))
+            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 20.0f, List.of("opensearch_vector:20.0"))
         ));
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class), configService, categoryService, lucene, new ObjectMapper(),
@@ -462,13 +464,14 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         Map<String, Object> result = publisher.query(Map.of(
             "filters", Map.of("category", "missing-category", "intent", "查询业务状态")));
 
-        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 1);
+        assertThat(result).containsEntry("categoryRequired", false).containsEntry("returnedCount", 2);
         assertThat(result.get("selectedCategory").toString()).contains("default");
         assertThat(result.get("diagnostics").toString())
             .contains("fallbackUsed=true", "fallbackCategory=default");
         assertThat(result.get("templates").toString())
-            .contains("order_status_api", "order_services")
-            .doesNotContain("generic_lookup_api");
+            .contains("order_status_api", "order_services", "generic_lookup_api");
+        List<?> templates = (List<?>) result.get("templates");
+        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("order_status_api");
     }
 
     private BusinessCategory category(String id, String code, String name) {

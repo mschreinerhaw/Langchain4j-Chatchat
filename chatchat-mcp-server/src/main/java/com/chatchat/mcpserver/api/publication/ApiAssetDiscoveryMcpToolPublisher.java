@@ -295,9 +295,14 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
     }
 
     private List<ScoredApiAsset> sortedAssets(Map<String, ScoredApiAsset> merged) {
-        return merged.values().stream()
+        List<ScoredApiAsset> ranked = merged.values().stream()
             .sorted(java.util.Comparator.comparingDouble(ScoredApiAsset::score).reversed()
                 .thenComparing(item -> text(item.config().getToolName())))
+            .toList();
+        if (ranked.isEmpty()) return ranked;
+        double highest = ranked.get(0).score();
+        return ranked.stream()
+            .takeWhile(item -> Math.abs(item.score() - highest) < 0.000001D)
             .toList();
     }
 

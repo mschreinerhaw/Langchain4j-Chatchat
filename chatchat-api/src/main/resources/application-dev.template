@@ -202,6 +202,7 @@ chatchat:
       connect-timeout-ms: 5000
       request-timeout-ms: 30000
       bulk-batch-size: 200
+      bulk-max-bytes: ${CHATCHAT_SEARCH_OPENSEARCH_BULK_MAX_BYTES:4194304}
       max-query-terms: 20
       max-query-chars: 500
       max-permission-roles: 64

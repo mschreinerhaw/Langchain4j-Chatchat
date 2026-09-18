@@ -87,6 +87,7 @@ chatchat:
         # MCP index prefix, for example chatchat_mcp_assets-sql-datasource.
         index-prefix: chatchat_mcp_
         request-timeout-ms: 30000
+        bulk-max-bytes: ${CHATCHAT_MCP_OPENSEARCH_BULK_MAX_BYTES:4194304}
         search-concurrency:
           enabled: true
           request-timeout-ms: 8000

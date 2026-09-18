@@ -113,6 +113,8 @@ public class SearchProperties {
         private int connectTimeoutMs = 5000;
         private int requestTimeoutMs = 30000;
         private int bulkBatchSize = 200;
+        /** Maximum UTF-8 NDJSON payload per bulk request. High-dimensional vectors make count-only batching unsafe. */
+        private int bulkMaxBytes = 4 * 1024 * 1024;
         private int maxQueryTerms = 20;
         private int maxQueryChars = 500;
         private int maxPermissionRoles = 64;

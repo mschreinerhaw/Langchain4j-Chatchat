@@ -132,6 +132,7 @@ chatchat:
         index-prefix: chatchat_mcp_dev_
         insecure-ssl: true
         request-timeout-ms: 30000
+        bulk-max-bytes: ${CHATCHAT_MCP_OPENSEARCH_BULK_MAX_BYTES:4194304}
         debug-search: true
         search-concurrency:
           enabled: true

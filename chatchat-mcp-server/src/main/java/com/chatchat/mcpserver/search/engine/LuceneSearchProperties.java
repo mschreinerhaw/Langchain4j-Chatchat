@@ -41,6 +41,8 @@ public class LuceneSearchProperties {
         private String indexPrefix = "chatchat_mcp_";
         private boolean insecureSsl = false;
         private int requestTimeoutMs = 30000;
+        /** Maximum UTF-8 NDJSON payload per bulk request, independent of vector dimension. */
+        private int bulkMaxBytes = 4 * 1024 * 1024;
         private boolean debugSearch = false;
         private Embedding embedding = new Embedding();
         private SearchConcurrency searchConcurrency = new SearchConcurrency();

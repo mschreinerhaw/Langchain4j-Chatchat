@@ -226,6 +226,8 @@ chatchat:
       request-timeout-ms: 30000
       # 重建索引时每批写入的文档分片数量。
       bulk-batch-size: 200
+      # 高维向量下同时按 UTF-8 请求体大小切分，避免 OpenSearch/代理拒绝过大的 bulk 请求。
+      bulk-max-bytes: ${CHATCHAT_SEARCH_OPENSEARCH_BULK_MAX_BYTES:4194304}
       max-query-terms: 20
       max-query-chars: 500
       max-permission-roles: 64

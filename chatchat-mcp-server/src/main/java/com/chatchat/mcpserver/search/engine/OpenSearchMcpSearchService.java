@@ -293,7 +293,7 @@ public class OpenSearchMcpSearchService {
         if (docs == null || docs.isEmpty()) {
             return 0;
         }
-        StringBuilder body = new StringBuilder();
+        BulkBuffer bulkBuffer = new BulkBuffer(index);
         boolean vectorEnabled = embeddingClient.configured();
         boolean vectorWritable = vectorEnabled && vectorSearchAvailable(index);
         if (!vectorEnabled) {
@@ -314,10 +314,10 @@ public class OpenSearchMcpSearchService {
             }
             batch.add(new LinkedHashMap<>(source));
             if (batch.size() >= BULK_BATCH_SIZE) {
-                int[] counts = appendBatch(body, index, batch, vectorWritable);
+                int[] counts = appendBatch(bulkBuffer, batch, vectorWritable);
                 written += counts[0];
                 vectorized += counts[1];
-                flushBulk(index, body);
+                bulkBuffer.flush();
                 if (vectorEnabled) {
                     log.info("MCP OpenSearch bulk progress index={} processed={}/{} written={} vectorized={} vectorWritable={}",
                         index, processed, total, written, vectorized, vectorWritable);
@@ -329,13 +329,11 @@ public class OpenSearchMcpSearchService {
             }
         }
         if (!batch.isEmpty()) {
-            int[] counts = appendBatch(body, index, batch, vectorWritable);
+            int[] counts = appendBatch(bulkBuffer, batch, vectorWritable);
             written += counts[0];
             vectorized += counts[1];
         }
-        if (body.length() > 0) {
-            flushBulk(index, body);
-        }
+        bulkBuffer.flush();
         if (vectorEnabled) {
             log.info("MCP OpenSearch bulk vector status index={} vectorWritable={} vectorized={} docs={}",
                 index, vectorWritable, vectorized, written);
@@ -343,7 +341,7 @@ public class OpenSearchMcpSearchService {
         return written;
     }
 
-    private int[] appendBatch(StringBuilder body, String index, List<Map<String, Object>> sources, boolean vectorWritable) {
+    private int[] appendBatch(BulkBuffer bulkBuffer, List<Map<String, Object>> sources, boolean vectorWritable) {
         int vectorized = 0;
         if (vectorWritable) {
             List<List<Float>> vectors = embeddingClient.embedAll(sources.stream().map(this::embeddingInput).toList());
@@ -361,8 +359,7 @@ public class OpenSearchMcpSearchService {
             if (id.isBlank()) {
                 continue;
             }
-            body.append(json(Map.of("index", Map.of("_index", index, "_id", id)))).append('\n');
-            body.append(json(source)).append('\n');
+            bulkBuffer.append(id, source);
             written++;
         }
         return new int[] {written, vectorized};
@@ -376,8 +373,61 @@ public class OpenSearchMcpSearchService {
         body.setLength(0);
         if (response != null && response.path("errors").asBoolean(false)) {
             JsonNode items = response.path("items");
-            JsonNode firstItem = items.isArray() && !items.isEmpty() ? items.path(0) : items;
-            log.warn("MCP OpenSearch bulk completed with item errors index={} firstItem={}", index, firstItem);
+            throw new IllegalStateException("MCP OpenSearch bulk contains failed items index=" + index
+                + " firstError=" + firstBulkError(items));
+        }
+    }
+
+    private JsonNode firstBulkError(JsonNode items) {
+        if (items != null && items.isArray()) {
+            for (JsonNode item : items) {
+                JsonNode result = item.path("index");
+                if (result.path("error").isObject()) {
+                    return result.path("error");
+                }
+            }
+        }
+        return items;
+    }
+
+    private final class BulkBuffer {
+        private final String index;
+        private final StringBuilder body = new StringBuilder();
+        private int payloadBytes;
+        private int documents;
+
+        private BulkBuffer(String index) {
+            this.index = index;
+        }
+
+        private void append(String id, Map<String, Object> source) {
+            String operation = json(Map.of("index", Map.of("_index", index, "_id", id))) + '\n'
+                + json(source) + '\n';
+            int operationBytes = operation.getBytes(StandardCharsets.UTF_8).length;
+            int maxBytes = Math.max(1, openSearchConfig().getBulkMaxBytes());
+            if (documents > 0 && (long) payloadBytes + operationBytes > maxBytes) {
+                flush();
+            }
+            if (operationBytes > maxBytes) {
+                log.warn("MCP OpenSearch single bulk operation exceeds byte budget index={} id={} bytes={} maxBytes={}",
+                    index, id, operationBytes, maxBytes);
+            }
+            body.append(operation);
+            payloadBytes += operationBytes;
+            documents++;
+        }
+
+        private void flush() {
+            if (body.length() == 0) {
+                return;
+            }
+            int sentBytes = payloadBytes;
+            int sentDocuments = documents;
+            flushBulk(index, body);
+            payloadBytes = 0;
+            documents = 0;
+            log.debug("MCP OpenSearch bulk batch completed index={} documents={} payloadBytes={}",
+                index, sentDocuments, sentBytes);
         }
     }
 
@@ -1000,17 +1050,15 @@ public class OpenSearchMcpSearchService {
 
     private int bulkCapabilityDocuments(String index, List<Map<String, Object>> documents) {
         if (documents == null || documents.isEmpty()) return 0;
-        StringBuilder body = new StringBuilder();
+        BulkBuffer bulkBuffer = new BulkBuffer(index);
         int written = 0;
         for (Map<String, Object> source : documents) {
             String id = textValue(source.get(FIELD_ID));
             if (id.isBlank()) continue;
-            body.append(json(Map.of("index", Map.of("_index", index, "_id", id)))).append('\n');
-            body.append(json(source)).append('\n');
+            bulkBuffer.append(id, source);
             written++;
-            if (written % 500 == 0) flushBulk(index, body);
         }
-        flushBulk(index, body);
+        bulkBuffer.flush();
         return written;
     }
 
@@ -1416,20 +1464,16 @@ public class OpenSearchMcpSearchService {
             return 0;
         }
         int written = 0;
-        StringBuilder body = new StringBuilder();
+        BulkBuffer bulkBuffer = new BulkBuffer(index);
         for (Map<String, Object> source : documents) {
             String id = textValue(source.get("metadataType")) + ":" + textValue(source.get(FIELD_ID));
             if (id.endsWith(":")) {
                 continue;
             }
-            body.append(json(Map.of("index", Map.of("_index", index, "_id", id)))).append('\n');
-            body.append(json(source)).append('\n');
+            bulkBuffer.append(id, source);
             written++;
-            if (written % 500 == 0) {
-                flushBulk(index, body);
-            }
         }
-        flushBulk(index, body);
+        bulkBuffer.flush();
         return written;
     }
 

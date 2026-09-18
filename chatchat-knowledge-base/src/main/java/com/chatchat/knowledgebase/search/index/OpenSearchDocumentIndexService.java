@@ -162,32 +162,25 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
                 document.getDocId(), indexName(), elapsedMs(startedAt));
             return;
         }
-        List<Map<String, Object>> chunks = chunkDocuments(document);
-        int vectorized = vectorizedCount(chunks);
-        int vectorDimension = firstVectorDimension(chunks);
-        long vectorBytes = estimatedVectorBytes(chunks);
         log.info(
-            "opensearch_index_document_start docId={} index={} chunks={} vectorConfigured={} vectorSearchReady={} vectorRerankReady={} vectorized={} vectorDimension={} vectorBytes={}",
+            "opensearch_index_document_start docId={} index={} vectorConfigured={} vectorSearchReady={} vectorRerankReady={} bulkMaxBytes={}",
             document.getDocId(),
             indexName(),
-            chunks.size(),
             embeddingClient.configured(),
             vectorAvailable,
             vectorRerankAvailable,
-            vectorized,
-            vectorDimension,
-            vectorBytes
+            config().getBulkMaxBytes()
         );
-        long bulkBytes = bulkIndex(chunks);
+        DocumentBulkSummary summary = indexDocumentChunks(document);
         log.info(
             "opensearch_index_document_complete docId={} index={} chunks={} vectorized={} vectorDimension={} vectorBytes={} bulkBytes={} durationMs={}",
             document.getDocId(),
             indexName(),
-            chunks.size(),
-            vectorized,
-            vectorDimension,
-            vectorBytes,
-            bulkBytes,
+            summary.chunks(),
+            summary.vectorized(),
+            summary.vectorDimension(),
+            summary.vectorBytes(),
+            summary.bulkBytes(),
             elapsedMs(startedAt)
         );
     }
@@ -208,19 +201,11 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         }
         request("POST", "/" + indexName() + "/_delete_by_query?conflicts=proceed&refresh=true",
             Map.of("query", Map.of("match_all", Map.of())), true);
-        List<Map<String, Object>> batch = new ArrayList<>();
         for (SearchDocument document : documents == null ? List.<SearchDocument>of() : documents) {
             if (document == null || Boolean.FALSE.equals(document.getLatestVersion())) {
                 continue;
             }
-            batch.addAll(chunkDocuments(document));
-            if (batch.size() >= Math.max(1, config().getBulkBatchSize())) {
-                bulkIndex(batch);
-                batch.clear();
-            }
-        }
-        if (!batch.isEmpty()) {
-            bulkIndex(batch);
+            indexDocumentChunks(document);
         }
     }
 
@@ -638,7 +623,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         return Map.of("bool", Map.of("should", should, "minimum_should_match", 1));
     }
 
-    private List<Map<String, Object>> chunkDocuments(SearchDocument document) {
+    private DocumentBulkSummary indexDocumentChunks(SearchDocument document) {
         List<TextChunker.TextChunk> chunks = chunker.splitChunks(
             document.getContent(),
             properties.getChunkSize(),
@@ -647,99 +632,135 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         if (chunks.isEmpty()) {
             chunks = List.of(new TextChunker.TextChunk("", ""));
         }
-        List<Map<String, Object>> docs = new ArrayList<>();
+        int maxDocuments = Math.max(1, config().getBulkBatchSize());
+        List<Map<String, Object>> batch = new ArrayList<>(Math.min(maxDocuments, chunks.size()));
+        int vectorized = 0;
+        int vectorDimension = 0;
+        long vectorBytes = 0L;
+        long bulkBytes = 0L;
         for (int i = 0; i < chunks.size(); i++) {
-            TextChunker.TextChunk chunk = chunks.get(i);
-            String chunkText = nullToEmpty(chunk.content());
-            Map<String, Object> source = new LinkedHashMap<>();
-            source.put(FILE_ID, document.getDocId());
-            source.put(FILE_NAME, nullToEmpty(document.getFileName()));
-            source.put(CHUNK_ID, document.getDocId() + "_" + i);
-            source.put(CHUNK_INDEX, i);
-            source.put(CHUNK_TEXT, chunkText);
-            source.put(CONTENT, chunkText);
-            source.put(TITLE_TEXT, nullToEmpty(document.getTitle()));
-            source.put(SECTION, nullToEmpty(chunk.section()));
-            source.put(KEYWORDS_TEXT, String.join(" ", keywordExtractor.mergeKeywords(document.getKeywords(), chunkText)));
-            source.put(CHUNK_TYPE, chunkTypeClassifier.classify(document, chunk));
-            source.put(POSITION_RATIO, positionRatio(i, chunks.size()));
-            source.put(SOURCE, nullToEmpty(document.getSource()));
-            source.put(TAGS, cleanList(document.getTags()));
-            source.put(COMPANIES, cleanList(document.getCompanies()));
-            source.put(INDUSTRIES, cleanList(document.getIndustries()));
-            source.put(TITLE_TOKENS, String.join(" ", TitleAwareTerms.extract(tokenizer, document.getTitle(), document.getFileName())));
-            source.put(CONTENT_TOKENS, tokenText(chunkText));
-            source.put(SOURCE_TOKENS, tokenText(document.getSource()));
-            source.put(KEYWORD_TOKENS, tokenText(document.getKeywords()));
-            source.put(TAG_TOKENS, tokenText(document.getTags()));
-            source.put(COMPANY_TOKENS, tokenText(document.getCompanies()));
-            source.put(INDUSTRY_TOKENS, tokenText(document.getIndustries()));
-            source.put(TENANT_ID, normalizeTenant(document.getTenantId()));
-            source.put(USER_ID, normalizeUser(document.getUserId()));
-            source.put(VISIBILITY, normalizeVisibility(document.getVisibility()));
-            source.put(PERMISSION_ROLE, normalizeRoles(document.getPermissionRoles()));
-            List<Float> vector = vectorIndexingAvailable()
-                ? embeddingClient.embed(embeddingInput(document, chunkText, chunk.section()))
-                : List.of();
-            if (!vector.isEmpty()) {
-                source.put(vectorField(), vector);
+            Map<String, Object> source = chunkDocument(document, chunks.get(i), i, chunks.size());
+            if (source.get(vectorField()) instanceof List<?> vector && !vector.isEmpty()) {
+                vectorized++;
+                vectorDimension = vectorDimension == 0 ? vector.size() : vectorDimension;
+                vectorBytes += (long) vector.size() * Float.BYTES;
             }
-            docs.add(source);
+            batch.add(source);
+            if (batch.size() >= maxDocuments) {
+                bulkBytes += bulkIndex(batch);
+                batch.clear();
+            }
         }
-        return docs;
+        if (!batch.isEmpty()) {
+            bulkBytes += bulkIndex(batch);
+        }
+        return new DocumentBulkSummary(chunks.size(), vectorized, vectorDimension, vectorBytes, bulkBytes);
+    }
+
+    private Map<String, Object> chunkDocument(SearchDocument document,
+                                              TextChunker.TextChunk chunk,
+                                              int chunkIndex,
+                                              int chunkCount) {
+        String chunkText = nullToEmpty(chunk.content());
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put(FILE_ID, document.getDocId());
+        source.put(FILE_NAME, nullToEmpty(document.getFileName()));
+        source.put(CHUNK_ID, document.getDocId() + "_" + chunkIndex);
+        source.put(CHUNK_INDEX, chunkIndex);
+        source.put(CHUNK_TEXT, chunkText);
+        source.put(CONTENT, chunkText);
+        source.put(TITLE_TEXT, nullToEmpty(document.getTitle()));
+        source.put(SECTION, nullToEmpty(chunk.section()));
+        source.put(KEYWORDS_TEXT, String.join(" ", keywordExtractor.mergeKeywords(document.getKeywords(), chunkText)));
+        source.put(CHUNK_TYPE, chunkTypeClassifier.classify(document, chunk));
+        source.put(POSITION_RATIO, positionRatio(chunkIndex, chunkCount));
+        source.put(SOURCE, nullToEmpty(document.getSource()));
+        source.put(TAGS, cleanList(document.getTags()));
+        source.put(COMPANIES, cleanList(document.getCompanies()));
+        source.put(INDUSTRIES, cleanList(document.getIndustries()));
+        source.put(TITLE_TOKENS, String.join(" ", TitleAwareTerms.extract(tokenizer, document.getTitle(), document.getFileName())));
+        source.put(CONTENT_TOKENS, tokenText(chunkText));
+        source.put(SOURCE_TOKENS, tokenText(document.getSource()));
+        source.put(KEYWORD_TOKENS, tokenText(document.getKeywords()));
+        source.put(TAG_TOKENS, tokenText(document.getTags()));
+        source.put(COMPANY_TOKENS, tokenText(document.getCompanies()));
+        source.put(INDUSTRY_TOKENS, tokenText(document.getIndustries()));
+        source.put(TENANT_ID, normalizeTenant(document.getTenantId()));
+        source.put(USER_ID, normalizeUser(document.getUserId()));
+        source.put(VISIBILITY, normalizeVisibility(document.getVisibility()));
+        source.put(PERMISSION_ROLE, normalizeRoles(document.getPermissionRoles()));
+        List<Float> vector = vectorIndexingAvailable()
+            ? embeddingClient.embed(embeddingInput(document, chunkText, chunk.section()))
+            : List.of();
+        if (!vector.isEmpty()) {
+            source.put(vectorField(), vector);
+        }
+        return source;
+    }
+
+    private record DocumentBulkSummary(int chunks, int vectorized, int vectorDimension,
+                                       long vectorBytes, long bulkBytes) {
     }
 
     private long bulkIndex(List<Map<String, Object>> docs) {
         if (docs == null || docs.isEmpty()) {
             return 0L;
         }
+        int maxDocuments = Math.max(1, config().getBulkBatchSize());
+        int maxBytes = Math.max(1, config().getBulkMaxBytes());
         StringBuilder body = new StringBuilder();
+        int bodyBytes = 0;
+        int bodyDocuments = 0;
+        long totalBytes = 0L;
         for (Map<String, Object> doc : docs) {
             String chunkId = String.valueOf(doc.get(CHUNK_ID));
-            body.append(json(Map.of("index", Map.of("_index", indexName(), "_id", chunkId)))).append('\n');
-            body.append(json(doc)).append('\n');
-        }
-        String payload = body.toString();
-        requestRaw("POST", "/_bulk?refresh=true", payload, false, "application/x-ndjson");
-        return payload.getBytes(StandardCharsets.UTF_8).length;
-    }
-
-    private int vectorizedCount(List<Map<String, Object>> docs) {
-        if (docs == null || docs.isEmpty()) {
-            return 0;
-        }
-        int count = 0;
-        for (Map<String, Object> doc : docs) {
-            if (doc != null && doc.get(vectorField()) instanceof List<?> vector && !vector.isEmpty()) {
-                count++;
+            String operation = json(Map.of("index", Map.of("_index", indexName(), "_id", chunkId))) + '\n'
+                + json(doc) + '\n';
+            int operationBytes = operation.getBytes(StandardCharsets.UTF_8).length;
+            if (bodyDocuments > 0
+                && (bodyDocuments >= maxDocuments || (long) bodyBytes + operationBytes > maxBytes)) {
+                totalBytes += flushBulkPayload(body, bodyBytes, bodyDocuments);
+                bodyBytes = 0;
+                bodyDocuments = 0;
             }
-        }
-        return count;
-    }
-
-    private int firstVectorDimension(List<Map<String, Object>> docs) {
-        if (docs == null || docs.isEmpty()) {
-            return 0;
-        }
-        for (Map<String, Object> doc : docs) {
-            if (doc != null && doc.get(vectorField()) instanceof List<?> vector && !vector.isEmpty()) {
-                return vector.size();
+            if (operationBytes > maxBytes) {
+                log.warn("opensearch_bulk_single_operation_exceeds_budget index={} chunkId={} bytes={} maxBytes={}",
+                    indexName(), chunkId, operationBytes, maxBytes);
             }
+            body.append(operation);
+            bodyBytes += operationBytes;
+            bodyDocuments++;
         }
-        return 0;
+        totalBytes += flushBulkPayload(body, bodyBytes, bodyDocuments);
+        return totalBytes;
     }
 
-    private long estimatedVectorBytes(List<Map<String, Object>> docs) {
-        if (docs == null || docs.isEmpty()) {
+    private long flushBulkPayload(StringBuilder body, int payloadBytes, int documents) {
+        if (body == null || body.length() == 0) {
             return 0L;
         }
-        long total = 0L;
-        for (Map<String, Object> doc : docs) {
-            if (doc != null && doc.get(vectorField()) instanceof List<?> vector && !vector.isEmpty()) {
-                total += (long) vector.size() * Float.BYTES;
+        JsonNode response = requestRaw("POST", "/_bulk?refresh=true", body.toString(), false,
+            "application/x-ndjson");
+        if (response != null && response.path("errors").asBoolean(false)) {
+            throw new IllegalStateException("OpenSearch bulk request contains failed items index=" + indexName()
+                + " documents=" + documents + " firstError=" + firstBulkError(response.path("items")));
+        }
+        log.debug("opensearch_bulk_batch_complete index={} documents={} payloadBytes={}",
+            indexName(), documents, payloadBytes);
+        body.setLength(0);
+        return payloadBytes;
+    }
+
+    private JsonNode firstBulkError(JsonNode items) {
+        if (items != null && items.isArray()) {
+            for (JsonNode item : items) {
+                JsonNode result = item.path("index");
+                if (result.path("error").isObject()) {
+                    return result.path("error");
+                }
             }
         }
-        return total;
+        return items;
     }
 
     private long elapsedMs(long startedAt) {

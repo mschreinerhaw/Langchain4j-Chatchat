@@ -37,6 +37,15 @@ class OpenSearchTemplateQuerySafetyTest {
             .contains("intentText.pinyin", "text.pinyin", "keywordAliases");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void searchResponsesExcludeAllKnownVectorFields() {
+        Map<String, Object> source = service().sourceWithoutVectors();
+        List<String> excludes = (List<String>) source.get("excludes");
+
+        assertThat(excludes).contains("mcpContentVector", "capabilityVector", "*Vector", "*vector");
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> templateQueryBody(
         OpenSearchMcpSearchService service,

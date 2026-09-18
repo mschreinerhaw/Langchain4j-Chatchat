@@ -105,4 +105,29 @@ class OpenSearchDocumentIndexServiceTest {
             "too_many_nested_clauses: maxClauseCount is set to 1024"))).isTrue();
         assertThat(service.isClauseOverflow(new IllegalStateException("connection reset"))).isFalse();
     }
+
+    @Test
+    void boundsLocalRerankCandidatesByHighDimensionResponseBudget() {
+        SearchProperties properties = new SearchProperties();
+        properties.getOpenSearch().getEmbedding().setDimension(2560);
+        properties.getOpenSearch().setVectorRerankMaxBytes(4 * 1024 * 1024);
+        OpenSearchDocumentIndexService service = service(properties);
+
+        assertThat(service.localRerankCandidateLimit()).isEqualTo(102);
+        assertThat(service.resultSourceFilter(false)).doesNotContain("contentVector");
+        assertThat(service.resultSourceFilter(true)).contains("contentVector");
+    }
+
+    private OpenSearchDocumentIndexService service(SearchProperties properties) {
+        return new OpenSearchDocumentIndexService(
+            properties,
+            mock(SearchTokenizer.class),
+            mock(TextChunker.class),
+            mock(KeywordExtractor.class),
+            mock(QueryExpander.class),
+            mock(ChunkTypeClassifier.class),
+            mock(OpenSearchEmbeddingClient.class),
+            new ObjectMapper()
+        );
+    }
 }

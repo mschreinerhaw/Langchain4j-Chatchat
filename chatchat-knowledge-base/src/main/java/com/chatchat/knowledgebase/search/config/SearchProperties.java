@@ -115,6 +115,8 @@ public class SearchProperties {
         private int bulkBatchSize = 200;
         /** Maximum UTF-8 NDJSON payload per bulk request. High-dimensional vectors make count-only batching unsafe. */
         private int bulkMaxBytes = 4 * 1024 * 1024;
+        /** Response budget used only when KNN is unavailable and vectors must be fetched for local reranking. */
+        private int vectorRerankMaxBytes = 4 * 1024 * 1024;
         private int maxQueryTerms = 20;
         private int maxQueryChars = 500;
         private int maxPermissionRoles = 64;

@@ -104,6 +104,10 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     private static final List<String> SIMPLIFIED_SEARCH_FIELDS = List.of(
         TITLE_TEXT + "^5.0", FILE_NAME + "^4.0", KEYWORDS_TEXT + "^3.0", CONTENT
     );
+    private static final List<String> RESULT_SOURCE_FIELDS = List.of(
+        FILE_ID, FILE_NAME, SECTION, CHUNK_TYPE, CHUNK_ID, CHUNK_INDEX,
+        CONTENT, CHUNK_TEXT, POSITION_RATIO, TENANT_ID, USER_ID, VISIBILITY, PERMISSION_ROLE
+    );
 
     private final SearchProperties properties;
     private final SearchTokenizer tokenizer;
@@ -237,9 +241,17 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         if (terms.isEmpty()) {
             return List.of();
         }
-        int candidateLimit = Math.max(Math.max(1, maxHits), embeddingConfig().getVectorCandidateLimit());
+        boolean localVectorRerank = vectorRerankAvailable && !vectorAvailable;
+        int candidateLimit = Math.min(
+            Math.max(1, properties.getLuceneMaxHits()),
+            Math.max(Math.max(1, maxHits), embeddingConfig().getVectorCandidateLimit())
+        );
+        if (localVectorRerank) {
+            candidateLimit = Math.min(candidateLimit, localRerankCandidateLimit());
+        }
         Map<String, List<Float>> lexicalVectors = new LinkedHashMap<>();
-        List<LuceneSearchHit> lexicalHits = lexicalSearch(focusedKeyword, terms, candidateLimit, permissionContext, lexicalVectors);
+        List<LuceneSearchHit> lexicalHits = lexicalSearch(focusedKeyword, terms, candidateLimit, permissionContext,
+            localVectorRerank ? lexicalVectors : null);
         List<LuceneSearchHit> vectorHits = vectorSearch(normalizedKeyword, candidateLimit, permissionContext);
         if (vectorHits.isEmpty()) {
             vectorHits = vectorRerankHits(normalizedKeyword, lexicalHits, lexicalVectors, candidateLimit);
@@ -260,6 +272,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("size", Math.max(1, maxHits));
         body.put("query", searchQuery(normalizedKeyword, terms, permissionContext));
+        body.put("_source", resultSourceFilter(sourceVectors != null));
         logSearchQuery("primary", normalizedKeyword, terms, body);
         JsonNode root;
         try {
@@ -271,6 +284,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             Map<String, Object> simplifiedBody = new LinkedHashMap<>();
             simplifiedBody.put("size", Math.max(1, maxHits));
             simplifiedBody.put("query", simplifiedSearchQuery(terms, permissionContext));
+            simplifiedBody.put("_source", resultSourceFilter(sourceVectors != null));
             log.warn("opensearch_query_clause_overflow index={} terms={} action=simplify_once",
                 indexName(), terms == null ? 0 : terms.size());
             logSearchQuery("simplified", normalizedKeyword, terms, simplifiedBody);
@@ -302,6 +316,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("size", Math.max(1, maxHits));
         body.put("query", Map.of("bool", bool));
+        body.put("_source", resultSourceFilter(false));
         try {
             JsonNode root = request("POST", "/" + indexName() + "/_search", body, false);
             return parseHits(root, null);
@@ -337,6 +352,21 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             .sorted(Comparator.comparing(LuceneSearchHit::score).reversed())
             .limit(Math.max(1, maxHits))
             .toList();
+    }
+
+    List<String> resultSourceFilter(boolean includeVector) {
+        if (!includeVector) {
+            return RESULT_SOURCE_FIELDS;
+        }
+        List<String> fields = new ArrayList<>(RESULT_SOURCE_FIELDS);
+        fields.add(vectorField());
+        return List.copyOf(fields);
+    }
+
+    int localRerankCandidateLimit() {
+        long estimatedSerializedVectorBytes = Math.max(1L, embeddingConfig().getDimension()) * 16L;
+        return (int) Math.max(1L, Math.min(500L,
+            Math.max(1L, config().getVectorRerankMaxBytes()) / estimatedSerializedVectorBytes));
     }
 
     private List<LuceneSearchHit> parseHits(JsonNode root, Map<String, List<Float>> sourceVectors) {

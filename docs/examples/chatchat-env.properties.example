@@ -84,4 +84,5 @@ chatchat.models.chat-models[Qwen3-32B-A3B].max-retries=1
 
 # OpenSearch bulk request byte budgets for high-dimensional vectors (4 MiB by default).
 chatchat.search.opensearch.bulk-max-bytes=${CHATCHAT_SEARCH_OPENSEARCH_BULK_MAX_BYTES:4194304}
+chatchat.search.opensearch.vector-rerank-max-bytes=${CHATCHAT_SEARCH_OPENSEARCH_VECTOR_RERANK_MAX_BYTES:4194304}
 chatchat.mcp.lucene.open-search.bulk-max-bytes=${CHATCHAT_MCP_OPENSEARCH_BULK_MAX_BYTES:4194304}

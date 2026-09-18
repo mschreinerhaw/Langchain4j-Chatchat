@@ -442,6 +442,7 @@ public class OpenSearchMcpSearchService {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("size", resultLimit);
         body.put("query", query == null ? Map.of("match_all", Map.of()) : query);
+        body.put("_source", sourceWithoutVectors());
         long startedAt = System.nanoTime();
         JsonNode lexicalRoot;
         try {
@@ -472,7 +473,8 @@ public class OpenSearchMcpSearchService {
                 if (vector.isEmpty()) {
                     return List.of();
                 }
-                int vectorLimit = Math.max(limit, Math.max(1, embeddingConfig().getVectorCandidateLimit()));
+                int vectorLimit = Math.min(500,
+                    Math.max(limit, Math.max(1, embeddingConfig().getVectorCandidateLimit())));
                 Map<String, Object> knnOptions = new LinkedHashMap<>();
                 knnOptions.put("vector", vector);
                 knnOptions.put("k", vectorLimit);
@@ -481,6 +483,7 @@ public class OpenSearchMcpSearchService {
                 }
                 Map<String, Object> body = Map.of(
                     "size", vectorLimit,
+                    "_source", sourceWithoutVectors(),
                     "query", Map.of("knn", Map.of(vectorField(), knnOptions))
                 );
                 long startedAt = System.nanoTime();
@@ -938,6 +941,7 @@ public class OpenSearchMcpSearchService {
         int limit = Math.max(1, Math.min(maxResults(), request.limit()));
         Map<String, Object> lexicalBody = Map.of(
             "size", Math.max(limit, 50),
+            "_source", sourceWithoutVectors(),
             "query", templateQueryBody(request)
         );
         JsonNode lexical = searchRequest("POST", "/" + index + "/_search", lexicalBody);
@@ -955,6 +959,7 @@ public class OpenSearchMcpSearchService {
             if (!filter.containsKey("match_all")) options.put("filter", filter);
             JsonNode knn = searchRequest("POST", "/" + index + "/_search", Map.of(
                 "size", Math.max(limit, 100),
+                "_source", sourceWithoutVectors(),
                 "query", Map.of("knn", Map.of(CAPABILITY_VECTOR, options))
             ));
             List<LuceneMcpSearchService.SearchHit> vectorHits = parseHits(knn, "opensearch_vector");
@@ -1319,9 +1324,11 @@ public class OpenSearchMcpSearchService {
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be greater than 0");
         }
-        int resultLimit = limit;
+        int resultLimit = Math.min(limit, 500);
+        int candidateLimit = Math.max(resultLimit, Math.min(Math.max(1, vectorCandidateLimit), 500));
         JsonNode lexicalResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
-            "size", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)),
+            "size", candidateLimit,
+            "_source", sourceWithoutVectors(),
             "query", effectiveQuery
         ));
         JsonNode vectorResponse = null;
@@ -1329,12 +1336,13 @@ public class OpenSearchMcpSearchService {
             try {
                 Map<String, Object> knnOptions = new LinkedHashMap<>();
                 knnOptions.put("vector", queryVector);
-                knnOptions.put("k", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)));
+                knnOptions.put("k", candidateLimit);
                 if (!filters.isEmpty()) {
                     knnOptions.put("filter", Map.of("bool", Map.of("filter", filters)));
                 }
                 vectorResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
-                    "size", Math.max(resultLimit, Math.min(vectorCandidateLimit, 500)),
+                    "size", candidateLimit,
+                    "_source", sourceWithoutVectors(),
                     "query", Map.of("knn", Map.of(vectorField, knnOptions))
                 ));
             } catch (Exception ex) {
@@ -1923,6 +1931,10 @@ public class OpenSearchMcpSearchService {
     private String vectorField() {
         String value = embeddingConfig().getVectorField();
         return value == null || value.isBlank() ? "mcpContentVector" : value.trim();
+    }
+
+    Map<String, Object> sourceWithoutVectors() {
+        return Map.of("excludes", List.of(vectorField(), CAPABILITY_VECTOR, "*Vector", "*vector"));
     }
 
     private String embeddingInput(Map<String, Object> source) {

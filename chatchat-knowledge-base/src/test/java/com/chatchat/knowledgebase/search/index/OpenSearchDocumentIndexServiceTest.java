@@ -107,13 +107,13 @@ class OpenSearchDocumentIndexServiceTest {
     }
 
     @Test
-    void boundsLocalRerankCandidatesByHighDimensionResponseBudget() {
+    void boundsLocalRerankBatchSizeWithoutReducingCandidateRecall() {
         SearchProperties properties = new SearchProperties();
         properties.getOpenSearch().getEmbedding().setDimension(2560);
         properties.getOpenSearch().setVectorRerankMaxBytes(4 * 1024 * 1024);
         OpenSearchDocumentIndexService service = service(properties);
 
-        assertThat(service.localRerankCandidateLimit()).isEqualTo(102);
+        assertThat(service.localRerankBatchSize()).isEqualTo(102);
         assertThat(service.resultSourceFilter(false)).doesNotContain("contentVector");
         assertThat(service.resultSourceFilter(true)).contains("contentVector");
     }

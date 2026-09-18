@@ -473,8 +473,7 @@ public class OpenSearchMcpSearchService {
                 if (vector.isEmpty()) {
                     return List.of();
                 }
-                int vectorLimit = Math.min(500,
-                    Math.max(limit, Math.max(1, embeddingConfig().getVectorCandidateLimit())));
+                int vectorLimit = Math.max(limit, Math.max(1, embeddingConfig().getVectorCandidateLimit()));
                 Map<String, Object> knnOptions = new LinkedHashMap<>();
                 knnOptions.put("vector", vector);
                 knnOptions.put("k", vectorLimit);
@@ -1324,8 +1323,8 @@ public class OpenSearchMcpSearchService {
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be greater than 0");
         }
-        int resultLimit = Math.min(limit, 500);
-        int candidateLimit = Math.max(resultLimit, Math.min(Math.max(1, vectorCandidateLimit), 500));
+        int resultLimit = limit;
+        int candidateLimit = Math.max(resultLimit, Math.min(vectorCandidateLimit, 500));
         JsonNode lexicalResponse = searchRequest("POST", "/" + index + "/_search", Map.of(
             "size", candidateLimit,
             "_source", sourceWithoutVectors(),

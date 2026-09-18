@@ -1,7 +1,7 @@
 package com.chatchat.api.datascience;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
-import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,13 +18,12 @@ public class PythonCodeAssistantService {
     private static final int MAX_SELECTION_LENGTH = 40_000;
 
     private final ChatModel chatModel;
-    private final ModelsConfig modelsConfig;
+    private final ModelResourceRegistry modelResources;
     private final ConfigurableChatModelFactory chatModelFactory;
 
     public List<ModelOption> models() {
-        String defaultModel = text(modelsConfig.getDefaultChatModel()).trim();
-        LinkedHashSet<String> names = new LinkedHashSet<>(modelsConfig.getAvailableChatModels());
-        if (!defaultModel.isBlank()) names.add(defaultModel);
+        String defaultModel = text(modelResources.defaultChatModel()).trim();
+        LinkedHashSet<String> names = new LinkedHashSet<>(modelResources.selectableChatModels());
         return names.stream().filter(name -> name != null && !name.isBlank()).map(String::trim).distinct()
                 .map(name -> new ModelOption(name, name, name.equalsIgnoreCase(defaultModel))).toList();
     }
@@ -68,7 +67,7 @@ public class PythonCodeAssistantService {
                 %s
                 ---
                 """.formatted(instruction, prompt, source, selection);
-        ChatModel selectedModel = modelName.equalsIgnoreCase(text(modelsConfig.getDefaultChatModel()).trim())
+        ChatModel selectedModel = modelName.equalsIgnoreCase(text(modelResources.defaultChatModel()).trim())
                 ? chatModel : chatModelFactory.create(modelName);
         String generated = stripCodeFence(selectedModel.chat(modelPrompt));
         if (generated.isBlank()) {

@@ -1,2 +1,3 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
+com.chatchat.common.config.EnvPropertiesEnvironmentPostProcessor,\
 com.chatchat.common.security.EncryptedPropertyEnvironmentPostProcessor

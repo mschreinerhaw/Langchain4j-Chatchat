@@ -3,6 +3,7 @@ package com.chatchat.agents.model;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ModelEndpointTest {
 
@@ -22,6 +23,15 @@ class ModelEndpointTest {
             .isEqualTo("https://example.test/v1");
         assertThat(ModelEndpoint.resolve("https://example.test/v1/chat/completions", "auto").url())
             .isEqualTo("https://example.test/v1");
+        assertThat(ModelEndpoint.resolve("http://10.6.65.11:30000/v1/chat/completions", "openai").url())
+            .isEqualTo("http://10.6.65.11:30000/v1");
+    }
+
+    @Test
+    void rejectsRelativeModelUrlsWithActionableErrors() {
+        assertThatThrownBy(() -> ModelEndpoint.resolve("127.0.0.1:31005/v1", "openai"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("absolute http:// or https:// URL");
     }
 
     @Test

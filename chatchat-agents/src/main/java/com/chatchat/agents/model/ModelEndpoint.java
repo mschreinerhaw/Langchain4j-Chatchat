@@ -16,7 +16,19 @@ public record ModelEndpoint(Protocol protocol, String url, boolean multimodal) {
             throw new IllegalArgumentException("Model base URL must not be blank");
         }
         String url = configuredUrl.trim().replaceAll("/+$", "");
-        URI.create(url);
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid model URL '" + url
+                + "'. Expected an absolute http:// or https:// URL.", ex);
+        }
+        String scheme = uri.getScheme();
+        if ((scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)))
+            || uri.getRawAuthority() == null || uri.getRawAuthority().isBlank()) {
+            throw new IllegalArgumentException("Invalid model URL '" + url
+                + "'. Expected an absolute http:// or https:// URL.");
+        }
         String protocol = configuredProtocol == null
             ? "auto"
             : configuredProtocol.trim().toLowerCase(Locale.ROOT).replace('_', '-');

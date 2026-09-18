@@ -9,6 +9,7 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConfigurableChatModelFactoryTest {
 
@@ -43,5 +44,36 @@ class ConfigurableChatModelFactoryTest {
             .create("unmapped-model");
 
         assertThat(model).isInstanceOf(OpenAiChatModel.class);
+    }
+
+    @Test
+    void reportsSelectedAndConfiguredModelsWhenConnectionIsMissing() {
+        ModelsConfig config = new ModelsConfig();
+        ModelsConfig.ModelConnectionConfig dedicated = new ModelsConfig.ModelConnectionConfig();
+        dedicated.setApiKey("test-key");
+        dedicated.setBaseUrl("http://127.0.0.1:31005/v1");
+        config.getChatModels().put("DeepSeek-V4.1-Flash", dedicated);
+
+        ConfigurableChatModelFactory factory = new ConfigurableChatModelFactory(config, new ObjectMapper());
+
+        assertThatThrownBy(() -> factory.create("unknown-model"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("unknown-model")
+            .hasMessageContaining("DeepSeek-V4.1-Flash");
+    }
+
+    @Test
+    void reportsMatchedConfigKeyWhenBaseUrlIsBlank() {
+        ModelsConfig config = new ModelsConfig();
+        ModelsConfig.ModelConnectionConfig dedicated = new ModelsConfig.ModelConnectionConfig();
+        dedicated.setApiKey("test-key");
+        config.getChatModels().put("[DeepSeek-V4.1-Flash]", dedicated);
+
+        ConfigurableChatModelFactory factory = new ConfigurableChatModelFactory(config, new ObjectMapper());
+
+        assertThatThrownBy(() -> factory.create("DeepSeek-V4.1-Flash"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("DeepSeek-V4.1-Flash")
+            .hasMessageContaining("matched config key='DeepSeek-V4.1-Flash'");
     }
 }

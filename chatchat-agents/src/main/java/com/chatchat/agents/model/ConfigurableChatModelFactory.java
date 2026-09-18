@@ -1,12 +1,13 @@
 package com.chatchat.agents.model;
 
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
@@ -16,22 +17,30 @@ import java.time.Duration;
 
 /** Builds a LangChain4j ChatModel for OpenAI-compatible and native provider URLs. */
 @Component
-@RequiredArgsConstructor
 public class ConfigurableChatModelFactory {
 
-    private final ModelsConfig modelsConfig;
+    private final ModelResourceRegistry modelResources;
     private final ObjectMapper objectMapper;
+
+    @Autowired
+    public ConfigurableChatModelFactory(ModelResourceRegistry modelResources, ObjectMapper objectMapper) {
+        this.modelResources = modelResources;
+        this.objectMapper = objectMapper;
+    }
+
+    /** Compatibility constructor for non-Spring embedders and focused tests. */
+    public ConfigurableChatModelFactory(ModelsConfig modelsConfig, ObjectMapper objectMapper) {
+        this(new ModelResourceRegistry(modelsConfig), objectMapper);
+    }
 
     public ChatModel create(String modelName) {
         if (modelName == null || modelName.isBlank()) {
             throw new IllegalArgumentException("Chat model name must not be blank");
         }
-        ModelsConfig.ModelConnectionConfig config = modelsConfig.resolveChatModelConfig(modelName);
-        if (config == null) {
-            throw new IllegalArgumentException("No connection configuration found for chat model: " + modelName);
-        }
-        String providerModelName = config.getModelName() == null || config.getModelName().isBlank()
-            ? modelName.trim() : config.getModelName().trim();
+        ModelsConfig.ResolvedModelConnection resolved =
+            modelResources.require(modelName);
+        ModelsConfig.ModelConnectionConfig config = resolved.config();
+        String providerModelName = resolved.providerModelName();
         ModelEndpoint endpoint = ModelEndpoint.resolve(config.getBaseUrl(), config.getProtocol());
         Duration timeout = resolveTimeout(config.getTimeout());
         if (endpoint.protocol() == ModelEndpoint.Protocol.DASHSCOPE_NATIVE) {

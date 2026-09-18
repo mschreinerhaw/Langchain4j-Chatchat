@@ -10,7 +10,7 @@ import com.chatchat.chat.skills.SkillRoutingSettings;
 import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,7 +50,7 @@ import java.util.Objects;
 public class DataQueryController {
 
     private final SkillCatalogService skillCatalogService;
-    private final ModelsConfig modelsConfig;
+    private final ModelResourceRegistry modelResources;
     private final ToolRegistry toolRegistry;
     private final ConversationService conversationService;
 
@@ -229,10 +229,7 @@ public class DataQueryController {
     @GetMapping("/models")
     @Operation(summary = "List selectable chat models")
     public ApiResponse<List<ModelOption>> getModels() {
-        List<String> candidates = new ArrayList<>(modelsConfig.getAvailableChatModels());
-        if (modelsConfig.getDefaultChatModel() != null && !modelsConfig.getDefaultChatModel().isBlank()) {
-            candidates.add(0, modelsConfig.getDefaultChatModel());
-        }
+        List<String> candidates = new ArrayList<>(modelResources.selectableChatModels());
         List<ModelOption> models = candidates.stream()
             .filter(name -> name != null && !name.isBlank())
             .distinct()

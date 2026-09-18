@@ -3,6 +3,7 @@ package com.chatchat.agents.orchestration.model;
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
@@ -21,14 +22,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AgentChatModelResolver {
 
     private final ChatModel defaultChatModel;
-    private final ModelsConfig modelsConfig;
+    private final ModelResourceRegistry modelResources;
     private final ConfigurableChatModelFactory chatModelFactory;
     private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
     private final Map<String, ChatModel> governedModelsByName = new ConcurrentHashMap<>();
     private final ModelInvocationCapacityManager modelCapacity;
 
     public AgentChatModelResolver(ChatModel defaultChatModel, ModelsConfig modelsConfig) {
-        this(defaultChatModel, modelsConfig,
+        this(defaultChatModel, new ModelResourceRegistry(modelsConfig),
             new ConfigurableChatModelFactory(modelsConfig, new ObjectMapper()),
             new AgentRuntimeProperties());
     }
@@ -36,23 +37,24 @@ public class AgentChatModelResolver {
     public AgentChatModelResolver(ChatModel defaultChatModel,
                                   ModelsConfig modelsConfig,
                                   ConfigurableChatModelFactory chatModelFactory) {
-        this(defaultChatModel, modelsConfig, chatModelFactory, new AgentRuntimeProperties());
+        this(defaultChatModel, new ModelResourceRegistry(modelsConfig),
+            chatModelFactory, new AgentRuntimeProperties());
     }
 
     public AgentChatModelResolver(ChatModel defaultChatModel,
                                   ModelsConfig modelsConfig,
                                   AgentRuntimeProperties runtimeProperties) {
-        this(defaultChatModel, modelsConfig,
+        this(defaultChatModel, new ModelResourceRegistry(modelsConfig),
             new ConfigurableChatModelFactory(modelsConfig, new ObjectMapper()), runtimeProperties);
     }
 
     @Autowired
     public AgentChatModelResolver(ChatModel defaultChatModel,
-                                  ModelsConfig modelsConfig,
+                                  ModelResourceRegistry modelResources,
                                   ConfigurableChatModelFactory chatModelFactory,
                                   AgentRuntimeProperties runtimeProperties) {
         this.defaultChatModel = defaultChatModel;
-        this.modelsConfig = modelsConfig;
+        this.modelResources = modelResources;
         this.chatModelFactory = chatModelFactory;
         AgentRuntimeProperties configured = runtimeProperties == null
             ? new AgentRuntimeProperties() : runtimeProperties;
@@ -64,25 +66,36 @@ public class AgentChatModelResolver {
 
     public ChatModel resolveChatModel(String modelName) {
         String normalized = normalizeModelName(modelName);
-        String selectedModelName = normalized == null ? modelsConfig.getDefaultChatModel() : normalized;
-        if (selectedModelName != null && !selectedModelName.isBlank()) {
-            log.info("Agent chat model selected modelName={}", selectedModelName);
-        }
-        String modelKey = selectedModelName == null || selectedModelName.isBlank()
-            ? "default" : selectedModelName.trim();
+        String selectedModelName = normalized == null ? modelResources.defaultChatModel() : normalized;
+        ModelsConfig.ResolvedModelConnection selected =
+            modelResources.require(selectedModelName);
+        String modelKey = modelResources.canonicalName(selectedModelName);
+        log.info("Agent chat model selected modelName={} configKey={} providerModel={} matchType={}",
+            selectedModelName, selected.configuredKey(), selected.providerModelName(), selected.matchType());
         return governedModelsByName.computeIfAbsent(modelKey, ignored -> {
-            ChatModel resolved = normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())
+            ChatModel resolved = isDefaultSelection(selected)
                 ? defaultChatModel
-                : chatModelsByName.computeIfAbsent(normalized, chatModelFactory::create);
+                : chatModelsByName.computeIfAbsent(modelKey, chatModelFactory::create);
             return new CapacityGovernedChatModel(modelKey, resolved, modelCapacity);
         });
+    }
+
+    private boolean isDefaultSelection(ModelsConfig.ResolvedModelConnection selected) {
+        String defaultName = normalizeModelName(modelResources.defaultChatModel());
+        if (defaultName == null) {
+            return false;
+        }
+        ModelsConfig.ResolvedModelConnection defaultConnection =
+            modelResources.require(defaultName);
+        return java.util.Objects.equals(selected.configuredKey(), defaultConnection.configuredKey())
+            && java.util.Objects.equals(selected.providerModelName(), defaultConnection.providerModelName());
     }
 
     /** Returns a secret-free identity snapshot suitable for checkpoint fingerprinting. */
     public Map<String, Object> checkpointModelConfiguration(String modelName, ChatModel resolvedModel) {
         String normalized = normalizeModelName(modelName);
-        String selected = normalized == null ? modelsConfig.getDefaultChatModel() : normalized;
-        ModelsConfig.ModelConnectionConfig config = modelsConfig.resolveChatModelConfig(selected);
+        String selected = normalized == null ? modelResources.defaultChatModel() : normalized;
+        ModelsConfig.ModelConnectionConfig config = modelResources.connection(selected);
         Map<String, Object> identity = new LinkedHashMap<>();
         identity.put("selectedModel", selected == null ? "default" : selected);
         Class<?> implementation = resolvedModel instanceof CapacityGovernedChatModel governed

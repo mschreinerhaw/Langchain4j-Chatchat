@@ -12,7 +12,7 @@ import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.chat.skills.release.AgentReleaseService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.license.AgentPublicationLicenseService;
@@ -54,7 +54,7 @@ public class AgentWorkshopController {
     private final SkillCatalogService skillCatalogService;
     private final ToolRegistry toolRegistry;
     private final McpToolCatalogQueryPort mcpCatalog;
-    private final ModelsConfig modelsConfig;
+    private final ModelResourceRegistry modelResources;
     private final SearchService searchService;
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentPublicationLicenseService agentPublicationLicenseService;
@@ -129,7 +129,7 @@ public class AgentWorkshopController {
             availableTools,
             registeredMcpTools,
             modelOptions(),
-            modelsConfig.getDefaultChatModel(),
+            modelResources.defaultChatModel(),
             searchService.listLibrary("all", null, 1, 500, documentPermissionContext(request)).documents(),
             pageInfo,
             agentCategories(allAgents)
@@ -654,12 +654,12 @@ public class AgentWorkshopController {
      * @return the resolved bound model name
      */
     private String resolveBoundModelName(String requestedModelName) {
-        if (requestedModelName != null
+        String selected = requestedModelName != null
             && !requestedModelName.isBlank()
-            && !"default".equalsIgnoreCase(requestedModelName.trim())) {
-            return requestedModelName.trim();
-        }
-        return modelsConfig.getDefaultChatModel();
+            && !"default".equalsIgnoreCase(requestedModelName.trim())
+            ? requestedModelName.trim()
+            : modelResources.defaultChatModel();
+        return modelResources.canonicalName(selected);
     }
 
     /**
@@ -668,10 +668,7 @@ public class AgentWorkshopController {
      * @return the operation result
      */
     private List<ModelOption> modelOptions() {
-        List<String> candidates = new ArrayList<>(modelsConfig.getAvailableChatModels());
-        if (modelsConfig.getDefaultChatModel() != null && !modelsConfig.getDefaultChatModel().isBlank()) {
-            candidates.add(0, modelsConfig.getDefaultChatModel());
-        }
+        List<String> candidates = new ArrayList<>(modelResources.selectableChatModels());
         return candidates.stream()
             .filter(name -> name != null && !name.isBlank())
             .distinct()

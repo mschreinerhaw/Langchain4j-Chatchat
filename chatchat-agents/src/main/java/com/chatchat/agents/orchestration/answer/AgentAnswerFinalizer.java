@@ -45,6 +45,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.interaction.UserFacingAnswerSanitizer;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -955,8 +956,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         if (modelsConfig == null) {
             return 0L;
         }
-        ModelsConfig.ModelConnectionConfig connection = modelsConfig.resolveChatModelConfig(
-            modelsConfig.getDefaultChatModel());
+        ModelResourceRegistry resources = new ModelResourceRegistry(modelsConfig);
+        ModelsConfig.ModelConnectionConfig connection = resources.connection(resources.defaultChatModel());
         if (connection == null) {
             return 0L;
         }

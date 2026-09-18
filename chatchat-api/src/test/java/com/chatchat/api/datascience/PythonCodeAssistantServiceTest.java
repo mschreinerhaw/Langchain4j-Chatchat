@@ -2,6 +2,7 @@ package com.chatchat.api.datascience;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,13 @@ class PythonCodeAssistantServiceTest {
     void setUp() {
         modelsConfig.setDefaultChatModel("general-model");
         modelsConfig.setAvailableChatModels(List.of("general-model", "code-model"));
-        service = new PythonCodeAssistantService(defaultModel, modelsConfig, factory);
+        ModelsConfig.ModelConnectionConfig general = new ModelsConfig.ModelConnectionConfig();
+        general.setBaseUrl("http://general.example/v1");
+        modelsConfig.getChatModels().put("general-model", general);
+        ModelsConfig.ModelConnectionConfig code = new ModelsConfig.ModelConnectionConfig();
+        code.setBaseUrl("http://code.example/v1");
+        modelsConfig.getChatModels().put("code-model", code);
+        service = new PythonCodeAssistantService(defaultModel, new ModelResourceRegistry(modelsConfig), factory);
     }
 
     @Test

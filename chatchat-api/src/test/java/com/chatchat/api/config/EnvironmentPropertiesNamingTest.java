@@ -41,7 +41,7 @@ class EnvironmentPropertiesNamingTest {
     }
 
     @Test
-    void environmentFilesContainOnlyJvmOptions() throws IOException {
+    void environmentFilesKeepJvmOptionsAsTheOnlyRequiredAssignment() throws IOException {
         Path repositoryRoot = repositoryRoot();
         List<Path> templates = List.of(
             repositoryRoot.resolve("packaging/config/env.properties"),
@@ -57,7 +57,7 @@ class EnvironmentPropertiesNamingTest {
                 .map(matcher -> matcher.group(1))
                 .toList();
             assertThat(keys)
-                .describedAs("%s may configure JVM options only", template)
+                .describedAs("%s must retain the JVM startup option assignment", template)
                 .containsExactly("JAVA_OPTS");
         }
     }

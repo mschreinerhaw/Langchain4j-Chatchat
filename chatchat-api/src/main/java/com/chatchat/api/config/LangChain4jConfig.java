@@ -2,6 +2,7 @@ package com.chatchat.api.config;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.config.ModelResourceRegistry;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
@@ -18,20 +19,28 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 public class LangChain4jConfig {
 
-    private final ModelsConfig modelsConfig;
+    private final ModelResourceRegistry modelResources;
     private final ConfigurableChatModelFactory chatModelFactory;
 
     /** Configure the default chat model from its protocol-aware connection. */
     @Bean
     public ChatModel chatLanguageModel() {
-        String modelName = modelsConfig.getDefaultChatModel();
-        ModelsConfig.ModelConnectionConfig connection = modelsConfig.resolveChatModelConfig(modelName);
+        String modelName = modelResources.defaultChatModel();
         if (modelName == null || modelName.isBlank()) {
             log.warn("Default chat model is not configured");
             return new MissingModelConfigurationChatModel("Default chat model is not configured. "
                 + "Set chatchat.models.defaultChatModel before using chat.");
         }
-        if (connection == null || connection.getApiKey() == null || connection.getApiKey().isBlank()) {
+        ModelsConfig.ResolvedModelConnection resolved;
+        try {
+            resolved = modelResources.require(modelName);
+        } catch (IllegalArgumentException ex) {
+            String message = ex.getMessage();
+            log.warn(message);
+            return new MissingModelConfigurationChatModel(message);
+        }
+        ModelsConfig.ModelConnectionConfig connection = resolved.config();
+        if (connection.getApiKey() == null || connection.getApiKey().isBlank()) {
             log.warn("API key is not configured for chat model {}", modelName);
             return new MissingApiKeyChatModel();
         }

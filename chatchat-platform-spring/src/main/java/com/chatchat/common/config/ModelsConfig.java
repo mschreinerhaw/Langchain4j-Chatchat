@@ -10,6 +10,7 @@ import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -154,36 +155,202 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
     public List<String> getAvailableChatModels() {
         LinkedHashSet<String> names = new LinkedHashSet<>();
         if (defaultChatModel != null && !defaultChatModel.isBlank()) {
-            names.add(defaultChatModel.trim());
+            names.add(normalizeModelIdentifier(defaultChatModel));
         }
         if (availableChatModels != null) {
             availableChatModels.stream()
                 .filter(name -> name != null && !name.isBlank())
-                .map(String::trim)
+                .map(ModelsConfig::normalizeModelIdentifier)
                 .forEach(names::add);
         }
         if (chatModels != null) {
             chatModels.keySet().stream()
                 .filter(name -> name != null && !name.isBlank())
-                .map(String::trim)
+                .map(ModelsConfig::normalizeModelIdentifier)
                 .forEach(names::add);
         }
+        names.remove(null);
         return new ArrayList<>(names);
     }
 
     public ModelConnectionConfig resolveChatModelConfig(String modelName) {
-        if (modelName != null && chatModels != null) {
-            ModelConnectionConfig exact = chatModels.get(modelName.trim());
+        ResolvedModelConnection resolved = resolveChatModelConnection(modelName);
+        return resolved == null ? null : resolved.config();
+    }
+
+    /**
+     * Returns only selectable models that have a complete connection. This is the
+     * list that user-facing model pickers should expose.
+     */
+    public List<String> getUsableChatModels() {
+        return getAvailableChatModels().stream()
+            .filter(this::hasUsableChatModelConnection)
+            .toList();
+    }
+
+    public boolean hasUsableChatModelConnection(String modelName) {
+        ResolvedModelConnection resolved = resolveChatModelConnection(modelName);
+        return resolved != null && resolved.config() != null
+            && isAbsoluteHttpUrl(resolved.config().getBaseUrl());
+    }
+
+    /**
+     * Resolves and validates a model selected by a user or a persisted Agent.
+     * Keeping this validation here ensures default chat and Agent execution use
+     * exactly the same configuration rules.
+     */
+    public ResolvedModelConnection requireUsableChatModelConnection(String modelName) {
+        String requested = normalizeModelIdentifier(modelName);
+        if (requested == null) {
+            throw new IllegalArgumentException("Chat model name must not be blank");
+        }
+        ResolvedModelConnection resolved = resolveChatModelConnection(requested);
+        if (resolved == null || resolved.config() == null) {
+            throw new IllegalArgumentException("No connection configuration found for selected chat model '"
+                + requested + "'. Configured model keys: " + getConfiguredChatModelKeys()
+                + ". Configure chatchat.models.chatModels['" + requested + "'] with an explicit baseUrl.");
+        }
+        if (!hasText(resolved.config().getBaseUrl())) {
+            throw new IllegalArgumentException("Model base URL must not be blank for selected chat model '"
+                + requested + "' (matched config key='" + resolved.configuredKey()
+                + "', matchType=" + resolved.matchType() + "). Configured model keys: "
+                + getConfiguredChatModelKeys());
+        }
+        if (!isAbsoluteHttpUrl(resolved.config().getBaseUrl())) {
+            throw new IllegalArgumentException("Invalid model base URL '" + resolved.config().getBaseUrl()
+                + "' for selected chat model '" + requested
+                + "'. Expected an absolute http:// or https:// URL.");
+        }
+        return resolved;
+    }
+
+    /** Stable configuration key persisted by Agent definitions. */
+    public String canonicalChatModelName(String modelName) {
+        ResolvedModelConnection resolved = requireUsableChatModelConnection(modelName);
+        return resolved.matchType() == ModelMatchType.LEGACY_OPENAI
+            ? resolved.requestedModel()
+            : resolved.configuredKey();
+    }
+
+    /**
+     * Resolves a selectable display name or a provider-side model id to its connection.
+     * Bracketed Spring map keys are normalized and an explicitly configured provider
+     * {@code modelName} is accepted as an alias. No provider-specific model naming
+     * convention is inferred. The legacy OpenAI block is used only when it contains
+     * an actual connection, avoiding a misleading blank-base-url fallback.
+     */
+    public ResolvedModelConnection resolveChatModelConnection(String modelName) {
+        String requested = normalizeModelIdentifier(modelName);
+        if (requested != null && chatModels != null && !chatModels.isEmpty()) {
+            ModelConnectionConfig exact = chatModels.get(requested);
             if (exact != null) {
-                return exact;
+                return resolved(requested, requested, exact, ModelMatchType.CONFIG_KEY);
             }
+
             for (Map.Entry<String, ModelConnectionConfig> entry : chatModels.entrySet()) {
-                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(modelName.trim())) {
-                    return entry.getValue();
+                String configuredKey = normalizeModelIdentifier(entry.getKey());
+                if (configuredKey != null && configuredKey.equalsIgnoreCase(requested)) {
+                    return resolved(requested, configuredKey, entry.getValue(),
+                        ModelMatchType.CONFIG_KEY_IGNORE_CASE);
                 }
             }
+
+            for (Map.Entry<String, ModelConnectionConfig> entry : chatModels.entrySet()) {
+                ModelConnectionConfig config = entry.getValue();
+                String providerModel = config == null ? null : normalizeModelIdentifier(config.getModelName());
+                if (providerModel != null && providerModel.equals(requested)) {
+                    return resolved(requested, normalizeModelIdentifier(entry.getKey()), config,
+                        ModelMatchType.PROVIDER_MODEL);
+                }
+            }
+
+            for (Map.Entry<String, ModelConnectionConfig> entry : chatModels.entrySet()) {
+                ModelConnectionConfig config = entry.getValue();
+                String providerModel = config == null ? null : normalizeModelIdentifier(config.getModelName());
+                if (providerModel != null && providerModel.equalsIgnoreCase(requested)) {
+                    return resolved(requested, normalizeModelIdentifier(entry.getKey()), config,
+                        ModelMatchType.PROVIDER_MODEL_IGNORE_CASE);
+                }
+            }
+
         }
-        return openai;
+
+        if (hasLegacyConnection()) {
+            return resolved(requested, "openai", openai, ModelMatchType.LEGACY_OPENAI);
+        }
+        return null;
+    }
+
+    /** Model keys suitable for diagnostics; secrets and connection URLs are omitted. */
+    public List<String> getConfiguredChatModelKeys() {
+        if (chatModels == null || chatModels.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        chatModels.keySet().stream()
+            .map(ModelsConfig::normalizeModelIdentifier)
+            .filter(key -> key != null && !key.isBlank())
+            .forEach(keys::add);
+        return new ArrayList<>(keys);
+    }
+
+    private ResolvedModelConnection resolved(String requested, String configuredKey,
+                                               ModelConnectionConfig config, ModelMatchType matchType) {
+        return new ResolvedModelConnection(requested, configuredKey, config, matchType);
+    }
+
+    private boolean hasLegacyConnection() {
+        return openai != null && (hasText(openai.getBaseUrl())
+            || hasText(openai.getApiKey()) || hasText(openai.getModelName()));
+    }
+
+    private static String normalizeModelIdentifier(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 2 && normalized.startsWith("[") && normalized.endsWith("]")) {
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+        }
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static boolean isAbsoluteHttpUrl(String value) {
+        if (!hasText(value)) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(value.trim());
+            String scheme = uri.getScheme();
+            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                && hasText(uri.getRawAuthority());
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    public record ResolvedModelConnection(String requestedModel, String configuredKey,
+                                          ModelConnectionConfig config, ModelMatchType matchType) {
+
+        /** Returns the explicitly configured provider id, or the selected key for legacy configurations. */
+        public String providerModelName() {
+            if (config != null && hasText(config.getModelName())) {
+                return config.getModelName().trim();
+            }
+            return normalizeModelIdentifier(requestedModel);
+        }
+    }
+
+    public enum ModelMatchType {
+        CONFIG_KEY,
+        CONFIG_KEY_IGNORE_CASE,
+        PROVIDER_MODEL,
+        PROVIDER_MODEL_IGNORE_CASE,
+        LEGACY_OPENAI
     }
 
     @Data

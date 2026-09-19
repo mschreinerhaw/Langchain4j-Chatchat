@@ -18,7 +18,7 @@ public interface DomainSkillRepository extends JpaRepository<DomainSkillEntity, 
           and (:keyword = '' or lower(s.name) like lower(concat('%', :keyword, '%'))
                or lower(s.description) like lower(concat('%', :keyword, '%'))
                or lower(s.category) like lower(concat('%', :keyword, '%'))
-               or lower(s.markdownContent) like lower(concat('%', :keyword, '%')))
+               or lower(s.searchText) like lower(concat('%', :keyword, '%')))
         order by s.updatedAt desc
         """)
     Page<DomainSkillEntity> search(@Param("tenantId") String tenantId,

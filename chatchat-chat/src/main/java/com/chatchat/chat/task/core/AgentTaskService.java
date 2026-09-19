@@ -3866,6 +3866,9 @@ public class AgentTaskService {
             String chartType = "chart".equals(type) ? chooseChartType(spec, rows, xKey, series) : "";
 
             Map<String, Object> nextDataset = new LinkedHashMap<>();
+            nextDataset.put("columns", dataset.get("columns") instanceof List<?> declaredColumns
+                ? declaredColumns : columns);
+            if (dataset.get("sourceRef") != null) nextDataset.put("sourceRef", dataset.get("sourceRef"));
             nextDataset.put("xKey", xKey);
             nextDataset.put("series", series);
             nextDataset.put("rows", rows);
@@ -3874,9 +3877,11 @@ public class AgentTaskService {
             Object rawUi = spec.get("ui");
             if (rawUi instanceof Map<?, ?> uiMap) {
                 ui.put("allowSwitch", !Boolean.FALSE.equals(uiMap.get("allowSwitch")));
+                ui.put("allowChartTypeSelection", !Boolean.FALSE.equals(uiMap.get("allowChartTypeSelection")));
                 ui.put("defaultView", firstTextValue(uiMap.get("defaultView"), "table".equals(type) ? "table" : "chart"));
             } else {
                 ui.put("allowSwitch", true);
+                ui.put("allowChartTypeSelection", true);
                 ui.put("defaultView", "table".equals(type) ? "table" : "chart");
             }
 
@@ -3905,6 +3910,10 @@ public class AgentTaskService {
             normalized.put("insight", insight);
             normalized.put("analysisResult", analysisResult(spec, insight));
             normalized.put("insightSpec", insight);
+            if (spec.get("recommendation") instanceof Map<?, ?> recommendation) {
+                normalized.put("recommendation", recommendation);
+            }
+            if (spec.get("scope") != null) normalized.put("scope", spec.get("scope"));
             return normalized;
         }
 
@@ -3990,9 +3999,11 @@ public class AgentTaskService {
             Object rawUi = spec.get("ui");
             if (rawUi instanceof Map<?, ?> uiMap) {
                 ui.put("allowSwitch", !Boolean.FALSE.equals(uiMap.get("allowSwitch")));
+                ui.put("allowChartTypeSelection", !Boolean.FALSE.equals(uiMap.get("allowChartTypeSelection")));
                 ui.put("defaultView", firstTextValue(uiMap.get("defaultView"), "panel"));
             } else {
                 ui.put("allowSwitch", true);
+                ui.put("allowChartTypeSelection", true);
                 ui.put("defaultView", "panel");
             }
 

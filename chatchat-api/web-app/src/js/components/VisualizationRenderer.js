@@ -395,12 +395,18 @@ export default {
     compact: {
       type: Boolean,
       default: false
+    },
+    preference: {
+      type: Object,
+      default: null
     }
   },
-  emits: ["drill-down"],
+  emits: ["drill-down", "preference-change"],
   data() {
     return {
       activeView: "graph",
+      selectedChartType: "",
+      preferenceReady: false,
       chartInstance: null,
       resizeObserver: null,
       chartViewportWidth: 520,
@@ -441,7 +447,8 @@ export default {
       if (this.panelSpec || !this.spec || typeof this.spec !== "object") {
         return null;
       }
-      return normalizeRenderableSpec(this.spec);
+      const requestedChartType = this.selectedChartType || this.preference?.chartType || this.spec.chartType;
+      return normalizeRenderableSpec(requestedChartType ? { ...this.spec, chartType: requestedChartType } : this.spec);
     },
     title() {
       return compact(this.normalizedSpec?.title) || "自动可视化";
@@ -475,6 +482,25 @@ export default {
     },
     chartType() {
       return String(this.normalizedSpec?.chartType || "").toLowerCase();
+    },
+    canChooseChartType() {
+      return this.normalizedSpec?.type === "chart"
+        && this.normalizedSpec?.ui?.allowChartTypeSelection !== false
+        && this.rows.length > 0 && this.yKeys.length > 0;
+    },
+    chartTypeOptions() {
+      const options = [
+        { value: "bar", label: "柱状图" },
+        { value: "line", label: "折线图" },
+        { value: "pie", label: "饼图" }
+      ];
+      if (this.rows.some((row) => numeric(row?.[this.xKey]) !== null)) {
+        options.push({ value: "scatter", label: "散点图" });
+      }
+      return options;
+    },
+    recommendationReason() {
+      return compact(this.normalizedSpec?.recommendation?.reason);
     },
     isMetrics() {
       return this.normalizedSpec?.type === "metric" || this.normalizedSpec?.type === "metrics";
@@ -911,11 +937,22 @@ export default {
     },
     activeView() {
       this.renderEchart();
+      this.emitPreferenceChange();
     },
     chartOption: {
       deep: true,
       handler() {
         this.renderEchart();
+      }
+    },
+    preference: {
+      deep: true,
+      immediate: true,
+      handler(value) {
+        const view = String(value?.view || "").toLowerCase();
+        if (["graph", "table", "raw"].includes(view)) this.activeView = view;
+        const chartType = String(value?.chartType || "").toLowerCase();
+        this.selectedChartType = CHART_TYPES.has(chartType) ? chartType : "";
       }
     }
   },
@@ -923,6 +960,7 @@ export default {
     if (typeof window !== "undefined") {
       window.addEventListener(TREND_SEMANTICS_UPDATED_EVENT, this.handleTrendSemanticsUpdated);
     }
+    this.preferenceReady = true;
     this.renderEchart();
   },
   beforeUnmount() {
@@ -932,6 +970,24 @@ export default {
     this.disposeEchart();
   },
   methods: {
+    setChartType(chartType) {
+      const normalized = String(chartType || "").toLowerCase();
+      if (!CHART_TYPES.has(normalized)) return;
+      const alreadyGraph = this.activeView === "graph";
+      this.selectedChartType = normalized;
+      this.activeView = "graph";
+      if (alreadyGraph) this.emitPreferenceChange();
+    },
+    emitPreferenceChange() {
+      if (!this.preferenceReady || this.panelSpec) return;
+      this.$emit("preference-change", {
+        view: this.activeView,
+        chartType: this.chartType || this.selectedChartType || ""
+      });
+    },
+    forwardPreferenceChange(preference) {
+      this.$emit("preference-change", preference);
+    },
     isRawDataPanelBlock(block = {}) {
       return isRawDataBlock(block);
     },

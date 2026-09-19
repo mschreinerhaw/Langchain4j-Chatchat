@@ -141,6 +141,22 @@ public class ConversationController {
         return ApiResponse.success(null, "Conversation message deleted successfully");
     }
 
+    @PatchMapping("/{conversationId}/messages/{messageId}/visualization-preference")
+    @Operation(summary = "Persist a message visualization view and chart-type preference")
+    public ApiResponse<Conversation.Message> updateVisualizationPreference(
+        @PathVariable("conversationId") String conversationId,
+        @PathVariable("messageId") String messageId,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestBody VisualizationPreferenceRequest preference,
+        HttpServletRequest servletRequest
+    ) {
+        if (preference == null) throw new IllegalArgumentException("Visualization preference is required");
+        return ApiResponse.success(conversationService.updateVisualizationPreference(
+            resolveTenantId(servletRequest, tenantId), conversationId, messageId,
+            preference.slot(), preference.view(), preference.chartType()),
+            "Visualization preference saved");
+    }
+
     /**
      * Delete conversation
      */
@@ -181,6 +197,8 @@ public class ConversationController {
 
     public record RenameConversationRequest(String title) {
     }
+
+    public record VisualizationPreferenceRequest(String slot, String view, String chartType) { }
 
     public record ConversationListItem(
         String id,

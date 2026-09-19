@@ -99,6 +99,7 @@
       @feedback="handleMessageFeedback"
       @delete-message="deleteMessage"
       @visualization-drill-down="handleVisualizationDrillDown"
+      @visualization-preference="handleVisualizationPreference"
     />
       <p v-if="statusNotice" class="chat-status-notice">{{ statusNotice }}</p>
       <p v-if="uploadNotice" class="chat-status-notice">{{ uploadNotice }}</p>

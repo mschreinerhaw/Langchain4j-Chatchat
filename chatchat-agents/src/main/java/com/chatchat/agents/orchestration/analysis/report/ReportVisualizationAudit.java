@@ -16,10 +16,12 @@ public final class ReportVisualizationAudit {
 
     public static String instruction() {
         return """
-            Optional visualizations: within the Markdown report you may include fenced json blocks containing
+            Visualization recommendation: whenever a returned table has meaningful chart semantics, include one nearby
+            fenced json block containing
             {"visualizationSpec":{"schemaVersion":"visualization_spec.v2","chartType":"bar",
             "title":"comparison","dataset":{"sourceRef":"returned dataset reference","xKey":"category",
-            "series":[{"name":"measure","yKey":"amount"}]}}}.
+            "series":[{"name":"measure","yKey":"amount"}]},"reason":"why this graphic best explains the table",
+            "alternativeChartTypes":["line","pie"]}}.
             Use chartType bar, line (ISO-date x values), pie (nonnegative values), scatter (numeric x/y) or kpi (one value).
             Alternatively use a json:visualization fence with {"intent":"trend|ranking|comparison|composition|metric|relationship",
             "datasetRef":"returned reference","x":"actual field","y":"actual metric","title":"business title"}.
@@ -35,7 +37,8 @@ public final class ReportVisualizationAudit {
             cannot be aggregated again. Incomplete projections cannot be aggregated.
             Explain calculation meaning and returned-sample scope in prose. These operations do not establish population
             completeness, causality or accounting semantics. Omit dataset.rows to let Runtime provide exact computed values.
-            Keep each graphic next to its supporting discussion; use at most six graphics. No JavaScript, HTML, SQL,
+            Recommend a chart only when dimensions and measures support it; otherwise keep the table. Keep each graphic
+            next to its supporting discussion; use at most six graphics. No JavaScript, HTML, SQL,
             arbitrary ECharts options or additional audit forms. A failed graphic never replaces the narrative report.
             """;
     }
@@ -210,10 +213,22 @@ public final class ReportVisualizationAudit {
         if ("ranking".equals(spec.get("intent"))) verified.put("orientation", "horizontal");
         verified.put("title", text(spec.get("title")));
         verified.put("scope", "仅对应本次返回记录，非业务总体；图表计算已核验，业务解释需结合正文");
+        String reason = text(spec.get("reason")).trim();
+        if (reason.length() > 400) reason = reason.substring(0, 400);
+        List<String> alternatives = spec.get("alternativeChartTypes") instanceof List<?> values
+            ? values.stream().map(ReportVisualizationAudit::text).map(value -> value.toLowerCase(Locale.ROOT))
+                .filter(value -> Set.of("bar", "line", "pie", "scatter").contains(value))
+                .filter(value -> !value.equals(type)).distinct().limit(3).toList()
+            : List.of();
+        verified.put("recommendation", Map.of(
+            "source", "MODEL",
+            "reason", reason.isBlank() ? "The model selected this view from the verified table dimensions and measures." : reason,
+            "alternativeChartTypes", alternatives));
         verified.put("dataset", Map.of("sourceRef", reference, "xKey", x, "columns", keys,
             "rows", projected, "series", series.stream().map(item -> Map.of(
                 "name", text(item.get("name")), "yKey", text(item.get("yKey")), "unit", units.get(text(item.get("yKey"))))).toList()));
-        verified.put("ui", Map.of("allowSwitch", true));
+        verified.put("ui", Map.of("allowSwitch", true, "allowChartTypeSelection", true,
+            "defaultView", "chart"));
         return verified;
     }
 

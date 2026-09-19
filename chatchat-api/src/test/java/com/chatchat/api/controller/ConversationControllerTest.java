@@ -266,4 +266,34 @@ public class ConversationControllerTest {
             .andExpect(jsonPath("$.data.messages.length()").value(1))
             .andExpect(jsonPath("$.data.messages[0].id").value("question-1"));
     }
+
+    @Test
+    public void visualizationPreferenceSurvivesConversationHistoryReload() throws Exception {
+        Conversation conversation = conversationService.createConversation(
+            "default", "visual-user", "Visualization history");
+        Conversation.Message answer = Conversation.Message.builder()
+            .id("answer-visual")
+            .role("assistant")
+            .content("Analysis")
+            .visualizationSpec(java.util.Map.of(
+                "type", "chart",
+                "chartType", "bar",
+                "dataset", java.util.Map.of("rows", List.of(java.util.Map.of("month", "Jan", "amount", 10)))))
+            .build();
+        conversationService.replaceMessages(
+            "default", conversation.getId(), "visual-user", List.of(answer));
+
+        mockMvc.perform(patch("/api/v1/conversations/" + conversation.getId()
+                + "/messages/answer-visual/visualization-preference")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"slot\":\"attachment\",\"view\":\"table\",\"chartType\":\"line\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.visualizationSpec.ui.userPreferences.attachment.view").value("table"))
+            .andExpect(jsonPath("$.data.visualizationSpec.ui.userPreferences.attachment.chartType").value("line"));
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversation.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.messages[0].visualizationSpec.ui.userPreferences.attachment.view")
+                .value("table"));
+    }
 }

@@ -5094,6 +5094,35 @@
   }
 }
 
+.visualization-chart-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary, #667085);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.visualization-chart-type select {
+  min-height: 30px;
+  border: 1px solid var(--border-color, #d0d5dd);
+  border-radius: 8px;
+  background: var(--surface-primary, #fff);
+  color: var(--text-primary, #101828);
+  padding: 0 0.55rem;
+}
+
+.visualization-recommendation {
+  margin: 0.45rem 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-left: 3px solid #7c3aed;
+  border-radius: 0 8px 8px 0;
+  background: rgba(124, 58, 237, 0.07);
+  color: var(--text-secondary, #475467);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
 .visualization-trend-legend {
   display: flex;
   flex-wrap: wrap;

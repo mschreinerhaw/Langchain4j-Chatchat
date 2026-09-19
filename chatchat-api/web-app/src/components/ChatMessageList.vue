@@ -149,6 +149,8 @@
           :content="message.content || ''"
           :render-markdown="(content) => renderMarkdown(content, message, content !== String(message.content || ''))"
           @drill-down="handleVisualizationDrillDown(message, $event)"
+          :preferences="visualizationPreferences(message)"
+          @preference-change="handleVisualizationPreference(message, $event)"
           @click="handleMarkdownClick"
         />
         <section
@@ -248,13 +250,17 @@
           <summary>{{ rawDataVisualizationToggleLabel(message.visualizationSpec) }}</summary>
           <VisualizationRenderer
             :spec="message.visualizationSpec"
+            :preference="visualizationPreference(message, 'attachment')"
             @drill-down="handleVisualizationDrillDown(message, $event)"
+            @preference-change="handleVisualizationPreference(message, { slot: 'attachment', preference: $event })"
           />
         </details>
         <VisualizationRenderer
           v-else-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming && !hasComposedAnalysisReport(message)"
           :spec="message.visualizationSpec"
+          :preference="visualizationPreference(message, 'attachment')"
           @drill-down="handleVisualizationDrillDown(message, $event)"
+          @preference-change="handleVisualizationPreference(message, { slot: 'attachment', preference: $event })"
         />
         <div v-if="message.latencyMs" class="message-extra">耗时 {{ message.latencyMs }}ms</div>
         <ResponseReferences

@@ -39,6 +39,8 @@ public class DomainSkillEntity {
     @Lob
     @Column(name = "markdown_content", nullable = false, columnDefinition = "LONGTEXT")
     private String markdownContent;
+    @Column(name = "search_text", length = 4000, nullable = false)
+    private String searchText;
     @Column(name = "source_type", length = 24, nullable = false)
     private String sourceType;
     @Column(name = "original_file_name", length = 300)
@@ -62,10 +64,19 @@ public class DomainSkillEntity {
         updatedAt = now;
         if (status == null || status.isBlank()) status = "DRAFT";
         if (sourceType == null || sourceType.isBlank()) sourceType = "EDITOR";
+        refreshSearchText();
     }
 
     @PreUpdate
     void update() {
         updatedAt = Instant.now();
+        refreshSearchText();
     }
+
+    private void refreshSearchText() {
+        String value = String.join("\n", safe(name), safe(category), safe(description), safe(markdownContent));
+        searchText = value.length() <= 4000 ? value : value.substring(0, 4000);
+    }
+
+    private String safe(String value) { return value == null ? "" : value; }
 }

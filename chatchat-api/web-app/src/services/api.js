@@ -860,6 +860,16 @@ export function deleteConversationMessage(conversationId, messageId, tenantId = 
   });
 }
 
+export function saveVisualizationPreference(conversationId, messageId, preference, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) params.set("tenantId", tenantId);
+  const query = params.toString();
+  return apiRequest(
+    `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/visualization-preference${query ? `?${query}` : ""}`,
+    { method: "PATCH", body: JSON.stringify(preference || {}) }
+  );
+}
+
 export function fetchAgentTaskPage(filters = {}) {
   const params = new URLSearchParams();
   if (filters.tenantId) params.set("tenantId", filters.tenantId);

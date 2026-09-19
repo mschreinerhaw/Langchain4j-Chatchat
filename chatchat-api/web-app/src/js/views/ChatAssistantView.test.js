@@ -4,10 +4,50 @@ import ChatAssistantView, {
   collapseDuplicateAssistantResults,
   finalizeExecutionUi,
   mergeExecutionSteps,
-  normalizeMessages
+  normalizeMessages,
+  normalizeVisualizationSpec
 } from "./ChatAssistantView";
 
 describe("restored assistant result deduplication", () => {
+  it("restores model chart recommendations and persisted user presentation choices", () => {
+    const spec = normalizeVisualizationSpec({
+      type: "chart",
+      chartType: "bar",
+      recommendation: { source: "MODEL", reason: "Compare categories" },
+      dataset: {
+        columns: ["category", "amount"],
+        xKey: "category",
+        series: [{ name: "amount", yKey: "amount" }],
+        rows: [{ category: "A", amount: 10 }, { category: "B", amount: 20 }]
+      },
+      ui: {
+        allowSwitch: true,
+        allowChartTypeSelection: true,
+        userPreferences: { attachment: { view: "table", chartType: "line" } }
+      }
+    });
+
+    expect(spec.recommendation).toEqual({ source: "MODEL", reason: "Compare categories" });
+    expect(spec.dataset.columns).toEqual(["category", "amount"]);
+    expect(spec.ui.userPreferences.attachment).toEqual({ view: "table", chartType: "line" });
+  });
+
+  it("merges separately persisted choices into an inline report visualization", () => {
+    const [message] = normalizeMessages([{
+      id: "assistant-inline-chart",
+      role: "assistant",
+      content: `\`\`\`json
+{"type":"chart","chartType":"bar","dataset":{"xKey":"category","series":[{"name":"amount","yKey":"amount"}],"rows":[{"category":"A","amount":10}]}}
+\`\`\``,
+      visualizationSpec: {
+        ui: { userPreferences: { "report:0": { view: "table", chartType: "pie" } } }
+      }
+    }]);
+
+    expect(message.visualizationSpec.ui.userPreferences["report:0"])
+      .toEqual({ view: "table", chartType: "pie" });
+  });
+
   it("routes a role Agent to the tool-free role-chat mode", () => {
     expect(ChatAssistantView.methods.agentInteractionMode.call({}, { defaultMode: "role_chat" }))
       .toBe("role_chat");

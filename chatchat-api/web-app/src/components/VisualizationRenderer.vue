@@ -18,14 +18,18 @@
           <VisualizationRenderer
             :spec="block.spec"
             compact
+            :preference="preference"
             @drill-down="forwardDrillDown(block, $event)"
+            @preference-change="forwardPreferenceChange($event)"
           />
         </details>
         <article v-else class="visualization-panel-block">
           <VisualizationRenderer
             :spec="block.spec"
             compact
+            :preference="preference"
             @drill-down="forwardDrillDown(block, $event)"
+            @preference-change="forwardPreferenceChange($event)"
           />
         </article>
       </template>
@@ -46,6 +50,14 @@
         <h3>{{ title }}</h3>
       </div>
       <div class="visualization-actions">
+        <label v-if="canChooseChartType && activeView === 'graph'" class="visualization-chart-type">
+          <span>图形</span>
+          <select :value="chartType" @change="setChartType($event.target.value)">
+            <option v-for="option in chartTypeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
         <nav v-if="availableViews.length > 1" class="visualization-tabs" aria-label="可视化视图切换">
           <button
             v-for="view in availableViews"
@@ -71,6 +83,9 @@
 
     <p v-if="chartSemanticSummary" class="visualization-semantics">
       {{ chartSemanticSummary }}
+    </p>
+    <p v-if="recommendationReason" class="visualization-recommendation">
+      <strong>模型建议：</strong>{{ recommendationReason }}
     </p>
 
     <div v-if="hasDirectionalSeries" class="visualization-trend-legend" aria-label="涨跌颜色说明">

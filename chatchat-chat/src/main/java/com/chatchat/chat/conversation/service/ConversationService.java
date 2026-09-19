@@ -369,6 +369,45 @@ public class ConversationService {
         sessionRepository.save(session);
     }
 
+    /** Persists a user's presentation choice without rewriting the analytical result data. */
+    @Transactional
+    public Conversation.Message updateVisualizationPreference(String tenantId,
+                                                               String conversationId,
+                                                               String messageId,
+                                                               String slot,
+                                                               String view,
+                                                               String chartType) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        ChatSessionEntity session = sessionRepository
+            .findBySessionIdAndTenantId(conversationId, normalizedTenantId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + conversationId));
+        ChatMessageIndexEntity index = messageIndexRepository
+            .findByMessageIdAndTenantIdAndSessionId(messageId, normalizedTenantId, session.getSessionId())
+            .orElseThrow(() -> new IllegalArgumentException("Message not found in conversation: " + messageId));
+        ChatMessageDetail detail = detailStore.get(index.getRocksKey())
+            .orElseThrow(() -> new IllegalArgumentException("Message detail not found: " + messageId));
+        if (!"assistant".equalsIgnoreCase(detail.getRole())) {
+            throw new IllegalArgumentException("Visualization preferences can only be saved for assistant messages");
+        }
+
+        String normalizedSlot = normalizeVisualizationSlot(slot);
+        String normalizedView = normalizeVisualizationView(view);
+        String normalizedChartType = normalizeVisualizationChartType(chartType);
+        Map<String, Object> spec = deepMutableMap(detail.getVisualizationSpec());
+        Map<String, Object> ui = mutableNestedMap(spec, "ui");
+        Map<String, Object> preferences = mutableNestedMap(ui, "userPreferences");
+        Map<String, Object> preference = new LinkedHashMap<>();
+        preference.put("view", normalizedView);
+        if (!normalizedChartType.isBlank()) preference.put("chartType", normalizedChartType);
+        preference.put("updatedAt", Instant.now().toString());
+        preferences.put(normalizedSlot, preference);
+        ui.put("userPreferences", preferences);
+        spec.put("ui", ui);
+        detail.setVisualizationSpec(spec);
+        detailStore.put(detail);
+        return toMessage(detail);
+    }
+
     /**
      * Performs the replace messages operation.
      *
@@ -1112,6 +1151,57 @@ public class ConversationService {
             return Map.of();
         }
         return new LinkedHashMap<>(value);
+    }
+
+    private String normalizeVisualizationSlot(String value) {
+        String slot = normalize(value, "attachment");
+        if (slot.length() > 80 || !slot.matches("[A-Za-z0-9_.:-]+")) {
+            throw new IllegalArgumentException("Invalid visualization preference slot");
+        }
+        return slot;
+    }
+
+    private String normalizeVisualizationView(String value) {
+        String view = normalize(value, "graph").toLowerCase(Locale.ROOT);
+        if (!Set.of("graph", "table", "raw").contains(view)) {
+            throw new IllegalArgumentException("Unsupported visualization view: " + view);
+        }
+        return view;
+    }
+
+    private String normalizeVisualizationChartType(String value) {
+        if (value == null || value.isBlank()) return "";
+        String chartType = value.trim().toLowerCase(Locale.ROOT);
+        if (!Set.of("bar", "line", "pie", "scatter").contains(chartType)) {
+            throw new IllegalArgumentException("Unsupported chart type: " + chartType);
+        }
+        return chartType;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> deepMutableMap(Map<String, Object> value) {
+        Map<String, Object> copy = new LinkedHashMap<>();
+        if (value == null) return copy;
+        value.forEach((key, item) -> {
+            if (item instanceof Map<?, ?> nested) {
+                Map<String, Object> nestedCopy = new LinkedHashMap<>();
+                nested.forEach((nestedKey, nestedValue) -> nestedCopy.put(String.valueOf(nestedKey), nestedValue));
+                copy.put(key, nestedCopy);
+            } else {
+                copy.put(key, item);
+            }
+        });
+        return copy;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mutableNestedMap(Map<String, Object> owner, String key) {
+        Object current = owner.get(key);
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (current instanceof Map<?, ?> nested) {
+            nested.forEach((nestedKey, nestedValue) -> result.put(String.valueOf(nestedKey), nestedValue));
+        }
+        return result;
     }
 
     /**

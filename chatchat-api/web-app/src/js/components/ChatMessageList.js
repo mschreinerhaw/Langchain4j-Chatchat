@@ -114,7 +114,7 @@ export default {
     ResponseReferences,
     EnterpriseUiArtifactRenderer
   },
-  emits: ["delete-message", "feedback", "visualization-drill-down"],
+  emits: ["delete-message", "feedback", "visualization-drill-down", "visualization-preference"],
   props: {
     messages: {
       type: Array,
@@ -189,6 +189,17 @@ export default {
     }
   },
   methods: {
+    visualizationPreferences(message = {}) {
+      return message?.visualizationSpec?.ui?.userPreferences || {};
+    },
+    visualizationPreference(message = {}, slot = "attachment") {
+      return this.visualizationPreferences(message)?.[slot] || null;
+    },
+    handleVisualizationPreference(message, event = {}) {
+      const slot = event.slot || "attachment";
+      const preference = event.preference || event;
+      this.$emit("visualization-preference", { message, slot, preference });
+    },
     isSupportingDatasetVisualization(spec = {}) {
       return spec?.presentationChannel === "supporting_dataset"
         || spec?.ui?.channel === "supporting_dataset"

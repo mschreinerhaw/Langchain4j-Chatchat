@@ -12,6 +12,7 @@ import {
   fetchAgentWorkshop,
   recordUserActivity,
   saveConversationHistory,
+  saveVisualizationPreference,
   sendInteractionMessage,
   sendInteractionMessageStream,
   streamAgentTaskEvents,
@@ -78,8 +79,8 @@ const RESPONSE_RENDER_CONTRACT = {
     "- For metadata/table discovery answers, always show the exact physical table identifier returned by the tool (database/schema/tableName when available); a Chinese business description must be a separate description and must never replace the physical identifier.",
     "- When the metadata tool returns columns for a table, display those exact physical column names together with that table, including type/key/comment when available. Never rename, translate, or invent physical table or column identifiers.",
     "- If a matched table has no returned column metadata, explicitly state that its fields were not returned by the tool; do not provide illustrative or guessed fields as facts.",
-    "- Emit visualizationSpec/dataVisualization only when chart semantics are explicit: chartType, xKey/xLabel, series[{name,yKey,unit?}], and a short insight summary.",
-    "- Do not guess chart axes or metrics from column order; if semantics are uncertain, return a table and let the frontend user choose chart fields manually."
+    "- For every meaningful result table, assess whether a chart improves interpretation. When it does, emit visualizationSpec/dataVisualization with chartType, xKey/xLabel, series[{name,yKey,unit?}], insight.summary, and recommendation{source:'MODEL',reason,alternativeChartTypes}.",
+    "- Recommend only fields and values present in the returned rows. Do not guess chart axes or metrics from column order; if semantics are uncertain, keep the table and explain that no automatic chart is recommended."
   ].join("\n"),
   blocks: {
     sql: "```sql",
@@ -653,7 +654,7 @@ function firstVisualizationSpec(...values) {
   return null;
 }
 
-function normalizeVisualizationSpec(value) {
+export function normalizeVisualizationSpec(value) {
   if (!value) {
     return null;
   }
@@ -702,9 +703,11 @@ function normalizeVisualizationSpec(value) {
       layout,
       blocks,
       ui: {
+        ...(spec.ui || {}),
         allowSwitch: spec.ui?.allowSwitch !== false,
         defaultView: spec.ui?.defaultView || "panel"
       },
+      recommendation: spec.recommendation || null,
       insight: {
         summary: insight.summary || spec.summary || "",
         anomaly: insight.anomaly || spec.anomaly || "",
@@ -790,14 +793,19 @@ function normalizeSingleVisualizationSpec(value) {
     title: String(spec.title || spec.name || (type === "metric" ? "Key Metrics" : "Auto Visualization")),
     analysisType: String(spec.analysisType || ""),
     dataset: {
+      ...(spec.dataset || {}),
+      columns: Array.isArray(spec.dataset?.columns) ? spec.dataset.columns : columns,
       xKey,
       series,
       rows: workingRows
     },
     ui: {
+      ...(spec.ui || {}),
       allowSwitch: spec.ui?.allowSwitch !== false,
       defaultView: spec.ui?.defaultView || (type === "table" ? "table" : "chart")
     },
+    recommendation: spec.recommendation || null,
+    scope: spec.scope || "",
     insight: {
       summary: spec.insight?.summary || spec.summary || "",
       anomaly: spec.insight?.anomaly || spec.anomaly || "",
@@ -839,7 +847,7 @@ function visualizationSpecFromAnswer(answer = "") {
 }
 
 function normalizeMessageVisualization(message = {}) {
-  return firstVisualizationSpec(
+  const visualization = firstVisualizationSpec(
     message.visualizationSpec,
     message.dataVisualization,
     message.uiResponse?.visualizationSpec,
@@ -847,6 +855,20 @@ function normalizeMessageVisualization(message = {}) {
     message.metadata?.dataVisualization,
     visualizationSpecFromAnswer(message.content || message.answer || "")
   );
+  if (!visualization) {
+    return null;
+  }
+  const storedPreferences = message.visualizationSpec?.ui?.userPreferences;
+  if (!storedPreferences || typeof storedPreferences !== "object" || Array.isArray(storedPreferences)) {
+    return visualization;
+  }
+  return {
+    ...visualization,
+    ui: {
+      ...(visualization.ui || {}),
+      userPreferences: storedPreferences
+    }
+  };
 }
 
 function normalizeMessageSources(message = {}) {
@@ -3322,6 +3344,26 @@ export default {
       if (!this.conversationId || !message?.id || message.streaming || this.loading) return;
       this.deleteMessageCandidate = message;
       this.$nextTick(() => this.$refs.deleteMessageCancel?.focus());
+    },
+    async handleVisualizationPreference({ message, slot, preference } = {}) {
+      if (!this.conversationId || !message?.id || !preference) return;
+      const normalizedSlot = slot || "attachment";
+      const spec = message.visualizationSpec || {};
+      const ui = { ...(spec.ui || {}) };
+      ui.userPreferences = {
+        ...(ui.userPreferences || {}),
+        [normalizedSlot]: { ...(preference || {}) }
+      };
+      message.visualizationSpec = { ...spec, ui };
+      try {
+        await saveVisualizationPreference(this.conversationId, message.id, {
+          slot: normalizedSlot,
+          view: preference.view,
+          chartType: preference.chartType || ""
+        }, this.effectiveTenantId());
+      } catch (error) {
+        this.errorMessage = error?.message || "图表显示偏好保存失败";
+      }
     },
     closeDeleteMessageDialog() {
       if (!this.deleteMessagePending) {

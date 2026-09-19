@@ -45,6 +45,86 @@ java -jar chatchat-runtime-news/target/chatchat-runtime-news-1.0.0-SNAPSHOT.jar 
 
 内部接口统一位于 `/internal/v1/news/**`，只接受内部 Basic 账户。News Runtime 不提供管理页面，也不对 Agent 直接开放底层采集参数。
 
+## 模块分层与功能目录
+
+代码按“接口适配层 → 用例边界 → 领域实现”组织：
+
+- `api/health`：运行状态接口。
+- `api/source`：资讯源及提取规则管理接口。
+- `api/collection`：采集任务提交、状态查询和 robots 合规检测接口。
+- `api/record`：采集记录查询接口。
+- `api/tool`：内部工具调用接口。
+- `application/source`、`application/collection`、`application/tool`：面向调用方的用例接口与稳定数据契约。
+- `source`、`collector`、`tool`：上述接口的业务实现；Controller 和调度器不直接依赖具体实现类。
+- `model`、`normalize`、`store`、`search`、`analysis`、`compliance`：领域模型及对应处理能力。
+
+新增 HTTP 能力时应放入对应的 `api/<feature>` 包，并先在 `application/<feature>` 定义用例边界；不要再创建聚合所有功能的总 Controller，也不要将 HTTP DTO 嵌套在具体 Service 中。
+
+`collector` 内部继续按采集职责拆分：
+
+- 根包只保留 `NewsCollector`、`NewsItemSink`、`NewsAcceptance` 三个核心 SPI。
+- `service`：采集编排、异步任务、标准化入库和附件处理。
+- `schedule`：自动采集调度与执行窗口策略。
+- `generic`：RSS、通用 JSON API 和 WebMagic 等协议型采集器。
+- `flash`：快讯采集器、声明式快讯模板及签名器。
+- `disclosure`：交易所和资讯站公告披露采集器。
+- `portal`：交易所、巨潮等门户首页内容采集器。
+- `market`：行情快照、市场统计和向 Market Runtime 转发的结构化数据采集器。
+
+`source` 按来源配置职责拆分：
+
+- `persistence`：来源、提取规则和采集记录的 JPA Entity、Repository 与类型转换器。
+- `service`：来源管理和采集运行时读取服务。
+- `maintenance`：采集日志保留及数据库兼容迁移任务。
+
+`store` 根包只保留 `NewsDocumentStore` 存储 SPI，其实现按能力拆分：
+
+- `opensearch`：OpenSearch 实现、禁用实现以及查询日期、索引命名规则。
+- `index`：有界 Bulk 写入和索引状态协调。
+- `maintenance`：每日索引重建与过期索引清理。
+- `embedding`：可选向量服务客户端。
+
+`tool` 根包只保留工具执行 SPI 和稳定名称，`executor` 保存具体执行器及共享转换逻辑，`registry` 负责 MCP 工具注册与查找。
+
+`search` 按检索链路拆分：
+
+- `query`：本地检索词规划和外部搜索词解析。
+- `ranking`：新闻候选结果相关性排序。
+- `provider`：腾讯 WSA 等外部搜索服务适配器。
+- `cache`：外部搜索缓存契约、OpenSearch/禁用实现及缓存保留任务。
+
+## 扩展资讯采集器
+
+自定义采集器只需实现 `NewsCollector` 并注册为 Spring Bean，`DefaultNewsCollectorRegistry` 会自动发现，无需修改 `NewsCollectionService`：
+
+```java
+@Component
+public class PartnerFeedCollector implements NewsCollector {
+    @Override
+    public String collectorId() {
+        return "partner-feed";
+    }
+
+    @Override
+    public boolean supports(NewsSourceType sourceType) {
+        return sourceType == NewsSourceType.API;
+    }
+
+    @Override
+    public NewsCollectResult collect(NewsSource source, NewsCollectContext context) {
+        // 拉取数据并通过 NewsItemSink 提交标准 RawNewsItem
+    }
+}
+```
+
+选择规则：
+
+- 默认根据 `supports(NewsSourceType)` 自动选择采集器。
+- 同一来源类型有多个实现时，覆盖 `priority()`，数值更高者优先；最高优先级相同会快速失败，避免不确定选择。
+- 来源 `configuration` 可设置 `"collectorId": "partner-feed"` 精确选择实现。此模式允许在不增加 `NewsSourceType` 的情况下接入专用采集器。
+- `collectorId` 必须全局唯一；重复 ID 会在应用启动时失败。
+- 采集器只负责发现和转换数据，统一去重、标准化、附件处理和索引写入继续通过 `NewsItemSink` 完成。
+
 数据库初始化脚本：`database/init/mysql/chatchat-runtime-news.sql` 或 `database/init/h2/chatchat-runtime-news.sql`。
 
 从原 MCP/API 数据库迁移时，将 `news_source`、`news_source_rule`、`news_collect_record`、

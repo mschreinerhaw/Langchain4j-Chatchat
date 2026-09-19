@@ -5,7 +5,7 @@ import com.chatchat.runtime.news.model.NewsAnalysisStatus;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.model.NewsSourceType;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
-import com.chatchat.runtime.news.store.NewsIndexStateService;
+import com.chatchat.runtime.news.store.index.NewsIndexStateService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

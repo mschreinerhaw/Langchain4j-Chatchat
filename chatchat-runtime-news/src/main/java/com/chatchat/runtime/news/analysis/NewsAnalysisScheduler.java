@@ -3,7 +3,7 @@ package com.chatchat.runtime.news.analysis;
 import com.chatchat.runtime.news.config.NewsRuntimeProperties;
 import com.chatchat.runtime.news.model.NewsDocument;
 import com.chatchat.runtime.news.store.NewsDocumentStore;
-import com.chatchat.runtime.news.store.NewsIndexStateService;
+import com.chatchat.runtime.news.store.index.NewsIndexStateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

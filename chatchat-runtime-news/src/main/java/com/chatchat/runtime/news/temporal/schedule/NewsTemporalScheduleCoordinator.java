@@ -7,6 +7,8 @@ import com.chatchat.runtime.news.temporal.config.NewsTemporalProperties;
 import com.chatchat.runtime.news.temporal.contract.NewsCollectionWorkflowCommand;
 import com.chatchat.runtime.news.temporal.workflow.NewsCollectionWorkflow;
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
+import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.Schedule;
 import io.temporal.client.schedules.ScheduleActionStartWorkflow;
@@ -19,7 +21,7 @@ import io.temporal.client.schedules.ScheduleState;
 import io.temporal.client.schedules.ScheduleUpdate;
 import io.temporal.common.RetryOptions;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
@@ -35,8 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Reconciles database news-source definitions into durable Temporal Schedules. */
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "chatchat.runtime.news.temporal", name = "enabled",
-    havingValue = "true", matchIfMissing = true)
+@ConditionalOnExpression("'${chatchat.runtime.news.temporal.enabled:true}' == 'true' && "
+    + "'${chatchat.runtime.news.temporal.server-mode:embedded}' == 'external'")
 public class NewsTemporalScheduleCoordinator {
     static final String SCHEDULE_PREFIX = "chatchat-news-source-";
     private static final String WORKFLOW_PREFIX = "chatchat-news-collection-";
@@ -107,6 +109,8 @@ public class NewsTemporalScheduleCoordinator {
             .setArguments(command)
             .setOptions(WorkflowOptions.newBuilder()
                 .setWorkflowId(WORKFLOW_PREFIX + source.getId())
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)
+                .setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL)
                 .setTaskQueue(properties.taskQueue())
                 .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                 .setMemo(Map.of("newsSourceId", source.getId(),

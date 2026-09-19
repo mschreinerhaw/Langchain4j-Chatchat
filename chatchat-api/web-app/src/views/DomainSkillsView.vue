@@ -52,7 +52,7 @@
           </button>
           <button v-if="isAdmin" type="button" class="domain-skill-category-reindex" :disabled="busy || !category.count" title="重建该分类下已发布技能的索引" :aria-label="`重建${category.name}分类索引`" @click="reindexCategory(category)">↻</button>
         </div>
-        <p v-if="!categoryOptions.length" class="domain-skill-category-empty">暂无分类，点击右上角“+”创建。</p>
+        <p v-if="!categoryOptions.length" class="domain-skill-category-empty">暂无分类，点击分类标题旁的“+”创建。</p>
       </aside>
 
       <section class="domain-skills-content">
@@ -62,9 +62,9 @@
         </div>
         <div v-if="loading" class="domain-skills-empty" role="status">正在加载领域技能…</div>
         <div v-else-if="!skills.length" class="domain-skills-empty">
-          <strong>当前没有可展示的领域技能</strong>
-          <p>{{ filters.category ? '该分类暂时为空，可以直接在此分类下新建技能。' : '创建分类后，再新建或导入领域技能。' }}</p>
-          <button v-if="isAdmin" type="button" @click="categoryOptions.length ? openCreate() : openCategoryDialog()">{{ categoryOptions.length ? '新建技能' : '创建分类' }}</button>
+          <strong>暂无领域技能</strong>
+          <p>{{ filters.category ? '该分类下暂无技能，可以新建或导入技能。' : '当前筛选条件下暂无技能，可以新建或导入技能。' }}</p>
+          <button v-if="isAdmin" type="button" @click="openCreate">新建技能</button>
         </div>
         <template v-else>
           <article v-for="skill in skills" :key="skill.id" class="domain-skill-item">
@@ -111,6 +111,7 @@
         <header><div><p>领域技能</p><h2>{{ form.id ? '编辑领域技能' : '新建领域技能' }}</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="editorOpen = false">×</button></header>
         <label><span>名称 *</span><input v-model="form.name" required maxlength="200"></label>
         <label><span>分类 *</span><select v-model="form.category" required><option value="" disabled>请选择分类</option><option v-for="item in categoryOptions" :key="item.name" :value="item.name">{{ item.name }}</option></select></label>
+        <p v-if="!categoryOptions.length" class="domain-skill-field-hint">暂无可选分类，请使用左侧分类栏的“+”创建分类后再保存。</p>
         <label><span>说明</span><textarea v-model="form.description" rows="2" maxlength="2000"></textarea></label>
         <label class="markdown-field"><span>SKILL.md *</span><textarea v-model="form.markdownContent" required spellcheck="false"></textarea></label>
         <footer><button type="button" class="secondary-button" @click="editorOpen = false">取消</button><button :disabled="busy">保存草稿</button></footer>
@@ -122,6 +123,7 @@
         <header><div><p>领域技能</p><h2>导入技能</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="importOpen = false">×</button></header>
         <label><span>名称（可选）</span><input v-model="importName" maxlength="200"></label>
         <label><span>分类 *</span><select v-model="importCategory" required><option value="" disabled>请选择分类</option><option v-for="item in categoryOptions" :key="item.name" :value="item.name">{{ item.name }}</option></select></label>
+        <p v-if="!categoryOptions.length" class="domain-skill-field-hint">暂无可选分类，请使用左侧分类栏的“+”创建分类后再导入。</p>
         <label class="file-picker"><input type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
         <footer><button type="button" class="secondary-button" @click="importOpen = false">取消</button><button :disabled="busy || !importFile || !importCategory">导入</button></footer>
       </form>

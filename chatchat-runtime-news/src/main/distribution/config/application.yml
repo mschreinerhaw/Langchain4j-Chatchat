@@ -31,6 +31,9 @@ chatchat:
   runtime:
     news:
       enabled: true
+      temporal:
+        # JVM-local, memory-only mode. Set to external for durable production scheduling.
+        server-mode: embedded
       collector-core-size: 2
       collector-max-size: 4
       collector-queue-capacity: 20

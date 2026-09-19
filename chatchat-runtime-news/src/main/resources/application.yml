@@ -18,6 +18,9 @@ chatchat:
       enabled: true
       temporal:
         enabled: "true"
+        # embedded runs an in-memory Temporal test server in this JVM for local execution.
+        # Use external with a durable Temporal deployment in production.
+        server-mode: "embedded"
         target: "127.0.0.1:7233"
         namespace: "default"
         task-queue: "chatchat-news-collection"

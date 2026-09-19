@@ -64,14 +64,14 @@ export default {
       finally { this.loading = false; }
     },
     openCreate() {
-      if (!this.categoryOptions.length) { this.openCategoryDialog(); return; }
-      this.form = { ...emptyForm(), category: this.filters.category || this.categoryOptions[0].name };
+      this.form = { ...emptyForm(), category: this.filters.category || this.categoryOptions[0]?.name || "" };
       this.editorOpen = true;
       this.error = "";
     },
     openImport() {
-      if (!this.categoryOptions.length) { this.openCategoryDialog(); return; }
-      this.importCategory = this.filters.category || this.categoryOptions[0].name;
+      this.importCategory = this.filters.category || this.categoryOptions[0]?.name || "";
+      this.importFile = null;
+      this.importName = "";
       this.importOpen = true;
       this.error = "";
     },

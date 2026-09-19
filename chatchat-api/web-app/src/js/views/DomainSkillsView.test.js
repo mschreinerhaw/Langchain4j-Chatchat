@@ -35,6 +35,33 @@ describe("DomainSkillsView", () => {
     expect(context.load).toHaveBeenCalledWith(true);
   });
 
+  it("opens skill creation instead of redirecting to category creation", () => {
+    const context = {
+      categoryOptions: [], filters: { category: "" }, form: null,
+      editorOpen: false, error: "previous error"
+    };
+
+    DomainSkillsView.methods.openCreate.call(context);
+
+    expect(context.editorOpen).toBe(true);
+    expect(context.form.category).toBe("");
+    expect(context.error).toBe("");
+  });
+
+  it("opens skill import instead of redirecting to category creation", () => {
+    const context = {
+      categoryOptions: [], filters: { category: "" }, importCategory: "old",
+      importFile: { name: "old.zip" }, importName: "old", importOpen: false, error: "previous error"
+    };
+
+    DomainSkillsView.methods.openImport.call(context);
+
+    expect(context.importOpen).toBe(true);
+    expect(context.importCategory).toBe("");
+    expect(context.importFile).toBeNull();
+    expect(context.importName).toBe("");
+  });
+
   it("rebuilds one skill and one category index", async () => {
     api.reindexDomainSkill.mockResolvedValue({ id: "skill-1" });
     api.reindexDomainSkillCategory.mockResolvedValue({ reindexed: 2, skipped: 1, failed: 0 });

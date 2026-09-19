@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "chatchat.runtime.news.temporal")
 public class NewsTemporalProperties {
     private boolean enabled = true;
+    private String serverMode = "embedded";
     private String target = "127.0.0.1:7233";
     private String namespace = "default";
     private String taskQueue = "chatchat-news-collection";
@@ -17,6 +18,8 @@ public class NewsTemporalProperties {
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public String getServerMode() { return serverMode; }
+    public void setServerMode(String serverMode) { this.serverMode = serverMode; }
     public String getTarget() { return target; }
     public void setTarget(String target) { this.target = target; }
     public String getNamespace() { return namespace; }
@@ -37,6 +40,7 @@ public class NewsTemporalProperties {
     public void setMaxConcurrentActivities(int maxConcurrentActivities) { this.maxConcurrentActivities = maxConcurrentActivities; }
 
     public String target() { return text(target, "127.0.0.1:7233"); }
+    public String serverMode() { return text(serverMode, "embedded").toLowerCase(java.util.Locale.ROOT); }
     public String namespace() { return text(namespace, "default"); }
     public String taskQueue() { return text(taskQueue, "chatchat-news-collection"); }
     public long reconcileDelayMillis() { return Math.max(1_000L, reconcileDelayMillis); }

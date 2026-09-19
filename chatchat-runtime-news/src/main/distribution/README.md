@@ -17,6 +17,11 @@
 4. News Runtime and MCP initially use the same bootstrap internal account so the release can start directly. Before exposing a production service, replace the bootstrap secret on both services with the same `ENC(...)` ciphertext and external key file. News Runtime refuses to start with an empty internal secret.
 5. Start with `bin/start.sh` on Linux or `bin/start.bat` on Windows.
 
+The packaged local configuration runs Temporal inside the News Runtime JVM (`server-mode: embedded`),
+so Docker is not required. Embedded workflow and schedule history is memory-only and is cleared when
+the process restarts. Use `server-mode: external` only when durable workflow history or multi-node
+high availability is required.
+
 `config/application.yml` deliberately contains concrete values rather than environment-variable placeholders. `config/env.properties`
 only controls JVM memory and optional command-line arguments.
 

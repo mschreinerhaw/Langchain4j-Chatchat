@@ -336,6 +336,96 @@
   background: rgba(15, 23, 42, .42);
 }
 
+.domain-skills-page .domain-skill-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, .56);
+  backdrop-filter: blur(2px);
+}
+
+.domain-skills-page .domain-skill-confirm-dialog {
+  width: min(420px, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px 16px;
+  padding: 22px;
+  border: 1px solid #fedf89;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, .3);
+}
+
+.domain-skills-page .domain-skill-confirm-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 7px solid #fffaeb;
+  border-radius: 50%;
+  background: #fef0c7;
+  color: #b54708;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.domain-skills-page .domain-skill-confirm-icon.danger {
+  border-color: #fff4ed;
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.domain-skills-page .domain-skill-confirm-copy h2,
+.domain-skills-page .domain-skill-confirm-copy p {
+  margin: 0;
+}
+
+.domain-skills-page .domain-skill-confirm-copy h2 {
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.domain-skills-page .domain-skill-confirm-copy p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.domain-skills-page .domain-skill-confirm-dialog > footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.domain-skills-page .domain-skill-confirm-dialog > footer button {
+  min-width: 78px;
+  min-height: 36px;
+  padding: 0 15px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.domain-skills-page .domain-skill-confirm-dialog > footer .secondary-button {
+  border-color: var(--line);
+  background: #fff;
+  color: var(--text);
+}
+
+.domain-skills-page .domain-skill-confirm-dialog > footer button.danger {
+  border-color: #d92d20;
+  background: #d92d20;
+}
+
 .domain-skills-page .domain-skill-dialog {
   width: min(720px, 100%);
   max-height: calc(100vh - 40px);

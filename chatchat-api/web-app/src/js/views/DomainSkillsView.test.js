@@ -109,6 +109,21 @@ describe("DomainSkillsView", () => {
     expect(context.load).toHaveBeenCalledOnce();
   });
 
+  it("uses the styled confirmation dialog for unsaved editor content", () => {
+    const context = {
+      busy: false, editorOpen: true, editorSnapshot: "different",
+      form: { id: "", name: "未保存技能", category: "研究", description: "", markdownContent: "# 内容" },
+      confirmDialog: {}, openConfirmDialog: DomainSkillsView.methods.openConfirmDialog
+    };
+
+    DomainSkillsView.methods.requestCloseEditor.call(context);
+
+    expect(context.editorOpen).toBe(true);
+    expect(context.confirmDialog.open).toBe(true);
+    expect(context.confirmDialog.kind).toBe("editor");
+    expect(context.confirmDialog.title).toContain("未保存");
+  });
+
   it("rebuilds one skill and one category index", async () => {
     api.reindexDomainSkill.mockResolvedValue({ id: "skill-1" });
     api.reindexDomainSkillCategory.mockResolvedValue({ reindexed: 2, skipped: 1, failed: 0 });

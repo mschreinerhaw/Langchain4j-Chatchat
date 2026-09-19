@@ -40,7 +40,8 @@ export default {
     importMode: "file", importFile: null, importUrl: "", importName: "", importCategory: "", categoryDialogOpen: false,
     newCategoryName: "", categorySaving: false, categoryError: "", publicationLimitOpen: false,
     publicationLimit: { maximum: 5, published: 5, skillName: "" }, editorMessage: "", importMessage: "",
-    editorSnapshot: "", importSnapshot: ""
+    editorSnapshot: "", importSnapshot: "",
+    confirmDialog: { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null }
   }),
   computed: {
     isAdmin() {
@@ -162,15 +163,38 @@ export default {
     },
     requestCloseEditor() {
       if (this.busy) return;
-      if (editorStateKey(this.form) !== this.editorSnapshot
-          && !window.confirm("当前技能内容尚未保存，确定要关闭吗？")) return;
+      if (editorStateKey(this.form) !== this.editorSnapshot) {
+        this.openConfirmDialog("editor", "放弃未保存的修改？", "当前技能内容尚未保存，关闭后修改将无法恢复。", "放弃修改", true);
+        return;
+      }
       this.editorOpen = false;
     },
     requestCloseImport() {
       if (this.busy) return;
-      if (importStateKey(this) !== this.importSnapshot
-          && !window.confirm("当前导入内容尚未提交，确定要关闭吗？")) return;
+      if (importStateKey(this) !== this.importSnapshot) {
+        this.openConfirmDialog("import", "放弃当前导入？", "已填写的导入内容尚未提交，关闭后需要重新选择或填写。", "放弃导入", true);
+        return;
+      }
       this.importOpen = false;
+    },
+    openConfirmDialog(kind, title, message, confirmLabel = "确定", danger = false, skill = null) {
+      this.confirmDialog = { open: true, kind, title, message, confirmLabel, danger, skill };
+    },
+    closeConfirmDialog() {
+      this.confirmDialog = { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null };
+    },
+    async confirmPendingAction() {
+      const { kind, skill } = this.confirmDialog;
+      this.closeConfirmDialog();
+      if (kind === "editor") this.editorOpen = false;
+      if (kind === "import") this.importOpen = false;
+      if (kind === "delete" && skill) {
+        await this.perform(async () => {
+          await deleteDomainSkill(skill.id);
+          this.message = "领域技能已删除";
+          await this.load();
+        }, "领域技能删除失败");
+      }
     },
     async publishSkill(skill) {
       this.busy = true; this.error = ""; this.message = "";
@@ -213,8 +237,7 @@ export default {
       }, "分类索引重建失败");
     },
     async removeSkill(skill) {
-      if (!window.confirm(`确定删除领域技能“${skill.name}”吗？`)) return;
-      await this.perform(async () => { await deleteDomainSkill(skill.id); this.message = "领域技能已删除"; await this.load(); }, "领域技能删除失败");
+      this.openConfirmDialog("delete", "删除领域技能？", `确定删除“${skill.name}”吗？删除后无法恢复。`, "删除", true, skill);
     },
     async perform(action, fallback) { this.busy = true; this.error = ""; try { await action(); } catch (error) { this.error = error.message || fallback; } finally { this.busy = false; } },
     go(page) { if (page >= 0 && page < this.totalPages) { this.filters.page = page; this.load(); } }

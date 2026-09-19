@@ -143,6 +143,20 @@
         <footer><button type="button" class="secondary-button" @click="requestCloseImport">取消</button><button :disabled="busy || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())">导入</button></footer>
       </form>
     </div>
+
+    <div v-if="confirmDialog.open" class="domain-skill-confirm-backdrop">
+      <section class="domain-skill-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="domain-skill-confirm-title">
+        <div :class="['domain-skill-confirm-icon', { danger: confirmDialog.danger }]" aria-hidden="true">!</div>
+        <div class="domain-skill-confirm-copy">
+          <h2 id="domain-skill-confirm-title">{{ confirmDialog.title }}</h2>
+          <p>{{ confirmDialog.message }}</p>
+        </div>
+        <footer>
+          <button type="button" class="secondary-button" @click="closeConfirmDialog">取消</button>
+          <button type="button" :class="{ danger: confirmDialog.danger }" @click="confirmPendingAction">{{ confirmDialog.confirmLabel }}</button>
+        </footer>
+      </section>
+    </div>
   </section>
 </template>
 <script src="../js/views/DomainSkillsView.js"></script>

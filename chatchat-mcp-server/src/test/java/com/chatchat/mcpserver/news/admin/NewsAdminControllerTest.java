@@ -27,6 +27,8 @@ class NewsAdminControllerTest {
         when(runtime.get("/sources")).thenReturn(new ObjectMapper().readTree("[]"));
         when(runtime.get("/sources/42/rule")).thenReturn(rule);
         when(runtime.get("/records?page=0&size=20")).thenReturn(new ObjectMapper().readTree("{\"items\":[],\"total\":0}"));
+        when(runtime.get("/collections?limit=100")).thenReturn(new ObjectMapper().readTree(
+            "[{\"executionId\":\"scheduled-1\",\"trigger\":\"SCHEDULED\",\"status\":\"RUNNING\"}]"));
         when(runtime.post("/sources/42/robots-check", null)).thenReturn(new ObjectMapper().readTree(
             "{\"allowed\":true,\"status\":\"ALLOWED\",\"robotsUrl\":\"https://example.test/robots.txt\"}"));
         when(runtime.invoke(org.mockito.ArgumentMatchers.eq("news_search"), org.mockito.ArgumentMatchers.any()))
@@ -48,6 +50,11 @@ class NewsAdminControllerTest {
 
         mvc.perform(get("/api/v1/news/records"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(0));
+        mvc.perform(get("/api/v1/news/collections"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].trigger").value("SCHEDULED"))
+            .andExpect(jsonPath("$.data[0].status").value("RUNNING"));
+        verify(runtime).get("/collections?limit=100");
         mvc.perform(post("/api/v1/news/search").contentType("application/json").content("{\"query\":\"行情\",\"size\":10}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.success").value(true));
 

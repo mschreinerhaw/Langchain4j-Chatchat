@@ -38,7 +38,7 @@ class NewsCollectionServiceTest {
             return new NewsCollectResult(context.executionId(), 8L, 1, 1, 0, 0, 0, null, "new:200");
         });
 
-        NewsCollectionService service = new NewsCollectionService(sources, collectors, Runnable::run, robots);
+        NewsCollectionService service = new NewsCollectionService(sources, collectors, robots);
         var result = service.collect(8L, "cursor-execution");
 
         assertThat(result.nextCursor()).isEqualTo("new:200");
@@ -57,7 +57,7 @@ class NewsCollectionServiceTest {
         when(robots.check(source)).thenReturn(new RobotsComplianceReport(false, "DISALLOWED",
             source.entryUrl(), "https://example.test/robots.txt", 200, "/private",
             "机器人协议检测未通过：禁止访问。", 1, Instant.now()));
-        NewsCollectionService service = new NewsCollectionService(sources, collectors, Runnable::run, robots);
+        NewsCollectionService service = new NewsCollectionService(sources, collectors, robots);
 
         var result = service.collect(7L, "test-execution");
 

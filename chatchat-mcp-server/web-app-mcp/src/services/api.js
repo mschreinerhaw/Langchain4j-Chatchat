@@ -172,6 +172,8 @@ export const newsApi = {
     apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collect`, { method: 'POST' }),
   collectionStatus: (id, executionId) =>
     apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collections/${encodeURIComponent(executionId)}`),
+  listCollectionTasks: (limit = 100) =>
+    apiFetch(`${API_BASE}/news/collections?limit=${encodeURIComponent(limit)}`),
   checkRobots: (id) =>
     apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/robots-check`, { method: 'POST' }),
   listRecords: (params) => {

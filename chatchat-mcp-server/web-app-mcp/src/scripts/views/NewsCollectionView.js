@@ -128,6 +128,7 @@ export default {
     loading: false, saving: false, collectingIds: [], collectionViewActive: true, checkingRobotsId: null, dialogOpen: false,
     robotsOverrideDialogOpen: false, robotsOverrideSaving: false, robotsOverrideSource: null,
     robotsOverrideForm: { reason: '', hours: 24, acknowledged: false },
+    taskDialogOpen: false, tasksLoading: false, collectionTasks: [],
     logDialogOpen: false, logsLoading: false, logs: [], logSourceId: '', logPage: 1, logPageSize: 20, logTotal: 0,
     filters: { keyword: '', sourceType: '', enabled: '' }, page: 1, pageSize: 10, pageSizes: [10, 20, 50, 100],
     form: emptyForm(), scheduleEditor: emptyScheduleEditor(), intervalOptions, weekdayOptions, monthDayOptions, sourceTypeOptions, selectorPresets
@@ -179,6 +180,26 @@ export default {
       this.logDialogOpen = true;
       this.logPage = 1;
       await this.loadLogs();
+    },
+    async openTasks() {
+      this.taskDialogOpen = true;
+      await this.loadTasks();
+    },
+    async loadTasks() {
+      this.tasksLoading = true;
+      try { this.collectionTasks = await newsApi.listCollectionTasks(100); }
+      catch (error) { this.$emit('error', error); }
+      finally { this.tasksLoading = false; }
+    },
+    taskSourceName(sourceId) {
+      const source = this.sources.find(item => Number(item.id) === Number(sourceId));
+      return source ? source.sourceName : `#${sourceId}`;
+    },
+    taskStatusLabel(status) {
+      return ({ QUEUED: '排队中', RUNNING: '采集中', COMPLETED: '已完成', FAILED: '失败' })[status] || status || '-';
+    },
+    taskStatusType(status) {
+      return ({ QUEUED: 'warning', RUNNING: 'primary', COMPLETED: 'success', FAILED: 'danger' })[status] || 'info';
     },
     async reloadLogs() {
       this.logPage = 1;

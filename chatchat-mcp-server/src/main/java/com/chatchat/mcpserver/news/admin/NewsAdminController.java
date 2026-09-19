@@ -64,6 +64,10 @@ public class NewsAdminController {
                                                 @PathVariable("executionId") java.util.UUID executionId) {
         return ApiResponse.success(runtime.get("/sources/" + id + "/collections/" + executionId));
     }
+    @GetMapping("/collections")
+    public ApiResponse<JsonNode> collections(@RequestParam(value = "limit", defaultValue = "100") int limit) {
+        return ApiResponse.success(runtime.get("/collections?limit=" + Math.max(1, Math.min(limit, 256))));
+    }
     @PostMapping("/sources/{id}/robots-check")
     public ApiResponse<JsonNode> checkRobots(@PathVariable("id") Long id) {
         return ApiResponse.success(runtime.post("/sources/" + id + "/robots-check", null), "机器人协议检测完成");

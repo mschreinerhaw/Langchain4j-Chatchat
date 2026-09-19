@@ -16,6 +16,17 @@ chatchat:
   runtime:
     news:
       enabled: true
+      temporal:
+        enabled: "true"
+        target: "127.0.0.1:7233"
+        namespace: "default"
+        task-queue: "chatchat-news-collection"
+        tls-enabled: "false"
+        reconcile-delay-millis: "30000"
+        catchup-window-seconds: "86400"
+        activity-start-to-close-seconds: "7200"
+        activity-maximum-attempts: "3"
+        max-concurrent-activities: "2"
       mcp-server:
         base-url: http://localhost:8090
       robots:

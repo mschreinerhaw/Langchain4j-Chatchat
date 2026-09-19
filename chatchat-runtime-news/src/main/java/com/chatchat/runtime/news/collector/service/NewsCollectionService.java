@@ -9,15 +9,11 @@ import com.chatchat.runtime.news.model.NewsCollectContext;
 import com.chatchat.runtime.news.model.NewsCollectResult;
 import com.chatchat.runtime.news.model.NewsSource;
 import com.chatchat.runtime.news.source.service.NewsSourceService;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 /** Internal/scheduler entry point. It is intentionally not exposed as an Agent tool. */
 @Service
@@ -25,21 +21,13 @@ public class NewsCollectionService implements NewsCollectionOperations {
     private static final Logger log = LoggerFactory.getLogger(NewsCollectionService.class);
     private final NewsSourceService sourceService;
     private final NewsCollectorRegistry collectors;
-    private final Executor executor;
     private final RobotsTxtComplianceService robotsCompliance;
 
     public NewsCollectionService(NewsSourceService sourceService, NewsCollectorRegistry collectors,
-                                 @Qualifier("newsCollectorExecutor") Executor executor,
                                  RobotsTxtComplianceService robotsCompliance) {
         this.sourceService = sourceService;
         this.collectors = collectors;
-        this.executor = executor;
         this.robotsCompliance = robotsCompliance;
-    }
-
-    public CompletableFuture<NewsCollectResult> collectAsync(Long sourceId) {
-        String executionId = UUID.randomUUID().toString();
-        return CompletableFuture.supplyAsync(() -> collect(sourceId, executionId), executor);
     }
 
     public NewsCollectResult collect(Long sourceId, String executionId) {

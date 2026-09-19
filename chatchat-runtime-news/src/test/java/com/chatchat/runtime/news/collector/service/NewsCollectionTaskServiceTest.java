@@ -15,7 +15,9 @@ class NewsCollectionTaskServiceTest {
         var tasks = new NewsCollectionTaskService(collection, pending::add);
         var submitted = tasks.submit(7L);
         assertThat(submitted.status()).isEqualTo("QUEUED");
+        assertThat(submitted.trigger()).isEqualTo("MANUAL");
         assertThat(tasks.submit(7L).executionId()).isEqualTo(submitted.executionId());
+        assertThat(tasks.submitScheduled(7L).executionId()).isEqualTo(submitted.executionId());
         assertThat(pending).hasSize(1);
         verifyNoInteractions(collection);
         when(collection.collect(7L, submitted.executionId())).thenAnswer(invocation -> {
@@ -27,8 +29,21 @@ class NewsCollectionTaskServiceTest {
         assertThat(completed.status()).isEqualTo("COMPLETED");
         assertThat(completed.result().acceptedCount()).isEqualTo(9);
         assertThat(completed.completedAt()).isNotNull();
+        assertThat(tasks.recent(10)).containsExactly(completed);
         assertThatThrownBy(() -> tasks.get(8L, submitted.executionId())).isInstanceOf(IllegalArgumentException.class);
         assertThat(tasks.submit(7L).executionId()).isNotEqualTo(submitted.executionId());
+    }
+
+    @Test void scheduledSubmissionIsVisibleAndMarkedWithItsTrigger() {
+        var collection = mock(NewsCollectionService.class);
+        List<Runnable> pending = new ArrayList<>();
+        var tasks = new NewsCollectionTaskService(collection, pending::add);
+
+        var submitted = tasks.submitScheduled(11L);
+
+        assertThat(submitted.status()).isEqualTo("QUEUED");
+        assertThat(submitted.trigger()).isEqualTo("SCHEDULED");
+        assertThat(tasks.recent(1)).containsExactly(submitted);
     }
 
     @Test void recordsCollectorFailureAndDoesNotReportItAsCommunicationFailure() {
@@ -57,5 +72,22 @@ class NewsCollectionTaskServiceTest {
         assertThatThrownBy(() -> tasks.submit(1L)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> tasks.submit(1L)).isInstanceOf(IllegalStateException.class);
         verifyNoInteractions(collection);
+    }
+
+    @Test void temporalExecutionRunsOnCallerThreadAndPropagatesFailureForRetry() {
+        var collection = mock(NewsCollectionService.class);
+        var tasks = new NewsCollectionTaskService(collection, Runnable::run);
+        when(collection.collect(7L, "temporal:workflow:run")).thenReturn(
+            new NewsCollectResult("temporal:workflow:run", 7L, 3, 2, 0, 0, 1, "one item failed"),
+            new NewsCollectResult("temporal:workflow:run", 7L, 3, 3, 0, 0, 0, null));
+
+        assertThatThrownBy(() -> tasks.executeScheduled(7L, "temporal:workflow:run"))
+            .isInstanceOf(IllegalStateException.class).hasMessage("one item failed");
+        assertThat(tasks.get(7L, "temporal:workflow:run").status()).isEqualTo("FAILED");
+
+        var retried = tasks.executeScheduled(7L, "temporal:workflow:run");
+        assertThat(retried.status()).isEqualTo("COMPLETED");
+        assertThat(retried.trigger()).isEqualTo("SCHEDULED");
+        verify(collection, times(2)).collect(7L, "temporal:workflow:run");
     }
 }

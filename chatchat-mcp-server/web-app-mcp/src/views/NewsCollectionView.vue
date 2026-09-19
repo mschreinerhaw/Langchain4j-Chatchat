@@ -4,6 +4,7 @@
       <div><h2>资讯采集后台</h2><p>配置资讯网站、采集周期、限速与精确抽取规则。这里只管理采集，Agent 仅能调用已发布的查询工具。</p></div>
       <div class="news-hero-actions">
         <el-button :loading="loading" @click="refreshSources"><el-icon><Refresh /></el-icon>刷新</el-button>
+        <el-button @click="openTasks">任务队列</el-button>
         <el-button @click="openLogs">采集日志</el-button>
         <el-button type="primary" @click="createSource">新增资讯源</el-button>
       </div>
@@ -314,6 +315,24 @@
         <el-button @click="robotsOverrideDialogOpen = false">取消</el-button>
         <el-button type="warning" :loading="robotsOverrideSaving" @click="saveRobotsOverride">确认临时忽略</el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog v-model="taskDialogOpen" title="采集任务队列" width="1200px" destroy-on-close>
+      <div class="news-log-toolbar">
+        <span>手工与自动调度共用同一队列；同一资讯源不会重复排队。</span>
+        <el-button :loading="tasksLoading" @click="loadTasks"><el-icon><Refresh /></el-icon>刷新队列</el-button>
+      </div>
+      <el-table v-loading="tasksLoading" :data="collectionTasks" border stripe empty-text="暂无采集任务" max-height="560">
+        <el-table-column label="资讯源" min-width="170"><template #default="{ row }">{{ taskSourceName(row.sourceId) }}</template></el-table-column>
+        <el-table-column label="触发方式" width="100"><template #default="{ row }">{{ row.trigger === 'SCHEDULED' ? '自动调度' : '手工触发' }}</template></el-table-column>
+        <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="taskStatusType(row.status)">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
+        <el-table-column label="发现/接收/失败" width="150"><template #default="{ row }">{{ row.result ? `${row.result.discoveredCount || 0} / ${row.result.acceptedCount || 0} / ${row.result.failedCount || 0}` : '-' }}</template></el-table-column>
+        <el-table-column label="排队时间" width="180"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column label="开始时间" width="180"><template #default="{ row }">{{ formatTime(row.startedAt) }}</template></el-table-column>
+        <el-table-column label="完成时间" width="180"><template #default="{ row }">{{ formatTime(row.completedAt) }}</template></el-table-column>
+        <el-table-column label="错误信息" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ row.errorMessage || row.result?.errorMessage || '-' }}</template></el-table-column>
+      </el-table>
+      <template #footer><el-button @click="taskDialogOpen = false">关闭</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="logDialogOpen" title="采集日志" width="1100px" destroy-on-close>

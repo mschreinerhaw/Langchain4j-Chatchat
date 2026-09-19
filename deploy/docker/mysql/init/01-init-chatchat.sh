@@ -40,17 +40,21 @@ FLUSH PRIVILEGES;
 SQL
 
 initialize_schema() {
-  local database="$1" schema_file="$2" table_count
+  local database="$1" schema_file="$2" seed_file="${3:-}" table_count
   table_count="$("${mysql_root[@]}" --batch --skip-column-names -e \
     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${database}' AND table_type = 'BASE TABLE'")"
   if [[ "$table_count" == "0" ]]; then
     echo "Initializing ${database} from ${schema_file}"
     "${mysql_root[@]}" "$database" <"$schema_file"
+    if [[ -n "$seed_file" ]]; then
+      echo "Loading starter data for ${database} from ${seed_file}"
+      "${mysql_root[@]}" "$database" <"$seed_file"
+    fi
   fi
 }
 
-initialize_schema live_runtime_api /opt/chatchat-schema/chatchat-api.sql
-initialize_schema live_runtime_mcp /opt/chatchat-schema/chatchat-mcp-server.sql
+initialize_schema live_runtime_api /opt/chatchat-schema/chatchat-api.sql /opt/chatchat-schema/chatchat-api-securities-seed.sql
+initialize_schema live_runtime_mcp /opt/chatchat-schema/chatchat-mcp-server.sql /opt/chatchat-schema/chatchat-mcp-securities-seed.sql
 initialize_schema chatchat_news /opt/chatchat-schema/chatchat-runtime-news.sql
 
 "${mysql_root[@]}" live_runtime_mcp <<SQL

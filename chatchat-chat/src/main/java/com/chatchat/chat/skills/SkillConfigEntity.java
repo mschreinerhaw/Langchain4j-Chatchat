@@ -87,6 +87,9 @@ public class SkillConfigEntity {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean defaultAgent = false;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean builtin = false;
+
     @Column(nullable = false)
     private Instant createdAt;
 

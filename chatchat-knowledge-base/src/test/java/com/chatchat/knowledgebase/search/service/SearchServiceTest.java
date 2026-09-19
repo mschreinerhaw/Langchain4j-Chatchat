@@ -1,6 +1,8 @@
 package com.chatchat.knowledgebase.search.service;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryEntity;
+import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryRepository;
 import com.chatchat.knowledgebase.search.document.DocumentTextExtractor;
 import com.chatchat.knowledgebase.search.document.LibraryCategory;
 import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
@@ -52,6 +54,7 @@ class SearchServiceTest {
     private RocksDbSearchStore store;
     private LuceneDocumentIndexService luceneStore;
     private KnowledgeDocumentIngestionService knowledgeIngestionService;
+    private DocumentBusinessCategoryRepository categoryRepository;
 
     @AfterEach
     void closeStore() {
@@ -131,6 +134,25 @@ class SearchServiceTest {
         TitleExistsResult exists = service.titleExists("Semiconductor Equipment Localization");
         assertThat(exists.exists()).isTrue();
         assertThat(exists.docId()).isEqualTo("doc-001");
+    }
+
+    @Test
+    void listsEmptyBusinessCategoriesLoadedFromTheDatabase() {
+        SearchService service = newSearchService();
+        DocumentBusinessCategoryEntity category = new DocumentBusinessCategoryEntity();
+        category.setName("定期报告");
+        category.setSortOrder(50);
+        when(categoryRepository.findAllByOrderBySortOrderAscNameAsc()).thenReturn(List.of(category));
+
+        LibraryPage page = service.listLibrary(null, null, 20);
+
+        assertThat(page.categories()).extracting(LibraryCategory::name)
+            .contains("all", "定期报告");
+        assertThat(page.categories().stream()
+            .filter(item -> "定期报告".equals(item.name()))
+            .findFirst()
+            .orElseThrow()
+            .count()).isZero();
     }
 
     @Test
@@ -1477,6 +1499,7 @@ class SearchServiceTest {
         );
         luceneStore.open();
         knowledgeIngestionService = mock(KnowledgeDocumentIngestionService.class);
+        categoryRepository = mock(DocumentBusinessCategoryRepository.class);
         return new SearchService(
             store,
             luceneStore,
@@ -1485,7 +1508,8 @@ class SearchServiceTest {
             keywordExtractor,
             queryExpander,
             properties,
-            knowledgeIngestionService
+            knowledgeIngestionService,
+            categoryRepository
         );
     }
 

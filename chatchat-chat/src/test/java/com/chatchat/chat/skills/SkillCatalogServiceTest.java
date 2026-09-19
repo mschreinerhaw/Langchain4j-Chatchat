@@ -15,10 +15,53 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SkillCatalogServiceTest {
+
+    @Test
+    void readsBuiltinIdentityFromDatabaseWithoutCreatingBusinessSeedData() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versions = mock(SkillConfigVersionRepository.class);
+        SkillConfigEntity builtin = new SkillConfigEntity();
+        builtin.setId("securities_market_agent");
+        builtin.setLabel("证券市场行情分析 Agent");
+        builtin.setBuiltin(true);
+        when(repository.findByDefaultAgentTrue()).thenReturn(List.of());
+        when(repository.findById("general")).thenReturn(Optional.empty());
+        when(repository.findById("securities_market_agent")).thenReturn(Optional.of(builtin));
+        when(repository.findById("customer_agent")).thenReturn(Optional.empty());
+        when(repository.findAll()).thenReturn(List.of());
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versions, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+
+        service.initializeDefaults();
+
+        verify(repository, never()).save(any(SkillConfigEntity.class));
+        verify(versions, never()).save(any(SkillConfigVersionEntity.class));
+        assertThat(service.isBuiltinSkill("securities_market_agent")).isTrue();
+        assertThat(service.isBuiltinSkill("customer_agent")).isFalse();
+    }
+
+    @Test
+    void upsertCannotBypassPublicationQuotaWithPublishedStatus() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versions = mock(SkillConfigVersionRepository.class);
+        when(repository.findById("customer_agent")).thenReturn(Optional.empty());
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versions.save(any(SkillConfigVersionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versions, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+
+        SkillDefinition saved = service.upsert(new SkillDefinition(
+            "customer_agent", "Customer Agent", null, List.of(), List.of(), "agent_chat",
+            null, null, null, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), null,
+            Map.of(), null, null, List.of(), SkillCatalogService.MARKET_STATUS_PUBLISHED, false));
+
+        assertThat(saved.marketStatus()).isEqualTo(SkillCatalogService.MARKET_STATUS_DRAFT);
+    }
 
     @Test
     void resolvesExplicitBindingsWhenRemoteMcpCatalogIsTemporarilyEmpty() {

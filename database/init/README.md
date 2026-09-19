@@ -4,7 +4,7 @@ The project uses two independent database boundaries. Choose the script matching
 
 | Application | MySQL 8+ | H2 2.x | Tables |
 | --- | --- | --- | ---: |
-| ChatChat API | `mysql/chatchat-api.sql` | `h2/chatchat-api.sql` | 50 |
+| ChatChat API | `mysql/chatchat-api.sql` | `h2/chatchat-api.sql` | 79 |
 | Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 33 |
 | Standalone News Runtime + governed market storage | `mysql/chatchat-runtime-news.sql` | `h2/chatchat-runtime-news.sql` | 20 |
 
@@ -14,6 +14,7 @@ Example:
 
 ```bash
 mysql --default-character-set=utf8mb4 -u USER -p DATABASE < database/init/mysql/chatchat-api.sql
+mysql --default-character-set=utf8mb4 -u USER -p DATABASE < database/init/mysql/chatchat-api-securities-seed.sql
 ```
 
 ```bash
@@ -21,7 +22,17 @@ java -cp h2.jar org.h2.tools.RunScript \
   -url jdbc:h2:file:./data/chatchat \
   -user sa \
   -script database/init/h2/chatchat-api.sql
+
+java -cp h2.jar org.h2.tools.RunScript \
+  -url jdbc:h2:file:./data/chatchat \
+  -user sa \
+  -script database/init/h2/chatchat-api-securities-seed.sql
 ```
+
+Schema DDL and installable business starter data are intentionally separated. The API
+securities seed contains document categories, domain-skill categories, skills and Agents;
+the MCP securities seed contains its business capability classifications. Customer
+deployments may replace these seed files without modifying the generated schema files.
 
 The API and standalone MCP Server may use different physical databases. Do not initialize both schemas into one database unless that deployment intentionally shares them.
 

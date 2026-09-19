@@ -1,10 +1,11 @@
+import { nextTick } from "vue";
 import {
-  createDomainSkill, deleteDomainSkill, fetchDomainSkills, getStoredAuthSession,
-  importDomainSkill, publishDomainSkill, recallDomainSkill, updateDomainSkill
+  createDomainSkill, createDomainSkillCategory, deleteDomainSkill, fetchDomainSkills, getStoredAuthSession,
+  importDomainSkill, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
+  reindexDomainSkillCategory, updateDomainSkill
 } from "../../services/api.js";
 import { formatDateTime } from "../utils/uiFormatters.js";
 import "../../styles/pages/domain-skills.css";
-import "../../styles/pages/domain-skills-extensions.css";
 
 const starter = `# 领域技能名称
 
@@ -26,8 +27,9 @@ export default {
     loading: true, busy: false, error: "", message: "", skills: [], categories: [],
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
-    total: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
-    importFile: null, importName: "", importCategory: ""
+    total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
+    importFile: null, importName: "", importCategory: "", categoryDialogOpen: false,
+    newCategoryName: "", categorySaving: false, categoryError: ""
   }),
   computed: {
     isAdmin() {
@@ -38,6 +40,11 @@ export default {
       if (!this.quota.licenseValid) return "License 无效";
       if (!this.quota.limited) return `已发布 ${this.quota.published} 个 · 不限数量`;
       return `已发布 ${this.quota.published} / ${this.quota.maximum} 个 · 剩余 ${this.quota.remaining} 个`;
+    },
+    categoryOptions() {
+      return this.categories.map((category) => typeof category === "string"
+        ? { name: category, count: 0 }
+        : { name: category?.name || "", count: Number(category?.count || 0) }).filter((category) => category.name);
     }
   },
   mounted() { this.load(); },
@@ -51,11 +58,65 @@ export default {
         this.skills = Array.isArray(payload?.skills) ? payload.skills : [];
         this.categories = Array.isArray(payload?.categories) ? payload.categories : [];
         this.quota = payload?.quota || this.quota;
-        this.total = Number(payload?.total || 0); this.totalPages = Number(payload?.totalPages || 0);
+        this.total = Number(payload?.total || 0); this.skillCount = Number(payload?.skillCount ?? payload?.total ?? 0);
+        this.totalPages = Number(payload?.totalPages || 0);
       } catch (error) { this.error = error.message || "领域技能加载失败"; }
       finally { this.loading = false; }
     },
-    openCreate() { this.form = emptyForm(); this.editorOpen = true; this.error = ""; },
+    openCreate() {
+      if (!this.categoryOptions.length) { this.openCategoryDialog(); return; }
+      this.form = { ...emptyForm(), category: this.filters.category || this.categoryOptions[0].name };
+      this.editorOpen = true;
+      this.error = "";
+    },
+    openImport() {
+      if (!this.categoryOptions.length) { this.openCategoryDialog(); return; }
+      this.importCategory = this.filters.category || this.categoryOptions[0].name;
+      this.importOpen = true;
+      this.error = "";
+    },
+    async selectCategory(category) {
+      this.filters.category = category;
+      await this.load(true);
+    },
+    async openCategoryDialog() {
+      this.newCategoryName = "";
+      this.categoryDialogOpen = true;
+      this.categoryError = "";
+      this.error = "";
+      this.message = "";
+      await nextTick();
+      this.$refs.categoryNameInput?.focus();
+    },
+    closeCategoryDialog() {
+      if (this.categorySaving) return;
+      this.categoryDialogOpen = false;
+      this.newCategoryName = "";
+      this.categoryError = "";
+    },
+    async saveCategory() {
+      const name = this.newCategoryName.trim();
+      if (!name) {
+        this.categoryError = "请输入分类名称";
+        this.$refs.categoryNameInput?.focus();
+        return;
+      }
+      this.categorySaving = true;
+      this.categoryError = "";
+      try {
+        const created = await createDomainSkillCategory(name);
+        const categoryName = created?.name || name;
+        this.categoryDialogOpen = false;
+        this.newCategoryName = "";
+        this.filters.category = categoryName;
+        this.message = `分类“${categoryName}”已创建`;
+        await this.load(true);
+      } catch (error) {
+        this.categoryError = error.message || "分类创建失败";
+      } finally {
+        this.categorySaving = false;
+      }
+    },
     openEdit(skill) { this.form = { id: skill.id, name: skill.name || "", category: skill.category || "", description: skill.description || "", markdownContent: skill.markdownContent || "" }; this.editorOpen = true; },
     async save() {
       if (!this.form.name.trim() || !this.form.category.trim() || !this.form.markdownContent.trim()) return;
@@ -75,6 +136,18 @@ export default {
     },
     async publishSkill(skill) { await this.perform(async () => { const value = await publishDomainSkill(skill.id); this.message = `“${value.name}”已发布到领域技能索引`; await this.load(); }, "领域技能发布失败"); },
     async recallSkill(skill) { await this.perform(async () => { await recallDomainSkill(skill.id); this.message = `“${skill.name}”已回收，Agent 将不再加载该技能`; await this.load(); }, "领域技能回收失败"); },
+    async reindexSkill(skill) {
+      await this.perform(async () => {
+        await reindexDomainSkill(skill.id);
+        this.message = `“${skill.name}”索引已重建`;
+      }, "领域技能索引重建失败");
+    },
+    async reindexCategory(category) {
+      await this.perform(async () => {
+        const result = await reindexDomainSkillCategory(category.name);
+        this.message = `分类“${category.name}”索引重建完成：成功 ${result?.reindexed || 0}，跳过 ${result?.skipped || 0}，失败 ${result?.failed || 0}`;
+      }, "分类索引重建失败");
+    },
     async removeSkill(skill) {
       if (!window.confirm(`确定删除领域技能“${skill.name}”吗？`)) return;
       await this.perform(async () => { await deleteDomainSkill(skill.id); this.message = "领域技能已删除"; await this.load(); }, "领域技能删除失败");

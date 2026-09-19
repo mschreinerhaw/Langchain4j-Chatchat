@@ -143,8 +143,14 @@ public class SkillCatalogService {
      * @param skillId the skill id value
      * @return whether the condition is satisfied
      */
+    @Transactional(readOnly = true)
     public synchronized boolean isBuiltinSkill(String skillId) {
-        return false;
+        if (skillId == null || skillId.isBlank()) {
+            return false;
+        }
+        return repository.findById(skillId.trim().toLowerCase(Locale.ROOT))
+            .map(SkillConfigEntity::isBuiltin)
+            .orElse(false);
     }
 
     /**
@@ -314,12 +320,12 @@ public class SkillCatalogService {
             : normalizeSqlGatewayToolNames(draft.boundMcpToolNames());
 
         SkillConfigEntity existing = repository.findById(id).orElse(null);
-        String marketStatus = normalizeMarketStatus(draft.marketStatus());
-        if (marketStatus == null) {
-            marketStatus = existing == null
-                ? defaultMarketStatus(id)
-                : normalizeMarketStatus(existing.getMarketStatus());
-        }
+        // Saving configuration must never publish an Agent. Publication is a licensed operation
+        // and is only allowed through AgentPublicationLicenseService.
+        normalizeMarketStatus(draft.marketStatus());
+        String marketStatus = existing == null
+            ? MARKET_STATUS_DRAFT
+            : Objects.requireNonNullElse(normalizeMarketStatus(existing.getMarketStatus()), MARKET_STATUS_DRAFT);
 
         SkillDefinition normalized = new SkillDefinition(
             id,
@@ -524,6 +530,9 @@ public class SkillCatalogService {
         }
         if (entity.isDefaultAgent()) {
             throw new IllegalArgumentException("default Agent capability cannot be deleted");
+        }
+        if (isBuiltinSkill(id)) {
+            throw new IllegalArgumentException("maintained Agent capability cannot be deleted");
         }
         repository.deleteById(id);
         return true;
@@ -779,8 +788,9 @@ public class SkillCatalogService {
      * Ensures the skill schema compatibility.
      */
     private void ensureSkillSchemaCompatibility() {
-        ensureColumn("skill_config", "market_status", "varchar(32) default 'published'");
+        ensureColumn("skill_config", "market_status", "varchar(32) default 'draft'");
         ensureColumn("skill_config", "default_agent", "boolean default false");
+        ensureColumn("skill_config", "builtin", "boolean default false");
         ensureColumn("skill_config", "model_name", "varchar(128)");
         ensureColumn("skill_config", "preferred_tool_prefixes_json", "text");
         ensureColumn("skill_config", "bound_mcp_service_ids_json", "text");

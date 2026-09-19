@@ -1,0 +1,316 @@
+package com.chatchat.api.controller.chat;
+
+import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.chat.interaction.model.InteractionMode;
+import com.chatchat.chat.interaction.model.InteractionRequest;
+import com.chatchat.chat.interaction.model.InteractionResponse;
+import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.task.core.AgentTaskResponse;
+import com.chatchat.chat.task.core.AgentTaskService;
+import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
+import com.chatchat.api.agent.task.AgentTaskEventStreamService;
+import com.chatchat.common.constants.AppConstants;
+import com.chatchat.common.interaction.UserFacingToolTraceProjector;
+import com.chatchat.common.response.ApiResponse;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PreDestroy;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * Unified interaction API that aligns with ChatChat-style multi-mode workflows.
+ */
+@RestController
+@RequiredArgsConstructor
+@RequestMapping(AppConstants.API_V1 + "/interactions")
+@Tag(name = "Interactions", description = "Unified enterprise interaction APIs")
+public class InteractionController {
+
+    private final InteractionOrchestrationService orchestrationService;
+    private final SkillCatalogService skillCatalogService;
+    private final EnterpriseAdminService enterpriseAdminService;
+    private final AgentTaskService agentTaskService;
+    private final AgentTaskEventStreamService agentTaskEventStreamService;
+    private final ExecutorService streamExecutor = Executors.newFixedThreadPool(
+        Math.max(2, Runtime.getRuntime().availableProcessors()), new InteractionStreamThreadFactory());
+
+    /**
+     * Performs the chat operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
+    @PostMapping("/chat")
+    @Operation(summary = "Unified chat endpoint with mode-based orchestration")
+    public ApiResponse<InteractionResponse> chat(@RequestBody InteractionRequest request,
+                                                 HttpServletRequest servletRequest) {
+        try {
+            bindRequestIdentity(request, servletRequest);
+            authorizeAgentAccess(request, servletRequest);
+            InteractionResponse response = orchestrationService.chat(request);
+            response.setToolTraces(UserFacingToolTraceProjector.project(response.getToolTraces()));
+            return ApiResponse.success(response, "Interaction completed");
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("Interaction failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Performs the stream chat operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Unified chat endpoint with SSE progressive response")
+    public SseEmitter streamChat(@RequestBody InteractionRequest request,
+                                 HttpServletRequest servletRequest) {
+        bindRequestIdentity(request, servletRequest);
+        SseEmitter emitter = new SseEmitter(0L);
+        try {
+            authorizeAgentAccess(request, servletRequest);
+        } catch (IllegalArgumentException e) {
+            sendErrorEvent(emitter, e.getMessage());
+            return emitter;
+        }
+        if (request != null && InteractionMode.from(request.getMode()) == InteractionMode.AGENT_CHAT) {
+            try {
+                AgentTaskResponse task = agentTaskService.submit(toAgentTask(request));
+                return agentTaskEventStreamService.stream(request.getTenantId(), task.taskId(),
+                    0L, 100, 250L, 1_800_000L);
+            } catch (RuntimeException failure) {
+                sendErrorEvent(emitter, "Interaction task submission failed: " + failure.getMessage());
+                return emitter;
+            }
+        }
+        streamExecutor.execute(() -> {
+            try {
+                emitter.send(SseEmitter.event()
+                    .name("start")
+                    .data(Map.of("timestamp", System.currentTimeMillis())));
+
+                InteractionResponse response = orchestrationService.chat(request);
+                List<?> toolTraces = safeToolTraces(response);
+                emitter.send(SseEmitter.event()
+                    .name("meta")
+                    .data(Map.of(
+                        "conversationId", nullToEmpty(response.getConversationId()),
+                        "requestId", nullToEmpty(response.getRequestId()),
+                        "mode", nullToEmpty(response.getMode()),
+                        "timestamp", response.getTimestamp() == null ? System.currentTimeMillis() : response.getTimestamp(),
+                        "latencyMs", response.getLatencyMs() == null ? 0 : response.getLatencyMs(),
+                        "sources", response.getSources() == null ? List.of() : response.getSources(),
+                        "toolTraces", toolTraces
+                    )));
+
+                for (String chunk : splitAnswer(response.getAnswer())) {
+                    emitter.send(SseEmitter.event()
+                        .name("delta")
+                        .data(Map.of("content", chunk)));
+                }
+
+                emitter.send(SseEmitter.event()
+                    .name("done")
+                    .data(Map.of("timestamp", System.currentTimeMillis())));
+                emitter.complete();
+            } catch (IllegalArgumentException e) {
+                sendErrorEvent(emitter, e.getMessage());
+            } catch (Exception e) {
+                sendErrorEvent(emitter, "Interaction failed: " + e.getMessage());
+            }
+        });
+        return emitter;
+    }
+
+    @PreDestroy
+    public void shutdownStreamExecutor() {
+        streamExecutor.shutdownNow();
+    }
+
+    private AgentTaskSubmitRequest toAgentTask(InteractionRequest request) {
+        AgentTaskSubmitRequest task = new AgentTaskSubmitRequest();
+        task.setTenantId(request.getTenantId());
+        task.setUserId(request.getUserId());
+        task.setAgentId(request.getSkillId());
+        task.setSessionId(request.getConversationId());
+        task.setQuery(request.getQuery());
+        task.setMode(request.getMode());
+        task.setSystemPrompt(request.getSystemPrompt());
+        task.setModelName(request.getModelName());
+        task.setSkillId(request.getSkillId());
+        task.setMaxResults(request.getMaxResults());
+        task.setHistoryWindow(request.getHistoryWindow());
+        task.setStream(true);
+        task.setAvailableTools(request.getAvailableTools());
+        task.setImageAnalysisIds(request.getImageAnalysisIds());
+        task.setToolInput(request.getToolInput());
+        return task;
+    }
+
+    /**
+     * Lists the modes.
+     *
+     * @return the modes list
+     */
+    @GetMapping("/modes")
+    @Operation(summary = "List supported interaction modes")
+    public ApiResponse<List<ModeDefinition>> listModes() {
+        List<ModeDefinition> modes = Arrays.stream(InteractionMode.values())
+            .map(mode -> new ModeDefinition(mode.code(), describe(mode)))
+            .toList();
+        return ApiResponse.success(modes);
+    }
+
+    /**
+     * Performs the describe operation.
+     *
+     * @param mode the mode value
+     * @return the operation result
+     */
+    private String describe(InteractionMode mode) {
+        return switch (mode) {
+            case ROLE_CHAT -> "Role-based model conversation without MCP tool planning";
+            case LLM_CHAT -> "General LLM conversation with short-term memory";
+            case AGENT_CHAT -> "Agent loop with dynamic tool orchestration";
+            case TOOL_DIRECT -> "Direct tool invocation without agent planning";
+        };
+    }
+
+    public record ModeDefinition(String mode, String description) {
+    }
+
+    /**
+     * Performs the safe tool traces operation.
+     *
+     * @param response the response value
+     * @return the operation result
+     */
+    private List<?> safeToolTraces(InteractionResponse response) {
+        if (response == null || response.getToolTraces() == null) {
+            return List.of();
+        }
+        return UserFacingToolTraceProjector.project(response.getToolTraces());
+    }
+
+    /**
+     * Performs the split answer operation.
+     *
+     * @param answer the answer value
+     * @return the operation result
+     */
+    private List<String> splitAnswer(String answer) {
+        String value = answer == null || answer.isBlank() ? "No response generated" : answer;
+        int chunkSize = 2;
+        int[] codePoints = value.codePoints().toArray();
+        List<String> chunks = new ArrayList<>();
+        for (int index = 0; index < codePoints.length; index += chunkSize) {
+            int end = Math.min(index + chunkSize, codePoints.length);
+            chunks.add(new String(codePoints, index, end - index));
+        }
+        return chunks;
+    }
+
+    /**
+     * Sends the error event.
+     *
+     * @param emitter the emitter value
+     * @param message the message value
+     */
+    private void sendErrorEvent(SseEmitter emitter, String message) {
+        try {
+            emitter.send(SseEmitter.event()
+                .name("error")
+                .data(Map.of("message", message == null ? "Interaction failed" : message)));
+        } catch (Exception ignored) {
+            // The connection may already be closed.
+        } finally {
+            emitter.complete();
+        }
+    }
+
+    /**
+     * Performs the null to empty operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private void bindRequestIdentity(InteractionRequest request, HttpServletRequest servletRequest) {
+        if (request == null) {
+            return;
+        }
+        String currentTenantId = requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        String currentUserId = requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USER_ID);
+        if (currentTenantId != null && !currentTenantId.isBlank()) {
+            request.setTenantId(currentTenantId.trim());
+        } else if (request.getTenantId() == null || request.getTenantId().isBlank()) {
+            request.setTenantId("default");
+        }
+        if (currentUserId != null && !currentUserId.isBlank()) {
+            request.setUserId(currentUserId.trim());
+        }
+    }
+
+    private void authorizeAgentAccess(InteractionRequest request, HttpServletRequest servletRequest) {
+        if (request == null) {
+            return;
+        }
+        InteractionMode mode = InteractionMode.from(request.getMode());
+        if (mode != InteractionMode.AGENT_CHAT && mode != InteractionMode.ROLE_CHAT) {
+            return;
+        }
+        String skillId = request.getSkillId() == null ? null : request.getSkillId().trim();
+        if (skillId == null || skillId.isBlank()) {
+            return;
+        }
+        SkillDefinition skill = skillCatalogService.resolve(skillId);
+        if (skill == null || !"published".equalsIgnoreCase(skill.marketStatus())) {
+            throw new IllegalArgumentException("AGENT_ACCESS_DENIED: Agent is not published.");
+        }
+        String currentUserId = requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USER_ID);
+        if (currentUserId == null || currentUserId.isBlank()) {
+            return;
+        }
+        if (!enterpriseAdminService.canAccessAgent(currentUserId, skill.id())) {
+            throw new IllegalArgumentException("AGENT_ACCESS_DENIED: 当前用户所属角色未被授权使用该 Agent。");
+        }
+    }
+
+    private String requestAttribute(HttpServletRequest request, String name) {
+        Object value = request == null ? null : request.getAttribute(name);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static final class InteractionStreamThreadFactory implements ThreadFactory {
+        private final AtomicInteger sequence = new AtomicInteger();
+
+        @Override
+        public Thread newThread(Runnable runnable) {
+            Thread thread = new Thread(runnable,
+                "interaction-stream-" + sequence.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        }
+    }
+}

@@ -255,6 +255,47 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table domain_analysis_profile (
+        enabled bit not null,
+        revision bigint,
+        analysis_type varchar(64) not null,
+        name varchar(120) not null,
+        tenant_id varchar(128) not null,
+        id varchar(200) not null,
+        description varchar(600) not null,
+        guidance_json TEXT not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table ds_domain_skill (
+        builtin boolean default false not null,
+        publication_dirty bit not null,
+        created_at datetime(6) not null,
+        published_at datetime(6),
+        updated_at datetime(6) not null,
+        source_type varchar(24) not null,
+        status varchar(24) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        category varchar(120) not null,
+        name varchar(200) not null,
+        original_file_name varchar(300),
+        description varchar(2000),
+        search_text varchar(4000) not null,
+        markdown_content LONGTEXT not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table ds_domain_skill_category (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        name varchar(120) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table ds_python_asset (
         mcp_environment_version integer not null,
         network_enabled bit not null,
@@ -421,6 +462,50 @@
         original_file_name varchar(512),
         file_path varchar(1000) not null,
         primary key (file_id)
+    ) engine=InnoDB;
+
+    create table kb_document_business_category (
+        builtin bit not null,
+        sort_order integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        code varchar(64) not null,
+        id varchar(64) not null,
+        name varchar(120) not null,
+        description varchar(500),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table knowledge_ir_unit (
+        active bit,
+        relevance float(53),
+        created_at bigint,
+        id bigint not null auto_increment,
+        updated_at bigint,
+        visibility varchar(20),
+        knowledge_type varchar(40) not null,
+        version varchar(80),
+        owner_user_id varchar(100),
+        tenant_id varchar(100) not null,
+        document_id varchar(160) not null,
+        knowledge_id varchar(160) not null,
+        domain varchar(200),
+        source_chunk_id varchar(200),
+        source_id varchar(200),
+        source_document_name varchar(500),
+        source_section varchar(500),
+        title varchar(500),
+        applicable_intents_json TEXT,
+        compact_representation TEXT not null,
+        constraints_json TEXT,
+        permission_roles TEXT,
+        required_inputs_json TEXT,
+        rules_json TEXT,
+        search_text TEXT not null,
+        semantic_description TEXT,
+        source_citation TEXT,
+        tags_json TEXT,
+        primary key (id)
     ) engine=InnoDB;
 
     create table lborganization (
@@ -919,6 +1004,7 @@
     ) engine=InnoDB;
 
     create table skill_config (
+        builtin boolean default false not null,
         default_agent boolean default false not null,
         created_at datetime(6) not null,
         updated_at datetime(6) not null,
@@ -1353,6 +1439,24 @@
     create index idx_conversation_summary_end
        on conversation_summary (message_end_id);
 
+    alter table domain_analysis_profile
+       add constraint UK4g734cjtdylxbkib3emrdlb8e unique (tenant_id, analysis_type);
+
+    create index idx_domain_skill_owner
+       on ds_domain_skill (tenant_id, owner_id, updated_at);
+
+    create index idx_domain_skill_status
+       on ds_domain_skill (tenant_id, status, updated_at);
+
+    create index idx_domain_skill_category
+       on ds_domain_skill (tenant_id, category, updated_at);
+
+    create index idx_domain_skill_category_tenant
+       on ds_domain_skill_category (tenant_id, updated_at);
+
+    alter table ds_domain_skill_category
+       add constraint uk_domain_skill_category_tenant_name unique (tenant_id, name);
+
     create index idx_python_asset_owner
        on ds_python_asset (tenant_id, owner_id, status);
 
@@ -1400,6 +1504,24 @@
 
     create index idx_image_asset_user
        on image_asset (tenant_id, user_id);
+
+    create index idx_kb_document_category_sort
+       on kb_document_business_category (sort_order, name);
+
+    alter table kb_document_business_category
+       add constraint uk_kb_document_category_code unique (code);
+
+    alter table kb_document_business_category
+       add constraint uk_kb_document_category_name unique (name);
+
+    create index idx_knowledge_ir_document
+       on knowledge_ir_unit (document_id, active);
+
+    create index idx_knowledge_ir_tenant_type
+       on knowledge_ir_unit (tenant_id, knowledge_type, active);
+
+    alter table knowledge_ir_unit
+       add constraint uk_knowledge_ir_doc_unit unique (document_id, knowledge_id);
 
     alter table mcp_capability
        add constraint uk_mcp_capability_code unique (capability_code);

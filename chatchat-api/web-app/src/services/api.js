@@ -118,6 +118,13 @@ export function createDomainSkill(payload) {
   return apiRequest("/data-science/domain-skills", { method: "POST", body: JSON.stringify(payload) });
 }
 
+export function createDomainSkillCategory(name) {
+  return apiRequest("/data-science/domain-skills/categories", {
+    method: "POST",
+    body: JSON.stringify({ name })
+  });
+}
+
 export function updateDomainSkill(id, payload) {
   return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}`, {
     method: "PUT",
@@ -131,6 +138,17 @@ export function publishDomainSkill(id) {
 
 export function recallDomainSkill(id) {
   return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/recall`, { method: "POST" });
+}
+
+export function reindexDomainSkill(id) {
+  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/reindex`, { method: "POST" });
+}
+
+export function reindexDomainSkillCategory(category) {
+  return apiRequest("/data-science/domain-skills/categories/reindex", {
+    method: "POST",
+    body: JSON.stringify({ category })
+  });
 }
 
 export function deleteDomainSkill(id) {

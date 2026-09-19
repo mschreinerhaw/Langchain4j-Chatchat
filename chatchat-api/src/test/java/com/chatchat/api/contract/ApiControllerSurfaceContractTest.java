@@ -14,16 +14,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ApiControllerSurfaceContractTest {
     private static final List<String> CONTROLLERS = List.of(
         "com.chatchat.api.agent.task.AgentTaskScheduleController",
-        "com.chatchat.api.controller.AgentWorkshopController",
-        "com.chatchat.api.controller.DataQueryController",
-        "com.chatchat.api.controller.DomainSkillController",
-        "com.chatchat.api.controller.HealthController",
-        "com.chatchat.api.controller.ImageUnderstandingController",
-        "com.chatchat.api.controller.McpProxyController",
-        "com.chatchat.api.controller.McpServiceController",
-        "com.chatchat.api.controller.RetrievalRuleController",
-        "com.chatchat.api.controller.SidebarController",
-        "com.chatchat.api.controller.UserWorkbenchController",
+        "com.chatchat.api.controller.agent.AgentWorkshopController",
+        "com.chatchat.api.controller.datascience.DataQueryController",
+        "com.chatchat.api.controller.datascience.DomainSkillController",
+        "com.chatchat.api.controller.system.HealthController",
+        "com.chatchat.api.controller.datascience.ImageUnderstandingController",
+        "com.chatchat.api.controller.mcp.McpProxyController",
+        "com.chatchat.api.controller.mcp.McpServiceController",
+        "com.chatchat.api.controller.search.RetrievalRuleController",
+        "com.chatchat.api.controller.system.SidebarController",
+        "com.chatchat.api.controller.workbench.UserWorkbenchController",
         "com.chatchat.api.enterprise.controller.EnterpriseAdminController",
         "com.chatchat.api.enterprise.controller.EnterpriseMcpAuthorizationSyncController"
     );

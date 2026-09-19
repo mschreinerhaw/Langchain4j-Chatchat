@@ -155,6 +155,18 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table mcp_financial_query_cache_config (
+        enabled bit not null,
+        fallback_to_rocks_db bit not null,
+        max_entry_kb integer not null,
+        single_flight_grace_ms bigint not null,
+        ttl_seconds bigint not null,
+        updated_at datetime(6) not null,
+        storage varchar(16) not null,
+        id varchar(64) not null,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_livedata_config (
         cache_enabled bit not null,
         cache_ttl_seconds integer not null,
@@ -364,38 +376,6 @@
         primary key (id)
     ) engine=InnoDB;
 
-    create table mcp_financial_query_cache_config (
-        enabled bit not null,
-        fallback_to_rocks_db bit not null,
-        max_entry_kb integer not null,
-        single_flight_grace_ms bigint not null,
-        ttl_seconds bigint not null,
-        updated_at datetime(6) not null,
-        id varchar(64) not null,
-        storage varchar(16) not null,
-        primary key (id)
-    ) engine=InnoDB;
-
-    create table mcp_ops_jmx_template (
-        enabled bit not null,
-        timeout_ms integer not null,
-        created_at datetime(6) not null,
-        updated_at datetime(6) not null,
-        risk_level varchar(32) not null,
-        runtime_action varchar(32) not null,
-        id varchar(64) not null,
-        category varchar(100) not null,
-        code varchar(128) not null,
-        username varchar(200),
-        title varchar(200) not null,
-        description varchar(1000),
-        password varchar(1000),
-        service_url varchar(1000) not null,
-        intent_signals_json longtext,
-        queries_json longtext not null,
-        primary key (id)
-    ) engine=InnoDB;
-
     create table mcp_ops_http_endpoint (
         enabled bit not null,
         timeout_ms integer not null,
@@ -423,6 +403,26 @@
         input_schema_json longtext,
         output_schema_json longtext,
         routing_labels_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_ops_jmx_template (
+        enabled bit not null,
+        timeout_ms integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        risk_level varchar(32) not null,
+        runtime_action varchar(32) not null,
+        id varchar(64) not null,
+        category varchar(100) not null,
+        code varchar(128) not null,
+        title varchar(200) not null,
+        username varchar(200),
+        description varchar(1000),
+        password varchar(1000),
+        service_url varchar(1000) not null,
+        intent_signals_json longtext,
+        queries_json longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -456,6 +456,74 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table mcp_python_environment (
+        network_enabled bit not null,
+        timeout_seconds integer not null,
+        version_number integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        cpu_limit varchar(24) not null,
+        disk_limit varchar(24) not null,
+        memory_limit varchar(24) not null,
+        network_policy varchar(24) not null,
+        status varchar(24) not null,
+        tmpfs_limit varchar(24) not null,
+        python_version varchar(32) not null,
+        id varchar(64) not null,
+        runtime_user varchar(64) not null,
+        network_name varchar(128),
+        name varchar(160) not null,
+        docker_image varchar(300) not null,
+        description varchar(1000),
+        requirements_json TEXT not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_python_runtime_execution (
+        exit_code integer,
+        duration_ms bigint,
+        finished_at datetime(6),
+        started_at datetime(6) not null,
+        status varchar(24) not null,
+        asset_id varchar(64) not null,
+        environment_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        template_id varchar(64),
+        tenant_id varchar(64) not null,
+        container_id varchar(128),
+        stderr LONGTEXT,
+        stdout LONGTEXT,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_python_template_asset (
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        status varchar(24) not null,
+        version varchar(40) not null,
+        asset_id varchar(64) not null,
+        category_id varchar(64),
+        environment_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        source_hash varchar(64) not null,
+        tenant_id varchar(64) not null,
+        domain varchar(120),
+        asset_name varchar(160),
+        script_file_name varchar(180),
+        template_name varchar(200) not null,
+        tool_name varchar(200) not null,
+        keywords varchar(1000),
+        asset_description varchar(2000),
+        description varchar(3000) not null,
+        scenario varchar(4000) not null,
+        input_schema_json TEXT,
+        output_schema_json TEXT,
+        source_ciphertext LONGTEXT not null,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_redis_cache_config (
         database_index integer not null,
         enabled bit not null,
@@ -483,6 +551,7 @@
         status varchar(32) not null,
         id varchar(64) not null,
         service_type varchar(64),
+        singleton_scope varchar(64),
         permission_group varchar(128),
         service_token varchar(128) not null,
         name varchar(200) not null,
@@ -641,158 +710,101 @@
         primary key (id)
     ) engine=InnoDB;
 
-    alter table mcp_api_service_config 
+    alter table mcp_api_service_config
        add constraint UK58wcfp0uh0eg4md6y5lt2xbai unique (tool_name);
 
     alter table mcp_business_category
        add constraint UKd2sqgqf5pbvip12ynibni64cl unique (code);
 
-    alter table mcp_capability 
+    alter table mcp_capability
        add constraint uk_mcp_capability_code unique (capability_code);
 
-    alter table mcp_database_query_config 
+    alter table mcp_database_query_config
        add constraint UK2mm9rpbyp87c1vybxptacvvfh unique (tool_name);
 
-    alter table mcp_execution_target 
+    alter table mcp_execution_target
        add constraint UK4i47rfmekaw59964we5pvcb30 unique (target_key);
 
-    alter table mcp_metadata_domain 
+    alter table mcp_metadata_domain
        add constraint UK90mcr2jebg5r4fw9owshha2s4 unique (code);
 
-    alter table mcp_metadata_governance_policy 
+    alter table mcp_metadata_governance_policy
        add constraint UK298w4a17g1atjl3m0ba352mrf unique (code);
 
-    create index idx_metadata_scenario_domain 
+    create index idx_metadata_scenario_domain
        on mcp_metadata_scenario (domain_id);
 
-    alter table mcp_metadata_scenario 
+    alter table mcp_metadata_scenario
        add constraint UK1p937xgxstjdtnw9skv8ulq3w unique (code);
 
-    create index idx_metadata_dictionary_item_dictionary 
+    create index idx_metadata_dictionary_item_dictionary
        on mcp_metadata_standard_dictionary_item (dictionary_id);
 
-    alter table mcp_metadata_standard_dictionary_item 
+    alter table mcp_metadata_standard_dictionary_item
        add constraint uk_metadata_dictionary_code unique (dictionary_id, code);
 
-    create index idx_metadata_term_scenario 
+    create index idx_metadata_term_scenario
        on mcp_metadata_term_mapping (scenario_id);
 
-    alter table mcp_metadata_term_mapping 
+    alter table mcp_metadata_term_mapping
        add constraint uk_metadata_scenario_term unique (scenario_id, normalized_term);
 
-    alter table mcp_notification_channel_config 
+    alter table mcp_notification_channel_config
        add constraint UK2lqjlk2p72ebl3aqvxharj5k6 unique (tool_name);
 
-    alter table mcp_ops_command_template 
+    alter table mcp_ops_command_template
        add constraint UKp13u3bdaj5m7326vefdr6ovsv unique (code);
 
-    alter table mcp_ops_jmx_template
-       add constraint uk_mcp_ops_jmx_template_code unique (code);
-
-    alter table mcp_ops_http_endpoint 
+    alter table mcp_ops_http_endpoint
        add constraint UKr9up9dyfyjgefep3o5q72f7a8 unique (tool_name);
 
-    alter table mcp_ops_ssh_host 
+    alter table mcp_ops_jmx_template
+       add constraint UKim6xi2knbtw17md390ss8gk27 unique (code);
+
+    alter table mcp_ops_ssh_host
        add constraint UK2fg7dh649ibxd7pvb0s7ns66i unique (tool_name);
 
-    alter table mcp_service 
+    create index idx_mcp_python_env_status
+       on mcp_python_environment (status, updated_at);
+
+    create index idx_mcp_python_exec_asset
+       on mcp_python_runtime_execution (tenant_id, asset_id, started_at);
+
+    create index idx_mcp_python_template_status
+       on mcp_python_template_asset (tenant_id, status, updated_at);
+
+    create index idx_mcp_python_template_env
+       on mcp_python_template_asset (environment_id, status);
+
+    alter table mcp_python_template_asset
+       add constraint UKcj2t45973w6kcst6yb108e5ba unique (tool_name);
+
+    alter table mcp_service
+       add constraint UKdcu7wed1qtsnlwoufp2qwyd1t unique (singleton_scope);
+
+    alter table mcp_service
        add constraint UKi7ed5nae4swf4qdm4ajuvdks7 unique (service_token);
 
-    alter table mcp_sql_datasource 
+    alter table mcp_sql_datasource
        add constraint UK68a7y2mwjehohsbpqlfv85pl unique (tool_name);
 
-    alter table mcp_sql_template 
+    alter table mcp_sql_template
        add constraint UK46shneqbk0h3xgcgi0y01cm1x unique (code);
 
     alter table mcp_template_query_binding
        add constraint uk_template_query_service_role_domain_subject unique (service_id, role_id, domain_code, subject_type, subject_id);
 
-    alter table mcp_metadata_scenario 
-       add constraint fk_metadata_scenario_domain 
-       foreign key (domain_id) 
+    alter table mcp_metadata_scenario
+       add constraint fk_metadata_scenario_domain
+       foreign key (domain_id)
        references mcp_metadata_domain (id);
 
-    alter table mcp_metadata_standard_dictionary_item 
-       add constraint fk_metadata_dictionary_item 
-       foreign key (dictionary_id) 
+    alter table mcp_metadata_standard_dictionary_item
+       add constraint fk_metadata_dictionary_item
+       foreign key (dictionary_id)
        references mcp_metadata_standard_dictionary (id);
 
-    alter table mcp_metadata_term_mapping 
-       add constraint fk_metadata_term_scenario 
-       foreign key (scenario_id) 
+    alter table mcp_metadata_term_mapping
+       add constraint fk_metadata_term_scenario
+       foreign key (scenario_id)
        references mcp_metadata_scenario (id);
-
-    create table mcp_python_environment (
-        network_enabled bit not null,
-        timeout_seconds integer not null,
-        version_number integer not null,
-        created_at datetime(6) not null,
-        updated_at datetime(6) not null,
-        cpu_limit varchar(24) not null,
-        disk_limit varchar(24) not null,
-        memory_limit varchar(24) not null,
-        tmpfs_limit varchar(24) not null,
-        network_policy varchar(24) not null,
-        status varchar(24) not null,
-        python_version varchar(32) not null,
-        id varchar(64) not null,
-        runtime_user varchar(64) not null,
-        network_name varchar(128),
-        name varchar(160) not null,
-        docker_image varchar(300) not null,
-        description varchar(1000),
-        requirements_json TEXT not null,
-        primary key (id)
-    ) engine=InnoDB;
-    create index idx_mcp_python_env_status on mcp_python_environment (status, updated_at);
-
-    create table mcp_python_template_asset (
-        created_at datetime(6) not null,
-        updated_at datetime(6) not null,
-        status varchar(24) not null,
-        version varchar(40) not null,
-        asset_id varchar(64) not null,
-        asset_name varchar(160),
-        asset_description varchar(2000),
-        environment_id varchar(64) not null,
-        script_file_name varchar(180),
-        id varchar(64) not null,
-        owner_id varchar(64) not null,
-        source_hash varchar(64) not null,
-        tenant_id varchar(64) not null,
-        category_id varchar(64),
-        domain varchar(120),
-        template_name varchar(200) not null,
-        tool_name varchar(200) not null,
-        keywords varchar(1000),
-        description varchar(3000) not null,
-        scenario varchar(4000) not null,
-        input_schema_json TEXT,
-        output_schema_json TEXT,
-        source_ciphertext LONGTEXT not null,
-        primary key (id)
-    ) engine=InnoDB;
-    create index idx_mcp_python_template_status on mcp_python_template_asset (tenant_id, status, updated_at);
-    create index idx_mcp_python_template_env on mcp_python_template_asset (environment_id, status);
-
-    create table mcp_python_runtime_execution (
-        exit_code integer,
-        duration_ms bigint,
-        finished_at datetime(6),
-        started_at datetime(6) not null,
-        status varchar(24) not null,
-        asset_id varchar(64) not null,
-        environment_id varchar(64) not null,
-        container_id varchar(128),
-        id varchar(64) not null,
-        owner_id varchar(64) not null,
-        template_id varchar(64),
-        tenant_id varchar(64) not null,
-        stderr LONGTEXT,
-        stdout LONGTEXT,
-        primary key (id)
-    ) engine=InnoDB;
-    create index idx_mcp_python_exec_asset on mcp_python_runtime_execution (tenant_id, asset_id, started_at);
-
-    alter table mcp_python_template_asset
-       add constraint uk_mcp_python_template_tool unique (tool_name);

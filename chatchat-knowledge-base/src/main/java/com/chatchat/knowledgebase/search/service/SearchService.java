@@ -1,6 +1,8 @@
 package com.chatchat.knowledgebase.search.service;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryEntity;
+import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryRepository;
 import com.chatchat.knowledgebase.search.document.DocumentFileResource;
 import com.chatchat.knowledgebase.search.document.DocumentLifecycleStatus;
 import com.chatchat.knowledgebase.search.document.DocumentTextExtractor;
@@ -106,6 +108,7 @@ public class SearchService {
     private final QueryExpander queryExpander;
     private final SearchProperties properties;
     private final KnowledgeDocumentIngestionService knowledgeIngestionService;
+    private final DocumentBusinessCategoryRepository categoryRepository;
 
     /**
      * Performs the rebuild lucene index operation.
@@ -1188,6 +1191,7 @@ public class SearchService {
     public LibraryCategory createCategory(String name) {
         String category = normalizeCategory(name);
         validateMutableCategory(category);
+        persistCategory(category);
         store.putCategory(category);
         return new LibraryCategory(category, countDocumentsByCategory(category));
     }
@@ -1209,6 +1213,14 @@ public class SearchService {
             return new LibraryCategory(newCategory, countDocumentsByCategory(newCategory));
         }
 
+        Optional<DocumentBusinessCategoryEntity> persistedCategory = categoryRepository.findByNameIgnoreCase(oldCategory);
+        if (persistedCategory.isPresent()) {
+            DocumentBusinessCategoryEntity entity = persistedCategory.get();
+            entity.setName(newCategory);
+            categoryRepository.save(entity);
+        } else {
+            persistCategory(newCategory);
+        }
         store.deleteCategory(oldCategory);
         store.putCategory(newCategory);
         List<SearchDocument> affectedDocuments = loadAllDocuments().stream()
@@ -1237,6 +1249,7 @@ public class SearchService {
         validateMutableCategory(category);
         long startedAt = System.nanoTime();
         log.info("search_library_category_delete_start category={}", category);
+        categoryRepository.findByNameIgnoreCase(category).ifPresent(categoryRepository::delete);
         store.deleteCategory(category);
         List<SearchDocument> affectedDocuments = loadAllDocuments().stream()
             .filter(document -> document.getTags() != null
@@ -1279,6 +1292,7 @@ public class SearchService {
             document.setUpdatedAt(Instant.now().toEpochMilli());
             store.put(document, buildIndexData(document), oldIndexData);
             syncLuceneIndex(document);
+            persistCategory(normalizedCategory);
             store.putCategory(normalizedCategory);
             log.info(
                 "search_document_category_update_complete docId={} category={} previousTags={} tags={} durationMs={}",
@@ -1305,6 +1319,15 @@ public class SearchService {
         if (category.isEmpty() || ALL_CATEGORY.equals(category) || UNCATEGORIZED.equals(category)) {
             throw new IllegalArgumentException("category name is required");
         }
+    }
+
+    private void persistCategory(String category) {
+        categoryRepository.findByNameIgnoreCase(category).orElseGet(() -> {
+            DocumentBusinessCategoryEntity entity = new DocumentBusinessCategoryEntity();
+            entity.setName(category);
+            entity.setSortOrder(1000);
+            return categoryRepository.save(entity);
+        });
     }
 
     private List<String> assignPrimaryCategory(List<String> tags, String category) {
@@ -2954,6 +2977,10 @@ public class SearchService {
         }
         List<LibraryCategory> categories = new ArrayList<>();
         categories.add(new LibraryCategory(ALL_CATEGORY, documents.size()));
+        List<DocumentBusinessCategoryEntity> persistedCategories = categoryRepository.findAllByOrderBySortOrderAscNameAsc();
+        for (DocumentBusinessCategoryEntity category : persistedCategories) {
+            counts.putIfAbsent(normalizeCategory(category.getName()), 0);
+        }
         for (String category : store.listCategories()) {
             counts.putIfAbsent(category, 0);
         }

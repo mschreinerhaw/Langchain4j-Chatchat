@@ -156,6 +156,18 @@
         primary key (id)
     );
 
+    create table mcp_financial_query_cache_config (
+        enabled boolean not null,
+        fallback_to_rocks_db boolean not null,
+        max_entry_kb integer not null,
+        single_flight_grace_ms bigint not null,
+        ttl_seconds bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        storage varchar(16) not null,
+        id varchar(64) not null,
+        primary key (id)
+    );
+
     create table mcp_livedata_config (
         cache_enabled boolean not null,
         cache_ttl_seconds integer not null,
@@ -367,38 +379,6 @@
         primary key (id)
     );
 
-    create table mcp_financial_query_cache_config (
-        enabled boolean not null,
-        fallback_to_rocks_db boolean not null,
-        max_entry_kb integer not null,
-        single_flight_grace_ms bigint not null,
-        ttl_seconds bigint not null,
-        updated_at timestamp(6) with time zone not null,
-        id varchar(64) not null,
-        storage varchar(16) not null,
-        primary key (id)
-    );
-
-    create table mcp_ops_jmx_template (
-        enabled boolean not null,
-        timeout_ms integer not null,
-        created_at timestamp(6) with time zone not null,
-        updated_at timestamp(6) with time zone not null,
-        risk_level varchar(32) not null,
-        runtime_action varchar(32) not null,
-        id varchar(64) not null,
-        category varchar(100) not null,
-        code varchar(128) not null unique,
-        username varchar(200),
-        title varchar(200) not null,
-        description varchar(1000),
-        password varchar(1000),
-        service_url varchar(1000) not null,
-        intent_signals_json longtext,
-        queries_json longtext not null,
-        primary key (id)
-    );
-
     create table mcp_ops_http_endpoint (
         enabled boolean not null,
         timeout_ms integer not null,
@@ -426,6 +406,26 @@
         input_schema_json longtext,
         output_schema_json longtext,
         routing_labels_json longtext,
+        primary key (id)
+    );
+
+    create table mcp_ops_jmx_template (
+        enabled boolean not null,
+        timeout_ms integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        risk_level varchar(32) not null,
+        runtime_action varchar(32) not null,
+        id varchar(64) not null,
+        category varchar(100) not null,
+        code varchar(128) not null unique,
+        title varchar(200) not null,
+        username varchar(200),
+        description varchar(1000),
+        password varchar(1000),
+        service_url varchar(1000) not null,
+        intent_signals_json longtext,
+        queries_json longtext not null,
         primary key (id)
     );
 
@@ -459,6 +459,74 @@
         primary key (id)
     );
 
+    create table mcp_python_environment (
+        network_enabled boolean not null,
+        timeout_seconds integer not null,
+        version_number integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        cpu_limit varchar(24) not null,
+        disk_limit varchar(24) not null,
+        memory_limit varchar(24) not null,
+        network_policy varchar(24) not null,
+        status varchar(24) not null,
+        tmpfs_limit varchar(24) not null,
+        python_version varchar(32) not null,
+        id varchar(64) not null,
+        runtime_user varchar(64) not null,
+        network_name varchar(128),
+        name varchar(160) not null,
+        docker_image varchar(300) not null,
+        description varchar(1000),
+        requirements_json TEXT not null,
+        primary key (id)
+    );
+
+    create table mcp_python_runtime_execution (
+        exit_code integer,
+        duration_ms bigint,
+        finished_at timestamp(6) with time zone,
+        started_at timestamp(6) with time zone not null,
+        status varchar(24) not null,
+        asset_id varchar(64) not null,
+        environment_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        template_id varchar(64),
+        tenant_id varchar(64) not null,
+        container_id varchar(128),
+        stderr LONGTEXT,
+        stdout LONGTEXT,
+        primary key (id)
+    );
+
+    create table mcp_python_template_asset (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(24) not null,
+        version varchar(40) not null,
+        asset_id varchar(64) not null,
+        category_id varchar(64),
+        environment_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        source_hash varchar(64) not null,
+        tenant_id varchar(64) not null,
+        domain varchar(120),
+        asset_name varchar(160),
+        script_file_name varchar(180),
+        template_name varchar(200) not null,
+        tool_name varchar(200) not null unique,
+        keywords varchar(1000),
+        asset_description varchar(2000),
+        description varchar(3000) not null,
+        scenario varchar(4000) not null,
+        input_schema_json TEXT,
+        output_schema_json TEXT,
+        source_ciphertext LONGTEXT not null,
+        primary key (id)
+    );
+
     create table mcp_redis_cache_config (
         database_index integer not null,
         enabled boolean not null,
@@ -486,6 +554,7 @@
         status varchar(32) not null,
         id varchar(64) not null,
         service_type varchar(64),
+        singleton_scope varchar(64) unique,
         permission_group varchar(128),
         service_token varchar(128) not null unique,
         name varchar(200) not null,
@@ -645,98 +714,38 @@
         primary key (id)
     );
 
-    create index idx_metadata_scenario_domain 
+    create index idx_metadata_scenario_domain
        on mcp_metadata_scenario (domain_id);
 
-    create index idx_metadata_dictionary_item_dictionary 
+    create index idx_metadata_dictionary_item_dictionary
        on mcp_metadata_standard_dictionary_item (dictionary_id);
 
-    create index idx_metadata_term_scenario 
+    create index idx_metadata_term_scenario
        on mcp_metadata_term_mapping (scenario_id);
 
-    alter table if exists mcp_metadata_scenario 
-       add constraint fk_metadata_scenario_domain 
-       foreign key (domain_id) 
+    create index idx_mcp_python_env_status
+       on mcp_python_environment (status, updated_at);
+
+    create index idx_mcp_python_exec_asset
+       on mcp_python_runtime_execution (tenant_id, asset_id, started_at);
+
+    create index idx_mcp_python_template_status
+       on mcp_python_template_asset (tenant_id, status, updated_at);
+
+    create index idx_mcp_python_template_env
+       on mcp_python_template_asset (environment_id, status);
+
+    alter table if exists mcp_metadata_scenario
+       add constraint fk_metadata_scenario_domain
+       foreign key (domain_id)
        references mcp_metadata_domain;
 
-    alter table if exists mcp_metadata_standard_dictionary_item 
-       add constraint fk_metadata_dictionary_item 
-       foreign key (dictionary_id) 
+    alter table if exists mcp_metadata_standard_dictionary_item
+       add constraint fk_metadata_dictionary_item
+       foreign key (dictionary_id)
        references mcp_metadata_standard_dictionary;
 
-    alter table if exists mcp_metadata_term_mapping 
-       add constraint fk_metadata_term_scenario 
-       foreign key (scenario_id) 
+    alter table if exists mcp_metadata_term_mapping
+       add constraint fk_metadata_term_scenario
+       foreign key (scenario_id)
        references mcp_metadata_scenario;
-
-    create table mcp_python_environment (
-        network_enabled boolean not null,
-        timeout_seconds integer not null,
-        version_number integer not null,
-        created_at timestamp(6) with time zone not null,
-        updated_at timestamp(6) with time zone not null,
-        cpu_limit varchar(24) not null,
-        disk_limit varchar(24) not null,
-        memory_limit varchar(24) not null,
-        tmpfs_limit varchar(24) not null,
-        network_policy varchar(24) not null,
-        status varchar(24) not null,
-        python_version varchar(32) not null,
-        id varchar(64) not null,
-        runtime_user varchar(64) not null,
-        network_name varchar(128),
-        name varchar(160) not null,
-        docker_image varchar(300) not null,
-        description varchar(1000),
-        requirements_json TEXT not null,
-        primary key (id)
-    );
-    create index idx_mcp_python_env_status on mcp_python_environment (status, updated_at);
-
-    create table mcp_python_template_asset (
-        created_at timestamp(6) with time zone not null,
-        updated_at timestamp(6) with time zone not null,
-        status varchar(24) not null,
-        version varchar(40) not null,
-        asset_id varchar(64) not null,
-        asset_name varchar(160),
-        asset_description varchar(2000),
-        environment_id varchar(64) not null,
-        script_file_name varchar(180),
-        id varchar(64) not null,
-        owner_id varchar(64) not null,
-        source_hash varchar(64) not null,
-        tenant_id varchar(64) not null,
-        category_id varchar(64),
-        domain varchar(120),
-        template_name varchar(200) not null,
-        tool_name varchar(200) not null unique,
-        keywords varchar(1000),
-        description varchar(3000) not null,
-        scenario varchar(4000) not null,
-        input_schema_json TEXT,
-        output_schema_json TEXT,
-        source_ciphertext LONGTEXT not null,
-        primary key (id)
-    );
-    create index idx_mcp_python_template_status on mcp_python_template_asset (tenant_id, status, updated_at);
-    create index idx_mcp_python_template_env on mcp_python_template_asset (environment_id, status);
-
-    create table mcp_python_runtime_execution (
-        exit_code integer,
-        duration_ms bigint,
-        finished_at timestamp(6) with time zone,
-        started_at timestamp(6) with time zone not null,
-        status varchar(24) not null,
-        asset_id varchar(64) not null,
-        environment_id varchar(64) not null,
-        container_id varchar(128),
-        id varchar(64) not null,
-        owner_id varchar(64) not null,
-        template_id varchar(64),
-        tenant_id varchar(64) not null,
-        stderr LONGTEXT,
-        stdout LONGTEXT,
-        primary key (id)
-    );
-    create index idx_mcp_python_exec_asset on mcp_python_runtime_execution (tenant_id, asset_id, started_at);

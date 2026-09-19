@@ -117,8 +117,50 @@ class DomainSkillServiceTest {
 
         assertThat(created.name()).isEqualTo("Finance");
         assertThat(created.count()).isZero();
+        assertThat(created.manageable()).isTrue();
         verify(categories).save(argThat(category -> "tenant-a".equals(category.getTenantId())
             && "Finance".equals(category.getName())));
+    }
+
+    @Test
+    void renamesCategoryAndUpdatesItsPublishedSkillIndex() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillCategoryRepository categories = mock(DomainSkillCategoryRepository.class);
+        DomainSkillIndexService index = mock(DomainSkillIndexService.class);
+        DomainSkillCategoryEntity category = new DomainSkillCategoryEntity();
+        category.setId("category-1"); category.setTenantId("tenant-a"); category.setName("Old Name");
+        DomainSkillEntity skill = skill("skill-1", "Skill", "# Skill");
+        skill.setCategory("Old Name"); skill.setStatus("PUBLISHED");
+        when(categories.findByIdAndTenantId("category-1", "tenant-a")).thenReturn(Optional.of(category));
+        when(categories.findByTenantIdAndNameIgnoreCase("tenant-a", "New Name")).thenReturn(Optional.empty());
+        when(repository.findByTenantIdAndCategoryIgnoreCase("tenant-a", "Old Name")).thenReturn(List.of(skill));
+        when(index.index(skill)).thenReturn(new DomainSkillIndexService.IndexResult(true, "BM25", ""));
+
+        DomainSkillService service = new DomainSkillService(repository, categories,
+            mock(McpLicenseEntitlementPort.class), index, mock(DomainSkillRemoteImporter.class));
+        DomainSkillService.CategoryOption renamed = service.renameCategory("tenant-a", "category-1", "New Name");
+
+        assertThat(renamed.name()).isEqualTo("New Name");
+        assertThat(skill.getCategory()).isEqualTo("New Name");
+        verify(repository).saveAllAndFlush(List.of(skill));
+        verify(index).index(skill);
+    }
+
+    @Test
+    void refusesToDeleteCategoryThatStillContainsSkills() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillCategoryRepository categories = mock(DomainSkillCategoryRepository.class);
+        DomainSkillCategoryEntity category = new DomainSkillCategoryEntity();
+        category.setId("category-1"); category.setTenantId("tenant-a"); category.setName("Finance");
+        when(categories.findByIdAndTenantId("category-1", "tenant-a")).thenReturn(Optional.of(category));
+        when(repository.countByTenantIdAndCategoryIgnoreCase("tenant-a", "Finance")).thenReturn(2L);
+        DomainSkillService service = new DomainSkillService(repository, categories,
+            mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class),
+            mock(DomainSkillRemoteImporter.class));
+
+        assertThatThrownBy(() -> service.deleteCategory("tenant-a", "category-1"))
+            .hasMessageContaining("2 skill");
+        verify(categories, never()).delete(any());
     }
 
     @Test

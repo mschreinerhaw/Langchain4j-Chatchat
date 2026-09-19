@@ -125,6 +125,17 @@ export function createDomainSkillCategory(name) {
   });
 }
 
+export function renameDomainSkillCategory(categoryId, name) {
+  return apiRequest(`/data-science/domain-skills/categories/${encodeURIComponent(categoryId)}`, {
+    method: "PUT",
+    body: JSON.stringify({ name })
+  });
+}
+
+export function deleteDomainSkillCategory(categoryId) {
+  return apiRequest(`/data-science/domain-skills/categories/${encodeURIComponent(categoryId)}`, { method: "DELETE" });
+}
+
 export function updateDomainSkill(id, payload) {
   return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}`, {
     method: "PUT",

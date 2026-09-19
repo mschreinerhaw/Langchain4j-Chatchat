@@ -55,6 +55,28 @@ public class DomainSkillController {
         });
     }
 
+    @PutMapping("/categories/{categoryId}")
+    public ApiResponse<?> renameCategory(@PathVariable("categoryId") String categoryId,
+                                         @RequestBody DomainSkillService.CategoryRequest body,
+                                         HttpServletRequest request) {
+        return call(() -> {
+            Scope scope = scope(request);
+            requireAdmin(scope);
+            return service.renameCategory(scope.tenantId(), categoryId, body == null ? "" : body.name());
+        });
+    }
+
+    @DeleteMapping("/categories/{categoryId}")
+    public ApiResponse<?> deleteCategory(@PathVariable("categoryId") String categoryId,
+                                         HttpServletRequest request) {
+        return call(() -> {
+            Scope scope = scope(request);
+            requireAdmin(scope);
+            service.deleteCategory(scope.tenantId(), categoryId);
+            return true;
+        });
+    }
+
     @PutMapping("/{id}")
     public ApiResponse<?> update(@PathVariable("id") String id,
                                  @RequestBody DomainSkillService.SkillRequest body,

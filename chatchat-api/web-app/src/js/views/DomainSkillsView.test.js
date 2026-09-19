@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
-  createDomainSkill: vi.fn(), createDomainSkillCategory: vi.fn(), deleteDomainSkill: vi.fn(), fetchDomainSkills: vi.fn(),
+  createDomainSkill: vi.fn(), createDomainSkillCategory: vi.fn(), deleteDomainSkill: vi.fn(), deleteDomainSkillCategory: vi.fn(), fetchDomainSkills: vi.fn(),
   getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(), importDomainSkillFromUrl: vi.fn(),
   publishDomainSkill: vi.fn(), recallDomainSkill: vi.fn(), reindexDomainSkill: vi.fn(),
-  reindexDomainSkillCategory: vi.fn(), updateDomainSkill: vi.fn()
+  reindexDomainSkillCategory: vi.fn(), renameDomainSkillCategory: vi.fn(), updateDomainSkill: vi.fn()
 }));
 vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
@@ -42,6 +42,38 @@ describe("DomainSkillsView", () => {
     await DomainSkillsView.methods.saveCategory.call(context);
     expect(api.createDomainSkillCategory).toHaveBeenCalledWith("金融");
     expect(context.filters.category).toBe("金融");
+    expect(context.load).toHaveBeenCalledWith(true);
+  });
+
+  it("renames a category and keeps the active filter in sync", async () => {
+    api.renameDomainSkillCategory.mockResolvedValue({ id: "category-1", name: "客户洞察", count: 2, manageable: true });
+    const context = {
+      categoryDialogMode: "rename", editingCategoryId: "category-1", editingCategoryOriginalName: "客户画像",
+      newCategoryName: " 客户洞察 ", categorySaving: false, categoryDialogOpen: true, categoryError: "",
+      filters: { category: "客户画像", page: 0 }, message: "", error: "", load: vi.fn()
+    };
+
+    await DomainSkillsView.methods.saveCategory.call(context);
+
+    expect(api.renameDomainSkillCategory).toHaveBeenCalledWith("category-1", "客户洞察");
+    expect(context.filters.category).toBe("客户洞察");
+    expect(context.categoryDialogOpen).toBe(false);
+  });
+
+  it("deletes an empty category after custom confirmation", async () => {
+    api.deleteDomainSkillCategory.mockResolvedValue(true);
+    const category = { id: "category-1", name: "空分类", count: 0, manageable: true };
+    const context = {
+      confirmDialog: { open: true, kind: "delete-category", category },
+      closeConfirmDialog: DomainSkillsView.methods.closeConfirmDialog,
+      perform: DomainSkillsView.methods.perform, busy: false, error: "", message: "",
+      filters: { category: "空分类", page: 0 }, load: vi.fn()
+    };
+
+    await DomainSkillsView.methods.confirmPendingAction.call(context);
+
+    expect(api.deleteDomainSkillCategory).toHaveBeenCalledWith("category-1");
+    expect(context.filters.category).toBe("");
     expect(context.load).toHaveBeenCalledWith(true);
   });
 
@@ -122,6 +154,18 @@ describe("DomainSkillsView", () => {
     expect(context.confirmDialog.open).toBe(true);
     expect(context.confirmDialog.kind).toBe("editor");
     expect(context.confirmDialog.title).toContain("未保存");
+  });
+
+  it("uses the styled danger confirmation dialog before deleting a skill", async () => {
+    const context = { confirmDialog: {}, openConfirmDialog: DomainSkillsView.methods.openConfirmDialog };
+
+    await DomainSkillsView.methods.removeSkill.call(context, { id: "skill-1", name: "客户画像" });
+
+    expect(context.confirmDialog.open).toBe(true);
+    expect(context.confirmDialog.kind).toBe("delete");
+    expect(context.confirmDialog.danger).toBe(true);
+    expect(context.confirmDialog.message).toContain("客户画像");
+    expect(api.deleteDomainSkill).not.toHaveBeenCalled();
   });
 
   it("rebuilds one skill and one category index", async () => {

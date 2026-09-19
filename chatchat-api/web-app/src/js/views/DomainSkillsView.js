@@ -1,8 +1,8 @@
 import { nextTick } from "vue";
 import {
-  createDomainSkill, createDomainSkillCategory, deleteDomainSkill, fetchDomainSkills, getStoredAuthSession,
+  createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills, getStoredAuthSession,
   importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
-  reindexDomainSkillCategory, updateDomainSkill
+  reindexDomainSkillCategory, renameDomainSkillCategory, updateDomainSkill
 } from "../../services/api.js";
 import { formatDateTime } from "../utils/uiFormatters.js";
 import "../../styles/pages/domain-skills.css";
@@ -38,10 +38,11 @@ export default {
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
     total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
     importMode: "file", importFile: null, importUrl: "", importName: "", importCategory: "", categoryDialogOpen: false,
-    newCategoryName: "", categorySaving: false, categoryError: "", publicationLimitOpen: false,
+    newCategoryName: "", categorySaving: false, categoryError: "", categoryDialogMode: "create",
+    editingCategoryId: "", editingCategoryOriginalName: "", categoryMenuId: "", publicationLimitOpen: false,
     publicationLimit: { maximum: 5, published: 5, skillName: "" }, editorMessage: "", importMessage: "",
     editorSnapshot: "", importSnapshot: "",
-    confirmDialog: { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null }
+    confirmDialog: { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null, category: null }
   }),
   computed: {
     isAdmin() {
@@ -50,8 +51,9 @@ export default {
     },
     categoryOptions() {
       return this.categories.map((category) => typeof category === "string"
-        ? { name: category, count: 0 }
-        : { name: category?.name || "", count: Number(category?.count || 0) }).filter((category) => category.name);
+        ? { id: "", name: category, count: 0, manageable: false }
+        : { id: category?.id || "", name: category?.name || "", count: Number(category?.count || 0), manageable: Boolean(category?.manageable) })
+        .filter((category) => category.name);
     }
   },
   mounted() { this.load(); },
@@ -93,6 +95,9 @@ export default {
       await this.load(true);
     },
     async openCategoryDialog() {
+      this.categoryDialogMode = "create";
+      this.editingCategoryId = "";
+      this.editingCategoryOriginalName = "";
       this.newCategoryName = "";
       this.categoryDialogOpen = true;
       this.categoryError = "";
@@ -107,6 +112,19 @@ export default {
       this.newCategoryName = "";
       this.categoryError = "";
     },
+    async openRenameCategory(category) {
+      this.categoryMenuId = "";
+      this.categoryDialogMode = "rename";
+      this.editingCategoryId = category.id;
+      this.editingCategoryOriginalName = category.name;
+      this.newCategoryName = category.name;
+      this.categoryDialogOpen = true;
+      this.categoryError = "";
+      this.error = "";
+      await nextTick();
+      this.$refs.categoryNameInput?.focus();
+      this.$refs.categoryNameInput?.select();
+    },
     async saveCategory() {
       const name = this.newCategoryName.trim();
       if (!name) {
@@ -117,18 +135,36 @@ export default {
       this.categorySaving = true;
       this.categoryError = "";
       try {
-        const created = await createDomainSkillCategory(name);
-        const categoryName = created?.name || name;
+        const saved = this.categoryDialogMode === "rename"
+          ? await renameDomainSkillCategory(this.editingCategoryId, name)
+          : await createDomainSkillCategory(name);
+        const categoryName = saved?.name || name;
         this.categoryDialogOpen = false;
         this.newCategoryName = "";
-        this.filters.category = categoryName;
-        this.message = `分类“${categoryName}”已创建`;
+        if (this.categoryDialogMode !== "rename" || this.filters.category === this.editingCategoryOriginalName) {
+          this.filters.category = categoryName;
+        }
+        this.message = this.categoryDialogMode === "rename"
+          ? `分类已重命名为“${categoryName}”`
+          : `分类“${categoryName}”已创建`;
         await this.load(true);
       } catch (error) {
         this.categoryError = error.message || "分类创建失败";
       } finally {
         this.categorySaving = false;
       }
+    },
+    toggleCategoryMenu(category) {
+      const key = category.id || category.name;
+      this.categoryMenuId = this.categoryMenuId === key ? "" : key;
+    },
+    requestDeleteCategory(category) {
+      this.categoryMenuId = "";
+      this.openConfirmDialog("delete-category", "删除技能分类？",
+        category.count > 0
+          ? `分类“${category.name}”下还有 ${category.count} 个技能，请先移动或删除这些技能。`
+          : `确定删除空分类“${category.name}”吗？`,
+        category.count > 0 ? "我知道了" : "删除", category.count === 0, null, category);
     },
     openEdit(skill) { this.form = { id: skill.id, name: skill.name || "", category: skill.category || "", description: skill.description || "", markdownContent: skill.markdownContent || "" }; this.editorSnapshot = editorStateKey(this.form); this.editorMessage = ""; this.editorOpen = true; },
     async save() {
@@ -177,14 +213,14 @@ export default {
       }
       this.importOpen = false;
     },
-    openConfirmDialog(kind, title, message, confirmLabel = "确定", danger = false, skill = null) {
-      this.confirmDialog = { open: true, kind, title, message, confirmLabel, danger, skill };
+    openConfirmDialog(kind, title, message, confirmLabel = "确定", danger = false, skill = null, category = null) {
+      this.confirmDialog = { open: true, kind, title, message, confirmLabel, danger, skill, category };
     },
     closeConfirmDialog() {
-      this.confirmDialog = { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null };
+      this.confirmDialog = { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null, category: null };
     },
     async confirmPendingAction() {
-      const { kind, skill } = this.confirmDialog;
+      const { kind, skill, category } = this.confirmDialog;
       this.closeConfirmDialog();
       if (kind === "editor") this.editorOpen = false;
       if (kind === "import") this.importOpen = false;
@@ -194,6 +230,15 @@ export default {
           this.message = "领域技能已删除";
           await this.load();
         }, "领域技能删除失败");
+      }
+      if (kind === "delete-category" && category?.count > 0) return;
+      if (kind === "delete-category" && category) {
+        await this.perform(async () => {
+          await deleteDomainSkillCategory(category.id);
+          if (this.filters.category === category.name) this.filters.category = "";
+          this.message = `分类“${category.name}”已删除`;
+          await this.load(true);
+        }, "技能分类删除失败");
       }
     },
     async publishSkill(skill) {

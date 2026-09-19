@@ -40,7 +40,12 @@
           <button type="button" class="domain-skill-category-row" :class="{ active: filters.category === category.name }" @click="selectCategory(category.name)">
             <span>{{ category.name }}</span><strong>{{ category.count }}</strong>
           </button>
-          <button v-if="isAdmin" type="button" class="domain-skill-category-reindex" :disabled="busy || !category.count" title="重建该分类下已发布技能的索引" :aria-label="`重建${category.name}分类索引`" @click="reindexCategory(category)">↻</button>
+          <button v-if="isAdmin" type="button" class="domain-skill-category-actions-trigger" title="分类操作" :aria-label="`${category.name}分类操作`" @click="toggleCategoryMenu(category)">···</button>
+          <div v-if="isAdmin && categoryMenuId === (category.id || category.name)" class="domain-skill-category-menu">
+            <button v-if="category.manageable" type="button" @click="openRenameCategory(category)">重命名</button>
+            <button type="button" :disabled="busy || !category.count" @click="categoryMenuId = ''; reindexCategory(category)">重建索引</button>
+            <button v-if="category.manageable" type="button" class="danger" @click="requestDeleteCategory(category)">删除分类</button>
+          </div>
         </div>
         <p v-if="!categoryOptions.length" class="domain-skill-category-empty">暂无分类，点击分类标题旁的“+”创建。</p>
       </aside>
@@ -107,10 +112,10 @@
 
     <div v-if="categoryDialogOpen" class="domain-skill-dialog-backdrop" @mousedown.self="closeCategoryDialog">
       <form class="domain-skill-dialog category-dialog" @submit.prevent="saveCategory">
-        <header><div><p>领域技能分类</p><h2>创建分类</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" :disabled="categorySaving" @click="closeCategoryDialog">×</button></header>
+        <header><div><p>领域技能分类</p><h2>{{ categoryDialogMode === 'rename' ? '重命名分类' : '创建分类' }}</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" :disabled="categorySaving" @click="closeCategoryDialog">×</button></header>
         <p v-if="categoryError" class="domain-skill-dialog-error">{{ categoryError }}</p>
         <label><span>分类名称</span><input ref="categoryNameInput" v-model="newCategoryName" required maxlength="120" placeholder="例如：金融分析、代码规范"></label>
-        <footer><button type="button" class="secondary-button" :disabled="categorySaving" @click="closeCategoryDialog">取消</button><button type="submit" :disabled="categorySaving || !newCategoryName.trim()">{{ categorySaving ? '创建中' : '创建' }}</button></footer>
+        <footer><button type="button" class="secondary-button" :disabled="categorySaving" @click="closeCategoryDialog">取消</button><button type="submit" :disabled="categorySaving || !newCategoryName.trim()">{{ categorySaving ? '保存中' : categoryDialogMode === 'rename' ? '保存' : '创建' }}</button></footer>
       </form>
     </div>
 

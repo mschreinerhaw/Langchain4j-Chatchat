@@ -56,4 +56,8 @@ public interface DomainSkillRepository extends JpaRepository<DomainSkillEntity, 
     List<DomainSkillEntity> findVisibleByCategoryAndStatus(@Param("tenantId") String tenantId,
                                                            @Param("category") String category,
                                                            @Param("status") String status);
+
+    List<DomainSkillEntity> findByTenantIdAndCategoryIgnoreCase(String tenantId, String category);
+
+    long countByTenantIdAndCategoryIgnoreCase(String tenantId, String category);
 }

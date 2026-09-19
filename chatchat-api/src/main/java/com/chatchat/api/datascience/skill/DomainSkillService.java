@@ -49,7 +49,42 @@ public class DomainSkillService implements DomainSkillRuntimePort {
                 created.setName(value);
                 return categoryRepository.save(created);
             });
-        return new CategoryOption(category.getName(), repository.countVisibleByCategory(tenantId, category.getName()));
+        return categoryOption(tenantId, category, true);
+    }
+
+    @Transactional
+    public CategoryOption renameCategory(String tenantId, String categoryId, String name) {
+        DomainSkillCategoryEntity category = ownedCategory(categoryId, tenantId);
+        String value = required(name, "Category name is required");
+        if (value.length() > 120) throw new IllegalArgumentException("Category name must not exceed 120 characters");
+        categoryRepository.findByTenantIdAndNameIgnoreCase(tenantId, value)
+            .filter(existing -> !existing.getId().equals(category.getId()))
+            .ifPresent(existing -> { throw new IllegalArgumentException("Category name already exists"); });
+
+        String previousName = category.getName();
+        List<DomainSkillEntity> skills = repository.findByTenantIdAndCategoryIgnoreCase(tenantId, previousName);
+        category.setName(value);
+        categoryRepository.save(category);
+        for (DomainSkillEntity skill : skills) skill.setCategory(value);
+        repository.saveAllAndFlush(skills);
+        for (DomainSkillEntity skill : skills) {
+            if (!PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty()) continue;
+            DomainSkillIndexService.IndexResult result = indexService.index(skill);
+            if (!result.success()) {
+                throw new IllegalStateException("Domain skill category index update failed: " + result.message());
+            }
+        }
+        return categoryOption(tenantId, category, true);
+    }
+
+    @Transactional
+    public void deleteCategory(String tenantId, String categoryId) {
+        DomainSkillCategoryEntity category = ownedCategory(categoryId, tenantId);
+        long skillCount = repository.countByTenantIdAndCategoryIgnoreCase(tenantId, category.getName());
+        if (skillCount > 0) {
+            throw new IllegalStateException("Category contains " + skillCount + " skill(s); move or delete them first");
+        }
+        categoryRepository.delete(category);
     }
 
     public List<DomainSkillEntity> publishedOptions(String tenantId) {
@@ -179,6 +214,11 @@ public class DomainSkillService implements DomainSkillRuntimePort {
             .orElseThrow(() -> new IllegalArgumentException("Domain skill does not exist or is outside the current tenant"));
     }
 
+    private DomainSkillCategoryEntity ownedCategory(String id, String tenantId) {
+        return categoryRepository.findByIdAndTenantId(required(id, "Category id is required"), tenantId)
+            .orElseThrow(() -> new IllegalArgumentException("Skill category does not exist or is outside the current tenant"));
+    }
+
     private void validateReindexable(DomainSkillEntity skill) {
         if (!PUBLISHED.equalsIgnoreCase(skill.getStatus())) {
             throw new IllegalArgumentException("Only published domain skills can rebuild the search index");
@@ -189,18 +229,29 @@ public class DomainSkillService implements DomainSkillRuntimePort {
     }
 
     private List<CategoryOption> categories(String tenantId) {
-        Map<String, String> names = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        Map<String, DomainSkillCategoryEntity> categories = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         categoryRepository.findByTenantIdOrderByNameAsc(tenantId)
-            .forEach(category -> names.put(category.getName(), category.getName()));
+            .forEach(category -> categories.put(category.getName(), category));
         if (!"default".equalsIgnoreCase(tenantId)) {
             categoryRepository.findByTenantIdOrderByNameAsc("default")
-                .forEach(category -> names.putIfAbsent(category.getName(), category.getName()));
+                .forEach(category -> categories.putIfAbsent(category.getName(), category));
         }
         repository.findCategories(tenantId).stream().filter(Objects::nonNull).filter(name -> !name.isBlank())
-            .forEach(name -> names.putIfAbsent(name, name));
-        return names.values().stream()
-            .map(name -> new CategoryOption(name, repository.countVisibleByCategory(tenantId, name)))
+            .forEach(name -> categories.putIfAbsent(name, null));
+        return categories.entrySet().stream()
+            .map(entry -> {
+                DomainSkillCategoryEntity category = entry.getValue();
+                boolean manageable = category != null && tenantId.equalsIgnoreCase(category.getTenantId());
+                return category == null
+                    ? new CategoryOption(null, entry.getKey(), repository.countVisibleByCategory(tenantId, entry.getKey()), false)
+                    : categoryOption(tenantId, category, manageable);
+            })
             .toList();
+    }
+
+    private CategoryOption categoryOption(String tenantId, DomainSkillCategoryEntity category, boolean manageable) {
+        return new CategoryOption(category.getId(), category.getName(),
+            repository.countVisibleByCategory(tenantId, category.getName()), manageable);
     }
 
     private void ensureCategory(String tenantId, String name) {
@@ -265,7 +316,7 @@ public class DomainSkillService implements DomainSkillRuntimePort {
     public record SkillRequest(String id, String name, String category, String description, String markdownContent) { }
     public record Workspace(List<DomainSkillEntity> skills, long total, long skillCount, int page, int pageSize, int totalPages, List<CategoryOption> categories, PublicationQuota quota) { }
     public record CategoryRequest(String name) { }
-    public record CategoryOption(String name, long count) { }
+    public record CategoryOption(String id, String name, long count, boolean manageable) { }
     public record ReindexResult(String id, String name, String mode, String message) { }
     public record CategoryReindexResult(String category, int matched, int reindexed, int skipped, int failed,
                                         List<String> failures) { }

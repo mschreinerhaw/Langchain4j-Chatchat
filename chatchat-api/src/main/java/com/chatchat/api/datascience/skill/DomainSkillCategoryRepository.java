@@ -9,4 +9,6 @@ public interface DomainSkillCategoryRepository extends JpaRepository<DomainSkill
     List<DomainSkillCategoryEntity> findByTenantIdOrderByNameAsc(String tenantId);
 
     Optional<DomainSkillCategoryEntity> findByTenantIdAndNameIgnoreCase(String tenantId, String name);
+
+    Optional<DomainSkillCategoryEntity> findByIdAndTenantId(String id, String tenantId);
 }

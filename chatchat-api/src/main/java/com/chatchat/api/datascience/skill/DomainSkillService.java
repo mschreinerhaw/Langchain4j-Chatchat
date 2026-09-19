@@ -29,6 +29,7 @@ public class DomainSkillService implements DomainSkillRuntimePort {
     private final DomainSkillCategoryRepository categoryRepository;
     private final McpLicenseEntitlementPort entitlementPort;
     private final DomainSkillIndexService indexService;
+    private final DomainSkillRemoteImporter remoteImporter;
 
     public Workspace workspace(String tenantId, String keyword, String category, String status, int page, int pageSize) {
         int p = Math.max(0, page), size = Math.max(1, Math.min(100, pageSize));
@@ -88,22 +89,19 @@ public class DomainSkillService implements DomainSkillRuntimePort {
     public DomainSkillEntity importFile(String tenantId, String ownerId, MultipartFile file, String name, String category) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("Select a ZIP or Markdown file");
         if (file.getSize() > MAX_UPLOAD_BYTES) throw new IllegalArgumentException("Skill file must not exceed 5MB");
-        String fileName = safeFileName(file.getOriginalFilename()), lower = fileName.toLowerCase(Locale.ROOT);
-        if (!lower.endsWith(".md") && !lower.endsWith(".markdown") && !lower.endsWith(".zip"))
-            throw new IllegalArgumentException("Only .zip, .md and .markdown files are supported");
         try {
-            String markdown = lower.endsWith(".zip") ? markdownFromZip(file.getBytes()) : new String(file.getBytes(), StandardCharsets.UTF_8);
-            validateMarkdown(markdown);
-            DomainSkillEntity skill = new DomainSkillEntity();
-            skill.setTenantId(tenantId); skill.setOwnerId(ownerId);
-            skill.setName(text(name).isBlank() ? inferName(markdown, fileName) : name.trim());
-            skill.setCategory(required(category, "Skill category is required"));
-            skill.setDescription("Imported from " + fileName); skill.setMarkdownContent(markdown.trim());
-            skill.setSourceType(lower.endsWith(".zip") ? "ZIP" : "MARKDOWN");
-            skill.setOriginalFileName(fileName); skill.setStatus("DRAFT");
-            ensureCategory(tenantId, skill.getCategory());
-            return repository.save(skill);
+            String fileName = safeFileName(file.getOriginalFilename());
+            return importBytes(tenantId, ownerId, file.getBytes(), fileName, name, category,
+                "Imported from " + fileName, false);
         } catch (IOException ex) { throw new IllegalArgumentException("Unable to read skill file", ex); }
+    }
+
+    @Transactional
+    public DomainSkillEntity importUrl(String tenantId, String ownerId, String sourceUrl,
+                                       String name, String category) {
+        DomainSkillRemoteImporter.RemoteFile file = remoteImporter.download(sourceUrl);
+        return importBytes(tenantId, ownerId, file.bytes(), file.fileName(), name, category,
+            "Imported from " + trim(file.sourceUrl(), 1900), true);
     }
 
     @Transactional
@@ -211,6 +209,30 @@ public class DomainSkillService implements DomainSkillRuntimePort {
         category.setTenantId(tenantId);
         category.setName(name);
         categoryRepository.save(category);
+    }
+
+    private DomainSkillEntity importBytes(String tenantId, String ownerId, byte[] bytes, String originalFileName,
+                                          String name, String category, String description, boolean remote) {
+        String fileName = safeFileName(originalFileName), lower = fileName.toLowerCase(Locale.ROOT);
+        if (!lower.endsWith(".md") && !lower.endsWith(".markdown") && !lower.endsWith(".zip"))
+            throw new IllegalArgumentException("Only .zip, .md and .markdown files are supported");
+        String markdown;
+        try {
+            markdown = lower.endsWith(".zip") ? markdownFromZip(bytes) : new String(bytes, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Unable to read skill file", ex);
+        }
+        validateMarkdown(markdown);
+        DomainSkillEntity skill = new DomainSkillEntity();
+        skill.setTenantId(tenantId); skill.setOwnerId(ownerId);
+        skill.setName(text(name).isBlank() ? inferName(markdown, fileName) : name.trim());
+        skill.setCategory(required(category, "Skill category is required"));
+        skill.setDescription(description); skill.setMarkdownContent(markdown.trim());
+        skill.setSourceType(remote ? (lower.endsWith(".zip") ? "URL_ZIP" : "URL_MARKDOWN")
+            : (lower.endsWith(".zip") ? "ZIP" : "MARKDOWN"));
+        skill.setOriginalFileName(fileName); skill.setStatus("DRAFT");
+        ensureCategory(tenantId, skill.getCategory());
+        return repository.save(skill);
     }
 
     private String markdownFromZip(byte[] bytes) throws IOException {

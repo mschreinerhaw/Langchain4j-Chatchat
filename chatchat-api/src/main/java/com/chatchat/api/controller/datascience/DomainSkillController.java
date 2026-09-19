@@ -79,6 +79,16 @@ public class DomainSkillController {
         });
     }
 
+    @PostMapping("/import-url")
+    public ApiResponse<?> importUrl(@RequestBody ImportUrlRequest body, HttpServletRequest request) {
+        return call(() -> {
+            Scope scope = scope(request);
+            requireAdmin(scope);
+            if (body == null) throw new IllegalArgumentException("Skill URL is required");
+            return service.importUrl(scope.tenantId(), scope.ownerId(), body.url(), body.name(), body.category());
+        });
+    }
+
     @PostMapping("/{id}/publish")
     public ApiResponse<?> publish(@PathVariable("id") String id, HttpServletRequest request) {
         return call(() -> {
@@ -161,4 +171,5 @@ public class DomainSkillController {
 
     private record Scope(String tenantId, String ownerId) {}
     private record CategoryReindexRequest(String category) {}
+    private record ImportUrlRequest(String url, String name, String category) {}
 }

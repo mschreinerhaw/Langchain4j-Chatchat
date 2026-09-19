@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   createDomainSkill: vi.fn(), createDomainSkillCategory: vi.fn(), deleteDomainSkill: vi.fn(), fetchDomainSkills: vi.fn(),
-  getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(),
+  getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(), importDomainSkillFromUrl: vi.fn(),
   publishDomainSkill: vi.fn(), recallDomainSkill: vi.fn(), reindexDomainSkill: vi.fn(),
   reindexDomainSkillCategory: vi.fn(), updateDomainSkill: vi.fn()
 }));
@@ -51,15 +51,35 @@ describe("DomainSkillsView", () => {
   it("opens skill import instead of redirecting to category creation", () => {
     const context = {
       categoryOptions: [], filters: { category: "" }, importCategory: "old",
-      importFile: { name: "old.zip" }, importName: "old", importOpen: false, error: "previous error"
+      importMode: "url", importFile: { name: "old.zip" }, importUrl: "https://old.example/SKILL.md",
+      importName: "old", importOpen: false, error: "previous error"
     };
 
     DomainSkillsView.methods.openImport.call(context);
 
     expect(context.importOpen).toBe(true);
+    expect(context.importMode).toBe("file");
     expect(context.importCategory).toBe("");
     expect(context.importFile).toBeNull();
+    expect(context.importUrl).toBe("");
     expect(context.importName).toBe("");
+  });
+
+  it("imports a skill from an internet address", async () => {
+    api.importDomainSkillFromUrl.mockResolvedValue({ id: "skill-url" });
+    const context = {
+      busy: false, error: "", message: "", importMode: "url", importFile: null,
+      importUrl: " https://skills.example/SKILL.md ", importName: "Internet Skill",
+      importCategory: "Research", importOpen: true, load: vi.fn(),
+      perform: DomainSkillsView.methods.perform
+    };
+
+    await DomainSkillsView.methods.importSkill.call(context);
+
+    expect(api.importDomainSkillFromUrl).toHaveBeenCalledWith(
+      "https://skills.example/SKILL.md", "Internet Skill", "Research");
+    expect(context.importOpen).toBe(false);
+    expect(context.load).toHaveBeenCalledWith(true);
   });
 
   it("rebuilds one skill and one category index", async () => {

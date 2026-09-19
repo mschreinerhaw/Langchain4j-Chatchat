@@ -480,7 +480,40 @@
   opacity: .64;
 }
 
+.domain-skills-page .domain-skill-import-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f5f7fb;
+}
+
+.domain-skills-page .domain-skill-import-modes button {
+  min-height: 36px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.domain-skills-page .domain-skill-import-modes button.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 1px 4px rgba(30, 58, 112, .12);
+}
+
+.domain-skills-page .domain-skill-url-field small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .domain-skills-page .file-picker {
+  position: relative;
+  display: grid;
+  gap: 10px;
   min-height: 120px;
   place-content: center;
   justify-items: center;
@@ -488,17 +521,57 @@
   border: 1px dashed #aebbd0;
   border-radius: 8px;
   background: #f8fafc;
+  cursor: pointer;
   text-align: center;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
 }
 
-.domain-skills-page .file-picker input {
-  min-height: auto;
+.domain-skills-page .file-picker:hover {
+  border-color: rgba(37, 99, 235, .7);
+  background: #f5f8ff;
+}
+
+.domain-skills-page .file-picker:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+
+.domain-skills-page .domain-skill-dialog .file-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   padding: 0;
   border: 0;
+  border-radius: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.domain-skills-page .file-picker strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 0 16px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .domain-skills-page .file-picker small {
   color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 @media (max-width: 900px) {

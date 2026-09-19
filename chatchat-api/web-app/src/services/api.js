@@ -173,6 +173,13 @@ export async function importDomainSkill(file, name = "", category = "") {
   return unwrapApiPayload(payload, path);
 }
 
+export function importDomainSkillFromUrl(url, name = "", category = "") {
+  return apiRequest("/data-science/domain-skills/import-url", {
+    method: "POST",
+    body: JSON.stringify({ url, name, category })
+  });
+}
+
 export function fetchTrendSemanticConfig() {
   return apiRequest("/ui-display/trend-semantics");
 }

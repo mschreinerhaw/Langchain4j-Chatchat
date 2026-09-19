@@ -1,7 +1,7 @@
 import { nextTick } from "vue";
 import {
   createDomainSkill, createDomainSkillCategory, deleteDomainSkill, fetchDomainSkills, getStoredAuthSession,
-  importDomainSkill, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
+  importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
   reindexDomainSkillCategory, updateDomainSkill
 } from "../../services/api.js";
 import { formatDateTime } from "../utils/uiFormatters.js";
@@ -28,7 +28,7 @@ export default {
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
     total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
-    importFile: null, importName: "", importCategory: "", categoryDialogOpen: false,
+    importMode: "file", importFile: null, importUrl: "", importName: "", importCategory: "", categoryDialogOpen: false,
     newCategoryName: "", categorySaving: false, categoryError: ""
   }),
   computed: {
@@ -70,7 +70,9 @@ export default {
     },
     openImport() {
       this.importCategory = this.filters.category || this.categoryOptions[0]?.name || "";
+      this.importMode = "file";
       this.importFile = null;
+      this.importUrl = "";
       this.importName = "";
       this.importOpen = true;
       this.error = "";
@@ -127,10 +129,17 @@ export default {
     },
     chooseImport(event) { this.importFile = event.target.files?.[0] || null; },
     async importSkill() {
-      if (!this.importFile || !this.importCategory.trim()) return;
+      const category = this.importCategory.trim();
+      const url = this.importUrl.trim();
+      if (!category || (this.importMode === "file" ? !this.importFile : !url)) return;
       await this.perform(async () => {
-        await importDomainSkill(this.importFile, this.importName.trim(), this.importCategory.trim());
-        this.importOpen = false; this.importFile = null; this.importName = ""; this.importCategory = "";
+        if (this.importMode === "url") {
+          await importDomainSkillFromUrl(url, this.importName.trim(), category);
+        } else {
+          await importDomainSkill(this.importFile, this.importName.trim(), category);
+        }
+        this.importOpen = false; this.importFile = null; this.importUrl = "";
+        this.importName = ""; this.importCategory = "";
         this.message = "技能包已导入为草稿"; await this.load(true);
       }, "技能包导入失败");
     },

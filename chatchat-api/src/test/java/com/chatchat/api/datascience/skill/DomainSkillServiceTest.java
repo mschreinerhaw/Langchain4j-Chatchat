@@ -68,6 +68,27 @@ class DomainSkillServiceTest {
     }
 
     @Test
+    void importsPublicInternetSkillAsDraft() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillCategoryRepository categories = mock(DomainSkillCategoryRepository.class);
+        DomainSkillRemoteImporter remote = mock(DomainSkillRemoteImporter.class);
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(remote.download("https://skills.example/research/SKILL.md"))
+            .thenReturn(new DomainSkillRemoteImporter.RemoteFile(
+                "https://skills.example/research/SKILL.md", "SKILL.md",
+                "# Internet Research\n\nVerify every source.".getBytes(StandardCharsets.UTF_8)));
+
+        DomainSkillEntity imported = new DomainSkillService(repository, categories,
+            mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class), remote)
+            .importUrl("tenant-a", "admin", "https://skills.example/research/SKILL.md", "", "Research");
+
+        assertThat(imported.getName()).isEqualTo("Internet Research");
+        assertThat(imported.getStatus()).isEqualTo("DRAFT");
+        assertThat(imported.getSourceType()).isEqualTo("URL_MARKDOWN");
+        assertThat(imported.getDescription()).contains("https://skills.example/research/SKILL.md");
+    }
+
+    @Test
     void resolvesOnlyPublishedSkillsInsideTheRequestedTenant() {
         DomainSkillRepository repository = mock(DomainSkillRepository.class);
         DomainSkillEntity skill = skill("skill-1", "Finance", "Use Decimal for money.");
@@ -90,7 +111,8 @@ class DomainSkillServiceTest {
         when(categories.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         DomainSkillService service = new DomainSkillService(repository, categories,
-            mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class));
+            mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class),
+            mock(DomainSkillRemoteImporter.class));
         DomainSkillService.CategoryOption created = service.createCategory("tenant-a", " Finance ");
 
         assertThat(created.name()).isEqualTo("Finance");
@@ -140,7 +162,8 @@ class DomainSkillServiceTest {
     }
 
     private DomainSkillService service(DomainSkillRepository r, McpLicenseEntitlementPort e, DomainSkillIndexService i) {
-        return new DomainSkillService(r, mock(DomainSkillCategoryRepository.class), e, i);
+        return new DomainSkillService(r, mock(DomainSkillCategoryRepository.class), e, i,
+            mock(DomainSkillRemoteImporter.class));
     }
     private DomainSkillEntity skill(String id, String name, String markdown) { DomainSkillEntity s = new DomainSkillEntity(); s.setId(id); s.setTenantId("tenant-a"); s.setOwnerId("admin"); s.setName(name); s.setCategory("General"); s.setMarkdownContent(markdown); s.setStatus("DRAFT"); s.setSourceType("EDITOR"); return s; }
     private byte[] zip(String... entries) throws Exception { ByteArrayOutputStream out = new ByteArrayOutputStream(); try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) { for (int i = 0; i < entries.length; i += 2) { zip.putNextEntry(new ZipEntry(entries[i])); zip.write(entries[i + 1].getBytes(StandardCharsets.UTF_8)); zip.closeEntry(); } } return out.toByteArray(); }

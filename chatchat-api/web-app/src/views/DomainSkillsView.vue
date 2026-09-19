@@ -121,11 +121,16 @@
     <div v-if="importOpen" class="domain-skill-dialog-backdrop" @mousedown.self="!busy && (importOpen = false)">
       <form class="domain-skill-dialog domain-skills-import" @submit.prevent="importSkill">
         <header><div><p>领域技能</p><h2>导入技能</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="importOpen = false">×</button></header>
+        <div class="domain-skill-import-modes" role="tablist" aria-label="导入方式">
+          <button type="button" role="tab" :aria-selected="importMode === 'file'" :class="{ active: importMode === 'file' }" @click="importMode = 'file'">本地文件</button>
+          <button type="button" role="tab" :aria-selected="importMode === 'url'" :class="{ active: importMode === 'url' }" @click="importMode = 'url'">互联网地址</button>
+        </div>
         <label><span>名称（可选）</span><input v-model="importName" maxlength="200"></label>
         <label><span>分类 *</span><select v-model="importCategory" required><option value="" disabled>请选择分类</option><option v-for="item in categoryOptions" :key="item.name" :value="item.name">{{ item.name }}</option></select></label>
         <p v-if="!categoryOptions.length" class="domain-skill-field-hint">暂无可选分类，请使用左侧分类栏的“+”创建分类后再导入。</p>
-        <label class="file-picker"><input type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
-        <footer><button type="button" class="secondary-button" @click="importOpen = false">取消</button><button :disabled="busy || !importFile || !importCategory">导入</button></footer>
+        <label v-if="importMode === 'url'" class="domain-skill-url-field"><span>互联网地址 *</span><input v-model.trim="importUrl" type="url" required maxlength="2048" placeholder="https://example.com/SKILL.md"><small>支持公开的 HTTP/HTTPS Markdown 或 ZIP 地址，最大 5MB。</small></label>
+        <label v-else class="file-picker"><input type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
+        <footer><button type="button" class="secondary-button" @click="importOpen = false">取消</button><button :disabled="busy || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())">导入</button></footer>
       </form>
     </div>
   </section>

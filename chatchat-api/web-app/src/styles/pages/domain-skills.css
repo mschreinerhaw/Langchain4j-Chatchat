@@ -7,8 +7,15 @@
 }
 
 .domain-skills-page .domain-skills-header {
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.domain-skills-page .domain-skills-header .feature-breadcrumb {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .domain-skills-page .domain-skills-toolbar {
@@ -155,8 +162,8 @@
 .domain-skills-page .domain-skill-category-entry {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 3px;
 }
 
 .domain-skills-page .domain-skill-category-entry .domain-skill-category-row {
@@ -164,20 +171,23 @@
 }
 
 .domain-skills-page .domain-skill-category-actions-trigger {
-  min-height: 34px;
+  width: 26px;
+  min-height: 26px;
+  align-self: center;
+  justify-self: center;
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--primary);
-  font-size: 16px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
   font-weight: 800;
-  letter-spacing: 1px;
 }
 
 .domain-skills-page .domain-skill-category-actions-trigger:hover {
-  border-color: rgba(37, 99, 235, .35);
   background: rgba(37, 99, 235, .06);
+  color: var(--primary);
 }
 
 .domain-skills-page .domain-skill-category-menu {

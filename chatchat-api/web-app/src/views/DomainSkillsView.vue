@@ -1,7 +1,8 @@
 <template>
   <section class="feature-view domain-skills-page">
-    <header v-if="isAdmin" class="feature-page-header domain-skills-header">
-      <div class="feature-page-actions">
+    <header class="feature-page-header domain-skills-header">
+      <span class="feature-breadcrumb">能力管理 / 数据科学 / 领域技能</span>
+      <div v-if="isAdmin" class="feature-page-actions">
         <button type="button" class="feature-button secondary" @click="openImport">导入 ZIP / MD</button>
         <button type="button" class="feature-button primary" @click="openCreate">新建技能</button>
       </div>
@@ -40,7 +41,7 @@
           <button type="button" class="domain-skill-category-row" :class="{ active: filters.category === category.name }" @click="selectCategory(category.name)">
             <span>{{ category.name }}</span><strong>{{ category.count }}</strong>
           </button>
-          <button v-if="isAdmin" type="button" class="domain-skill-category-actions-trigger" title="分类操作" :aria-label="`${category.name}分类操作`" @click="toggleCategoryMenu(category)">···</button>
+          <button v-if="isAdmin" type="button" class="domain-skill-category-actions-trigger" title="分类操作" :aria-label="`${category.name}分类操作`" @click="toggleCategoryMenu(category)">⋯</button>
           <div v-if="isAdmin && categoryMenuId === (category.id || category.name)" class="domain-skill-category-menu">
             <button v-if="category.manageable" type="button" @click="openRenameCategory(category)">重命名</button>
             <button type="button" :disabled="busy || !category.count" @click="categoryMenuId = ''; reindexCategory(category)">重建索引</button>

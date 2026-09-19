@@ -240,19 +240,19 @@ public class NewsSourcePresetCatalog {
     private Preset sseDailySnapshot() {
         String code = "sse_daily_snapshot";
         String name = "上海证券交易所每日市场快照";
-        String url = "https://www.sse.com.cn/market/view/";
+        String url = "https://www.sse.com.cn/market/price/report/";
         return new Preset(code, name,
-            "采集上交所市场总貌、每日债券成交情况，以及股票、指数、基金和债券行情报表；同一交易日和业务键重复采集时覆盖更新。",
-            new SourceUpsert(code, name, "EXCHANGE_DAILY_SNAPSHOT", url, "sse.com.cn", "0 */10 * * * *", true,
+            "采集上交所市场总貌、每日债券成交情况和股票行情报表；同一交易日和业务键重复采集时覆盖更新。",
+            new SourceUpsert(code, name, "EXCHANGE_DAILY_SNAPSHOT", url, "sse.com.cn", "0 10 18 * * MON-FRI", true,
                 Map.ofEntries(
-                    Map.entry("presetVersion", 1), Map.entry("provider", "SSE"),
+                    Map.entry("presetVersion", 2), Map.entry("provider", "SSE"),
                     Map.entry("providerName", "上海证券交易所"),
                     Map.entry("sseQueryUrl", "https://query.sse.com.cn/commonQuery.do"),
                     Map.entry("bondPageUrl", "https://www.sse.com.cn/market/bonddata/overview/day/"),
                     Map.entry("quotePageUrl", "https://www.sse.com.cn/market/price/report/"),
                     Map.entry("quoteApiBaseUrl", "https://yunhq.sse.com.cn:32042/v1/sh1/list/exchange/"),
-                    Map.entry("quoteCategories", List.of("equity", "index", "fwr", "bond")),
-                    Map.entry("quotePageSize", 100), Map.entry("sleepMillis", 100),
+                    Map.entry("quoteCategories", List.of("equity")),
+                    Map.entry("quotePageSize", 500), Map.entry("sleepMillis", 100),
                     Map.entry("timeoutMillis", 60000), Map.entry("zoneId", "Asia/Shanghai"),
                     Map.entry("language", "zh-CN"), Map.entry("legalRisk", false),
                     Map.entry("legalDisclaimer", "数据来自上海证券交易所官方公开页面，仅用于内部市场研究和资讯检索，不构成投资建议；请以上交所最新披露为准。"))), null);

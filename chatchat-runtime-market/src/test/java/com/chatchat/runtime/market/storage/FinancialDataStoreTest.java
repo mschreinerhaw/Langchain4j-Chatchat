@@ -7,8 +7,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.support.EncodedResource;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -21,6 +26,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FinancialDataStoreTest {
+    @Test
+    void writesDynamicQuoteColumnsIntoPreinitializedNewsDeploymentSchema() throws Exception {
+        var dataSource = new DriverManagerDataSource(
+            "jdbc:h2:mem:financial_news_schema;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
+        Path schema = Path.of("..", "database", "init", "h2", "chatchat-runtime-news.sql")
+            .toAbsolutePath().normalize();
+        try (var connection = dataSource.getConnection()) {
+            ScriptUtils.executeSqlScript(connection,
+                new EncodedResource(new FileSystemResource(schema), StandardCharsets.UTF_8));
+        }
+
+        var jdbc = new JdbcTemplate(dataSource);
+        var store = new FinancialDataStore(jdbc, dataSource, new ObjectMapper(), new MarketModuleProperties());
+        store.initialize();
+        store.store(quote(new MarketSource(1L, "sse_daily_snapshot", "SSE daily snapshot",
+            "https://www.sse.com.cn/market/price/report/"), "600000", "浦发银行", "10.50"));
+
+        assertThat(jdbc.queryForMap("select quote_code,quote_name,close from market_quote_daily"))
+            .containsEntry("quote_code", "600000")
+            .containsEntry("quote_name", "浦发银行");
+    }
+
     @Test
     void dedicatedStorageRequirementFailsClosedInsteadOfUsingControlPlaneDatasource() {
         var dataSource = new DriverManagerDataSource(

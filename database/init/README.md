@@ -6,6 +6,7 @@ The project uses two independent database boundaries. Choose the script matching
 | --- | --- | --- | ---: |
 | ChatChat API | `mysql/chatchat-api.sql` | `h2/chatchat-api.sql` | 50 |
 | Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 33 |
+| Standalone News Runtime + governed market storage | `mysql/chatchat-runtime-news.sql` | `h2/chatchat-runtime-news.sql` | 20 |
 
 Run these scripts only against a new, empty database. They contain the complete current JPA schema, including indexes and unique constraints, and intentionally do not drop existing objects.
 
@@ -23,6 +24,8 @@ java -cp h2.jar org.h2.tools.RunScript \
 ```
 
 The API and standalone MCP Server may use different physical databases. Do not initialize both schemas into one database unless that deployment intentionally shares them.
+
+The News Runtime script contains its four relational runtime tables plus three market-governance tables and thirteen governed hot-data tables. Market weekly-snapshot archive tables are intentionally created lazily after each dataset's dynamic business columns are known.
 
 The scripts are generated and checked by `DatabaseSchemaGeneratorTest` in the corresponding application module. After schema changes, regenerate and review both dialects before changing production from `ddl-auto: update` to `ddl-auto: validate`.
 

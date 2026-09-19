@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.news.catalog;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class NewsSourcePresetCatalogTest {
@@ -95,6 +97,14 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.source().configuration()).containsKeys(
                     "provider", "providerName", "quotePageUrl", "legalDisclaimer");
                 assertThat(preset.description()).contains("覆盖更新");
+            });
+        assertThat(presets).filteredOn(preset -> "sse_daily_snapshot".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().entryUrl()).isEqualTo("https://www.sse.com.cn/market/price/report/");
+                assertThat(preset.source().scheduleCron()).isEqualTo("0 10 18 * * MON-FRI");
+                assertThat(preset.source().configuration()).containsEntry("presetVersion", 2)
+                    .containsEntry("quoteCategories", List.of("equity"))
+                    .containsEntry("quotePageSize", 500);
             });
         assertThat(presets).filteredOn(preset -> java.util.Set.of(
                 "sse_home", "szse_home", "csindex_home").contains(preset.code()))

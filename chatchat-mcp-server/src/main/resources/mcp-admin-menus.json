@@ -1,9 +1,9 @@
 [
   {"key":"apiServices","label":"API 服务","icon":"Connection","navigation":true,"description":"API 服务资产、模板发现与执行","apiPrefixes":["/api/v1/api-services","/api/v1/livedata-apis"],"toolPatterns":["api_*","livedata_*"]},
-  {"key":"mcpServices","label":"MCP 服务","icon":"Cpu","navigation":true,"description":"MCP 服务注册、发布与运行管理","apiPrefixes":["/api/v1/mcp-services"]},
+  {"key":"mcpServices","label":"MCP 服务","icon":"Cpu","navigation":true,"description":"MCP 服务注册、发布与运行管理","apiPrefixes":["/api/v1/mcp-services","/api/v1/search"],"toolPatterns":["*"]},
   {"key":"pythonManagement","label":"Python 管理","icon":"Monitor","navigation":true,"description":"Python 执行环境、同步模板与隔离运行治理","apiPrefixes":["/api/v1/python"],"toolPatterns":["python_*"],"impliedBy":["assetCenter","mcpServices"]},
   {"key":"templateQueryPublications","label":"模板工具发布","icon":"Share","navigation":true,"description":"模板查询工具及子工具发布","apiPrefixes":["/api/v1/template-query-publications"],"impliedBy":["mcpServices"]},
-  {"key":"newsCollection","label":"资讯采集","icon":"Tickets","navigation":true,"description":"新闻采集、检索及金融数据查询","apiPrefixes":["/api/v1/news"],"toolPatterns":["news_*","web_search","financial_data_search"]},
+  {"key":"newsCollection","label":"资讯采集","icon":"Tickets","navigation":true,"description":"新闻采集、检索及金融数据查询","apiPrefixes":["/api/v1/news","/api/v1/cache/financial-query"],"toolPatterns":["news_*","web_search","financial_data_search"]},
   {"key":"assetCenter","label":"资产中心","icon":"FolderOpened","navigation":true,"description":"运维资产与模板统一管理","apiPrefixes":["/api/v1/ops","/api/v1/sql","/api/v1/template-dsl","/api/v1/mcp-search-index","/api/v1/admin/enterprise-metadata"]},
   {"key":"assetSsh","label":"SSH 运维","icon":"Cpu","navigation":false,"parentKey":"assetCenter","description":"服务器资产、SSH 命令模板与命令执行","apiPrefixes":["/api/v1/ops/ssh-hosts","/api/v1/ops/command-templates"],"toolPatterns":["linux_command_execute","ssh_*"],"impliedBy":["assetCenter"]},
   {"key":"assetSql","label":"SQL 运维","icon":"Coin","navigation":false,"parentKey":"assetCenter","description":"数据库资产、SQL 模板及受控查询执行","apiPrefixes":["/api/v1/sql"],"toolPatterns":["sql_*","database_asset_search","database_ops_template_search"],"impliedBy":["assetCenter"]},
@@ -17,5 +17,5 @@
   {"key":"notificationChannels","label":"通知告警","icon":"Bell","navigation":true,"description":"通知通道、模板与告警策略","apiPrefixes":["/api/v1/notifications"]},
   {"key":"auditLogs","label":"调用审计","icon":"Tickets","navigation":true,"description":"MCP 调用记录与审计检索","apiPrefixes":["/api/v1/audit-logs"]},
   {"key":"commandAuditLogs","label":"命令审计","icon":"Tickets","navigation":true,"description":"SSH、SQL、HTTP 与 JMX 执行审计","apiPrefixes":["/api/v1/audit-logs/commands"]},
-  {"key":"settings","label":"系统设置","icon":"Setting","navigation":true,"description":"授权、用户、目标与系统参数配置","apiPrefixes":["/api/v1/mcp-authorization","/api/v1/admin/login-audits","/api/v1/execution-targets","/api/v1/admin/market/security-master"]}
+  {"key":"settings","label":"系统设置","icon":"Setting","navigation":true,"description":"授权、用户、目标与系统参数配置","apiPrefixes":["/api/v1/mcp-authorization","/api/v1/admin/login-audits","/api/v1/execution-targets","/api/v1/admin/market/security-master","/internal/v1/market"]}
 ]

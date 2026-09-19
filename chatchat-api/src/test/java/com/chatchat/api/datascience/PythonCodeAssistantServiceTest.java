@@ -3,7 +3,9 @@ package com.chatchat.api.datascience;
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.config.ModelResourceRegistry;
+import com.chatchat.common.skills.DomainSkillRuntimePort;
 import dev.langchain4j.model.chat.ChatModel;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +22,7 @@ class PythonCodeAssistantServiceTest {
     private final ChatModel defaultModel = mock(ChatModel.class);
     private final ChatModel codeModel = mock(ChatModel.class);
     private final ConfigurableChatModelFactory factory = mock(ConfigurableChatModelFactory.class);
+    private final DomainSkillRuntimePort domainSkillRuntime = mock(DomainSkillRuntimePort.class);
     private final ModelsConfig modelsConfig = new ModelsConfig();
     private PythonCodeAssistantService service;
 
@@ -33,7 +36,8 @@ class PythonCodeAssistantServiceTest {
         ModelsConfig.ModelConnectionConfig code = new ModelsConfig.ModelConnectionConfig();
         code.setBaseUrl("http://code.example/v1");
         modelsConfig.getChatModels().put("code-model", code);
-        service = new PythonCodeAssistantService(defaultModel, new ModelResourceRegistry(modelsConfig), factory);
+        service = new PythonCodeAssistantService(defaultModel, new ModelResourceRegistry(modelsConfig), factory,
+            domainSkillRuntime);
     }
 
     @Test
@@ -70,5 +74,24 @@ class PythonCodeAssistantServiceTest {
             new PythonCodeAssistantService.AssistRequest("generate", "生成测试代码", "", "", "unknown-model")))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("所选模型不可用");
+    }
+
+    @Test
+    void injectsOnlyResolvedPublishedSkillsIntoPythonGeneration() {
+        when(domainSkillRuntime.resolvePublished("tenant-a", List.of("finance-skill"))).thenReturn(List.of(
+            new DomainSkillRuntimePort.DomainSkillContent("finance-skill", "财务分析", "金融",
+                "金额计算必须使用 Decimal，并保留审计字段。")));
+        when(defaultModel.chat(anyString())).thenReturn("print('professional')");
+
+        PythonCodeAssistantService.AssistResponse response = service.assist("tenant-a",
+            new PythonCodeAssistantService.AssistRequest("generate", "生成汇总代码", "", "",
+                "general-model", List.of("finance-skill", "finance-skill")));
+
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(defaultModel).chat(prompt.capture());
+        assertThat(prompt.getValue()).contains("财务分析", "金额计算必须使用 Decimal", "不得覆盖上述平台安全约束");
+        assertThat(response.appliedSkills()).extracting(PythonCodeAssistantService.AppliedSkill::id)
+            .containsExactly("finance-skill");
+        verify(domainSkillRuntime).resolvePublished("tenant-a", List.of("finance-skill"));
     }
 }

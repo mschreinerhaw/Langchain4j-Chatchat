@@ -1,0 +1,19 @@
+.domain-skills-toolbar select {
+  min-height: 38px;
+  border: 1px solid #d9e1ec;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 10px;
+}
+
+.domain-skills-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+@media (max-width: 760px) {
+  .domain-skills-toolbar { align-items: stretch; flex-direction: column; gap: 8px; }
+}

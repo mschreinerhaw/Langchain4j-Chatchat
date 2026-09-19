@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS license_issue_audit (
     server_id VARCHAR(128) NOT NULL,
     max_users INTEGER,
     max_agents INTEGER,
+    max_skills INTEGER,
     modules_json CLOB NOT NULL,
     issued_date DATE,
     expire_date DATE NOT NULL,
@@ -18,6 +19,8 @@ CREATE TABLE IF NOT EXISTS license_issue_audit (
     last_downloaded_at TIMESTAMP,
     document_sha256 VARCHAR(64) NOT NULL
 );
+
+ALTER TABLE license_issue_audit ADD COLUMN IF NOT EXISTS max_skills INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_license_audit_issued_at ON license_issue_audit (issued_at);
 CREATE INDEX IF NOT EXISTS idx_license_audit_license_no ON license_issue_audit (license_no);

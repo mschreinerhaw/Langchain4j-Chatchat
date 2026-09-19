@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.chatchat.mcpserver.authorization.McpAuthorizationProperties;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.chatchat.mcpserver.license.McpLicenseService;
+import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
@@ -17,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -48,6 +50,8 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
     private final McpAuthorizationService authorizationService;
     private final McpLicenseService licenseService;
     private final McpServiceRegistryService serviceRegistryService;
+    @Autowired(required = false)
+    private ChatChatMcpServerProperties mcpServerProperties;
 
     /**
      * Performs the do filter internal operation.
@@ -63,7 +67,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String uri = request.getRequestURI();
-        if (uri == null || !uri.startsWith("/mcp")) {
+        if (!isMcpEndpoint(uri)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -74,11 +78,10 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         McpInvocationContext.Scope scope = McpInvocationContext.open(invocationContext);
         try {
             JsonNode requestJson = requestBodyJson(wrappedRequest);
-            if (isLicenseExpired() && containsMcpRequest(requestJson)) {
-                String reason = licenseService.toolDenialReason(null);
-                writeAuthorizationDenied(response,
-                    reason == null ? "License 已过期，MCP 调用已停止，请联系供应商续期" : reason);
-                recordAudit(wrappedRequest, response, 0L, "MCP_LICENSE_EXPIRED");
+            String runtimeDenialReason = licenseService.runtimeDenialReason();
+            if (runtimeDenialReason != null) {
+                writeAuthorizationDenied(response, "License: " + runtimeDenialReason);
+                recordAudit(wrappedRequest, response, 0L, "MCP_LICENSE_ACCESS_DENIED");
                 return;
             }
             if (authorizationProperties.isRequireTenantContext() && isToolCall(wrappedRequest, requestBody(wrappedRequest))
@@ -297,9 +300,12 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         return node.isObject() && method != null && !method.isBlank();
     }
 
-    private boolean isLicenseExpired() {
-        return licenseService.status() != null
-            && "EXPIRED".equalsIgnoreCase(licenseService.status().status());
+    private boolean isMcpEndpoint(String uri) {
+        if (uri == null) return false;
+        String endpoint = mcpServerProperties == null ? "/mcp" : mcpServerProperties.getEndpoint();
+        if (endpoint == null || endpoint.isBlank()) endpoint = "/mcp";
+        endpoint = endpoint.startsWith("/") ? endpoint : "/" + endpoint;
+        return uri.equals(endpoint) || uri.startsWith(endpoint + "/");
     }
 
     private void writeTenantRequired(HttpServletResponse response) throws IOException {

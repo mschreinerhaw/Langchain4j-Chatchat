@@ -10,6 +10,7 @@ import com.chatchat.common.tool.McpToolNamePolicy;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.mcp.McpInvocationArguments;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +18,7 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -59,6 +61,8 @@ public class ToolRegistryMcpAdapter {
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final McpAuthorizationService authorizationService;
+    @Autowired(required = false)
+    private McpLicenseService licenseService;
 
     /**
      * Converts the value to tool specifications.
@@ -70,6 +74,7 @@ public class ToolRegistryMcpAdapter {
         List<String> publishableNames = toolRegistry.getAllToolNames().stream()
             .sorted(Comparator.naturalOrder())
             .filter(name -> !isExcluded(name))
+            .filter(this::licensedForPublication)
             .filter(name -> {
                 ToolMetadata metadata = toolRegistry.getToolMetadata(name);
                 return !properties.isExposeAgentCompatibleOnly()
@@ -156,6 +161,11 @@ public class ToolRegistryMcpAdapter {
         ToolMetadata metadata,
         McpSchema.CallToolRequest request
     ) {
+        String licenseDenial = licenseService == null ? null : licenseService.toolDenialReason(toolName);
+        if (licenseDenial != null) {
+            log.warn("MCP server tool call denied by License tool={} reason={}", toolName, licenseDenial);
+            return permissionDeniedResult(toolName, licenseDenial);
+        }
         Map<String, Object> arguments = applyDefaults(metadata, request.arguments());
         injectProtocolContext(toolName, arguments, request.meta());
         McpAuthorizationService.AuthorizationDecision authorization = authorizationService.authorize(toolName, arguments);
@@ -213,6 +223,12 @@ public class ToolRegistryMcpAdapter {
                 ToolLogSummarizer.summarizeResult(toolName, output == null ? null : output.getData()));
         }
         return toCallToolResult(toolName, output);
+    }
+
+    private boolean licensedForPublication(String toolName) {
+        boolean allowed = licenseService == null || licenseService.allowsTool(toolName);
+        if (!allowed) log.info("MCP tool hidden from discovery because it is not licensed: {}", toolName);
+        return allowed;
     }
 
     @SuppressWarnings("unchecked")

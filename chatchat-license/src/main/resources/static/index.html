@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>灵动智联 · LingDong Nexus License Center</title>
-  <link rel="stylesheet" href="/license-center.css?v=20260808-2">
+  <link rel="stylesheet" href="/license-center.css?v=20260919-1">
 </head>
 <body>
   <header class="topbar">
@@ -40,7 +40,7 @@
     <section class="commercial-strip" aria-label="商业授权能力">
       <div><b>离线私有化</b><span>无需连接公网授权服务</span></div>
       <div><b>功能权益控制</b><span>菜单、模块与 MCP 工具三级约束</span></div>
-      <div><b>容量配额控制</b><span>用户数量与 Agent 发布额度</span></div>
+      <div><b>容量配额控制</b><span>用户、Agent 与领域 Skill 发布额度</span></div>
       <div><b>授权生命周期</b><span>到期自动进入安全受限模式</span></div>
     </section>
 
@@ -71,6 +71,7 @@
             <label><span>授权产品</span><input name="product" value="LingDong Nexus" readonly><small class="field-help">灵动智联 · 企业数据与智能能力协同平台</small></label>
             <label><span>用户授权数 <em>*</em></span><input name="maxUsers" type="number" min="1" value="500" required><small class="field-help">允许纳入授权的最大用户数量</small></label>
             <label><span>Agent 发布授权数 <em>*</em></span><input name="maxAgents" type="number" min="1" value="100" required><small class="field-help">控制可同时发布的 Agent 数量</small></label>
+            <label><span>领域 Skill 发布授权数 <em>*</em></span><input name="maxSkills" type="number" min="1" value="50" required><small class="field-help">控制租户可同时发布的领域技能数量</small></label>
             <div class="quota-policy"><span>配额执行策略</span><strong>达到上限后限制新增发布</strong><small>已发布服务与已创建草稿不受影响</small></div>
           </div>
         </section>
@@ -128,6 +129,7 @@
           <div><dt>功能权益</dt><dd id="previewModules">尚未选择</dd></div>
           <div><dt>用户授权</dt><dd><span id="previewUsers">500</span> 席</dd></div>
           <div><dt>Agent 发布</dt><dd><span id="previewAgents">100</span> 个</dd></div>
+          <div><dt>领域 Skill 发布</dt><dd><span id="previewSkills">50</span> 个</dd></div>
           <div><dt>有效期至</dt><dd id="previewExpiry">-</dd></div>
         </dl>
         <div class="commercial-assurance"><span>✓ 离线交付</span><span>✓ 防篡改</span><span>✓ 到期治理</span></div>
@@ -188,7 +190,7 @@
       <div><dt>商品方案</dt><dd id="detailEdition">-</dd></div>
       <div><dt>授权对象编码</dt><dd id="detailCustomerCode">-</dd></div>
       <div><dt>绑定服务器</dt><dd id="detailServerId">-</dd></div>
-      <div><dt>用户 / Agent 配额</dt><dd id="detailQuota">-</dd></div>
+      <div><dt>用户 / Agent / Skill 配额</dt><dd id="detailQuota">-</dd></div>
       <div><dt>授权周期</dt><dd id="detailTerm">-</dd></div>
       <div><dt>签发人</dt><dd id="detailOperator">-</dd></div>
       <div><dt>下载记录</dt><dd id="detailDownloads">-</dd></div>
@@ -197,6 +199,6 @@
     <div class="audit-detail-modules"><span>功能权益</span><div id="detailModules"></div></div>
     <div class="audit-hash"><span>文件 SHA-256</span><code id="detailHash">-</code></div>
   </dialog>
-  <script src="/license-center.js?v=20260808-2"></script>
+  <script src="/license-center.js?v=20260919-1"></script>
 </body>
 </html>

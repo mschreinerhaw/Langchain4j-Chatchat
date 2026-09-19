@@ -12,9 +12,11 @@ import com.chatchat.common.mcp.service.McpPaginationResult;
 import com.chatchat.mcp.grpc.McpGrpcPayloads;
 import com.chatchat.mcp.grpc.v1.JsonRequest;
 import com.chatchat.mcp.grpc.v1.PayloadChunk;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
+import io.grpc.Status;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -24,6 +26,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class McpRuntimeGrpcServiceTest {
 
@@ -65,6 +68,29 @@ class McpRuntimeGrpcServiceTest {
         assertThat(restored.resultSchemaRef()).isEqualTo("ssh_steps.v1");
         assertThat(restored.provenance().dataVersion()).isEqualTo("boot-42");
         assertThat(restored.pagination().nextPageToken()).isEqualTo("page-2");
+    }
+
+    @Test
+    void rejectsRuntimeInvocationBeforeKernelWhenToolIsNotLicensed() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
+        McpLicenseService licenses = mock(McpLicenseService.class);
+        when(licenses.toolDenialReason("linux_command_execute"))
+            .thenReturn("License 未授权 MCP 功能模块: SSH 运维");
+        McpServiceCall call = new McpServiceCall(null, "request-2", "linux",
+            "linux_command_execute", Map.of(), Map.of("tenantId", "tenant-a"), null, 0);
+        McpRuntimeGrpcService service = new McpRuntimeGrpcService(kernel, mapper, 1024, licenses);
+        CapturingObserver observer = new CapturingObserver();
+        JsonRequest request = JsonRequest.newBuilder()
+            .setProtocolVersion(McpRuntimeTransportPort.PROTOCOL_VERSION)
+            .setRequestId(call.requestId())
+            .setPayloadJson(ByteString.copyFrom(mapper.writeValueAsBytes(call)))
+            .build();
+
+        service.invoke(request, observer);
+
+        assertThat(Status.fromThrowable(observer.failure).getCode()).isEqualTo(Status.Code.PERMISSION_DENIED);
+        verifyNoInteractions(kernel);
     }
 
     private static final class CapturingObserver implements StreamObserver<PayloadChunk> {

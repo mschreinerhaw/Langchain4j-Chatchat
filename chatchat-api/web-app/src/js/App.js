@@ -55,6 +55,7 @@ const LibraryView = asyncView(() => import("../views/LibraryView.vue"));
 const FavoritesView = asyncView(() => import("../views/FavoritesView.vue"));
 const McpCenterView = asyncView(() => import("../views/McpCenterView.vue"));
 const DataScienceView = asyncView(() => import("../views/DataScienceView.vue"));
+const DomainSkillsView = asyncView(() => import("../views/DomainSkillsView.vue"));
 const AgentWorkshopView = asyncView(() => import("../views/AgentWorkshopView.vue"));
 const AgentScheduleView = asyncView(() => import("../views/AgentScheduleView.vue"));
 const AgentRuntimeView = asyncView(() => import("../views/AgentRuntimeView.vue"));
@@ -82,6 +83,7 @@ const VIEW_PERMISSIONS = {
   dataScienceDevelop: "capability:data-science",
   dataScienceData: "capability:data-science",
   dataScienceScripts: "capability:data-science",
+  dataScienceSkills: "capability:data-science",
   agents: "platform:agents",
   schedules: "platform:schedules",
   runtime: "platform:tasks",
@@ -102,6 +104,7 @@ const views = {
   dataScienceDevelop: DataScienceView,
   dataScienceData: DataScienceView,
   dataScienceScripts: DataScienceView,
+  dataScienceSkills: DomainSkillsView,
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
   runtime: AgentRuntimeView,
@@ -207,7 +210,8 @@ export default {
                 { id: "dataScienceEnvironment", label: "Python 环境", icon: "runtime", permissionCode: "capability:data-science" },
                 { id: "dataScienceDevelop", label: "Python 开发", icon: "code", permissionCode: "capability:data-science" },
                 { id: "dataScienceData", label: "我的数据", icon: "file", permissionCode: "capability:data-science" },
-                { id: "dataScienceScripts", label: "我的脚本", icon: "book", permissionCode: "capability:data-science" }
+                { id: "dataScienceScripts", label: "我的脚本", icon: "book", permissionCode: "capability:data-science" },
+                { id: "dataScienceSkills", label: "领域技能", icon: "book", permissionCode: "capability:data-science" }
               ]
             }
           ]

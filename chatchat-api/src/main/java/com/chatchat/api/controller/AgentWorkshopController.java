@@ -3,6 +3,7 @@ package com.chatchat.api.controller;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.document.DocumentLifecycleStatus;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.chatchat.knowledgebase.search.service.SearchService;
 import com.chatchat.chat.skills.SkillCatalogService;
@@ -16,6 +17,8 @@ import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.license.AgentPublicationLicenseService;
+import com.chatchat.api.datascience.DomainSkillEntity;
+import com.chatchat.api.datascience.DomainSkillService;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,6 +62,7 @@ public class AgentWorkshopController {
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentPublicationLicenseService agentPublicationLicenseService;
     private final AgentReleaseService agentReleaseService;
+    private final DomainSkillService domainSkillService;
 
     @GetMapping("/{agentId}/releases")
     @Operation(summary = "List immutable Agent releases and quality-gate reports")
@@ -131,6 +135,7 @@ public class AgentWorkshopController {
             modelOptions(),
             modelResources.defaultChatModel(),
             searchService.listLibrary("all", null, 1, 500, documentPermissionContext(request)).documents(),
+            domainSkillService.publishedOptions(tenantId(request)).stream().map(DomainSkillOption::from).toList(),
             pageInfo,
             agentCategories(allAgents)
         ));
@@ -273,6 +278,7 @@ public class AgentWorkshopController {
             skill.boundMcpServiceIds(),
             List.copyOf(explicitlyBoundTools),
             skill.boundDocumentIds(),
+            domainSkillIds(skill.workflowConfig()),
             skill.boundDocumentTags(),
             skill.toolConfigs(),
             skill.routingSettings(),
@@ -634,17 +640,56 @@ public class AgentWorkshopController {
             request.getPreferredToolPrefixes(),
             request.getBoundMcpServiceIds(),
             request.getBoundMcpToolNames(),
-            request.getBoundDocumentIds(),
+            existingDocumentIds(request.getBoundDocumentIds()),
             request.getBoundDocumentTags(),
             request.getToolConfigs(),
             request.getRoutingSettings(),
-            request.getWorkflowConfig(),
+            workflowConfig(request),
             request.getDefaultDataAsset(),
             request.getAssetSelectionPolicy(),
             request.getQuickQuestions(),
             request.getMarketStatus(),
             request.getDefaultAgent()
         );
+    }
+
+    private Map<String, Object> workflowConfig(AgentUpsertRequest request) {
+        Map<String, Object> workflow = new LinkedHashMap<>();
+        if (request.getWorkflowConfig() != null) workflow.putAll(request.getWorkflowConfig());
+        workflow.put("boundDomainSkillIds", request.getBoundDomainSkillIds() == null ? List.of()
+            : request.getBoundDomainSkillIds().stream().filter(id -> id != null && !id.isBlank()).map(String::trim).distinct().toList());
+        return workflow;
+    }
+
+    private List<String> domainSkillIds(Map<String, Object> workflow) {
+        if (workflow == null || !(workflow.get("boundDomainSkillIds") instanceof Iterable<?> values)) return List.of();
+        List<String> ids = new ArrayList<>();
+        values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
+        return ids.stream().distinct().toList();
+    }
+
+    private String tenantId(HttpServletRequest request) {
+        Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        return value == null || String.valueOf(value).isBlank() ? "default" : String.valueOf(value).trim();
+    }
+
+    /**
+     * Drops stale document bindings when an Agent is saved. Agent configurations can
+     * outlive knowledge documents after migration or deletion, so persisted bindings
+     * must be reconciled against the current document store.
+     */
+    private List<String> existingDocumentIds(List<String> documentIds) {
+        if (documentIds == null) {
+            return null;
+        }
+        return documentIds.stream()
+            .filter(documentId -> documentId != null && !documentId.isBlank())
+            .map(String::trim)
+            .distinct()
+            .filter(documentId -> searchService.get(documentId)
+                .filter(document -> !DocumentLifecycleStatus.DELETED.equalsIgnoreCase(document.getLifecycleStatus()))
+                .isPresent())
+            .toList();
     }
 
     /**
@@ -725,6 +770,7 @@ public class AgentWorkshopController {
         private List<String> boundMcpServiceIds;
         private List<String> boundMcpToolNames;
         private List<String> boundDocumentIds;
+        private List<String> boundDomainSkillIds;
         private List<String> boundDocumentTags;
         private List<SkillToolConfig> toolConfigs;
         private SkillRoutingSettings routingSettings;
@@ -744,6 +790,7 @@ public class AgentWorkshopController {
         List<ModelOption> models,
         String defaultModelName,
         List<LibraryDocumentItem> documents,
+        List<DomainSkillOption> domainSkills,
         PageInfo page,
         List<String> agentCategories
     ) {
@@ -758,6 +805,12 @@ public class AgentWorkshopController {
     }
 
     public record ModelOption(String value, String label) {
+    }
+
+    public record DomainSkillOption(String id, String name, String category, String description) {
+        static DomainSkillOption from(DomainSkillEntity skill) {
+            return new DomainSkillOption(skill.getId(), skill.getName(), skill.getCategory(), skill.getDescription());
+        }
     }
 
     @Data
@@ -815,6 +868,7 @@ public class AgentWorkshopController {
         List<String> boundMcpServiceIds,
         List<String> boundMcpToolNames,
         List<String> boundDocumentIds,
+        List<String> boundDomainSkillIds,
         List<String> boundDocumentTags,
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,

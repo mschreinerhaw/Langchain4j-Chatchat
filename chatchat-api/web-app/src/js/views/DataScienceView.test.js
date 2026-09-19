@@ -56,4 +56,14 @@ describe("Python workbench helpers", () => {
     expect(view).toContain('class="publish-progress"');
     expect(view).toContain(':disabled="publishBusy"');
   });
+
+  it("passes selected published domain skills to Python code generation", () => {
+    const script = readFileSync(new URL("./DataScienceView.js", import.meta.url), "utf8");
+    const view = readFileSync(new URL("../../views/DataScienceView.vue", import.meta.url), "utf8");
+
+    expect(script).toContain("fetchPythonAssistSkills()");
+    expect(script).toContain("skillIds: this.aiSkillIds");
+    expect(view).toContain('class="ai-skill-picker"');
+    expect(view).toContain("aiSuggestion.appliedSkills");
+  });
 });

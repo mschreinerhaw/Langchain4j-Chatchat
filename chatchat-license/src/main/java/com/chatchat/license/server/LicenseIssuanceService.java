@@ -45,7 +45,8 @@ public class LicenseIssuanceService {
         if (mac == null) throw new LicenseException("请输入有效的客户服务器 MAC 地址");
         LicensePayload payload = new LicensePayload(
             requested.licenseNo(), requested.customer(), requested.customerCode(), requested.product(),
-            requested.edition(), requested.modules(), requested.maxUsers(), requested.maxAgents(), mac, requested.expireTime(),
+            requested.edition(), requested.modules(), requested.maxUsers(), requested.maxAgents(), requested.maxSkills(),
+            mac, requested.expireTime(),
             requested.features(), requested.issuedTime());
         validate(payload);
         try {
@@ -138,6 +139,7 @@ public class LicenseIssuanceService {
         }
         if (payload.maxUsers() != null && payload.maxUsers() <= 0) throw new LicenseException("最大用户数必须大于 0");
         if (payload.maxAgents() != null && payload.maxAgents() <= 0) throw new LicenseException("最大 Agent 发布数必须大于 0");
+        if (payload.maxSkills() != null && payload.maxSkills() <= 0) throw new LicenseException("最大 Skill 发布数必须大于 0");
         if (moduleCatalogService != null) {
             Set<String> available = moduleCatalogService.enabledKeys();
             java.util.List<String> unknown = payload.modules().stream()

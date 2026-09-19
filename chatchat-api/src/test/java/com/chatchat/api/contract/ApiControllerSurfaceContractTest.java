@@ -16,6 +16,7 @@ class ApiControllerSurfaceContractTest {
         "com.chatchat.api.agent.task.AgentTaskScheduleController",
         "com.chatchat.api.controller.AgentWorkshopController",
         "com.chatchat.api.controller.DataQueryController",
+        "com.chatchat.api.controller.DomainSkillController",
         "com.chatchat.api.controller.HealthController",
         "com.chatchat.api.controller.ImageUnderstandingController",
         "com.chatchat.api.controller.McpProxyController",

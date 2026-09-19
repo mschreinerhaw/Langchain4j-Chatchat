@@ -105,7 +105,7 @@ CHATCHAT_LICENSE_DB_PASSWORD=<generate-a-strong-secret>
 生成随机强密码，写入 `config/license-center.env` 并将权限收紧为 `600`。已经使用其他密码创建过
 H2 数据库时，修改连接密码前应先通过 H2 的 `ALTER USER SA SET PASSWORD` 完成密码迁移。
 
-审计记录包含 License 编号、授权对象编码、产品版本、模块权益、用户和 Agent 配额、绑定
+审计记录包含 License 编号、授权对象编码、产品版本、模块权益、用户、Agent 和领域 Skill 配额、绑定
 MAC、授权周期、签发人、签发时间、下载次数、最后下载时间以及文件 SHA-256 摘要。数据库
 不保存签发私钥。生产环境应将 `data/license-center` 纳入定期备份，并与私钥采用不同的备份
 权限和保管策略。
@@ -121,6 +121,11 @@ CHATCHAT_LICENSE_STATUS_CHECK_INTERVAL_MS=60000
 
 客户管理端只提供 `GET /api/v1/license/status`，用于查看授权情况、本机机器码和 MAC 地址。
 不存在上传、签发或下载 License 的客户侧接口。
+
+Agent 和领域 Skill 发布额度分别保存在 RSA 签名覆盖的 `maxAgents`、`maxSkills` 字段中。
+MCP Server 通过受时间戳、随机数和 HMAC 签名保护的内部接口向 API 提供运行时额度，防止
+未授权调用和重放。两类资源采用相同发布策略：可以继续创建和编辑草稿，只在发布时校验；
+MCP 暂时不可达或旧 License 未包含对应字段时使用默认额度 5，MCP 明确返回 License 无效时拒绝发布。
 
 ## 授权到期行为
 

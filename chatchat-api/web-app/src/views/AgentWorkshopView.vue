@@ -518,6 +518,15 @@
               </button>
             </div>
           </section>
+          <label class="wide-field">
+            <span>领域技能</span>
+            <select v-model="form.boundDomainSkillIds" multiple size="5">
+              <option v-for="skill in domainSkills" :key="skill.id" :value="skill.id">
+                {{ skill.category }} · {{ skill.name }}
+              </option>
+            </select>
+            <small>仅列出已发布技能；回收后 Agent 运行时会自动停止加载。</small>
+          </label>
           <section v-if="form.defaultMode === 'agent_chat'" class="default-data-asset-settings wide-field">
             <div class="default-data-asset-heading">
               <strong>数据库资产绑定</strong>

@@ -29,7 +29,7 @@ class LicenseAuditServiceTest {
     void persistsIssuanceAndDownloadAuditInH2() throws Exception {
         LicensePayload payload = new LicensePayload(
             "LIC-AUDIT-1", null, "ORG-1", "LiveMCP", "enterprise",
-            List.of("assetJmx", "databaseMcp"), 500, 100, "MAC-AABBCCDDEEFF",
+            List.of("assetJmx", "databaseMcp"), 500, 100, 50, "MAC-AABBCCDDEEFF",
             LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
         LicenseDocument document = new LicenseDocument(
             LicenseDocument.FORMAT, LicenseDocument.ALGORITHM, "prod-key", payload, "test-signature");
@@ -38,6 +38,7 @@ class LicenseAuditServiceTest {
         var delivered = auditService.markDownloaded(issued.id());
 
         assertThat(issued.status()).isEqualTo("ISSUED");
+        assertThat(issued.maxSkills()).isEqualTo(50);
         assertThat(issued.documentSha256()).hasSize(64);
         assertThat(delivered.status()).isEqualTo("DELIVERED");
         assertThat(delivered.downloadCount()).isEqualTo(1);

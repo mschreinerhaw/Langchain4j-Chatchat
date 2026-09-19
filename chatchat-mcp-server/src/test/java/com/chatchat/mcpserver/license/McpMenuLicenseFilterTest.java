@@ -1,15 +1,12 @@
 package com.chatchat.mcpserver.license;
 
-import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.license.LicensePayload;
 import com.chatchat.license.LicenseStatus;
-import com.chatchat.mcpserver.admin.AdminAuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -55,23 +52,35 @@ class McpMenuLicenseFilterTest {
     }
 
     @Test
-    void internalPythonControlPlaneBypassesBrowserMenuLicense() throws Exception {
+    void internalPythonControlPlaneCannotBypassMenuLicense() throws Exception {
         McpLicenseService licenses = mock(McpLicenseService.class);
         when(licenses.status()).thenReturn(valid(List.of("databaseMcp")));
         McpMenuLicenseFilter filter = new McpMenuLicenseFilter(licenses, catalog, objectMapper);
-        AdminAuthService auth = mock(AdminAuthService.class);
-        InternalCredentialProperties credentials = mock(InternalCredentialProperties.class);
-        when(auth.username("internal-token")).thenReturn("chatchat_mcp_internal");
-        when(credentials.resolvedUsername()).thenReturn("chatchat_mcp_internal");
-        ReflectionTestUtils.setField(filter, "adminAuthService", auth);
-        ReflectionTestUtils.setField(filter, "internalCredentials", credentials);
         MockHttpServletRequest request = request("/api/v1/python/environments", "tenant-a");
         request.addHeader("Authorization", "Bearer internal-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
         AtomicInteger calls = new AtomicInteger();
 
-        filter.doFilter(request, new MockHttpServletResponse(), countingChain(calls));
+        filter.doFilter(request, response, countingChain(calls));
 
-        assertThat(calls).hasValue(1);
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentAsString()).contains("pythonManagement");
+        assertThat(calls).hasValue(0);
+    }
+
+    @Test
+    void rejectsBusinessApiThatHasNoLicenseMapping() throws Exception {
+        McpLicenseService licenses = mock(McpLicenseService.class);
+        when(licenses.status()).thenReturn(valid(List.of("mcpServices")));
+        McpMenuLicenseFilter filter = new McpMenuLicenseFilter(licenses, catalog, objectMapper);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicInteger calls = new AtomicInteger();
+
+        filter.doFilter(request("/api/v1/new-commercial-feature", "tenant-a"), response, countingChain(calls));
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentAsString()).contains("MCP_API_NOT_LICENSE_MAPPED");
+        assertThat(calls).hasValue(0);
     }
 
     @Test
@@ -104,6 +113,12 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.menuForPath("/api/v1/ops/jmx-templates/test"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("assetJmx");
+        assertThat(catalog.menuForPath("/api/v1/search/document-search"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("mcpServices");
+        assertThat(catalog.menuForPath("/api/v1/cache/financial-query/config"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("newsCollection");
     }
 
     @Test
@@ -122,6 +137,9 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.moduleForTool("linux_command_execute"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("assetSsh");
+        assertThat(catalog.moduleForTool("future_unclassified_tool"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("mcpServices");
     }
 
     @Test

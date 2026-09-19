@@ -51,15 +51,31 @@ class AgentPublicationLicenseServiceTest {
     }
 
     @Test
-    void failsClosedWhenMcpLicenseCheckIsUnavailable() {
+    void usesFiveAgentBaselineWhenMcpLicenseCheckIsUnavailable() {
         SkillDefinition draft = agent("agent-two", "draft");
-        when(catalog.list()).thenReturn(List.of(draft));
+        List<SkillDefinition> agents = List.of(
+            agent("one", "published"), agent("two", "published"), agent("three", "published"),
+            agent("four", "published"), agent("five", "published"), draft);
+        when(catalog.list()).thenReturn(agents);
         when(client.agentPublicationLimit()).thenThrow(new IllegalStateException("offline"));
 
         assertThatThrownBy(() -> service.publish("agent-two"))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("AGENT_LICENSE_CHECK_UNAVAILABLE");
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("AGENT_LICENSE_LIMIT_EXCEEDED")
+            .hasMessageContaining("上限 5");
         verify(catalog, never()).publishToMarket("agent-two");
+    }
+
+    @Test
+    void publishesWithinFiveAgentBaselineWhenMcpLicenseCheckIsUnavailable() {
+        SkillDefinition draft = agent("agent-two", "draft");
+        SkillDefinition saved = agent("agent-two", "published");
+        SkillDefinition published = agent("one", "published");
+        when(catalog.list()).thenReturn(List.of(published, draft));
+        when(client.agentPublicationLimit()).thenThrow(new IllegalStateException("offline"));
+        when(catalog.publishToMarket("agent-two")).thenReturn(saved);
+
+        assertThat(service.publish("agent-two")).isSameAs(saved);
     }
 
     @Test

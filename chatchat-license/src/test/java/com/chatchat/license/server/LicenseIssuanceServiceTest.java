@@ -43,13 +43,14 @@ class LicenseIssuanceServiceTest {
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
         LicenseIssuanceService service = new LicenseIssuanceService(properties, mapper);
         LicensePayload request = new LicensePayload("LIC-1", null, "C1", "LiveMCP", "enterprise",
-            List.of("mcp"), 20, "aa:bb:cc:dd:ee:ff", LocalDate.now().plusYears(1),
+            List.of("mcp"), 20, 8, 12, "aa:bb:cc:dd:ee:ff", LocalDate.now().plusYears(1),
             Map.of("sql_query", true), LocalDate.now());
 
         LicenseDocument issued = mapper.readValue(service.issue(request), LicenseDocument.class);
 
         assertNull(issued.payload().customer());
         assertEquals("MAC-AABBCCDDEEFF", issued.payload().serverId());
+        assertEquals(12, issued.payload().maxSkills());
         assertEquals("internal-2026", issued.keyId());
         assertTrue(new LicenseCrypto(mapper).verify(issued, pem("PUBLIC KEY", pair.getPublic().getEncoded())));
     }

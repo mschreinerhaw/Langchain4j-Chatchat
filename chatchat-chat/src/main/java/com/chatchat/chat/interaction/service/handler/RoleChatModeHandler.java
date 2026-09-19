@@ -15,9 +15,11 @@ import com.chatchat.common.knowledge.KnowledgeRequest;
 import com.chatchat.common.knowledge.KnowledgeRuntimePort;
 import com.chatchat.common.knowledge.KnowledgeScope;
 import com.chatchat.common.knowledge.KnowledgeSourceReference;
+import com.chatchat.common.skills.DomainSkillRuntimePort;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -42,6 +44,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private final ConfigurableChatModelFactory chatModelFactory;
     private final SkillCatalogService skillCatalogService;
     private final KnowledgeRuntimePort knowledgeRuntime;
+    @Autowired(required = false)
+    private DomainSkillRuntimePort domainSkillRuntime;
 
     public RoleChatModeHandler(ChatModel defaultChatModel,
                                ConfigurableChatModelFactory chatModelFactory,
@@ -151,6 +155,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                     .collect(Collectors.joining("\n")))
                 .append("\n");
         }
+        appendDomainSkills(prompt, request.getTenantId(), skill);
         if (hasText(knowledgeContext)) {
             prompt.append("\n<domain_knowledge>\n")
                 .append(PromptBoundaryEscaper.escapeMarkupText(knowledgeContext.trim()))
@@ -164,6 +169,20 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         }
         prompt.append("\nCurrent user question:\n").append(request.getQuery());
         return prompt.toString();
+    }
+
+    private void appendDomainSkills(StringBuilder prompt, String tenantId, SkillDefinition skill) {
+        if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return;
+        Object configured = skill.workflowConfig().get("boundDomainSkillIds");
+        if (!(configured instanceof Iterable<?> values)) return;
+        List<String> ids = new ArrayList<>();
+        values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
+        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.resolvePublished(tenantId, ids);
+        if (skills.isEmpty()) return;
+        prompt.append("\n<domain_skills>\n");
+        skills.forEach(item -> prompt.append("## ").append(item.name()).append(" [").append(item.category()).append("]\n")
+            .append(PromptBoundaryEscaper.escapeMarkupText(item.markdownContent())).append("\n\n"));
+        prompt.append("</domain_skills>\nApply these governed skill instructions when relevant to the request.\n");
     }
 
     private com.chatchat.common.knowledge.KnowledgeContext retrieveKnowledge(

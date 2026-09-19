@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AgentPublicationLicenseService {
 
+    static final int DEFAULT_PUBLICATION_LIMIT = 5;
+
     private final SkillCatalogService skillCatalogService;
     private final McpLicenseEntitlementPort entitlementPort;
     private final JdbcTemplate jdbcTemplate;
@@ -57,17 +59,17 @@ public class AgentPublicationLicenseService {
         try {
             entitlement = entitlementPort.agentPublicationLimit();
         } catch (RuntimeException ex) {
-            throw new IllegalStateException("AGENT_LICENSE_CHECK_UNAVAILABLE: 无法从 MCP 服务校验 Agent 发布授权，已拒绝发布", ex);
+            entitlement = null;
         }
-        if (!entitlement.licenseValid()) {
+        if (entitlement != null && !entitlement.licenseValid()) {
             throw new IllegalArgumentException("AGENT_LICENSE_INVALID: MCP License 无效，不能发布 Agent："
                 + entitlement.message());
         }
-        if (entitlement.limited()) {
-            Integer maximum = entitlement.maxPublishedAgents();
-            if (maximum == null || maximum <= 0) {
-                throw new IllegalArgumentException("AGENT_LICENSE_LIMIT_INVALID: License 中的 Agent 发布数量无效");
-            }
+        boolean limited = entitlement == null || entitlement.limited();
+        if (limited) {
+            Integer configuredMaximum = entitlement == null ? null : entitlement.maxPublishedAgents();
+            int maximum = configuredMaximum == null || configuredMaximum <= 0
+                ? DEFAULT_PUBLICATION_LIMIT : configuredMaximum;
             long published = skillCatalogService.list().stream()
                 .filter(agent -> SkillCatalogService.MARKET_STATUS_PUBLISHED.equalsIgnoreCase(agent.marketStatus()))
                 .count();

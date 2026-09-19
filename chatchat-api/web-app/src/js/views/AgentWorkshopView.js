@@ -164,6 +164,7 @@ function emptyForm() {
     boundMcpServiceIds: "",
     boundMcpToolNames: "",
     boundDocumentIds: [],
+    boundDomainSkillIds: [],
     boundDocumentTags: [],
     toolConfigs: [],
     routingSettings: defaultRoutingSettings(),
@@ -192,6 +193,7 @@ export default {
       models: [],
       backendDefaultModelName: "",
       documents: [],
+      domainSkills: [],
       loading: false,
       saving: false,
       dialogOpen: false,
@@ -548,6 +550,7 @@ export default {
         this.models = this.normalizeModelOptions(payload?.models);
         this.backendDefaultModelName = String(payload?.defaultModelName || "").trim();
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
+        this.domainSkills = Array.isArray(payload?.domainSkills) ? payload.domainSkills : [];
         this.normalizeAgentFilters();
       } catch (error) {
         this.error = error.message || "Agent管理加载失败";
@@ -874,6 +877,7 @@ export default {
         },
         workflowConfig: this.normalizeWorkflowConfig(agent?.workflowConfig, parseList(agent?.boundMcpToolNames)),
         boundDocumentIds: parseList(agent?.boundDocumentIds),
+        boundDomainSkillIds: parseList(agent?.boundDomainSkillIds),
         boundDocumentTags: parseList(agent?.boundDocumentTags),
         ...this.defaultDataAssetToForm(agent?.defaultDataAsset),
         ...this.assetSelectionPolicyToForm(agent?.assetSelectionPolicy),
@@ -908,6 +912,7 @@ export default {
         boundMcpServiceIds: [],
         boundMcpToolNames: selectedToolNames,
         boundDocumentIds: this.selectedDocumentIds,
+        boundDomainSkillIds: parseList(this.form.boundDomainSkillIds),
         boundDocumentTags: parseList(this.form.boundDocumentTags),
         toolConfigs: this.buildToolConfigs(selectedToolNames),
         routingSettings: {

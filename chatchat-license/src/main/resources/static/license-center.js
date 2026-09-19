@@ -11,6 +11,7 @@ const preview = {
   modules: document.querySelector('#previewModules'),
   users: document.querySelector('#previewUsers'),
   agents: document.querySelector('#previewAgents'),
+  skills: document.querySelector('#previewSkills'),
   expiry: document.querySelector('#previewExpiry')
 };
 
@@ -21,16 +22,16 @@ let auditPage = { page: 0, size: 20, totalElements: 0, totalPages: 0, summary: {
 
 const planCatalog = {
   standard: {
-    label: '标准版', users: 25, agents: 5,
+    label: '标准版', users: 25, agents: 5, skills: 5,
     modules: ['apiServices', 'mcpServices', 'templateQueryPublications', 'auditLogs']
   },
   professional: {
-    label: '专业版', users: 100, agents: 20,
+    label: '专业版', users: 100, agents: 20, skills: 20,
     modules: ['apiServices', 'mcpServices', 'templateQueryPublications', 'businessCategories',
       'databaseMcp', 'cacheSettings', 'notificationChannels', 'auditLogs', 'commandAuditLogs',
       'assetSsh', 'assetSql', 'assetHttp', 'assetJmx']
   },
-  enterprise: { label: '企业版', users: 500, agents: 100, modules: '*' }
+  enterprise: { label: '企业版', users: 500, agents: 100, skills: 50, modules: '*' }
 };
 
 const dateText = value => {
@@ -70,6 +71,7 @@ function updatePreview() {
     : '尚未选择';
   preview.users.textContent = form.elements.maxUsers.value || '-';
   preview.agents.textContent = form.elements.maxAgents.value || '-';
+  preview.skills.textContent = form.elements.maxSkills.value || '-';
   preview.expiry.textContent = form.elements.expireTime.value || '-';
 }
 
@@ -92,6 +94,7 @@ function applyPlan(edition, updateEntitlements = true) {
   if (!plan) return;
   form.elements.maxUsers.value = plan.users;
   form.elements.maxAgents.value = plan.agents;
+  form.elements.maxSkills.value = plan.skills;
   if (updateEntitlements && availableModules.length) {
     const included = plan.modules === '*' ? null : new Set(plan.modules);
     form.querySelectorAll('input[name="modules"]').forEach(input => {
@@ -296,7 +299,7 @@ function auditRow(item) {
     auditCell(item.licenseNo, item.documentSha256 ? item.documentSha256.slice(0, 12) + '…' : '-'),
     auditCell(editionText(item.edition), item.product || 'LingDong Nexus'),
     auditCell(item.customerCode || '未设置', item.serverId || '-'),
-    auditCell(`${item.maxUsers ?? '-'} 用户`, `${item.maxAgents ?? '-'} Agent`),
+    auditCell(`${item.maxUsers ?? '-'} 用户`, `${item.maxAgents ?? '-'} Agent / ${item.maxSkills ?? '-'} Skill`),
     auditCell(item.expireDate || '-', `签发 ${item.issuedDate || '-'}`),
     auditCell(item.issuedBy || '-', formatTimestamp(item.issuedAt)),
     auditStatusCell(item),
@@ -344,7 +347,7 @@ function openAuditDetail(item) {
   document.querySelector('#detailEdition').textContent = editionText(item.edition);
   document.querySelector('#detailCustomerCode').textContent = item.customerCode || '未设置';
   document.querySelector('#detailServerId').textContent = item.serverId || '-';
-  document.querySelector('#detailQuota').textContent = `${item.maxUsers ?? '-'} 用户 / ${item.maxAgents ?? '-'} Agent`;
+  document.querySelector('#detailQuota').textContent = `${item.maxUsers ?? '-'} 用户 / ${item.maxAgents ?? '-'} Agent / ${item.maxSkills ?? '-'} Skill`;
   document.querySelector('#detailTerm').textContent = `${item.issuedDate || '-'} 至 ${item.expireDate || '-'}`;
   document.querySelector('#detailOperator').textContent = item.issuedBy || '-';
   document.querySelector('#detailDownloads').textContent = `${item.downloadCount || 0} 次，最后下载 ${formatTimestamp(item.lastDownloadedAt)}`;
@@ -395,6 +398,7 @@ form.addEventListener('submit', async event => {
       modules,
       maxUsers: Number(data.get('maxUsers')),
       maxAgents: Number(data.get('maxAgents')),
+      maxSkills: Number(data.get('maxSkills')),
       serverId: data.get('serverId'),
       issuedTime: data.get('issuedTime'),
       expireTime: data.get('expireTime'),

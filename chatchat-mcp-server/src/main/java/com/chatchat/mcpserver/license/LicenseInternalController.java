@@ -30,4 +30,20 @@ public class LicenseInternalController {
     public record AgentPublicationLimit(boolean licenseValid, String licenseStatus, String message,
                                         Integer maxPublishedAgents, boolean limited) {
     }
+
+    @GetMapping("/skill-publication-limit")
+    public ApiResponse<SkillPublicationLimit> skillPublicationLimit() {
+        LicenseStatus status = licenseService.status();
+        Integer maximum = status != null && status.license() != null ? status.license().maxSkills() : null;
+        return ApiResponse.success(new SkillPublicationLimit(
+            status != null && status.valid(),
+            status == null ? "INVALID" : status.status(),
+            status == null ? "License status unavailable" : status.message(),
+            maximum,
+            maximum != null
+        ));
+    }
+
+    public record SkillPublicationLimit(boolean licenseValid, String licenseStatus, String message,
+                                        Integer maxPublishedSkills, boolean limited) { }
 }

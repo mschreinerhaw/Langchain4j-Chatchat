@@ -19,6 +19,7 @@ import java.util.UUID;
 public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
 
     static final String AGENT_LIMIT_PATH = "/internal/v1/license/agent-publication-limit";
+    static final String SKILL_LIMIT_PATH = "/internal/v1/license/skill-publication-limit";
 
     private final McpCenterProperties properties;
     private final InternalCredentialProperties credentials;
@@ -26,15 +27,61 @@ public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
 
     @Override
     public AgentPublicationLimit agentPublicationLimit() {
+        try {
+            Map<?, ?> data = request(AGENT_LIMIT_PATH);
+            Integer maximum = integer(data.get("maxPublishedAgents"));
+            boolean licenseValid = booleanValue(data.get("licenseValid"));
+            boolean limited = booleanValue(data.get("limited"));
+            if (licenseValid && (maximum == null || (limited && maximum <= 0))) {
+                return McpLicenseEntitlementPort.super.agentPublicationLimit();
+            }
+            return new AgentPublicationLimit(
+                licenseValid,
+                text(data.get("licenseStatus")),
+                text(data.get("message")),
+                maximum == null ? 5 : maximum,
+                !licenseValid || limited
+            );
+        } catch (RuntimeException unavailable) {
+            return McpLicenseEntitlementPort.super.agentPublicationLimit();
+        }
+    }
+
+    @Override
+    public SkillPublicationLimit skillPublicationLimit() {
+        try {
+            Map<?, ?> data = request(SKILL_LIMIT_PATH);
+            Integer maximum = integer(data.get("maxPublishedSkills"));
+            if (maximum == null) {
+                maximum = integer(data.get("maxSkills"));
+            }
+            boolean licenseValid = booleanValue(data.get("licenseValid"));
+            boolean limited = booleanValue(data.get("limited"));
+            if (licenseValid && (maximum == null || (limited && maximum <= 0))) {
+                return McpLicenseEntitlementPort.super.skillPublicationLimit();
+            }
+            return new SkillPublicationLimit(
+                licenseValid,
+                text(data.get("licenseStatus")),
+                text(data.get("message")),
+                maximum == null ? 5 : maximum,
+                !licenseValid || limited,
+                "MCP"
+            );
+        } catch (RuntimeException unavailable) {
+            return McpLicenseEntitlementPort.super.skillPublicationLimit();
+        }
+    }
+
+    private Map<?, ?> request(String path) {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("MCP center integration is disabled");
         }
         String timestamp = String.valueOf(Instant.now().getEpochSecond());
         String nonce = UUID.randomUUID().toString().replace("-", "");
-        String signature = InternalRequestSigner.sign(credentials.resolvedSecret(), "GET", AGENT_LIMIT_PATH,
-            timestamp, nonce);
+        String signature = InternalRequestSigner.sign(credentials.resolvedSecret(), "GET", path, timestamp, nonce);
         Object raw = webClient.get()
-            .uri(baseUrl() + AGENT_LIMIT_PATH)
+            .uri(baseUrl() + path)
             .header(InternalRequestSigner.USER_HEADER, credentials.resolvedUsername())
             .header(InternalRequestSigner.TIMESTAMP_HEADER, timestamp)
             .header(InternalRequestSigner.NONCE_HEADER, nonce)
@@ -43,14 +90,7 @@ public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
             .bodyToMono(Object.class)
             .timeout(Duration.ofMillis(Math.max(1000, timeoutMs())))
             .block();
-        Map<?, ?> data = unwrapData(raw);
-        return new AgentPublicationLimit(
-            booleanValue(data.get("licenseValid")),
-            text(data.get("licenseStatus")),
-            text(data.get("message")),
-            integer(data.get("maxPublishedAgents")),
-            booleanValue(data.get("limited"))
-        );
+        return unwrapData(raw);
     }
 
     private Map<?, ?> unwrapData(Object raw) {

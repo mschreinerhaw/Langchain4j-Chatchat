@@ -2,12 +2,14 @@ package com.chatchat.mcpserver.market;
 
 import com.chatchat.runtime.market.storage.FinancialDataStore;
 import com.chatchat.runtime.market.storage.FinancialDataStore.SecurityMasterRecord;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +38,8 @@ public class SecurityMasterImportService implements ApplicationRunner {
 
     private final FinancialDataStore store;
     private final ObjectMapper mapper;
+    @Autowired(required = false)
+    private McpLicenseService licenseService;
 
     public SecurityMasterImportService(FinancialDataStore store, ObjectMapper mapper) {
         this.store = store;
@@ -63,6 +67,10 @@ public class SecurityMasterImportService implements ApplicationRunner {
     }
 
     public synchronized ImportResult refresh() throws Exception {
+        if (licenseService != null && !licenseService.allowsModule("settings")) {
+            throw new com.chatchat.license.LicenseException(
+                "License 未授权系统设置模块，禁止刷新证券主数据");
+        }
         List<SecurityMasterRecord> sse = fetchSse();
         List<SecurityMasterRecord> szse = fetchSzse();
         if (sse.isEmpty() || szse.isEmpty()) {

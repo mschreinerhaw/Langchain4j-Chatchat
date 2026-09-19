@@ -49,7 +49,11 @@
         </section>
         <section class="license-metric license-metric-highlight">
           <div class="license-metric-icon agents"><el-icon><Share /></el-icon></div>
-          <div><span>Agent 发布上限</span><strong>{{ quotaValue(license.maxAgents) }}</strong><small>达到上限后仍可新建，但不可继续发布</small></div>
+          <div><span>Agent 发布上限</span><strong>{{ publicationQuotaValue(license.maxAgents) }}</strong><small>旧 License 未配置时使用默认额度 5</small></div>
+        </section>
+        <section class="license-metric license-metric-highlight">
+          <div class="license-metric-icon agents"><el-icon><CollectionTag /></el-icon></div>
+          <div><span>领域 Skill 发布上限</span><strong>{{ publicationQuotaValue(license.maxSkills) }}</strong><small>旧 License 未配置时使用默认额度 5</small></div>
         </section>
       </div>
 

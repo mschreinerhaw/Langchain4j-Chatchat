@@ -18,6 +18,7 @@ import java.util.*;
 public class PythonDataScienceController {
     private final PythonDataScienceService service;
     private final PythonCodeAssistantService codeAssistant;
+    private final DomainSkillService domainSkillService;
 
     @GetMapping("/workbench")
     public ApiResponse<PythonDataScienceService.Workbench> workbench(HttpServletRequest request) {
@@ -112,10 +113,20 @@ public class PythonDataScienceController {
         return ApiResponse.success(codeAssistant.models());
     }
 
-    @PostMapping("/assist")
-    public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body) {
-        return call(() -> codeAssistant.assist(body));
+    @GetMapping("/assist/skills")
+    public ApiResponse<?> assistSkills(HttpServletRequest request) {
+        Scope s = scope(request);
+        return ApiResponse.success(domainSkillService.publishedOptions(s.tenant()).stream()
+            .map(skill -> new AssistSkillOption(skill.getId(), skill.getName(), skill.getCategory(), skill.getDescription()))
+            .toList());
     }
+
+    @PostMapping("/assist")
+    public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body, HttpServletRequest request) {
+        return call(() -> codeAssistant.assist(scope(request).tenant(), body));
+    }
+
+    private record AssistSkillOption(String id, String name, String category, String description) { }
 
     @PostMapping(value = "/data-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> uploadDataFile(@RequestPart("file") MultipartFile file, @RequestParam(name = "purpose", defaultValue = "") String purpose, @RequestParam(name = "retention", defaultValue = "PERMANENT") String retention, HttpServletRequest request) {

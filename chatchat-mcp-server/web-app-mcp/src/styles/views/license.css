@@ -32,7 +32,7 @@
 .license-hero-meta strong { display: block; margin: 6px 0 3px; color: #182230; font-size: 16px; }
 .license-hero-meta .license-number { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: Consolas, monospace; font-size: 14px; }
 
-.license-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.license-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 16px; }
 .license-metric {
   display: flex; align-items: center; gap: 13px; min-height: 112px; padding: 18px;
   border: 1px solid var(--line); border-radius: 12px; background: #fff;

@@ -107,7 +107,8 @@ describe("document Ask AI conversation isolation", () => {
       "dataScienceEnvironment",
       "dataScienceDevelop",
       "dataScienceData",
-      "dataScienceScripts"
+      "dataScienceScripts",
+      "dataScienceSkills"
     ]);
 
     const props = App.computed.activeComponentProps.call({

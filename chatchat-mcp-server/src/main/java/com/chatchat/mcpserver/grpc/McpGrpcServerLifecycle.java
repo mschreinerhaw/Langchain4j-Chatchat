@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.grpc;
 
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -24,22 +25,25 @@ public final class McpGrpcServerLifecycle implements SmartLifecycle {
     private final ObjectMapper objectMapper;
     private final InternalCredentialProperties credentials;
     private final McpGrpcServerProperties properties;
+    private final McpLicenseService licenseService;
     private volatile Server server;
     private volatile boolean running;
 
     public McpGrpcServerLifecycle(McpRuntimeKernel kernel, ObjectMapper objectMapper,
                                   InternalCredentialProperties credentials,
-                                  McpGrpcServerProperties properties) {
+                                  McpGrpcServerProperties properties,
+                                  McpLicenseService licenseService) {
         this.kernel = kernel;
         this.objectMapper = objectMapper;
         this.credentials = credentials;
         this.properties = properties;
+        this.licenseService = licenseService;
     }
 
     @Override public synchronized void start() {
         if (running || !properties.isEnabled()) return;
         McpRuntimeGrpcService service = new McpRuntimeGrpcService(
-            kernel, objectMapper, properties.resolvedChunkBytes());
+            kernel, objectMapper, properties.resolvedChunkBytes(), licenseService);
         try {
             NettyServerBuilder builder = NettyServerBuilder.forPort(properties.resolvedPort())
                 .maxInboundMessageSize(properties.resolvedMaxInboundMessageBytes())

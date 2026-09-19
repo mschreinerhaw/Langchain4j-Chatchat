@@ -78,6 +78,7 @@ export function fetchUiArtifactResource(artifactId, resourceId) {
 export function fetchPythonWorkbench() { return apiRequest("/data-science/python/workbench"); }
 export function fetchMcpPythonEnvironments() { return apiRequest("/data-science/python/environments"); }
 export function fetchPythonCodeModels() { return apiRequest("/data-science/python/models"); }
+export function fetchPythonAssistSkills() { return apiRequest("/data-science/python/assist/skills"); }
 export function createPythonAsset(payload) { return apiRequest("/data-science/python/assets", { method: "POST", body: JSON.stringify(payload) }); }
 export function savePythonScript(payload) { return apiRequest("/data-science/python/scripts", { method: "POST", body: JSON.stringify(payload) }); }
 export function deletePythonScript(id) { return apiRequest(`/data-science/python/scripts/${encodeURIComponent(id)}`, { method: "DELETE" }); }
@@ -104,6 +105,55 @@ export async function downloadPythonDataFile(id, fileName) {
   const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = fileName || "data-file"; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
 }
 export function deletePythonDataFile(id) { return apiRequest(`/data-science/python/data-files/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+
+export function fetchDomainSkills(filters = {}) {
+  const params = new URLSearchParams();
+  ["keyword", "category", "status", "page", "pageSize"].forEach((key) => {
+    if (filters[key] !== undefined && filters[key] !== null && String(filters[key]) !== "") params.set(key, String(filters[key]));
+  });
+  return apiRequest(`/data-science/domain-skills${params.size ? `?${params}` : ""}`);
+}
+
+export function createDomainSkill(payload) {
+  return apiRequest("/data-science/domain-skills", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function updateDomainSkill(id, payload) {
+  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function publishDomainSkill(id) {
+  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/publish`, { method: "POST" });
+}
+
+export function recallDomainSkill(id) {
+  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}/recall`, { method: "POST" });
+}
+
+export function deleteDomainSkill(id) {
+  return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function importDomainSkill(file, name = "", category = "") {
+  const session = getStoredAuthSession();
+  const path = "/data-science/domain-skills/import";
+  const formData = new FormData();
+  formData.append("file", file);
+  if (name) formData.append("name", name);
+  formData.append("category", category);
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) },
+    body: formData
+  });
+  const payload = await readJsonSafely(response);
+  notifyAuthRequiredIfNeeded(response, payload, path);
+  if (!response.ok) throw new Error(payload?.message || `上传失败：${response.status}`);
+  return unwrapApiPayload(payload, path);
+}
 
 export function fetchTrendSemanticConfig() {
   return apiRequest("/ui-display/trend-semantics");

@@ -2,10 +2,12 @@ package com.chatchat.mcpserver.sql.metadata;
 
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.license.McpLicenseService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +22,8 @@ public class MetadataRefreshScheduler {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final MetadataIndexService metadataIndexService;
     private final Map<String, Long> lastRefreshMsByDatasource = new ConcurrentHashMap<>();
+    @Autowired(required = false)
+    private McpLicenseService licenseService;
 
     @Value("${chatchat.mcp.sql.metadata-refresh-enabled:true}")
     private boolean refreshEnabled;
@@ -29,7 +33,7 @@ public class MetadataRefreshScheduler {
         fixedDelayString = "${chatchat.mcp.sql.metadata-refresh-interval-ms:300000}"
     )
     public void refresh() {
-        if (!refreshEnabled) {
+        if (!refreshEnabled || (licenseService != null && !licenseService.allowsModule("assetSql"))) {
             return;
         }
         try {

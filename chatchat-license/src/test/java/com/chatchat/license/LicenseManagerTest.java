@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
@@ -45,6 +46,7 @@ class LicenseManagerTest {
     @Test
     void issuesInstallsAndChecksSignedLicense() {
         byte[] content = manager.issue(payload(manager.serverId(), LocalDate.now().plusYears(1)), privateKey, "test-key");
+        assertFalse(new String(content, StandardCharsets.UTF_8).contains("\"maxSkills\""));
 
         LicenseStatus status = manager.install(content);
 

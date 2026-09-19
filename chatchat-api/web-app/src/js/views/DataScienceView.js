@@ -9,6 +9,7 @@ import {
   executePythonScript,
   fetchMcpPythonEnvironments,
   fetchPythonCodeModels,
+  fetchPythonAssistSkills,
   fetchPythonWorkbench,
   uploadPythonDataFile,
   downloadPythonDataFile,
@@ -162,6 +163,8 @@ export default {
     aiDecoration: null,
     aiModels: [],
     aiModel: "",
+    aiSkills: [],
+    aiSkillIds: [],
     aiExamples: [
       "读取 CSV 并按部门汇总金额",
       "校验输入字段并返回错误明细",
@@ -434,10 +437,11 @@ export default {
       if (!background) this.loading = true;
       this.error = "";
       try {
-        const [data, environments, models] = await Promise.all([
+        const [data, environments, models, skills] = await Promise.all([
           fetchPythonWorkbench(),
           fetchMcpPythonEnvironments(),
-          fetchPythonCodeModels()
+          fetchPythonCodeModels(),
+          fetchPythonAssistSkills()
         ]);
         this.assets = data?.assets || [];
         this.folders = data?.folders || [];
@@ -450,6 +454,8 @@ export default {
           this.selectedDataFileId = "";
         this.environmentCatalog = environments || [];
         this.aiModels = models || [];
+        this.aiSkills = Array.isArray(skills) ? skills : [];
+        this.aiSkillIds = this.aiSkillIds.filter((id) => this.aiSkills.some((skill) => skill.id === id));
         if (!this.aiModels.some((model) => model.value === this.aiModel))
           this.aiModel =
             this.aiModels.find((model) => model.defaultModel)?.value ||
@@ -1108,7 +1114,8 @@ export default {
           prompt: this.aiPrompt,
           sourceCode: this.form.sourceCode,
           selectedCode,
-          modelName: this.aiModel
+          modelName: this.aiModel,
+          skillIds: this.aiSkillIds
         });
         const originalCode = hasSelection && suggestion.action !== "continue"
           ? selectedCode

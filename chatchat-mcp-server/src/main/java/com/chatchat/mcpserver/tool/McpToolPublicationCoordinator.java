@@ -6,6 +6,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.chatchat.mcpserver.license.McpLicenseService;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +22,8 @@ public class McpToolPublicationCoordinator {
     private final List<McpToolContributor> contributors;
     private final AtomicLong successfulPublications = new AtomicLong();
     private final AtomicLong failedPublications = new AtomicLong();
+    @Autowired(required = false)
+    private McpLicenseService licenseService;
 
     public McpToolPublicationCoordinator(List<McpToolContributor> contributors) {
         this.contributors = contributors == null ? List.of() : List.copyOf(contributors);
@@ -48,6 +52,10 @@ public class McpToolPublicationCoordinator {
 
     public Map<String, McpPublicationStartupGuard.StartupPublicationResult> refreshAll(String trigger) {
         Map<String, McpPublicationStartupGuard.StartupPublicationResult> results = new LinkedHashMap<>();
+        if (licenseService != null && licenseService.runtimeDenialReason() != null) {
+            log.warn("MCP tool publication skipped because the runtime License is not authorized trigger={}", trigger);
+            return Map.of();
+        }
         for (McpToolContributor contributor : contributors) {
             McpPublicationStartupGuard.StartupPublicationResult result = McpPublicationStartupGuard.run(
                 contributor.getClass(), contributor::refreshPublication);

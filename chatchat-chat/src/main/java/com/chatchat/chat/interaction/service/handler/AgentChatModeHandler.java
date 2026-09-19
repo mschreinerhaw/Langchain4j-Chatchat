@@ -25,6 +25,7 @@ import com.chatchat.common.knowledge.KnowledgeRuntimePort;
 import com.chatchat.common.knowledge.KnowledgeScope;
 import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.tool.ToolLogSummarizer;
+import com.chatchat.common.skills.DomainSkillRuntimePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -54,6 +55,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private final AgentLearningService learningService;
     private final RoleChatModeHandler roleChatModeHandler;
     private final KnowledgeRuntimePort knowledgeRuntime;
+    @Autowired(required = false)
+    private DomainSkillRuntimePort domainSkillRuntime;
 
     private static final int DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
 
@@ -160,8 +163,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             appendDefaultDataAssetPolicy(
                 appendMcpExecutionContext(
                     appendDomainKnowledgeContext(
-                        appendExperienceContext(AgentRoleAnalysisContext.appendPrompt(
+                        appendDomainSkillContext(appendExperienceContext(AgentRoleAnalysisContext.appendPrompt(
                             resolveSystemPrompt(request, skill, context), agentRoleContext), experienceContext),
+                            request.getTenantId(), skill),
                         domainKnowledge),
                     executionContext
                 ),
@@ -242,6 +246,22 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .toolTraces(result.toolTraces())
             .metadata(metadata)
             .build();
+    }
+
+    private String appendDomainSkillContext(String systemPrompt, String tenantId, SkillDefinition skill) {
+        if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return systemPrompt;
+        Object configured = skill.workflowConfig().get("boundDomainSkillIds");
+        if (!(configured instanceof Iterable<?> values)) return systemPrompt;
+        List<String> ids = new ArrayList<>();
+        values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
+        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.resolvePublished(tenantId, ids);
+        if (skills.isEmpty()) return systemPrompt;
+        StringBuilder result = new StringBuilder(systemPrompt == null ? "" : systemPrompt.trim());
+        result.append("\n\n<domain_skills>\n");
+        skills.forEach(item -> result.append("## ").append(item.name()).append(" [").append(item.category()).append("]\n")
+            .append(PromptBoundaryEscaper.escapeMarkupText(item.markdownContent())).append("\n\n"));
+        result.append("</domain_skills>\nApply these governed skill instructions when relevant to the request.");
+        return result.toString();
     }
 
     private AgentRunResult executeThroughRuntime(InteractionRequest request,

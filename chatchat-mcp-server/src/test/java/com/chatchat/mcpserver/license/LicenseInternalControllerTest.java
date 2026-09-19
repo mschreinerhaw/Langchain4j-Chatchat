@@ -40,4 +40,31 @@ class LicenseInternalControllerTest {
         assertThat(response.limited()).isFalse();
         assertThat(response.maxPublishedAgents()).isNull();
     }
+
+    @Test
+    void exposesSkillPublicationEntitlementThroughInternalSignedChannelEndpoint() {
+        McpLicenseService service = mock(McpLicenseService.class);
+        LicensePayload payload = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
+            List.of("assets"), 100, 7, 25, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
+        when(service.status()).thenReturn(LicenseStatus.valid("server", payload));
+
+        var response = new LicenseInternalController(service).skillPublicationLimit().getData();
+
+        assertThat(response.licenseValid()).isTrue();
+        assertThat(response.limited()).isTrue();
+        assertThat(response.maxPublishedSkills()).isEqualTo(25);
+    }
+
+    @Test
+    void reportsLegacyLicenseWithoutConfiguredSkillLimit() {
+        McpLicenseService service = mock(McpLicenseService.class);
+        LicensePayload payload = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
+            List.of("assets"), 100, 7, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
+        when(service.status()).thenReturn(LicenseStatus.valid("server", payload));
+
+        var response = new LicenseInternalController(service).skillPublicationLimit().getData();
+
+        assertThat(response.limited()).isFalse();
+        assertThat(response.maxPublishedSkills()).isNull();
+    }
 }

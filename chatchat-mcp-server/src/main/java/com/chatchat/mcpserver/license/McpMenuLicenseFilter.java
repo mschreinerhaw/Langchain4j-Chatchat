@@ -1,7 +1,5 @@
 package com.chatchat.mcpserver.license;
 
-import com.chatchat.common.security.InternalCredentialProperties;
-import com.chatchat.mcpserver.admin.AdminAuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,8 +8,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -29,28 +25,24 @@ public class McpMenuLicenseFilter extends OncePerRequestFilter {
     private final McpLicenseService licenseService;
     private final McpAdminMenuCatalog menuCatalog;
     private final ObjectMapper objectMapper;
-    @Autowired(required = false) private AdminAuthService adminAuthService;
-    @Autowired(required = false) private InternalCredentialProperties internalCredentials;
-
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return "OPTIONS".equalsIgnoreCase(request.getMethod())
-            || internalPythonControlPlane(request)
-            || menuCatalog.menuForPath(path(request)).isEmpty();
-    }
-
-    private boolean internalPythonControlPlane(HttpServletRequest request) {
-        if (!path(request).startsWith("/api/v1/python/") || adminAuthService == null || internalCredentials == null) return false;
-        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (authorization == null || !authorization.regionMatches(true, 0, "Bearer ", 0, 7)) return false;
-        String username = adminAuthService.username(authorization.substring(7).trim());
-        return username != null && username.equalsIgnoreCase(internalCredentials.resolvedUsername());
+        String path = path(request);
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
+        if (matchesPrefix(path, "/api/v1/license") || matchesPrefix(path, "/api/v1/admin/auth")) return true;
+        return !path.startsWith("/api/v1/") && menuCatalog.menuForPath(path).isEmpty();
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
         throws ServletException, IOException {
-        var menu = menuCatalog.menuForPath(path(request)).orElseThrow();
+        var matchedMenu = menuCatalog.menuForPath(path(request));
+        if (matchedMenu.isEmpty()) {
+            writeDenied(response, "MCP_API_NOT_LICENSE_MAPPED",
+                "MCP API 未登记 License 功能模块，默认禁止访问", null, licenseService.status());
+            return;
+        }
+        var menu = matchedMenu.get();
         var status = licenseService.status();
         if (menuCatalog.authorized(status, menu.key())) {
             chain.doFilter(request, response);
@@ -61,6 +53,11 @@ public class McpMenuLicenseFilter extends OncePerRequestFilter {
         String message = status == null || !status.valid()
             ? (status == null ? "License 无效，禁止访问 MCP 管理接口" : status.message())
             : "License 未授权菜单模块: " + menu.label();
+        writeDenied(response, errorCode, message, menu.key(), status);
+    }
+
+    private void writeDenied(HttpServletResponse response, String errorCode, String message,
+                             String menuKey, com.chatchat.license.LicenseStatus status) throws IOException {
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
@@ -68,12 +65,16 @@ public class McpMenuLicenseFilter extends OncePerRequestFilter {
         body.put("code", HttpStatus.FORBIDDEN.value());
         body.put("errorCode", errorCode);
         body.put("message", message);
-        body.put("menu", menu.key());
+        if (menuKey != null) body.put("menu", menuKey);
         body.put("licenseStatus", status == null ? "INVALID" : status.status());
         objectMapper.writeValue(response.getWriter(), body);
     }
 
     private String path(HttpServletRequest request) {
         return request.getRequestURI().substring(request.getContextPath().length());
+    }
+
+    private boolean matchesPrefix(String path, String prefix) {
+        return path.equals(prefix) || path.startsWith(prefix + "/");
     }
 }

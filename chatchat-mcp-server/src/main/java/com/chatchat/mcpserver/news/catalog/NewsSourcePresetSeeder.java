@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.news.catalog;
 
 import com.chatchat.mcpserver.news.runtime.NewsRuntimeClient;
+import com.chatchat.mcpserver.license.McpLicenseService;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +30,8 @@ public class NewsSourcePresetSeeder {
     private final NewsRuntimeClient runtime;
     private final NewsSourcePresetCatalog catalog;
     private volatile boolean initialSynchronizationCompleted;
+    @Autowired(required = false)
+    private McpLicenseService licenseService;
     @Value("${chatchat.mcp.news-runtime.preset-sync-enabled:true}")
     private boolean presetSynchronizationEnabled = true;
 
@@ -48,6 +52,7 @@ public class NewsSourcePresetSeeder {
     }
 
     public synchronized boolean seedMissingPresets() {
+        if (licenseService != null && !licenseService.allowsModule("newsCollection")) return false;
         try {
             Map<String, JsonNode> existing = new HashMap<>();
             runtime.get("/sources").forEach(source -> existing.put(source.path("sourceCode").asText(), source));

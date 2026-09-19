@@ -72,6 +72,10 @@ export default {
       const amount = Number(value);
       return Number.isFinite(amount) ? amount.toLocaleString('zh-CN') : value;
     },
+    publicationQuotaValue(value) {
+      if (value === null || value === undefined) return '5（默认）';
+      return this.quotaValue(value);
+    },
     humanizeKey(value) {
       return String(value || '').split(/[_-]+/).filter(Boolean)
         .map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');

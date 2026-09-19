@@ -81,8 +81,7 @@ class McpInvocationLoggingFilterTest {
         when(licenseService.status()).thenReturn(
             LicenseStatus.invalid("EXPIRED", "License 已过期", "SERVER-TEST", null)
         );
-        when(licenseService.toolDenialReason(null))
-            .thenReturn("License 已过期，MCP 调用已停止，请联系供应商续期");
+        when(licenseService.runtimeDenialReason()).thenReturn("License 已过期");
         McpInvocationLoggingFilter filter = new McpInvocationLoggingFilter(
             auditService, new ObjectMapper(), properties, authorizationService, licenseService,
             mock(McpServiceRegistryService.class));
@@ -114,6 +113,7 @@ class McpInvocationLoggingFilterTest {
         when(licenseService.status()).thenReturn(
             LicenseStatus.invalid("EXPIRED", "License 已过期", "SERVER-TEST", null)
         );
+        when(licenseService.runtimeDenialReason()).thenReturn("License 已过期");
         McpInvocationLoggingFilter filter = new McpInvocationLoggingFilter(
             auditService, new ObjectMapper(), properties, authorizationService, licenseService,
             mock(McpServiceRegistryService.class));

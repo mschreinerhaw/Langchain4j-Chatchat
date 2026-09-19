@@ -45,13 +45,13 @@ public class LicenseAuditService {
             String modulesJson = objectMapper.writeValueAsString(payload.modules() == null ? List.of() : payload.modules());
             jdbcTemplate.update("""
                 INSERT INTO license_issue_audit (
-                    id, license_no, customer_code, product, edition, server_id, max_users, max_agents,
+                    id, license_no, customer_code, product, edition, server_id, max_users, max_agents, max_skills,
                     modules_json, issued_date, expire_date, key_id, status, issued_by, issued_at,
                     download_count, last_downloaded_at, document_sha256
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ISSUED', ?, ?, 0, NULL, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ISSUED', ?, ?, 0, NULL, ?)
                 """,
                 id, payload.licenseNo(), payload.customerCode(), payload.product(), payload.edition(),
-                MachineIdentity.normalizeMac(payload.serverId()), payload.maxUsers(), payload.maxAgents(), modulesJson,
+                MachineIdentity.normalizeMac(payload.serverId()), payload.maxUsers(), payload.maxAgents(), payload.maxSkills(), modulesJson,
                 sqlDate(payload.issuedTime()), sqlDate(payload.expireTime()), document.keyId(),
                 safeOperator(operator), Timestamp.from(now), sha256(documentContent));
             return find(id);
@@ -132,7 +132,7 @@ public class LicenseAuditService {
         return new LicenseAuditRecord(
             rs.getString("id"), rs.getString("license_no"), rs.getString("customer_code"),
             rs.getString("product"), rs.getString("edition"), rs.getString("server_id"),
-            nullableInteger(rs, "max_users"), nullableInteger(rs, "max_agents"),
+            nullableInteger(rs, "max_users"), nullableInteger(rs, "max_agents"), nullableInteger(rs, "max_skills"),
             readModules(rs.getString("modules_json")), toLocalDate(rs.getDate("issued_date")),
             toLocalDate(rs.getDate("expire_date")), rs.getString("key_id"), rs.getString("status"),
             rs.getString("issued_by"), rs.getTimestamp("issued_at").toInstant(),
@@ -164,7 +164,7 @@ public class LicenseAuditService {
 
     public record LicenseAuditRecord(
         String id, String licenseNo, String customerCode, String product, String edition, String serverId,
-        Integer maxUsers, Integer maxAgents, List<String> modules, LocalDate issuedDate, LocalDate expireDate,
+        Integer maxUsers, Integer maxAgents, Integer maxSkills, List<String> modules, LocalDate issuedDate, LocalDate expireDate,
         String keyId, String status, String issuedBy, Instant issuedAt, int downloadCount,
         Instant lastDownloadedAt, String documentSha256
     ) { }

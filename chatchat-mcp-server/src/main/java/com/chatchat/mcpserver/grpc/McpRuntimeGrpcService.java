@@ -10,6 +10,7 @@ import com.chatchat.mcp.grpc.McpGrpcPayloads;
 import com.chatchat.mcp.grpc.v1.JsonRequest;
 import com.chatchat.mcp.grpc.v1.McpRuntimeServiceGrpc;
 import com.chatchat.mcp.grpc.v1.PayloadChunk;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
@@ -23,39 +24,64 @@ public final class McpRuntimeGrpcService extends McpRuntimeServiceGrpc.McpRuntim
     private final McpRuntimeKernel kernel;
     private final ObjectMapper objectMapper;
     private final int chunkBytes;
+    private final McpLicenseService licenseService;
 
     public McpRuntimeGrpcService(McpRuntimeKernel kernel, ObjectMapper objectMapper, int chunkBytes) {
+        this(kernel, objectMapper, chunkBytes, null);
+    }
+
+    public McpRuntimeGrpcService(McpRuntimeKernel kernel, ObjectMapper objectMapper, int chunkBytes,
+                                 McpLicenseService licenseService) {
         this.kernel = kernel;
         this.objectMapper = objectMapper;
         this.chunkBytes = chunkBytes;
+        this.licenseService = licenseService;
     }
 
     @Override public void services(JsonRequest request, StreamObserver<PayloadChunk> response) {
-        respond(request, response, kernel::services);
+        respondLicensed(request, response, () -> kernel.services().stream()
+            .filter(service -> kernel.tools(new McpToolQuery(service.serviceId(), null, java.util.Set.of()))
+                .stream().anyMatch(this::allowedTool))
+            .toList());
     }
 
     @Override public void tools(JsonRequest request, StreamObserver<PayloadChunk> response) {
-        respond(request, response, () -> kernel.tools(read(request, McpToolQuery.class)));
+        respondLicensed(request, response, () -> kernel.tools(read(request, McpToolQuery.class)).stream()
+            .filter(this::allowedTool)
+            .toList());
     }
 
     @Override public void invoke(JsonRequest request, StreamObserver<PayloadChunk> response) {
-        respond(request, response, () -> kernel.execute(read(request, McpServiceCall.class)));
+        respond(request, response, () -> {
+            McpServiceCall call = read(request, McpServiceCall.class);
+            requireTool(call.toolName());
+            return kernel.execute(call);
+        });
     }
 
     @Override public void repair(JsonRequest request, StreamObserver<PayloadChunk> response) {
-        respond(request, response, () -> kernel.repair(read(request, McpResultRepairRequest.class)));
+        respond(request, response, () -> {
+            McpResultRepairRequest repair = read(request, McpResultRepairRequest.class);
+            requireTool(repair.toolName());
+            return kernel.repair(repair);
+        });
     }
 
     @Override public void refresh(JsonRequest request, StreamObserver<PayloadChunk> response) {
-        respond(request, response, () -> { kernel.refresh(); return Map.of("refreshed", true); });
+        respondLicensed(request, response, () -> { kernel.refresh(); return Map.of("refreshed", true); });
     }
 
     @Override public void contracts(JsonRequest request, StreamObserver<PayloadChunk> response) {
-        respond(request, response, kernel::contracts);
+        respondLicensed(request, response, kernel::contracts);
     }
 
     @Override public void audit(JsonRequest request, StreamObserver<PayloadChunk> response) {
-        respond(request, response, () -> kernel.audit(read(request, McpContractAuditRequest.class)));
+        respond(request, response, () -> {
+            McpContractAuditRequest audit = read(request, McpContractAuditRequest.class);
+            if (audit.toolName() == null) requireRuntimeLicense();
+            else requireTool(audit.toolName());
+            return kernel.audit(audit);
+        });
     }
 
     @Override public void health(JsonRequest request, StreamObserver<PayloadChunk> response) {
@@ -81,6 +107,31 @@ public final class McpRuntimeGrpcService extends McpRuntimeServiceGrpc.McpRuntim
             observer.onError(Status.INTERNAL.withDescription("MCP Runtime operation failed")
                 .withCause(failure).asRuntimeException());
         }
+    }
+
+    private void respondLicensed(JsonRequest request, StreamObserver<PayloadChunk> observer,
+                                 Supplier<?> operation) {
+        respond(request, observer, () -> {
+            requireRuntimeLicense();
+            return operation.get();
+        });
+    }
+
+    private void requireRuntimeLicense() {
+        if (licenseService == null) return;
+        String reason = licenseService.runtimeDenialReason();
+        if (reason != null) throw Status.PERMISSION_DENIED.withDescription(reason).asRuntimeException();
+    }
+
+    private void requireTool(String toolName) {
+        if (licenseService == null) return;
+        String reason = licenseService.toolDenialReason(toolName);
+        if (reason != null) throw Status.PERMISSION_DENIED.withDescription(reason).asRuntimeException();
+    }
+
+    private boolean allowedTool(com.chatchat.common.mcp.service.McpToolDescriptor tool) {
+        return licenseService == null || licenseService.allowsTool(tool.localToolName())
+            || licenseService.allowsTool(tool.remoteToolName());
     }
 
     private <T> T read(JsonRequest request, Class<T> type) {

@@ -47,6 +47,7 @@ public class McpLicenseService {
     public String currentDocument() { return manager.documentText(); }
     public boolean hasModule(String module) { return manager.hasModule(module); }
     public boolean hasFeature(String feature) { return manager.hasFeature(feature); }
+    public boolean allowsModule(String module) { return menuCatalog.authorized(status(), module); }
 
     public boolean allowsTool(String toolName) {
         return toolDenialReason(toolName) == null;
@@ -54,7 +55,8 @@ public class McpLicenseService {
 
     public String toolDenialReason(String toolName) {
         LicenseStatus status = status();
-        if (!status.valid()) {
+        if (status == null || !status.valid()) {
+            if (status == null) return "License 状态不可用，不能调用 MCP 工具";
             return switch (status.status()) {
                 case "EXPIRED" -> "License 已过期，新的 MCP 工具调用已停止，请联系供应商续期";
                 case "NOT_YET_VALID" -> "License 尚未生效，暂时不能调用 MCP 工具";
@@ -64,16 +66,29 @@ public class McpLicenseService {
             };
         }
         var toolModule = menuCatalog.moduleForTool(toolName);
-        if (toolModule.isPresent() && !menuCatalog.authorized(status, toolModule.get().key())) {
+        if (toolModule.isEmpty()) {
+            return "MCP 工具未登记 License 功能模块，默认禁止调用";
+        }
+        if (!menuCatalog.authorized(status, toolModule.get().key())) {
             return "License 未授权 MCP 功能模块: " + toolModule.get().label();
         }
-        return hasAnyMcpMenuEntitlement(status) ? null : "License 未授权任何 MCP 菜单模块";
+        return null;
     }
 
     public void requireRuntimeLicense() {
         LicenseStatus status = status();
-        if (!status.valid()) throw new LicenseException(status.message());
+        if (status == null || !status.valid()) {
+            throw new LicenseException(status == null ? "License 状态不可用" : status.message());
+        }
         if (!hasAnyMcpMenuEntitlement(status)) throw new LicenseException("License 未授权任何 MCP 菜单模块");
+    }
+
+    public String runtimeDenialReason() {
+        LicenseStatus status = status();
+        if (status == null || !status.valid()) {
+            return status == null ? "License 状态不可用，MCP 功能已停止" : status.message();
+        }
+        return hasAnyMcpMenuEntitlement(status) ? null : "License 未授权任何 MCP 功能模块";
     }
 
     private boolean hasAnyMcpMenuEntitlement(LicenseStatus status) {

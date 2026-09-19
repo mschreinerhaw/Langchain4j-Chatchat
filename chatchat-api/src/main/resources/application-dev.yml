@@ -53,6 +53,7 @@ chatchat:
     timeout-seconds: 300
     output-limit-bytes: 1000000
     index-name: mcp_python_template_index
+    domain-skill-index-name: domain_skill_index_dev
   audit:
     default-query-window-days: 7
   ui-artifact:

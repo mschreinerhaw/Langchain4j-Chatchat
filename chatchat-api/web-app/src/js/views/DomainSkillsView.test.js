@@ -10,17 +10,27 @@ vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
 
 describe("DomainSkillsView", () => {
-  it("shows the default five-skill publication quota", () => {
-    const label = DomainSkillsView.computed.quotaLabel.call({ quota: { licenseValid: true, limited: true, published: 2, maximum: 5, remaining: 3 } });
-    expect(label).toContain("2 / 5"); expect(label).toContain("剩余 3");
-  });
-
   it("publishes into the dedicated domain skill index", async () => {
     api.publishDomainSkill.mockResolvedValue({ id: "skill-1", name: "风险识别" });
     const context = { busy: false, error: "", message: "", load: vi.fn(), perform: DomainSkillsView.methods.perform };
     await DomainSkillsView.methods.publishSkill.call(context, { id: "skill-1" });
     expect(api.publishDomainSkill).toHaveBeenCalledWith("skill-1");
     expect(context.message).toContain("领域技能索引"); expect(context.load).toHaveBeenCalledOnce();
+  });
+
+  it("shows the custom publication limit prompt when the quota is full", async () => {
+    api.publishDomainSkill.mockRejectedValue(new Error("SKILL_LICENSE_LIMIT_EXCEEDED: publication limit 5 reached"));
+    const context = {
+      busy: false, error: "", message: "old", publicationLimitOpen: false,
+      publicationLimit: {}, quota: { maximum: 5, published: 5 }, load: vi.fn()
+    };
+
+    await DomainSkillsView.methods.publishSkill.call(context, { id: "skill-6", name: "合规复核" });
+
+    expect(context.publicationLimitOpen).toBe(true);
+    expect(context.publicationLimit).toEqual({ maximum: 5, published: 5, skillName: "合规复核" });
+    expect(context.error).toBe("");
+    expect(context.load).not.toHaveBeenCalled();
   });
 
   it("creates and selects a standalone category", async () => {
@@ -78,8 +88,25 @@ describe("DomainSkillsView", () => {
 
     expect(api.importDomainSkillFromUrl).toHaveBeenCalledWith(
       "https://skills.example/SKILL.md", "Internet Skill", "Research");
-    expect(context.importOpen).toBe(false);
+    expect(context.importOpen).toBe(true);
+    expect(context.importMessage).toContain("可继续导入");
     expect(context.load).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps the create dialog open and switches the saved draft to edit mode", async () => {
+    api.createDomainSkill.mockResolvedValue({ id: "skill-new" });
+    const context = {
+      busy: false, error: "", message: "", editorOpen: true, editorMessage: "",
+      form: { id: "", name: "新技能", category: "研究", description: "", markdownContent: "# 新技能" },
+      load: vi.fn(), perform: DomainSkillsView.methods.perform
+    };
+
+    await DomainSkillsView.methods.save.call(context);
+
+    expect(context.editorOpen).toBe(true);
+    expect(context.form.id).toBe("skill-new");
+    expect(context.editorMessage).toContain("已保存");
+    expect(context.load).toHaveBeenCalledOnce();
   });
 
   it("rebuilds one skill and one category index", async () => {

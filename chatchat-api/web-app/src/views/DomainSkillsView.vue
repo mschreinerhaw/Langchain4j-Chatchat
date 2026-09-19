@@ -1,12 +1,7 @@
 <template>
   <section class="feature-view domain-skills-page">
-    <header class="feature-page-header domain-skills-header">
-      <div class="feature-page-heading">
-        <span class="feature-breadcrumb">能力管理 / 数据科学 / 领域技能</span>
-        <h1>领域技能</h1>
-        <p>管理可由 Agent 独立关联的专业知识、规则和工作流程。</p>
-      </div>
-      <div v-if="isAdmin" class="feature-page-actions">
+    <header v-if="isAdmin" class="feature-page-header domain-skills-header">
+      <div class="feature-page-actions">
         <button type="button" class="feature-button secondary" @click="openImport">导入 ZIP / MD</button>
         <button type="button" class="feature-button primary" @click="openCreate">新建技能</button>
       </div>
@@ -32,11 +27,6 @@
     <p v-if="error" class="domain-skills-notice error">{{ error }}</p>
     <p v-if="message" class="domain-skills-notice success">{{ message }}</p>
 
-    <section class="domain-skills-quota">
-      <div><strong>{{ quotaLabel }}</strong><span>额度来源：{{ quota.source === 'MCP' ? 'MCP License' : '默认策略' }}</span></div>
-      <p>草稿和已回收技能不占发布额度。</p>
-    </section>
-
     <div class="domain-skills-layout">
       <aside class="domain-skill-categories">
         <div class="domain-skill-category-heading">
@@ -61,11 +51,6 @@
           <strong v-if="filters.category">{{ filters.category }}</strong>
         </div>
         <div v-if="loading" class="domain-skills-empty" role="status">正在加载领域技能…</div>
-        <div v-else-if="!skills.length" class="domain-skills-empty">
-          <strong>暂无领域技能</strong>
-          <p>{{ filters.category ? '该分类下暂无技能，可以新建或导入技能。' : '当前筛选条件下暂无技能，可以新建或导入技能。' }}</p>
-          <button v-if="isAdmin" type="button" @click="openCreate">新建技能</button>
-        </div>
         <template v-else>
           <article v-for="skill in skills" :key="skill.id" class="domain-skill-item">
             <div class="domain-skill-item-body">
@@ -97,6 +82,29 @@
       </section>
     </div>
 
+    <div v-if="publicationLimitOpen" class="domain-skill-dialog-backdrop" @mousedown.self="closePublicationLimit">
+      <section class="domain-skill-dialog publication-limit-dialog" role="dialog" aria-modal="true" aria-labelledby="publication-limit-title">
+        <button type="button" class="app-dialog-close publication-limit-close" aria-label="关闭" @click="closePublicationLimit">×</button>
+        <div class="publication-limit-icon" aria-hidden="true">!</div>
+        <div class="publication-limit-content">
+          <p>发布额度提醒</p>
+          <h2 id="publication-limit-title">已达到技能发布上限</h2>
+          <p>
+            当前最多可发布 <strong>{{ publicationLimit.maximum }}</strong> 个领域技能。
+            请先回收一个已发布技能，再发布<span v-if="publicationLimit.skillName">“{{ publicationLimit.skillName }}”</span>。
+          </p>
+          <div class="publication-limit-meter" aria-label="当前发布额度">
+            <span>已发布</span>
+            <strong>{{ publicationLimit.published }} / {{ publicationLimit.maximum }}</strong>
+          </div>
+        </div>
+        <footer>
+          <button type="button" class="secondary-button" @click="closePublicationLimit">我知道了</button>
+          <button type="button" @click="viewPublishedSkills">查看已发布技能</button>
+        </footer>
+      </section>
+    </div>
+
     <div v-if="categoryDialogOpen" class="domain-skill-dialog-backdrop" @mousedown.self="closeCategoryDialog">
       <form class="domain-skill-dialog category-dialog" @submit.prevent="saveCategory">
         <header><div><p>领域技能分类</p><h2>创建分类</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" :disabled="categorySaving" @click="closeCategoryDialog">×</button></header>
@@ -106,21 +114,23 @@
       </form>
     </div>
 
-    <div v-if="editorOpen" class="domain-skill-dialog-backdrop" @mousedown.self="!busy && (editorOpen = false)">
-      <form class="domain-skill-dialog domain-skills-editor" @submit.prevent="save">
-        <header><div><p>领域技能</p><h2>{{ form.id ? '编辑领域技能' : '新建领域技能' }}</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="editorOpen = false">×</button></header>
+    <div v-if="editorOpen" class="domain-skill-dialog-backdrop">
+      <form class="domain-skill-dialog domain-skills-editor" @input="editorMessage = ''" @submit.prevent="save">
+        <header><div><p>领域技能</p><h2>{{ form.id ? '编辑领域技能' : '新建领域技能' }}</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="requestCloseEditor">×</button></header>
+        <p v-if="editorMessage" class="domain-skill-dialog-success">{{ editorMessage }}</p>
         <label><span>名称 *</span><input v-model="form.name" required maxlength="200"></label>
         <label><span>分类 *</span><select v-model="form.category" required><option value="" disabled>请选择分类</option><option v-for="item in categoryOptions" :key="item.name" :value="item.name">{{ item.name }}</option></select></label>
         <p v-if="!categoryOptions.length" class="domain-skill-field-hint">暂无可选分类，请使用左侧分类栏的“+”创建分类后再保存。</p>
         <label><span>说明</span><textarea v-model="form.description" rows="2" maxlength="2000"></textarea></label>
         <label class="markdown-field"><span>SKILL.md *</span><textarea v-model="form.markdownContent" required spellcheck="false"></textarea></label>
-        <footer><button type="button" class="secondary-button" @click="editorOpen = false">取消</button><button :disabled="busy">保存草稿</button></footer>
+        <footer><button type="button" class="secondary-button" @click="requestCloseEditor">取消</button><button :disabled="busy">保存草稿</button></footer>
       </form>
     </div>
 
-    <div v-if="importOpen" class="domain-skill-dialog-backdrop" @mousedown.self="!busy && (importOpen = false)">
-      <form class="domain-skill-dialog domain-skills-import" @submit.prevent="importSkill">
-        <header><div><p>领域技能</p><h2>导入技能</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="importOpen = false">×</button></header>
+    <div v-if="importOpen" class="domain-skill-dialog-backdrop">
+      <form class="domain-skill-dialog domain-skills-import" @input="importMessage = ''" @submit.prevent="importSkill">
+        <header><div><p>领域技能</p><h2>导入技能</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="requestCloseImport">×</button></header>
+        <p v-if="importMessage" class="domain-skill-dialog-success">{{ importMessage }}</p>
         <div class="domain-skill-import-modes" role="tablist" aria-label="导入方式">
           <button type="button" role="tab" :aria-selected="importMode === 'file'" :class="{ active: importMode === 'file' }" @click="importMode = 'file'">本地文件</button>
           <button type="button" role="tab" :aria-selected="importMode === 'url'" :class="{ active: importMode === 'url' }" @click="importMode = 'url'">互联网地址</button>
@@ -129,8 +139,8 @@
         <label><span>分类 *</span><select v-model="importCategory" required><option value="" disabled>请选择分类</option><option v-for="item in categoryOptions" :key="item.name" :value="item.name">{{ item.name }}</option></select></label>
         <p v-if="!categoryOptions.length" class="domain-skill-field-hint">暂无可选分类，请使用左侧分类栏的“+”创建分类后再导入。</p>
         <label v-if="importMode === 'url'" class="domain-skill-url-field"><span>互联网地址 *</span><input v-model.trim="importUrl" type="url" required maxlength="2048" placeholder="https://example.com/SKILL.md"><small>支持公开的 HTTP/HTTPS Markdown 或 ZIP 地址，最大 5MB。</small></label>
-        <label v-else class="file-picker"><input type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
-        <footer><button type="button" class="secondary-button" @click="importOpen = false">取消</button><button :disabled="busy || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())">导入</button></footer>
+        <label v-else class="file-picker"><input ref="importFileInput" type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
+        <footer><button type="button" class="secondary-button" @click="requestCloseImport">取消</button><button :disabled="busy || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())">导入</button></footer>
       </form>
     </div>
   </section>

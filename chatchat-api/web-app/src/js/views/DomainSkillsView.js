@@ -20,6 +20,15 @@ const starter = `# 领域技能名称
 3. 输出结论、依据和风险提示。`;
 
 const emptyForm = () => ({ id: "", name: "", category: "", description: "", markdownContent: starter });
+const editorStateKey = (form = {}) => JSON.stringify({
+  id: form.id || "", name: form.name || "", category: form.category || "",
+  description: form.description || "", markdownContent: form.markdownContent || ""
+});
+const importStateKey = (state = {}) => JSON.stringify({
+  mode: state.importMode || "file", name: state.importName || "", category: state.importCategory || "",
+  url: state.importUrl || "", fileName: state.importFile?.name || "", fileSize: state.importFile?.size || 0,
+  fileModified: state.importFile?.lastModified || 0
+});
 
 export default {
   name: "DomainSkillsView",
@@ -29,17 +38,14 @@ export default {
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
     total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
     importMode: "file", importFile: null, importUrl: "", importName: "", importCategory: "", categoryDialogOpen: false,
-    newCategoryName: "", categorySaving: false, categoryError: ""
+    newCategoryName: "", categorySaving: false, categoryError: "", publicationLimitOpen: false,
+    publicationLimit: { maximum: 5, published: 5, skillName: "" }, editorMessage: "", importMessage: "",
+    editorSnapshot: "", importSnapshot: ""
   }),
   computed: {
     isAdmin() {
       const session = getStoredAuthSession() || {};
       return String(session.username || session.userName || session.user?.username || "").toLowerCase() === "admin";
-    },
-    quotaLabel() {
-      if (!this.quota.licenseValid) return "License 无效";
-      if (!this.quota.limited) return `已发布 ${this.quota.published} 个 · 不限数量`;
-      return `已发布 ${this.quota.published} / ${this.quota.maximum} 个 · 剩余 ${this.quota.remaining} 个`;
     },
     categoryOptions() {
       return this.categories.map((category) => typeof category === "string"
@@ -65,7 +71,9 @@ export default {
     },
     openCreate() {
       this.form = { ...emptyForm(), category: this.filters.category || this.categoryOptions[0]?.name || "" };
+      this.editorSnapshot = editorStateKey(this.form);
       this.editorOpen = true;
+      this.editorMessage = "";
       this.error = "";
     },
     openImport() {
@@ -74,7 +82,9 @@ export default {
       this.importFile = null;
       this.importUrl = "";
       this.importName = "";
+      this.importSnapshot = importStateKey(this);
       this.importOpen = true;
+      this.importMessage = "";
       this.error = "";
     },
     async selectCategory(category) {
@@ -119,15 +129,20 @@ export default {
         this.categorySaving = false;
       }
     },
-    openEdit(skill) { this.form = { id: skill.id, name: skill.name || "", category: skill.category || "", description: skill.description || "", markdownContent: skill.markdownContent || "" }; this.editorOpen = true; },
+    openEdit(skill) { this.form = { id: skill.id, name: skill.name || "", category: skill.category || "", description: skill.description || "", markdownContent: skill.markdownContent || "" }; this.editorSnapshot = editorStateKey(this.form); this.editorMessage = ""; this.editorOpen = true; },
     async save() {
       if (!this.form.name.trim() || !this.form.category.trim() || !this.form.markdownContent.trim()) return;
       await this.perform(async () => {
-        if (this.form.id) await updateDomainSkill(this.form.id, this.form); else await createDomainSkill(this.form);
-        this.editorOpen = false; this.message = "领域技能草稿已保存"; await this.load();
+        const saved = this.form.id
+          ? await updateDomainSkill(this.form.id, this.form)
+          : await createDomainSkill(this.form);
+        if (saved?.id) this.form.id = saved.id;
+        this.editorSnapshot = editorStateKey(this.form);
+        this.editorMessage = "领域技能草稿已保存";
+        await this.load();
       }, "领域技能保存失败");
     },
-    chooseImport(event) { this.importFile = event.target.files?.[0] || null; },
+    chooseImport(event) { this.importFile = event.target.files?.[0] || null; this.importMessage = ""; },
     async importSkill() {
       const category = this.importCategory.trim();
       const url = this.importUrl.trim();
@@ -138,12 +153,52 @@ export default {
         } else {
           await importDomainSkill(this.importFile, this.importName.trim(), category);
         }
-        this.importOpen = false; this.importFile = null; this.importUrl = "";
-        this.importName = ""; this.importCategory = "";
-        this.message = "技能包已导入为草稿"; await this.load(true);
+        this.importFile = null; this.importUrl = ""; this.importName = "";
+        if (this.$refs?.importFileInput) this.$refs.importFileInput.value = "";
+        this.importSnapshot = importStateKey(this);
+        this.importMessage = "技能包已导入为草稿，可继续导入其他技能";
+        await this.load(true);
       }, "技能包导入失败");
     },
-    async publishSkill(skill) { await this.perform(async () => { const value = await publishDomainSkill(skill.id); this.message = `“${value.name}”已发布到领域技能索引`; await this.load(); }, "领域技能发布失败"); },
+    requestCloseEditor() {
+      if (this.busy) return;
+      if (editorStateKey(this.form) !== this.editorSnapshot
+          && !window.confirm("当前技能内容尚未保存，确定要关闭吗？")) return;
+      this.editorOpen = false;
+    },
+    requestCloseImport() {
+      if (this.busy) return;
+      if (importStateKey(this) !== this.importSnapshot
+          && !window.confirm("当前导入内容尚未提交，确定要关闭吗？")) return;
+      this.importOpen = false;
+    },
+    async publishSkill(skill) {
+      this.busy = true; this.error = ""; this.message = "";
+      try {
+        const value = await publishDomainSkill(skill.id);
+        this.message = `“${value.name}”已发布到领域技能索引`;
+        await this.load();
+      } catch (error) {
+        if (String(error?.message || "").includes("SKILL_LICENSE_LIMIT_EXCEEDED")) {
+          this.publicationLimit = {
+            maximum: Number(this.quota?.maximum || 5),
+            published: Number(this.quota?.published || this.quota?.maximum || 5),
+            skillName: skill?.name || ""
+          };
+          this.publicationLimitOpen = true;
+        } else {
+          this.error = error?.message || "领域技能发布失败";
+        }
+      } finally {
+        this.busy = false;
+      }
+    },
+    closePublicationLimit() { this.publicationLimitOpen = false; },
+    async viewPublishedSkills() {
+      this.publicationLimitOpen = false;
+      this.filters.status = "PUBLISHED";
+      await this.load(true);
+    },
     async recallSkill(skill) { await this.perform(async () => { await recallDomainSkill(skill.id); this.message = `“${skill.name}”已回收，Agent 将不再加载该技能`; await this.load(); }, "领域技能回收失败"); },
     async reindexSkill(skill) {
       await this.perform(async () => {

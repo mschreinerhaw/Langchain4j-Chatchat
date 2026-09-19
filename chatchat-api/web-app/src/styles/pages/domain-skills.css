@@ -161,31 +161,62 @@
 
 .domain-skills-page .domain-skill-category-entry {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
-  gap: 3px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  overflow: visible;
 }
 
 .domain-skills-page .domain-skill-category-entry .domain-skill-category-row {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.domain-skills-page .domain-skill-category-entry.active {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, .06);
+  color: var(--primary);
+}
+
+.domain-skills-page .domain-skill-category-row-actions {
+  position: relative;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+}
+
+.domain-skills-page .domain-skill-category-action-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: transparent;
 }
 
 .domain-skills-page .domain-skill-category-actions-trigger {
-  width: 26px;
-  min-height: 26px;
-  align-self: center;
-  justify-self: center;
+  width: 30px;
+  min-height: 30px;
+  display: inline-grid;
+  place-items: center;
   padding: 0;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font-size: 18px;
-  line-height: 1;
-  font-weight: 800;
 }
 
-.domain-skills-page .domain-skill-category-actions-trigger:hover {
+.domain-skills-page .domain-skill-category-actions-trigger:hover,
+.domain-skills-page .domain-skill-category-actions-trigger[aria-expanded="true"] {
+  border-color: rgba(37, 99, 235, .22);
   background: rgba(37, 99, 235, .06);
   color: var(--primary);
 }
@@ -193,41 +224,51 @@
 .domain-skills-page .domain-skill-category-menu {
   position: absolute;
   z-index: 20;
-  top: 40px;
+  top: calc(100% + 6px);
   right: 0;
-  width: 132px;
+  width: 128px;
   display: grid;
-  gap: 3px;
+  gap: 2px;
   padding: 6px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 8px;
   background: #fff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, .16);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .14);
 }
 
 .domain-skills-page .domain-skill-category-menu button {
-  min-height: 34px;
-  padding: 0 10px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--text);
   text-align: left;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .domain-skills-page .domain-skill-category-menu button:hover:not(:disabled) {
-  background: #f5f7fb;
+  background: rgba(37, 99, 235, .06);
+  color: var(--primary);
 }
 
-.domain-skills-page .domain-skill-category-menu button.danger {
+.domain-skills-page .domain-skill-category-menu button.danger-action {
+  color: #b42318;
+}
+
+.domain-skills-page .domain-skill-category-menu button.danger-action:hover {
+  border-color: #fda29b;
+  background: #fff3f0;
   color: #b42318;
 }
 
 .domain-skills-page .domain-skill-category-menu button:disabled {
   cursor: not-allowed;
-  opacity: .45;
+  opacity: .7;
 }
 
 .domain-skills-page .domain-skill-category-row span {

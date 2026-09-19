@@ -37,15 +37,20 @@
         <button type="button" class="domain-skill-category-row" :class="{ active: !filters.category }" @click="selectCategory('')">
           <span>全部技能</span><strong>{{ skillCount }}</strong>
         </button>
-        <div v-for="category in categoryOptions" :key="category.name" class="domain-skill-category-entry">
-          <button type="button" class="domain-skill-category-row" :class="{ active: filters.category === category.name }" @click="selectCategory(category.name)">
+        <div v-if="categoryMenuId" class="domain-skill-category-action-backdrop" @click="categoryMenuId = ''"></div>
+        <div v-for="category in categoryOptions" :key="category.name" class="domain-skill-category-entry" :class="{ active: filters.category === category.name }">
+          <button type="button" class="domain-skill-category-row" @click="selectCategory(category.name)">
             <span>{{ category.name }}</span><strong>{{ category.count }}</strong>
           </button>
-          <button v-if="isAdmin" type="button" class="domain-skill-category-actions-trigger" title="分类操作" :aria-label="`${category.name}分类操作`" @click="toggleCategoryMenu(category)">⋯</button>
-          <div v-if="isAdmin && categoryMenuId === (category.id || category.name)" class="domain-skill-category-menu">
-            <button v-if="category.manageable" type="button" @click="openRenameCategory(category)">重命名</button>
-            <button type="button" :disabled="busy || !category.count" @click="categoryMenuId = ''; reindexCategory(category)">重建索引</button>
-            <button v-if="category.manageable" type="button" class="danger" @click="requestDeleteCategory(category)">删除分类</button>
+          <div v-if="isAdmin" class="domain-skill-category-row-actions">
+            <button type="button" class="domain-skill-category-actions-trigger" title="分类操作" aria-label="分类操作" :aria-expanded="categoryMenuId === (category.id || category.name)" @click.stop="toggleCategoryMenu(category)">
+              <MoreHorizontal :size="16" />
+            </button>
+            <div v-if="categoryMenuId === (category.id || category.name)" class="domain-skill-category-menu" @click.stop>
+              <button type="button" :disabled="busy || !category.count" @click="categoryMenuId = ''; reindexCategory(category)"><RefreshCw :size="14" /><span>重建索引</span></button>
+              <button v-if="category.manageable" type="button" @click="openRenameCategory(category)"><Pencil :size="14" /><span>修改分类</span></button>
+              <button v-if="category.manageable" type="button" class="danger-action" @click="requestDeleteCategory(category)"><Trash2 :size="14" /><span>删除分类</span></button>
+            </div>
           </div>
         </div>
         <p v-if="!categoryOptions.length" class="domain-skill-category-empty">暂无分类，点击分类标题旁的“+”创建。</p>

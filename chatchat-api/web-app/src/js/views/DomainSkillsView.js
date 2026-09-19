@@ -1,4 +1,5 @@
 import { nextTick } from "vue";
+import { MoreHorizontal, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills, getStoredAuthSession,
   importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
@@ -32,6 +33,7 @@ const importStateKey = (state = {}) => JSON.stringify({
 
 export default {
   name: "DomainSkillsView",
+  components: { MoreHorizontal, Pencil, RefreshCw, Trash2 },
   data: () => ({
     loading: true, busy: false, error: "", message: "", skills: [], categories: [],
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },

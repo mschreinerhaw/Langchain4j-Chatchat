@@ -118,6 +118,38 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void acceptsFocusedParallelCallsForOneConfiguredRetrievalCapability() {
+        String webSearch = "mcp_chatchat_mcp_server_web_search";
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("market_analysis", "build a market report", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", webSearch,
+                    Map.of("query", "market quotes and volume"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", webSearch,
+                    Map.of("query", "financial news and policy"), List.of(), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", webSearch,
+                    Map.of("query", "company announcements"), List.of(), null, null),
+                finalStep(4, List.of(1, 2, 3))
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4, true, List.of(webSearch), List.of(), 30_000),
+            review(true)
+        );
+        List<Map<String, Object>> configuredDag = List.of(
+            Map.of("tool", webSearch, "dependsOnTools", List.of())
+        );
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(webSearch)).thenReturn(true);
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, registry, Set.of(webSearch), configuredDag, "market-close-report");
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
     void rejectsDisconnectedApiAssetTemplateExecutionChain() {
         String asset = "mcp_chatchat_mcp_server_api_asset_query";
         String query = "mcp_chatchat_mcp_server_api_template_query";

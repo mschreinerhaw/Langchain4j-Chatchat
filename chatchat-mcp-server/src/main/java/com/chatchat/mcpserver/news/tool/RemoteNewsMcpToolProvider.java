@@ -164,15 +164,19 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         data.put("externalSearchRole", "supplementary_fallback");
         data.put("count", results.size());
         data.put("newsCount", news.size());
-        data.put("financialAssetCount", assets.size());
-        data.put("financialAssets", assets);
-        data.put("financialIndex", financialIndexGuide(assets, discoveryId));
+        // Put bounded, decision-grade observations before the verbose asset catalog.
+        // Transport/log preview limits must not hide the actual local market rows behind
+        // field descriptions and discovery metadata.
         data.put("financialDatasetCount", financialData.size());
         data.put("financialObservationCount", financialObservationCount);
+        data.put("financialEvidenceRows", financialEvidenceRows(financialData, 10));
         data.put("financialData", financialData);
         data.put("structuredDatasetCount", financialData.size());
         data.put("structuredObservationCount", financialObservationCount);
         data.put("structuredData", financialData);
+        data.put("financialAssetCount", assets.size());
+        data.put("financialAssets", assets);
+        data.put("financialIndex", financialIndexGuide(assets, discoveryId));
         boolean financialDataRequired = input.getParameterAsBoolean("financial_data_required", false);
         data.put("financialDataRequired", financialDataRequired);
         data.put("financialDataPolicy", "local_first_auto");
@@ -194,6 +198,21 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         result.getMetadata().put("financialSearchToolVisibility", "internal_bridge_only");
         result.getMetadata().put("financialSecondQueryRequired", requiresSecondQuery);
         return result;
+    }
+
+    private List<Map<String, Object>> financialEvidenceRows(List<Map<String, Object>> datasets, int limit) {
+        List<Map<String, Object>> evidence = new ArrayList<>();
+        for (Map<String, Object> dataset : datasets == null ? List.<Map<String, Object>>of() : datasets) {
+            String datasetCode = String.valueOf(dataset.getOrDefault("dataset", ""));
+            for (Map<String, Object> row : rows(dataset)) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                if (!datasetCode.isBlank()) item.put("dataset", datasetCode);
+                item.putAll(row);
+                evidence.add(item);
+                if (evidence.size() >= Math.max(1, limit)) return List.copyOf(evidence);
+            }
+        }
+        return List.copyOf(evidence);
     }
 
     @SuppressWarnings("unchecked")

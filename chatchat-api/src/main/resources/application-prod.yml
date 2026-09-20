@@ -61,6 +61,10 @@ chatchat:
       index-name: domain_skill_index
   domain-skills:
     compiler-model: ${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:deepseek-v4-pro}
+    router-model: ${CHATCHAT_DOMAIN_SKILL_ROUTER_MODEL:${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:deepseek-v4-pro}}
+    max-activated-skills: ${CHATCHAT_DOMAIN_SKILL_MAX_ACTIVATED:4}
+    router-input-chars: ${CHATCHAT_DOMAIN_SKILL_ROUTER_INPUT_CHARS:49152}
+    planning-token-budget: ${CHATCHAT_DOMAIN_SKILL_PLANNING_TOKEN_BUDGET:6000}
   audit:
     default-query-window-days: 7
   ui-artifact:

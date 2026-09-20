@@ -38,6 +38,28 @@ class AgentPlannerDomainSkillContextTest {
         assertThat(prompt).contains("step risk-data: tool=portfolio_risk_query");
     }
 
+    @Test
+    void plannerConsumesModelFusedKnowledgeWithoutSelectedSkillFullText() {
+        Map<String, Object> attributes = Map.of(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE, Map.of(
+            "schemaVersion", "domain_skill_planning.v2",
+            "skills", List.of(
+                Map.of("id", "risk", "name", "证券风险", "category", "风险管理"),
+                Map.of("id", "market", "name", "市场复盘", "category", "市场行情")),
+            "activatedSkills", List.of(
+                Map.of("id", "risk", "name", "证券风险", "category", "风险管理")),
+            "compiledContext", "原则：先验证行情日期；证据：指数收盘值；约束：不得编造行情"
+        ));
+
+        String prompt = builder().build(
+            "生成收盘分析", "Agent system prompt", List.of(), List.of(), List.of(), List.of(), List.of(),
+            false, false, null, null, attributes);
+
+        assertThat(prompt)
+            .contains("Model-routed domain knowledge", "selected skills are an authorization boundary")
+            .contains("activated skill count: 1", "先验证行情日期", "指数收盘值", "不得编造行情")
+            .doesNotContain("Selected domain skills for plan generation");
+    }
+
     private AgentPlannerPromptBuilder builder() {
         return new AgentPlannerPromptBuilder(
             mock(ToolRegistry.class), new ObjectMapper(), Clock.systemUTC());

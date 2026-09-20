@@ -58,6 +58,10 @@ chatchat:
       index-name: domain_skill_index_dev
   domain-skills:
     compiler-model: deepseek-v4-pro
+    router-model: deepseek-v4-pro
+    max-activated-skills: 4
+    router-input-chars: 49152
+    planning-token-budget: 6000
   audit:
     default-query-window-days: 7
   ui-artifact:

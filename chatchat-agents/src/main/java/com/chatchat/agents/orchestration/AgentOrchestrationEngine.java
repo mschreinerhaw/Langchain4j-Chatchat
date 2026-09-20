@@ -5843,10 +5843,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> domainSkillContext = objectMap(runtimeAttributes == null
             ? null : runtimeAttributes.get(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE));
         List<Map<String, Object>> selectedDomainSkills = objectMapList(domainSkillContext.get("skills"));
+        List<Map<String, Object>> routedDomainSkills = objectMapList(domainSkillContext.get("activatedSkills"));
+        List<Map<String, Object>> activatedDomainSkills = routedDomainSkills.isEmpty()
+            && "domain_skill_planning.v1".equals(stringValue(domainSkillContext.get("schemaVersion")))
+            ? selectedDomainSkills : routedDomainSkills;
         if (knowledge.isEmpty() && selectedDomainSkills.isEmpty()) return;
         List<Map<String, Object>> sources = objectMapList(knowledge.get("sources"));
         List<Map<String, Object>> activatedSkills = new ArrayList<>(objectMapList(knowledge.get("activatedSkills")));
-        selectedDomainSkills.stream().map(skill -> metadataOf(
+        activatedDomainSkills.stream().map(skill -> metadataOf(
             "instanceId", skill.get("id"),
             "skillType", "DOMAIN_SKILL",
             "goal", skill.get("name"),
@@ -5872,13 +5876,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "skillCount", activatedSkills.size(),
             "activatedSkills", activatedSkills,
             "domainSkillCount", selectedDomainSkills.size(),
+            "activatedDomainSkillCount", activatedDomainSkills.size(),
             "skillTypes", skillTypes
         );
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
             "Knowledge Skill extraction completed: " + activatedSkills.size() + " skill(s) "
                 + activatedSkillSummary,
             "knowledge_skills", extractedEvent);
-        boolean applied = Boolean.TRUE.equals(knowledge.get("used")) || !selectedDomainSkills.isEmpty();
+        boolean applied = Boolean.TRUE.equals(knowledge.get("used")) || !activatedDomainSkills.isEmpty();
         Map<String, Object> appliedEvent = metadataOf(
             "type", "knowledge_skill_lifecycle",
             "eventKind", "KNOWLEDGE_SKILLS",
@@ -5891,6 +5896,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "skillCount", activatedSkills.size(),
             "activatedSkills", activatedSkills,
             "domainSkillCount", selectedDomainSkills.size(),
+            "activatedDomainSkillCount", activatedDomainSkills.size(),
             "sourceCount", sources.size(),
             "sources", sources.stream().map(source -> metadataOf(
                 "documentId", source.get("documentId"),
@@ -5907,6 +5913,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         metadata.put("domainKnowledgeContext", knowledge);
         metadata.put("domainKnowledgeSourceCount", sources.size());
         metadata.put("selectedDomainSkillCount", selectedDomainSkills.size());
+        metadata.put("activatedDomainSkillCount", activatedDomainSkills.size());
         metadata.put("selectedDomainSkills", selectedDomainSkills.stream().map(skill -> metadataOf(
             "id", skill.get("id"), "name", skill.get("name"), "category", skill.get("category"))).toList());
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,

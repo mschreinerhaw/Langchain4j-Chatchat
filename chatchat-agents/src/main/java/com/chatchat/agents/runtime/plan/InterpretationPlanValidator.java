@@ -159,7 +159,7 @@ public class InterpretationPlanValidator {
             toolRegistry == null
                 ? com.chatchat.common.mcp.capability.McpCapabilityHierarchy.empty()
                 : new com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy(toolRegistry);
-        Map<String, InterpretationPlan.Step> planByTool = new LinkedHashMap<>();
+        Map<String, List<InterpretationPlan.Step>> planByTool = new LinkedHashMap<>();
         for (Object rawNode : nodes) {
             if (!(rawNode instanceof Map<?, ?> node)) {
                 continue;
@@ -181,21 +181,25 @@ public class InterpretationPlanValidator {
                     .filter(step -> capabilityHierarchy.isImplementationOf(step.toolName(), tool))
                     .toList();
             }
-            if (matches.size() != 1) {
+            if (matches.isEmpty()) {
                 state.error("authoritativeWorkflowDag",
-                    "Task " + workflowTaskLabel(taskId) + " requires exactly one plan step for configured MCP tool "
-                        + tool + "; found " + matches.size() + ".");
+                    "Task " + workflowTaskLabel(taskId) + " requires at least one plan step for configured MCP tool "
+                        + tool + "; found 0.");
                 continue;
             }
-            planByTool.put(semanticToolName(tool), matches.get(0));
+            // A configured workflow node represents a required capability boundary, not a
+            // singleton invocation. Retrieval planners may legitimately split one search
+            // capability into several focused calls; rejecting that plan discards all of
+            // the more precise queries and forces a low-quality broad fallback call.
+            planByTool.put(semanticToolName(tool), matches);
         }
         for (Object rawNode : nodes) {
             if (!(rawNode instanceof Map<?, ?> node)) {
                 continue;
             }
             String tool = mapText(node, "tool", "toolName");
-            InterpretationPlan.Step target = planByTool.get(semanticToolName(tool));
-            if (target == null) {
+            List<InterpretationPlan.Step> targets = planByTool.get(semanticToolName(tool));
+            if (targets == null || targets.isEmpty()) {
                 continue;
             }
             Object rawDependencies = node.get("dependsOnTools");
@@ -204,16 +208,22 @@ public class InterpretationPlanValidator {
             }
             for (Object rawDependency : dependencies) {
                 String dependencyTool = rawDependency == null ? null : String.valueOf(rawDependency).trim();
-                InterpretationPlan.Step source = planByTool.get(semanticToolName(dependencyTool));
-                if (source == null) {
+                List<InterpretationPlan.Step> sources = planByTool.get(semanticToolName(dependencyTool));
+                if (sources == null || sources.isEmpty()) {
                     state.error("authoritativeWorkflowDag",
                         "Task " + workflowTaskLabel(taskId) + " configured dependency " + dependencyTool
                             + " is missing from the executable plan.");
-                } else if (!Objects.equals(target.id(), source.id())
-                    && (target.dependsOn() == null || !target.dependsOn().contains(source.id()))) {
-                    state.error("plan.steps[" + target.id() + "].depends_on",
-                        "Task " + workflowTaskLabel(taskId) + " requires configured MCP edge "
-                            + dependencyTool + " -> " + tool + ".");
+                } else {
+                    for (InterpretationPlan.Step target : targets) {
+                        boolean dependencySatisfied = sources.stream().anyMatch(source ->
+                            Objects.equals(target.id(), source.id())
+                                || target.dependsOn() != null && target.dependsOn().contains(source.id()));
+                        if (!dependencySatisfied) {
+                            state.error("plan.steps[" + target.id() + "].depends_on",
+                                "Task " + workflowTaskLabel(taskId) + " requires configured MCP edge "
+                                    + dependencyTool + " -> " + tool + ".");
+                        }
+                    }
                 }
             }
         }

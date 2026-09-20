@@ -130,6 +130,10 @@ chatchat:
         type: http
   domain-skills:
     compiler-model: ${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:qwen3.6-plus}
+    router-model: ${CHATCHAT_DOMAIN_SKILL_ROUTER_MODEL:${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:qwen3.6-plus}}
+    max-activated-skills: ${CHATCHAT_DOMAIN_SKILL_MAX_ACTIVATED:4}
+    router-input-chars: ${CHATCHAT_DOMAIN_SKILL_ROUTER_INPUT_CHARS:49152}
+    planning-token-budget: ${CHATCHAT_DOMAIN_SKILL_PLANNING_TOKEN_BUDGET:6000}
   agent-runtime:
     workflow-engine: ${CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE:local}
     native-tool-calling-enabled: ${CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED:true}

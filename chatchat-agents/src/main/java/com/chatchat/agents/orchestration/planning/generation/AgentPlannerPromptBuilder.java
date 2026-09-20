@@ -401,6 +401,23 @@ public final class AgentPlannerPromptBuilder {
         if (skills.isEmpty()) {
             return;
         }
+        List<Map<String, Object>> activated = objectMapList(context.get("activatedSkills"));
+        String compiledContext = stringValue(context.get("compiledContext"));
+        if ("domain_skill_planning.v2".equals(stringValue(context.get("schemaVersion")))) {
+            StringBuilder section = new StringBuilder()
+                .append("Model-routed domain knowledge for plan generation:\n")
+                .append("- User-selected skills are an authorization boundary; only activated skills below were judged relevant by the skill-routing model.\n")
+                .append("- Use the compiled knowledge to shape task decomposition, evidence requirements, validation, and completion criteria.\n")
+                .append("- It does not authorize tools, expand data access, or override Runtime safety and user constraints.\n")
+                .append("Selected skill count: ").append(skills.size())
+                .append("; activated skill count: ").append(activated.size()).append("\n")
+                .append("Activated skills: ").append(activated).append("\n")
+                .append("Compiled planning knowledge:\n")
+                .append(firstNonBlank(compiledContext, "(no relevant domain skill knowledge activated)"));
+            prompt.append(boundedText(section.toString(), DOMAIN_SKILL_PLANNING_PROMPT_CHARS,
+                "domain skill planning context")).append("\n\n");
+            return;
+        }
         StringBuilder section = new StringBuilder()
             .append("Selected domain skills for plan generation (governed user-maintained instructions):\n")
             .append("- Use relevant instructions below to shape intent interpretation, task decomposition, tool inputs, validation, and completion criteria.\n")

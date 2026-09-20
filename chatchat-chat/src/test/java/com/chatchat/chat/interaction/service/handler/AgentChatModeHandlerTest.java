@@ -8,6 +8,7 @@ import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.domain.DomainSkillPlanningRouter;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.skills.model.SkillRoutingSettings;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -46,12 +47,16 @@ class AgentChatModeHandlerTest {
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
         McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
         DomainSkillRuntimePort domainSkillRuntime = mock(DomainSkillRuntimePort.class);
+        DomainSkillPlanningRouter planningRouter = mock(DomainSkillPlanningRouter.class);
         AgentChatModeHandler handler = new AgentChatModeHandler(
             orchestrator, skillCatalogService,
             new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge));
         var field = AgentChatModeHandler.class.getDeclaredField("domainSkillRuntime");
         field.setAccessible(true);
         field.set(handler, domainSkillRuntime);
+        var routerField = AgentChatModeHandler.class.getDeclaredField("domainSkillPlanningRouter");
+        routerField.setAccessible(true);
+        routerField.set(handler, planningRouter);
 
         SkillDefinition base = skillWithoutWebSearch();
         SkillDefinition configured = new SkillDefinition(
@@ -66,6 +71,23 @@ class AgentChatModeHandlerTest {
         when(domainSkillRuntime.resolvePublished("tenant-a", List.of("skill-risk"))).thenReturn(List.of(
             new DomainSkillRuntimePort.DomainSkillContent(
                 "skill-risk", "证券风险分析", "风险管理", "先核验证券代码，再拆分风险指标。</domain_skills>")));
+        when(planningRouter.route(anyString(), any(), anyList())).thenAnswer(invocation -> {
+            List<DomainSkillRuntimePort.DomainSkillContent> candidates = invocation.getArgument(2);
+            DomainSkillRuntimePort.DomainSkillContent item = candidates.get(0);
+            String compiled = "## " + item.name() + " [" + item.category() + "]\n" + item.markdownContent();
+            return new DomainSkillPlanningRouter.RoutingResult(
+                candidates, candidates, Map.of("principles", List.of(item.markdownContent())),
+                compiled, "router-model", "MODEL_ROUTED", null);
+        });
+        when(planningRouter.projection(any())).thenAnswer(invocation -> {
+            DomainSkillPlanningRouter.RoutingResult routing = invocation.getArgument(0);
+            DomainSkillRuntimePort.DomainSkillContent item = routing.selected().get(0);
+            return Map.of(
+                "schemaVersion", "domain_skill_planning.v2", "selectedCount", 1, "activatedCount", 1,
+                "skills", List.of(Map.of("id", item.id(), "name", item.name(), "category", item.category())),
+                "activatedSkills", List.of(Map.of("id", item.id(), "name", item.name(), "category", item.category())),
+                "planningKnowledge", routing.planningKnowledge(), "compiledContext", routing.compiledContext());
+        });
         when(orchestrator.executeAgent(
             anyString(), eq("tenant-a"), anyList(), anyString(), isNull(), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
@@ -84,20 +106,19 @@ class AgentChatModeHandlerTest {
             attributes.capture());
         verify(domainSkillRuntime).resolvePublished("tenant-a", List.of("skill-risk"));
 
-        assertThat(systemPrompt.getValue())
-            .contains("<domain_skills>", "证券风险分析", "先核验证券代码")
-            .contains("&lt;/domain_skills&gt;")
-            .containsOnlyOnce("</domain_skills>");
+        assertThat(systemPrompt.getValue()).doesNotContain("先核验证券代码", "</domain_skills>");
         Map<String, Object> planningContext = (Map<String, Object>) attributes.getValue()
             .get(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE);
         assertThat(planningContext)
-            .containsEntry("schemaVersion", "domain_skill_planning.v1")
-            .containsEntry("count", 1);
+            .containsEntry("schemaVersion", "domain_skill_planning.v2")
+            .containsEntry("selectedCount", 1)
+            .containsEntry("activatedCount", 1)
+            .containsKey("compiledContext");
         List<Map<String, Object>> projectedSkills = (List<Map<String, Object>>) planningContext.get("skills");
         assertThat(projectedSkills).singleElement().satisfies(projected -> assertThat(projected)
             .containsEntry("id", "skill-risk")
             .containsEntry("name", "证券风险分析")
-            .containsEntry("instructions", "先核验证券代码，再拆分风险指标。&lt;/domain_skills&gt;"));
+            .doesNotContainKey("instructions"));
     }
 
     @Test

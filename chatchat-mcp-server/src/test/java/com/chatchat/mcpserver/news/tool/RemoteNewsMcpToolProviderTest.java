@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.news.runtime.NewsRuntimeClient;
 import com.chatchat.mcpserver.news.runtime.NewsSearchService;
 
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.runtime.mcp.registry.McpToolDefinition;
 import com.chatchat.runtime.market.storage.FinancialAssetCatalogService;
@@ -204,6 +205,8 @@ class RemoteNewsMcpToolProviderTest {
             assertThat((Map<String, Object>) asset.get("followUp"))
                 .containsEntry("tool", "web_search");
         });
+        assertThat(String.valueOf(ToolLogSummarizer.summarize(data, 1_200)))
+            .contains("financialDatasetCount=1", "financialObservationCount=1", "close=6.31");
     }
 
     @Test

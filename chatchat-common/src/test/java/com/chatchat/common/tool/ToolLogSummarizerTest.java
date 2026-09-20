@@ -103,6 +103,33 @@ class ToolLogSummarizerTest {
     }
 
     @Test
+    void unifiedWebSearchAuditKeepsEveryReturnedFactWithoutSummaryTruncation() {
+        List<Map<String, Object>> facts = java.util.stream.IntStream.range(0, 25)
+            .mapToObj(index -> Map.<String, Object>of(
+                "quote_code", "index-" + index,
+                "close", 3_000 + index,
+                "payload", "x".repeat(500)))
+            .toList();
+
+        Object summarized = ToolLogSummarizer.summarizeResult("web_search", Map.of(
+            "query", "A股收盘行情",
+            "result_type", "unified_search_results",
+            "financialObservationCount", 25,
+            "financialFacts", facts,
+            "records", facts,
+            "results", List.of(Map.of("title", "market close"))));
+
+        assertThat(summarized).isInstanceOfSatisfying(Map.class, audit -> {
+            assertThat(audit)
+                .containsEntry("schemaVersion", "web_search_fact_audit.v1")
+                .containsEntry("factsTruncated", false)
+                .doesNotContainKeys("summaryTruncated", "preview");
+            assertThat((List<?>) audit.get("financialFacts")).hasSize(25);
+            assertThat(String.valueOf(audit)).contains("index-24");
+        });
+    }
+
+    @Test
     void externalizedResultLogsReferenceStateInsteadOfInventingDomainCounts() {
         Object summarized = ToolLogSummarizer.summarizeResult(
             "mcp_chatchat_mcp_server_enterprise_metadata_search",

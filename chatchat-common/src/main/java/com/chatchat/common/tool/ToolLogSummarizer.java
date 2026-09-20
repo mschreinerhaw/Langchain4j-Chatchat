@@ -76,6 +76,25 @@ public final class ToolLogSummarizer {
      */
     public static Object summarizeResult(String toolName, Object value) {
         Map<String, Object> runtimeReference = mapValue(value);
+        if (isUnifiedWebSearch(toolName, runtimeReference)) {
+            Map<String, Object> audit = new LinkedHashMap<>();
+            audit.put("schemaVersion", "web_search_fact_audit.v1");
+            copyIfPresent(audit, runtimeReference, "query");
+            copyIfPresent(audit, runtimeReference, "provider");
+            copyIfPresent(audit, runtimeReference, "count");
+            copyIfPresent(audit, runtimeReference, "newsCount");
+            copyIfPresent(audit, runtimeReference, "financialDatasetCount");
+            copyIfPresent(audit, runtimeReference, "financialObservationCount");
+            copyIfPresent(audit, runtimeReference, "recordCount");
+            Object financialFacts = runtimeReference.containsKey("financialFacts")
+                ? runtimeReference.get("financialFacts") : runtimeReference.get("financialEvidenceRows");
+            audit.put("financialFacts", redactComplete(financialFacts));
+            audit.put("records", redactComplete(runtimeReference.containsKey("records")
+                ? runtimeReference.get("records") : runtimeReference.get("results")));
+            audit.put("detailsLogged", true);
+            audit.put("factsTruncated", false);
+            return audit;
+        }
         if (Boolean.TRUE.equals(runtimeReference.get("outputTruncated"))
             && runtimeReference.containsKey("documentId")) {
             Map<String, Object> summary = new LinkedHashMap<>();
@@ -133,6 +152,13 @@ public final class ToolLogSummarizer {
         summary.put("evidenceObjectCount", collectionSize(enterpriseMetadata.get("evidenceObjects")));
         summary.put("detailsLogged", false);
         return summary;
+    }
+
+    private static boolean isUnifiedWebSearch(String toolName, Map<String, Object> value) {
+        String normalized = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
+        return (normalized.equals("web_search") || normalized.endsWith("_web_search"))
+            && (value.containsKey("financialFacts") || value.containsKey("financialEvidenceRows")
+                || "unified_search_results".equals(value.get("result_type")));
     }
 
     /**

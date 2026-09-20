@@ -13,6 +13,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpAnalysisPayloadResultAnalysisAdapterTest {
 
     @Test
+    void unifiedSearchUsesCanonicalFactRecordsInsteadOfAssetCatalogResults() {
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "data", Map.of(
+                "schemaVersion", "unified_search_fact_result.v1",
+                "records", List.of(Map.of("dataset", "market_quote_daily", "quote_code", "000001",
+                    "close", 3507.84)),
+                "results", List.of(Map.of("resultType", "financial_data_asset",
+                    "dataset", "market_quote_daily", "title", "行情目录"))));
+
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("web_search", payload, 10_000));
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset ->
+            assertThat(dataset.records()).containsExactly(Map.of(
+                "dataset", "market_quote_daily", "quote_code", "000001", "close", 3507.84)));
+    }
+
+    @Test
     void projectsPythonJsonAsRecordsInsteadOfSlicingTransportText() {
         var payload = Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
             "data", Map.of("schemaVersion", "python_analysis_bridge_result.v1",

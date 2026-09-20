@@ -132,8 +132,13 @@ class RemoteNewsMcpToolProviderTest {
         assertThat((List<Map<String, Object>>) data.get("financialData")).singleElement().satisfies(dataset -> {
             assertThat(dataset).containsEntry("dataset", "new_runtime_dataset");
             assertThat((List<Map<String, Object>>) dataset.get("rows")).singleElement().satisfies(row ->
-                assertThat(row).doesNotContainKey("payload_json").containsKey("_omitted_fields"));
+                assertThat(row).containsEntry("payload_json", "must-not-cross-boundary")
+                    .doesNotContainKey("_omitted_fields"));
         });
+        assertThat((List<Map<String, Object>>) data.get("financialFacts")).singleElement()
+            .satisfies(row -> assertThat(row)
+                .containsEntry("dataset", "new_runtime_dataset")
+                .containsEntry("payload_json", "must-not-cross-boundary"));
         verify(store).query("new_runtime_dataset", Map.of(), null, null, 20, "auto");
         verify(news).invoke(eq("web_search"), argThat(routed ->
             Integer.valueOf(1).equals(routed.getContext().get("upstreamLocalEvidenceCount"))));
@@ -200,6 +205,13 @@ class RemoteNewsMcpToolProviderTest {
         assertThat((List<Map<String, Object>>) data.get("financialData")).singleElement()
             .satisfies(dataset -> assertThat((List<Map<String, Object>>) dataset.get("rows"))
                 .singleElement().satisfies(row -> assertThat(row).containsEntry("close", 6.31)));
+        assertThat(data).containsEntry("schemaVersion", "unified_search_fact_result.v1")
+            .containsEntry("recordCount", 2);
+        assertThat((List<Map<String, Object>>) data.get("records"))
+            .anySatisfy(record -> assertThat(record)
+                .containsEntry("dataset", "market_quote_daily")
+                .containsEntry("quote_code", "600029")
+                .containsEntry("close", 6.31));
         assertThat((List<Map<String, Object>>) data.get("financialAssets")).singleElement().satisfies(asset -> {
             assertThat(asset).containsEntry("dataset", "market_quote_daily");
             assertThat((Map<String, Object>) asset.get("followUp"))
@@ -421,7 +433,7 @@ class RemoteNewsMcpToolProviderTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void compactsExplicitDatasetQueriesBeforeReturningModelContext() {
+    void preservesExplicitDatasetFactsWithoutPresentationTruncation() {
         FinancialDataStore store = mock(FinancialDataStore.class);
         when(store.query(eq("index_valuation_daily"), any(), any(), any(), any(Integer.class), eq("auto")))
             .thenReturn(Map.of("rows", List.of(Map.of("record_key", "1", "close", 3864.37,
@@ -433,7 +445,7 @@ class RemoteNewsMcpToolProviderTest {
             .parameters(Map.of("dataset", "index_valuation_daily", "discovery_id", "discovery-123")).build());
 
         Map<String, Object> data = (Map<String, Object>) output.getData();
-        assertThat(data).containsEntry("resultView", "compact_model_context")
+        assertThat(data).containsEntry("resultView", "complete_fact_rows")
             .containsEntry("result_type", "financial_dataset_query")
             .containsEntry("retrieval_stage", "EXECUTION")
             .containsEntry("sample_only", false)
@@ -441,7 +453,8 @@ class RemoteNewsMcpToolProviderTest {
             .containsEntry("discovery_id", "discovery-123")
             .containsEntry("count", 1);
         assertThat((List<Map<String, Object>>) data.get("rows")).singleElement().satisfies(row -> {
-            assertThat(row).doesNotContainKeys("payload_json", "pe_ttm_history")
+            assertThat(row).containsEntry("payload_json", "{raw}")
+                .containsEntry("pe_ttm_history", "[history]")
                 .containsEntry("close", 3864.37);
         });
     }

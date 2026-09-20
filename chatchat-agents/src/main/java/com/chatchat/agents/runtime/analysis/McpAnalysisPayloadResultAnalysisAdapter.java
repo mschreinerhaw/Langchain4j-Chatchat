@@ -207,9 +207,12 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
             Object candidate = current.get(key);
             if (objectRows(candidate) != null) {
                 records.add(new Candidate(path + "." + key, candidate, List.of()));
+                // RECORD_KEYS is ordered by canonical preference. Once a response
+                // exposes records, compatibility mirrors such as results must not
+                // become a second analysis dataset (for example an asset catalog).
+                return;
             }
         }
-        if (!records.isEmpty()) return;
         for (String key : ENVELOPE_KEYS) {
             if (current.containsKey(key)) {
                 findNamedRecords(current.get(key), path + "." + key, depth + 1, records);

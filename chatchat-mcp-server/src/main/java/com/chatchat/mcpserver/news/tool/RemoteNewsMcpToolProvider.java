@@ -73,27 +73,29 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         String dataset = input.getParameterAsString("dataset", "").trim();
         if (!dataset.isBlank()) {
             try {
-                int rowLimit = bounded(input.getParameterAsNumber("limit"), 50, 1, 200);
                 InternalFinancialDataSearchExecutor enrichment = financialSearch.orElseThrow(() ->
                     new IllegalStateException("Financial query capability is unavailable"));
                 Map<String, Object> data = new LinkedHashMap<>(enrichment.queryDataset(dataset, input));
-                List<Map<String, Object>> compactRows = compactRows(rows(data), rowLimit);
-                data.put("rows", compactRows);
-                data.put("count", compactRows.size());
-                data.put("resultView", "compact_model_context");
+                // FinancialDataStore already applies the caller's query limit. Do not apply a
+                // second presentation-layer row/field truncation at the MCP boundary: these
+                // rows are the authoritative facts requested by the caller.
+                List<Map<String, Object>> factRows = rows(data);
+                data.put("rows", factRows);
+                data.put("count", factRows.size());
+                data.put("resultView", "complete_fact_rows");
                 data.put("provider", "chatchat-mcp-market");
                 data.put("mode", "financial_dataset_query");
                 data.put("result_type", "financial_dataset_query");
                 data.put("retrieval_stage", "EXECUTION");
                 data.put("sample_only", false);
                 data.put("requires_second_query", false);
-                data.put("empty_result", compactRows.isEmpty());
+                data.put("empty_result", factRows.isEmpty());
                 String discoveryId = input.getParameterAsString("discovery_id", "").trim();
                 if (!discoveryId.isBlank()) data.put("discovery_id", discoveryId);
                 ToolOutput result = ToolOutput.success(data, "Financial dataset query completed");
                 result.getMetadata().put("financialRetrievalStage", "EXECUTION");
                 result.getMetadata().put("financialDataset", dataset);
-                result.getMetadata().put("financialEmptyResult", compactRows.isEmpty());
+                result.getMetadata().put("financialEmptyResult", factRows.isEmpty());
                 if (!discoveryId.isBlank()) result.getMetadata().put("financialDiscoveryId", discoveryId);
                 return result;
             } catch (Exception ex) {
@@ -124,7 +126,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         List<Map<String, Object>> assets = enrichment.assets().stream()
             .map(source -> assetResult(source, discoveryId)).toList();
         List<Map<String, Object>> financialData = enrichment.financialData().stream()
-            .map(item -> compactFinancialResult(item, input)).toList();
+            .map(this::financialFactResult).toList();
         boolean requiresSecondQuery = !assets.isEmpty() && financialData.isEmpty();
         CancellationSupport.throwIfCancelled("unified web_search");
         int financialObservationCount = financialData.stream()
@@ -164,12 +166,18 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         data.put("externalSearchRole", "supplementary_fallback");
         data.put("count", results.size());
         data.put("newsCount", news.size());
-        // Put bounded, decision-grade observations before the verbose asset catalog.
-        // Transport/log preview limits must not hide the actual local market rows behind
-        // field descriptions and discovery metadata.
+        // Facts are the primary MCP result. Asset-catalog entries are discovery metadata and
+        // must never obscure or replace observations already returned by the governed store.
         data.put("financialDatasetCount", financialData.size());
         data.put("financialObservationCount", financialObservationCount);
-        data.put("financialEvidenceRows", financialEvidenceRows(financialData, 10));
+        List<Map<String, Object>> financialFacts = financialEvidenceRows(financialData);
+        List<Map<String, Object>> factRecords = new ArrayList<>(financialFacts);
+        factRecords.addAll(news.stream().map(LinkedHashMap::new).toList());
+        data.put("schemaVersion", "unified_search_fact_result.v1");
+        data.put("recordCount", factRecords.size());
+        data.put("records", List.copyOf(factRecords));
+        data.put("financialFacts", financialFacts);
+        data.put("financialEvidenceRows", financialFacts);
         data.put("financialData", financialData);
         data.put("structuredDatasetCount", financialData.size());
         data.put("structuredObservationCount", financialObservationCount);
@@ -200,7 +208,7 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
         return result;
     }
 
-    private List<Map<String, Object>> financialEvidenceRows(List<Map<String, Object>> datasets, int limit) {
+    private List<Map<String, Object>> financialEvidenceRows(List<Map<String, Object>> datasets) {
         List<Map<String, Object>> evidence = new ArrayList<>();
         for (Map<String, Object> dataset : datasets == null ? List.<Map<String, Object>>of() : datasets) {
             String datasetCode = String.valueOf(dataset.getOrDefault("dataset", ""));
@@ -209,7 +217,6 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
                 if (!datasetCode.isBlank()) item.put("dataset", datasetCode);
                 item.putAll(row);
                 evidence.add(item);
-                if (evidence.size() >= Math.max(1, limit)) return List.copyOf(evidence);
             }
         }
         return List.copyOf(evidence);
@@ -222,40 +229,13 @@ public class RemoteNewsMcpToolProvider implements McpToolProvider {
             .map(value -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) value)).toList();
     }
 
-    private List<Map<String, Object>> compactRows(List<Map<String, Object>> rows, int limit) {
-        LinkedHashMap<String, Map<String, Object>> unique = new LinkedHashMap<>();
-        for (Map<String, Object> source : rows) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            List<String> omitted = new ArrayList<>();
-            source.forEach((key, value) -> {
-                String normalized = key == null ? "" : key.toLowerCase();
-                if (value == null || (value instanceof String text && text.isBlank())) {
-                    return;
-                } else if ("payload_json".equals(normalized) || normalized.endsWith("_history")) {
-                    omitted.add(key);
-                } else if (value instanceof String text && text.length() > 4000) {
-                    omitted.add(key);
-                } else {
-                    row.put(key, value);
-                }
-            });
-            if (!omitted.isEmpty()) row.put("_omitted_fields", List.copyOf(omitted));
-            String key = String.valueOf(source.getOrDefault("record_key", row.hashCode())) + "|"
-                + source.getOrDefault("observation_date", "");
-            unique.putIfAbsent(key, row);
-            if (unique.size() >= limit) break;
-        }
-        return List.copyOf(unique.values());
-    }
-
-    private Map<String, Object> compactFinancialResult(Map<String, Object> source, ToolInput input) {
+    private Map<String, Object> financialFactResult(Map<String, Object> source) {
         Map<String, Object> result = new LinkedHashMap<>(source == null ? Map.of() : source);
-        int rowLimit = bounded(input.getParameterAsNumber("financial_row_limit"), 20, 1, 50);
-        List<Map<String, Object>> compact = compactRows(rows(result), rowLimit);
-        result.put("rows", compact);
-        result.put("count", compact.size());
-        result.put("empty_result", compact.isEmpty());
-        result.put("resultView", "compact_model_context");
+        List<Map<String, Object>> facts = rows(result);
+        result.put("rows", facts);
+        result.put("count", facts.size());
+        result.put("empty_result", facts.isEmpty());
+        result.put("resultView", "complete_fact_rows");
         result.put("runtimeEvidenceType", "structured_data_observation");
         return result;
     }

@@ -8,6 +8,7 @@ import com.chatchat.chat.skills.persistence.SkillConfigEntity;
 import com.chatchat.chat.skills.persistence.SkillConfigRepository;
 import com.chatchat.chat.skills.persistence.SkillConfigVersionEntity;
 import com.chatchat.chat.skills.persistence.SkillConfigVersionRepository;
+import com.chatchat.chat.skills.release.AgentReleaseService;
 import com.chatchat.chat.skills.summary.SummaryContractService;
 import com.chatchat.chat.skills.summary.SummaryContractEntity;
 import com.chatchat.chat.skills.summary.SummaryContractRepository;
@@ -29,6 +30,60 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SkillCatalogServiceTest {
+
+    @Test
+    void resolvesCurrentPublishedConfigurationWhenLegacyReleaseIsStale() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        AgentReleaseService releases = mock(AgentReleaseService.class);
+        SkillConfigEntity current = new SkillConfigEntity();
+        current.setId("finance_agent");
+        current.setLabel("Finance Agent");
+        current.setDescription("Financial analysis");
+        current.setDefaultMode("agent_chat");
+        current.setMarketStatus(SkillCatalogService.MARKET_STATUS_PUBLISHED);
+        current.setWorkflowConfigJson("{\"boundDomainSkillIds\":[\"skill-market\"]}");
+        when(repository.findById("finance_agent")).thenReturn(Optional.of(current));
+        when(releases.resolvePublished("finance_agent")).thenReturn(Optional.of(mock(SkillDefinition.class)));
+        SkillCatalogService service = new SkillCatalogService(repository, mock(SkillConfigVersionRepository.class),
+            new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+        service.setAgentReleaseService(releases);
+
+        SkillDefinition resolved = service.resolve("finance_agent");
+
+        assertThat(resolved.workflowConfig())
+            .containsEntry("boundDomainSkillIds", List.of("skill-market"));
+    }
+
+    @Test
+    void editingPublishedAgentRefreshesRuntimeReleaseArtifact() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versions = mock(SkillConfigVersionRepository.class);
+        AgentReleaseService releases = mock(AgentReleaseService.class);
+        SkillConfigEntity existing = new SkillConfigEntity();
+        existing.setId("finance_agent");
+        existing.setLabel("Finance Agent");
+        existing.setDefaultMode("agent_chat");
+        existing.setMarketStatus(SkillCatalogService.MARKET_STATUS_PUBLISHED);
+        when(repository.findById("finance_agent")).thenReturn(Optional.of(existing));
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versions.save(any(SkillConfigVersionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        AgentReleaseService.AgentReleaseView release = new AgentReleaseService.AgentReleaseView(
+            "release-2", "finance_agent", 2, "APPROVED", "checksum", null, null, null);
+        when(releases.prepare(any(SkillDefinition.class))).thenReturn(release);
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versions, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+        service.setAgentReleaseService(releases);
+
+        SkillDefinition saved = service.upsert(new SkillDefinition(
+            "finance_agent", "Finance Agent", null, List.of(), List.of(), "agent_chat",
+            null, null, null, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), null,
+            Map.of("boundDomainSkillIds", List.of("skill-market")), null, null, List.of(),
+            SkillCatalogService.MARKET_STATUS_PUBLISHED, false));
+
+        assertThat(saved.workflowConfig()).containsEntry("boundDomainSkillIds", List.of("skill-market"));
+        verify(releases).prepare(saved);
+        verify(releases).markPublished("release-2");
+    }
 
     @Test
     void readsBuiltinIdentityFromDatabaseWithoutCreatingBusinessSeedData() {

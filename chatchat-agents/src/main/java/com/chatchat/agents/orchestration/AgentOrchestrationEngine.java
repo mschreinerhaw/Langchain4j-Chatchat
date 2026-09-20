@@ -5880,8 +5880,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "skillTypes", skillTypes
         );
         runResultAdapter.recordRuntimeObservation(runtimeAttributes, AGENT_RUN_ID_ATTRIBUTE,
-            "Knowledge Skill extraction completed: " + activatedSkills.size() + " skill(s) "
-                + activatedSkillSummary,
+            "Knowledge Skill routing completed: selected " + selectedDomainSkills.size()
+                + ", activated " + activatedSkills.size() + " skill(s) " + activatedSkillSummary,
             "knowledge_skills", extractedEvent);
         boolean applied = Boolean.TRUE.equals(knowledge.get("used")) || !activatedDomainSkills.isEmpty();
         Map<String, Object> appliedEvent = metadataOf(

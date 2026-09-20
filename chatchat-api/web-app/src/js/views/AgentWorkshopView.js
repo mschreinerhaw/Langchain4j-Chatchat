@@ -776,7 +776,11 @@ export default {
       return `${agent.resolvedToolCount} 个`;
     },
     documentCountLabel(agent) {
-      const count = Number(agent?.boundDocumentCount ?? (agent?.boundDocumentIds || []).length ?? 0);
+      const fallbackCount = new Set([
+        ...(agent?.boundDocumentIds || []),
+        ...(agent?.boundDomainSkillIds || [])
+      ].filter(Boolean)).size;
+      const count = Number(agent?.boundDocumentCount ?? fallbackCount);
       return `${Number.isFinite(count) ? count : 0} 个`;
     },
     agentRuntimeEnvironmentLabel(agent) {

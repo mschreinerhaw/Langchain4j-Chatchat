@@ -262,6 +262,11 @@ public class AgentWorkshopController {
         }
 
         String status = resolveStatus(skill, resolvedTools, explicitlyBoundTools);
+        List<String> boundDomainSkillIds = domainSkillIds(skill.workflowConfig());
+        LinkedHashSet<String> boundKnowledgeResources = new LinkedHashSet<>();
+        if (skill.boundDocumentIds() != null) boundKnowledgeResources.addAll(skill.boundDocumentIds());
+        boundKnowledgeResources.addAll(boundDomainSkillIds);
+        boundKnowledgeResources.removeIf(value -> value == null || value.isBlank());
         return new AgentCard(
             skill.id(),
             shortName(skill.label(), skill.id()),
@@ -278,7 +283,7 @@ public class AgentWorkshopController {
             skill.boundMcpServiceIds(),
             List.copyOf(explicitlyBoundTools),
             skill.boundDocumentIds(),
-            domainSkillIds(skill.workflowConfig()),
+            boundDomainSkillIds,
             skill.boundDocumentTags(),
             skill.toolConfigs(),
             skill.routingSettings(),
@@ -292,7 +297,7 @@ public class AgentWorkshopController {
             resolvedTools,
             resolvedTools.size(),
             skill.boundMcpServiceIds() == null ? 0 : skill.boundMcpServiceIds().size(),
-            skill.boundDocumentIds() == null ? 0 : skill.boundDocumentIds().size(),
+            boundKnowledgeResources.size(),
             skillCatalogService.isBuiltinSkill(skill.id()),
             skillCatalogService.editableFields(skill.id())
         );

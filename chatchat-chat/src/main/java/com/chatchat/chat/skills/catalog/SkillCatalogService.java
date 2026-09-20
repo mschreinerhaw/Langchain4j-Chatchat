@@ -128,7 +128,13 @@ public class SkillCatalogService {
 
     private SkillDefinition releasedOrMutable(String id, SkillConfigEntity entity) {
         if (agentReleaseService != null && MARKET_STATUS_PUBLISHED.equalsIgnoreCase(entity.getMarketStatus())) {
-            return agentReleaseService.resolvePublished(id).orElseGet(() -> toDefinition(entity));
+            SkillDefinition current = toDefinition(entity);
+            // Older builds allowed a published configuration to be edited without refreshing
+            // its release artifact. Prefer the current published configuration when the two
+            // differ so existing installations do not keep executing stale bindings forever.
+            return agentReleaseService.resolvePublished(id)
+                .filter(current::equals)
+                .orElse(current);
         }
         return toDefinition(entity);
     }
@@ -391,7 +397,16 @@ public class SkillCatalogService {
 
         SkillConfigEntity saved = repository.save(entity);
         snapshotVersion(saved, exists ? "update" : "create");
-        return toDefinition(saved);
+        SkillDefinition savedDefinition = toDefinition(saved);
+        // Published Agents do not have a separate editable draft in the current UI. Without
+        // refreshing the release here, settings show the new bindings while Runtime executes
+        // the previous immutable artifact.
+        if (exists && MARKET_STATUS_PUBLISHED.equalsIgnoreCase(savedDefinition.marketStatus())
+            && agentReleaseService != null) {
+            AgentReleaseService.AgentReleaseView release = agentReleaseService.prepare(savedDefinition);
+            agentReleaseService.markPublished(release.releaseId());
+        }
+        return savedDefinition;
     }
 
     /**

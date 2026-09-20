@@ -97,6 +97,15 @@ describe("AgentWorkshopView published Agent curl access", () => {
 });
 
 describe("AgentWorkshopView knowledge document selection", () => {
+  it("counts published domain skills as bound knowledge resources", () => {
+    const label = AgentWorkshopView.methods.documentCountLabel({
+      boundDocumentIds: ["doc-1"],
+      boundDomainSkillIds: ["skill-risk"]
+    });
+
+    expect(label).toBe("2 个");
+  });
+
   it("filters existing documents by keyword, category and type", () => {
     const context = {
       documents: [

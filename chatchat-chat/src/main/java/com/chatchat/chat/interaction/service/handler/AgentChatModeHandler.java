@@ -266,7 +266,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
         if (ids.isEmpty()) return List.of();
         List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.resolvePublished(tenantId, ids);
-        return skills == null ? List.of() : skills.stream().filter(item -> item != null).toList();
+        List<DomainSkillRuntimePort.DomainSkillContent> resolved = skills == null
+            ? List.of() : skills.stream().filter(item -> item != null).toList();
+        log.info("agentDomainSkillsResolved skillId={} tenantId={} configuredCount={} resolvedPublishedCount={} configuredIds={}",
+            skill.id(), tenantId, ids.size(), resolved.size(), ids);
+        return resolved;
     }
 
     private AgentRunResult executeThroughRuntime(InteractionRequest request,

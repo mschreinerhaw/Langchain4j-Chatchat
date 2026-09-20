@@ -1,6 +1,7 @@
 package com.chatchat.api.search;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
@@ -35,6 +36,7 @@ public class DocumentRemoteImporter {
     private final HttpClient client;
     private final long maxDownloadBytes;
 
+    @Autowired
     public DocumentRemoteImporter(SearchProperties properties) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER).build(), properties.getMaxUploadBytes());

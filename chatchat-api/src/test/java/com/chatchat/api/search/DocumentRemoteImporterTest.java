@@ -1,6 +1,7 @@
 package com.chatchat.api.search;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.ByteArrayInputStream;
 import java.net.http.HttpClient;
@@ -21,6 +22,20 @@ import static org.mockito.Mockito.never;
 import org.mockito.ArgumentCaptor;
 
 class DocumentRemoteImporterTest {
+
+    @Test
+    void exposesOneExplicitProductionInjectionConstructor() {
+        var injectionConstructors = java.util.Arrays.stream(DocumentRemoteImporter.class.getDeclaredConstructors())
+            .filter(constructor -> constructor.isAnnotationPresent(Autowired.class))
+            .toList();
+
+        assertThat(injectionConstructors).singleElement().satisfies(constructor -> {
+            assertThat(constructor.getParameterCount()).isEqualTo(1);
+            assertThat(java.lang.reflect.Modifier.isPublic(constructor.getModifiers())).isTrue();
+            assertThat(constructor.getParameterTypes())
+                .containsExactly(com.chatchat.knowledgebase.search.config.SearchProperties.class);
+        });
+    }
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})

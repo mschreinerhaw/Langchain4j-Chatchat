@@ -3,6 +3,7 @@ package com.chatchat.api.controller.search;
 import com.chatchat.api.config.ApiLimitProperties;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.search.CategoryReindexTaskService;
+import com.chatchat.api.search.DocumentRemoteImporter;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
@@ -13,6 +14,7 @@ import com.chatchat.knowledgebase.search.model.SearchScoreBreakdown;
 import com.chatchat.knowledgebase.search.service.SearchService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.util.List;
@@ -26,6 +28,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SearchControllerFrontendContractTest {
+
+    @Test
+    void exposesOneExplicitProductionInjectionConstructor() {
+        var injectionConstructors = java.util.Arrays.stream(SearchController.class.getDeclaredConstructors())
+            .filter(constructor -> constructor.isAnnotationPresent(Autowired.class))
+            .toList();
+
+        assertThat(injectionConstructors).singleElement().satisfies(constructor -> {
+            assertThat(constructor.getParameterCount()).isEqualTo(7);
+            assertThat(java.lang.reflect.Modifier.isPublic(constructor.getModifiers())).isTrue();
+            assertThat(java.util.Arrays.asList(constructor.getParameterTypes()))
+                .contains(DocumentRemoteImporter.class);
+        });
+    }
 
     @Test
     void frontendSearchUsesAuthenticatedTenantInsteadOfCallerSuppliedTenant() {

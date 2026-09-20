@@ -22,7 +22,7 @@ import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -53,7 +53,6 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping(AppConstants.API_V1 + "/search")
 @Tag(name = "AI Search", description = "Investment research document search APIs")
 public class SearchController {
@@ -67,6 +66,23 @@ public class SearchController {
     private final CategoryReindexTaskService categoryReindexTaskService;
     private final ApiLimitProperties limitProperties;
     private final DocumentRemoteImporter documentRemoteImporter;
+
+    @Autowired
+    public SearchController(SearchService searchService,
+                            SearchFeedbackService searchFeedbackService,
+                            DocumentUploadCancellationRegistry uploadCancellationRegistry,
+                            DocumentSearchCancellationRegistry searchCancellationRegistry,
+                            CategoryReindexTaskService categoryReindexTaskService,
+                            ApiLimitProperties limitProperties,
+                            DocumentRemoteImporter documentRemoteImporter) {
+        this.searchService = searchService;
+        this.searchFeedbackService = searchFeedbackService;
+        this.uploadCancellationRegistry = uploadCancellationRegistry;
+        this.searchCancellationRegistry = searchCancellationRegistry;
+        this.categoryReindexTaskService = categoryReindexTaskService;
+        this.limitProperties = limitProperties;
+        this.documentRemoteImporter = documentRemoteImporter;
+    }
 
     SearchController(SearchService searchService,
                      SearchFeedbackService searchFeedbackService,

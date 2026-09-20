@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   createDomainSkill: vi.fn(), createDomainSkillCategory: vi.fn(), deleteDomainSkill: vi.fn(), deleteDomainSkillCategory: vi.fn(), fetchDomainSkills: vi.fn(),
+  fetchDomainSkillImportTask: vi.fn(),
   getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(), importDomainSkillFromUrl: vi.fn(),
   publishDomainSkill: vi.fn(), recallDomainSkill: vi.fn(), reindexDomainSkill: vi.fn(),
   reindexDomainSkillCategory: vi.fn(), renameDomainSkillCategory: vi.fn(), updateDomainSkill: vi.fn()
@@ -110,14 +111,14 @@ describe("DomainSkillsView", () => {
   });
 
   it("imports a skill from an internet address", async () => {
-    api.importDomainSkillFromUrl.mockResolvedValue({ id: "skill-url" });
+    api.importDomainSkillFromUrl.mockResolvedValue({ taskId: "import-1", status: "QUEUED" });
     const context = {
       busy: false, error: "", message: "", importMode: "url", importFile: null,
       importUrl: " https://skills.example/SKILL.md ", importName: "Internet Skill",
       importCategory: "Research", importOpen: true, importHttpMethod: "POST",
       importQueryParams: '{"version":"latest"}', importHeaders: '{"Authorization":"Bearer token"}',
-      importRequestBody: '{"format":"markdown"}', importAllowPrivateNetwork: true, load: vi.fn(),
-      perform: DomainSkillsView.methods.perform
+      importRequestBody: '{"format":"markdown"}', importAllowPrivateNetwork: true,
+      importTask: null, pollImportTask: vi.fn()
     };
 
     await DomainSkillsView.methods.importSkill.call(context);
@@ -128,7 +129,25 @@ describe("DomainSkillsView", () => {
         body: '{"format":"markdown"}', allowPrivateNetwork: true
       });
     expect(context.importOpen).toBe(true);
-    expect(context.importMessage).toContain("可继续导入");
+    expect(context.importTask).toEqual({ taskId: "import-1", status: "QUEUED" });
+    expect(context.importMessage).toContain("后台处理");
+    expect(context.pollImportTask).toHaveBeenCalledWith("import-1");
+  });
+
+  it("refreshes the skill list when a background import succeeds", async () => {
+    api.fetchDomainSkillImportTask.mockResolvedValue({ taskId: "import-1", status: "SUCCEEDED", skillId: "skill-1" });
+    const context = {
+      importTask: { taskId: "import-1", status: "RUNNING" }, importPollTimer: null,
+      importFile: { name: "SKILL.md" }, importUrl: "", importName: "Skill", importHttpMethod: "GET",
+      importQueryParams: "", importHeaders: "", importRequestBody: "", importAllowPrivateNetwork: false,
+      importAdvancedOpen: false, importMode: "file", importCategory: "Research", importMessage: "", error: "",
+      importSnapshot: "", load: vi.fn(), $refs: {}
+    };
+
+    await DomainSkillsView.methods.pollImportTask.call(context, "import-1");
+
+    expect(context.importTask.status).toBe("SUCCEEDED");
+    expect(context.importMessage).toContain("导入为草稿");
     expect(context.load).toHaveBeenCalledWith(true);
   });
 

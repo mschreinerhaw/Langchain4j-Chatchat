@@ -324,6 +324,24 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table ds_domain_skill_import_task (
+        created_at datetime(6) not null,
+        started_at datetime(6),
+        completed_at datetime(6),
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        skill_id varchar(64),
+        import_type varchar(24) not null,
+        status varchar(24) not null,
+        category varchar(120) not null,
+        requested_name varchar(200),
+        source_reference varchar(2000),
+        error_message varchar(2000),
+        primary key (id)
+    ) engine=InnoDB;
+
     create table ds_python_asset (
         mcp_environment_version integer not null,
         network_enabled bit not null,
@@ -1487,6 +1505,9 @@
 
     create index idx_domain_skill_category_tenant
        on ds_domain_skill_category (tenant_id, updated_at);
+
+    create index idx_domain_skill_import_task_tenant_status
+       on ds_domain_skill_import_task (tenant_id, status, updated_at);
 
     alter table ds_domain_skill_category
        add constraint uk_domain_skill_category_tenant_name unique (tenant_id, name);

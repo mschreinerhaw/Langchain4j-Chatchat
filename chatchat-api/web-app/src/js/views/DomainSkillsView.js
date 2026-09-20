@@ -1,7 +1,8 @@
 import { nextTick } from "vue";
 import { ChevronDown, MoreHorizontal, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
 import {
-  createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills, getStoredAuthSession,
+  createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills,
+  fetchDomainSkillImportTask, getStoredAuthSession,
   importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
   reindexDomainSkillCategory, renameDomainSkillCategory, updateDomainSkill
 } from "../../services/api.js";
@@ -61,7 +62,7 @@ export default {
     newCategoryName: "", categorySaving: false, categoryError: "", categoryDialogMode: "create",
     editingCategoryId: "", editingCategoryOriginalName: "", categoryMenuId: "", publicationLimitOpen: false,
     publicationLimit: { maximum: 5, published: 5, skillName: "" }, editorMessage: "", importMessage: "",
-    editorSnapshot: "", importSnapshot: "",
+    editorSnapshot: "", importSnapshot: "", importTask: null, importPollTimer: null,
     confirmDialog: { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null, category: null }
   }),
   computed: {
@@ -74,9 +75,11 @@ export default {
         ? { id: "", name: category, count: 0, manageable: false }
         : { id: category?.id || "", name: category?.name || "", count: Number(category?.count || 0), manageable: Boolean(category?.manageable) })
         .filter((category) => category.name);
-    }
+    },
+    importTaskRunning() { return ["QUEUED", "RUNNING"].includes(this.importTask?.status); }
   },
   mounted() { this.load(); },
+  beforeUnmount() { if (this.importPollTimer) clearTimeout(this.importPollTimer); },
   methods: {
     formatTime: formatDateTime,
     async load(resetPage = false) {
@@ -100,6 +103,7 @@ export default {
       this.error = "";
     },
     openImport() {
+      if (this.importTaskRunning) { this.importOpen = true; return; }
       this.importCategory = this.filters.category || this.categoryOptions[0]?.name || "";
       this.importMode = "file";
       this.importFile = null;
@@ -114,6 +118,7 @@ export default {
       this.importSnapshot = importStateKey(this);
       this.importOpen = true;
       this.importMessage = "";
+      this.importTask = null;
       this.error = "";
     },
     async selectCategory(category) {
@@ -227,20 +232,51 @@ export default {
           return;
         }
       }
-      await this.perform(async () => {
+      this.busy = true;
+      this.error = "";
+      try {
+        let task;
         if (this.importMode === "url") {
-          await importDomainSkillFromUrl(url, this.importName.trim(), category, request);
+          task = await importDomainSkillFromUrl(url, this.importName.trim(), category, request);
         } else {
-          await importDomainSkill(this.importFile, this.importName.trim(), category);
+          task = await importDomainSkill(this.importFile, this.importName.trim(), category);
         }
-        this.importFile = null; this.importUrl = ""; this.importName = "";
-        this.importHttpMethod = "GET"; this.importQueryParams = ""; this.importHeaders = "";
-        this.importRequestBody = ""; this.importAllowPrivateNetwork = false; this.importAdvancedOpen = false;
-        if (this.$refs?.importFileInput) this.$refs.importFileInput.value = "";
-        this.importSnapshot = importStateKey(this);
-        this.importMessage = "技能包已导入为草稿，可继续导入其他技能";
-        await this.load(true);
-      }, "技能包导入失败");
+        this.importTask = task;
+        this.importMessage = "已提交后台处理，可以关闭弹窗继续使用其他功能。";
+        this.pollImportTask(task?.taskId);
+      } catch (error) {
+        this.error = error.message || "技能包导入提交失败";
+      } finally {
+        this.busy = false;
+      }
+    },
+    async pollImportTask(taskId) {
+      if (!taskId) return;
+      if (this.importPollTimer) clearTimeout(this.importPollTimer);
+      try {
+        const task = await fetchDomainSkillImportTask(taskId);
+        if (this.importTask?.taskId !== taskId) return;
+        this.importTask = task;
+        if (task.status === "SUCCEEDED") {
+          this.importFile = null; this.importUrl = ""; this.importName = "";
+          this.importHttpMethod = "GET"; this.importQueryParams = ""; this.importHeaders = "";
+          this.importRequestBody = ""; this.importAllowPrivateNetwork = false; this.importAdvancedOpen = false;
+          if (this.$refs?.importFileInput) this.$refs.importFileInput.value = "";
+          this.importSnapshot = importStateKey(this);
+          this.importMessage = "技能包已在后台导入为草稿，可以继续导入其他技能。";
+          await this.load(true);
+          return;
+        }
+        if (task.status === "FAILED") {
+          this.error = task.errorMessage || "技能包后台导入失败";
+          return;
+        }
+        this.importPollTimer = setTimeout(() => this.pollImportTask(taskId), 1200);
+      } catch (error) {
+        if (this.importTask?.taskId !== taskId) return;
+        this.importMessage = "后台任务仍在运行，状态连接暂时中断，正在重试。";
+        this.importPollTimer = setTimeout(() => this.pollImportTask(taskId), 2500);
+      }
     },
     requestCloseEditor() {
       if (this.busy) return;
@@ -252,6 +288,7 @@ export default {
     },
     requestCloseImport() {
       if (this.busy) return;
+      if (this.importTaskRunning) { this.importOpen = false; return; }
       if (importStateKey(this) !== this.importSnapshot) {
         this.openConfirmDialog("import", "放弃当前导入？", "已填写的导入内容尚未提交，关闭后需要重新选择或填写。", "放弃导入", true);
         return;

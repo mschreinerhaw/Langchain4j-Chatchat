@@ -660,6 +660,73 @@
   font-weight: 700;
 }
 
+.domain-skills-page .domain-skill-import-running {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid #c7d7fe;
+  border-radius: 8px;
+  background: #f5f8ff;
+  color: #1849a9;
+}
+
+.domain-skills-page .domain-skill-import-running > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.domain-skills-page .domain-skill-import-running strong {
+  font-size: 13px;
+}
+
+.domain-skills-page .domain-skill-import-running small {
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.domain-skills-page .domain-skill-import-spinner,
+.domain-skills-page .domain-skill-button-spinner,
+.domain-skills-page .domain-skill-header-import-spinner {
+  flex: 0 0 auto;
+  border: 2px solid rgba(37, 99, 235, .2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: domain-skill-spin .75s linear infinite;
+}
+
+.domain-skills-page .domain-skill-header-import {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.domain-skills-page .domain-skill-header-import-spinner {
+  width: 13px;
+  height: 13px;
+}
+
+.domain-skills-page .domain-skill-import-spinner {
+  width: 20px;
+  height: 20px;
+}
+
+.domain-skills-page .domain-skill-button-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 7px;
+  border-color: rgba(255, 255, 255, .45);
+  border-top-color: #fff;
+  vertical-align: -2px;
+}
+
+@keyframes domain-skill-spin {
+  to { transform: rotate(360deg); }
+}
+
 .domain-skills-page .domain-skill-field-hint {
   margin: -4px 0 0;
   padding: 9px 11px;

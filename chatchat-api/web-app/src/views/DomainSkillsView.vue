@@ -3,7 +3,10 @@
     <header class="feature-page-header domain-skills-header">
       <span class="feature-breadcrumb">能力管理 / 数据科学 / 领域技能</span>
       <div v-if="isAdmin" class="feature-page-actions">
-        <button type="button" class="feature-button secondary" @click="openImport">导入 ZIP / MD</button>
+        <button type="button" class="feature-button secondary domain-skill-header-import" @click="openImport">
+          <span v-if="importTaskRunning" class="domain-skill-header-import-spinner" aria-hidden="true"></span>
+          {{ importTaskRunning ? '导入处理中' : '导入 ZIP / MD' }}
+        </button>
         <button type="button" class="feature-button primary" @click="openCreate">新建技能</button>
       </div>
     </header>
@@ -141,7 +144,12 @@
     <div v-if="importOpen" class="domain-skill-dialog-backdrop">
       <form class="domain-skill-dialog domain-skills-import" @input="importMessage = ''" @submit.prevent="importSkill">
         <header><div><p>领域技能</p><h2>导入技能</h2></div><button type="button" class="app-dialog-close" aria-label="关闭" @click="requestCloseImport">×</button></header>
+        <p v-if="error" class="domain-skill-dialog-error">{{ error }}</p>
         <p v-if="importMessage" class="domain-skill-dialog-success">{{ importMessage }}</p>
+        <div v-if="importTaskRunning" class="domain-skill-import-running" role="status" aria-live="polite">
+          <span class="domain-skill-import-spinner" aria-hidden="true"></span>
+          <span><strong>正在后台解析并生成内部 Skill 协议</strong><small>模型处理时间较长属于正常情况，可以关闭弹窗继续使用其他功能。</small></span>
+        </div>
         <div class="domain-skill-import-modes" role="tablist" aria-label="导入方式">
           <button type="button" role="tab" :aria-selected="importMode === 'file'" :class="{ active: importMode === 'file' }" @click="importMode = 'file'">本地文件</button>
           <button type="button" role="tab" :aria-selected="importMode === 'url'" :class="{ active: importMode === 'url' }" @click="importMode = 'url'">互联网地址</button>
@@ -164,7 +172,7 @@
           </section>
         </div>
         <label v-else class="file-picker"><input ref="importFileInput" type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
-        <footer><button type="button" class="secondary-button" @click="requestCloseImport">取消</button><button :disabled="busy || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())">导入</button></footer>
+        <footer><button type="button" class="secondary-button" @click="requestCloseImport">取消</button><button :disabled="busy || importTaskRunning || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())"><span v-if="busy || importTaskRunning" class="domain-skill-button-spinner" aria-hidden="true"></span>{{ busy ? '正在提交' : (importTaskRunning ? '后台处理中' : '导入') }}</button></footer>
       </form>
     </div>
 

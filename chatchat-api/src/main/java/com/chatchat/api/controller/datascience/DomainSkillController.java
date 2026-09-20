@@ -1,5 +1,6 @@
 package com.chatchat.api.controller.datascience;
 
+import com.chatchat.chat.skills.domain.DomainSkillImportTaskService;
 import com.chatchat.chat.skills.domain.DomainSkillRemoteImporter;
 import com.chatchat.chat.skills.domain.DomainSkillService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
@@ -28,6 +29,7 @@ import java.util.Map;
 @RequestMapping(AppConstants.API_V1 + "/data-science/domain-skills")
 public class DomainSkillController {
     private final DomainSkillService service;
+    private final DomainSkillImportTaskService importTaskService;
 
     @GetMapping
     public ApiResponse<?> workspace(@RequestParam(value = "keyword", defaultValue = "") String keyword,
@@ -101,7 +103,7 @@ public class DomainSkillController {
             Scope scope = scope(request);
             requireAdmin(scope);
             try {
-                return service.importFile(scope.tenantId(), scope.ownerId(), file.getBytes(),
+                return importTaskService.enqueueFile(scope.tenantId(), scope.ownerId(), file.getBytes(),
                     file.getOriginalFilename(), name, category);
             } catch (IOException ex) {
                 throw new IllegalArgumentException("Unable to read skill file", ex);
@@ -120,8 +122,17 @@ public class DomainSkillController {
                 ? DomainSkillRemoteImporter.DownloadRequest.defaults()
                 : new DomainSkillRemoteImporter.DownloadRequest(http.method(), http.queryParams(), http.headers(),
                     http.body(), http.allowPrivateNetwork());
-            return service.importUrl(scope.tenantId(), scope.ownerId(), body.url(), body.name(), body.category(),
+            return importTaskService.enqueueUrl(scope.tenantId(), scope.ownerId(), body.url(), body.name(), body.category(),
                 downloadRequest);
+        });
+    }
+
+    @GetMapping("/imports/{taskId}")
+    public ApiResponse<?> importStatus(@PathVariable("taskId") String taskId, HttpServletRequest request) {
+        return call(() -> {
+            Scope scope = scope(request);
+            requireAdmin(scope);
+            return importTaskService.status(scope.tenantId(), taskId);
         });
     }
 

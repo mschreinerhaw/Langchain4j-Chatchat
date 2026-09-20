@@ -191,6 +191,10 @@ export function importDomainSkillFromUrl(url, name = "", category = "", request 
   });
 }
 
+export function fetchDomainSkillImportTask(taskId) {
+  return apiRequest(`/data-science/domain-skills/imports/${encodeURIComponent(taskId)}`);
+}
+
 export function fetchTrendSemanticConfig() {
   return apiRequest("/ui-display/trend-semantics");
 }

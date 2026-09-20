@@ -838,7 +838,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void preservesCompleteLongTextCellsOutsideMarkdownTable() {
+    void hidesCompleteLongTextCellsFromUserFacingAnswer() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
@@ -870,11 +870,11 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("[完整内容见下方：第 1 行 / Status")
-            .contains("### 长文本字段完整内容")
-            .contains("BEGIN OF INNODB STATUS")
-            .contains("BUFFER POOL AND MEMORY")
-            .contains("END OF INNODB MONITOR OUTPUT");
+            .contains("[长文本内容已隐藏]")
+            .doesNotContain("### 长文本字段完整内容")
+            .doesNotContain("BEGIN OF INNODB STATUS")
+            .doesNotContain("BUFFER POOL AND MEMORY")
+            .doesNotContain("END OF INNODB MONITOR OUTPUT");
     }
 
     @Test

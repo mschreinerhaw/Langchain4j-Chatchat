@@ -676,7 +676,6 @@ public final class AgentResultPresentationService {
         int rowCount = firstInt(dataset.get("rowCount"), rows.size());
         int displayCount = Math.min(rows.size(), TOOL_DATA_MARKDOWN_ROW_LIMIT);
         StringBuilder table = new StringBuilder();
-        List<LongTextCell> longTextCells = new ArrayList<>();
         table.append("## 查询结果明细\n\n");
         table.append("已找到 ").append(rowCount).append(" 行数据，下面展示前 ")
             .append(displayCount).append(" 行；完整结构化数据已随结果返回用于表格展示。\n\n");
@@ -689,9 +688,7 @@ public final class AgentResultPresentationService {
             table.append("--- | ");
         }
         table.append("\n");
-        int displayedRowIndex = 0;
         for (Map<String, Object> row : rows.subList(0, displayCount)) {
-            displayedRowIndex++;
             table.append("| ");
             for (String column : columns) {
                 Object value = row.get(column);
@@ -702,16 +699,15 @@ public final class AgentResultPresentationService {
                     table.append(escapeTableCell("[结构化数组：" + list.size() + " 项]"))
                         .append(" | ");
                 } else if (isLongTextCell(value)) {
-                    String text = String.valueOf(value);
-                    longTextCells.add(new LongTextCell(displayedRowIndex, column, text));
-                    table.append(escapeTableCell(longTextReference(displayedRowIndex, column, text.length()))).append(" | ");
+                    // Long raw values remain available to the runtime as evidence, but must
+                    // not be expanded into the user-facing answer (payload_json in particular).
+                    table.append("[长文本内容已隐藏] | ");
                 } else {
                     table.append(escapeTableCell(value)).append(" | ");
                 }
             }
             table.append("\n");
         }
-        appendLongTextCells(table, longTextCells);
         return base.isBlank() ? table.toString().trim() : base + "\n\n" + table.toString().trim();
     }
 
@@ -721,36 +717,6 @@ public final class AgentResultPresentationService {
         }
         String text = sequence.toString();
         return text.length() > TOOL_DATA_INLINE_CELL_LIMIT || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0;
-    }
-
-    private String longTextReference(int rowNumber, String column, int length) {
-        return "[完整内容见下方：第 " + rowNumber + " 行 / " + column + "，" + length + " 字符]";
-    }
-
-    private void appendLongTextCells(StringBuilder markdown, List<LongTextCell> cells) {
-        if (cells.isEmpty()) {
-            return;
-        }
-        markdown.append("\n### 长文本字段完整内容\n\n");
-        for (LongTextCell cell : cells) {
-            markdown.append("#### 第 ").append(cell.rowNumber()).append(" 行 · ")
-                .append(escapeInline(cell.column())).append("\n\n");
-            appendFencedText(markdown, cell.value());
-            markdown.append("\n");
-        }
-    }
-
-    private void appendFencedText(StringBuilder markdown, String value) {
-        String text = value == null ? "" : value;
-        String fence = "```";
-        while (text.contains(fence)) {
-            fence += "`";
-        }
-        markdown.append(fence).append("text\n").append(text);
-        if (!text.endsWith("\n")) {
-            markdown.append("\n");
-        }
-        markdown.append(fence).append("\n");
     }
 
 
@@ -781,10 +747,6 @@ public final class AgentResultPresentationService {
     }
     private String escapeTableCell(Object value) {
         return value == null ? "" : String.valueOf(value).replace("|", "\\|").replace("\r", " ").replace("\n", "<br>");
-    }
-    private record LongTextCell(int rowNumber, String column, String value) { }
-    private String escapeInline(String value) {
-        return value == null ? "" : value.replace(String.valueOf((char) 96), "\\`").replace("\r", " ").replace("\n", " ");
     }
     private String stringValue(Object value) { return value == null ? null : String.valueOf(value); }
     private Map<String, Object> objectMap(Object value) {

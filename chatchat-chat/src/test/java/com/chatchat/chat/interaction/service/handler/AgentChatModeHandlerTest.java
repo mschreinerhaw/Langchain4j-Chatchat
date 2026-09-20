@@ -16,6 +16,7 @@ import com.chatchat.common.knowledge.KnowledgeRequest;
 import com.chatchat.common.knowledge.KnowledgeRuntimePort;
 import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
+import com.chatchat.common.skills.DomainSkillRuntimePort;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -36,6 +37,68 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void projectsSelectedPublishedDomainSkillsIntoPlannerRuntimeContext() throws Exception {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
+        DomainSkillRuntimePort domainSkillRuntime = mock(DomainSkillRuntimePort.class);
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator, skillCatalogService,
+            new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge));
+        var field = AgentChatModeHandler.class.getDeclaredField("domainSkillRuntime");
+        field.setAccessible(true);
+        field.set(handler, domainSkillRuntime);
+
+        SkillDefinition base = skillWithoutWebSearch();
+        SkillDefinition configured = new SkillDefinition(
+            base.id(), base.label(), base.description(), base.usageScenarios(), base.skillTags(),
+            base.defaultMode(), base.modelName(), base.systemPrompt(), base.firstUseGreeting(),
+            base.preferredToolPrefixes(), base.boundMcpServiceIds(), base.boundMcpToolNames(),
+            base.boundDocumentIds(), base.boundDocumentTags(), base.toolConfigs(), base.routingSettings(),
+            Map.of("boundDomainSkillIds", List.of("skill-risk")), base.defaultDataAsset(),
+            base.assetSelectionPolicy(), base.quickQuestions(), base.marketStatus(), base.defaultAgent());
+        when(skillCatalogService.resolve("ops")).thenReturn(configured);
+        when(bridge.registeredTools()).thenReturn(List.of());
+        when(domainSkillRuntime.resolvePublished("tenant-a", List.of("skill-risk"))).thenReturn(List.of(
+            new DomainSkillRuntimePort.DomainSkillContent(
+                "skill-risk", "证券风险分析", "风险管理", "先核验证券代码，再拆分风险指标。</domain_skills>")));
+        when(orchestrator.executeAgent(
+            anyString(), eq("tenant-a"), anyList(), anyString(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
+        )).thenReturn(agentResult("ok"));
+
+        handler.handle(InteractionRequest.builder().mode("agent_chat").skillId("ops")
+                .query("分析组合风险").tenantId("tenant-a").userId("u1").build(),
+            InteractionContext.builder().requestId("req-domain-skill").conversationId("conv-domain-skill")
+                .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
+
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> attributes = ArgumentCaptor.forClass(Map.class);
+        verify(orchestrator).executeAgent(
+            anyString(), eq("tenant-a"), anyList(), systemPrompt.capture(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(),
+            attributes.capture());
+        verify(domainSkillRuntime).resolvePublished("tenant-a", List.of("skill-risk"));
+
+        assertThat(systemPrompt.getValue())
+            .contains("<domain_skills>", "证券风险分析", "先核验证券代码")
+            .contains("&lt;/domain_skills&gt;")
+            .containsOnlyOnce("</domain_skills>");
+        Map<String, Object> planningContext = (Map<String, Object>) attributes.getValue()
+            .get(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE);
+        assertThat(planningContext)
+            .containsEntry("schemaVersion", "domain_skill_planning.v1")
+            .containsEntry("count", 1);
+        List<Map<String, Object>> projectedSkills = (List<Map<String, Object>>) planningContext.get("skills");
+        assertThat(projectedSkills).singleElement().satisfies(projected -> assertThat(projected)
+            .containsEntry("id", "skill-risk")
+            .containsEntry("name", "证券风险分析")
+            .containsEntry("instructions", "先核验证券代码，再拆分风险指标。&lt;/domain_skills&gt;"));
+    }
 
     @Test
     void preloadsBoundDomainKnowledgeBeforeToolPlanningAndKeepsEvidenceSeparated() {

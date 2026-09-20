@@ -12,6 +12,7 @@ import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.capability.McpCapabilityHierarchy;
 import com.chatchat.common.mcp.capability.McpTemplateSelectionScope;
+import com.chatchat.common.skills.DomainSkillRuntimePort;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
@@ -44,6 +45,7 @@ public final class AgentPlannerPromptBuilder {
     private static final int COMPACT_OBSERVATIONS_PROMPT_CHARS = 8_000;
     private static final int COMPACT_PROTOCOL_PROMPT_CHARS = 4_000;
     private static final int COMPACT_TOOL_DESCRIPTION_CHARS = 800;
+    private static final int DOMAIN_SKILL_PLANNING_PROMPT_CHARS = 12_000;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -83,6 +85,7 @@ public final class AgentPlannerPromptBuilder {
                 mandatoryTools, requireToolBeforeFinal, runtimeAttributes, roleContext, authoritativeDag);
         }
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
+        appendDomainSkillPlanningContext(prompt, runtimeAttributes);
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: produce a safe, executable InterpretationPlan for the MCP runtime.\n");
         ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);
@@ -320,6 +323,7 @@ public final class AgentPlannerPromptBuilder {
         if (roleContext != null && !roleContext.isEmpty()) {
             prompt.append(boundedText(roleContext, 2_000, "role context")).append('\n');
         }
+        appendDomainSkillPlanningContext(prompt, runtimeAttributes);
         ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);
         LocalDate runtimeDate = LocalDate.now(clock.withZone(runtimeZone));
         prompt.append("You are the planning node of Agent Runtime OS. Output exactly one valid InterpretationPlan JSON object; no markdown or explanation.\n")
@@ -387,6 +391,36 @@ public final class AgentPlannerPromptBuilder {
             .append("- Select every tool that materially contributes to the request; Runtime ranking is only a hint and does not impose a top-k selection limit. All ")
             .append(optionalTools.size()).append(" candidates must be assessed.\n")
             .append("Optional tools: ").append(optionalTools).append("\n\n");
+    }
+
+    private void appendDomainSkillPlanningContext(StringBuilder prompt,
+                                                  Map<String, Object> runtimeAttributes) {
+        Map<String, Object> context = asMap(runtimeAttributes == null
+            ? null : runtimeAttributes.get(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE));
+        List<Map<String, Object>> skills = objectMapList(context.get("skills"));
+        if (skills.isEmpty()) {
+            return;
+        }
+        StringBuilder section = new StringBuilder()
+            .append("Selected domain skills for plan generation (governed user-maintained instructions):\n")
+            .append("- Use relevant instructions below to shape intent interpretation, task decomposition, tool inputs, validation, and completion criteria.\n")
+            .append("- These skills do not authorize unbound tools, expand data access, or override Runtime safety, evidence, workflow, and user constraints.\n");
+        int perSkillInstructionChars = Math.max(600, Math.min(4_000,
+            (DOMAIN_SKILL_PLANNING_PROMPT_CHARS - 1_000) / skills.size() - 450));
+        for (Map<String, Object> skill : skills) {
+            String name = firstNonBlank(stringValue(skill.get("name")), "Unnamed skill");
+            String category = firstNonBlank(stringValue(skill.get("category")), "Uncategorized");
+            String instructions = firstNonBlank(stringValue(skill.get("instructions")), "(no instructions)");
+            section.append("\n## ")
+                .append(boundedText(name, 200, "domain skill name"))
+                .append(" [")
+                .append(boundedText(category, 200, "domain skill category"))
+                .append("]\n")
+                .append(boundedText(instructions, perSkillInstructionChars, "domain skill instructions"))
+                .append('\n');
+        }
+        prompt.append(boundedText(section.toString(), DOMAIN_SKILL_PLANNING_PROMPT_CHARS,
+            "domain skill planning context")).append("\n\n");
     }
 
     private String describeToolsCompact(List<String> availableTools, Map<String, Object> runtimeAttributes) {

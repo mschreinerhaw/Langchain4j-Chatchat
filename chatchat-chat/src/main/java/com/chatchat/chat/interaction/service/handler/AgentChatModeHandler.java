@@ -159,13 +159,14 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             runtimeExperience = AgentLearningService.RuntimeExperienceContext.empty();
         }
         String experienceContext = runtimeExperience.prompt();
+        List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(
+            request.getTenantId(), skill);
         String systemPrompt = appendResponseContract(
             appendDefaultDataAssetPolicy(
                 appendMcpExecutionContext(
                     appendDomainKnowledgeContext(
                         appendDomainSkillContext(appendExperienceContext(AgentRoleAnalysisContext.appendPrompt(
-                            resolveSystemPrompt(request, skill, context), agentRoleContext), experienceContext),
-                            request.getTenantId(), skill),
+                            resolveSystemPrompt(request, skill, context), agentRoleContext), experienceContext), domainSkills),
                         domainKnowledge),
                     executionContext
                 ),
@@ -179,6 +180,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
         runtimeAttributes.put("plannerOptionalTools", toolPolicy.optionalTools());
+        if (!domainSkills.isEmpty()) {
+            runtimeAttributes.put(DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE,
+                domainSkillPlanningProjection(domainSkills));
+        }
         // Always propagate the governed projection. An empty/not-applied plan is still an
         // auditable Skill outcome and must not disappear from the Runtime event stream.
         runtimeAttributes.put(KnowledgeContext.RUNTIME_ATTRIBUTE, domainKnowledge.toRuntimeProjection());
@@ -248,20 +253,45 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .build();
     }
 
-    private String appendDomainSkillContext(String systemPrompt, String tenantId, SkillDefinition skill) {
-        if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return systemPrompt;
+    private List<DomainSkillRuntimePort.DomainSkillContent> resolveDomainSkills(String tenantId,
+                                                                                SkillDefinition skill) {
+        if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return List.of();
         Object configured = skill.workflowConfig().get("boundDomainSkillIds");
-        if (!(configured instanceof Iterable<?> values)) return systemPrompt;
+        if (!(configured instanceof Iterable<?> values)) return List.of();
         List<String> ids = new ArrayList<>();
         values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
+        if (ids.isEmpty()) return List.of();
         List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.resolvePublished(tenantId, ids);
+        return skills == null ? List.of() : skills.stream().filter(item -> item != null).toList();
+    }
+
+    private String appendDomainSkillContext(String systemPrompt,
+                                            List<DomainSkillRuntimePort.DomainSkillContent> skills) {
         if (skills.isEmpty()) return systemPrompt;
         StringBuilder result = new StringBuilder(systemPrompt == null ? "" : systemPrompt.trim());
         result.append("\n\n<domain_skills>\n");
-        skills.forEach(item -> result.append("## ").append(item.name()).append(" [").append(item.category()).append("]\n")
+        skills.forEach(item -> result.append("## ").append(PromptBoundaryEscaper.escapeMarkupText(item.name()))
+            .append(" [").append(PromptBoundaryEscaper.escapeMarkupText(item.category())).append("]\n")
             .append(PromptBoundaryEscaper.escapeMarkupText(item.markdownContent())).append("\n\n"));
         result.append("</domain_skills>\nApply these governed skill instructions when relevant to the request.");
         return result.toString();
+    }
+
+    private Map<String, Object> domainSkillPlanningProjection(
+        List<DomainSkillRuntimePort.DomainSkillContent> skills) {
+        List<Map<String, Object>> projected = skills.stream()
+            .map(item -> Map.<String, Object>of(
+                "id", item.id() == null ? "" : item.id(),
+                "name", PromptBoundaryEscaper.escapeMarkupText(item.name()),
+                "category", PromptBoundaryEscaper.escapeMarkupText(item.category()),
+                "instructions", PromptBoundaryEscaper.escapeMarkupText(item.markdownContent())
+            ))
+            .toList();
+        return Map.of(
+            "schemaVersion", "domain_skill_planning.v1",
+            "count", projected.size(),
+            "skills", projected
+        );
     }
 
     private AgentRunResult executeThroughRuntime(InteractionRequest request,

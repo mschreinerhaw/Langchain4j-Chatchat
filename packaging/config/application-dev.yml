@@ -133,6 +133,8 @@ chatchat:
         host:
         port: 0
         type: http
+  domain-skills:
+    compiler-model: ${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:qwen3.6-plus}
   agent-runtime:
     # Safety deadline only. The seven-minute target is achieved through concurrency and reuse,
     # never by cutting off evidence collection, synthesis, or quality review.

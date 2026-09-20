@@ -128,6 +128,8 @@ chatchat:
         host:
         port: 0
         type: http
+  domain-skills:
+    compiler-model: ${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:qwen3.6-plus}
   agent-runtime:
     workflow-engine: ${CHATCHAT_AGENT_RUNTIME_WORKFLOW_ENGINE:local}
     native-tool-calling-enabled: ${CHATCHAT_AGENT_NATIVE_TOOL_CALLING_ENABLED:true}

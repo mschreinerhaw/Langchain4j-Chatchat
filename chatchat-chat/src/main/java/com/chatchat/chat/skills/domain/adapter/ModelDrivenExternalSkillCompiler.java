@@ -1,5 +1,7 @@
 package com.chatchat.chat.skills.domain.adapter;
 
+import com.chatchat.agents.model.ConfigurableChatModelFactory;
+import com.chatchat.chat.skills.domain.DomainSkillCompilerProperties;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,22 +23,26 @@ public final class ModelDrivenExternalSkillCompiler implements ExternalSkillComp
     private static final int MAX_INSTRUCTION_CHARS = 64 * 1024;
     private static final int MAX_LIST_ITEMS = 12;
 
-    private final ChatModel chatModel;
+    private final ChatModel defaultChatModel;
     private final ObjectMapper objectMapper;
     private final ModelResourceRegistry modelResources;
+    private final ConfigurableChatModelFactory chatModelFactory;
+    private final DomainSkillCompilerProperties properties;
 
     @Override
     public RuntimeSkillIr compile(AdaptedExternalSkill skill) {
         validate(skill);
+        String selectedModel = compilerModel();
         try {
-            String response = chatModel.chat(prompt(skill));
+            String response = resolveModel(selectedModel).chat(prompt(skill));
             RuntimeSkillIr compiled = parseModelResponse(response, skill);
-            log.info("externalSkillCompiled format={} name={} mode=MODEL capabilities={} risks={}",
-                skill.sourceFormat(), bounded(skill.name(), 200), compiled.capabilities().size(), compiled.riskNotes().size());
+            log.info("externalSkillCompiled format={} name={} model={} mode=MODEL capabilities={} risks={}",
+                skill.sourceFormat(), bounded(skill.name(), 200), selectedModel,
+                compiled.capabilities().size(), compiled.riskNotes().size());
             return compiled;
         } catch (RuntimeException ex) {
-            log.warn("externalSkillCompilationFallback format={} name={} reason={}",
-                skill.sourceFormat(), bounded(skill.name(), 200), ex.getMessage());
+            log.warn("externalSkillCompilationFallback format={} name={} model={} reason={}",
+                skill.sourceFormat(), bounded(skill.name(), 200), selectedModel, ex.getMessage());
             return deterministicFallback(skill);
         }
     }
@@ -189,8 +195,18 @@ public final class ModelDrivenExternalSkillCompiler implements ExternalSkillComp
     }
 
     private String compilerModel() {
+        String dedicated = properties.getCompilerModel();
+        if (!text(dedicated).isBlank()) return text(dedicated);
         String configured = modelResources.defaultChatModel();
         return text(configured).isBlank() ? "platform-default" : text(configured);
+    }
+
+    private ChatModel resolveModel(String modelName) {
+        String defaultModel = text(modelResources.defaultChatModel());
+        if (modelName.equals("platform-default") || modelName.equalsIgnoreCase(defaultModel)) {
+            return defaultChatModel;
+        }
+        return chatModelFactory.create(modelName);
     }
 
     private List<String> textList(JsonNode node, int maxChars) {

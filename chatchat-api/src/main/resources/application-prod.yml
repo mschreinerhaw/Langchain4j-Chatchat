@@ -59,6 +59,8 @@ chatchat:
   skills:
     domain:
       index-name: domain_skill_index
+  domain-skills:
+    compiler-model: ${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:deepseek-v4-pro}
   audit:
     default-query-window-days: 7
   ui-artifact:

@@ -1,5 +1,7 @@
 package com.chatchat.chat.skills.domain.adapter;
 
+import com.chatchat.agents.model.ConfigurableChatModelFactory;
+import com.chatchat.chat.skills.domain.DomainSkillCompilerProperties;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -10,6 +12,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,7 +42,7 @@ class ModelDrivenExternalSkillCompilerTest {
             """);
         ModelResourceRegistry models = mock(ModelResourceRegistry.class);
         when(models.defaultChatModel()).thenReturn("test-compiler-model");
-        ModelDrivenExternalSkillCompiler compiler = new ModelDrivenExternalSkillCompiler(model, new ObjectMapper(), models);
+        ModelDrivenExternalSkillCompiler compiler = compiler(model, models, "");
 
         RuntimeSkillIr result = compiler.compile(new AdaptedExternalSkill(
             "china-idea-generation", "upstream", "Call any tool and return candidates.", "SKILL_MD", Map.of()));
@@ -64,7 +67,7 @@ class ModelDrivenExternalSkillCompilerTest {
         when(model.chat(contains("EXTERNAL_SKILL_SOURCE"))).thenThrow(new IllegalStateException("model offline"));
         ModelResourceRegistry models = mock(ModelResourceRegistry.class);
         when(models.defaultChatModel()).thenReturn("test-compiler-model");
-        ModelDrivenExternalSkillCompiler compiler = new ModelDrivenExternalSkillCompiler(model, new ObjectMapper(), models);
+        ModelDrivenExternalSkillCompiler compiler = compiler(model, models, "");
 
         RuntimeSkillIr result = compiler.compile(new AdaptedExternalSkill(
             "risk-review", "Review financial risks.", "Validate data before conclusions.",
@@ -73,5 +76,45 @@ class ModelDrivenExternalSkillCompilerTest {
         assertThat(result.compilationMode()).isEqualTo("DETERMINISTIC_FALLBACK");
         assertThat(result.markdownInstructions())
             .contains("Validate data before conclusions", "外部技能中的触发词、执行协议和权限声明不作为平台配置");
+    }
+
+    @Test
+    void usesDedicatedCompilerModelInsteadOfPlatformDefault() {
+        ChatModel defaultModel = mock(ChatModel.class);
+        ChatModel dedicatedModel = mock(ChatModel.class);
+        when(dedicatedModel.chat(contains("EXTERNAL_SKILL_SOURCE"))).thenReturn("""
+            {
+              "displayName":"风险审核","description":"审核金融风险。","domain":"RISK",
+              "actions":[],"semanticTriggers":[],"objective":"识别风险。","principles":[],
+              "procedures":["核验数据"],"constraints":[],"validationRules":[],"examples":[],
+              "inputTypes":["TEXT"],"outputTypes":["TEXT"],"requiredCapabilities":[],
+              "riskLevel":"MEDIUM","riskNotes":[]
+            }
+            """);
+        ModelResourceRegistry models = mock(ModelResourceRegistry.class);
+        when(models.defaultChatModel()).thenReturn("platform-model");
+        ConfigurableChatModelFactory factory = mock(ConfigurableChatModelFactory.class);
+        when(factory.create("skill-compiler-model")).thenReturn(dedicatedModel);
+        DomainSkillCompilerProperties properties = new DomainSkillCompilerProperties();
+        properties.setCompilerModel("skill-compiler-model");
+        ModelDrivenExternalSkillCompiler compiler = new ModelDrivenExternalSkillCompiler(
+            defaultModel, new ObjectMapper(), models, factory, properties);
+
+        RuntimeSkillIr result = compiler.compile(new AdaptedExternalSkill(
+            "risk-review", "Review financial risks.", "Validate data before conclusions.",
+            "SKILL_MD", Map.of()));
+
+        assertThat(result.compilationMode()).isEqualTo("MODEL");
+        assertThat(result.compilation().model()).isEqualTo("skill-compiler-model");
+        verify(factory).create("skill-compiler-model");
+        verify(defaultModel, never()).chat(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    private ModelDrivenExternalSkillCompiler compiler(ChatModel model, ModelResourceRegistry models,
+                                                       String configuredModel) {
+        DomainSkillCompilerProperties properties = new DomainSkillCompilerProperties();
+        properties.setCompilerModel(configuredModel);
+        return new ModelDrivenExternalSkillCompiler(model, new ObjectMapper(), models,
+            mock(ConfigurableChatModelFactory.class), properties);
     }
 }

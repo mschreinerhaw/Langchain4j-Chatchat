@@ -506,27 +506,18 @@
           <section class="agent-resource-selector wide-field">
             <div class="agent-resource-selector-copy">
               <strong>知识文档</strong>
-              <span>回答前仅在已选择的文档范围内检索。</span>
+              <span>统一选择知识文档和已发布的领域技能。</span>
             </div>
             <div class="agent-resource-selector-action">
-              <span :class="{ 'is-selected': selectedDocumentIds.length }">
-                {{ selectedDocumentIds.length ? `已选 ${selectedDocumentIds.length} 个文档` : "未选择文档" }}
+              <span :class="{ 'is-selected': selectedResourceCount }">
+                {{ selectedResourceCount ? `已选 ${selectedResourceCount} 项资源` : "未选择文档" }}
               </span>
               <button type="button" class="agent-picker-text-button" @click="openDocumentPicker">
-                {{ selectedDocumentIds.length ? "调整选择" : "选择文档" }}
+                {{ selectedResourceCount ? "调整选择" : "选择文档" }}
                 <span aria-hidden="true">›</span>
               </button>
             </div>
           </section>
-          <label class="wide-field">
-            <span>领域技能</span>
-            <select v-model="form.boundDomainSkillIds" multiple size="5">
-              <option v-for="skill in domainSkills" :key="skill.id" :value="skill.id">
-                {{ skill.category }} · {{ skill.name }}
-              </option>
-            </select>
-            <small>仅列出已发布技能；回收后 Agent 运行时会自动停止加载。</small>
-          </label>
           <section v-if="form.defaultMode === 'agent_chat'" class="default-data-asset-settings wide-field">
             <div class="default-data-asset-heading">
               <strong>数据库资产绑定</strong>
@@ -748,14 +739,14 @@
           <header>
             <div>
               <p>Agent 设置</p>
-              <h2 id="agent-document-picker-title">选择知识文档</h2>
-              <span>仅在已勾选文档范围内检索，选择会在保存 Agent 后生效。</span>
+              <h2 id="agent-document-picker-title">选择文档</h2>
+              <span>知识文档与已发布领域技能分开绑定，选择会在保存 Agent 后生效。</span>
             </div>
             <button type="button" class="app-dialog-close" aria-label="关闭文档选择" title="关闭" @click="closeDocumentPicker">×</button>
           </header>
 
           <div class="agent-resource-dialog-body">
-            <div v-if="documents.length" class="agent-document-searchbar">
+            <div v-if="normalizedDocuments.length" class="agent-document-searchbar">
               <label>
                 <span>搜索已有文档</span>
                 <input
@@ -782,23 +773,23 @@
                 </select>
               </label>
             </div>
-            <div v-if="documents.length" class="agent-document-batchbar">
-              <span>解析中或失败的文档会保留展示，但不可新绑定。</span>
+            <div v-if="normalizedDocuments.length" class="agent-document-batchbar">
+              <span>解析中或失败的知识文档不可新绑定；领域技能仅展示已发布内容。</span>
               <strong>{{ documentResultLabel }}</strong>
             </div>
             <div v-if="filteredDocuments.length" class="agent-document-checklist">
               <label
                 v-for="document in filteredDocuments"
-                :key="document.docId"
+                :key="document.resourceKey"
                 class="agent-document-check"
-                :class="{ active: selectedDocumentIds.includes(document.docId), disabled: !documentSelectable(document) }"
+                :class="{ active: resourceSelected(document), disabled: !documentSelectable(document) }"
                 :title="document.title"
               >
                 <input
                   type="checkbox"
-                  :checked="selectedDocumentIds.includes(document.docId)"
+                  :checked="resourceSelected(document)"
                   :disabled="!documentSelectable(document)"
-                  @change="toggleDocument(document.docId)"
+                  @change="toggleDocument(document)"
                 >
                 <span>
                   <strong>{{ document.title }}</strong>
@@ -807,13 +798,13 @@
                 </span>
               </label>
             </div>
-            <p v-else-if="documents.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p>
-            <p v-else class="agent-tool-empty">文档库暂无可选文档，请先上传并完成解析。</p>
+            <p v-else-if="normalizedDocuments.length" class="agent-tool-empty">没有匹配的文档或领域技能，请调整关键词或筛选条件。</p>
+            <p v-else class="agent-tool-empty">暂无可选知识文档或已发布领域技能。</p>
           </div>
 
           <footer>
             <button
-              v-if="selectedDocumentIds.length"
+              v-if="selectedResourceCount"
               type="button"
               class="agent-resource-clear-button"
               @click="clearSelectedDocuments"
@@ -822,7 +813,7 @@
             </button>
             <span v-else></span>
             <button type="button" class="primary-button" @click="closeDocumentPicker">
-              完成（已选 {{ selectedDocumentIds.length }} 个）
+              完成（已选 {{ selectedResourceCount }} 项）
             </button>
           </footer>
         </section>

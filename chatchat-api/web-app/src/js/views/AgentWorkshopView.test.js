@@ -144,6 +144,35 @@ describe("AgentWorkshopView knowledge document selection", () => {
     AgentWorkshopView.methods.toggleDocument.call(context, "doc-options");
     expect(context.form.boundDocumentIds).toEqual([]);
   });
+
+  it("filters published domain skills separately and stores them as skill bindings", () => {
+    const context = {
+      documents: [{ docId: "doc-1", title: "普通研报", documentType: "PDF", lifecycleStatus: "INDEXED" }],
+      domainSkills: [{ id: "skill-risk", name: "风险识别", category: "合规风控", description: "识别风险事项" }],
+      form: { boundDocumentIds: [], boundDomainSkillIds: [] },
+      documentSearchQuery: "",
+      documentCategoryFilter: "all",
+      documentTypeFilter: "领域技能",
+      documentSearchText: AgentWorkshopView.methods.documentSearchText
+    };
+    Object.defineProperty(context, "selectedDocumentIds", {
+      get: () => AgentWorkshopView.computed.selectedDocumentIds.call(context)
+    });
+    Object.defineProperty(context, "selectedDomainSkillIds", {
+      get: () => AgentWorkshopView.computed.selectedDomainSkillIds.call(context)
+    });
+    context.normalizedDocuments = AgentWorkshopView.computed.normalizedDocuments.call(context);
+
+    const result = AgentWorkshopView.computed.filteredDocuments.call(context);
+    const typeOptions = AgentWorkshopView.computed.documentTypeOptions.call(context);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ docId: "skill-risk", documentType: "领域技能", lifecycleStatus: "PUBLISHED" });
+    expect(typeOptions).toContainEqual({ value: "领域技能", label: "领域技能（仅已发布）" });
+
+    AgentWorkshopView.methods.toggleDocument.call(context, result[0]);
+    expect(context.form.boundDomainSkillIds).toEqual(["skill-risk"]);
+    expect(context.form.boundDocumentIds).toEqual([]);
+  });
 });
 
 describe("AgentWorkshopView resource picker dialogs", () => {

@@ -307,21 +307,49 @@ export default {
     selectedDocumentIds() {
       return parseList(this.form.boundDocumentIds);
     },
+    selectedDomainSkillIds() {
+      return parseList(this.form.boundDomainSkillIds);
+    },
+    selectedResourceCount() {
+      return this.selectedDocumentIds.length + this.selectedDomainSkillIds.length;
+    },
     normalizedDocuments() {
-      const selected = new Set(this.selectedDocumentIds);
-      return this.documents
+      const selectedDocuments = new Set(this.selectedDocumentIds);
+      const selectedSkills = new Set(this.selectedDomainSkillIds);
+      const knowledgeDocuments = (Array.isArray(this.documents) ? this.documents : [])
         .filter((document) => document?.docId)
         .map((document) => ({
           ...document,
           docId: String(document.docId),
+          resourceKey: `document:${document.docId}`,
+          resourceKind: "knowledge_document",
           title: document.title || document.fileName || document.docId,
           category: document.category || "未分类",
           documentType: document.documentType || "未知类型",
           lifecycleStatus: String(document.lifecycleStatus || "INDEXED").toUpperCase(),
           tags: Array.isArray(document.tags) ? document.tags.filter(Boolean) : []
-        }))
+        }));
+      const domainSkillDocuments = (Array.isArray(this.domainSkills) ? this.domainSkills : [])
+        .filter((skill) => skill?.id)
+        .map((skill) => ({
+          docId: String(skill.id),
+          resourceKey: `domain-skill:${skill.id}`,
+          resourceKind: "domain_skill",
+          title: skill.name || skill.id,
+          category: skill.category || "未分类",
+          documentType: "领域技能",
+          lifecycleStatus: "PUBLISHED",
+          source: "领域技能库",
+          description: skill.description || "",
+          tags: [skill.category].filter(Boolean)
+        }));
+      return [...knowledgeDocuments, ...domainSkillDocuments]
         .sort((left, right) => {
-          const selectedDifference = Number(selected.has(right.docId)) - Number(selected.has(left.docId));
+          const leftSelected = left.resourceKind === "domain_skill"
+            ? selectedSkills.has(left.docId) : selectedDocuments.has(left.docId);
+          const rightSelected = right.resourceKind === "domain_skill"
+            ? selectedSkills.has(right.docId) : selectedDocuments.has(right.docId);
+          const selectedDifference = Number(rightSelected) - Number(leftSelected);
           return selectedDifference || left.title.localeCompare(right.title, "zh-CN");
         });
     },
@@ -336,15 +364,28 @@ export default {
       });
     },
     selectedDocuments() {
-      const documentsById = new Map(this.normalizedDocuments.map((document) => [document.docId, document]));
-      return this.selectedDocumentIds.map((docId) => documentsById.get(docId) || {
+      const resourcesByKey = new Map(this.normalizedDocuments.map((document) => [document.resourceKey, document]));
+      const knowledgeDocuments = this.selectedDocumentIds.map((docId) => resourcesByKey.get(`document:${docId}`) || {
         docId,
+        resourceKey: `document:${docId}`,
+        resourceKind: "knowledge_document",
         title: docId,
         category: "目录中已不可见",
         documentType: "未知类型",
         lifecycleStatus: "UNAVAILABLE",
         tags: []
       });
+      const domainSkills = this.selectedDomainSkillIds.map((skillId) => resourcesByKey.get(`domain-skill:${skillId}`) || {
+        docId: skillId,
+        resourceKey: `domain-skill:${skillId}`,
+        resourceKind: "domain_skill",
+        title: skillId,
+        category: "技能已回收或不可见",
+        documentType: "领域技能",
+        lifecycleStatus: "UNAVAILABLE",
+        tags: []
+      });
+      return [...knowledgeDocuments, ...domainSkills];
     },
     documentCategoryOptions() {
       return [
@@ -355,18 +396,22 @@ export default {
       ];
     },
     documentTypeOptions() {
+      const knowledgeTypes = uniqueList(this.normalizedDocuments
+        .filter((document) => document.resourceKind !== "domain_skill")
+        .map((document) => document.documentType));
       return [
         { value: "all", label: "全部文档类型" },
-        ...uniqueList(this.normalizedDocuments.map((document) => document.documentType))
+        ...knowledgeTypes
           .sort((left, right) => left.localeCompare(right, "zh-CN"))
-          .map((type) => ({ value: type, label: type }))
+          .map((type) => ({ value: type, label: type })),
+        { value: "领域技能", label: "领域技能（仅已发布）" }
       ];
     },
     documentResultLabel() {
-      if (!this.documents.length) {
-        return "文档库暂无可选文档";
+      if (!this.normalizedDocuments.length) {
+        return "暂无可选文档或领域技能";
       }
-      return `已勾选 ${this.selectedDocumentIds.length} / ${this.normalizedDocuments.length}，当前 ${this.filteredDocuments.length} 个`;
+      return `已勾选 ${this.selectedResourceCount} / ${this.normalizedDocuments.length}，当前 ${this.filteredDocuments.length} 个`;
     },
     normalizedMcpTools() {
       return this.registeredMcpTools
@@ -679,6 +724,7 @@ export default {
         document?.documentType,
         document?.fileName,
         document?.version,
+        document?.description,
         ...(document?.tags || [])
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
@@ -690,14 +736,26 @@ export default {
         PARSING: "解析中",
         FAILED: "解析失败",
         DELETED: "已删除",
+        PUBLISHED: "已发布",
         UNAVAILABLE: "不可见"
       };
       return labels[String(status || "").toUpperCase()] || "状态未知";
     },
     documentSelectable(document) {
+      if (document?.resourceKind === "domain_skill") {
+        return document.lifecycleStatus === "PUBLISHED" || this.selectedDomainSkillIds.includes(document?.docId);
+      }
       return document?.lifecycleStatus === "INDEXED" || this.selectedDocumentIds.includes(document?.docId);
     },
+    resourceSelected(document) {
+      return document?.resourceKind === "domain_skill"
+        ? this.selectedDomainSkillIds.includes(document?.docId)
+        : this.selectedDocumentIds.includes(document?.docId);
+    },
     documentUpdatedLabel(document) {
+      if (document?.resourceKind === "domain_skill") {
+        return "已发布";
+      }
       const value = document?.updatedAt || document?.uploadedAt || document?.date;
       if (!value) {
         return "更新时间未知";
@@ -1729,20 +1787,30 @@ export default {
       this.form.boundMcpToolNames = [...selected].sort().join("\n");
       this.syncWorkflowSteps([...selected].sort());
     },
-    toggleDocument(docId) {
+    toggleDocument(resource) {
+      const document = typeof resource === "string"
+        ? { docId: resource, resourceKind: "knowledge_document" }
+        : resource;
+      const docId = document?.docId;
       if (!docId) {
         return;
       }
-      const selected = new Set(this.selectedDocumentIds);
+      const domainSkill = document.resourceKind === "domain_skill";
+      const selected = new Set(domainSkill ? this.selectedDomainSkillIds : this.selectedDocumentIds);
       if (selected.has(docId)) {
         selected.delete(docId);
       } else {
         selected.add(docId);
       }
-      this.form.boundDocumentIds = [...selected];
+      if (domainSkill) {
+        this.form.boundDomainSkillIds = [...selected];
+      } else {
+        this.form.boundDocumentIds = [...selected];
+      }
     },
     clearSelectedDocuments() {
       this.form.boundDocumentIds = [];
+      this.form.boundDomainSkillIds = [];
     },
     resetDocumentFilters() {
       this.documentSearchQuery = "";

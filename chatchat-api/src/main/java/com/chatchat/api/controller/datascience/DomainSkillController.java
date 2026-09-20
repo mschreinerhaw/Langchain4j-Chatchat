@@ -1,7 +1,7 @@
 package com.chatchat.api.controller.datascience;
 
-import com.chatchat.api.datascience.skill.DomainSkillRemoteImporter;
-import com.chatchat.api.datascience.skill.DomainSkillService;
+import com.chatchat.chat.skills.domain.DomainSkillRemoteImporter;
+import com.chatchat.chat.skills.domain.DomainSkillService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Map;
 
 @RestController
@@ -40,16 +41,16 @@ public class DomainSkillController {
     }
 
     @PostMapping
-    public ApiResponse<?> create(@RequestBody DomainSkillService.SkillRequest body, HttpServletRequest request) {
+    public ApiResponse<?> create(@RequestBody SkillRequest body, HttpServletRequest request) {
         return call(() -> {
             Scope scope = scope(request);
             requireAdmin(scope);
-            return service.save(scope.tenantId(), scope.ownerId(), body);
+            return service.save(scope.tenantId(), scope.ownerId(), body.toCommand(body.id()));
         });
     }
 
     @PostMapping("/categories")
-    public ApiResponse<?> createCategory(@RequestBody DomainSkillService.CategoryRequest body,
+    public ApiResponse<?> createCategory(@RequestBody CategoryRequest body,
                                          HttpServletRequest request) {
         return call(() -> {
             Scope scope = scope(request);
@@ -60,7 +61,7 @@ public class DomainSkillController {
 
     @PutMapping("/categories/{categoryId}")
     public ApiResponse<?> renameCategory(@PathVariable("categoryId") String categoryId,
-                                         @RequestBody DomainSkillService.CategoryRequest body,
+                                         @RequestBody CategoryRequest body,
                                          HttpServletRequest request) {
         return call(() -> {
             Scope scope = scope(request);
@@ -82,13 +83,12 @@ public class DomainSkillController {
 
     @PutMapping("/{id}")
     public ApiResponse<?> update(@PathVariable("id") String id,
-                                 @RequestBody DomainSkillService.SkillRequest body,
+                                 @RequestBody SkillRequest body,
                                  HttpServletRequest request) {
         return call(() -> {
             Scope scope = scope(request);
             requireAdmin(scope);
-            return service.save(scope.tenantId(), scope.ownerId(),
-                new DomainSkillService.SkillRequest(id, body.name(), body.category(), body.description(), body.markdownContent()));
+            return service.save(scope.tenantId(), scope.ownerId(), body.toCommand(id));
         });
     }
 
@@ -100,7 +100,12 @@ public class DomainSkillController {
         return call(() -> {
             Scope scope = scope(request);
             requireAdmin(scope);
-            return service.importFile(scope.tenantId(), scope.ownerId(), file, name, category);
+            try {
+                return service.importFile(scope.tenantId(), scope.ownerId(), file.getBytes(),
+                    file.getOriginalFilename(), name, category);
+            } catch (IOException ex) {
+                throw new IllegalArgumentException("Unable to read skill file", ex);
+            }
         });
     }
 
@@ -201,6 +206,12 @@ public class DomainSkillController {
     private interface Action { Object run(); }
 
     private record Scope(String tenantId, String ownerId) {}
+    private record SkillRequest(String id, String name, String category, String description, String markdownContent) {
+        DomainSkillService.SaveSkillCommand toCommand(String id) {
+            return new DomainSkillService.SaveSkillCommand(id, name, category, description, markdownContent);
+        }
+    }
+    private record CategoryRequest(String name) {}
     private record CategoryReindexRequest(String category) {}
     private record ImportUrlRequest(String url, String name, String category, ImportHttpRequest request) {}
     private record ImportHttpRequest(String method, Map<String, String> queryParams, Map<String, String> headers,

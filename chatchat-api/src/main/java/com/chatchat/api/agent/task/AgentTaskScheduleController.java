@@ -9,7 +9,7 @@ import com.chatchat.chat.task.schedule.ScheduledTaskPageResponse;
 import com.chatchat.chat.task.schedule.ScheduledTaskRunAuditPageResponse;
 import com.chatchat.chat.task.notification.ScheduledNotificationHistoryPageResponse;
 import com.chatchat.chat.task.notification.TenantNotificationRecipientService;
-import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;

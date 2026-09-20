@@ -11,7 +11,7 @@ import com.chatchat.chat.task.core.AgentTaskLatestRepository;
 import com.chatchat.chat.task.core.AgentTaskPayload;
 import com.chatchat.chat.task.core.AgentTaskService;
 import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
-import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.enterprise.entity.audit.SysAuditLog;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;

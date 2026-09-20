@@ -1,8 +1,8 @@
 package com.chatchat.api.agent.published;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.chat.skills.SkillCatalogService;
-import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.task.core.AgentExecutionState;
 import com.chatchat.chat.task.core.AgentTaskResponse;
 import com.chatchat.chat.task.core.AgentTaskService;

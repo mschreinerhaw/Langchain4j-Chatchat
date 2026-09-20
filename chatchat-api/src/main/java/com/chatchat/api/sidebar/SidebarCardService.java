@@ -1,8 +1,8 @@
 package com.chatchat.api.sidebar;
 
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
-import com.chatchat.chat.skills.SkillCatalogService;
-import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.model.SkillDefinition;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;

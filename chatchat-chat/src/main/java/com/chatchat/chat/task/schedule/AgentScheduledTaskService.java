@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.common.mcp.calendar.McpTradingCalendarPort;
 import com.chatchat.common.mcp.notification.McpNotificationPort;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

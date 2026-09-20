@@ -2,9 +2,9 @@ package com.chatchat.api.controller.agent;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.api.license.AgentPublicationLicenseService;
-import com.chatchat.api.datascience.skill.DomainSkillService;
-import com.chatchat.chat.skills.SkillCatalogService;
-import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.domain.DomainSkillService;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.skills.release.AgentReleaseService;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;

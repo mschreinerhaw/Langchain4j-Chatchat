@@ -2,9 +2,9 @@ package com.chatchat.chat.interaction.service;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.chat.interaction.model.InteractionRequest;
-import com.chatchat.chat.skills.SkillCatalogService;
-import com.chatchat.chat.skills.SkillDefinition;
-import com.chatchat.chat.skills.SkillRoutingSettings;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.model.SkillDefinition;
+import com.chatchat.chat.skills.model.SkillRoutingSettings;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.common.tool.ToolMetadata;
 import org.junit.jupiter.api.Test;

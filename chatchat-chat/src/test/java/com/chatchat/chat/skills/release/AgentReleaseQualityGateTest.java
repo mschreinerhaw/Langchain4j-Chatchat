@@ -1,6 +1,6 @@
 package com.chatchat.chat.skills.release;
 
-import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.model.SkillDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

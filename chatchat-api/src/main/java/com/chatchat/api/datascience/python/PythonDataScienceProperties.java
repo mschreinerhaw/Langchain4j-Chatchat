@@ -18,6 +18,5 @@ public class PythonDataScienceProperties {
     private int timeoutSeconds = 300;
     private int outputLimitBytes = 1_000_000;
     private String indexName = "mcp_python_template_index";
-    private String domainSkillIndexName = "domain_skill_index";
     private long maxDataFileBytes = 50L * 1024 * 1024;
 }

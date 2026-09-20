@@ -32,7 +32,7 @@ import com.chatchat.chat.task.core.AgentTaskLatestRepository;
 
 import com.chatchat.chat.task.core.AgentTaskLatestEntity;
 
-import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.common.mcp.calendar.McpTradingCalendarPort;
 import com.chatchat.common.mcp.notification.McpNotificationPort;

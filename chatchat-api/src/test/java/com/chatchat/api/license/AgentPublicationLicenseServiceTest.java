@@ -1,7 +1,7 @@
 package com.chatchat.api.license;
 
-import com.chatchat.chat.skills.SkillCatalogService;
-import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;

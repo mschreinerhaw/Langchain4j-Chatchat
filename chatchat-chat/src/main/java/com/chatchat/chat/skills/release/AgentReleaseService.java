@@ -1,6 +1,6 @@
 package com.chatchat.chat.skills.release;
 
-import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.model.SkillDefinition;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;

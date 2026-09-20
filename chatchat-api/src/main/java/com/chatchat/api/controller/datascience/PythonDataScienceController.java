@@ -1,7 +1,7 @@
 package com.chatchat.api.controller.datascience;
 
 import com.chatchat.api.datascience.python.*;
-import com.chatchat.api.datascience.skill.DomainSkillService;
+import com.chatchat.chat.skills.domain.DomainSkillService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;

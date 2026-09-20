@@ -1,7 +1,7 @@
 package com.chatchat.chat.skills.release;
 
-import com.chatchat.chat.skills.SkillDefinition;
-import com.chatchat.chat.skills.SkillToolConfig;
+import com.chatchat.chat.skills.model.SkillDefinition;
+import com.chatchat.chat.skills.model.SkillToolConfig;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

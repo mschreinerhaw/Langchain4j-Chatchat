@@ -2,8 +2,8 @@ package com.chatchat.api.enterprise.controller;
 
 import com.chatchat.api.enterprise.LoginAuditService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.chatchat.chat.skills.SkillCatalogService;
-import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.catalog.SkillCatalogService;
+import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.entity.datasource.DataSourceConfig;

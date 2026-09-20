@@ -44,6 +44,9 @@ public final class UserFacingAnswerSanitizer {
     private static final Pattern INTERNAL_PAYLOAD_HEADING = Pattern.compile(
         "(?i).*#payload(?:\\s|$).*"
     );
+    private static final Pattern EXPANDED_LONG_TEXT_HEADING = Pattern.compile(
+        "\\s*长文本字段完整内容\\s*"
+    );
 
     private UserFacingAnswerSanitizer() {
     }
@@ -107,7 +110,8 @@ public final class UserFacingAnswerSanitizer {
                 if (skippedHeadingLevel > 0 && level <= skippedHeadingLevel) {
                     skippedHeadingLevel = 0;
                 }
-                if (INTERNAL_PAYLOAD_HEADING.matcher(heading.group(2)).matches()) {
+                if (INTERNAL_PAYLOAD_HEADING.matcher(heading.group(2)).matches()
+                    || EXPANDED_LONG_TEXT_HEADING.matcher(heading.group(2)).matches()) {
                     skippedHeadingLevel = level;
                     continue;
                 }

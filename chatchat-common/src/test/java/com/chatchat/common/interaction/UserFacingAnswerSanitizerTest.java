@@ -7,6 +7,33 @@ import static org.assertj.core.api.Assertions.assertThat;
 class UserFacingAnswerSanitizerTest {
 
     @Test
+    void removesLegacyExpandedLongTextAppendixButKeepsFollowingConclusion() {
+        String answer = """
+            ## 查询结果明细
+
+            | payload_json |
+            | --- |
+            | [完整内容见下方] |
+
+            ### 长文本字段完整内容
+
+            #### 第 1 行 · payload_json
+
+            ```text
+            {"provider":"SSE","close":"4507.3926"}
+            ```
+
+            ## 结论
+
+            行情数据已参与分析。
+            """;
+
+        assertThat(UserFacingAnswerSanitizer.sanitize(answer))
+            .contains("## 查询结果明细", "## 结论", "行情数据已参与分析")
+            .doesNotContain("长文本字段完整内容", "第 1 行 · payload_json", "\"provider\":\"SSE\"");
+    }
+
+    @Test
     void removesCompleteAttemptPayloadReferenceWithoutDamagingBusinessCode() {
         String answer = "错误数为237（证据：`9001fee4-482b-4851-9eb9-df269765291f:att-1-"
             + "f6fe71fe-ed7b-4ac1-af59-5b03878e592a:mcp_chatchat_mcp_server_python_template_execute#payload.records[1]`）。"

@@ -3,11 +3,46 @@ package com.chatchat.chat.presentation;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class UserFacingContentSanitizerTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void removesExpandedLongTextFromPersistedContentAndUiAnswerBlocks() {
+        String legacy = """
+            ## 查询结果明细
+
+            ### 长文本字段完整内容
+
+            #### 第 1 行 · payload_json
+
+            ```text
+            {"provider":"SSE"}
+            ```
+
+            ## 结论
+
+            行情数据已参与分析。
+            """;
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("answer", legacy);
+        response.put("answerBlocks", List.of(Map.of("type", "markdown", "text", legacy)));
+
+        assertThat(UserFacingContentSanitizer.removeInternalEvidenceMarkers(legacy))
+            .contains("## 结论", "行情数据已参与分析")
+            .doesNotContain("长文本字段完整内容", "payload_json", "\"provider\":\"SSE\"");
+
+        Map<String, Object> sanitized = UserFacingContentSanitizer.sanitizeUiResponse(response);
+        assertThat(String.valueOf(sanitized.get("answer"))).doesNotContain("长文本字段完整内容");
+        Map<String, Object> block = (Map<String, Object>) ((List<?>) sanitized.get("answerBlocks")).get(0);
+        assertThat(String.valueOf(block.get("text")))
+            .contains("行情数据已参与分析")
+            .doesNotContain("长文本字段完整内容", "payload_json", "\"provider\":\"SSE\"");
+    }
 
     @Test
     void removesReconciliationIndexFromArtifactMarkdown() {

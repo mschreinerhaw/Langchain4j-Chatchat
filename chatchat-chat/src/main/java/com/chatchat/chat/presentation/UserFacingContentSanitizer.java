@@ -2,7 +2,9 @@ package com.chatchat.chat.presentation;
 
 import com.chatchat.common.interaction.UserFacingAnswerSanitizer;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -35,6 +37,30 @@ public final class UserFacingContentSanitizer {
             if (value instanceof String text) {
                 sanitized.put(field, removeInternalEvidenceMarkers(text));
             }
+        }
+        Object answerBlocks = sanitized.get("answerBlocks");
+        if (answerBlocks instanceof List<?> blocks) {
+            List<Object> sanitizedBlocks = new ArrayList<>(blocks.size());
+            for (Object block : blocks) {
+                if (block instanceof String text) {
+                    sanitizedBlocks.add(removeInternalEvidenceMarkers(text));
+                    continue;
+                }
+                if (block instanceof Map<?, ?> source) {
+                    Map<String, Object> sanitizedBlock = new LinkedHashMap<>();
+                    source.forEach((key, value) -> sanitizedBlock.put(String.valueOf(key), value));
+                    for (String field : new String[] {"text", "content", "answer"}) {
+                        Object value = sanitizedBlock.get(field);
+                        if (value instanceof String text) {
+                            sanitizedBlock.put(field, removeInternalEvidenceMarkers(text));
+                        }
+                    }
+                    sanitizedBlocks.add(sanitizedBlock);
+                    continue;
+                }
+                sanitizedBlocks.add(block);
+            }
+            sanitized.put("answerBlocks", sanitizedBlocks);
         }
         return sanitized;
     }

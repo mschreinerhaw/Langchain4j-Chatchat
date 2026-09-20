@@ -11,12 +11,41 @@ vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
 
 describe("DomainSkillsView", () => {
+  it("keeps the current list mounted while search refreshes in the background", async () => {
+    let resolveSearch;
+    api.fetchDomainSkills.mockImplementationOnce(() => new Promise((resolve) => { resolveSearch = resolve; }));
+    const existingSkill = { id: "skill-old", name: "已有技能" };
+    const context = {
+      initialLoadComplete: true, loading: false, refreshing: false, error: "",
+      filters: { keyword: "投资", category: "", status: "", page: 3, pageSize: 12 },
+      skills: [existingSkill], categories: [], quota: {}, total: 1, skillCount: 1, totalPages: 1
+    };
+
+    const search = DomainSkillsView.methods.load.call(context, true);
+
+    expect(context.filters.page).toBe(0);
+    expect(context.loading).toBe(false);
+    expect(context.refreshing).toBe(true);
+    expect(context.skills).toEqual([existingSkill]);
+
+    resolveSearch({
+      skills: [{ id: "skill-new", name: "投资研究" }], categories: [],
+      quota: {}, total: 1, skillCount: 1, totalPages: 1
+    });
+    await search;
+
+    expect(context.refreshing).toBe(false);
+    expect(context.skills[0].id).toBe("skill-new");
+  });
+
   it("publishes into the dedicated domain skill index", async () => {
     api.publishDomainSkill.mockResolvedValue({ id: "skill-1", name: "风险识别" });
-    const context = { busy: false, error: "", message: "", load: vi.fn(), perform: DomainSkillsView.methods.perform };
+    const context = { busy: false, error: "", message: "", load: vi.fn(), perform: DomainSkillsView.methods.perform, scheduleNoticeDismiss: vi.fn() };
     await DomainSkillsView.methods.publishSkill.call(context, { id: "skill-1" });
     expect(api.publishDomainSkill).toHaveBeenCalledWith("skill-1");
-    expect(context.message).toContain("领域技能索引"); expect(context.load).toHaveBeenCalledOnce();
+    expect(context.message).toContain("领域技能索引");
+    expect(context.load).toHaveBeenCalledWith(false, { silent: true });
+    expect(context.scheduleNoticeDismiss).toHaveBeenCalledWith("message", context.message, 3200);
   });
 
   it("shows the custom publication limit prompt when the quota is full", async () => {
@@ -192,6 +221,57 @@ describe("DomainSkillsView", () => {
     expect(context.confirmDialog.danger).toBe(true);
     expect(context.confirmDialog.message).toContain("客户画像");
     expect(api.deleteDomainSkill).not.toHaveBeenCalled();
+  });
+
+  it("uses one lightweight action menu per skill card", () => {
+    const context = { skillMenuId: "", categoryMenuId: "category-1" };
+
+    DomainSkillsView.methods.toggleSkillMenu.call(context, { id: "skill-1" });
+    expect(context.skillMenuId).toBe("skill-1");
+    expect(context.categoryMenuId).toBe("");
+
+    DomainSkillsView.methods.toggleSkillMenu.call(context, { id: "skill-1" });
+    expect(context.skillMenuId).toBe("");
+  });
+
+  it("removes a deleted skill immediately and refreshes without replacing the page", async () => {
+    api.deleteDomainSkill.mockResolvedValue(true);
+    const skill = { id: "skill-1", name: "客户画像" };
+    const context = {
+      confirmDialog: { open: true, kind: "delete", skill },
+      closeConfirmDialog: DomainSkillsView.methods.closeConfirmDialog,
+      perform: DomainSkillsView.methods.perform,
+      busy: false, loading: false, error: "", message: "",
+      skills: [skill, { id: "skill-2", name: "风险识别" }], total: 2, skillCount: 2,
+      load: vi.fn()
+    };
+
+    await DomainSkillsView.methods.confirmPendingAction.call(context);
+
+    expect(api.deleteDomainSkill).toHaveBeenCalledWith("skill-1");
+    expect(context.skills).toEqual([{ id: "skill-2", name: "风险识别" }]);
+    expect(context.total).toBe(1);
+    expect(context.skillCount).toBe(1);
+    expect(context.loading).toBe(false);
+    expect(context.load).toHaveBeenCalledWith(false, { silent: true });
+  });
+
+  it("automatically dismisses operation notices", () => {
+    vi.useFakeTimers();
+    try {
+      const context = {
+        message: "领域技能已删除", error: "",
+        noticeTimers: { message: null, error: null }
+      };
+
+      DomainSkillsView.methods.scheduleNoticeDismiss.call(context, "message", context.message, 3200);
+      vi.advanceTimersByTime(3199);
+      expect(context.message).toBe("领域技能已删除");
+      vi.advanceTimersByTime(1);
+      expect(context.message).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("rebuilds one skill and one category index", async () => {

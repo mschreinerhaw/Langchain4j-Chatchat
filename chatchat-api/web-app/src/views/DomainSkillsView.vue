@@ -25,11 +25,21 @@
           <option value="RECALLED">已回收</option>
         </select>
       </label>
-      <button type="button" @click="load(true)">检索</button>
+      <button type="button" :disabled="refreshing" @click="load(true)">{{ refreshing ? '检索中…' : '检索' }}</button>
     </section>
 
-    <p v-if="error" class="domain-skills-notice error">{{ error }}</p>
-    <p v-if="message" class="domain-skills-notice success">{{ message }}</p>
+    <div class="domain-skills-notice-stack" aria-live="polite" aria-atomic="true">
+      <Transition name="domain-skills-notice">
+        <p v-if="error" class="domain-skills-notice error" role="alert">
+          <span>{{ error }}</span><button type="button" aria-label="关闭错误提示" @click="dismissNotice('error')">×</button>
+        </p>
+      </Transition>
+      <Transition name="domain-skills-notice">
+        <p v-if="message" class="domain-skills-notice success" role="status">
+          <span>{{ message }}</span><button type="button" aria-label="关闭成功提示" @click="dismissNotice('message')">×</button>
+        </p>
+      </Transition>
+    </div>
 
     <div class="domain-skills-layout">
       <aside class="domain-skill-categories">
@@ -40,7 +50,7 @@
         <button type="button" class="domain-skill-category-row" :class="{ active: !filters.category }" @click="selectCategory('')">
           <span>全部技能</span><strong>{{ skillCount }}</strong>
         </button>
-        <div v-if="categoryMenuId" class="domain-skill-category-action-backdrop" @click="categoryMenuId = ''"></div>
+        <div v-if="categoryMenuId || skillMenuId" class="domain-skill-category-action-backdrop" @click="categoryMenuId = ''; skillMenuId = ''"></div>
         <div v-for="category in categoryOptions" :key="category.name" class="domain-skill-category-entry" :class="{ active: filters.category === category.name }">
           <button type="button" class="domain-skill-category-row" @click="selectCategory(category.name)">
             <span>{{ category.name }}</span><strong>{{ category.count }}</strong>
@@ -59,7 +69,7 @@
         <p v-if="!categoryOptions.length" class="domain-skill-category-empty">暂无分类，点击分类标题旁的“+”创建。</p>
       </aside>
 
-      <section class="domain-skills-content">
+      <section class="domain-skills-content" :aria-busy="refreshing">
         <div class="domain-skills-summary">
           <span>{{ loading ? '加载中' : `共 ${total} 个技能` }}</span>
           <strong v-if="filters.category">{{ filters.category }}</strong>
@@ -80,11 +90,16 @@
               <span>{{ skill.category }} · {{ formatTime(skill.updatedAt) }} · {{ skill.id }}</span>
             </div>
             <div v-if="isAdmin" class="domain-skill-item-actions">
-              <button v-if="!skill.builtin" type="button" @click="openEdit(skill)">编辑</button>
-              <button v-if="!skill.builtin" type="button" :disabled="busy || (!skill.publicationDirty && skill.status === 'PUBLISHED')" @click="publishSkill(skill)">{{ skill.status === 'PUBLISHED' ? '重新发布' : '发布' }}</button>
-              <button v-if="skill.status === 'PUBLISHED'" type="button" :disabled="busy || skill.publicationDirty" :title="skill.publicationDirty ? '存在未发布修改，请先重新发布' : '重建该技能索引'" @click="reindexSkill(skill)">重建索引</button>
-              <button v-if="!skill.builtin && skill.status === 'PUBLISHED'" type="button" :disabled="busy" @click="recallSkill(skill)">回收</button>
-              <button v-if="!skill.builtin" type="button" class="danger-action" :disabled="busy" @click="removeSkill(skill)">删除</button>
+              <button type="button" class="domain-skill-item-actions-trigger" title="技能操作" aria-label="技能操作" :aria-expanded="skillMenuId === skill.id" @click.stop="toggleSkillMenu(skill)">
+                <MoreHorizontal :size="17" />
+              </button>
+              <div v-if="skillMenuId === skill.id" class="domain-skill-item-menu" @click.stop>
+                <button v-if="!skill.builtin" type="button" @click="skillMenuId = ''; openEdit(skill)"><Pencil :size="14" /><span>编辑</span></button>
+                <button v-if="!skill.builtin" type="button" :disabled="busy || (!skill.publicationDirty && skill.status === 'PUBLISHED')" @click="skillMenuId = ''; publishSkill(skill)"><span>{{ skill.status === 'PUBLISHED' ? '重新发布' : '发布' }}</span></button>
+                <button v-if="skill.status === 'PUBLISHED'" type="button" :disabled="busy || skill.publicationDirty" :title="skill.publicationDirty ? '存在未发布修改，请先重新发布' : '重建该技能索引'" @click="skillMenuId = ''; reindexSkill(skill)"><RefreshCw :size="14" /><span>重建索引</span></button>
+                <button v-if="!skill.builtin && skill.status === 'PUBLISHED'" type="button" :disabled="busy" @click="skillMenuId = ''; recallSkill(skill)"><span>回收</span></button>
+                <button v-if="!skill.builtin" type="button" class="danger-action" :disabled="busy" @click="removeSkill(skill)"><Trash2 :size="14" /><span>删除</span></button>
+              </div>
             </div>
           </article>
         </template>

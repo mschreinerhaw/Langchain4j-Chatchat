@@ -52,7 +52,8 @@ export default {
   name: "DomainSkillsView",
   components: { ChevronDown, MoreHorizontal, Pencil, RefreshCw, Trash2 },
   data: () => ({
-    loading: true, busy: false, error: "", message: "", skills: [], categories: [],
+    loading: true, refreshing: false, initialLoadComplete: false,
+    busy: false, error: "", message: "", skills: [], categories: [],
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
     total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
@@ -60,9 +61,10 @@ export default {
     importAdvancedOpen: false, importHttpMethod: "GET", importQueryParams: "", importHeaders: "",
     importRequestBody: "", importAllowPrivateNetwork: false, categoryDialogOpen: false,
     newCategoryName: "", categorySaving: false, categoryError: "", categoryDialogMode: "create",
-    editingCategoryId: "", editingCategoryOriginalName: "", categoryMenuId: "", publicationLimitOpen: false,
+    editingCategoryId: "", editingCategoryOriginalName: "", categoryMenuId: "", skillMenuId: "", publicationLimitOpen: false,
     publicationLimit: { maximum: 5, published: 5, skillName: "" }, editorMessage: "", importMessage: "",
     editorSnapshot: "", importSnapshot: "", importTask: null, importPollTimer: null,
+    noticeTimers: { message: null, error: null },
     confirmDialog: { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null, category: null }
   }),
   computed: {
@@ -78,13 +80,25 @@ export default {
     },
     importTaskRunning() { return ["QUEUED", "RUNNING"].includes(this.importTask?.status); }
   },
+  watch: {
+    message(value) { this.scheduleNoticeDismiss("message", value, 3200); },
+    error(value) { this.scheduleNoticeDismiss("error", value, 6000); }
+  },
   mounted() { this.load(); },
-  beforeUnmount() { if (this.importPollTimer) clearTimeout(this.importPollTimer); },
+  beforeUnmount() {
+    if (this.importPollTimer) clearTimeout(this.importPollTimer);
+    Object.values(this.noticeTimers || {}).forEach((timer) => { if (timer) clearTimeout(timer); });
+  },
   methods: {
     formatTime: formatDateTime,
-    async load(resetPage = false) {
+    async load(resetPage = false, options = {}) {
       if (resetPage) this.filters.page = 0;
-      this.loading = true; this.error = "";
+      const silent = Boolean(options?.silent);
+      const initialLoad = !this.initialLoadComplete;
+      const showRefreshing = !initialLoad && !silent;
+      if (initialLoad) this.loading = true;
+      if (showRefreshing) this.refreshing = true;
+      this.error = "";
       try {
         const payload = await fetchDomainSkills(this.filters);
         this.skills = Array.isArray(payload?.skills) ? payload.skills : [];
@@ -93,7 +107,29 @@ export default {
         this.total = Number(payload?.total || 0); this.skillCount = Number(payload?.skillCount ?? payload?.total ?? 0);
         this.totalPages = Number(payload?.totalPages || 0);
       } catch (error) { this.error = error.message || "领域技能加载失败"; }
-      finally { this.loading = false; }
+      finally {
+        if (initialLoad) {
+          this.loading = false;
+          this.initialLoadComplete = true;
+        }
+        if (showRefreshing) this.refreshing = false;
+      }
+    },
+    scheduleNoticeDismiss(kind, value, delay) {
+      if (!this.noticeTimers) this.noticeTimers = { message: null, error: null };
+      if (this.noticeTimers[kind]) clearTimeout(this.noticeTimers[kind]);
+      this.noticeTimers[kind] = null;
+      if (!value) return;
+      this.noticeTimers[kind] = setTimeout(() => {
+        if (this[kind] === value) this[kind] = "";
+        this.noticeTimers[kind] = null;
+      }, delay);
+    },
+    dismissNotice(kind) {
+      if (kind !== "message" && kind !== "error") return;
+      this[kind] = "";
+      if (this.noticeTimers?.[kind]) clearTimeout(this.noticeTimers[kind]);
+      if (this.noticeTimers) this.noticeTimers[kind] = null;
     },
     openCreate() {
       this.form = { ...emptyForm(), category: this.filters.category || this.categoryOptions[0]?.name || "" };
@@ -178,6 +214,7 @@ export default {
         this.message = this.categoryDialogMode === "rename"
           ? `分类已重命名为“${categoryName}”`
           : `分类“${categoryName}”已创建`;
+        this.scheduleNoticeDismiss?.("message", this.message, 3200);
         await this.load(true);
       } catch (error) {
         this.categoryError = error.message || "分类创建失败";
@@ -187,7 +224,13 @@ export default {
     },
     toggleCategoryMenu(category) {
       const key = category.id || category.name;
+      this.skillMenuId = "";
       this.categoryMenuId = this.categoryMenuId === key ? "" : key;
+    },
+    toggleSkillMenu(skill) {
+      const key = skill?.id || "";
+      this.categoryMenuId = "";
+      this.skillMenuId = this.skillMenuId === key ? "" : key;
     },
     requestDeleteCategory(category) {
       this.categoryMenuId = "";
@@ -207,7 +250,7 @@ export default {
         if (saved?.id) this.form.id = saved.id;
         this.editorSnapshot = editorStateKey(this.form);
         this.editorMessage = "领域技能草稿已保存";
-        await this.load();
+        await this.load(false, { silent: true });
       }, "领域技能保存失败");
     },
     chooseImport(event) { this.importFile = event.target.files?.[0] || null; this.importMessage = ""; },
@@ -309,8 +352,12 @@ export default {
       if (kind === "delete" && skill) {
         await this.perform(async () => {
           await deleteDomainSkill(skill.id);
+          this.skills = this.skills.filter((item) => item.id !== skill.id);
+          this.total = Math.max(0, this.total - 1);
+          this.skillCount = Math.max(0, this.skillCount - 1);
           this.message = "领域技能已删除";
-          await this.load();
+          this.scheduleNoticeDismiss?.("message", this.message, 3200);
+          await this.load(false, { silent: true });
         }, "领域技能删除失败");
       }
       if (kind === "delete-category" && category?.count > 0) return;
@@ -319,6 +366,7 @@ export default {
           await deleteDomainSkillCategory(category.id);
           if (this.filters.category === category.name) this.filters.category = "";
           this.message = `分类“${category.name}”已删除`;
+          this.scheduleNoticeDismiss?.("message", this.message, 3200);
           await this.load(true);
         }, "技能分类删除失败");
       }
@@ -328,7 +376,8 @@ export default {
       try {
         const value = await publishDomainSkill(skill.id);
         this.message = `“${value.name}”已发布到领域技能索引`;
-        await this.load();
+        this.scheduleNoticeDismiss?.("message", this.message, 3200);
+        await this.load(false, { silent: true });
       } catch (error) {
         if (String(error?.message || "").includes("SKILL_LICENSE_LIMIT_EXCEEDED")) {
           this.publicationLimit = {
@@ -350,20 +399,23 @@ export default {
       this.filters.status = "PUBLISHED";
       await this.load(true);
     },
-    async recallSkill(skill) { await this.perform(async () => { await recallDomainSkill(skill.id); this.message = `“${skill.name}”已回收，Agent 将不再加载该技能`; await this.load(); }, "领域技能回收失败"); },
+    async recallSkill(skill) { await this.perform(async () => { await recallDomainSkill(skill.id); this.message = `“${skill.name}”已回收，Agent 将不再加载该技能`; this.scheduleNoticeDismiss?.("message", this.message, 3200); await this.load(false, { silent: true }); }, "领域技能回收失败"); },
     async reindexSkill(skill) {
       await this.perform(async () => {
         await reindexDomainSkill(skill.id);
         this.message = `“${skill.name}”索引已重建`;
+        this.scheduleNoticeDismiss?.("message", this.message, 3200);
       }, "领域技能索引重建失败");
     },
     async reindexCategory(category) {
       await this.perform(async () => {
         const result = await reindexDomainSkillCategory(category.name);
         this.message = `分类“${category.name}”索引重建完成：成功 ${result?.reindexed || 0}，跳过 ${result?.skipped || 0}，失败 ${result?.failed || 0}`;
+        this.scheduleNoticeDismiss?.("message", this.message, 3200);
       }, "分类索引重建失败");
     },
     async removeSkill(skill) {
+      this.skillMenuId = "";
       this.openConfirmDialog("delete", "删除领域技能？", `确定删除“${skill.name}”吗？删除后无法恢复。`, "删除", true, skill);
     },
     async perform(action, fallback) { this.busy = true; this.error = ""; try { await action(); } catch (error) { this.error = error.message || fallback; } finally { this.busy = false; } },

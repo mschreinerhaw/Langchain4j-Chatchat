@@ -1,5 +1,6 @@
 package com.chatchat.api.controller.datascience;
 
+import com.chatchat.api.datascience.skill.DomainSkillRemoteImporter;
 import com.chatchat.api.datascience.skill.DomainSkillService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -107,7 +110,13 @@ public class DomainSkillController {
             Scope scope = scope(request);
             requireAdmin(scope);
             if (body == null) throw new IllegalArgumentException("Skill URL is required");
-            return service.importUrl(scope.tenantId(), scope.ownerId(), body.url(), body.name(), body.category());
+            ImportHttpRequest http = body.request();
+            DomainSkillRemoteImporter.DownloadRequest downloadRequest = http == null
+                ? DomainSkillRemoteImporter.DownloadRequest.defaults()
+                : new DomainSkillRemoteImporter.DownloadRequest(http.method(), http.queryParams(), http.headers(),
+                    http.body(), http.allowPrivateNetwork());
+            return service.importUrl(scope.tenantId(), scope.ownerId(), body.url(), body.name(), body.category(),
+                downloadRequest);
         });
     }
 
@@ -193,5 +202,7 @@ public class DomainSkillController {
 
     private record Scope(String tenantId, String ownerId) {}
     private record CategoryReindexRequest(String category) {}
-    private record ImportUrlRequest(String url, String name, String category) {}
+    private record ImportUrlRequest(String url, String name, String category, ImportHttpRequest request) {}
+    private record ImportHttpRequest(String method, Map<String, String> queryParams, Map<String, String> headers,
+                                     String body, boolean allowPrivateNetwork) {}
 }

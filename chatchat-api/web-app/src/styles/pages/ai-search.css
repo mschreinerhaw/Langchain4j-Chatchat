@@ -287,6 +287,11 @@
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
 }
 
+.ai-search-view .upload-dialog {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+
 .ai-search-view .search-viewer {
   width: min(900px, 100%);
   max-height: min(780px, calc(100dvh - 40px));
@@ -393,6 +398,122 @@
   align-items: center;
   gap: 10px;
   min-height: 42px;
+}
+
+.ai-search-view .document-upload-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ai-search-view .upload-dialog .document-upload-modes button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ai-search-view .upload-dialog .document-upload-modes button.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+}
+
+.ai-search-view .document-url-import,
+.ai-search-view .document-url-field,
+.ai-search-view .document-http-options,
+.ai-search-view .document-http-options > label {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-search-view .document-url-field > span,
+.ai-search-view .document-http-options > label > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ai-search-view .document-url-field small,
+.ai-search-view .document-http-options > small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai-search-view .upload-dialog .document-http-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 3px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-search-view .document-http-toggle svg {
+  transition: transform .16s ease;
+}
+
+.ai-search-view .document-http-toggle svg.expanded {
+  transform: rotate(180deg);
+}
+
+.ai-search-view .document-http-options {
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dce5f3;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ai-search-view .upload-dialog .document-http-options textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 14px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai-search-view .upload-dialog .document-http-options textarea:focus {
+  border-color: rgba(37, 99, 235, .55);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+}
+
+.ai-search-view .upload-dialog .document-private-network {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ai-search-view .upload-dialog .document-private-network input {
+  width: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
 }
 
 .ai-search-view .upload-dialog .file-picker input[type="file"] {

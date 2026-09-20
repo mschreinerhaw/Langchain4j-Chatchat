@@ -740,10 +740,97 @@
   box-shadow: 0 1px 4px rgba(30, 58, 112, .12);
 }
 
+.domain-skills-page .domain-skill-url-import,
+.domain-skills-page .domain-skill-url-field,
+.domain-skills-page .domain-skill-http-options,
+.domain-skills-page .domain-skill-http-options > label {
+  display: grid;
+  gap: 6px;
+}
+
+.domain-skills-page .domain-skill-url-field > span,
+.domain-skills-page .domain-skill-http-options > label > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .domain-skills-page .domain-skill-url-field small {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.domain-skills-page .domain-skill-advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 3px;
+  min-height: 24px;
+  padding: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.domain-skills-page .domain-skill-advanced-toggle:hover {
+  color: #1d4ed8;
+}
+
+.domain-skills-page .domain-skill-advanced-toggle svg {
+  transition: transform .16s ease;
+}
+
+.domain-skills-page .domain-skill-advanced-toggle svg.expanded {
+  transform: rotate(180deg);
+}
+
+.domain-skills-page .domain-skill-http-options {
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dce5f3;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.domain-skills-page .domain-skill-http-options textarea {
+  min-height: 72px;
+  background: #fff;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.domain-skills-page .domain-skill-http-options .domain-skill-private-network {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.domain-skills-page .domain-skill-dialog .domain-skill-private-network input {
+  width: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.domain-skills-page .domain-skill-private-network > span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.domain-skills-page .domain-skill-http-hint {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .domain-skills-page .file-picker {

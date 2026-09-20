@@ -3,6 +3,7 @@ package com.chatchat.api.controller.search;
 import com.chatchat.api.config.ApiLimitProperties;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.search.CategoryReindexTaskService;
+import com.chatchat.api.search.DocumentRemoteImporter;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.document.DocumentFileResource;
 import com.chatchat.knowledgebase.search.document.LibraryCategory;
@@ -38,11 +39,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
 
 @RestController
@@ -59,6 +66,17 @@ public class SearchController {
     private final DocumentSearchCancellationRegistry searchCancellationRegistry;
     private final CategoryReindexTaskService categoryReindexTaskService;
     private final ApiLimitProperties limitProperties;
+    private final DocumentRemoteImporter documentRemoteImporter;
+
+    SearchController(SearchService searchService,
+                     SearchFeedbackService searchFeedbackService,
+                     DocumentUploadCancellationRegistry uploadCancellationRegistry,
+                     DocumentSearchCancellationRegistry searchCancellationRegistry,
+                     CategoryReindexTaskService categoryReindexTaskService,
+                     ApiLimitProperties limitProperties) {
+        this(searchService, searchFeedbackService, uploadCancellationRegistry, searchCancellationRegistry,
+            categoryReindexTaskService, limitProperties, null);
+    }
 
     /**
      * Searches the search.
@@ -543,6 +561,48 @@ public class SearchController {
         }
     }
 
+    @PostMapping("/documents/import-url")
+    @Operation(summary = "Download and index one document from an HTTP endpoint")
+    public ApiResponse<SearchDocument> importDocumentUrl(@RequestBody DocumentUrlImportRequest body,
+                                                         @RequestHeader(value = "X-Upload-Request-Id", required = false)
+                                                         String uploadRequestId) {
+        if (body == null || body.url() == null || body.url().isBlank()) {
+            return ApiResponse.badRequest("document URL is required");
+        }
+        if (body.category() == null || body.category().isBlank()) {
+            return ApiResponse.badRequest("category is required");
+        }
+        DocumentHttpRequest http = body.request();
+        DocumentRemoteImporter.RequestOptions options = http == null
+            ? DocumentRemoteImporter.RequestOptions.defaults()
+            : new DocumentRemoteImporter.RequestOptions(http.method(), http.queryParams(), http.headers(),
+                http.body(), http.allowPrivateNetwork());
+        uploadCancellationRegistry.register(uploadRequestId);
+        try {
+            DocumentRemoteImporter.RemoteDocument remote = documentRemoteImporter.download(
+                body.url(), options, body.documentType());
+            MultipartFile file = new DownloadedMultipartFile(remote.fileName(), remote.contentType(), remote.bytes());
+            SearchDocument document = searchService.upload(
+                file,
+                body.title(),
+                body.source() == null || body.source().isBlank() ? remote.sourceUrl() : body.source(),
+                body.date(),
+                mergeCategoryTag(body.category(), body.tags()),
+                body.companies(),
+                body.industries(),
+                body.keywords(),
+                body.documentType(),
+                null,
+                permissionContext(body.tenantId(), body.userId(), body.roles()),
+                body.visibility(),
+                parseCsv(body.permissionRoles())
+            );
+            return ApiResponse.success(document, "Remote document downloaded and indexed");
+        } finally {
+            uploadCancellationRegistry.complete(uploadRequestId);
+        }
+    }
+
     @PostMapping(value = "/documents/upload/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload and index multiple local documents with required category")
     public ApiResponse<List<SearchDocument>> uploadDocuments(@RequestParam("files") List<MultipartFile> files,
@@ -620,6 +680,37 @@ public class SearchController {
     }
 
     public record DocumentBatchDeleteRequest(List<String> docIds) {
+    }
+
+    public record DocumentUrlImportRequest(String url, String title, String source, String date, String tags,
+                                           String category, String companies, String industries, String keywords,
+                                           String documentType, String tenantId, String userId, String roles,
+                                           String visibility, String permissionRoles, DocumentHttpRequest request) {
+    }
+
+    public record DocumentHttpRequest(String method, Map<String, String> queryParams, Map<String, String> headers,
+                                      String body, boolean allowPrivateNetwork) {
+    }
+
+    private static final class DownloadedMultipartFile implements MultipartFile {
+        private final String fileName;
+        private final String contentType;
+        private final byte[] bytes;
+
+        private DownloadedMultipartFile(String fileName, String contentType, byte[] bytes) {
+            this.fileName = fileName;
+            this.contentType = contentType;
+            this.bytes = bytes == null ? new byte[0] : bytes.clone();
+        }
+
+        @Override public String getName() { return "file"; }
+        @Override public String getOriginalFilename() { return fileName; }
+        @Override public String getContentType() { return contentType; }
+        @Override public boolean isEmpty() { return bytes.length == 0; }
+        @Override public long getSize() { return bytes.length; }
+        @Override public byte[] getBytes() { return bytes.clone(); }
+        @Override public InputStream getInputStream() { return new ByteArrayInputStream(bytes); }
+        @Override public void transferTo(File destination) throws IOException { Files.write(destination.toPath(), bytes); }
     }
 
     public record DocumentBatchDeleteResult(List<String> deletedDocIds, List<String> notFoundDocIds, int requestedCount) {

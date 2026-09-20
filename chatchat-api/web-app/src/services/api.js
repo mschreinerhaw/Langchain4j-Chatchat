@@ -184,10 +184,10 @@ export async function importDomainSkill(file, name = "", category = "") {
   return unwrapApiPayload(payload, path);
 }
 
-export function importDomainSkillFromUrl(url, name = "", category = "") {
+export function importDomainSkillFromUrl(url, name = "", category = "", request = {}) {
   return apiRequest("/data-science/domain-skills/import-url", {
     method: "POST",
-    body: JSON.stringify({ url, name, category })
+    body: JSON.stringify({ url, name, category, request })
   });
 }
 
@@ -1662,6 +1662,25 @@ export async function uploadSearchDocument(formData, options = {}) {
     throw new Error(payload?.message || `请求失败：${response.status}`);
   }
   return unwrapApiPayload(payload, "/search/documents/upload");
+}
+
+export async function importSearchDocumentFromUrl(document, options = {}) {
+  const session = getStoredAuthSession();
+  const path = "/search/documents/import-url";
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...(options.uploadRequestId ? { "X-Upload-Request-Id": options.uploadRequestId } : {})
+    },
+    body: JSON.stringify(document),
+    signal: options.signal
+  });
+  const payload = await readJsonSafely(response);
+  notifyAuthRequiredIfNeeded(response, payload, path);
+  if (!response.ok) throw new Error(payload?.message || `请求失败：${response.status}`);
+  return unwrapApiPayload(payload, path);
 }
 
 export async function uploadSearchDocuments(formData, options = {}) {

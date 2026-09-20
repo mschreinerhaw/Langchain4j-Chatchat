@@ -89,7 +89,12 @@
           <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="uploading" @click="closeUploadDialog">×</button>
         </header>
 
-        <div class="file-picker">
+        <div class="document-upload-modes" role="tablist" aria-label="文档导入方式">
+          <button type="button" role="tab" :aria-selected="uploadMode === 'file'" :class="{ active: uploadMode === 'file' }" :disabled="uploading" @click="uploadMode = 'file'">本地文件</button>
+          <button type="button" role="tab" :aria-selected="uploadMode === 'url'" :class="{ active: uploadMode === 'url' }" :disabled="uploading" @click="uploadMode = 'url'">网络地址</button>
+        </div>
+
+        <div v-if="uploadMode === 'file'" class="file-picker">
           <input
             ref="uploadFile"
             type="file"
@@ -100,9 +105,23 @@
           <button type="button" class="file-picker-button" @click="triggerFilePicker">选择文件</button>
           <span>{{ uploadForm.files?.length > 1 ? `${uploadForm.files.length} 个文件` : (uploadForm.file?.name || "未选择文件，单文件最大 55MB") }}</span>
         </div>
-        <p class="upload-size-tip">超过 5MB 的文档仅支持单文件上传，后台将按 5MB 分片处理并建立索引。</p>
+        <p v-if="uploadMode === 'file'" class="upload-size-tip">超过 5MB 的文档仅支持单文件上传，后台将按 5MB 分片处理并建立索引。</p>
+        <div v-else class="document-url-import">
+          <label class="document-url-field"><span>文档地址 *</span><input v-model.trim="uploadUrl" type="url" required maxlength="2048" placeholder="https://example.com/report.pdf"><small>支持互联网或内网 HTTP API，单个文档最大 55MB。</small></label>
+          <button type="button" class="document-http-toggle" :aria-expanded="uploadAdvancedOpen" aria-controls="document-http-options" @click="uploadAdvancedOpen = !uploadAdvancedOpen">
+            <span>高级参数</span><ChevronDown :size="14" :class="{ expanded: uploadAdvancedOpen }" aria-hidden="true" />
+          </button>
+          <section v-if="uploadAdvancedOpen" id="document-http-options" class="document-http-options">
+            <label><span>请求方法</span><select v-model="uploadHttpMethod"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select></label>
+            <label><span>Query 参数（JSON）</span><textarea v-model="uploadQueryParams" rows="3" spellcheck="false" placeholder='{"version":"latest"}'></textarea></label>
+            <label><span>请求头（JSON）</span><textarea v-model="uploadHeaders" rows="3" spellcheck="false" placeholder='{"Authorization":"Bearer ..."}'></textarea></label>
+            <label v-if="uploadHttpMethod !== 'GET'"><span>请求体</span><textarea v-model="uploadRequestBody" rows="4" spellcheck="false" placeholder='{"documentId":"report-001"}'></textarea></label>
+            <label class="document-private-network"><input v-model="uploadAllowPrivateNetwork" type="checkbox"><span>允许访问内网地址</span></label>
+            <small>仅在可信内网接口需要时开启；本机、回环及链路本地地址始终禁止访问。</small>
+          </section>
+        </div>
 
-        <input v-if="(uploadForm.files?.length || 0) <= 1" v-model="uploadForm.title" placeholder="文档标题">
+        <input v-if="uploadMode === 'url' || (uploadForm.files?.length || 0) <= 1" v-model="uploadForm.title" placeholder="文档标题（可选，默认使用文件名）">
         <input v-model="uploadForm.source" placeholder="文档来源">
         <section class="upload-category-field">
           <div class="upload-category-mode" aria-label="分类方式">
@@ -159,7 +178,7 @@
         <footer>
           <button v-if="uploading" type="button" class="secondary-button" @click="terminateDocumentUpload">终止上传</button>
           <button type="submit" class="primary-button" :disabled="uploading">
-            {{ uploading ? "上传中" : "上传文档" }}
+            {{ uploading ? (uploadMode === 'url' ? "同步中" : "上传中") : (uploadMode === 'url' ? "同步文档" : "上传文档") }}
           </button>
         </footer>
       </form>

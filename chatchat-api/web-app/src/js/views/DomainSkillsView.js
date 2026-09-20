@@ -1,5 +1,5 @@
 import { nextTick } from "vue";
-import { MoreHorizontal, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
+import { ChevronDown, MoreHorizontal, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills, getStoredAuthSession,
   importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
@@ -28,18 +28,36 @@ const editorStateKey = (form = {}) => JSON.stringify({
 const importStateKey = (state = {}) => JSON.stringify({
   mode: state.importMode || "file", name: state.importName || "", category: state.importCategory || "",
   url: state.importUrl || "", fileName: state.importFile?.name || "", fileSize: state.importFile?.size || 0,
-  fileModified: state.importFile?.lastModified || 0
+  fileModified: state.importFile?.lastModified || 0, httpMethod: state.importHttpMethod || "GET",
+  queryParams: state.importQueryParams || "", headers: state.importHeaders || "",
+  requestBody: state.importRequestBody || "", allowPrivateNetwork: Boolean(state.importAllowPrivateNetwork)
 });
+
+const parseRequestMap = (value, label) => {
+  if (!String(value || "").trim()) return {};
+  let parsed;
+  try { parsed = JSON.parse(value); }
+  catch { throw new Error(`${label}必须是有效的 JSON 对象`); }
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error(`${label}必须是 JSON 对象`);
+  }
+  return Object.fromEntries(Object.entries(parsed).map(([key, item]) => {
+    if (item !== null && typeof item === "object") throw new Error(`${label}的值只能是字符串、数字或布尔值`);
+    return [key, item == null ? "" : String(item)];
+  }));
+};
 
 export default {
   name: "DomainSkillsView",
-  components: { MoreHorizontal, Pencil, RefreshCw, Trash2 },
+  components: { ChevronDown, MoreHorizontal, Pencil, RefreshCw, Trash2 },
   data: () => ({
     loading: true, busy: false, error: "", message: "", skills: [], categories: [],
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
     total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
-    importMode: "file", importFile: null, importUrl: "", importName: "", importCategory: "", categoryDialogOpen: false,
+    importMode: "file", importFile: null, importUrl: "", importName: "", importCategory: "",
+    importAdvancedOpen: false, importHttpMethod: "GET", importQueryParams: "", importHeaders: "",
+    importRequestBody: "", importAllowPrivateNetwork: false, categoryDialogOpen: false,
     newCategoryName: "", categorySaving: false, categoryError: "", categoryDialogMode: "create",
     editingCategoryId: "", editingCategoryOriginalName: "", categoryMenuId: "", publicationLimitOpen: false,
     publicationLimit: { maximum: 5, published: 5, skillName: "" }, editorMessage: "", importMessage: "",
@@ -87,6 +105,12 @@ export default {
       this.importFile = null;
       this.importUrl = "";
       this.importName = "";
+      this.importAdvancedOpen = false;
+      this.importHttpMethod = "GET";
+      this.importQueryParams = "";
+      this.importHeaders = "";
+      this.importRequestBody = "";
+      this.importAllowPrivateNetwork = false;
       this.importSnapshot = importStateKey(this);
       this.importOpen = true;
       this.importMessage = "";
@@ -186,13 +210,32 @@ export default {
       const category = this.importCategory.trim();
       const url = this.importUrl.trim();
       if (!category || (this.importMode === "file" ? !this.importFile : !url)) return;
+      let request = {};
+      if (this.importMode === "url") {
+        try {
+          const method = this.importHttpMethod || "GET";
+          request = {
+            method,
+            queryParams: parseRequestMap(this.importQueryParams, "Query 参数"),
+            headers: parseRequestMap(this.importHeaders, "请求头"),
+            body: method === "GET" ? "" : (this.importRequestBody || ""),
+            allowPrivateNetwork: Boolean(this.importAllowPrivateNetwork)
+          };
+        } catch (error) {
+          this.error = error.message;
+          this.importAdvancedOpen = true;
+          return;
+        }
+      }
       await this.perform(async () => {
         if (this.importMode === "url") {
-          await importDomainSkillFromUrl(url, this.importName.trim(), category);
+          await importDomainSkillFromUrl(url, this.importName.trim(), category, request);
         } else {
           await importDomainSkill(this.importFile, this.importName.trim(), category);
         }
         this.importFile = null; this.importUrl = ""; this.importName = "";
+        this.importHttpMethod = "GET"; this.importQueryParams = ""; this.importHeaders = "";
+        this.importRequestBody = ""; this.importAllowPrivateNetwork = false; this.importAdvancedOpen = false;
         if (this.$refs?.importFileInput) this.$refs.importFileInput.value = "";
         this.importSnapshot = importStateKey(this);
         this.importMessage = "技能包已导入为草稿，可继续导入其他技能";

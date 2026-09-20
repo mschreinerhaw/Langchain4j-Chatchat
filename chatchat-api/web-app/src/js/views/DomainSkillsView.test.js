@@ -105,6 +105,8 @@ describe("DomainSkillsView", () => {
     expect(context.importFile).toBeNull();
     expect(context.importUrl).toBe("");
     expect(context.importName).toBe("");
+    expect(context.importAdvancedOpen).toBe(false);
+    expect(context.importHttpMethod).toBe("GET");
   });
 
   it("imports a skill from an internet address", async () => {
@@ -112,14 +114,19 @@ describe("DomainSkillsView", () => {
     const context = {
       busy: false, error: "", message: "", importMode: "url", importFile: null,
       importUrl: " https://skills.example/SKILL.md ", importName: "Internet Skill",
-      importCategory: "Research", importOpen: true, load: vi.fn(),
+      importCategory: "Research", importOpen: true, importHttpMethod: "POST",
+      importQueryParams: '{"version":"latest"}', importHeaders: '{"Authorization":"Bearer token"}',
+      importRequestBody: '{"format":"markdown"}', importAllowPrivateNetwork: true, load: vi.fn(),
       perform: DomainSkillsView.methods.perform
     };
 
     await DomainSkillsView.methods.importSkill.call(context);
 
     expect(api.importDomainSkillFromUrl).toHaveBeenCalledWith(
-      "https://skills.example/SKILL.md", "Internet Skill", "Research");
+      "https://skills.example/SKILL.md", "Internet Skill", "Research", {
+        method: "POST", queryParams: { version: "latest" }, headers: { Authorization: "Bearer token" },
+        body: '{"format":"markdown"}', allowPrivateNetwork: true
+      });
     expect(context.importOpen).toBe(true);
     expect(context.importMessage).toContain("可继续导入");
     expect(context.load).toHaveBeenCalledWith(true);

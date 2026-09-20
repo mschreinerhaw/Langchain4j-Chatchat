@@ -140,6 +140,15 @@ public class DomainSkillService implements DomainSkillRuntimePort {
     }
 
     @Transactional
+    public DomainSkillEntity importUrl(String tenantId, String ownerId, String sourceUrl,
+                                       String name, String category,
+                                       DomainSkillRemoteImporter.DownloadRequest request) {
+        DomainSkillRemoteImporter.RemoteFile file = remoteImporter.download(sourceUrl, request);
+        return importBytes(tenantId, ownerId, file.bytes(), file.fileName(), name, category,
+            "Imported from " + trim(file.sourceUrl(), 1900), true);
+    }
+
+    @Transactional
     public synchronized DomainSkillEntity publish(String tenantId, String id) {
         DomainSkillEntity skill = owned(id, tenantId);
         PublicationQuota quota = quota(tenantId);

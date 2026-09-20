@@ -149,7 +149,20 @@
         <label><span>名称（可选）</span><input v-model="importName" maxlength="200"></label>
         <label><span>分类 *</span><select v-model="importCategory" required><option value="" disabled>请选择分类</option><option v-for="item in categoryOptions" :key="item.name" :value="item.name">{{ item.name }}</option></select></label>
         <p v-if="!categoryOptions.length" class="domain-skill-field-hint">暂无可选分类，请使用左侧分类栏的“+”创建分类后再导入。</p>
-        <label v-if="importMode === 'url'" class="domain-skill-url-field"><span>互联网地址 *</span><input v-model.trim="importUrl" type="url" required maxlength="2048" placeholder="https://example.com/SKILL.md"><small>支持公开的 HTTP/HTTPS Markdown 或 ZIP 地址，最大 5MB。</small></label>
+        <div v-if="importMode === 'url'" class="domain-skill-url-import">
+          <label class="domain-skill-url-field"><span>互联网地址 *</span><input v-model.trim="importUrl" type="url" required maxlength="2048" placeholder="https://example.com/SKILL.md"><small>支持互联网或内网 HTTP API 返回的 Markdown / ZIP，最大 5MB。</small></label>
+          <button type="button" class="domain-skill-advanced-toggle" :aria-expanded="importAdvancedOpen" aria-controls="domain-skill-http-options" @click="importAdvancedOpen = !importAdvancedOpen">
+            <span>高级参数</span><ChevronDown :size="14" :class="{ expanded: importAdvancedOpen }" aria-hidden="true" />
+          </button>
+          <section v-if="importAdvancedOpen" id="domain-skill-http-options" class="domain-skill-http-options">
+            <label><span>请求方法</span><select v-model="importHttpMethod"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select></label>
+            <label><span>Query 参数（JSON）</span><textarea v-model="importQueryParams" rows="3" spellcheck="false" placeholder='{"version":"latest"}'></textarea></label>
+            <label><span>请求头（JSON）</span><textarea v-model="importHeaders" rows="3" spellcheck="false" placeholder='{"Authorization":"Bearer ..."}'></textarea></label>
+            <label v-if="importHttpMethod !== 'GET'"><span>请求体</span><textarea v-model="importRequestBody" rows="4" spellcheck="false" placeholder='{"format":"markdown"}'></textarea></label>
+            <label class="domain-skill-private-network"><input v-model="importAllowPrivateNetwork" type="checkbox"><span>允许访问内网地址</span></label>
+            <small class="domain-skill-http-hint">仅在可信内网接口需要时开启；本机、回环及链路本地地址始终禁止访问。接口响应需为 Markdown 或 ZIP。</small>
+          </section>
+        </div>
         <label v-else class="file-picker"><input ref="importFileInput" type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
         <footer><button type="button" class="secondary-button" @click="requestCloseImport">取消</button><button :disabled="busy || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())">导入</button></footer>
       </form>

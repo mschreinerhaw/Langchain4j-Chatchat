@@ -1,10 +1,12 @@
 ﻿import "../../styles/pages/ai-search.css";
+import { ChevronDown } from "@lucide/vue";
 import {
   cancelDocumentSearch,
   cancelSearchDocumentUpload,
   deleteSearchDocument,
   fetchResearchLibrary,
   getSearchDocument,
+  importSearchDocumentFromUrl,
   recordUserActivity,
   searchDocuments,
   uploadSearchDocument,
@@ -43,8 +45,23 @@ function defaultUploadForm() {
   };
 }
 
+function parseRequestMap(value, label) {
+  if (!String(value || "").trim()) return {};
+  let parsed;
+  try { parsed = JSON.parse(value); }
+  catch { throw new Error(`${label}必须是有效的 JSON 对象`); }
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error(`${label}必须是 JSON 对象`);
+  }
+  return Object.fromEntries(Object.entries(parsed).map(([key, item]) => {
+    if (item !== null && typeof item === "object") throw new Error(`${label}的值只能是字符串、数字或布尔值`);
+    return [key, item == null ? "" : String(item)];
+  }));
+}
+
 export default {
   name: "AiSearchView",
+  components: { ChevronDown },
   props: {
     pendingDocumentShortcut: {
       type: Object,
@@ -92,6 +109,14 @@ export default {
       uploadCategories: [],
       uploadCategoriesLoading: false,
       uploadForm: defaultUploadForm(),
+      uploadMode: "file",
+      uploadUrl: "",
+      uploadAdvancedOpen: false,
+      uploadHttpMethod: "GET",
+      uploadQueryParams: "",
+      uploadHeaders: "",
+      uploadRequestBody: "",
+      uploadAllowPrivateNetwork: false,
       appliedDocumentShortcutId: "",
       documentTypeOptions: [
         { value: "auto", label: "自动识别" },
@@ -319,14 +344,20 @@ export default {
     async uploadDocument() {
       const files = this.uploadForm.files?.length ? this.uploadForm.files : (this.uploadForm.file ? [this.uploadForm.file] : []);
       const category = this.resolveUploadCategory();
-      if (!files.length) {
+      if (this.uploadMode === "file" && !files.length) {
         this.uploadError = "请选择要上传的文件";
         return;
       }
-      const validation = validateDocumentUploadSelection(files);
-      if (!validation.valid) {
-        this.uploadError = validation.message;
+      if (this.uploadMode === "url" && !this.uploadUrl.trim()) {
+        this.uploadError = "请输入文档网络地址";
         return;
+      }
+      if (this.uploadMode === "file") {
+        const validation = validateDocumentUploadSelection(files);
+        if (!validation.valid) {
+          this.uploadError = validation.message;
+          return;
+        }
       }
       if (!category) {
         this.uploadError = this.uploadForm.categoryMode === "custom" ? "请输入新分类名称" : "请选择文档分类";
@@ -340,6 +371,34 @@ export default {
       this.documentUploadRequestId = uploadRequestId;
       this.documentUploadController = uploadController;
       try {
+        if (this.uploadMode === "url") {
+          const method = this.uploadHttpMethod || "GET";
+          const document = await importSearchDocumentFromUrl({
+            url: this.uploadUrl.trim(),
+            title: this.uploadForm.title,
+            source: this.uploadForm.source,
+            date: this.uploadForm.date,
+            tags: this.uploadForm.tags,
+            category,
+            documentType: this.uploadForm.documentType,
+            tenantId: this.effectiveTenantId,
+            userId: this.userId,
+            request: {
+              method,
+              queryParams: parseRequestMap(this.uploadQueryParams, "Query 参数"),
+              headers: parseRequestMap(this.uploadHeaders, "请求头"),
+              body: method === "GET" ? "" : (this.uploadRequestBody || ""),
+              allowPrivateNetwork: Boolean(this.uploadAllowPrivateNetwork)
+            }
+          }, {
+            signal: uploadController.signal,
+            uploadRequestId
+          });
+          this.recordDocumentActivity(document, "VIEW");
+          this.uploadNotice = "文档已从网络同步并建立索引，请点击右上角关闭按钮关闭窗口。";
+          this.resetUploadForm();
+          return;
+        }
         const formData = new FormData();
         formData.append("source", this.uploadForm.source);
         formData.append("date", this.uploadForm.date);
@@ -554,6 +613,14 @@ export default {
     },
     resetUploadForm() {
       this.uploadForm = defaultUploadForm();
+      this.uploadMode = "file";
+      this.uploadUrl = "";
+      this.uploadAdvancedOpen = false;
+      this.uploadHttpMethod = "GET";
+      this.uploadQueryParams = "";
+      this.uploadHeaders = "";
+      this.uploadRequestBody = "";
+      this.uploadAllowPrivateNetwork = false;
       const input = this.$refs.uploadFile;
       if (input) {
         input.value = "";

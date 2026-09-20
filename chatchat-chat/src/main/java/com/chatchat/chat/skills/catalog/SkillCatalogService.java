@@ -1215,7 +1215,9 @@ public class SkillCatalogService {
     }
 
     private Map<String, Object> normalizeRoleRuntimePolicy(Map<String, Object> config) {
-        return normalizeRuntimePolicy(config, 1200);
+        Map<String, Object> normalized = new LinkedHashMap<>(normalizeRuntimePolicy(config, 1200));
+        preserveBoundDomainSkillIds(config, normalized);
+        return normalized.isEmpty() ? Map.of() : Map.copyOf(normalized);
     }
 
     private Map<String, Object> normalizeRuntimePolicy(Map<String, Object> config, int defaultBudget) {
@@ -1253,6 +1255,7 @@ public class SkillCatalogService {
         if (runtimeEnvironment != null) {
             normalized.put("runtimeEnvironment", runtimeEnvironment);
         }
+        preserveBoundDomainSkillIds(source, normalized);
         String documentScopeMode = normalizeText(String.valueOf(firstObject(
             source, "documentScopeMode", "document_scope_mode")));
         if (documentScopeMode != null && !"null".equalsIgnoreCase(documentScopeMode)) {
@@ -1364,6 +1367,15 @@ public class SkillCatalogService {
         normalized.put(RESULT_HANDLING_POLICY, normalizeResultHandlingPolicy(firstObject(
             source, RESULT_HANDLING_POLICY, "result_handling_policy")));
         return normalized;
+    }
+
+    private void preserveBoundDomainSkillIds(Map<String, Object> source, Map<String, Object> target) {
+        if (source == null || target == null) return;
+        boolean configured = source.containsKey("boundDomainSkillIds")
+            || source.containsKey("bound_domain_skill_ids");
+        if (!configured) return;
+        target.put("boundDomainSkillIds", stringValues(firstObject(
+            source, "boundDomainSkillIds", "bound_domain_skill_ids")));
     }
 
     private Map<String, Object> normalizeResultHandlingPolicy(Object rawPolicy) {

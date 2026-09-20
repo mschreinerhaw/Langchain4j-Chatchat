@@ -112,7 +112,8 @@ class SkillCatalogServiceTest {
             "role-model", "直接回答业务问题", null,
             List.of("mcp_"), List.of("customer-service"), List.of(toolName), List.of(), List.of(),
             List.of(new SkillToolConfig(toolName, "客户持仓", "mcp", null, List.of(), "read", 5, true)),
-            null, Map.of("enabled", true, "steps", List.of(Map.of("tool", toolName))),
+            null, Map.of("enabled", true, "steps", List.of(Map.of("tool", toolName)),
+                "boundDomainSkillIds", List.of("skill-risk")),
             new SkillDefinition.DefaultDataAsset("asset-1", "客户库", "database", null, true),
             null, List.of(), SkillCatalogService.MARKET_STATUS_DRAFT, false));
 
@@ -121,7 +122,8 @@ class SkillCatalogServiceTest {
         assertThat(saved.boundMcpServiceIds()).isEmpty();
         assertThat(saved.boundMcpToolNames()).isEmpty();
         assertThat(saved.toolConfigs()).isEmpty();
-        assertThat(saved.workflowConfig()).isEmpty();
+        assertThat(saved.workflowConfig())
+            .containsOnly(Map.entry("boundDomainSkillIds", List.of("skill-risk")));
         assertThat(saved.defaultDataAsset()).isNull();
     }
 
@@ -160,6 +162,30 @@ class SkillCatalogServiceTest {
             "enabled", true, "document_scope_mode", "STRICT")));
 
         assertThat(saved.workflowConfig()).containsEntry("documentScopeMode", "strict");
+    }
+
+    @Test
+    void persistsSelectedDomainSkillsForAgentAnalysisRuntime() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillConfigVersionRepository versionRepository = mock(SkillConfigVersionRepository.class);
+        when(repository.findById("db_ops_assistant")).thenReturn(Optional.empty());
+        when(repository.save(any(SkillConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.save(any(SkillConfigVersionEntity.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        SkillCatalogService service = new SkillCatalogService(
+            repository, versionRepository, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+
+        SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
+            "enabled", true,
+            "boundDomainSkillIds", List.of("skill-risk", "skill-market", "skill-risk")
+        )));
+
+        assertThat(saved.workflowConfig().get("boundDomainSkillIds"))
+            .isEqualTo(List.of("skill-risk", "skill-market"));
+        ArgumentCaptor<SkillConfigEntity> entityCaptor = ArgumentCaptor.forClass(SkillConfigEntity.class);
+        verify(repository).save(entityCaptor.capture());
+        assertThat(entityCaptor.getValue().getWorkflowConfigJson())
+            .contains("\"boundDomainSkillIds\":[\"skill-risk\",\"skill-market\"]");
     }
 
     @Test

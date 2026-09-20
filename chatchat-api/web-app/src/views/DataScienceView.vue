@@ -62,9 +62,37 @@
             <template v-else-if="!aiSuggestion"><div class="ai-intro"><span>✦</span><strong>想让代码做什么？</strong><p>描述需求，AI 会结合当前脚本和选中代码生成建议。</p></div><div class="ai-examples"><button v-for="example in aiExamples" :key="example" @click="useAiExample(example)">{{ example }}</button></div></template>
             <div v-else class="ai-result" :class="{applied:aiStage==='applied'}"><div class="ai-result-head"><strong>{{ aiStage==='applied'?'代码已写入':'代码建议已生成' }}</strong><span :title="aiSuggestion.modelName">{{ aiSuggestion.modelName || selectedAiModelLabel }} · {{ aiSuggestionLines }} 行 · {{ aiElapsedMs }} ms</span></div><p v-if="aiSuggestion.appliedSkills?.length" class="ai-skill-applied">专业增强：{{ aiSuggestion.appliedSkills.map(skill=>skill.name).join('、') }}</p><p v-if="aiAppliedInfo" class="ai-applied-notice"><b>✓ 已{{ aiAppliedInfo.verb }}{{ aiAppliedInfo.mode }}</b><span>{{ aiAppliedInfo.lines }} 行代码已写入并选中，当前修改尚未保存。</span></p><PythonCodeDiff v-if="aiShowsDiff" :diff="aiDiff" :action="aiSuggestion.action" :request="aiChangeRequest" :scope="aiChangeScope" /><pre v-else>{{ aiSuggestion.code }}</pre><footer><button @click="resetAiSuggestion">{{ aiStage==='applied'?'继续生成':'放弃' }}</button><button class="apply" :class="{done:aiStage==='applied'}" :disabled="aiStage==='applied'" @click="applyAiSuggestion">{{ aiStage==='applied'?'✓ 已应用':aiApplyLabel }}</button></footer></div>
           </section>
-          <footer class="ai-composer"><div class="ai-composer-options"><select v-model="aiAction" :disabled="aiBusy"><option value="generate">生成</option><option value="continue">续写</option><option value="fix">修复</option><option value="optimize">优化</option></select><select v-model="aiModel" class="ai-model-select" :disabled="aiBusy||!aiModels.length" title="代码生成模型"><option v-if="!aiModels.length" value="">暂无可用模型</option><option v-for="model in aiModels" :key="model.value" :value="model.value">{{ model.label }}{{ model.defaultModel?'（默认）':'' }}</option></select></div><details class="ai-skill-picker"><summary>领域 Skills<span>{{ aiSkillIds.length ? `已选 ${aiSkillIds.length}/8` : '最多选择 8 个' }}</span></summary><div><label v-for="skill in aiSkills" :key="skill.id" :title="skill.description"><input v-model="aiSkillIds" type="checkbox" :value="skill.id" :disabled="aiBusy||(!aiSkillIds.includes(skill.id)&&aiSkillIds.length>=8)"><span><strong>{{ skill.name }}</strong><small>{{ skill.category }}</small></span></label><p v-if="!aiSkills.length">暂无已发布的领域 Skill</p></div></details><textarea ref="aiPrompt" v-model.trim="aiPrompt" :disabled="aiBusy" placeholder="例如：读取 values 数组，计算均值、中位数和标准差…" @keydown.ctrl.enter.prevent="askAi" @keydown.meta.enter.prevent="askAi"></textarea><div><small>{{ aiBusy?'AI 正在读取并生成代码…':'Ctrl + Enter 发送' }}</small><button @click="askAi" :disabled="aiBusy||!aiPrompt||!aiModel">{{ aiBusy?'生成中…':'发送 ↑' }}</button></div></footer>
+          <footer class="ai-composer"><div class="ai-composer-options"><select v-model="aiAction" :disabled="aiBusy"><option value="generate">生成</option><option value="continue">续写</option><option value="fix">修复</option><option value="optimize">优化</option></select><select v-model="aiModel" class="ai-model-select" :disabled="aiBusy||!aiModels.length" title="代码生成模型"><option v-if="!aiModels.length" value="">暂无可用模型</option><option v-for="model in aiModels" :key="model.value" :value="model.value">{{ model.label }}{{ model.defaultModel?'（默认）':'' }}</option></select></div><button type="button" class="ai-skill-text-button" :disabled="aiBusy" :title="selectedAiSkills.map(skill=>skill.name).join('、') || '选择参与代码生成的领域技能'" @click="openAiSkillPicker"><span>领域 Skills</span><small>{{ aiSkillSelectionLabel }}</small><i aria-hidden="true">›</i></button><textarea ref="aiPrompt" v-model.trim="aiPrompt" :disabled="aiBusy" placeholder="例如：读取 values 数组，计算均值、中位数和标准差…" @keydown.ctrl.enter.prevent="askAi" @keydown.meta.enter.prevent="askAi"></textarea><div><small>{{ aiBusy?'AI 正在读取并生成代码…':'Ctrl + Enter 发送' }}</small><button @click="askAi" :disabled="aiBusy||!aiPrompt||!aiModel">{{ aiBusy?'生成中…':'发送 ↑' }}</button></div></footer>
         </aside>
       </div>
+    </div>
+
+    <div v-if="aiSkillPickerOpen" class="ai-skill-dialog-backdrop" role="presentation" tabindex="-1" @mousedown.self="closeAiSkillPicker" @keydown.esc.prevent="closeAiSkillPicker">
+      <section class="ai-skill-dialog" role="dialog" aria-modal="true" aria-labelledby="ai-skill-dialog-title">
+        <header>
+          <div><p>Python 开发</p><h2 id="ai-skill-dialog-title">选择领域 Skills</h2><span>选择已发布的专业规则和工作流程，应用后将直接参与本次代码生成。</span></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭领域技能选择" title="关闭" @click="closeAiSkillPicker">×</button>
+        </header>
+        <div class="ai-skill-dialog-body">
+          <div class="ai-skill-searchbar">
+            <label><span>搜索领域技能</span><input ref="aiSkillSearch" v-model.trim="aiSkillSearchQuery" type="search" placeholder="搜索名称、分类或说明"></label>
+            <label><span>业务分类</span><select v-model="aiSkillCategoryFilter"><option value="ALL">全部分类</option><option v-for="category in aiSkillCategoryOptions" :key="category" :value="category">{{ category }}</option></select></label>
+          </div>
+          <div class="ai-skill-batchbar"><span>仅展示已经发布的领域技能，最多选择 8 个。</span><strong>当前结果 {{ filteredAiSkills.length }} 个 · 已选 {{ aiSkillDraftIds.length }} 个</strong></div>
+          <div v-if="filteredAiSkills.length" class="ai-skill-checklist">
+            <label v-for="skill in filteredAiSkills" :key="skill.id" class="ai-skill-check" :class="{active:aiSkillDraftIds.includes(skill.id),disabled:!aiSkillDraftIds.includes(skill.id)&&aiSkillDraftIds.length>=8}" :title="skill.description || skill.name">
+              <input type="checkbox" :checked="aiSkillDraftIds.includes(skill.id)" :disabled="!aiSkillDraftIds.includes(skill.id)&&aiSkillDraftIds.length>=8" @change="toggleAiSkillDraft(skill.id)">
+              <span><strong>{{ skill.name }}</strong><small>{{ skill.category || '未分类' }} · 已发布</small><em>{{ skill.description || '暂无说明' }}</em></span>
+            </label>
+          </div>
+          <p v-else-if="aiSkills.length" class="ai-skill-empty">没有匹配的领域技能，请调整关键词或分类。</p>
+          <p v-else class="ai-skill-empty">暂无已发布的领域技能。</p>
+        </div>
+        <footer>
+          <button v-if="aiSkillDraftIds.length" type="button" class="ai-skill-clear-button" @click="clearAiSkillDraft">清空已选</button><span v-else></span>
+          <div><button type="button" @click="closeAiSkillPicker">取消</button><button type="button" class="ds-primary" @click="applyAiSkillSelection">应用（已选 {{ aiSkillDraftIds.length }} 项）</button></div>
+        </footer>
+      </section>
     </div>
 
     <section v-show="!loading&&tab==='data'" class="ds-data-pane">

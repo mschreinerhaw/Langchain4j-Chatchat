@@ -63,7 +63,13 @@ describe("Python workbench helpers", () => {
 
     expect(script).toContain("fetchPythonAssistSkills()");
     expect(script).toContain("skillIds: this.aiSkillIds");
-    expect(view).toContain('class="ai-skill-picker"');
+    expect(script).toContain("filteredAiSkills()");
+    expect(script).toContain("applyAiSkillSelection()");
+    expect(view).toContain('class="ai-skill-text-button"');
+    expect(view).toContain('class="ai-skill-dialog"');
+    expect(view).toContain('v-model="aiSkillCategoryFilter"');
+    expect(view).toContain('v-model.trim="aiSkillSearchQuery"');
+    expect(view).toContain("仅展示已经发布的领域技能");
     expect(view).toContain("aiSuggestion.appliedSkills");
   });
 });

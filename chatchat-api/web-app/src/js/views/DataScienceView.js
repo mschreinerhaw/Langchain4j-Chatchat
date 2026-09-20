@@ -165,6 +165,10 @@ export default {
     aiModel: "",
     aiSkills: [],
     aiSkillIds: [],
+    aiSkillPickerOpen: false,
+    aiSkillSearchQuery: "",
+    aiSkillCategoryFilter: "ALL",
+    aiSkillDraftIds: [],
     aiExamples: [
       "读取 CSV 并按部门汇总金额",
       "校验输入字段并返回错误明细",
@@ -347,6 +351,26 @@ export default {
         "系统默认模型"
       );
     },
+    selectedAiSkills() {
+      const selected = new Set(this.aiSkillIds);
+      return this.aiSkills.filter((skill) => selected.has(skill.id));
+    },
+    aiSkillCategoryOptions() {
+      return [...new Set(this.aiSkills.map((skill) => String(skill.category || "未分类").trim()).filter(Boolean))]
+        .sort((left, right) => left.localeCompare(right, "zh-CN"));
+    },
+    filteredAiSkills() {
+      const query = this.aiSkillSearchQuery.trim().toLowerCase();
+      return this.aiSkills.filter((skill) => {
+        const category = String(skill.category || "未分类").trim() || "未分类";
+        if (this.aiSkillCategoryFilter !== "ALL" && category !== this.aiSkillCategoryFilter) return false;
+        if (!query) return true;
+        return `${skill.name || ""} ${category} ${skill.description || ""}`.toLowerCase().includes(query);
+      });
+    },
+    aiSkillSelectionLabel() {
+      return this.aiSkillIds.length ? `已选 ${this.aiSkillIds.length}/8` : "选择已发布技能";
+    },
     parameterValidation() {
       try {
         const value = parsePythonExecutionParameters(this.parametersText);
@@ -456,6 +480,7 @@ export default {
         this.aiModels = models || [];
         this.aiSkills = Array.isArray(skills) ? skills : [];
         this.aiSkillIds = this.aiSkillIds.filter((id) => this.aiSkills.some((skill) => skill.id === id));
+        this.aiSkillDraftIds = this.aiSkillDraftIds.filter((id) => this.aiSkills.some((skill) => skill.id === id));
         if (!this.aiModels.some((model) => model.value === this.aiModel))
           this.aiModel =
             this.aiModels.find((model) => model.defaultModel)?.value ||
@@ -1082,6 +1107,32 @@ export default {
     useAiExample(value) {
       this.aiPrompt = value;
       this.$refs.aiPrompt?.focus();
+    },
+    openAiSkillPicker() {
+      if (this.aiBusy) return;
+      this.aiSkillDraftIds = [...this.aiSkillIds];
+      this.aiSkillSearchQuery = "";
+      this.aiSkillCategoryFilter = "ALL";
+      this.aiSkillPickerOpen = true;
+      nextTick(() => this.$refs.aiSkillSearch?.focus());
+    },
+    closeAiSkillPicker() {
+      this.aiSkillPickerOpen = false;
+      this.aiSkillDraftIds = [];
+    },
+    toggleAiSkillDraft(skillId) {
+      const selected = new Set(this.aiSkillDraftIds);
+      if (selected.has(skillId)) selected.delete(skillId);
+      else if (selected.size < 8) selected.add(skillId);
+      this.aiSkillDraftIds = [...selected];
+    },
+    clearAiSkillDraft() {
+      this.aiSkillDraftIds = [];
+    },
+    applyAiSkillSelection() {
+      this.aiSkillIds = [...this.aiSkillDraftIds];
+      this.aiSkillPickerOpen = false;
+      this.aiSkillDraftIds = [];
     },
     async askAi() {
       if (!this.aiPrompt.trim()) {

@@ -156,6 +156,7 @@ public interface McpAdministrationPort extends RuntimeProtocolPort {
     record ToolCatalogEntry(
         String localToolName,
         String displayName,
+        String chineseAlias,
         String description,
         String sourceType,
         String sourceLabel,

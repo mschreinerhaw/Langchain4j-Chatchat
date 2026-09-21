@@ -19,6 +19,19 @@ vi.mock("../../services/api.js", () => ({
 
 import AgentWorkshopView from "./AgentWorkshopView.js";
 
+describe("AgentWorkshopView MCP Chinese aliases", () => {
+  it("keeps the English tool identity while exposing the Chinese alias for search and hover", () => {
+    const tools = AgentWorkshopView.computed.normalizedMcpTools.call({
+      registeredMcpTools: [{ localToolName: "mcp_demo_search", remoteToolName: "search", chineseAlias: "检索资料" }]
+    });
+    expect(tools[0]).toMatchObject({
+      localToolName: "mcp_demo_search", remoteToolName: "search", chineseAlias: "检索资料"
+    });
+    expect(AgentWorkshopView.methods.toolSearchText.call({}, tools[0])).toContain("检索资料");
+    expect(AgentWorkshopView.methods.applicabilityTooltip.call({}, tools[0])).toContain("英文名称：search");
+  });
+});
+
 describe("AgentWorkshopView published Agent curl access", () => {
   beforeEach(() => {
     authSession.current = null;

@@ -226,7 +226,7 @@ public class DefaultMcpAdministrationAdapter implements McpAdministrationPort {
             : firstNonBlank(mcpTool.backendServiceType(), "未分类");
         List<ToolParameterDescriptor> parameters = metadata == null || metadata.getParameters() == null
             ? List.of() : metadata.getParameters().stream().map(this::toParameter).toList();
-        return new ToolCatalogEntry(name, displayName, description, sourceType,
+        return new ToolCatalogEntry(name, displayName, mcpTool == null ? null : mcpTool.chineseAlias(), description, sourceType,
             "mcp".equals(sourceType) ? "MCP工具" : "后端工具",
             mcpTool == null ? stringValue(metadataMap.get("mcpCapabilityCode")) : mcpTool.serviceId(),
             mcpTool == null ? stringValue(metadataMap.get("mcpCapabilityName")) : mcpTool.serviceName(),

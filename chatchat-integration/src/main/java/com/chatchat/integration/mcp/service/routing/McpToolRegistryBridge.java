@@ -534,7 +534,8 @@ public class McpToolRegistryBridge {
             categories,
             tags,
             applicability,
-            capabilityNode
+            capabilityNode,
+            chineseAlias(effectiveMeta)
         ));
         if (activeContract != null) {
             registeredContractChecksums.put(localName, activeContract.checksum());
@@ -1184,6 +1185,13 @@ public class McpToolRegistryBridge {
         return null;
     }
 
+    private String chineseAlias(Map<String, Object> meta) {
+        if (meta == null) return null;
+        String alias = firstText(stringValue(meta.get("chineseAlias")), stringValue(meta.get("title")));
+        return alias != null && alias.codePoints().anyMatch(code -> Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)
+            ? alias : null;
+    }
+
     public record RegisteredMcpTool(
         String localToolName,
         String serviceId,
@@ -1195,15 +1203,23 @@ public class McpToolRegistryBridge {
         List<String> categories,
         List<String> tags,
         Map<String, Object> applicability,
-        McpCapabilityNode capabilityNode
+        McpCapabilityNode capabilityNode,
+        String chineseAlias
     ) {
+        public RegisteredMcpTool(String localToolName, String serviceId, String serviceName,
+                                 String remoteToolName, String description, String backendServiceType,
+                                 String category, List<String> categories, List<String> tags,
+                                 Map<String, Object> applicability, McpCapabilityNode capabilityNode) {
+            this(localToolName, serviceId, serviceName, remoteToolName, description,
+                backendServiceType, category, categories, tags, applicability, capabilityNode, null);
+        }
         public RegisteredMcpTool(String localToolName,
                                  String serviceId,
                                  String serviceName,
                                  String remoteToolName,
                                  String description) {
             this(localToolName, serviceId, serviceName, remoteToolName, description, null,
-                null, List.of(), List.of(), Map.of(), null);
+                null, List.of(), List.of(), Map.of(), null, null);
         }
 
         public RegisteredMcpTool(String localToolName,
@@ -1213,7 +1229,7 @@ public class McpToolRegistryBridge {
                                  String description,
                                  String backendServiceType) {
             this(localToolName, serviceId, serviceName, remoteToolName, description, backendServiceType,
-                null, List.of(), List.of(), Map.of(), null);
+                null, List.of(), List.of(), Map.of(), null, null);
         }
 
         public RegisteredMcpTool {

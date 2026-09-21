@@ -67,7 +67,8 @@ public class GrpcMcpToolCatalogQueryAdapter implements McpToolCatalogQueryPort {
                 strings(metadata.get("tags")), map(metadata.get("applicability")),
                 McpCapabilityNode.fromMetadata(
                     map(metadata.get(McpCapabilityHierarchy.METADATA_KEY)),
-                    tool.serviceId(), tool.localToolName()).orElse(null));
+                    tool.serviceId(), tool.localToolName()).orElse(null),
+                chineseAlias(metadata));
         }).toList();
     }
 
@@ -86,6 +87,12 @@ public class GrpcMcpToolCatalogQueryAdapter implements McpToolCatalogQueryPort {
 
     private String text(Object value, String fallback) {
         return value == null || String.valueOf(value).isBlank() ? fallback : String.valueOf(value);
+    }
+
+    private String chineseAlias(Map<String, Object> metadata) {
+        String alias = text(metadata.get("chineseAlias"), text(metadata.get("title"), null));
+        return alias != null && alias.codePoints().anyMatch(code -> Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)
+            ? alias : null;
     }
 
     private List<String> strings(Object value) {

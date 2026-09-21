@@ -3677,6 +3677,12 @@
   white-space: nowrap;
 }
 
+.agent-workshop-view .agent-tool-check .agent-tool-english-name {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
 .agent-workshop-view .agent-document-check.disabled {
   opacity: 0.58;
   cursor: not-allowed;

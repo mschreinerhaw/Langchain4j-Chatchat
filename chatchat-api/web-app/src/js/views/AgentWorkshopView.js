@@ -434,6 +434,7 @@ export default {
             serviceName: tool.serviceName || "",
             serviceId: tool.serviceId || "",
             displayName: tool.displayName || "",
+            chineseAlias: tool.chineseAlias || "",
             remoteToolName: tool.remoteToolName || "",
             description: tool.description || "",
             backendServiceType: legacyBackendType || backendServiceTypes[0] || "",
@@ -660,6 +661,7 @@ export default {
       const fields = [
         tool?.localToolName,
         tool?.displayName,
+        tool?.chineseAlias,
         tool?.remoteToolName,
         tool?.description,
         tool?.serviceId,
@@ -702,7 +704,8 @@ export default {
     },
     applicabilityTooltip(tool) {
       const applicability = tool?.applicability || {};
-      const lines = [tool?.localToolName];
+      const lines = [tool?.chineseAlias || tool?.displayName || tool?.remoteToolName || tool?.localToolName];
+      if (tool?.chineseAlias) lines.push(`英文名称：${tool.remoteToolName || tool.localToolName}`);
       if (applicability.summary || applicability.scopeLabel) {
         lines.push(`适用范围：${applicability.summary || applicability.scopeLabel}`);
       }

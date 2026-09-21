@@ -895,7 +895,8 @@
                       @change="toggleTool(tool.localToolName)"
                     >
                     <span>
-                      <strong>{{ tool.displayName || tool.remoteToolName || tool.localToolName }}</strong>
+                      <strong>{{ tool.chineseAlias || tool.displayName || tool.remoteToolName || tool.localToolName }}</strong>
+                      <small v-if="tool.chineseAlias" class="agent-tool-english-name">{{ tool.remoteToolName || tool.localToolName }}</small>
                       <small>
                         {{ tool.serviceName || tool.serviceId || "未归属服务" }}
                         · {{ backendServiceTypesLabel(tool) }}
@@ -903,7 +904,7 @@
                       <small v-if="tool.applicabilitySummary" class="agent-tool-applicability">
                         适用范围：{{ tool.applicabilitySummary }}
                       </small>
-                      <em>{{ tool.localToolName }}</em>
+                      <em v-if="!tool.chineseAlias || tool.localToolName !== tool.remoteToolName">{{ tool.localToolName }}</em>
                     </span>
                   </label>
                 </div>

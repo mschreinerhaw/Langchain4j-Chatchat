@@ -138,7 +138,7 @@
                 <div class="mcp-tool-card-head">
                   <span>{{ toolBadge(tool) }}</span>
                   <div>
-                    <h3>{{ tool.displayName }}</h3>
+                    <h3>{{ tool.chineseAlias || tool.displayName }}</h3>
                     <small>{{ tool.localToolName }}</small>
                   </div>
                   <strong>MCP工具</strong>
@@ -203,7 +203,7 @@
         <header>
           <div>
             <p>工具详情</p>
-            <h2 id="mcp-tool-detail-title">{{ activeTool.displayName || activeTool.localToolName }}</h2>
+            <h2 id="mcp-tool-detail-title">{{ activeTool.chineseAlias || activeTool.displayName || activeTool.localToolName }}</h2>
             <span>{{ activeTool.localToolName }}</span>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭详情" title="关闭详情" @click="closeToolDetail">×</button>

@@ -29,20 +29,28 @@ public interface McpToolCatalogQueryPort extends RuntimeProtocolPort {
         List<String> categories,
         List<String> tags,
         Map<String, Object> applicability,
-        McpCapabilityNode capabilityNode
+        McpCapabilityNode capabilityNode,
+        String chineseAlias
     ) {
+        public RegisteredTool(String localToolName, String serviceId, String serviceName,
+                              String remoteToolName, String description, String backendServiceType,
+                              String category, List<String> categories, List<String> tags,
+                              Map<String, Object> applicability, McpCapabilityNode capabilityNode) {
+            this(localToolName, serviceId, serviceName, remoteToolName, description,
+                backendServiceType, category, categories, tags, applicability, capabilityNode, null);
+        }
         public RegisteredTool(String localToolName, String serviceId, String serviceName,
                               String remoteToolName, String description, String backendServiceType,
                               String category, List<String> categories, List<String> tags,
                               Map<String, Object> applicability) {
             this(localToolName, serviceId, serviceName, remoteToolName, description,
-                backendServiceType, category, categories, tags, applicability, null);
+                backendServiceType, category, categories, tags, applicability, null, null);
         }
 
         public RegisteredTool(String localToolName, String serviceId, String serviceName,
                               String remoteToolName, String description) {
             this(localToolName, serviceId, serviceName, remoteToolName, description, null,
-                null, List.of(), List.of(), Map.of(), null);
+                null, List.of(), List.of(), Map.of(), null, null);
         }
     }
 }

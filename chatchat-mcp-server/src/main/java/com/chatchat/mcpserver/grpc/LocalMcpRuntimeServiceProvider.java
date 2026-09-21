@@ -112,6 +112,10 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         Map<String, Object> extra = new LinkedHashMap<>(source == null || source.getMetadata() == null
             ? Map.of() : source.getMetadata());
         if (published != null && published.meta() != null) extra.putAll(published.meta());
+        if (source != null && source.getTitle() != null && source.getTitle().codePoints()
+            .anyMatch(code -> Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)) {
+            extra.putIfAbsent("chineseAlias", source.getTitle());
+        }
         extra.putIfAbsent("contractVersion", McpToolContractValidator.CONTRACT_VERSION);
         Map<String, Object> inputSchema = canonicalObjectSchema(published == null
             ? map(extra.get("inputSchema")) : published.inputSchema());

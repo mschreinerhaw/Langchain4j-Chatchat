@@ -10,17 +10,29 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.tool.McpDynamicToolRegistryMirror;
+import com.chatchat.mcpserver.tool.McpToolAlias;
+import com.chatchat.mcpserver.tool.McpToolAliasRepository;
+import com.chatchat.mcpserver.tool.McpToolChineseAliasResolver;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class LocalMcpRuntimeServiceProviderTest {
 
     @Test
     void fillsAliasForExistingToolNameWhenPublishedMetadataHasNoAlias() {
+        McpToolAliasRepository aliases = mock(McpToolAliasRepository.class);
+        when(aliases.findById("name:api_template_execute"))
+            .thenReturn(Optional.of(new McpToolAlias("name:api_template_execute", "API 模板执行")));
+        McpToolChineseAliasResolver resolver = new McpToolChineseAliasResolver(aliases, new ObjectMapper());
+        try {
         DefaultToolRegistry registry = new DefaultToolRegistry();
         ToolMetadata metadata = ToolMetadata.builder().id("api_template_execute")
             .title("api_template_execute").description("Execute a template").metadata(Map.of()).build();
@@ -33,6 +45,9 @@ class LocalMcpRuntimeServiceProviderTest {
 
         assertThat(provider.tools(McpToolQuery.all())).singleElement()
             .satisfies(tool -> assertThat(tool.metadata()).containsEntry("chineseAlias", "API 模板执行"));
+        } finally {
+            resolver.close();
+        }
     }
 
     @Test

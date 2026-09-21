@@ -98,6 +98,8 @@ public final class McpToolPublicationReviewer {
         McpSchema.Tool source = publication.specification().tool();
         McpToolPublicationDescriptor descriptor = publication.descriptor();
         Map<String, Object> meta = new LinkedHashMap<>(source.meta() == null ? Map.of() : source.meta());
+        String chineseAlias = McpToolChineseAliasResolver.resolve(source.name(), source.title(), meta);
+        if (chineseAlias != null) meta.put("chineseAlias", chineseAlias);
         meta.put("toolVersion", descriptor.metadata().getVersion());
         meta.put("schemaVersion", descriptor.schemaVersion());
         meta.put("publicationStatus", descriptor.status().name().toLowerCase(java.util.Locale.ROOT));

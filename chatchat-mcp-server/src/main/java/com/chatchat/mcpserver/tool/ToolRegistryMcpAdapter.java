@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Component
+@org.springframework.context.annotation.DependsOn("mcpToolChineseAliasResolver")
 @RequiredArgsConstructor
 @Slf4j
 public class ToolRegistryMcpAdapter {
@@ -108,17 +109,18 @@ public class ToolRegistryMcpAdapter {
         }
 
         String runtimeLevel = runtimeLevelFor(name, metadata);
+        Map<String, Object> publishedMeta = new LinkedHashMap<>(withLimitMeta(
+            governanceFactory.metaForToolMetadata("builtin_tool", name, metadata),
+            name, runtimeLevel, metadata));
+        String chineseAlias = McpToolChineseAliasResolver.resolve(name,
+            metadata == null ? null : metadata.getTitle(), publishedMeta);
+        if (chineseAlias != null) publishedMeta.put("chineseAlias", chineseAlias);
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(name)
             .title(metadata == null ? name : metadata.getTitle())
             .description(description(toolRegistry, name, metadata))
             .inputSchema(toInputSchema(name, metadata))
-            .meta(withLimitMeta(
-                governanceFactory.metaForToolMetadata("builtin_tool", name, metadata),
-                name,
-                runtimeLevel,
-                metadata
-            ))
+            .meta(publishedMeta)
             .build();
 
         return List.of(McpServerFeatures.SyncToolSpecification.builder()

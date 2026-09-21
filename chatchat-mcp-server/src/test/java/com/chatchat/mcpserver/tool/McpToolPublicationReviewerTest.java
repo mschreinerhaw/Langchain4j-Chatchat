@@ -3,10 +3,12 @@ package com.chatchat.mcpserver.tool;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -17,6 +19,61 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class McpToolPublicationReviewerTest {
+
+    @Test
+    void writesChineseAliasIntoPublishedMcpToolMetadata() {
+        McpToolAliasRepository repository = mock(McpToolAliasRepository.class);
+        when(repository.findById("name:api_template_execute"))
+            .thenReturn(Optional.of(new McpToolAlias("name:api_template_execute", "API 模板执行")));
+        McpToolChineseAliasResolver resolver = new McpToolChineseAliasResolver(repository, new ObjectMapper());
+        try {
+        McpSyncServer server = mock(McpSyncServer.class);
+        when(server.listTools()).thenReturn(List.of());
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name("api_template_execute")
+            .title("API template execution gateway")
+            .description("Execute an API template")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(), List.of(), false, null, null))
+            .build();
+        McpServerFeatures.SyncToolSpecification pending = McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool).callHandler((exchange, request) -> null).build();
+
+        McpToolPublicationReviewer.addReviewedTool(server, pending);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<McpServerFeatures.SyncToolSpecification> published =
+            org.mockito.ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
+        verify(server).addTool(published.capture());
+        assertThat(published.getValue().tool().meta())
+            .containsEntry("chineseAlias", "API 模板执行");
+        } finally {
+            resolver.close();
+        }
+    }
+
+    @Test
+    void preservesConfiguredAliasInPublishedMcpToolMetadata() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        when(server.listTools()).thenReturn(List.of());
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name("customer_service_template_query")
+            .title("Customer template query")
+            .description("Query customer templates")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(), List.of(), false, null, null))
+            .meta(Map.of("chineseAlias", "自定义客户模板检索"))
+            .build();
+        McpServerFeatures.SyncToolSpecification pending = McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool).callHandler((exchange, request) -> null).build();
+
+        McpToolPublicationReviewer.addReviewedTool(server, pending);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<McpServerFeatures.SyncToolSpecification> published =
+            org.mockito.ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
+        verify(server).addTool(published.capture());
+        assertThat(published.getValue().tool().meta())
+            .containsEntry("chineseAlias", "自定义客户模板检索");
+    }
 
     @Test
     void rejectsDynamicPublicationAmbiguousToExistingApiWorkflowName() {

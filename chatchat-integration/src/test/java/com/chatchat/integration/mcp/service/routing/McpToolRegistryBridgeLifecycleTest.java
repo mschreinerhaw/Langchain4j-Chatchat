@@ -61,12 +61,15 @@ import org.mockito.ArgumentCaptor;
 class McpToolRegistryBridgeLifecycleTest {
 
     @Test
-    void fillsKnownMcpAliasesWithoutOverridingPublishedChineseAlias() {
+    void usesPublishedChineseAliasWithoutHardcodedFallback() {
         ToolRegistry registry = mock(ToolRegistry.class);
         McpServiceConfigService configService = mock(McpServiceConfigService.class);
         McpGatewayClient gateway = mock(McpGatewayClient.class);
         McpServiceConfig service = service("chatchat-mcp-server", "ChatChat MCP Server");
-        McpToolDefinition known = new McpToolDefinition("api_service_query", "asset discovery", Map.of());
+        McpToolDefinition known = new McpToolDefinition("api_service_query", "asset discovery", Map.of(),
+            "api_service", "low", "read", null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null,
+            Map.of("chineseAlias", "API 服务资产查询"));
         McpToolDefinition customized = new McpToolDefinition(
             "api_template_query", "template discovery", Map.of(),
             "api_service", "low", "read", null, true,

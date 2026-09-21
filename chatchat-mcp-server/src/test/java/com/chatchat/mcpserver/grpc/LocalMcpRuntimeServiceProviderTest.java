@@ -20,6 +20,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LocalMcpRuntimeServiceProviderTest {
 
     @Test
+    void fillsAliasForExistingToolNameWhenPublishedMetadataHasNoAlias() {
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        ToolMetadata metadata = ToolMetadata.builder().id("api_template_execute")
+            .title("api_template_execute").description("Execute a template").metadata(Map.of()).build();
+        registry.registerTool("api_template_execute", metadata, new ToolRegistry.EnhancedTool() {
+            @Override public ToolMetadata getMetadata() { return metadata; }
+            @Override public ToolOutput execute(ToolInput input) { return ToolOutput.success(Map.of()); }
+        });
+        LocalMcpRuntimeServiceProvider provider = new LocalMcpRuntimeServiceProvider(
+            registry, new McpDynamicToolRegistryMirror(registry));
+
+        assertThat(provider.tools(McpToolQuery.all())).singleElement()
+            .satisfies(tool -> assertThat(tool.metadata()).containsEntry("chineseAlias", "API 模板执行"));
+    }
+
+    @Test
     void publishesLocalAliasAndInvokesMirroredTool() {
         DefaultToolRegistry registry = new DefaultToolRegistry();
         ToolMetadata metadata = ToolMetadata.builder().id("customer_template_query")

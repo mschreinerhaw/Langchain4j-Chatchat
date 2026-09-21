@@ -55,6 +55,15 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class McpToolRegistryBridge {
 
+    private static final Map<String, String> CHATCHAT_TOOL_ALIASES = Map.of(
+        "api_service_query", "API 服务资产查询",
+        "api_template_execute", "API 模板执行",
+        "api_template_query", "API 模板检索",
+        "calculator", "计算器",
+        "customer_service_template_query", "客户服务模板查询",
+        "data_query_query", "业务数据查询"
+    );
+
     private final ToolRegistry toolRegistry;
     private final McpServiceConfigService configService;
     private final McpGatewayClient gatewayClient;
@@ -401,6 +410,7 @@ public class McpToolRegistryBridge {
         Map<String, Object> runtimeOutput = canonicalObjectSchema(selectedOutput);
         Map<String, Object> effectiveMeta = effectiveRuntimeMetadata(
             definition.meta(), activeContract);
+        String resolvedChineseAlias = chineseAlias(effectiveMeta, service.getId(), definition.name());
         if (effectiveMeta != null && Boolean.TRUE.equals(effectiveMeta.get("paginationSupported"))) {
             runtimeInput = McpPaginationRequest.augmentInputSchema(runtimeInput);
         }
@@ -418,6 +428,7 @@ public class McpToolRegistryBridge {
         Map<String, Object> extraMetadata = new LinkedHashMap<>();
         extraMetadata.put("serviceId", service.getId());
         extraMetadata.put("remoteToolName", definition.name());
+        if (resolvedChineseAlias != null) extraMetadata.put("chineseAlias", resolvedChineseAlias);
         extraMetadata.put("inputSchema", ToolCallBatchSchema.augment(
             definition.name(),
             runtimeInput
@@ -535,7 +546,7 @@ public class McpToolRegistryBridge {
             tags,
             applicability,
             capabilityNode,
-            chineseAlias(effectiveMeta)
+            resolvedChineseAlias
         ));
         if (activeContract != null) {
             registeredContractChecksums.put(localName, activeContract.checksum());
@@ -1185,11 +1196,12 @@ public class McpToolRegistryBridge {
         return null;
     }
 
-    private String chineseAlias(Map<String, Object> meta) {
-        if (meta == null) return null;
-        String alias = firstText(stringValue(meta.get("chineseAlias")), stringValue(meta.get("title")));
-        return alias != null && alias.codePoints().anyMatch(code -> Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)
-            ? alias : null;
+    private String chineseAlias(Map<String, Object> meta, String serviceId, String remoteToolName) {
+        String alias = meta == null ? null
+            : firstText(stringValue(meta.get("chineseAlias")), stringValue(meta.get("title")));
+        if (alias != null && alias.codePoints().anyMatch(code ->
+            Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)) return alias;
+        return "chatchat-mcp-server".equals(serviceId) ? CHATCHAT_TOOL_ALIASES.get(remoteToolName) : null;
     }
 
     public record RegisteredMcpTool(

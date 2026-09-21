@@ -61,6 +61,29 @@ import org.mockito.ArgumentCaptor;
 class McpToolRegistryBridgeLifecycleTest {
 
     @Test
+    void fillsKnownMcpAliasesWithoutOverridingPublishedChineseAlias() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = service("chatchat-mcp-server", "ChatChat MCP Server");
+        McpToolDefinition known = new McpToolDefinition("api_service_query", "asset discovery", Map.of());
+        McpToolDefinition customized = new McpToolDefinition(
+            "api_template_query", "template discovery", Map.of(),
+            "api_service", "low", "read", null, true,
+            Map.of(), Map.of(), Map.of(), Map.of(), null,
+            Map.of("chineseAlias", "自定义模板检索"));
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(known, customized));
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+
+        bridge.refreshRegistry(0);
+
+        assertThat(bridge.listRegisteredTools()).extracting(McpToolRegistryBridge.RegisteredMcpTool::chineseAlias)
+            .containsExactlyInAnyOrder("API 服务资产查询", "自定义模板检索");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void toolListChangeNotificationRefreshesRuntimeRegistry() {
         ToolRegistry registry = mock(ToolRegistry.class);

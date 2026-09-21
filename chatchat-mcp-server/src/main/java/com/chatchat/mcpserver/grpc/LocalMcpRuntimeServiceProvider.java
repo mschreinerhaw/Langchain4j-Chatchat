@@ -29,6 +29,12 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
     static final String SERVICE_ID = "chatchat-mcp-server";
     static final String LOCAL_PREFIX = "mcp_chatchat_mcp_server_";
     private static final Map<String, String> EXISTING_TOOL_ALIASES = Map.ofEntries(
+        Map.entry("api_service_query", "API 服务资产查询"),
+        Map.entry("api_template_execute", "API 模板执行"),
+        Map.entry("api_template_query", "API 模板检索"),
+        Map.entry("calculator", "计算器"),
+        Map.entry("customer_service_template_query", "客户服务模板查询"),
+        Map.entry("data_query_query", "业务数据查询"),
         Map.entry("Calculator", "计算器"),
         Map.entry("Document Evidence Search", "文档证据检索"),
         Map.entry("Enterprise metadata search", "企业元数据检索"),
@@ -140,14 +146,12 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         if (extra.get("chineseAlias") == null || String.valueOf(extra.get("chineseAlias")).isBlank()) {
             String publishedTitle = published == null ? null : published.title();
             String sourceTitle = source == null ? null : source.getTitle();
-            String title = publishedTitle != null && publishedTitle.codePoints().anyMatch(code ->
-                Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN) ? publishedTitle : sourceTitle;
-            if (title != null) {
-                String alias = title.codePoints().anyMatch(code ->
-                    Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)
-                    ? title : EXISTING_TOOL_ALIASES.get(title);
-                if (alias != null) extra.put("chineseAlias", alias);
-            }
+            String alias = chineseTitle(publishedTitle);
+            if (alias == null) alias = chineseTitle(sourceTitle);
+            if (alias == null && publishedTitle != null) alias = EXISTING_TOOL_ALIASES.get(publishedTitle);
+            if (alias == null && sourceTitle != null) alias = EXISTING_TOOL_ALIASES.get(sourceTitle);
+            if (alias == null) alias = EXISTING_TOOL_ALIASES.get(registryName);
+            if (alias != null) extra.put("chineseAlias", alias);
         }
         extra.putIfAbsent("contractVersion", McpToolContractValidator.CONTRACT_VERSION);
         Map<String, Object> inputSchema = canonicalObjectSchema(published == null
@@ -168,6 +172,11 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
             source == null ? registryName : firstText(source.getDescription(), registryName),
             source == null ? null : source.getCategory(), inputSchema,
             outputSchema, governance, extra);
+    }
+
+    private String chineseTitle(String title) {
+        return title != null && title.codePoints().anyMatch(code ->
+            Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN) ? title : null;
     }
 
     private String resolveRegistryName(String requested) {

@@ -147,6 +147,7 @@
           v-else-if="messageHasRenderableContent(message)"
           class="message-markdown"
           :content="message.content || ''"
+          :collapse-thinking="message.role === 'assistant'"
           :render-markdown="(content) => renderMarkdown(content, message, content !== String(message.content || ''))"
           @drill-down="handleVisualizationDrillDown(message, $event)"
           :preferences="visualizationPreferences(message)"

@@ -1,52 +1,51 @@
 package com.chatchat.api.controller.search;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
-import com.sun.net.httpserver.HttpServer;
+import com.chatchat.knowledgebase.search.model.SearchDocument;
+import com.chatchat.mcp.grpc.v1.DocumentTransferStart;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockPart;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.net.InetSocketAddress;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DocumentMcpGatewayFilterTest {
     @Test
-    void forwardsUploadBytesWithAuthenticatedIdentity() throws Exception {
+    void sendsUploadFileToMcpOverGrpc() throws Exception {
         AtomicReference<String> received = new AtomicReference<>();
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/internal/api/v1/search/documents/upload", exchange -> {
-            received.set(exchange.getRequestMethod() + "|" + exchange.getRequestHeaders().getFirst("X-Document-User-Id")
-                + "|" + exchange.getRequestHeaders().getFirst("X-Document-Tenant-Id") + "|"
-                + exchange.getRequestHeaders().getFirst("X-Document-Gateway-Token") + "|"
-                + new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            byte[] body = "{\"success\":true}".getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, body.length);
-            exchange.getResponseBody().write(body);
-            exchange.close();
+        DocumentGrpcTransferClient rpc = mock(DocumentGrpcTransferClient.class);
+        when(rpc.transfer(any(DocumentTransferStart.class), any(InputStream.class))).thenAnswer(call -> {
+            DocumentTransferStart start = call.getArgument(0);
+            InputStream stream = call.getArgument(1);
+            received.set(start.getOperation() + "|" + start.getTenantId() + "|" + start.getUserId()
+                + "|" + start.getFileName() + "|" + new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+            return SearchDocument.builder().docId("new-1").build();
         });
-        server.start();
-        try {
-            DocumentMcpGatewayFilter filter = new DocumentMcpGatewayFilter(
-                "http://127.0.0.1:" + server.getAddress().getPort(), "secret");
-            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/search/documents/upload");
-            request.setContent("document bytes".getBytes(StandardCharsets.UTF_8));
-            request.setContentType("multipart/form-data; boundary=test");
-            request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "user-1");
-            request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-1");
-            MockHttpServletResponse response = new MockHttpServletResponse();
+        DocumentMcpGatewayFilter filter = new DocumentMcpGatewayFilter("http://127.0.0.1:8090", "secret");
+        ReflectionTestUtils.setField(filter, "documentGrpcTransferClient", rpc);
+        ReflectionTestUtils.setField(filter, "objectMapper", new ObjectMapper());
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/search/documents/upload");
+        request.setContentType("multipart/form-data");
+        request.addPart(new MockPart("file", "guide.txt", "document bytes".getBytes(StandardCharsets.UTF_8)));
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "user-1");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
-            filter.doFilter(request, response, (ignoredRequest, ignoredResponse) -> fail("local search must not run"));
+        filter.doFilter(request, response, (ignoredRequest, ignoredResponse) -> fail("local search must not run"));
 
-            assertThat(response.getStatus()).isEqualTo(200);
-            assertThat(response.getContentAsString()).isEqualTo("{\"success\":true}");
-            assertThat(received.get()).isEqualTo("POST|user-1|tenant-1|secret|document bytes");
-        } finally {
-            server.stop(0);
-        }
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(response.getContentAsString()).contains("new-1");
+        assertThat(received.get()).isEqualTo("UPLOAD|tenant-1|user-1|guide.txt|document bytes");
     }
 }

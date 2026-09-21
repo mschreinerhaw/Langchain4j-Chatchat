@@ -39,7 +39,6 @@ chatchat:
   document:
     gateway:
       enabled: ${CHATCHAT_DOCUMENT_GATEWAY_ENABLED:false}
-      base-url: ${CHATCHAT_DOCUMENT_MCP_BASE_URL:http://localhost:8090}
   knowledge:
     runtime:
       skill-timeout-ms: 15000
@@ -111,9 +110,9 @@ chatchat:
         # Runtime OS directory in-process so contract discovery and invocation see
         # the same 29-tool snapshot instead of delegating to an empty sidecar kernel.
         enabled: false
-        host: localhost
-        port: 9091
-        plaintext: true
+        host: ${CHATCHAT_MCP_GRPC_HOST:localhost}
+        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
+        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:true}
         trust-certificate-path: 
         deadline-ms: 1800000
         catalog-cache-ttl-ms: 60000

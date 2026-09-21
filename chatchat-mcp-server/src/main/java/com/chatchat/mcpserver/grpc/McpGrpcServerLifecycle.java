@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.grpc;
 
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.knowledgebase.search.service.SearchService;
 import com.chatchat.mcpserver.license.McpLicenseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Server;
@@ -26,22 +28,30 @@ public final class McpGrpcServerLifecycle implements SmartLifecycle {
     private final InternalCredentialProperties credentials;
     private final McpGrpcServerProperties properties;
     private final McpLicenseService licenseService;
+    private final SearchService searchService;
+    private final SearchProperties searchProperties;
     private volatile Server server;
     private volatile boolean running;
 
     public McpGrpcServerLifecycle(McpRuntimeKernel kernel, ObjectMapper objectMapper,
                                   InternalCredentialProperties credentials,
                                   McpGrpcServerProperties properties,
-                                  McpLicenseService licenseService) {
+                                  McpLicenseService licenseService,
+                                  SearchService searchService, SearchProperties searchProperties) {
         this.kernel = kernel;
         this.objectMapper = objectMapper;
         this.credentials = credentials;
         this.properties = properties;
         this.licenseService = licenseService;
+        this.searchService = searchService;
+        this.searchProperties = searchProperties;
     }
 
     @Override public synchronized void start() {
         if (running || !properties.isEnabled()) return;
+        if (credentials == null || !credentials.isEnabled() || credentials.resolvedSecret().isBlank()) {
+            throw new IllegalStateException("MCP gRPC document transfer requires an internal credential");
+        }
         McpRuntimeGrpcService service = new McpRuntimeGrpcService(
             kernel, objectMapper, properties.resolvedChunkBytes(), licenseService);
         try {
@@ -49,6 +59,9 @@ public final class McpGrpcServerLifecycle implements SmartLifecycle {
                 .maxInboundMessageSize(properties.resolvedMaxInboundMessageBytes())
                 .permitKeepAliveWithoutCalls(true)
                 .addService(ServerInterceptors.intercept(service,
+                    new McpGrpcAuthorizationInterceptor(credentials)))
+                .addService(ServerInterceptors.intercept(
+                    new DocumentGrpcTransferService(searchService, searchProperties, objectMapper),
                     new McpGrpcAuthorizationInterceptor(credentials)));
             if (!properties.isPlaintext()) {
                 if (properties.getCertificateChainPath() == null || properties.getCertificateChainPath().isBlank()

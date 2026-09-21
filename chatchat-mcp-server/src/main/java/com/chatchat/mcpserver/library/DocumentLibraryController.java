@@ -506,53 +506,6 @@ public class DocumentLibraryController {
         return ApiResponse.success(searchService.createOrUpdate(document), "Document indexed");
     }
 
-    /** One-time import of API-owned documents, preserving IDs and original files. */
-    @PostMapping(value = "/documents/migrate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<SearchDocument> migrateDocument(@RequestPart("document") String documentJson,
-                                                       @RequestPart(value = "file", required = false) MultipartFile file,
-                                                       HttpServletRequest request) throws IOException {
-        if (!isAdminOperator(request)) {
-            return ApiResponse.error(403, "only admin can migrate documents");
-        }
-        SearchDocument document = objectMapper.readValue(documentJson, SearchDocument.class);
-        if (document.getDocId() == null || !document.getDocId().matches("[A-Za-z0-9._:-]{1,128}")) {
-            return ApiResponse.badRequest("invalid document ID");
-        }
-        if (document.getContent() == null || document.getContent().isBlank()) {
-            return ApiResponse.badRequest("document content is required");
-        }
-        Path savedFile = null;
-        boolean existingFile = false;
-        if (file != null && !file.isEmpty()) {
-            if (file.getSize() > searchProperties.getMaxUploadBytes()) {
-                return ApiResponse.badRequest("file exceeds upload limit");
-            }
-            String fileName = file.getOriginalFilename();
-            fileName = fileName == null ? "document" : Path.of(fileName).getFileName().toString();
-            Path root = Path.of(searchProperties.getFilePath()).toAbsolutePath().normalize();
-            Files.createDirectories(root);
-            savedFile = root.resolve(document.getDocId() + "_" + fileName).normalize();
-            if (!savedFile.startsWith(root)) {
-                return ApiResponse.badRequest("invalid file name");
-            }
-            existingFile = Files.exists(savedFile);
-            try (InputStream input = file.getInputStream()) {
-                Files.copy(input, savedFile, StandardCopyOption.REPLACE_EXISTING);
-            }
-            document.setFilePath(savedFile.toString());
-            document.setFileName(fileName);
-            document.setFileSize(file.getSize());
-        } else {
-            document.setFilePath(null);
-        }
-        try {
-            return ApiResponse.success(searchService.createOrUpdate(document), "Document migrated and indexed");
-        } catch (RuntimeException exception) {
-            if (savedFile != null && !existingFile) Files.deleteIfExists(savedFile);
-            throw exception;
-        }
-    }
-
     /**
      * Performs the upload document operation.
      *

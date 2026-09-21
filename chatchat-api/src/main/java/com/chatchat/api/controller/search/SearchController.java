@@ -66,6 +66,8 @@ public class SearchController {
     private final CategoryReindexTaskService categoryReindexTaskService;
     private final ApiLimitProperties limitProperties;
     private final DocumentRemoteImporter documentRemoteImporter;
+    @Autowired(required = false)
+    private LegacyDocumentMcpTransferService legacyDocumentMcpTransferService;
 
     @Autowired
     public SearchController(SearchService searchService,
@@ -417,7 +419,16 @@ public class SearchController {
     public ApiResponse<SearchDocument> reindexDocument(@PathVariable("docId") String docId,
                                                        @RequestParam(value = "tenantId", required = false) String tenantId,
                                                        @RequestParam(value = "userId", required = false) String userId,
-                                                       @RequestParam(value = "roles", required = false) String roles) {
+                                                       @RequestParam(value = "roles", required = false) String roles,
+                                                       HttpServletRequest servletRequest) {
+        if (legacyDocumentMcpTransferService != null && legacyDocumentMcpTransferService.enabled()) {
+            SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, roles);
+            return searchService.get(docId, context)
+                .map(document -> ApiResponse.success(legacyDocumentMcpTransferService.transfer(
+                    document, searchService.getFileResource(docId, context).orElse(null), context, servletRequest),
+                    "document transferred to MCP and indexed"))
+                .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
+        }
         return searchService.reindexDocument(docId, permissionContext(tenantId, userId, roles))
             .map(document -> ApiResponse.success(document, "document reindexed"))
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
@@ -429,9 +440,12 @@ public class SearchController {
         @PathVariable("name") String name,
         @RequestParam(value = "tenantId", required = false) String tenantId,
         @RequestParam(value = "userId", required = false) String userId,
-        @RequestParam(value = "roles", required = false) String roles) {
+        @RequestParam(value = "roles", required = false) String roles,
+        HttpServletRequest servletRequest) {
         return ApiResponse.success(
-            categoryReindexTaskService.start(name, permissionContext(tenantId, userId, roles)),
+            categoryReindexTaskService.start(name,
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles),
+                requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USERNAME)),
             "category reindex task submitted"
         );
     }
@@ -442,9 +456,12 @@ public class SearchController {
         @RequestBody CategoryReindexRequest request,
         @RequestParam(value = "tenantId", required = false) String tenantId,
         @RequestParam(value = "userId", required = false) String userId,
-        @RequestParam(value = "roles", required = false) String roles) {
+        @RequestParam(value = "roles", required = false) String roles,
+        HttpServletRequest servletRequest) {
         return ApiResponse.success(
-            categoryReindexTaskService.start(request == null ? "" : request.name(), permissionContext(tenantId, userId, roles)),
+            categoryReindexTaskService.start(request == null ? "" : request.name(),
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles),
+                requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USERNAME)),
             "category reindex task submitted"
         );
     }

@@ -39,7 +39,7 @@ chatchat:
         port: 9091
         chunk-bytes: 1048576
         max-inbound-message-bytes: 67108864
-        plaintext: false
+        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:true}
         certificate-chain-path: 
         private-key-path: 
     python:

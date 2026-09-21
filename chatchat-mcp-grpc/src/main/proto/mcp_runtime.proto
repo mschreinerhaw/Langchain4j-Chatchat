@@ -17,6 +17,33 @@ service McpRuntimeService {
   rpc Health(JsonRequest) returns (stream PayloadChunk);
 }
 
+service DocumentTransferService {
+  rpc Transfer(stream DocumentTransferChunk) returns (DocumentTransferReply);
+}
+
+message DocumentTransferStart {
+  string operation = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+  string username = 4;
+  string roles = 5;
+  string file_name = 6;
+  string content_type = 7;
+  map<string, string> fields = 8;
+  bytes document_json = 9;
+}
+
+message DocumentTransferChunk {
+  oneof payload {
+    DocumentTransferStart start = 1;
+    bytes data = 2;
+  }
+}
+
+message DocumentTransferReply {
+  bytes document_json = 1;
+}
+
 message JsonRequest {
   string protocol_version = 1;
   string request_id = 2;

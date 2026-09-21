@@ -42,7 +42,6 @@ chatchat:
   document:
     gateway:
       enabled: ${CHATCHAT_DOCUMENT_GATEWAY_ENABLED:false}
-      base-url: ${CHATCHAT_DOCUMENT_MCP_BASE_URL:http://localhost:8090}
   knowledge:
     runtime:
       skill-timeout-ms: 15000
@@ -111,9 +110,9 @@ chatchat:
     grpc:
       client:
         enabled: true
-        host: localhost
-        port: 9091
-        plaintext: false
+        host: ${CHATCHAT_MCP_GRPC_HOST:localhost}
+        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
+        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:true}
         trust-certificate-path: 
         deadline-ms: 1800000
         max-inbound-message-bytes: 4194304

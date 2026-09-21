@@ -1,11 +1,19 @@
 package com.chatchat.api.controller.search;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.knowledgebase.search.model.SearchDocument;
+import com.chatchat.mcp.grpc.v1.DocumentTransferStart;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.Ordered;
@@ -22,6 +30,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 /** Authenticated API facade for document operations owned by the MCP service. */
 @Component
@@ -31,9 +43,13 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final String baseUrl;
     private final String token;
+    @Autowired(required = false)
+    private DocumentGrpcTransferClient documentGrpcTransferClient;
+    @Autowired(required = false)
+    private ObjectMapper objectMapper;
 
     public DocumentMcpGatewayFilter(
-        @Value("${chatchat.document.gateway.base-url:http://localhost:8090}") String baseUrl,
+        @Value("${chatchat.mcp.center.base-url}") String baseUrl,
         @Value("${CHATCHAT_DOCUMENT_GATEWAY_TOKEN:}") String token) {
         this.baseUrl = baseUrl.replaceAll("/+$", "");
         this.token = token;
@@ -60,6 +76,12 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
         }
         String path = request.getRequestURI().substring(request.getContextPath().length());
         String suffix = path.substring("/api/v1/search".length());
+        String username = attribute(request, ApiAuthenticationFilter.CURRENT_USERNAME);
+        if ("POST".equalsIgnoreCase(request.getMethod())
+            && ("/documents/upload".equals(suffix) || "/documents/upload/batch".equals(suffix))) {
+            transferUpload(request, response, tenantId, userId, username, suffix.endsWith("/batch"));
+            return;
+        }
         String target = baseUrl + "/internal/api/v1/search" + suffix;
         if (request.getQueryString() != null) target += "?" + request.getQueryString();
         HttpRequest.Builder outgoing = HttpRequest.newBuilder(URI.create(target))
@@ -67,7 +89,6 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
             .header("X-Document-Tenant-Id", tenantId)
             .header("X-Document-User-Id", userId);
         outgoing.header("X-Document-Gateway-Token", token);
-        String username = attribute(request, ApiAuthenticationFilter.CURRENT_USERNAME);
         if (username != null) outgoing.header("X-Document-Username", username);
         Object view = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
         if (view instanceof EnterpriseAdminService.UserView user && user.roleIds() != null) {
@@ -97,6 +118,75 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
             response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "MCP document request failed");
         } catch (IOException exception) {
             response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "MCP document service unavailable");
+        }
+    }
+
+    private void transferUpload(HttpServletRequest request, HttpServletResponse response,
+                                String tenantId, String userId, String username, boolean batch) throws IOException {
+        if (documentGrpcTransferClient == null || objectMapper == null) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "MCP document RPC is unavailable");
+            return;
+        }
+        Map<String, String> fields = new HashMap<>();
+        List<Part> files = new ArrayList<>();
+        try {
+            for (Part part : request.getParts()) {
+                if ((batch && "files".equals(part.getName())) || (!batch && "file".equals(part.getName()))) {
+                    files.add(part);
+                } else if (part.getSubmittedFileName() == null) {
+                    if (part.getSize() > 64 * 1024) {
+                        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "document field exceeds 64KB");
+                        return;
+                    }
+                    fields.put(part.getName(), new String(part.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+                }
+            }
+            if (files.isEmpty()) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "file is required");
+                return;
+            }
+            if (batch) {
+                String category = fields.getOrDefault("category", "");
+                if (category.isBlank()) {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "category is required");
+                    return;
+                }
+                String tags = fields.getOrDefault("tags", "");
+                fields.put("tags", tags.isBlank() ? category : category + "," + tags);
+            }
+            Object view = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+            String roles = view instanceof EnterpriseAdminService.UserView user && user.roleIds() != null
+                ? String.join(",", user.roleIds()) : "";
+            List<SearchDocument> saved = new ArrayList<>();
+            for (Part part : files) {
+                if (part.getSize() > (batch ? 5L : 55L) * 1024 * 1024) {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "file exceeds upload limit");
+                    return;
+                }
+                DocumentTransferStart start = DocumentTransferStart.newBuilder()
+                    .setOperation("UPLOAD").setTenantId(tenantId).setUserId(userId)
+                    .setUsername(username == null ? "" : username).setRoles(roles)
+                    .setFileName(part.getSubmittedFileName() == null ? "document" : part.getSubmittedFileName())
+                    .setContentType(part.getContentType() == null ? "" : part.getContentType())
+                    .putAllFields(fields).build();
+                try (InputStream stream = part.getInputStream()) {
+                    saved.add(documentGrpcTransferClient.transfer(start, stream));
+                }
+            }
+            response.setContentType("application/json;charset=UTF-8");
+            objectMapper.writeValue(response.getOutputStream(), batch
+                ? ApiResponse.success(saved, "Documents uploaded and indexed")
+                : ApiResponse.success(saved.get(0), "Document uploaded and indexed"));
+        } catch (ServletException exception) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "invalid multipart document upload");
+        } catch (IllegalArgumentException exception) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, exception.getMessage());
+        } catch (StatusRuntimeException exception) {
+            int status = exception.getStatus().getCode() == Status.Code.INVALID_ARGUMENT
+                ? HttpServletResponse.SC_BAD_REQUEST : HttpServletResponse.SC_BAD_GATEWAY;
+            response.sendError(status, exception.getStatus().getDescription());
+        } catch (RuntimeException exception) {
+            response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "MCP document RPC failed");
         }
     }
 

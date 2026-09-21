@@ -27,7 +27,7 @@ public class McpDocumentLibraryReadPort implements DocumentLibraryReadPort {
     private final String token;
 
     public McpDocumentLibraryReadPort(ObjectMapper mapper,
-                                      @Value("${chatchat.document.gateway.base-url:http://localhost:8090}") String baseUrl,
+                                      @Value("${chatchat.mcp.center.base-url}") String baseUrl,
                                       @Value("${CHATCHAT_DOCUMENT_GATEWAY_TOKEN:}") String token) {
         this.mapper = mapper;
         this.baseUrl = baseUrl.replaceAll("/+$", "");

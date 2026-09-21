@@ -18,8 +18,8 @@ spring:
     add-mappings: false
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 32MB
+      max-file-size: 55MB
+      max-request-size: 60MB
 
 server:
   port: 8080
@@ -41,6 +41,11 @@ chatchat:
     encrypted-secret: "ENC(dt5Pfih5uB3eHVuG:H+kw3gs+C6vYEB6mKEHMOV9ayhJl0Udwhzyh0T2b2ULxNJ9xzPraje8HDDoXXjbHggxcJiZ4McExLoV0)"
     crypto-key-file: ./config/internal-credential.key
   mcp:
+    grpc:
+      client:
+        host: ${CHATCHAT_MCP_GRPC_HOST:localhost}
+        port: ${CHATCHAT_MCP_GRPC_PORT:9091}
+        plaintext: ${CHATCHAT_MCP_GRPC_PLAINTEXT:true}
     center:
       enabled: true
       base-url: http://localhost:8090

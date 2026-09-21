@@ -6,12 +6,9 @@ versions, metadata and original files when they are available.
 
 import argparse
 import json
-import mimetypes
 import os
-import urllib.error
 import urllib.parse
 import urllib.request
-import uuid
 
 
 def request(url, *, headers=None, body=None, method="GET"):
@@ -20,34 +17,14 @@ def request(url, *, headers=None, body=None, method="GET"):
         return result.read()
 
 
-def api_json(base, path, token, scope):
+def api_json(base, path, token, scope, method="GET"):
     separator = "&" if "?" in path else "?"
     path += separator + urllib.parse.urlencode(scope)
-    payload = json.loads(request(base + path, headers={"Authorization": "Bearer " + token}))
+    payload = json.loads(request(base + path, headers={"Authorization": "Bearer " + token},
+                                 body=b"" if method == "POST" else None, method=method))
     if payload.get("code") != 200:
         raise RuntimeError(f"API request failed: {path}: {payload.get('message')}")
     return payload["data"]
-
-
-def multipart(document, file_bytes, file_name):
-    boundary = "chatchat-" + uuid.uuid4().hex
-    segments = [
-        f"--{boundary}\r\nContent-Disposition: form-data; name=\"document\"\r\n"
-        "Content-Type: application/json; charset=utf-8\r\n\r\n".encode(),
-        json.dumps(document, ensure_ascii=False).encode(),
-        b"\r\n",
-    ]
-    if file_bytes is not None:
-        safe_name = (file_name or "document").replace('"', "_").replace("\r", "_").replace("\n", "_")
-        content_type = mimetypes.guess_type(safe_name)[0] or "application/octet-stream"
-        segments += [
-            f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{safe_name}\"\r\n"
-            f"Content-Type: {content_type}\r\n\r\n".encode(),
-            file_bytes,
-            b"\r\n",
-        ]
-    segments.append(f"--{boundary}--\r\n".encode())
-    return b"".join(segments), f"multipart/form-data; boundary={boundary}"
 
 
 def migrate(args):
@@ -86,21 +63,8 @@ def migrate(args):
                     continue
                 seen.add(version_id)
                 number = version["version"]
-                path = f"/api/v1/search/documents/{encoded_id}/versions/{number}"
-                document = api_json(api, path, args.api_token, scope)
-                file_bytes = None
-                file_path = path + "/file?" + urllib.parse.urlencode(scope)
-                try:
-                    file_bytes = request(api + file_path, headers={"Authorization": "Bearer " + args.api_token})
-                except urllib.error.HTTPError as error:
-                    if error.code != 404:
-                        raise
-                body, content_type = multipart(document, file_bytes, document.get("fileName"))
-                payload = json.loads(request(
-                    mcp + "/internal/api/v1/search/documents/migrate",
-                    headers={**headers, "Content-Type": content_type}, body=body, method="POST"))
-                if payload.get("code") != 200:
-                    raise RuntimeError(f"MCP import failed for {version_id}: {payload.get('message')}")
+                api_json(api, f"/api/v1/search/documents/{urllib.parse.quote(version_id, safe='')}/reindex",
+                         args.api_token, scope, method="POST")
                 transferred += 1
                 print(f"Migrated {version_id} v{number}")
         if page >= listing.get("totalPages", 1):

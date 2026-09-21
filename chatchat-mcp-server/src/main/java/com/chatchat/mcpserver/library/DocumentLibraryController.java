@@ -1,0 +1,983 @@
+package com.chatchat.mcpserver.library;
+
+import com.chatchat.mcpserver.library.DocumentLimitProperties;
+import com.chatchat.mcpserver.library.DocumentPrincipalContext;
+import com.chatchat.mcpserver.library.CategoryReindexTaskService;
+import com.chatchat.mcpserver.library.DocumentRemoteImporter;
+import com.chatchat.knowledgebase.search.model.SearchDocument;
+import com.chatchat.knowledgebase.search.document.DocumentFileResource;
+import com.chatchat.knowledgebase.search.document.LibraryCategory;
+import com.chatchat.knowledgebase.search.document.LibraryPage;
+import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
+import com.chatchat.knowledgebase.search.model.SearchPage;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.model.SearchResult;
+import com.chatchat.knowledgebase.search.service.SearchService;
+import com.chatchat.knowledgebase.search.model.SearchDocumentVersionItem;
+import com.chatchat.knowledgebase.search.feedback.SearchFeedbackEntity;
+import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
+import com.chatchat.knowledgebase.search.document.TitleExistsResult;
+import com.chatchat.knowledgebase.search.config.SearchProperties;
+import com.chatchat.common.constants.AppConstants;
+import com.chatchat.common.response.ApiResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CancellationException;
+
+@RestController
+@RequestMapping("/internal/api/v1/search")
+public class DocumentLibraryController {
+
+    private static final long BATCH_UPLOAD_FILE_MAX_BYTES = 5L * 1024 * 1024;
+
+    private final SearchService searchService;
+    private final SearchFeedbackService searchFeedbackService;
+    private final DocumentUploadCancellationRegistry uploadCancellationRegistry;
+    private final DocumentSearchCancellationRegistry searchCancellationRegistry;
+    private final CategoryReindexTaskService categoryReindexTaskService;
+    private final DocumentLimitProperties limitProperties;
+    private final DocumentRemoteImporter documentRemoteImporter;
+    private final SearchProperties searchProperties;
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    public DocumentLibraryController(SearchService searchService,
+                            SearchFeedbackService searchFeedbackService,
+                            DocumentUploadCancellationRegistry uploadCancellationRegistry,
+                            DocumentSearchCancellationRegistry searchCancellationRegistry,
+                            CategoryReindexTaskService categoryReindexTaskService,
+                            DocumentLimitProperties limitProperties,
+                            DocumentRemoteImporter documentRemoteImporter,
+                            SearchProperties searchProperties,
+                            ObjectMapper objectMapper) {
+        this.searchService = searchService;
+        this.searchFeedbackService = searchFeedbackService;
+        this.uploadCancellationRegistry = uploadCancellationRegistry;
+        this.searchCancellationRegistry = searchCancellationRegistry;
+        this.categoryReindexTaskService = categoryReindexTaskService;
+        this.limitProperties = limitProperties;
+        this.documentRemoteImporter = documentRemoteImporter;
+        this.searchProperties = searchProperties;
+        this.objectMapper = objectMapper;
+    }
+
+    DocumentLibraryController(SearchService searchService,
+                     SearchFeedbackService searchFeedbackService,
+                     DocumentUploadCancellationRegistry uploadCancellationRegistry,
+                     DocumentSearchCancellationRegistry searchCancellationRegistry,
+                     CategoryReindexTaskService categoryReindexTaskService,
+                     DocumentLimitProperties limitProperties) {
+        this(searchService, searchFeedbackService, uploadCancellationRegistry, searchCancellationRegistry,
+            categoryReindexTaskService, limitProperties, null, null, null);
+    }
+
+    /**
+     * Searches the search.
+     *
+     * @param keyword the keyword value
+     * @param tag the tag value
+     * @param company the company value
+     * @param industry the industry value
+     * @param docIds the doc ids value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @param limit the limit value
+     * @return the operation result
+     */
+    @GetMapping
+    public ApiResponse<SearchPage> search(@RequestParam(value = "keyword", required = false) String keyword,
+                                          @RequestParam(value = "tag", required = false) String tag,
+                                          @RequestParam(value = "company", required = false) String company,
+                                          @RequestParam(value = "industry", required = false) String industry,
+                                          @RequestParam(value = "docIds", required = false) String docIds,
+                                          @RequestParam(value = "page", required = false) Integer page,
+                                          @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                          @RequestParam(value = "limit", required = false) Integer limit,
+                                          @RequestParam(value = "tenantId", required = false) String tenantId,
+                                          @RequestParam(value = "userId", required = false) String userId,
+                                          @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(searchService.search(
+            keyword,
+            tag,
+            company,
+            industry,
+            docIds,
+            page,
+            pageSize == null ? limit : pageSize,
+            permissionContext(tenantId, userId, roles)
+        ));
+    }
+
+    @GetMapping("/frontend")
+    public ApiResponse<SearchPage> frontendSearch(@RequestParam(value = "keyword", required = false) String keyword,
+                                                  @RequestParam(value = "tag", required = false) String tag,
+                                                  @RequestParam(value = "company", required = false) String company,
+                                                  @RequestParam(value = "industry", required = false) String industry,
+                                                  @RequestParam(value = "docIds", required = false) String docIds,
+                                                  @RequestParam(value = "page", required = false) Integer page,
+                                                  @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                  @RequestParam(value = "limit", required = false) Integer limit,
+                                                  @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                  @RequestParam(value = "userId", required = false) String userId,
+                                                  @RequestParam(value = "roles", required = false) String roles,
+                                                  @RequestParam(value = "requestId", required = false) String requestId,
+                                                  HttpServletRequest servletRequest) {
+        SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, roles);
+        searchCancellationRegistry.register(context.tenantId(), requestId);
+        try {
+            SearchPage pageResult = searchService.frontendQuickSearch(
+                keyword,
+                tag,
+                company,
+                industry,
+                docIds,
+                page,
+                pageSize == null ? limit : pageSize,
+                context
+            );
+            return ApiResponse.success(lightweightSearchPage(pageResult));
+        } catch (CancellationException ex) {
+            return ApiResponse.error(499, "检索已停止");
+        } finally {
+            searchCancellationRegistry.complete(context.tenantId(), requestId);
+            // Servlet container threads are pooled; do not leak a cancellation interrupt
+            // into the next request that reuses this worker thread.
+            if (Thread.currentThread().isInterrupted()) {
+                Thread.interrupted();
+            }
+        }
+    }
+
+    ApiResponse<SearchPage> frontendSearch(String keyword,
+                                           String tag,
+                                           String company,
+                                           String industry,
+                                           String docIds,
+                                           Integer page,
+                                           Integer pageSize,
+                                           Integer limit,
+                                           String tenantId,
+                                           String userId,
+                                           String roles) {
+        return frontendSearch(keyword, tag, company, industry, docIds, page, pageSize, limit,
+            tenantId, userId, roles, null, null);
+    }
+
+    @PostMapping("/frontend/{requestId}/cancel")
+    public ApiResponse<SearchCancellationResult> cancelFrontendSearch(
+        @PathVariable("requestId") String requestId,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        HttpServletRequest servletRequest
+    ) {
+        SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, null);
+        boolean cancelled = searchCancellationRegistry.cancel(context.tenantId(), requestId);
+        return ApiResponse.success(
+            new SearchCancellationResult(requestId, context.tenantId(), cancelled),
+            cancelled ? "检索停止信号已发送" : "检索任务已结束或不存在"
+        );
+    }
+
+    @PostMapping("/feedback")
+    public ApiResponse<SearchFeedbackEntity> feedback(@RequestBody SearchFeedbackService.SearchFeedbackRequest request) {
+        try {
+            return ApiResponse.success(searchFeedbackService.record(request), "Search feedback recorded");
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        }
+    }
+
+    /**
+     * Lists the library.
+     *
+     * @param category the category value
+     * @param title the title value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @param limit the limit value
+     * @return the library list
+     */
+    @GetMapping("/library")
+    public ApiResponse<LibraryPage> listLibrary(@RequestParam(value = "category", required = false) String category,
+                                                @RequestParam(value = "title", required = false) String title,
+                                                @RequestParam(value = "page", required = false) Integer page,
+                                                @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                @RequestParam(value = "limit", required = false) Integer limit,
+                                                @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                @RequestParam(value = "userId", required = false) String userId,
+                                                @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(searchService.listLibrary(
+            category,
+            title,
+            page,
+            pageSize == null ? limit : pageSize,
+            permissionContext(tenantId, userId, roles)
+        ));
+    }
+
+    /**
+     * Creates the category.
+     *
+     * @param request the request value
+     * @return the created category
+     */
+    @PostMapping("/library/categories")
+    public ApiResponse<LibraryCategory> createCategory(@RequestBody CategoryCreateRequest request) {
+        if (request == null || request.name() == null || request.name().isBlank()) {
+            return ApiResponse.badRequest("category name is required");
+        }
+        return ApiResponse.success(searchService.createCategory(request.name()), "Category created");
+    }
+
+    @PutMapping("/library/categories/{name}")
+    public ApiResponse<LibraryCategory> renameCategory(@PathVariable("name") String name,
+                                                       @RequestBody CategoryRenameRequest request) {
+        if (request == null || request.name() == null || request.name().isBlank()) {
+            return ApiResponse.badRequest("category name is required");
+        }
+        return ApiResponse.success(searchService.renameCategory(name, request.name()), "Category updated");
+    }
+
+    @DeleteMapping("/library/categories/{name}")
+    public ApiResponse<Void> deleteCategory(@PathVariable("name") String name) {
+        searchService.deleteCategory(name);
+        return ApiResponse.success(null, "Category deleted");
+    }
+
+    @PutMapping("/documents/{docId}/category")
+    public ApiResponse<SearchDocument> updateDocumentCategory(@PathVariable("docId") String docId,
+                                                              @RequestBody DocumentCategoryUpdateRequest request,
+                                                              @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                              @RequestParam(value = "userId", required = false) String userId,
+                                                              @RequestParam(value = "roles", required = false) String roles) {
+        if (request == null || request.category() == null || request.category().isBlank()) {
+            return ApiResponse.badRequest("category is required");
+        }
+        return searchService.updateDocumentCategory(docId, request.category(), permissionContext(tenantId, userId, roles))
+            .map(document -> ApiResponse.success(document, "Document category updated"))
+            .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
+    }
+
+    /**
+     * Performs the title exists operation.
+     *
+     * @param title the title value
+     * @return the operation result
+     */
+    @GetMapping("/documents/title-exists")
+    public ApiResponse<TitleExistsResult> titleExists(@RequestParam("title") String title,
+                                                      @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                      @RequestParam(value = "userId", required = false) String userId,
+                                                      @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(searchService.titleExists(title, permissionContext(tenantId, userId, roles)));
+    }
+
+    /**
+     * Returns the document.
+     *
+     * @param docId the doc id value
+     * @return the document
+     */
+    @GetMapping("/documents/{docId}")
+    public ApiResponse<SearchDocument> getDocument(@PathVariable("docId") String docId,
+                                                   @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                   @RequestParam(value = "userId", required = false) String userId,
+                                                   @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.get(docId, permissionContext(tenantId, userId, roles))
+            .map(ApiResponse::success)
+            .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
+    }
+
+    /**
+     * Lists the document versions.
+     *
+     * @param docId the doc id value
+     * @return the document versions list
+     */
+    @GetMapping("/documents/{docId}/versions")
+    public ApiResponse<List<SearchDocumentVersionItem>> listDocumentVersions(@PathVariable("docId") String docId,
+                                                                             @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                                             @RequestParam(value = "userId", required = false) String userId,
+                                                                             @RequestParam(value = "roles", required = false) String roles) {
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        if (searchService.get(docId, context).isEmpty()) {
+            return ApiResponse.notFound("document not found: " + docId);
+        }
+        return ApiResponse.success(searchService.listVersions(docId, context));
+    }
+
+    /**
+     * Returns the document version.
+     *
+     * @param docId the doc id value
+     * @param version the version value
+     * @return the document version
+     */
+    @GetMapping("/documents/{docId}/versions/{version}")
+    public ApiResponse<SearchDocument> getDocumentVersion(@PathVariable("docId") String docId,
+                                                          @PathVariable("version") Integer version,
+                                                          @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                          @RequestParam(value = "userId", required = false) String userId,
+                                                          @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.getVersion(docId, version, permissionContext(tenantId, userId, roles))
+            .map(ApiResponse::success)
+            .orElseGet(() -> ApiResponse.notFound("document version not found: " + docId + " v" + version));
+    }
+
+    /**
+     * Deletes the document.
+     *
+     * @param docId the doc id value
+     * @return the operation result
+     */
+    @DeleteMapping("/documents/{docId}")
+    public ApiResponse<Void> deleteDocument(@PathVariable("docId") String docId,
+                                            @RequestParam(value = "tenantId", required = false) String tenantId,
+                                            @RequestParam(value = "userId", required = false) String userId,
+                                            @RequestParam(value = "roles", required = false) String roles,
+                                            HttpServletRequest request) {
+        if (!isAdminOperator(request)) {
+            return ApiResponse.error(403, "only admin can delete documents");
+        }
+        if (!searchService.deleteDocument(docId, permissionContext(tenantId, userId, roles))) {
+            return ApiResponse.notFound("document not found: " + docId);
+        }
+        return ApiResponse.success(null, "document deleted");
+    }
+
+    @PostMapping("/documents/delete/batch")
+    public ApiResponse<DocumentBatchDeleteResult> deleteDocuments(@RequestBody DocumentBatchDeleteRequest request,
+                                                                  @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                                  @RequestParam(value = "userId", required = false) String userId,
+                                                                  @RequestParam(value = "roles", required = false) String roles,
+                                                                  HttpServletRequest servletRequest) {
+        if (!isAdminOperator(servletRequest)) {
+            return ApiResponse.error(403, "only admin can delete documents");
+        }
+        List<String> docIds = normalizeDocIds(request == null ? null : request.docIds());
+        if (docIds.isEmpty()) {
+            return ApiResponse.badRequest("docIds are required");
+        }
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        List<String> deletedDocIds = new ArrayList<>();
+        List<String> notFoundDocIds = new ArrayList<>();
+        for (String docId : docIds) {
+            if (searchService.deleteDocument(docId, context)) {
+                deletedDocIds.add(docId);
+            } else {
+                notFoundDocIds.add(docId);
+            }
+        }
+        return ApiResponse.success(
+            new DocumentBatchDeleteResult(deletedDocIds, notFoundDocIds, docIds.size()),
+            notFoundDocIds.isEmpty() ? "documents deleted" : "documents partially deleted"
+        );
+    }
+
+    @PostMapping("/documents/{docId}/reindex")
+    public ApiResponse<SearchDocument> reindexDocument(@PathVariable("docId") String docId,
+                                                       @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                       @RequestParam(value = "userId", required = false) String userId,
+                                                       @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.reindexDocument(docId, permissionContext(tenantId, userId, roles))
+            .map(document -> ApiResponse.success(document, "document reindexed"))
+            .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
+    }
+
+    @PostMapping("/library/categories/{name}/reindex")
+    public ApiResponse<CategoryReindexTaskService.CategoryReindexTaskStartResponse> reindexCategoryDocuments(
+        @PathVariable("name") String name,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(
+            categoryReindexTaskService.start(name, permissionContext(tenantId, userId, roles)),
+            "category reindex task submitted"
+        );
+    }
+
+    @PostMapping("/library/categories/reindex")
+    public ApiResponse<CategoryReindexTaskService.CategoryReindexTaskStartResponse> reindexCategoryDocumentsByRequest(
+        @RequestBody CategoryReindexRequest request,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(
+            categoryReindexTaskService.start(request == null ? "" : request.name(), permissionContext(tenantId, userId, roles)),
+            "category reindex task submitted"
+        );
+    }
+
+    @GetMapping("/library/categories/reindex/status")
+    public ApiResponse<CategoryReindexTaskService.CategoryReindexTaskStatus> getCategoryReindexStatus() {
+        return ApiResponse.success(categoryReindexTaskService.status());
+    }
+
+    @PostMapping("/documents/reindex/sql")
+    public ApiResponse<SearchService.ReindexSummary> reindexUploadedSqlDocuments(
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(
+            searchService.reindexUploadedSqlDocuments(permissionContext(tenantId, userId, roles)),
+            "sql documents reindexed"
+        );
+    }
+
+    /**
+     * Returns the document file.
+     *
+     * @param docId the doc id value
+     * @return the document file
+     */
+    @GetMapping("/documents/{docId}/file")
+    public ResponseEntity<Resource> getDocumentFile(@PathVariable("docId") String docId,
+                                                    @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                    @RequestParam(value = "userId", required = false) String userId,
+                                                    @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.getFileResource(docId, permissionContext(tenantId, userId, roles))
+            .map(file -> ResponseEntity.ok()
+                .contentType(mediaTypeFor(file))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))
+                .body(file.resource()))
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Returns the document version file.
+     *
+     * @param docId the doc id value
+     * @param version the version value
+     * @return the document version file
+     */
+    @GetMapping("/documents/{docId}/versions/{version}/file")
+    public ResponseEntity<Resource> getDocumentVersionFile(@PathVariable("docId") String docId,
+                                                           @PathVariable("version") Integer version,
+                                                           @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                           @RequestParam(value = "userId", required = false) String userId,
+                                                           @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.getVersionFileResource(docId, version, permissionContext(tenantId, userId, roles))
+            .map(file -> ResponseEntity.ok()
+                .contentType(mediaTypeFor(file))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))
+                .body(file.resource()))
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Saves the document.
+     *
+     * @param document the document value
+     * @return the saved document
+     */
+    @PostMapping("/documents")
+    public ApiResponse<SearchDocument> saveDocument(@RequestBody SearchDocument document) {
+        return ApiResponse.success(searchService.createOrUpdate(document), "Document indexed");
+    }
+
+    /** One-time import of API-owned documents, preserving IDs and original files. */
+    @PostMapping(value = "/documents/migrate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<SearchDocument> migrateDocument(@RequestPart("document") String documentJson,
+                                                       @RequestPart(value = "file", required = false) MultipartFile file,
+                                                       HttpServletRequest request) throws IOException {
+        if (!isAdminOperator(request)) {
+            return ApiResponse.error(403, "only admin can migrate documents");
+        }
+        SearchDocument document = objectMapper.readValue(documentJson, SearchDocument.class);
+        if (document.getDocId() == null || !document.getDocId().matches("[A-Za-z0-9._:-]{1,128}")) {
+            return ApiResponse.badRequest("invalid document ID");
+        }
+        if (document.getContent() == null || document.getContent().isBlank()) {
+            return ApiResponse.badRequest("document content is required");
+        }
+        Path savedFile = null;
+        boolean existingFile = false;
+        if (file != null && !file.isEmpty()) {
+            if (file.getSize() > searchProperties.getMaxUploadBytes()) {
+                return ApiResponse.badRequest("file exceeds upload limit");
+            }
+            String fileName = file.getOriginalFilename();
+            fileName = fileName == null ? "document" : Path.of(fileName).getFileName().toString();
+            Path root = Path.of(searchProperties.getFilePath()).toAbsolutePath().normalize();
+            Files.createDirectories(root);
+            savedFile = root.resolve(document.getDocId() + "_" + fileName).normalize();
+            if (!savedFile.startsWith(root)) {
+                return ApiResponse.badRequest("invalid file name");
+            }
+            existingFile = Files.exists(savedFile);
+            try (InputStream input = file.getInputStream()) {
+                Files.copy(input, savedFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+            document.setFilePath(savedFile.toString());
+            document.setFileName(fileName);
+            document.setFileSize(file.getSize());
+        } else {
+            document.setFilePath(null);
+        }
+        try {
+            return ApiResponse.success(searchService.createOrUpdate(document), "Document migrated and indexed");
+        } catch (RuntimeException exception) {
+            if (savedFile != null && !existingFile) Files.deleteIfExists(savedFile);
+            throw exception;
+        }
+    }
+
+    /**
+     * Performs the upload document operation.
+     *
+     * @param file the file value
+     * @param title the title value
+     * @param source the source value
+     * @param date the date value
+     * @param tags the tags value
+     * @param companies the companies value
+     * @param industries the industries value
+     * @param keywords the keywords value
+     * @param documentType the document type value
+     * @param fallbackContent the fallback content value
+     * @return the operation result
+     */
+    @PostMapping(value = "/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<SearchDocument> uploadDocument(@RequestParam("file") MultipartFile file,
+                                                     @RequestHeader(value = "X-Upload-Request-Id", required = false) String uploadRequestId,
+                                                     @RequestParam(value = "title", required = false) String title,
+                                                     @RequestParam(value = "source", required = false) String source,
+                                                     @RequestParam(value = "date", required = false) String date,
+                                                     @RequestParam(value = "tags", required = false) String tags,
+                                                     @RequestParam(value = "companies", required = false) String companies,
+                                                     @RequestParam(value = "industries", required = false) String industries,
+                                                     @RequestParam(value = "keywords", required = false) String keywords,
+                                                     @RequestParam(value = "documentType", required = false) String documentType,
+                                                     @RequestParam(value = "content", required = false) String fallbackContent,
+                                                     @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                     @RequestParam(value = "userId", required = false) String userId,
+                                                     @RequestParam(value = "roles", required = false) String roles,
+                                                     @RequestParam(value = "visibility", required = false) String visibility,
+                                                     @RequestParam(value = "permissionRoles", required = false) String permissionRoles) {
+        uploadCancellationRegistry.register(uploadRequestId);
+        try {
+            SearchDocument document = searchService.upload(
+                file,
+                title,
+                source,
+                date,
+                tags,
+                companies,
+                industries,
+                keywords,
+                documentType,
+                fallbackContent,
+                permissionContext(tenantId, userId, roles),
+                visibility,
+                parseCsv(permissionRoles)
+            );
+            return ApiResponse.success(document, "Document uploaded and indexed");
+        } finally {
+            uploadCancellationRegistry.complete(uploadRequestId);
+        }
+    }
+
+    @PostMapping("/documents/import-url")
+    public ApiResponse<SearchDocument> importDocumentUrl(@RequestBody DocumentUrlImportRequest body,
+                                                         @RequestHeader(value = "X-Upload-Request-Id", required = false)
+                                                         String uploadRequestId) {
+        if (body == null || body.url() == null || body.url().isBlank()) {
+            return ApiResponse.badRequest("document URL is required");
+        }
+        if (body.category() == null || body.category().isBlank()) {
+            return ApiResponse.badRequest("category is required");
+        }
+        DocumentHttpRequest http = body.request();
+        DocumentRemoteImporter.RequestOptions options = http == null
+            ? DocumentRemoteImporter.RequestOptions.defaults()
+            : new DocumentRemoteImporter.RequestOptions(http.method(), http.queryParams(), http.headers(),
+                http.body(), http.allowPrivateNetwork());
+        uploadCancellationRegistry.register(uploadRequestId);
+        try {
+            DocumentRemoteImporter.RemoteDocument remote = documentRemoteImporter.download(
+                body.url(), options, body.documentType());
+            MultipartFile file = new DownloadedMultipartFile(remote.fileName(), remote.contentType(), remote.bytes());
+            SearchDocument document = searchService.upload(
+                file,
+                body.title(),
+                body.source() == null || body.source().isBlank() ? remote.sourceUrl() : body.source(),
+                body.date(),
+                mergeCategoryTag(body.category(), body.tags()),
+                body.companies(),
+                body.industries(),
+                body.keywords(),
+                body.documentType(),
+                null,
+                permissionContext(body.tenantId(), body.userId(), body.roles()),
+                body.visibility(),
+                parseCsv(body.permissionRoles())
+            );
+            return ApiResponse.success(document, "Remote document downloaded and indexed");
+        } finally {
+            uploadCancellationRegistry.complete(uploadRequestId);
+        }
+    }
+
+    @PostMapping(value = "/documents/upload/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<List<SearchDocument>> uploadDocuments(@RequestParam("files") List<MultipartFile> files,
+                                                            @RequestHeader(value = "X-Upload-Request-Id", required = false) String uploadRequestId,
+                                                            @RequestParam("category") String category,
+                                                            @RequestParam(value = "source", required = false) String source,
+                                                            @RequestParam(value = "date", required = false) String date,
+                                                            @RequestParam(value = "tags", required = false) String tags,
+                                                            @RequestParam(value = "companies", required = false) String companies,
+                                                            @RequestParam(value = "industries", required = false) String industries,
+                                                            @RequestParam(value = "keywords", required = false) String keywords,
+                                                            @RequestParam(value = "documentType", required = false) String documentType,
+                                                            @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                            @RequestParam(value = "userId", required = false) String userId,
+                                                            @RequestParam(value = "roles", required = false) String roles,
+                                                            @RequestParam(value = "visibility", required = false) String visibility,
+                                                            @RequestParam(value = "permissionRoles", required = false) String permissionRoles) {
+        if (files == null || files.isEmpty() || files.stream().allMatch(file -> file == null || file.isEmpty())) {
+            return ApiResponse.badRequest("files are required");
+        }
+        if (category == null || category.isBlank()) {
+            return ApiResponse.badRequest("category is required for batch upload");
+        }
+        boolean hasOversizedBatchFile = files.stream()
+            .filter(file -> file != null && !file.isEmpty())
+            .anyMatch(file -> file.getSize() > BATCH_UPLOAD_FILE_MAX_BYTES);
+        if (hasOversizedBatchFile) {
+            return ApiResponse.badRequest("files larger than 5MB must be uploaded individually");
+        }
+        String mergedTags = mergeCategoryTag(category, tags);
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        uploadCancellationRegistry.register(uploadRequestId);
+        try {
+            List<SearchDocument> documents = files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .map(file -> searchService.upload(
+                    file,
+                    null,
+                    source,
+                    date,
+                    mergedTags,
+                    companies,
+                    industries,
+                    keywords,
+                    documentType,
+                    null,
+                    context,
+                    visibility,
+                    parseCsv(permissionRoles)
+                ))
+                .toList();
+            return ApiResponse.success(documents, "Documents uploaded and indexed");
+        } finally {
+            uploadCancellationRegistry.complete(uploadRequestId);
+        }
+    }
+
+    @PostMapping("/documents/upload/{uploadRequestId}/cancel")
+    public ApiResponse<Boolean> cancelDocumentUpload(@PathVariable("uploadRequestId") String uploadRequestId) {
+        boolean cancelled = uploadCancellationRegistry.cancel(uploadRequestId);
+        return ApiResponse.success(cancelled, cancelled ? "Document upload cancellation requested" : "Upload is no longer active");
+    }
+
+    public record CategoryCreateRequest(String name) {
+    }
+
+    public record CategoryRenameRequest(String name) {
+    }
+
+    public record CategoryReindexRequest(String name) {
+    }
+
+    public record DocumentCategoryUpdateRequest(String category) {
+    }
+
+    public record DocumentBatchDeleteRequest(List<String> docIds) {
+    }
+
+    public record DocumentUrlImportRequest(String url, String title, String source, String date, String tags,
+                                           String category, String companies, String industries, String keywords,
+                                           String documentType, String tenantId, String userId, String roles,
+                                           String visibility, String permissionRoles, DocumentHttpRequest request) {
+    }
+
+    public record DocumentHttpRequest(String method, Map<String, String> queryParams, Map<String, String> headers,
+                                      String body, boolean allowPrivateNetwork) {
+    }
+
+    private static final class DownloadedMultipartFile implements MultipartFile {
+        private final String fileName;
+        private final String contentType;
+        private final byte[] bytes;
+
+        private DownloadedMultipartFile(String fileName, String contentType, byte[] bytes) {
+            this.fileName = fileName;
+            this.contentType = contentType;
+            this.bytes = bytes == null ? new byte[0] : bytes.clone();
+        }
+
+        @Override public String getName() { return "file"; }
+        @Override public String getOriginalFilename() { return fileName; }
+        @Override public String getContentType() { return contentType; }
+        @Override public boolean isEmpty() { return bytes.length == 0; }
+        @Override public long getSize() { return bytes.length; }
+        @Override public byte[] getBytes() { return bytes.clone(); }
+        @Override public InputStream getInputStream() { return new ByteArrayInputStream(bytes); }
+        @Override public void transferTo(File destination) throws IOException { Files.write(destination.toPath(), bytes); }
+    }
+
+    public record DocumentBatchDeleteResult(List<String> deletedDocIds, List<String> notFoundDocIds, int requestedCount) {
+    }
+
+    /**
+     * Performs the media type for operation.
+     *
+     * @param file the file value
+     * @return the operation result
+     */
+    private MediaType mediaTypeFor(DocumentFileResource file) {
+        String fileName = file.fileName() == null ? "" : file.fileName().toLowerCase();
+        if ("pdf".equals(file.documentType()) || fileName.endsWith(".pdf")) {
+            return MediaType.APPLICATION_PDF;
+        }
+        if ("word".equals(file.documentType()) || fileName.endsWith(".doc") || fileName.endsWith(".docx")) {
+            return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        }
+        if ("excel".equals(file.documentType()) || fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+            return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+        if ("presentation".equals(file.documentType()) || fileName.endsWith(".ppt") || fileName.endsWith(".pptx")) {
+            return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        }
+        if ("markdown".equals(file.documentType()) || fileName.endsWith(".md")) {
+            return MediaType.parseMediaType("text/markdown");
+        }
+        if ("sql".equals(file.documentType()) || fileName.endsWith(".sql")) {
+            return MediaType.parseMediaType("text/x-sql");
+        }
+        return MediaType.TEXT_PLAIN;
+    }
+
+    private List<String> normalizeDocIds(List<String> docIds) {
+        if (docIds == null || docIds.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String docId : docIds) {
+            if (docId != null && !docId.isBlank()) {
+                normalized.add(docId.trim());
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    private boolean isAdminOperator(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        Object username = request.getAttribute(DocumentPrincipalContext.CURRENT_USERNAME);
+        return username != null && "admin".equalsIgnoreCase(String.valueOf(username));
+    }
+
+    /**
+     * Performs the encode file name operation.
+     *
+     * @param fileName the file name value
+     * @return the operation result
+     */
+    private String encodeFileName(String fileName) {
+        String safeName = fileName == null || fileName.isBlank() ? "document" : fileName;
+        return URLEncoder.encode(safeName, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private SearchPermissionContext permissionContext(String tenantId, String userId, String roles) {
+        return SearchPermissionContext.of(
+            DocumentPrincipalContext.attribute(DocumentPrincipalContext.CURRENT_TENANT_ID),
+            DocumentPrincipalContext.attribute(DocumentPrincipalContext.CURRENT_USER_ID),
+            parseCsv(DocumentPrincipalContext.attribute(DocumentPrincipalContext.CURRENT_ROLES))
+        );
+    }
+
+    private SearchPermissionContext authenticatedPermissionContext(HttpServletRequest request,
+                                                                   String tenantId,
+                                                                   String userId,
+                                                                   String roles) {
+        return permissionContext(tenantId, userId, roles);
+    }
+
+    private String requestAttribute(HttpServletRequest request, String name) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(name);
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return String.valueOf(value).trim();
+    }
+
+    public record SearchCancellationResult(String requestId, String tenantId, boolean cancelled) {
+    }
+
+    private String mergeCategoryTag(String category, String tags) {
+        List<String> values = new java.util.ArrayList<>();
+        values.add(category.trim());
+        values.addAll(parseCsv(tags));
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .collect(java.util.stream.Collectors.joining(","));
+    }
+
+    private SearchPage lightweightSearchPage(SearchPage page) {
+        if (page == null || page.results() == null || page.results().isEmpty()) {
+            return page;
+        }
+        return new SearchPage(
+            page.keyword(),
+            page.queryTokens(),
+            page.results().stream().map(this::lightweightSearchResult).toList(),
+            page.total(),
+            page.limit(),
+            page.page(),
+            page.pageSize(),
+            page.totalPages(),
+            page.hasMore(),
+            page.tookMs(),
+            page.documentCount(),
+            page.message()
+        );
+    }
+
+    private SearchResult lightweightSearchResult(SearchResult result) {
+        if (result == null) {
+            return null;
+        }
+        return new SearchResult(
+            result.docId(),
+            result.title(),
+            truncate(result.summary(), searchResultSummaryMaxChars()),
+            result.source(),
+            result.date(),
+            result.fileName(),
+            result.documentType(),
+            result.detailPath(),
+            result.tags(),
+            result.companies(),
+            result.industries(),
+            result.score(),
+            null,
+            List.of(),
+            lightweightMatchedChunks(result.matchedChunks()),
+            result.versionGroupId(),
+            result.version(),
+            result.latestVersion(),
+            result.tenantId(),
+            result.userId(),
+            result.visibility(),
+            result.permissionRoles(),
+            result.lifecycleStatus(),
+            result.indexedAt(),
+            result.deletedAt(),
+            result.errorMessage()
+        );
+    }
+
+    private List<SearchMatchedChunk> lightweightMatchedChunks(List<SearchMatchedChunk> chunks) {
+        if (chunks == null || chunks.isEmpty()) {
+            return List.of();
+        }
+        java.util.stream.Stream<SearchMatchedChunk> stream = chunks.stream();
+        int maxChunks = searchResultMaxChunks();
+        if (maxChunks >= 0) {
+            stream = stream.limit(maxChunks);
+        }
+        return stream
+            .map(chunk -> new SearchMatchedChunk(
+                chunk.fileId(),
+                chunk.fileName(),
+                chunk.section(),
+                chunk.chunkType(),
+                chunk.chunkId(),
+                chunk.chunkIndex(),
+                chunk.positionRatio(),
+                truncate(chunk.content(), searchResultChunkMaxChars()),
+                truncate(chunk.text(), searchResultChunkMaxChars()),
+                chunk.score(),
+                chunk.tenantId(),
+                chunk.userId(),
+                chunk.visibility(),
+                chunk.permissionRoles()
+            ))
+            .toList();
+    }
+
+    private String truncate(String value, int maxChars) {
+        if (maxChars < 0) {
+            return value;
+        }
+        if (value == null || value.length() <= maxChars) {
+            return value;
+        }
+        return value.substring(0, maxChars) + "...";
+    }
+
+    private int searchResultMaxChunks() {
+        return apiLimits().getSearchResultMaxChunks();
+    }
+
+    private int searchResultChunkMaxChars() {
+        return apiLimits().getSearchResultChunkMaxChars();
+    }
+
+    private int searchResultSummaryMaxChars() {
+        return apiLimits().getSearchResultSummaryMaxChars();
+    }
+
+    private DocumentLimitProperties apiLimits() {
+        return limitProperties == null ? new DocumentLimitProperties() : limitProperties;
+    }
+
+    private List<String> parseCsv(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return List.of(value.split("[,\\uFF0C;\\uFF1B\\r\\n]+")).stream()
+            .filter(part -> part != null && !part.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+    }
+}

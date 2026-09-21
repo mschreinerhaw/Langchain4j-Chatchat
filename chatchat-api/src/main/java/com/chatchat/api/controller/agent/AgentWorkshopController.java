@@ -3,9 +3,7 @@ package com.chatchat.api.controller.agent;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.knowledgebase.search.document.LibraryDocumentItem;
-import com.chatchat.knowledgebase.search.document.DocumentLifecycleStatus;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
-import com.chatchat.knowledgebase.search.service.SearchService;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.skills.model.SkillRoutingSettings;
@@ -58,7 +56,7 @@ public class AgentWorkshopController {
     private final ToolRegistry toolRegistry;
     private final McpToolCatalogQueryPort mcpCatalog;
     private final ModelResourceRegistry modelResources;
-    private final SearchService searchService;
+    private final DocumentLibraryReadPort documentLibrary;
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentPublicationLicenseService agentPublicationLicenseService;
     private final AgentReleaseService agentReleaseService;
@@ -134,7 +132,7 @@ public class AgentWorkshopController {
             registeredMcpTools,
             modelOptions(),
             modelResources.defaultChatModel(),
-            searchService.listLibrary("all", null, 1, 500, documentPermissionContext(request)).documents(),
+            documentLibrary.list(documentPermissionContext(request)),
             domainSkillService.publishedOptions(tenantId(request)).stream().map(DomainSkillOption::from).toList(),
             pageInfo,
             agentCategories(allAgents)
@@ -691,9 +689,7 @@ public class AgentWorkshopController {
             .filter(documentId -> documentId != null && !documentId.isBlank())
             .map(String::trim)
             .distinct()
-            .filter(documentId -> searchService.get(documentId)
-                .filter(document -> !DocumentLifecycleStatus.DELETED.equalsIgnoreCase(document.getLifecycleStatus()))
-                .isPresent())
+            .filter(documentLibrary::exists)
             .toList();
     }
 

@@ -39,6 +39,10 @@ server:
     include-message: never
 
 chatchat:
+  document:
+    gateway:
+      enabled: ${CHATCHAT_DOCUMENT_GATEWAY_ENABLED:false}
+      base-url: ${CHATCHAT_DOCUMENT_MCP_BASE_URL:http://localhost:8090}
   knowledge:
     runtime:
       skill-timeout-ms: 15000

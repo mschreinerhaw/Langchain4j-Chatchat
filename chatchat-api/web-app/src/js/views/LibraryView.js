@@ -16,11 +16,15 @@ import {
   getSearchDocument,
   getSearchDocumentVersion,
   getSearchDocumentVersions,
+  getStoredAuthSession,
   reindexResearchCategory,
   reindexSearchDocument,
   renameResearchCategory,
-  updateSearchDocumentCategory
+  updateSearchDocumentCategory,
+  updateSearchDocument,
+  uploadSearchDocument
 } from "../../services/api.js";
+import { validateDocumentUploadSelection } from "../utils/documentUploadPolicy.js";
 import {
   getDocumentPreviewType,
   inferDocumentType,
@@ -35,7 +39,7 @@ const markdown = new MarkdownIt({
 });
 
 const MESSAGE_TEXT = {
-  library_empty: "文档库暂无文档，请先在文档检索页上传文档。",
+  library_empty: "文档库暂无文档，请点击新增文档上传。",
   title_not_found: "没有找到这个标题的文档。",
   no_documents: "当前分类暂无文档。",
   ok: ""
@@ -103,6 +107,16 @@ export default {
       documentDeleteDialogOpen: false,
       documentDeleteItem: null,
       documentDeleteSubmitting: false,
+      documentUploadDialogOpen: false,
+      documentUploadSubmitting: false,
+      documentUploadFile: null,
+      documentUploadTitle: "",
+      documentUploadCategory: "",
+      documentUploadTags: "",
+      documentEditDialogOpen: false,
+      documentEditSubmitting: false,
+      documentEditItem: null,
+      documentEditForm: { title: "", source: "", date: "", tags: "" },
       selectedDocumentIds: [],
       documentBatchDeleteDialogOpen: false,
       documentBatchDeleteSubmitting: false,
@@ -250,6 +264,109 @@ export default {
     this.stopCategoryReindexPolling();
   },
   methods: {
+    canEditDocument(item) {
+      const authenticatedUserId = getStoredAuthSession()?.user?.id;
+      return this.canDeleteDocuments || Boolean(item?.userId && authenticatedUserId && item.userId === authenticatedUserId);
+    },
+    openDocumentUploadDialog() {
+      this.closeDocumentActions();
+      this.documentUploadFile = null;
+      this.documentUploadTitle = "";
+      this.documentUploadTags = "";
+      this.documentUploadCategory = this.isMutableCategory(this.activeCategory) ? this.activeCategory : "";
+      this.documentUploadDialogOpen = true;
+      this.error = "";
+    },
+    closeDocumentUploadDialog() {
+      if (this.documentUploadSubmitting) return;
+      this.documentUploadDialogOpen = false;
+    },
+    onDocumentUploadFileChange(event) {
+      this.documentUploadFile = event.target.files?.[0] || null;
+      if (this.documentUploadFile && !this.documentUploadTitle.trim()) {
+        this.documentUploadTitle = this.documentUploadFile.name.replace(/\.[^.]+$/, "");
+      }
+    },
+    async submitDocumentUpload() {
+      const file = this.documentUploadFile;
+      if (!file) { this.error = "请选择文档文件。"; return; }
+      const validation = validateDocumentUploadSelection([file]);
+      if (!validation.valid) { this.error = validation.message; return; }
+      if (!this.documentUploadTitle.trim()) { this.error = "请输入文档标题。"; return; }
+      if (this.documentUploadSubmitting) return;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("title", this.documentUploadTitle.trim());
+      formData.append("source", "文档库");
+      formData.append("date", new Date().toISOString().slice(0, 10));
+      formData.append("category", this.documentUploadCategory);
+      formData.append("tags", [this.documentUploadCategory, this.documentUploadTags.trim()].filter(Boolean).join(","));
+      formData.append("documentType", "auto");
+      formData.append("tenantId", this.effectiveTenantId);
+      formData.append("userId", this.userId);
+      this.documentUploadSubmitting = true;
+      this.error = "";
+      try {
+        await uploadSearchDocument(formData);
+        this.documentUploadDialogOpen = false;
+        this.page = 1;
+        await this.loadLibrary();
+        this.message = "文档已上传并建立索引。";
+      } catch (error) {
+        this.error = error.message || "上传文档失败";
+      } finally {
+        this.documentUploadSubmitting = false;
+      }
+    },
+    async openDocumentEditDialog(item) {
+      if (!item?.docId) return;
+      this.closeDocumentActions();
+      this.error = "";
+      try {
+        const document = await getSearchDocument(item.docId, this.permissionFilters);
+        this.documentEditItem = item;
+        this.documentEditForm = {
+          title: document.title || "",
+          source: document.source || "",
+          date: document.date || "",
+          tags: (document.tags || []).filter((tag) => tag !== item.category).join(", ")
+        };
+        this.documentEditDialogOpen = true;
+      } catch (error) {
+        this.error = error.message || "加载文档失败";
+      }
+    },
+    closeDocumentEditDialog() {
+      if (this.documentEditSubmitting) return;
+      this.documentEditDialogOpen = false;
+      this.documentEditItem = null;
+    },
+    async submitDocumentEdit() {
+      const item = this.documentEditItem;
+      if (!item?.docId || this.documentEditSubmitting) return;
+      const title = this.documentEditForm.title.trim();
+      if (!title) { this.error = "请输入文档标题。"; return; }
+      const tags = this.documentEditForm.tags.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean);
+      if (this.isMutableCategory(item.category)) tags.unshift(item.category);
+      this.documentEditSubmitting = true;
+      this.error = "";
+      try {
+        await updateSearchDocument(item.docId, {
+          title,
+          source: this.documentEditForm.source.trim(),
+          date: this.documentEditForm.date.trim(),
+          tags: [...new Set(tags)]
+        }, this.permissionFilters);
+        this.documentEditDialogOpen = false;
+        this.documentEditItem = null;
+        await this.loadLibrary();
+        this.message = "文档信息和索引已更新。";
+      } catch (error) {
+        this.error = error.message || "修改文档失败";
+      } finally {
+        this.documentEditSubmitting = false;
+      }
+    },
     async loadLibrary() {
       this.loading = true;
       this.error = "";
@@ -683,7 +800,7 @@ export default {
       }
     },
     async removeDocument(item) {
-      if (!this.canDeleteDocuments) {
+      if (!this.canEditDocument(item)) {
         return;
       }
       this.openDocumentDeleteDialog(item);
@@ -738,7 +855,7 @@ export default {
       }
     },
     openDocumentDeleteDialog(item) {
-      if (!this.canDeleteDocuments) {
+      if (!this.canEditDocument(item)) {
         return;
       }
       const docId = item?.docId;

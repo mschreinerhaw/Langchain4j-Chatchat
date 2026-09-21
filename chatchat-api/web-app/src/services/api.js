@@ -1465,6 +1465,13 @@ export function fetchCurrentEnterpriseUser() {
   return apiRequest("/enterprise/auth/me");
 }
 
+export function updateSearchDocument(docId, document, filters = {}) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}${searchPermissionQuery(filters)}`, {
+    method: "PUT",
+    body: JSON.stringify(document)
+  });
+}
+
 export function fetchAgentApiTokens(userId = "") {
   const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
   return apiRequest(`/enterprise/agent-api-tokens${query}`);

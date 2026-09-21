@@ -16,6 +16,7 @@
         >
       </label>
       <button type="button" @click="searchByTitle">检索</button>
+      <button type="button" class="library-add-button" @click="openDocumentUploadDialog">新增文档</button>
     </section>
 
     <p v-if="message" :class="titleExists ? 'library-success' : 'library-empty'">{{ message }}</p>
@@ -163,7 +164,12 @@
                 class="document-action-menu"
                 @click.stop
               >
+                <button v-if="canEditDocument(item)" type="button" @click="openDocumentEditDialog(item)">
+                  <Pencil :size="14" />
+                  <span>编辑信息</span>
+                </button>
                 <button
+                  v-if="canEditDocument(item)"
                   type="button"
                   :disabled="documentCategorySavingIds[item.docId] || editableCategories.length === 0"
                   :title="editableCategories.length ? '修改文档分类' : '请先创建分类'"
@@ -181,7 +187,7 @@
                   <RefreshCw :size="14" />
                   <span>{{ documentReindexingIds[item.docId] ? "重建中" : "重建索引" }}</span>
                 </button>
-                <button v-if="canDeleteDocuments" type="button" class="danger-action" @click="removeDocument(item)">
+                <button v-if="canEditDocument(item)" type="button" class="danger-action" @click="removeDocument(item)">
                   <Trash2 :size="14" />
                   <span>删除</span>
                 </button>
@@ -204,6 +210,48 @@
           @change="goPage"
         />
       </section>
+    </div>
+
+    <div v-if="documentUploadDialogOpen" class="category-dialog-backdrop">
+      <form class="category-dialog document-form-dialog" @submit.prevent="submitDocumentUpload">
+        <header>
+          <div><p>文档管理</p><h2>新增文档</h2></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" :disabled="documentUploadSubmitting" @click="closeDocumentUploadDialog">×</button>
+        </header>
+        <label><span>文件（最大 55MB）</span><input type="file" required :disabled="documentUploadSubmitting" @change="onDocumentUploadFileChange"></label>
+        <label><span>标题</span><input v-model="documentUploadTitle" required maxlength="255" :disabled="documentUploadSubmitting"></label>
+        <label><span>分类</span>
+          <select v-model="documentUploadCategory" :disabled="documentUploadSubmitting">
+            <option value="">未分类</option>
+            <option v-for="category in editableCategories" :key="category.name" :value="category.name">{{ categoryLabel(category.name) }}</option>
+          </select>
+        </label>
+        <label><span>其他标签（逗号分隔）</span><input v-model="documentUploadTags" :disabled="documentUploadSubmitting"></label>
+        <p v-if="error" class="library-error">{{ error }}</p>
+        <footer>
+          <button type="button" class="secondary-button" :disabled="documentUploadSubmitting" @click="closeDocumentUploadDialog">取消</button>
+          <button type="submit" :disabled="documentUploadSubmitting">{{ documentUploadSubmitting ? "上传并建索引中" : "上传并建索引" }}</button>
+        </footer>
+      </form>
+    </div>
+
+    <div v-if="documentEditDialogOpen" class="category-dialog-backdrop">
+      <form class="category-dialog document-form-dialog" @submit.prevent="submitDocumentEdit">
+        <header>
+          <div><p>文档管理</p><h2>编辑文档信息</h2></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" :disabled="documentEditSubmitting" @click="closeDocumentEditDialog">×</button>
+        </header>
+        <label><span>标题</span><input v-model="documentEditForm.title" required maxlength="255" :disabled="documentEditSubmitting"></label>
+        <label><span>来源</span><input v-model="documentEditForm.source" :disabled="documentEditSubmitting"></label>
+        <label><span>日期</span><input v-model="documentEditForm.date" :disabled="documentEditSubmitting"></label>
+        <label><span>其他标签（逗号分隔）</span><input v-model="documentEditForm.tags" :disabled="documentEditSubmitting"></label>
+        <p class="document-form-note">修改文件内容时，请上传同名新文件作为新版本；分类可通过“改分类”调整。</p>
+        <p v-if="error" class="library-error">{{ error }}</p>
+        <footer>
+          <button type="button" class="secondary-button" :disabled="documentEditSubmitting" @click="closeDocumentEditDialog">取消</button>
+          <button type="submit" :disabled="documentEditSubmitting">{{ documentEditSubmitting ? "保存中" : "保存并更新索引" }}</button>
+        </footer>
+      </form>
     </div>
 
     <div v-if="categoryDeleteDialogOpen" class="category-dialog-backdrop">

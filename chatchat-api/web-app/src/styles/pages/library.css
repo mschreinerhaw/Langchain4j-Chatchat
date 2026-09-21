@@ -1,6 +1,6 @@
 .library-view .library-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px;
+  grid-template-columns: minmax(0, 1fr) 88px 112px;
   align-items: end;
   gap: 10px;
   max-width: 1040px;
@@ -55,6 +55,20 @@
   border: 1px solid var(--line);
   background: #fff;
   color: var(--primary);
+}
+
+.library-view .document-form-dialog {
+  width: min(520px, 100%);
+}
+
+.library-view .document-form-dialog input[type="file"] {
+  padding: 8px 12px;
+}
+
+.library-view .document-form-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .library-view .library-layout {

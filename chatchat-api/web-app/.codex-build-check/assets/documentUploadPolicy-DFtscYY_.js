@@ -1,0 +1,1 @@
+function r(t){const e=Array.from(t||[]).filter(Boolean),s=e.find(n=>Number(n?.size||0)>57671680);if(s)return{valid:!1,message:`文件不能超过 55MB：${s.name||"未命名文件"}`};const a=e.find(n=>Number(n?.size||0)>5242880);return e.length>1&&a?{valid:!1,message:`超过 5MB 的文档仅支持单文件上传：${a.name||"未命名文件"}`}:{valid:!0,message:""}}export{r as v};

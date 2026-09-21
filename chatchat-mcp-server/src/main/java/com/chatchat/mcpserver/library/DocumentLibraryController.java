@@ -280,11 +280,20 @@ public class DocumentLibraryController {
                                                               @RequestBody DocumentCategoryUpdateRequest request,
                                                               @RequestParam(value = "tenantId", required = false) String tenantId,
                                                               @RequestParam(value = "userId", required = false) String userId,
-                                                              @RequestParam(value = "roles", required = false) String roles) {
+                                                              @RequestParam(value = "roles", required = false) String roles,
+                                                              HttpServletRequest servletRequest) {
         if (request == null || request.category() == null || request.category().isBlank()) {
             return ApiResponse.badRequest("category is required");
         }
-        return searchService.updateDocumentCategory(docId, request.category(), permissionContext(tenantId, userId, roles))
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        SearchDocument existing = searchService.get(docId, context).orElse(null);
+        if (existing == null) {
+            return ApiResponse.notFound("document not found: " + docId);
+        }
+        if (!isAdminOperator(servletRequest) && !context.userId().equals(existing.getUserId())) {
+            return ApiResponse.error(403, "only the document owner or admin can edit it");
+        }
+        return searchService.updateDocumentCategory(docId, request.category(), context)
             .map(document -> ApiResponse.success(document, "Document category updated"))
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
@@ -317,6 +326,35 @@ public class DocumentLibraryController {
         return searchService.get(docId, permissionContext(tenantId, userId, roles))
             .map(ApiResponse::success)
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
+    }
+
+    @PutMapping("/documents/{docId}")
+    public ApiResponse<SearchDocument> updateDocument(@PathVariable("docId") String docId,
+                                                      @RequestBody DocumentUpdateRequest request,
+                                                      @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                      @RequestParam(value = "userId", required = false) String userId,
+                                                      @RequestParam(value = "roles", required = false) String roles,
+                                                      HttpServletRequest servletRequest) {
+        if (request == null || request.title() == null || request.title().isBlank()) {
+            return ApiResponse.badRequest("title is required");
+        }
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        SearchDocument existing = searchService.get(docId, context).orElse(null);
+        if (existing == null) {
+            return ApiResponse.notFound("document not found: " + docId);
+        }
+        if (!isAdminOperator(servletRequest) && !context.userId().equals(existing.getUserId())) {
+            return ApiResponse.error(403, "only the document owner or admin can edit it");
+        }
+        // Work on a copy: createOrUpdate reads the stored version to remove its old index terms.
+        SearchDocument updated = objectMapper.convertValue(existing, SearchDocument.class);
+        updated.setTitle(request.title().trim());
+        updated.setSource(request.source() == null ? "" : request.source().trim());
+        updated.setDate(request.date() == null ? "" : request.date().trim());
+        if (request.tags() != null) {
+            updated.setTags(request.tags());
+        }
+        return ApiResponse.success(searchService.createOrUpdate(updated), "Document updated and indexed");
     }
 
     /**
@@ -367,10 +405,15 @@ public class DocumentLibraryController {
                                             @RequestParam(value = "userId", required = false) String userId,
                                             @RequestParam(value = "roles", required = false) String roles,
                                             HttpServletRequest request) {
-        if (!isAdminOperator(request)) {
-            return ApiResponse.error(403, "only admin can delete documents");
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        SearchDocument existing = searchService.get(docId, context).orElse(null);
+        if (existing == null) {
+            return ApiResponse.notFound("document not found: " + docId);
         }
-        if (!searchService.deleteDocument(docId, permissionContext(tenantId, userId, roles))) {
+        if (!isAdminOperator(request) && !context.userId().equals(existing.getUserId())) {
+            return ApiResponse.error(403, "only the document owner or admin can delete it");
+        }
+        if (!searchService.deleteDocument(docId, context)) {
             return ApiResponse.notFound("document not found: " + docId);
         }
         return ApiResponse.success(null, "document deleted");
@@ -502,7 +545,10 @@ public class DocumentLibraryController {
      * @return the saved document
      */
     @PostMapping("/documents")
-    public ApiResponse<SearchDocument> saveDocument(@RequestBody SearchDocument document) {
+    public ApiResponse<SearchDocument> saveDocument(@RequestBody SearchDocument document, HttpServletRequest request) {
+        if (!isAdminOperator(request)) {
+            return ApiResponse.error(403, "only admin can save raw documents");
+        }
         return ApiResponse.success(searchService.createOrUpdate(document), "Document indexed");
     }
 
@@ -674,6 +720,9 @@ public class DocumentLibraryController {
     }
 
     public record DocumentCategoryUpdateRequest(String category) {
+    }
+
+    public record DocumentUpdateRequest(String title, String source, String date, List<String> tags) {
     }
 
     public record DocumentBatchDeleteRequest(List<String> docIds) {

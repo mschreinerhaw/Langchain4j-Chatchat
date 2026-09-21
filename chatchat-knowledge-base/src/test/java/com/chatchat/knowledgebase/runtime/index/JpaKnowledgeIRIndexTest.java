@@ -1,8 +1,10 @@
 package com.chatchat.knowledgebase.runtime.index;
 
 import com.chatchat.common.knowledge.KnowledgeIR;
+import com.chatchat.common.knowledge.KnowledgeIndexDocument;
 import com.chatchat.common.knowledge.KnowledgeIRQuery;
 import com.chatchat.common.knowledge.KnowledgeScope;
+import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.knowledge.KnowledgeType;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +20,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class JpaKnowledgeIRIndexTest {
+
+    @Test
+    void preservesLongSectionAndTitleWithoutTruncation() {
+        KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        JpaKnowledgeIRIndex index = new JpaKnowledgeIRIndex(repository, new ObjectMapper(), new SearchTokenizer());
+        String longHeading = "开头" + "段".repeat(650) + "结尾";
+        KnowledgeIR unit = new KnowledgeIR("unit-1", "general", KnowledgeType.INTERPRETATION,
+            longHeading, "summary", List.of(), List.of(), List.of(), List.of(), "summary",
+            new KnowledgeSourceReference("doc-1", "doc-1", "chunk-1", "guide.doc", longHeading,
+                "1", "doc://doc-1"), 0.7D);
+
+        index.replaceDocument(new KnowledgeIndexDocument("doc-1", "tenant-1", "user-1", "tenant",
+            List.of(), List.of(), "1", List.of(unit)));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Iterable<KnowledgeIREntity>> saved = ArgumentCaptor.forClass(Iterable.class);
+        verify(repository).saveAll(saved.capture());
+        KnowledgeIREntity entity = saved.getValue().iterator().next();
+        assertThat(entity.getSourceSection()).isEqualTo(longHeading);
+        assertThat(entity.getTitle()).isEqualTo(longHeading);
+    }
 
     @Test
     void enforcesTenantOwnerTypeAndBoundDocumentScope() {

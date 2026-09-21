@@ -46,7 +46,7 @@ public class KnowledgeIREntity {
     private String domain;
     @Column(name = "knowledge_type", length = 40, nullable = false)
     private String knowledgeType;
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String title;
     @Column(name = "semantic_description", columnDefinition = "TEXT")
     private String semanticDescription;
@@ -68,7 +68,7 @@ public class KnowledgeIREntity {
     private String sourceChunkId;
     @Column(name = "source_document_name", length = 500)
     private String sourceDocumentName;
-    @Column(name = "source_section", length = 500)
+    @Column(name = "source_section", columnDefinition = "TEXT")
     private String sourceSection;
     @Column(name = "source_citation", columnDefinition = "TEXT")
     private String sourceCitation;

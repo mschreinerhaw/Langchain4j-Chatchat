@@ -57,3 +57,26 @@ The migration does not infer documents hidden from the migration account.
 Those documents require an account with access or a separate scoped export.
 An MCP reindex only works after the source file has arrived in MCP storage;
 reindexing alone cannot read files that still exist only in API storage.
+
+## Existing Knowledge IR tables
+
+Older databases define `knowledge_ir_unit.source_section` and `title` as
+`varchar(500)`. Apply `database/migration/mysql/V20260921_01__knowledge_ir_full_sections.sql`
+to each existing MySQL database containing that table before deploying the
+new MCP and reindexing documents. Use the matching H2 migration for H2
+installations. The fields now store full section paths and titles as text;
+no application-side truncation is applied. Documents whose Knowledge IR write
+previously failed need one reindex after the schema change.
+
+Check the database used by the running MCP process before reindexing:
+
+```sql
+SELECT DATABASE();
+SHOW FULL COLUMNS FROM knowledge_ir_unit WHERE Field IN ('source_section', 'title');
+```
+
+Both columns must report `text`. Hibernate `ddl-auto: update` is not a substitute
+for verifying this change on an existing database. If either column still reports
+`varchar(500)`, run the MySQL migration against that database. If both report
+`text` and an insertion still fails, inspect the length of the source heading;
+MySQL `TEXT` itself has a finite capacity and needs a separate fix for that case.

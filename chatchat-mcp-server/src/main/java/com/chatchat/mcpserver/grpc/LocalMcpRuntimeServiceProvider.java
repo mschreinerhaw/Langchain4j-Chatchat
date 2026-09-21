@@ -29,6 +29,7 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
     static final String SERVICE_ID = "chatchat-mcp-server";
     static final String LOCAL_PREFIX = "mcp_chatchat_mcp_server_";
     private static final Map<String, String> EXISTING_TOOL_ALIASES = Map.ofEntries(
+        Map.entry("Calculator", "计算器"),
         Map.entry("Document Evidence Search", "文档证据检索"),
         Map.entry("Enterprise metadata search", "企业元数据检索"),
         Map.entry("Existing database schema context", "数据库结构信息查询"),
@@ -136,13 +137,17 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         Map<String, Object> extra = new LinkedHashMap<>(source == null || source.getMetadata() == null
             ? Map.of() : source.getMetadata());
         if (published != null && published.meta() != null) extra.putAll(published.meta());
-        if (source != null && source.getTitle() != null
-            && (extra.get("chineseAlias") == null || String.valueOf(extra.get("chineseAlias")).isBlank())) {
-            String title = source.getTitle();
-            String alias = title.codePoints().anyMatch(code ->
-                Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)
-                ? title : EXISTING_TOOL_ALIASES.get(title);
-            if (alias != null) extra.put("chineseAlias", alias);
+        if (extra.get("chineseAlias") == null || String.valueOf(extra.get("chineseAlias")).isBlank()) {
+            String publishedTitle = published == null ? null : published.title();
+            String sourceTitle = source == null ? null : source.getTitle();
+            String title = publishedTitle != null && publishedTitle.codePoints().anyMatch(code ->
+                Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN) ? publishedTitle : sourceTitle;
+            if (title != null) {
+                String alias = title.codePoints().anyMatch(code ->
+                    Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)
+                    ? title : EXISTING_TOOL_ALIASES.get(title);
+                if (alias != null) extra.put("chineseAlias", alias);
+            }
         }
         extra.putIfAbsent("contractVersion", McpToolContractValidator.CONTRACT_VERSION);
         Map<String, Object> inputSchema = canonicalObjectSchema(published == null

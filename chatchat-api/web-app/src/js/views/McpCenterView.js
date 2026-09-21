@@ -294,6 +294,7 @@ export default {
       const fields = [
         tool?.localToolName,
         tool?.displayName,
+        tool?.chineseAlias,
         tool?.description,
         tool?.serviceId,
         tool?.serviceName,
@@ -310,7 +311,7 @@ export default {
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
     },
     toolBadge(tool) {
-      return String(tool?.displayName || tool?.localToolName || "M").slice(0, 1).toUpperCase();
+      return String(tool?.chineseAlias || tool?.displayName || tool?.localToolName || "M").slice(0, 1).toUpperCase();
     },
     toolMetaLabel(tool) {
       const labels = [];

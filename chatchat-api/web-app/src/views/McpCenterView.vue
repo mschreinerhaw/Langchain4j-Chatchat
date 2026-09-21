@@ -139,7 +139,7 @@
                   <span>{{ toolBadge(tool) }}</span>
                   <div>
                     <h3>{{ tool.chineseAlias || tool.displayName }}</h3>
-                    <small>{{ tool.localToolName }}</small>
+                    <small :title="tool.remoteToolName || tool.displayName || tool.localToolName">{{ tool.chineseAlias ? (tool.remoteToolName || tool.displayName || tool.localToolName) : tool.localToolName }}</small>
                   </div>
                   <strong>MCP工具</strong>
                 </div>
@@ -204,7 +204,7 @@
           <div>
             <p>工具详情</p>
             <h2 id="mcp-tool-detail-title">{{ activeTool.chineseAlias || activeTool.displayName || activeTool.localToolName }}</h2>
-            <span>{{ activeTool.localToolName }}</span>
+            <span>{{ activeTool.chineseAlias ? (activeTool.remoteToolName || activeTool.displayName || activeTool.localToolName) : activeTool.localToolName }}</span>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭详情" title="关闭详情" @click="closeToolDetail">×</button>
         </header>

@@ -308,7 +308,7 @@ public class McpServiceController {
      */
     private List<ToolCardView> buildToolCards() {
         return administrationPort.listToolCatalog().stream().map(tool -> new ToolCardView(
-            tool.localToolName(), tool.displayName(), tool.description(), tool.sourceType(), tool.sourceLabel(),
+            tool.localToolName(), tool.displayName(), tool.chineseAlias(), tool.description(), tool.sourceType(), tool.sourceLabel(),
             tool.serviceId(), tool.serviceName(), tool.remoteToolName(), tool.outputType(), tool.agentCompatible(),
             tool.requiresAuth(), tool.rateLimited(), tool.timeoutMillis(), tool.parameters().size(),
             tool.functionalCategory(), tool.categories(), tool.tags(), tool.parameters().stream()
@@ -402,6 +402,7 @@ public class McpServiceController {
         List<String> fields = new ArrayList<>();
         fields.add(tool.localToolName());
         fields.add(tool.displayName());
+        fields.add(tool.chineseAlias());
         fields.add(tool.description());
         fields.add(tool.serviceId());
         fields.add(tool.serviceName());
@@ -641,6 +642,7 @@ public class McpServiceController {
     public record ToolCardView(
         String localToolName,
         String displayName,
+        String chineseAlias,
         String description,
         String sourceType,
         String sourceLabel,

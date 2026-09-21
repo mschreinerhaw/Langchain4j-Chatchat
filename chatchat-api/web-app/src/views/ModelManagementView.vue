@@ -1,26 +1,26 @@
 <template>
   <section class="feature-view model-management-view">
-    <header class="model-header">
-      <div><p>平台管理</p><h1>模型管理</h1><small>统一管理大语言模型和向量模型。数据库中的最近配置优先于配置文件。</small></div>
-      <button type="button" class="primary-button" @click="openCreate">新增模型</button>
+    <header class="feature-page-header model-header">
+      <div class="feature-page-heading"><span class="feature-breadcrumb">平台管理</span><h1>模型管理</h1><p>统一管理大语言模型和向量模型。数据库中的最近配置优先于配置文件。</p></div>
+      <button type="button" class="feature-button primary" @click="openCreate">新增模型</button>
     </header>
-    <p v-if="message" role="status" :class="{ error: error }">{{ message }}</p>
-    <div v-if="loading">正在加载模型…</div>
+    <p v-if="message" role="status" class="feature-alert" :class="error ? 'error' : 'success'">{{ message }}</p>
+    <div v-if="loading" class="model-state">正在加载模型…</div>
     <div v-else class="model-grid">
       <article v-for="model in models" :key="`${model.type}:${model.name}`" class="feature-card model-card">
         <div class="model-card-head">
           <div><strong>{{ model.name }}</strong><small>{{ model.type === 'embedding' ? '向量模型' : '大语言模型' }} · {{ model.providerModel }}</small></div>
-          <span v-if="model.defaultModel" class="model-default">默认</span>
+          <span v-if="model.defaultModel" class="model-default">默认模型</span>
         </div>
-        <p>{{ model.baseUrl }}</p>
-        <small>API Key：{{ model.hasApiKey ? '已配置（不可查看）' : '未配置' }} · {{ model.enabled ? '已启用' : '已停用' }}</small>
-        <div class="model-actions">
-          <button type="button" @click="openEdit(model)">编辑</button>
-          <button type="button" :disabled="!model.enabled || model.defaultModel" @click="makeDefault(model)">设为默认</button>
-          <button type="button" @click="remove(model)">删除</button>
+        <p class="model-url" :title="model.baseUrl">{{ model.baseUrl }}</p>
+        <small class="model-meta">API Key：{{ model.hasApiKey ? '已配置（不可查看）' : '未配置' }} <span>·</span> {{ model.enabled ? '已启用' : '已停用' }}</small>
+        <div class="feature-card-actions model-actions">
+          <button type="button" class="feature-button" @click="openEdit(model)">编辑</button>
+          <button type="button" class="feature-button" :disabled="!model.enabled || model.defaultModel" @click="makeDefault(model)">设为默认</button>
+          <button type="button" class="feature-button danger" @click="remove(model)">删除</button>
         </div>
       </article>
-      <p v-if="!models.length">暂无模型配置。</p>
+      <p v-if="!models.length" class="model-state">暂无模型配置。</p>
     </div>
     <div v-if="editing" class="model-dialog-backdrop" @click.self="editing = false">
       <form class="model-dialog" @submit.prevent="save">
@@ -39,7 +39,7 @@
         <small>密钥提交后加密保存，页面不会回显。</small>
         <label class="model-checkbox"><input v-model="form.enabled" type="checkbox" />启用</label>
         <label class="model-checkbox"><input v-model="form.defaultModel" type="checkbox" />设为该类型的默认模型</label>
-        <div class="model-actions"><button type="button" @click="editing = false">取消</button><button type="submit" class="primary-button" :disabled="saving">保存</button></div>
+        <div class="feature-modal-actions model-actions"><button type="button" class="feature-button" @click="editing = false">取消</button><button type="submit" class="feature-button primary" :disabled="saving">保存</button></div>
       </form>
     </div>
   </section>

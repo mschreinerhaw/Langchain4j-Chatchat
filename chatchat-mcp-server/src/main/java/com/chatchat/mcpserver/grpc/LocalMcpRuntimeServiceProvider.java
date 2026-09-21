@@ -28,6 +28,30 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
 
     static final String SERVICE_ID = "chatchat-mcp-server";
     static final String LOCAL_PREFIX = "mcp_chatchat_mcp_server_";
+    private static final Map<String, String> EXISTING_TOOL_ALIASES = Map.ofEntries(
+        Map.entry("Document Evidence Search", "文档证据检索"),
+        Map.entry("Enterprise metadata search", "企业元数据检索"),
+        Map.entry("Existing database schema context", "数据库结构信息查询"),
+        Map.entry("SQL query execution gateway", "SQL 查询执行"),
+        Map.entry("API template execution gateway", "API 模板执行"),
+        Map.entry("API template discovery", "API 模板检索"),
+        Map.entry("API requirement capability analysis", "API 需求能力分析"),
+        Map.entry("API asset metadata discovery", "API 资产元数据检索"),
+        Map.entry("JMX monitoring template execution", "JMX 监控模板执行"),
+        Map.entry("Linux command execution gateway", "Linux 命令执行"),
+        Map.entry("HTTP request execution gateway", "HTTP 请求执行"),
+        Map.entry("HTTP endpoint requirement capability analysis", "HTTP 端点需求能力分析"),
+        Map.entry("Python analysis capability query", "Python 分析能力查询"),
+        Map.entry("Authorized template query", "授权模板查询"),
+        Map.entry("SSH command template discovery", "SSH 命令模板检索"),
+        Map.entry("Database operations template discovery", "数据库运维模板检索"),
+        Map.entry("HTTP endpoint template discovery", "HTTP 端点模板检索"),
+        Map.entry("Categorized database query template discovery", "数据库业务查询模板检索"),
+        Map.entry("Server operations capability query", "服务器运维能力查询"),
+        Map.entry("HTTP capability query", "HTTP 能力查询"),
+        Map.entry("Java/JMX monitoring capability query", "Java/JMX 监控能力查询"),
+        Map.entry("Database operations capability query", "数据库运维能力查询")
+    );
 
     private final ToolRegistry toolRegistry;
     private final McpDynamicToolRegistryMirror publicationMirror;
@@ -112,9 +136,13 @@ public final class LocalMcpRuntimeServiceProvider implements McpServiceProvider 
         Map<String, Object> extra = new LinkedHashMap<>(source == null || source.getMetadata() == null
             ? Map.of() : source.getMetadata());
         if (published != null && published.meta() != null) extra.putAll(published.meta());
-        if (source != null && source.getTitle() != null && source.getTitle().codePoints()
-            .anyMatch(code -> Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)) {
-            extra.putIfAbsent("chineseAlias", source.getTitle());
+        if (source != null && source.getTitle() != null
+            && (extra.get("chineseAlias") == null || String.valueOf(extra.get("chineseAlias")).isBlank())) {
+            String title = source.getTitle();
+            String alias = title.codePoints().anyMatch(code ->
+                Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)
+                ? title : EXISTING_TOOL_ALIASES.get(title);
+            if (alias != null) extra.put("chineseAlias", alias);
         }
         extra.putIfAbsent("contractVersion", McpToolContractValidator.CONTRACT_VERSION);
         Map<String, Object> inputSchema = canonicalObjectSchema(published == null

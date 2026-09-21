@@ -53,6 +53,9 @@ public class TemplateQueryBindingSchemaMigrator implements ApplicationRunner {
         if (!tableExists(connection)) {
             return;
         }
+        if (!columnExists(connection, "chinese_alias")) {
+            execute(connection, "ALTER TABLE " + TABLE_NAME + " ADD COLUMN chinese_alias VARCHAR(128)");
+        }
         Map<String, List<String>> uniqueIndexes = uniqueIndexes(connection);
         for (Map.Entry<String, List<String>> index : uniqueIndexes.entrySet()) {
             if (LEGACY_COLUMNS.equals(index.getValue())) {
@@ -101,6 +104,18 @@ public class TemplateQueryBindingSchemaMigrator implements ApplicationRunner {
             try (ResultSet tables = metadata.getTables(connection.getCatalog(), null, table, new String[] {"TABLE"})) {
                 if (tables.next()) {
                     return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean columnExists(Connection connection, String columnName) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        for (String table : identifierCandidates(TABLE_NAME)) {
+            try (ResultSet columns = metadata.getColumns(connection.getCatalog(), null, table, null)) {
+                while (columns.next()) {
+                    if (columnName.equalsIgnoreCase(columns.getString("COLUMN_NAME"))) return true;
                 }
             }
         }

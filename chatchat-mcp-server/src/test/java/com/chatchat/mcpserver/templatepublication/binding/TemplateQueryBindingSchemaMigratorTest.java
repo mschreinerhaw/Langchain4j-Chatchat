@@ -26,6 +26,9 @@ class TemplateQueryBindingSchemaMigratorTest {
 
         new TemplateQueryBindingSchemaMigrator(jdbc).run(null);
 
+        assertThat(jdbc.queryForList("SELECT chinese_alias FROM mcp_template_query_binding"))
+            .isEmpty();
+
         insert(jdbc, "one", "customer_service", "ROLE", "role-1");
         insert(jdbc, "two", "wealth_service", "ROLE", "role-1");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM mcp_template_query_binding", Integer.class))

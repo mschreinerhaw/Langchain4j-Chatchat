@@ -231,6 +231,18 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
     }
 
     @Transactional(readOnly = true)
+    public String chineseAlias(String toolName) {
+        String requiredToolName = TemplateQueryToolNamePolicy.requireToolName(toolName);
+        String domainCode = requiredToolName.substring(0,
+            requiredToolName.length() - TemplateQueryToolNamePolicy.SUFFIX.length());
+        return repository.findByDomainCode(domainCode).stream()
+            .filter(TemplateQueryBinding::isEnabled)
+            .map(TemplateQueryBinding::getChineseAlias)
+            .filter(alias -> alias != null && !alias.isBlank())
+            .findFirst().orElse(null);
+    }
+
+    @Transactional(readOnly = true)
     public String parentToolName(String toolName) {
         String requiredToolName = TemplateQueryToolNamePolicy.requireToolName(toolName);
         Set<String> parents = repository.findByDomainCode(
@@ -266,6 +278,16 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         String domainCode = TemplateQueryToolNamePolicy.requireDomainCode(request.domainCode());
         Subject subject = subject(role, request.subjectType(), request.userId());
         validateParentConsistency(domainCode, parent.toolName(), binding.getId());
+        String chineseAlias = request.chineseAlias() == null
+            ? binding.getChineseAlias() : normalizeChineseAlias(request.chineseAlias());
+        boolean aliasConflict = repository.findByDomainCode(domainCode).stream()
+            .filter(other -> binding.getId() == null || !binding.getId().equals(other.getId()))
+            .map(TemplateQueryBinding::getChineseAlias)
+            .filter(existing -> existing != null && !existing.isBlank())
+            .anyMatch(existing -> chineseAlias != null && !existing.equals(chineseAlias));
+        if (aliasConflict) {
+            throw new IllegalArgumentException("All bindings of the same dynamic tool must use the same chineseAlias");
+        }
         List<String> keys = normalizeKeys(request.templateKeys(), role.getId(), parent.assetType());
         if (keys.isEmpty()) {
             throw new IllegalArgumentException("At least one template must be selected");
@@ -275,6 +297,7 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         binding.setParentToolName(parent.toolName());
         binding.setRoleId(role.getId());
         binding.setDomainCode(domainCode);
+        binding.setChineseAlias(chineseAlias);
         binding.setSubjectType(subject.type());
         binding.setSubjectId(subject.id());
         binding.setTemplateKeysJson(ModelProtocolJson.compact(keys));
@@ -328,6 +351,16 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             throw new IllegalArgumentException(
                 "All bindings of the same dynamic template query tool must use the same parent query");
         }
+    }
+
+    private String normalizeChineseAlias(String value) {
+        if (value == null || value.isBlank()) return null;
+        String alias = value.trim();
+        if (alias.length() > 128 || alias.codePoints().noneMatch(code ->
+            Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN)) {
+            throw new IllegalArgumentException("chineseAlias must contain Chinese text and be at most 128 characters");
+        }
+        return alias;
     }
 
     private boolean roleMatches(McpSynchronizedRole role, Set<String> tokens) {
@@ -428,6 +461,7 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             binding.getSubjectType(), SUBJECT_USER.equalsIgnoreCase(binding.getSubjectType())
                 ? binding.getSubjectId() : null, user == null ? "" : user.username(),
             binding.getDomainCode(), toolName(binding.getDomainCode()),
+            binding.getChineseAlias(),
             readKeys(binding.getTemplateKeysJson()), binding.isEnabled(), binding.getRevision(),
             binding.getCreatedAt(), binding.getUpdatedAt());
     }
@@ -448,12 +482,17 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
     }
 
     public record UpsertRequest(String parentToolName, String roleId, String subjectType, String userId, String domainCode,
-                                List<String> templateKeys, Boolean enabled, Long expectedRevision) { }
+                                List<String> templateKeys, Boolean enabled, Long expectedRevision, String chineseAlias) {
+        public UpsertRequest(String parentToolName, String roleId, String subjectType, String userId, String domainCode,
+                             List<String> templateKeys, Boolean enabled, Long expectedRevision) {
+            this(parentToolName, roleId, subjectType, userId, domainCode, templateKeys, enabled, expectedRevision, null);
+        }
+    }
     public record BindingView(String id, String tenantId, String tenantName, String serviceId, String serviceName,
                               String parentToolName, String parentToolTitle, String parentAssetType,
                               String roleId, String roleCode, String roleName, String subjectType,
                               String userId, String username, String domainCode,
-                              String toolName, List<String> templateKeys,
+                              String toolName, String chineseAlias, List<String> templateKeys,
                               boolean enabled, long revision,
                               java.time.Instant createdAt, java.time.Instant updatedAt) { }
 

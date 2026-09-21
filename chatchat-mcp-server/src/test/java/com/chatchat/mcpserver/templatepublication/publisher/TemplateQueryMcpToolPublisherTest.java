@@ -59,6 +59,7 @@ class TemplateQueryMcpToolPublisherTest {
             new AgentRuntimeGovernanceFactory(new ObjectMapper()),
             concurrencyManager);
         when(bindings.publishedToolNames()).thenReturn(Set.of("customer_template_query"));
+        when(bindings.chineseAlias("customer_template_query")).thenReturn("客户模板查询");
         when(bindings.requireRoute("customer_template_query")).thenReturn(
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
 
@@ -77,6 +78,7 @@ class TemplateQueryMcpToolPublisherTest {
             .containsEntry("scopeMode", "FIXED_BINDING")
             .containsEntry("selectionMode", "BOUND_SCOPE_RECALL")
             .containsEntry("assetType", TemplateAssetCatalogService.API)
+            .containsEntry("chineseAlias", "客户模板查询")
             .containsKey(McpTemplateSelectionScope.METADATA_KEY)
             .doesNotContainKeys("parentToolName", "kind");
         assertThat(McpDynamicCapabilityRoute.fromToolMetadata(captor.getValue().tool().meta()).orElseThrow())

@@ -56,7 +56,7 @@ export default {
       return this.bindings.filter(binding => {
         const categoryMatched = !this.publicationCategoryFilter
           || binding.parentAssetType === this.publicationCategoryFilter;
-        const text = [binding.toolName, binding.domainCode, binding.parentToolTitle,
+        const text = [binding.toolName, binding.chineseAlias, binding.domainCode, binding.parentToolTitle,
           binding.parentToolName, binding.roleName, binding.roleCode, binding.username,
           binding.tenantName]
           .filter(Boolean).join(' ').toLowerCase();
@@ -128,7 +128,7 @@ export default {
     emptyForm() {
       return {
         id: '', parentToolName: '', roleId: '', subjectType: 'ROLE', userId: '',
-        domainCode: '', templateKeys: [], enabled: true, expectedRevision: null
+        domainCode: '', chineseAlias: '', templateKeys: [], enabled: true, expectedRevision: null
       };
     },
     async load() {
@@ -166,6 +166,7 @@ export default {
         subjectType: binding.subjectType || 'ROLE',
         userId: binding.userId || '',
         domainCode: binding.domainCode || '',
+        chineseAlias: binding.chineseAlias || '',
         templateKeys: [...(binding.templateKeys || [])],
         enabled: binding.enabled !== false,
         expectedRevision: binding.revision

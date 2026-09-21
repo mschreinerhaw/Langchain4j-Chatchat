@@ -41,7 +41,8 @@
       <el-table-column prop="toolName" label="工具名称" min-width="230">
         <template #default="{ row }">
           <span class="tool-name-with-revision">
-            <code>{{ row.toolName }}</code>
+            <strong v-if="row.chineseAlias">{{ row.chineseAlias }}</strong>
+            <code class="cell-subtitle">{{ row.toolName }}</code>
             <sub class="revision-badge">v{{ row.revision || 1 }}</sub>
           </span>
         </template>
@@ -113,6 +114,10 @@
             <template #append>_template_query</template>
           </el-input>
           <div class="field-help">只允许填写领域编码：小写字母、数字和下划线。固定后缀由系统维护，不可修改。</div>
+        </el-form-item>
+        <el-form-item label="中文别名（可选）">
+          <el-input v-model.trim="form.chineseAlias" maxlength="128" show-word-limit placeholder="例如：客户资料查询" />
+          <div class="field-help">仅用于页面展示，不改变英文工具名和调用方式。</div>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">

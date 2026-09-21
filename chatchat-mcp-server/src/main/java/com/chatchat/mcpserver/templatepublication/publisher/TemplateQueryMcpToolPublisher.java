@@ -290,6 +290,8 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         ));
         Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta(
             "template_query_publication", "system-managed", governance));
+        String chineseAlias = bindingService.chineseAlias(toolName);
+        if (chineseAlias != null) meta.put("chineseAlias", chineseAlias);
         meta.put("schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION);
         meta.put("resultKind", "RAW_RECORDS");
         meta.put("resultSchemaRef", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION);

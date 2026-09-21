@@ -41,6 +41,9 @@ public class TemplateQueryBinding {
     @Column(name = "domain_code", nullable = false, length = 64)
     private String domainCode;
 
+    @Column(name = "chinese_alias", length = 128)
+    private String chineseAlias;
+
     @Column(name = "subject_type", nullable = false, length = 16)
     private String subjectType = "ROLE";
 

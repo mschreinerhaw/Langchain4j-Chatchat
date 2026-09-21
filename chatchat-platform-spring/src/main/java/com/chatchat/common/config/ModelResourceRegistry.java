@@ -1,6 +1,7 @@
 package com.chatchat.common.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -15,25 +16,44 @@ import java.util.List;
 public class ModelResourceRegistry {
 
     private final ModelsConfig properties;
+    private ModelCatalogOverride catalog;
+
+    @Autowired(required = false)
+    public void setCatalog(ModelCatalogOverride catalog) {
+        this.catalog = catalog;
+    }
 
     public String defaultChatModel() {
-        return properties.getDefaultChatModel();
+        return catalog == null || !catalog.hasChatModels()
+            ? properties.getDefaultChatModel() : catalog.defaultChatModel();
     }
 
     public List<String> selectableChatModels() {
-        return properties.getUsableChatModels();
+        return catalog == null || !catalog.hasChatModels()
+            ? properties.getUsableChatModels() : catalog.chatModelNames();
     }
 
     public ModelsConfig.ResolvedModelConnection resolve(String modelName) {
-        return properties.resolveChatModelConnection(modelName);
+        return catalog == null || !catalog.hasChatModels()
+            ? properties.resolveChatModelConnection(modelName) : catalog.resolveChatModel(modelName);
     }
 
     public ModelsConfig.ResolvedModelConnection require(String modelName) {
-        return properties.requireUsableChatModelConnection(modelName);
+        ModelsConfig.ResolvedModelConnection resolved = resolve(modelName);
+        if (catalog == null || !catalog.hasChatModels()) {
+            return properties.requireUsableChatModelConnection(modelName);
+        }
+        if (resolved == null || resolved.config() == null || resolved.config().getBaseUrl() == null
+            || resolved.config().getBaseUrl().isBlank()) {
+            throw new IllegalArgumentException("Model is not available: " + modelName);
+        }
+        return resolved;
     }
 
     public String canonicalName(String modelName) {
-        return properties.canonicalChatModelName(modelName);
+        ModelsConfig.ResolvedModelConnection resolved = require(modelName);
+        return resolved.matchType() == ModelsConfig.ModelMatchType.LEGACY_OPENAI
+            ? resolved.requestedModel() : resolved.configuredKey();
     }
 
     public ModelsConfig.ModelConnectionConfig connection(String modelName) {
@@ -42,6 +62,7 @@ public class ModelResourceRegistry {
     }
 
     public List<String> configuredKeys() {
-        return properties.getConfiguredChatModelKeys();
+        return catalog == null || !catalog.hasChatModels()
+            ? properties.getConfiguredChatModelKeys() : catalog.chatModelNames();
     }
 }

@@ -1,0 +1,18 @@
+.model-management-view { padding: 24px; }
+.model-header, .model-card-head, .model-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.model-header { margin-bottom: 24px; }
+.model-header h1 { margin: 4px 0; }
+.model-header small, .model-card small { color: var(--muted); }
+.model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.model-card { padding: 20px; overflow-wrap: anywhere; }
+.model-card-head > div { display: grid; gap: 4px; }
+.model-default { color: #167547; font-size: 12px; }
+.model-actions { justify-content: flex-end; margin-top: 18px; }
+.model-actions button { cursor: pointer; }
+.model-dialog-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #0008; }
+.model-dialog { width: min(520px, calc(100vw - 32px)); max-height: 90vh; overflow: auto; display: grid; gap: 12px; padding: 24px; border-radius: 16px; background: var(--surface, #fff); }
+.model-dialog h2 { margin: 0; }
+.model-dialog label:not(.model-checkbox) { display: grid; gap: 5px; }
+.model-dialog input:not([type=checkbox]), .model-dialog select { width: 100%; padding: 9px; border: 1px solid #ccd5df; border-radius: 8px; }
+.model-dialog .model-checkbox { display: flex; align-items: center; gap: 8px; }
+.model-management-view .error { color: #be3131; }

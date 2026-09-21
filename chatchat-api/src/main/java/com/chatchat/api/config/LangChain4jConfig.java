@@ -7,14 +7,12 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * LangChain4j configuration for Spring Boot
  */
-@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class LangChain4jConfig {
@@ -25,61 +23,33 @@ public class LangChain4jConfig {
     /** Configure the default chat model from its protocol-aware connection. */
     @Bean
     public ChatModel chatLanguageModel() {
-        String modelName = modelResources.defaultChatModel();
-        if (modelName == null || modelName.isBlank()) {
-            log.warn("Default chat model is not configured");
-            return new MissingModelConfigurationChatModel("Default chat model is not configured. "
-                + "Set chatchat.models.defaultChatModel before using chat.");
-        }
-        ModelsConfig.ResolvedModelConnection resolved;
-        try {
-            resolved = modelResources.require(modelName);
-        } catch (IllegalArgumentException ex) {
-            String message = ex.getMessage();
-            log.warn(message);
-            return new MissingModelConfigurationChatModel(message);
-        }
-        ModelsConfig.ModelConnectionConfig connection = resolved.config();
-        if (connection.getApiKey() == null || connection.getApiKey().isBlank()) {
-            log.warn("API key is not configured for chat model {}", modelName);
-            return new MissingApiKeyChatModel();
-        }
+        return new ChatModel() {
+            private volatile String cachedSignature;
+            private volatile ChatModel cachedModel;
 
-        return chatModelFactory.create(modelName);
+            private ChatModel current() {
+                String name = modelResources.defaultChatModel();
+                if (name == null || name.isBlank()) {
+                    throw new IllegalStateException("Default chat model is not configured");
+                }
+                ModelsConfig.ModelConnectionConfig connection = modelResources.require(name).config();
+                String signature = name + "\u0000" + connection.getModelName() + "\u0000"
+                    + connection.getBaseUrl() + "\u0000" + connection.getProtocol() + "\u0000"
+                    + connection.getApiKey() + "\u0000" + connection.getTimeout() + "\u0000"
+                    + connection.getMaxTokens() + "\u0000" + connection.getMaxRetries();
+                if (cachedModel != null && signature.equals(cachedSignature)) return cachedModel;
+                synchronized (this) {
+                    if (cachedModel == null || !signature.equals(cachedSignature)) {
+                        cachedModel = chatModelFactory.create(name);
+                        cachedSignature = signature;
+                    }
+                    return cachedModel;
+                }
+            }
+
+            @Override public String chat(String userMessage) { return current().chat(userMessage); }
+            @Override public ChatResponse doChat(ChatRequest request) { return current().chat(request); }
+        };
     }
 
-    private static final class MissingApiKeyChatModel implements ChatModel {
-
-        private static final String MESSAGE = "Model API key is not configured. Set the selected "
-            + "chatchat.models.chatModels.<model>.apiKey or the legacy chatchat.models.openai.apiKey.";
-
-        @Override
-        public String chat(String userMessage) {
-            throw new IllegalStateException(MESSAGE);
-        }
-
-        @Override
-        public ChatResponse doChat(ChatRequest chatRequest) {
-            throw new IllegalStateException(MESSAGE);
-        }
-    }
-
-    private static final class MissingModelConfigurationChatModel implements ChatModel {
-
-        private final String message;
-
-        private MissingModelConfigurationChatModel(String message) {
-            this.message = message;
-        }
-
-        @Override
-        public String chat(String userMessage) {
-            throw new IllegalStateException(message);
-        }
-
-        @Override
-        public ChatResponse doChat(ChatRequest chatRequest) {
-            throw new IllegalStateException(message);
-        }
-    }
 }

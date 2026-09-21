@@ -122,6 +122,7 @@ public class EnterpriseAdminController {
                 new MenuItem("schedules", "Agent调度", "/index.html#schedules"),
                 new MenuItem("rules", "关键词规则", "/index.html#rules"),
                 new MenuItem("tasks", "运行监控", "/index.html#tasks"),
+                new MenuItem("models", "模型管理", "/index.html#models"),
                 new MenuItem("system", "系统管理", "/index.html#system")
             ))
         );

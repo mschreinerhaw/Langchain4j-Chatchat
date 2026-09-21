@@ -1622,6 +1622,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("platform:schedules", "platform:schedules:manage", "Agent调度管理", "button", "/api/v1/agent/tasks/runtime/schedules/**", "*", "calendar-check", 35),
             new PermissionSeed("platform", "platform:rules", "关键词规则", "menu", "/index.html#rules", null, "list-filter", 36),
             new PermissionSeed("platform", "platform:tasks", "运行监控", "menu", "/index.html#tasks", null, "clipboard-list", 37),
+            new PermissionSeed("platform", "platform:models", "模型管理", "menu", "/index.html#models", null, "bot", 39),
+            new PermissionSeed("platform:models", "platform:models:manage", "模型配置管理", "button", "/api/v1/platform/models/**", "*", "key-round", 39),
             new PermissionSeed("platform:tasks", "platform:tasks:monitor", "运行监控查询", "button", "/api/v1/agent/tasks/**", "GET", "activity", 38),
             new PermissionSeed("platform", "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),

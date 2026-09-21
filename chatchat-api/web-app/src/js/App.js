@@ -62,6 +62,7 @@ const AgentRuntimeView = asyncView(() => import("../views/AgentRuntimeView.vue")
 const RetrievalRulesView = asyncView(() => import("../views/RetrievalRulesView.vue"));
 const EvidenceDebuggerView = asyncView(() => import("../views/EvidenceDebuggerView.vue"));
 const SystemManagementView = asyncView(() => import("../views/SystemManagementView.vue"));
+const ModelManagementView = asyncView(() => import("../views/ModelManagementView.vue"));
 const TasksView = asyncView(() => import("../views/TasksView.vue"));
 const AccessDeniedView = asyncView(() => import("../views/AccessDeniedView.vue"));
 const DATA_SCIENCE_TABS = {
@@ -89,7 +90,8 @@ const VIEW_PERMISSIONS = {
   runtime: "platform:tasks",
   rules: "platform:rules",
   tasks: "platform:tasks",
-  system: "system"
+  system: "system",
+  models: "platform:models"
 };
 
 const views = {
@@ -111,7 +113,8 @@ const views = {
   rules: RetrievalRulesView,
   debugger: EvidenceDebuggerView,
   tasks: TasksView,
-  system: SystemManagementView
+  system: SystemManagementView,
+  models: ModelManagementView
 };
 
 function currentHashRoute() {
@@ -226,6 +229,7 @@ export default {
             { id: "rules", label: "关键词规则", icon: "search", permissionCode: "platform:rules" },
             { id: "debugger", label: "证据调试", icon: "tasks" },
             { id: "tasks", label: "运行监控", icon: "tasks", permissionCode: "platform:tasks" },
+            { id: "models", label: "模型管理", icon: "gear", permissionCode: "platform:models" },
             { id: "system", label: "系统管理", icon: "gear", permissionCode: "system" }
           ]
         }

@@ -75,6 +75,17 @@ export function fetchUiArtifactResource(artifactId, resourceId) {
   );
 }
 
+export const fetchPlatformModels = () => apiRequest("/platform/models");
+export const savePlatformModel = (model) => apiRequest("/platform/models", {
+  method: "PUT", body: JSON.stringify(model)
+});
+export const setDefaultPlatformModel = (type, name) => apiRequest("/platform/models/default", {
+  method: "POST", body: JSON.stringify({ type, name })
+});
+export const deletePlatformModel = (type, name) => apiRequest(
+  `/platform/models?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`, { method: "DELETE" }
+);
+
 export function fetchPythonWorkbench() { return apiRequest("/data-science/python/workbench"); }
 export function fetchMcpPythonEnvironments() { return apiRequest("/data-science/python/environments"); }
 export function fetchPythonCodeModels() { return apiRequest("/data-science/python/models"); }

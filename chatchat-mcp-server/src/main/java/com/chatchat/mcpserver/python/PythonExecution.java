@@ -29,11 +29,9 @@ public class PythonExecution {
     private String containerId;
     @Column(length = 24, nullable = false)
     private String status;
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(length = org.hibernate.Length.LONG32)
     private String stdout;
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(length = org.hibernate.Length.LONG32)
     private String stderr;
     @Column(name = "exit_code")
     private Integer exitCode;

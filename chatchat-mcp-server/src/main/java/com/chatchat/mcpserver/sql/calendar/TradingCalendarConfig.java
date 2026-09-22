@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.sql.calendar;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -26,9 +25,7 @@ public class TradingCalendarConfig {
 
     @Column(length = 64)
     private String datasourceId;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String sqlTemplate = DEFAULT_SQL;
 
     @Column(nullable = false)

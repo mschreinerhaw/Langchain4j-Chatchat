@@ -3,11 +3,13 @@
 Apply the script for the target database before deploying the matching application build:
 
 - MySQL: `mysql/V20260822_01__mcp_tool_workflow_contract.sql`
+- PostgreSQL: `postgresql/V20260822_01__mcp_tool_workflow_contract.sql`
 - H2: `h2/V20260822_01__mcp_tool_workflow_contract.sql`
 
 Installations that already deployed the first contract build must then apply:
 
 - MySQL: `mysql/V20260822_02__mcp_contract_payload_and_publication_policy.sql`
+- PostgreSQL: `postgresql/V20260822_02__mcp_contract_payload_and_publication_policy.sql`
 - H2: `h2/V20260822_02__mcp_contract_payload_and_publication_policy.sql`
 
 The application keeps existing `mcp_tool` rows online by creating one ACTIVE version during
@@ -39,8 +41,24 @@ The query must return no rows. Do not delete RETIRED versions; they are the roll
 Before enabling native Knowledge Runtime retrieval, apply:
 
 - MySQL: `mysql/V20260910_01__knowledge_ir_runtime.sql`
+- PostgreSQL: `postgresql/V20260910_01__knowledge_ir_runtime.sql`
 - H2: `h2/V20260910_01__knowledge_ir_runtime.sql`
 
 The application populates `knowledge_ir_unit` when a document is created, updated, uploaded,
 or reindexed. Existing installations should run the document reindex operation once after this
 migration. Runtime falls back to the legacy document index while a document has no Knowledge IR.
+
+
+docker rm -f postgres 2>/dev/null
+
+mkdir -p /data/postgresql
+
+docker run -d \
+  --name postgres \
+  --restart=always \
+  -p 5432:5432 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD='' \
+  -e POSTGRES_DB=postgres \
+  -v /data/postgresql:/var/lib/postgresql \
+  postgres:18

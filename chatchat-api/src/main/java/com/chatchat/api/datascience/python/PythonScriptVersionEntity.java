@@ -19,8 +19,7 @@ public class PythonScriptVersionEntity {
     private String scriptId;
     @Column(name = "version_number", nullable = false)
     private int versionNumber;
-    @Lob
-    @Column(name = "source_code", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "source_code", nullable = false, length = org.hibernate.Length.LONG32)
     private String sourceCode;
     @Column(name = "source_hash", length = 64, nullable = false)
     private String sourceHash;

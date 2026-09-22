@@ -33,13 +33,13 @@ public class AgentOptimizationProposalEntity {
     private String status;
     @Column(name = "source_experience_ids_json", columnDefinition = "TEXT", nullable = false)
     private String sourceExperienceIdsJson;
-    @Column(name = "patch_json", columnDefinition = "LONGTEXT", nullable = false)
+    @Column(name = "patch_json", length = org.hibernate.Length.LONG32, nullable = false)
     private String patchJson;
-    @Column(name = "evidence_json", columnDefinition = "LONGTEXT", nullable = false)
+    @Column(name = "evidence_json", length = org.hibernate.Length.LONG32, nullable = false)
     private String evidenceJson;
-    @Column(name = "regression_report_json", columnDefinition = "LONGTEXT")
+    @Column(name = "regression_report_json", length = org.hibernate.Length.LONG32)
     private String regressionReportJson;
-    @Column(name = "canary_metrics_json", columnDefinition = "LONGTEXT")
+    @Column(name = "canary_metrics_json", length = org.hibernate.Length.LONG32)
     private String canaryMetricsJson;
     @Column(name = "canary_percent")
     private Integer canaryPercent;

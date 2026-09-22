@@ -86,7 +86,7 @@ public class NodeAttemptEntity {
     @Column(name = "input_fingerprint", length = 64)
     private String inputFingerprint;
 
-    @Column(name = "metadata_json", columnDefinition = "LONGTEXT")
+    @Column(name = "metadata_json", length = org.hibernate.Length.LONG32)
     private String metadataJson;
 
     @Version

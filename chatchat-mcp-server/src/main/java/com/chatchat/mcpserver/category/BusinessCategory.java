@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.category;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -30,9 +29,7 @@ public class BusinessCategory {
 
     @Column(nullable = false, length = 128)
     private String domain = "finance";
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String keywordsJson;
 
     @Column(nullable = false)

@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.ops.http;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -48,33 +47,19 @@ public class HttpEndpointConfig {
 
     @Column(nullable = false, length = 2000)
     private String urlTemplate;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String headersJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String bodyTemplate;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String inputSchemaJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String outputSchemaJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String capabilitySpecJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String dependencySpecJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String governanceJson;
 
     @Column(nullable = false)
@@ -91,13 +76,9 @@ public class HttpEndpointConfig {
 
     @Column(length = 1000)
     private String tags;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String routingLabelsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String capabilitiesJson;
 
     @Transient

@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.templatepublication.binding;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -49,9 +48,7 @@ public class TemplateQueryBinding {
 
     @Column(name = "subject_id", nullable = false, length = 128)
     private String subjectId;
-
-    @Lob
-    @Column(name = "template_keys_json", nullable = false, columnDefinition = "longtext")
+    @Column(name = "template_keys_json", nullable = false, length = org.hibernate.Length.LONG32)
     private String templateKeysJson;
 
     @Column(nullable = false)

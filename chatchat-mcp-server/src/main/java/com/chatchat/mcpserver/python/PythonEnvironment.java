@@ -37,7 +37,6 @@ public class PythonEnvironment {
     private String networkPolicy;
     @Column(name = "network_name", length = 128)
     private String networkName;
-    @Lob
     @Column(name = "requirements_json", columnDefinition = "TEXT", nullable = false)
     private String requirementsJson;
     @Column(name = "timeout_seconds", nullable = false)

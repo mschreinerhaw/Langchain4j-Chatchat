@@ -1,14 +1,14 @@
 # Database initialization
 
-The project uses two independent database boundaries. Choose the script matching both the application and database engine:
+The project uses separate database boundaries. Choose the script matching both the application and database engine:
 
-| Application | MySQL 8+ | H2 2.x | Tables |
-| --- | --- | --- | ---: |
-| ChatChat API | `mysql/chatchat-api.sql` | `h2/chatchat-api.sql` | 84 |
-| Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 33 |
-| Standalone News Runtime + governed market storage | `mysql/chatchat-runtime-news.sql` | `h2/chatchat-runtime-news.sql` | 20 |
+| Application | MySQL 8+ | PostgreSQL | H2 2.x | Tables |
+| --- | --- | --- | --- | ---: |
+| ChatChat API | `mysql/chatchat-api.sql` | `postgresql/chatchat-api.sql` | `h2/chatchat-api.sql` | 84 |
+| Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `postgresql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 37 |
+| Standalone News Runtime + governed market storage | `mysql/chatchat-runtime-news.sql` | — | `h2/chatchat-runtime-news.sql` | 20 |
 
-Run these scripts only against a new, empty database. They contain the complete current JPA schema, including indexes and unique constraints, and intentionally do not drop existing objects.
+Run these scripts only against a new, empty database. They contain the current JPA schema, including generated indexes and unique constraints, and intentionally do not drop existing objects. PostgreSQL has an additional partial index in `postgresql/chatchat-api-post-schema.sql`.
 
 Example:
 
@@ -16,6 +16,19 @@ Example:
 mysql --default-character-set=utf8mb4 -u USER -p DATABASE < database/init/mysql/chatchat-api.sql
 mysql --default-character-set=utf8mb4 -u USER -p DATABASE < database/init/mysql/chatchat-api-securities-seed.sql
 ```
+
+PostgreSQL example (create the database and role first):
+
+```bash
+psql -v ON_ERROR_STOP=1 -U USER -d DATABASE -f database/init/postgresql/chatchat-api.sql
+psql -v ON_ERROR_STOP=1 -U USER -d DATABASE -f database/init/postgresql/chatchat-api-post-schema.sql
+psql -v ON_ERROR_STOP=1 -U USER -d DATABASE -f database/init/postgresql/chatchat-api-securities-seed.sql
+```
+
+Set `CHATCHAT_DATASOURCE_CONFIG=datasource-postgresql.yml` for the API and MCP
+processes, or set it to `datasource-mysql.yml` for MySQL. Each process has its own
+`CHATCHAT_API_*` or `CHATCHAT_MCP_*` connection variables. The API and MCP databases
+may choose different engines. See `docs/postgresql-support.md` for the exact settings.
 
 ```bash
 java -cp h2.jar org.h2.tools.RunScript \
@@ -36,7 +49,7 @@ deployments may replace these seed files without modifying the generated schema 
 
 The API and standalone MCP Server may use different physical databases. Do not initialize both schemas into one database unless that deployment intentionally shares them.
 
-For an existing ChatChat API database, apply `database/migration/mysql/V20260922_01__resource_grants.sql` or `database/migration/h2/V20260922_01__resource_grants.sql` before enabling cross-resource grants. New databases already include the table in the full schema above.
+For an existing ChatChat API database, apply the matching `V20260922_01__resource_grants.sql` from `database/migration/mysql`, `database/migration/postgresql`, or `database/migration/h2` before enabling cross-resource grants. New databases already include the table in the full schema above.
 Then apply the matching `V20260922_02__skill_resource_scope.sql` migration for Agent Skill document and knowledge category bindings.
 
 The News Runtime script contains its four relational runtime tables plus three market-governance tables and thirteen governed hot-data tables. Market weekly-snapshot archive tables are intentionally created lazily after each dataset's dynamic business columns are known.

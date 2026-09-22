@@ -6,7 +6,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -33,9 +32,7 @@ public class ConversationSummaryEntity {
 
     @Column(name = "session_id", length = 64, nullable = false)
     private String sessionId;
-
-    @Lob
-    @Column(name = "summary", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "summary", nullable = false, length = org.hibernate.Length.LONG32)
     private String summary;
 
     @Column(name = "message_start_id", length = 64, nullable = false)

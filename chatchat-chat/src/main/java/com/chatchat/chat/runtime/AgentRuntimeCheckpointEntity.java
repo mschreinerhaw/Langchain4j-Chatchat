@@ -25,7 +25,7 @@ public class AgentRuntimeCheckpointEntity {
     @Column(name = "step_id", nullable = false)
     private Integer stepId;
 
-    @Column(name = "checkpoint_json", columnDefinition = "LONGTEXT", nullable = false)
+    @Column(name = "checkpoint_json", length = org.hibernate.Length.LONG32, nullable = false)
     private String checkpointJson;
 
     @Column(name = "updated_at", nullable = false)

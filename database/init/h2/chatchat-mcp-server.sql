@@ -29,13 +29,13 @@
         business_group_description varchar(1000),
         description varchar(2000),
         url_template varchar(2000),
-        body_template longtext,
-        capability_spec_json longtext,
-        dependency_spec_json longtext,
-        governance_json longtext,
-        headers_json longtext,
-        input_schema_json longtext,
-        output_schema_json longtext,
+        body_template clob,
+        capability_spec_json clob,
+        dependency_spec_json clob,
+        governance_json clob,
+        headers_json clob,
+        input_schema_json clob,
+        output_schema_json clob,
         primary key (id)
     );
 
@@ -63,7 +63,7 @@
         domain varchar(128) not null,
         name varchar(200) not null,
         description varchar(1000),
-        keywords_json longtext,
+        keywords_json clob,
         primary key (id)
     );
 
@@ -127,15 +127,15 @@
         description varchar(1000),
         password varchar(1000),
         jdbc_url varchar(2000),
-        capabilities_json longtext,
-        governance_json longtext,
-        implementation_steps longtext,
-        index_tags_json longtext,
-        input_schema_json longtext,
-        routing_labels_json longtext,
-        sql_steps_json longtext,
-        sql_template longtext not null,
-        tags_json longtext,
+        capabilities_json clob,
+        governance_json clob,
+        implementation_steps clob,
+        index_tags_json clob,
+        input_schema_json clob,
+        routing_labels_json clob,
+        sql_steps_json clob,
+        sql_template clob not null,
+        tags_json clob,
         primary key (id)
     );
 
@@ -152,7 +152,7 @@
         name varchar(200) not null,
         selector_value varchar(300) not null,
         description varchar(1200),
-        labels_json longtext,
+        labels_json clob,
         primary key (id)
     );
 
@@ -230,7 +230,7 @@
         updated_at timestamp(6) with time zone not null,
         id varchar(64) not null,
         code varchar(128) not null unique,
-        policy_json longtext not null,
+        policy_json clob not null,
         primary key (id)
     );
 
@@ -245,7 +245,7 @@
         id varchar(64) not null,
         name varchar(128) not null,
         description varchar(1000),
-        metadata_types_json longtext,
+        metadata_types_json clob,
         primary key (id)
     );
 
@@ -355,9 +355,9 @@
         cc_receiver varchar(2000),
         default_receiver varchar(2000),
         endpoint_url varchar(2000),
-        body_template longtext,
+        body_template clob,
         channel enum ('DINGTALK','EMAIL','SMS','WECHAT_WORK') not null,
-        headers_json longtext,
+        headers_json clob,
         primary key (id)
     );
 
@@ -373,9 +373,9 @@
         title varchar(200) not null,
         description varchar(1000),
         command_template varchar(2000) not null,
-        governance_json longtext,
-        intent_signals_json longtext,
-        parameter_schema_json longtext,
+        governance_json clob,
+        intent_signals_json clob,
+        parameter_schema_json clob,
         primary key (id)
     );
 
@@ -397,15 +397,15 @@
         tags varchar(1000),
         description varchar(1200),
         url_template varchar(2000) not null,
-        body_template longtext,
-        capabilities_json longtext,
-        capability_spec_json longtext,
-        dependency_spec_json longtext,
-        governance_json longtext,
-        headers_json longtext,
-        input_schema_json longtext,
-        output_schema_json longtext,
-        routing_labels_json longtext,
+        body_template clob,
+        capabilities_json clob,
+        capability_spec_json clob,
+        dependency_spec_json clob,
+        governance_json clob,
+        headers_json clob,
+        input_schema_json clob,
+        output_schema_json clob,
+        routing_labels_json clob,
         primary key (id)
     );
 
@@ -424,8 +424,8 @@
         description varchar(1000),
         password varchar(1000),
         service_url varchar(1000) not null,
-        intent_signals_json longtext,
-        queries_json longtext not null,
+        intent_signals_json clob,
+        queries_json clob not null,
         primary key (id)
     );
 
@@ -451,11 +451,11 @@
         password varchar(1000),
         tags varchar(1000),
         description varchar(1200),
-        allowed_commands_json longtext,
-        capabilities_json longtext,
-        governance_json longtext,
-        private_key longtext,
-        routing_labels_json longtext,
+        allowed_commands_json clob,
+        capabilities_json clob,
+        governance_json clob,
+        private_key clob,
+        routing_labels_json clob,
         primary key (id)
     );
 
@@ -495,8 +495,8 @@
         template_id varchar(64),
         tenant_id varchar(64) not null,
         container_id varchar(128),
-        stderr LONGTEXT,
-        stdout LONGTEXT,
+        stderr clob,
+        stdout clob,
         primary key (id)
     );
 
@@ -523,7 +523,7 @@
         scenario varchar(4000) not null,
         input_schema_json TEXT,
         output_schema_json TEXT,
-        source_ciphertext LONGTEXT not null,
+        source_ciphertext clob not null,
         primary key (id)
     );
 
@@ -541,7 +541,7 @@
         username varchar(128),
         password varchar(1000),
         sentinel_password varchar(1000),
-        nodes_json longtext,
+        nodes_json clob,
         primary key (id)
     );
 
@@ -559,8 +559,8 @@
         service_token varchar(128) not null unique,
         name varchar(200) not null,
         endpoint varchar(2000) not null,
-        capabilities_json longtext,
-        routing_labels_json longtext,
+        capabilities_json clob,
+        routing_labels_json clob,
         primary key (id)
     );
 
@@ -642,13 +642,13 @@
         password varchar(1000),
         description varchar(1200),
         jdbc_url varchar(2000) not null,
-        allowed_tables_json longtext,
-        allowed_templates_json longtext,
-        capabilities_json longtext,
-        governance_json longtext,
-        routing_labels_json longtext,
-        sensitive_fields_json longtext,
-        sensitive_tables_json longtext,
+        allowed_tables_json clob,
+        allowed_templates_json clob,
+        capabilities_json clob,
+        governance_json clob,
+        routing_labels_json clob,
+        sensitive_fields_json clob,
+        sensitive_tables_json clob,
         primary key (id)
     );
 
@@ -679,11 +679,11 @@
         code varchar(128) not null unique,
         title varchar(200) not null,
         description varchar(1000),
-        evidence_policy_json longtext,
-        intent_signals_json longtext,
-        parameter_schema_json longtext,
-        routing_labels_json longtext,
-        sql_template longtext not null,
+        evidence_policy_json clob,
+        intent_signals_json clob,
+        parameter_schema_json clob,
+        routing_labels_json clob,
+        sql_template clob not null,
         primary key (id)
     );
 
@@ -698,11 +698,18 @@
         role_id varchar(64) not null,
         service_id varchar(64) not null,
         tenant_id varchar(64) not null,
+        chinese_alias varchar(128),
         parent_tool_name varchar(128) not null,
         subject_id varchar(128) not null,
-        template_keys_json longtext not null,
+        template_keys_json clob not null,
         primary key (id),
         constraint uk_template_query_service_role_domain_subject unique (service_id, role_id, domain_code, subject_type, subject_id)
+    );
+
+    create table mcp_tool_alias (
+        chinese_alias varchar(128) not null,
+        lookup_key varchar(256) not null,
+        primary key (lookup_key)
     );
 
     create table mcp_trading_calendar_config (
@@ -710,7 +717,7 @@
         updated_at timestamp(6) with time zone not null,
         datasource_id varchar(64),
         id varchar(64) not null,
-        sql_template longtext,
+        sql_template clob,
         primary key (id)
     );
 

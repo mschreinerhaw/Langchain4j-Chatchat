@@ -492,8 +492,8 @@
         template_id varchar(64),
         tenant_id varchar(64) not null,
         container_id varchar(128),
-        stderr LONGTEXT,
-        stdout LONGTEXT,
+        stderr longtext,
+        stdout longtext,
         primary key (id)
     ) engine=InnoDB;
 
@@ -520,7 +520,7 @@
         scenario varchar(4000) not null,
         input_schema_json TEXT,
         output_schema_json TEXT,
-        source_ciphertext LONGTEXT not null,
+        source_ciphertext longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -695,10 +695,17 @@
         role_id varchar(64) not null,
         service_id varchar(64) not null,
         tenant_id varchar(64) not null,
+        chinese_alias varchar(128),
         parent_tool_name varchar(128) not null,
         subject_id varchar(128) not null,
         template_keys_json longtext not null,
         primary key (id)
+    ) engine=InnoDB;
+
+    create table mcp_tool_alias (
+        chinese_alias varchar(128) not null,
+        lookup_key varchar(256) not null,
+        primary key (lookup_key)
     ) engine=InnoDB;
 
     create table mcp_trading_calendar_config (

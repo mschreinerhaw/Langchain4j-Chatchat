@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.sql.template;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -31,13 +30,9 @@ public class SqlTemplateConfig {
 
     @Column(length = 1000)
     private String description;
-
-    @Lob
-    @Column(nullable = false, columnDefinition = "longtext")
+    @Column(nullable = false, length = org.hibernate.Length.LONG32)
     private String sqlTemplate;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String parameterSchemaJson;
 
     @Column(length = 32)
@@ -51,17 +46,11 @@ public class SqlTemplateConfig {
 
     @Column(length = 64)
     private String datasourceId;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String routingLabelsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String intentSignalsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String evidencePolicyJson;
 
     @Column(nullable = false)

@@ -44,14 +44,11 @@ public class PythonTemplate {
     private String domain;
     @Column(name = "category_id", length = 64)
     private String categoryId;
-    @Lob
     @Column(name = "input_schema_json", columnDefinition = "TEXT")
     private String inputSchemaJson;
-    @Lob
     @Column(name = "output_schema_json", columnDefinition = "TEXT")
     private String outputSchemaJson;
-    @Lob
-    @Column(name = "source_ciphertext", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "source_ciphertext", nullable = false, length = org.hibernate.Length.LONG32)
     private String sourceCiphertext;
     @Column(name = "source_hash", length = 64, nullable = false)
     private String sourceHash;

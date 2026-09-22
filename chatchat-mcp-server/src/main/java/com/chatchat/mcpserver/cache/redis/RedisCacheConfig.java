@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.cache.redis;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -25,9 +24,7 @@ public class RedisCacheConfig {
 
     @Column(nullable = false, length = 32)
     private String mode = "STANDALONE_NO_AUTH";
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String nodesJson = "[\"127.0.0.1:6379\"]";
 
     @Column(length = 128)

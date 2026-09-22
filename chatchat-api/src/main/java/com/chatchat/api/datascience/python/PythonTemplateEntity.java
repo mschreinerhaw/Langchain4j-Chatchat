@@ -40,16 +40,12 @@ public class PythonTemplateEntity {
     private String keywords;
     @Column(length = 120)
     private String domain;
-    @Lob
     @Column(name = "input_schema_json", columnDefinition = "TEXT")
     private String inputSchemaJson;
-    @Lob
     @Column(name = "output_schema_json", columnDefinition = "TEXT")
     private String outputSchemaJson;
-    @Lob
-    @Column(name = "source_snapshot", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "source_snapshot", nullable = false, length = org.hibernate.Length.LONG32)
     private String sourceSnapshot;
-    @Lob
     @Column(name = "search_text", nullable = false, columnDefinition = "TEXT")
     private String searchText;
     @Column(length = 24, nullable = false)

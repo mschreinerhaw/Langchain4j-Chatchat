@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.ops.jmx;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -42,13 +41,9 @@ public class JmxTemplateConfig {
     @Column(length = 1000)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
-
-    @Lob
-    @Column(nullable = false, columnDefinition = "longtext")
+    @Column(nullable = false, length = org.hibernate.Length.LONG32)
     private String queriesJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String intentSignalsJson;
 
     @Column(nullable = false, length = 100)

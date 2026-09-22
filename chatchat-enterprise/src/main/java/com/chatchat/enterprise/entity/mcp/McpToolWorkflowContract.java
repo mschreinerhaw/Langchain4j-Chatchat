@@ -5,7 +5,6 @@ import com.chatchat.enterprise.entity.common.EnterpriseAuditable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
@@ -49,17 +48,11 @@ public class McpToolWorkflowContract extends EnterpriseAuditable {
 
     @Column(name = "contract_checksum", length = 64, nullable = false)
     private String contractChecksum;
-
-    @Lob
-    @Column(name = "input_schema_json", columnDefinition = "LONGTEXT")
+    @Column(name = "input_schema_json", length = org.hibernate.Length.LONG32)
     private String inputSchemaJson;
-
-    @Lob
-    @Column(name = "output_schema_json", columnDefinition = "LONGTEXT")
+    @Column(name = "output_schema_json", length = org.hibernate.Length.LONG32)
     private String outputSchemaJson;
-
-    @Lob
-    @Column(name = "extensions_json", columnDefinition = "LONGTEXT")
+    @Column(name = "extensions_json", length = org.hibernate.Length.LONG32)
     private String extensionsJson;
 
     @Column(name = "published_at")

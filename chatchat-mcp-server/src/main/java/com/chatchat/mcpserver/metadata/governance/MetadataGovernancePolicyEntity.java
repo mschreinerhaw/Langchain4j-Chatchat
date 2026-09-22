@@ -28,7 +28,7 @@ public class MetadataGovernancePolicyEntity {
     @Column(nullable = false)
     private long revision;
 
-    @Column(nullable = false, columnDefinition = "longtext")
+    @Column(nullable = false, length = org.hibernate.Length.LONG32)
     private String policyJson;
 
     @Column(nullable = false)

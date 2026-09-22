@@ -4,7 +4,6 @@ import com.chatchat.mcpserver.routing.target.AssetExecutionTargetBinding;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -77,13 +76,9 @@ public class SqlDatasourceConfig {
 
     @Column(nullable = false, columnDefinition = "integer default 60")
     private int metadataRefreshIntervalMinutes = 60;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String routingLabelsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String capabilitiesJson;
 
     @Transient
@@ -100,25 +95,15 @@ public class SqlDatasourceConfig {
 
     @Column(nullable = false)
     private int defaultMaxRows = 1000;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String sensitiveTablesJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String sensitiveFieldsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String allowedTablesJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String allowedTemplatesJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String governanceJson;
 
     @Column(nullable = false)

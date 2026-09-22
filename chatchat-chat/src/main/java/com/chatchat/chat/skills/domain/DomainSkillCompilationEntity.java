@@ -3,7 +3,6 @@ package com.chatchat.chat.skills.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -35,8 +34,7 @@ public class DomainSkillCompilationEntity {
     private String compilerModel;
     @Column(name = "compilation_mode", length = 40, nullable = false)
     private String compilationMode;
-    @Lob
-    @Column(name = "skill_ir_json", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "skill_ir_json", nullable = false, length = org.hibernate.Length.LONG32)
     private String skillIrJson;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

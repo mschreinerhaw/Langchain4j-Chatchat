@@ -29,6 +29,6 @@ public class ContractRuleNodeValue {
     @Column(name = "value_type", length = 16, nullable = false)
     private String valueType;
 
-    @Column(name = "value_text", columnDefinition = "LONGTEXT")
+    @Column(name = "value_text", length = org.hibernate.Length.LONG32)
     private String valueText;
 }

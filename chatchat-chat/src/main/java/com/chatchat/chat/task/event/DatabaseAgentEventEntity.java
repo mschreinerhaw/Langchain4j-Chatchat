@@ -66,7 +66,7 @@ public class DatabaseAgentEventEntity {
     @Column(name = "execution_status", length = 32)
     private String status;
 
-    @Column(name = "payload_json", columnDefinition = "LONGTEXT")
+    @Column(name = "payload_json", length = org.hibernate.Length.LONG32)
     private String payload;
 
     @Column(name = "latency_ms")

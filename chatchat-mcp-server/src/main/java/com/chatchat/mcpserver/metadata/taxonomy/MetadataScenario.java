@@ -7,7 +7,6 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -48,9 +47,7 @@ public class MetadataScenario {
     @JoinColumn(name = "domain_id", insertable = false, updatable = false,
         foreignKey = @ForeignKey(name = "fk_metadata_scenario_domain"))
     private MetadataDomain domain;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String metadataTypesJson;
 
     @Column(nullable = false)

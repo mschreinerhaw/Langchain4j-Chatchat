@@ -54,7 +54,7 @@ public class AgentExperienceEntity {
     @Column(columnDefinition = "TEXT")
     private String question;
 
-    @Column(name = "answer_summary", columnDefinition = "LONGTEXT")
+    @Column(name = "answer_summary", length = org.hibernate.Length.LONG32)
     private String answerSummary;
 
     @Column(name = "feedback_useful")

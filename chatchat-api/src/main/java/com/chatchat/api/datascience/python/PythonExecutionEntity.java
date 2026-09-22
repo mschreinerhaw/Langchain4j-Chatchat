@@ -29,17 +29,13 @@ public class PythonExecutionEntity {
     private String containerId;
     @Column(length = 24, nullable = false)
     private String status;
-    @Lob
     @Column(name = "parameters_json", columnDefinition = "TEXT")
     private String parametersJson;
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(length = org.hibernate.Length.LONG32)
     private String stdout;
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(length = org.hibernate.Length.LONG32)
     private String stderr;
-    @Lob
-    @Column(name = "result_json", columnDefinition = "LONGTEXT")
+    @Column(name = "result_json", length = org.hibernate.Length.LONG32)
     private String resultJson;
     @Column(name = "exit_code")
     private Integer exitCode;

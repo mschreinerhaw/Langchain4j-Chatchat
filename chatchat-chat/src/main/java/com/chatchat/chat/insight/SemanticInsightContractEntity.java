@@ -4,7 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -57,9 +56,8 @@ public class SemanticInsightContractEntity {
     private String datasetAlias;
     @Column(nullable = false)
     private int priority;
-    @Lob
     /** Legacy migration snapshot. Structured child tables are the active source of truth. */
-    @Column(name = "contract_json", columnDefinition = "LONGTEXT")
+    @Column(name = "contract_json", length = org.hibernate.Length.LONG32)
     private String contractJson;
     @Column(name = "effective_from")
     private Instant effectiveFrom;

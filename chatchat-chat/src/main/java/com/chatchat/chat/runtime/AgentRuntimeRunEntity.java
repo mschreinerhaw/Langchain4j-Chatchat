@@ -41,7 +41,7 @@ public class AgentRuntimeRunEntity {
     @Column(name = "run_status", length = 32, nullable = false)
     private String status;
 
-    @Column(name = "run_json", columnDefinition = "LONGTEXT", nullable = false)
+    @Column(name = "run_json", length = org.hibernate.Length.LONG32, nullable = false)
     private String runJson;
 
     @Column(name = "started_at", nullable = false)

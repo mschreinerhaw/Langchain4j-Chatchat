@@ -44,7 +44,7 @@
         agent_id varchar(128),
         error_code varchar(128),
         tool_name varchar(256),
-        payload_json LONGTEXT,
+        payload_json longtext,
         primary key (event_id)
     ) engine=InnoDB;
 
@@ -67,12 +67,12 @@
         scenario_name varchar(256),
         attribution_summary varchar(1000),
         feedback_comment varchar(1000),
-        answer_summary LONGTEXT,
         improvement_suggestions_json TEXT,
         model_raw_output TEXT,
         primary_factors_json TEXT,
         question TEXT,
         success_pattern_json TEXT,
+        answer_summary longtext,
         primary key (experience_id)
     ) engine=InnoDB;
 
@@ -88,11 +88,11 @@
         tenant_id varchar(64) not null,
         created_by varchar(128) not null,
         reviewed_by varchar(128),
-        canary_metrics_json LONGTEXT,
-        evidence_json LONGTEXT not null,
-        patch_json LONGTEXT not null,
-        regression_report_json LONGTEXT,
         source_experience_ids_json TEXT not null,
+        canary_metrics_json longtext,
+        evidence_json longtext not null,
+        patch_json longtext not null,
+        regression_report_json longtext,
         primary key (proposal_id)
     ) engine=InnoDB;
 
@@ -104,8 +104,8 @@
         agent_id varchar(64) not null,
         artifact_checksum varchar(64) not null,
         release_id varchar(64) not null,
-        artifact_json LONGTEXT not null,
-        quality_report_json LONGTEXT not null,
+        artifact_json longtext not null,
+        quality_report_json longtext not null,
         primary key (release_id)
     ) engine=InnoDB;
 
@@ -114,7 +114,7 @@
         updated_at bigint not null,
         run_id varchar(64) not null,
         checkpoint_id varchar(128) not null,
-        checkpoint_json LONGTEXT not null,
+        checkpoint_json longtext not null,
         primary key (checkpoint_id)
     ) engine=InnoDB;
 
@@ -127,8 +127,8 @@
         tenant_id varchar(64) not null,
         plan_id varchar(256) not null,
         record_id varchar(256) not null,
-        dag_json LONGTEXT not null,
-        plan_json LONGTEXT not null,
+        dag_json longtext not null,
+        plan_json longtext not null,
         primary key (record_id)
     ) engine=InnoDB;
 
@@ -144,7 +144,7 @@
         run_id varchar(64) not null,
         tenant_id varchar(64),
         user_id varchar(64),
-        run_json LONGTEXT not null,
+        run_json longtext not null,
         primary key (run_id)
     ) engine=InnoDB;
 
@@ -182,11 +182,11 @@
         feedback_comment varchar(1000),
         required_worker_capabilities varchar(1000),
         dead_letter_reason varchar(2000),
-        answer_summary LONGTEXT,
         error_message TEXT,
-        final_notification_json LONGTEXT,
         question TEXT,
         request_payload_json TEXT,
+        answer_summary longtext,
+        final_notification_json longtext,
         primary key (task_id)
     ) engine=InnoDB;
 
@@ -236,7 +236,7 @@
         message_end_id varchar(64) not null,
         message_start_id varchar(64) not null,
         session_id varchar(64) not null,
-        summary LONGTEXT not null,
+        summary longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -283,7 +283,7 @@
         original_file_name varchar(300),
         description varchar(2000),
         search_text varchar(4000) not null,
-        markdown_content LONGTEXT not null,
+        markdown_content longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -306,7 +306,7 @@
         source_id varchar(64) not null,
         tenant_id varchar(64) not null,
         compiler_model varchar(200),
-        skill_ir_json LONGTEXT not null,
+        skill_ir_json longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -337,8 +337,8 @@
         tenant_id varchar(64) not null,
         original_file_name varchar(300),
         source_reference varchar(2000),
-        original_artifact LONGBLOB not null,
-        parsed_document_json LONGTEXT not null,
+        original_artifact longblob not null,
+        parsed_document_json longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -402,7 +402,7 @@
         tenant_id varchar(64) not null,
         file_name varchar(180) not null,
         title varchar(300),
-        source_code LONGTEXT not null,
+        source_code longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -424,7 +424,7 @@
         id varchar(64) not null,
         script_id varchar(64) not null,
         source_hash varchar(64) not null,
-        source_code LONGTEXT not null,
+        source_code longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -594,9 +594,9 @@
         tenant_id varchar(64) not null,
         container_id varchar(128),
         parameters_json TEXT,
-        result_json LONGTEXT,
-        stderr LONGTEXT,
-        stdout LONGTEXT,
+        result_json longtext,
+        stderr longtext,
+        stdout longtext,
         primary key (id)
     ) engine=InnoDB;
 
@@ -624,7 +624,7 @@
         input_schema_json TEXT,
         output_schema_json TEXT,
         search_text TEXT not null,
-        source_snapshot LONGTEXT not null,
+        source_snapshot longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -695,8 +695,8 @@
         remote_tool_name varchar(128) not null,
         service_name varchar(128),
         description varchar(2000),
-        input_schema_json LONGTEXT,
-        output_schema_json LONGTEXT,
+        input_schema_json longtext,
+        output_schema_json longtext,
         primary key (id)
     ) engine=InnoDB;
 
@@ -732,9 +732,9 @@
         schema_version varchar(64) not null,
         tool_id varchar(64) not null,
         published_by varchar(128),
-        extensions_json LONGTEXT,
-        input_schema_json LONGTEXT,
-        output_schema_json LONGTEXT,
+        extensions_json longtext,
+        input_schema_json longtext,
+        output_schema_json longtext,
         primary key (id)
     ) engine=InnoDB;
 
@@ -849,7 +849,7 @@
         rule_key varchar(256),
         parent_path varchar(512) not null,
         rule_path varchar(512) not null,
-        value_text LONGTEXT,
+        value_text longtext,
         primary key (storage_order, contract_id)
     ) engine=InnoDB;
 
@@ -875,7 +875,7 @@
         run_id varchar(128) not null,
         worker_id varchar(128),
         state_reason varchar(1000),
-        metadata_json LONGTEXT,
+        metadata_json longtext,
         primary key (attempt_id)
     ) engine=InnoDB;
 
@@ -897,7 +897,7 @@
         tenant_id varchar(128) not null,
         dataset_key varchar(256),
         tool_name varchar(256),
-        contract_json LONGTEXT,
+        contract_json longtext,
         primary key (contract_id)
     ) engine=InnoDB;
 
@@ -962,7 +962,7 @@
         rule_key varchar(256),
         parent_path varchar(512) not null,
         rule_path varchar(512) not null,
-        value_text LONGTEXT,
+        value_text longtext,
         primary key (storage_order, contract_id)
     ) engine=InnoDB;
 
@@ -1329,7 +1329,7 @@
         oa_email varchar(100),
         oa_fno varchar(100),
         eml varchar(128),
-        photo tinyblob,
+        photo longblob,
         primary key (id)
     ) engine=InnoDB;
 

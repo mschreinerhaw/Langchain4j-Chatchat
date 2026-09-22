@@ -29,8 +29,7 @@ public class PythonScriptEntity {
     private String fileName;
     @Column(length = 300)
     private String title;
-    @Lob
-    @Column(name = "source_code", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "source_code", nullable = false, length = org.hibernate.Length.LONG32)
     private String sourceCode;
     @Column(length = 24, nullable = false)
     private String status;

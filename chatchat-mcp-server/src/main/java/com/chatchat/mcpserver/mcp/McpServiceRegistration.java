@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.mcp;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -48,13 +47,9 @@ public class McpServiceRegistration {
 
     @Column(nullable = false, length = 32)
     private String environment = "DEV";
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String routingLabelsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String capabilitiesJson;
 
     @Transient

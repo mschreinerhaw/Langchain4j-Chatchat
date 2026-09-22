@@ -4,7 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -36,8 +35,7 @@ public class DomainSkillEntity {
     private String description;
     @Column(length = 120, nullable = false)
     private String category;
-    @Lob
-    @Column(name = "markdown_content", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "markdown_content", nullable = false, length = org.hibernate.Length.LONG32)
     private String markdownContent;
     @Column(name = "search_text", length = 4000, nullable = false)
     private String searchText;

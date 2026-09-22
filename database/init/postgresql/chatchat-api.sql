@@ -1,0 +1,1744 @@
+
+    create table agent_api_token (
+        created_at timestamp(6) with time zone not null,
+        expires_at timestamp(6) with time zone,
+        last_used_at timestamp(6) with time zone,
+        revoked_at timestamp(6) with time zone,
+        rotated_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        used_count bigint not null,
+        status varchar(32) not null,
+        token_preview varchar(32) not null,
+        created_by varchar(64) not null,
+        id varchar(64) not null,
+        revoked_by varchar(64),
+        tenant_id varchar(64) not null,
+        token_hash varchar(64) not null unique,
+        user_id varchar(64) not null,
+        username varchar(64) not null,
+        created_by_name varchar(128) not null,
+        display_name varchar(128) not null,
+        last_used_ip varchar(128),
+        token_name varchar(128) not null,
+        last_used_path varchar(512),
+        primary key (id)
+    );
+
+    create table agent_execution_event (
+        retry_count integer,
+        created_at bigint not null,
+        latency_ms bigint,
+        sequence_number bigint not null,
+        event_scope varchar(16),
+        execution_status varchar(32),
+        attempt_id varchar(64),
+        event_id varchar(64) not null,
+        event_type varchar(64) not null,
+        execution_id varchar(64),
+        parent_event_id varchar(64),
+        run_id varchar(64),
+        session_id varchar(64) not null,
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64),
+        agent_id varchar(128),
+        error_code varchar(128),
+        tool_name varchar(256),
+        payload_json text,
+        primary key (event_id),
+        constraint uk_execution_event_task_sequence unique (task_id, sequence_number)
+    );
+
+    create table agent_experience (
+        feedback_adopted boolean,
+        feedback_resolved boolean,
+        feedback_score integer,
+        feedback_useful boolean,
+        create_time timestamp(6) with time zone not null,
+        update_time timestamp(6) with time zone not null,
+        attribution_source varchar(32),
+        experience_id varchar(64) not null,
+        feedback_reason_category varchar(64),
+        session_id varchar(64),
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64),
+        agent_id varchar(128),
+        scenario_key varchar(128) not null,
+        scenario_name varchar(256),
+        attribution_summary varchar(1000),
+        feedback_comment varchar(1000),
+        improvement_suggestions_json TEXT,
+        model_raw_output TEXT,
+        primary_factors_json TEXT,
+        question TEXT,
+        success_pattern_json TEXT,
+        answer_summary text,
+        primary key (experience_id)
+    );
+
+    create table agent_optimization_proposal (
+        canary_percent integer,
+        created_at timestamp(6) with time zone not null,
+        lock_version bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        proposal_status varchar(24) not null,
+        proposal_type varchar(32) not null,
+        agent_id varchar(64) not null,
+        proposal_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        created_by varchar(128) not null,
+        reviewed_by varchar(128),
+        source_experience_ids_json TEXT not null,
+        canary_metrics_json text,
+        evidence_json text not null,
+        patch_json text not null,
+        regression_report_json text,
+        primary key (proposal_id)
+    );
+
+    create table agent_release (
+        release_version integer not null,
+        created_at timestamp(6) with time zone not null,
+        published_at timestamp(6) with time zone,
+        release_status varchar(24) not null,
+        agent_id varchar(64) not null,
+        artifact_checksum varchar(64) not null,
+        release_id varchar(64) not null,
+        artifact_json text not null,
+        quality_report_json text not null,
+        primary key (release_id),
+        constraint uk_agent_release_version unique (agent_id, release_version)
+    );
+
+    create table agent_runtime_checkpoint (
+        step_id integer not null,
+        updated_at bigint not null,
+        run_id varchar(64) not null,
+        checkpoint_id varchar(128) not null,
+        checkpoint_json text not null,
+        primary key (checkpoint_id)
+    );
+
+    create table agent_runtime_plan (
+        plan_version integer not null,
+        created_at bigint not null,
+        updated_at bigint not null,
+        plan_status varchar(32) not null,
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        plan_id varchar(256) not null,
+        record_id varchar(256) not null,
+        dag_json text not null,
+        plan_json text not null,
+        primary key (record_id),
+        constraint uk_runtime_plan_version unique (tenant_id, task_id, plan_version)
+    );
+
+    create table agent_runtime_run (
+        attempt_number integer,
+        finished_at bigint,
+        revision bigint not null,
+        started_at bigint not null,
+        updated_at bigint not null,
+        run_status varchar(32) not null,
+        conversation_id varchar(64),
+        execution_id varchar(64),
+        run_id varchar(64) not null,
+        tenant_id varchar(64),
+        user_id varchar(64),
+        run_json text not null,
+        primary key (run_id)
+    );
+
+    create table agent_task_latest (
+        attempt_count integer,
+        execution_attempt_number integer,
+        feedback_adopted boolean,
+        feedback_resolved boolean,
+        feedback_useful boolean,
+        max_attempts integer,
+        priority integer,
+        available_at timestamp(6) with time zone,
+        create_time timestamp(6) with time zone not null,
+        feedback_time timestamp(6) with time zone,
+        heartbeat_at timestamp(6) with time zone,
+        lease_expires_at timestamp(6) with time zone,
+        revision bigint not null,
+        update_time timestamp(6) with time zone not null,
+        canonical_state varchar(32),
+        status varchar(32) not null,
+        claim_token varchar(64),
+        execution_attempt_id varchar(64),
+        execution_id varchar(64),
+        feedback_reason_category varchar(64),
+        parent_attempt_id varchar(64),
+        required_worker_version varchar(64),
+        root_execution_id varchar(64),
+        session_id varchar(64) not null,
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        agent_id varchar(128),
+        claim_worker_id varchar(128),
+        idempotency_key varchar(128),
+        feedback_comment varchar(1000),
+        required_worker_capabilities varchar(1000),
+        dead_letter_reason varchar(2000),
+        error_message TEXT,
+        question TEXT,
+        request_payload_json TEXT,
+        answer_summary text,
+        final_notification_json text,
+        primary key (task_id),
+        constraint uk_agent_task_tenant_idempotency unique (tenant_id, idempotency_key)
+    );
+
+    create table chat_message_index (
+        created_at timestamp(6) with time zone not null,
+        role varchar(32) not null,
+        message_id varchar(64) not null,
+        session_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        rocks_key varchar(512) not null,
+        primary key (message_id)
+    );
+
+    create table chat_session (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(32) not null,
+        mode varchar(64),
+        session_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        model_name varchar(128),
+        skill_id varchar(128),
+        agent_name varchar(256),
+        title varchar(256) not null,
+        primary key (session_id)
+    );
+
+    create table chunk_type_rule (
+        enabled boolean,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint generated by default as identity,
+        updated_at bigint,
+        chunk_type varchar(50) not null,
+        keywords TEXT,
+        pattern TEXT,
+        primary key (id)
+    );
+
+    create table conversation_summary (
+        created_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        message_end_id varchar(64) not null,
+        message_start_id varchar(64) not null,
+        session_id varchar(64) not null,
+        summary text not null,
+        primary key (id)
+    );
+
+    create table data_source (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(32) not null,
+        type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        name varchar(128) not null,
+        username varchar(128),
+        jdbc_url varchar(512) not null,
+        password_cipher varchar(512),
+        remark varchar(1000),
+        primary key (id)
+    );
+
+    create table domain_analysis_profile (
+        enabled boolean not null,
+        revision bigint,
+        analysis_type varchar(64) not null,
+        name varchar(120) not null,
+        tenant_id varchar(128) not null,
+        id varchar(200) not null,
+        description varchar(600) not null,
+        guidance_json TEXT not null,
+        primary key (id),
+        unique (tenant_id, analysis_type)
+    );
+
+    create table ds_domain_skill (
+        builtin boolean default false not null,
+        publication_dirty boolean not null,
+        created_at timestamp(6) with time zone not null,
+        published_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        source_type varchar(24) not null,
+        status varchar(24) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        category varchar(120) not null,
+        name varchar(200) not null,
+        original_file_name varchar(300),
+        description varchar(2000),
+        search_text varchar(4000) not null,
+        markdown_content text not null,
+        primary key (id)
+    );
+
+    create table ds_domain_skill_category (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        name varchar(120) not null,
+        primary key (id),
+        constraint uk_domain_skill_category_tenant_name unique (tenant_id, name)
+    );
+
+    create table ds_domain_skill_compilation (
+        created_at timestamp(6) with time zone not null,
+        compilation_mode varchar(40) not null,
+        ir_schema_version varchar(48) not null,
+        compiler_version varchar(64) not null,
+        id varchar(64) not null,
+        skill_id varchar(64) not null,
+        source_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        compiler_model varchar(200),
+        skill_ir_json text not null,
+        primary key (id)
+    );
+
+    create table ds_domain_skill_import_task (
+        completed_at timestamp(6) with time zone,
+        created_at timestamp(6) with time zone not null,
+        started_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        import_type varchar(24) not null,
+        status varchar(24) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        skill_id varchar(64),
+        tenant_id varchar(64) not null,
+        category varchar(120) not null,
+        requested_name varchar(200),
+        error_message varchar(2000),
+        source_reference varchar(2000),
+        primary key (id)
+    );
+
+    create table ds_domain_skill_source (
+        created_at timestamp(6) with time zone not null,
+        source_type varchar(32) not null,
+        id varchar(64) not null,
+        original_hash varchar(64) not null,
+        skill_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        original_file_name varchar(300),
+        source_reference varchar(2000),
+        original_artifact bytea not null,
+        parsed_document_json text not null,
+        primary key (id)
+    );
+
+    create table ds_python_asset (
+        mcp_environment_version integer not null,
+        network_enabled boolean not null,
+        timeout_seconds integer,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        cpu_limit varchar(24),
+        disk_limit varchar(24),
+        memory_limit varchar(24),
+        network_policy varchar(24),
+        status varchar(24) not null,
+        python_version varchar(32),
+        id varchar(64) not null,
+        mcp_environment_id varchar(64) not null,
+        owner_id varchar(64) not null,
+        runtime_user varchar(64),
+        tenant_id varchar(64) not null,
+        container_name varchar(128),
+        name varchar(160) not null,
+        docker_image varchar(300) not null,
+        workspace_path varchar(600),
+        status_message varchar(1000),
+        description varchar(2000),
+        dependencies_json TEXT,
+        primary key (id)
+    );
+
+    create table ds_python_data_file (
+        created_at timestamp(6) with time zone not null,
+        expire_at timestamp(6) with time zone,
+        file_size bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        file_type varchar(24) not null,
+        status varchar(24) not null,
+        file_hash varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        purpose varchar(1000),
+        python_path varchar(1000) not null,
+        status_message varchar(1000),
+        storage_path varchar(1000),
+        file_name varchar(255) not null,
+        primary key (id)
+    );
+
+    create table ds_python_script (
+        current_version integer not null,
+        last_test_succeeded boolean not null,
+        created_at timestamp(6) with time zone not null,
+        last_tested_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(24) not null,
+        asset_id varchar(64) not null,
+        folder_id varchar(64),
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        file_name varchar(180) not null,
+        title varchar(300),
+        source_code text not null,
+        primary key (id),
+        constraint uk_python_script_name unique (asset_id, file_name)
+    );
+
+    create table ds_python_script_folder (
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        parent_id varchar(64),
+        tenant_id varchar(64) not null,
+        name varchar(120) not null,
+        primary key (id)
+    );
+
+    create table ds_python_script_version (
+        version_number integer not null,
+        created_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        script_id varchar(64) not null,
+        source_hash varchar(64) not null,
+        source_code text not null,
+        primary key (id),
+        constraint uk_python_script_version unique (script_id, version_number)
+    );
+
+    create table embed_login_token (
+        created_at timestamp(6) with time zone not null,
+        expires_at timestamp(6) with time zone,
+        last_used_at timestamp(6) with time zone,
+        revoked_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        used_count bigint not null,
+        token_preview varchar(24) not null,
+        status varchar(32) not null,
+        created_by varchar(64),
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        username varchar(64) not null,
+        created_by_name varchar(128),
+        display_name varchar(128) not null,
+        token varchar(512) not null unique,
+        primary key (id)
+    );
+
+    create table experience_index (
+        success_rate float(53),
+        adopted_count bigint,
+        created_at timestamp(6) with time zone not null,
+        failed_count bigint,
+        resolved_count bigint,
+        sample_count bigint,
+        updated_at timestamp(6) with time zone not null,
+        useful_count bigint,
+        feedback_result varchar(32),
+        id varchar(64) not null,
+        intent_type varchar(64),
+        last_experience_id varchar(64),
+        tenant_id varchar(64) not null,
+        agent_id varchar(128),
+        data_source varchar(128),
+        error_code varchar(128),
+        index_key varchar(128) not null,
+        scenario varchar(128) not null,
+        tool_name varchar(128),
+        workflow_name varchar(128),
+        keywords varchar(1000),
+        tool_chain varchar(1000),
+        avoid_pattern TEXT,
+        best_practice TEXT,
+        primary key (id)
+    );
+
+    create table image_analysis_result (
+        confidence float(53),
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        image_type varchar(32),
+        mode varchar(32),
+        status varchar(32) not null,
+        analysis_source varchar(64),
+        file_id varchar(64) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(128),
+        question varchar(2000),
+        extracted_text TEXT,
+        structured_data_json TEXT,
+        summary TEXT,
+        primary key (id)
+    );
+
+    create table image_asset (
+        height integer,
+        width integer,
+        created_at timestamp(6) with time zone not null,
+        size_bytes bigint,
+        file_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        content_type varchar(128),
+        sha256 varchar(128),
+        user_id varchar(128),
+        original_file_name varchar(512),
+        file_path varchar(1000) not null,
+        primary key (file_id)
+    );
+
+    create table kb_document_business_category (
+        builtin boolean not null,
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        code varchar(64) not null,
+        id varchar(64) not null,
+        name varchar(120) not null,
+        description varchar(500),
+        primary key (id),
+        constraint uk_kb_document_category_code unique (code),
+        constraint uk_kb_document_category_name unique (name)
+    );
+
+    create table knowledge_ir_unit (
+        active boolean,
+        relevance float(53),
+        created_at bigint,
+        id bigint generated by default as identity,
+        updated_at bigint,
+        visibility varchar(20),
+        knowledge_type varchar(40) not null,
+        version varchar(80),
+        owner_user_id varchar(100),
+        tenant_id varchar(100) not null,
+        document_id varchar(160) not null,
+        knowledge_id varchar(160) not null,
+        domain varchar(200),
+        source_chunk_id varchar(200),
+        source_id varchar(200),
+        source_document_name varchar(500),
+        applicable_intents_json TEXT,
+        compact_representation TEXT not null,
+        constraints_json TEXT,
+        permission_roles TEXT,
+        required_inputs_json TEXT,
+        rules_json TEXT,
+        search_text TEXT not null,
+        semantic_description TEXT,
+        source_citation TEXT,
+        source_section TEXT,
+        tags_json TEXT,
+        title TEXT,
+        primary key (id),
+        constraint uk_knowledge_ir_doc_unit unique (document_id, knowledge_id)
+    );
+
+    create table lborganization (
+        fid bigint,
+        grade bigint,
+        id bigint not null,
+        org_order bigint,
+        status bigint,
+        org_code varchar(30),
+        name varchar(200),
+        fdncode varchar(300),
+        primary key (id)
+    );
+
+    create table mcp_capability (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        id bigint generated by default as identity,
+        updated_at timestamp(6) with time zone not null,
+        capability_type varchar(32) not null,
+        provider_type varchar(32) not null,
+        capability_code varchar(64) not null,
+        capability_name varchar(128) not null,
+        provider_module varchar(128),
+        description varchar(1000),
+        primary key (id),
+        constraint uk_mcp_capability_code unique (capability_code)
+    );
+
+    create table mcp_python_execution (
+        exit_code integer,
+        duration_ms bigint,
+        finished_at timestamp(6) with time zone,
+        started_at timestamp(6) with time zone not null,
+        status varchar(24) not null,
+        asset_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        script_id varchar(64),
+        template_id varchar(64),
+        tenant_id varchar(64) not null,
+        container_id varchar(128),
+        parameters_json TEXT,
+        result_json text,
+        stderr text,
+        stdout text,
+        primary key (id)
+    );
+
+    create table mcp_python_template (
+        script_version integer not null,
+        published_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        index_status varchar(24) not null,
+        mcp_sync_status varchar(24) not null,
+        runtime_status varchar(24) not null,
+        status varchar(24) not null,
+        version varchar(40) not null,
+        asset_id varchar(64) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        script_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        domain varchar(120),
+        template_name varchar(200) not null,
+        tool_name varchar(200) not null unique,
+        keywords varchar(1000),
+        mcp_sync_message varchar(1000),
+        description varchar(3000) not null,
+        scenario varchar(4000) not null,
+        input_schema_json TEXT,
+        output_schema_json TEXT,
+        search_text TEXT not null,
+        source_snapshot text not null,
+        primary key (id)
+    );
+
+    create table mcp_service_config (
+        contract_auto_publish boolean not null,
+        enabled boolean not null,
+        proxy_enabled boolean not null,
+        proxy_port integer,
+        timeout_ms integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        proxy_type varchar(16) not null,
+        protocol varchar(32) not null,
+        id varchar(64) not null,
+        name varchar(128) not null,
+        proxy_username varchar(128),
+        tool_discovery_path varchar(256) not null,
+        tool_invoke_path varchar(256) not null,
+        base_url varchar(512) not null,
+        proxy_password varchar(512),
+        stdio_command varchar(512),
+        auth_token varchar(1024),
+        stdio_working_directory varchar(1024),
+        custom_headers_json TEXT,
+        proxy_host varchar(255),
+        stdio_args_json TEXT,
+        stdio_env_json TEXT,
+        primary key (id)
+    );
+
+    create table mcp_service_config_version (
+        contract_auto_publish boolean not null,
+        enabled boolean not null,
+        proxy_enabled boolean not null,
+        proxy_port integer,
+        timeout_ms integer not null,
+        created_at timestamp(6) with time zone not null,
+        proxy_type varchar(16) not null,
+        protocol varchar(32) not null,
+        action varchar(64),
+        id varchar(64) not null,
+        service_id varchar(64) not null,
+        name varchar(128) not null,
+        proxy_username varchar(128),
+        tool_discovery_path varchar(256) not null,
+        tool_invoke_path varchar(256) not null,
+        base_url varchar(512) not null,
+        proxy_password varchar(512),
+        stdio_command varchar(512),
+        auth_token varchar(1024),
+        stdio_working_directory varchar(1024),
+        custom_headers_json TEXT,
+        proxy_host varchar(255),
+        stdio_args_json TEXT,
+        stdio_env_json TEXT,
+        primary key (id)
+    );
+
+    create table mcp_tool (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        resource_type varchar(32) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        service_id varchar(64) not null,
+        local_tool_name varchar(128) not null unique,
+        remote_tool_name varchar(128) not null,
+        service_name varchar(128),
+        description varchar(2000),
+        input_schema_json text,
+        output_schema_json text,
+        primary key (id)
+    );
+
+    create table mcp_tool_permission (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        expires_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        effect varchar(16) not null,
+        target_type varchar(32) not null,
+        id varchar(64) not null,
+        target_id varchar(64) not null,
+        tenant_id varchar(64),
+        tool_id varchar(64),
+        local_tool_name varchar(128) not null,
+        remark varchar(1000),
+        scope_expression varchar(1000),
+        primary key (id)
+    );
+
+    create table mcp_tool_workflow_contract (
+        contract_version bigint not null,
+        created_at timestamp(6) with time zone not null,
+        lock_version bigint not null,
+        published_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(16) not null,
+        input_envelope varchar(32),
+        workflow_role varchar(32) not null,
+        contract_checksum varchar(64) not null,
+        id varchar(64) not null,
+        protocol_family varchar(64),
+        schema_version varchar(64) not null,
+        tool_id varchar(64) not null,
+        published_by varchar(128),
+        extensions_json text,
+        input_schema_json text,
+        output_schema_json text,
+        primary key (id),
+        constraint uk_mcp_tool_contract_version unique (tool_id, contract_version)
+    );
+
+    create table mcp_user_tool_policy (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        action varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(128) not null,
+        tool_name varchar(256) not null,
+        primary key (id),
+        constraint uk_mcp_user_tool_policy_lookup unique (tenant_id, user_id, tool_name)
+    );
+
+    create table personal_todo (
+        completed boolean not null,
+        important boolean not null,
+        created_at timestamp(6) with time zone not null,
+        due_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        title varchar(300) not null,
+        notes varchar(2000),
+        primary key (id)
+    );
+
+    create table query_expand_rule (
+        enabled boolean,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint generated by default as identity,
+        updated_at bigint,
+        intent varchar(50),
+        source_word varchar(100),
+        expand_words TEXT,
+        primary key (id)
+    );
+
+    create table query_intent_rule (
+        enabled boolean,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint generated by default as identity,
+        updated_at bigint,
+        intent varchar(50) not null,
+        name varchar(100),
+        keywords TEXT,
+        regex TEXT,
+        primary key (id)
+    );
+
+    create table resource_grant (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        effect varchar(8) not null,
+        expires_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        principal_type varchar(16) not null,
+        resource_type varchar(32) not null,
+        id varchar(64) not null,
+        principal_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        resource_id varchar(128) not null,
+        primary key (id)
+    );
+
+    create table role_agent_binding (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        effective_time timestamp(6) with time zone,
+        expire_time timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        agent_id varchar(64) not null,
+        id varchar(64) not null,
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        primary key (id)
+    );
+
+    create table rule_version (
+        active boolean,
+        version integer,
+        created_at bigint,
+        id bigint generated by default as identity,
+        updated_at bigint,
+        type varchar(50) not null,
+        primary key (id)
+    );
+
+    create table runtime_dag_governance_contract (
+        enabled boolean not null,
+        immutable boolean not null,
+        created_at timestamp(6) with time zone not null,
+        checksum_sha256 varchar(64) not null,
+        contract_key varchar(64) not null,
+        contract_version varchar(64) not null,
+        contract_id varchar(128) not null,
+        primary key (contract_id)
+    );
+
+    create table runtime_dag_governance_contract_rule (
+        array_index integer,
+        storage_order integer not null,
+        value_type varchar(16) not null,
+        contract_id varchar(128) not null,
+        rule_key varchar(256),
+        parent_path varchar(512) not null,
+        rule_path varchar(512) not null,
+        value_text text,
+        primary key (storage_order, contract_id),
+        constraint uk_dag_governance_contract_rule_path unique (contract_id, rule_path)
+    );
+
+    create table runtime_dag_node_attempt (
+        attempt_number integer not null,
+        node_id integer not null,
+        committed_at timestamp(6) with time zone,
+        created_at timestamp(6) with time zone not null,
+        heartbeat_at timestamp(6) with time zone,
+        lease_expires_at timestamp(6) with time zone,
+        prepared_at timestamp(6) with time zone,
+        revision bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        state varchar(24) not null,
+        attempt_id varchar(64) not null,
+        input_fingerprint varchar(64),
+        lease_token varchar(64),
+        node_definition_fingerprint varchar(64),
+        plan_version varchar(64),
+        tenant_id varchar(64) not null,
+        execution_epoch varchar(128),
+        execution_trace_id varchar(128),
+        run_id varchar(128) not null,
+        worker_id varchar(128),
+        state_reason varchar(1000),
+        metadata_json text,
+        primary key (attempt_id),
+        constraint uk_dag_node_attempt_number unique (tenant_id, run_id, node_id, attempt_number)
+    );
+
+    create table runtime_semantic_insight_contract (
+        enabled boolean not null,
+        priority integer not null,
+        created_at timestamp(6) with time zone not null,
+        effective_from timestamp(6) with time zone,
+        effective_to timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        activation_mode varchar(32) not null,
+        status varchar(32) not null,
+        contract_version varchar(64) not null,
+        agent_id varchar(128),
+        contract_id varchar(128) not null,
+        contract_key varchar(128) not null,
+        dataset_alias varchar(128),
+        task_type varchar(128),
+        tenant_id varchar(128) not null,
+        dataset_key varchar(256),
+        tool_name varchar(256),
+        contract_json text,
+        primary key (contract_id),
+        constraint uk_semantic_contract_version unique (tenant_id, contract_key, contract_version)
+    );
+
+    create table runtime_semantic_insight_field (
+        display_order integer not null,
+        sensitive_flag boolean not null,
+        aggregation varchar(32),
+        unit varchar(64),
+        contract_id varchar(128) not null,
+        field_id varchar(128) not null,
+        semantic_key varchar(128) not null,
+        physical_field varchar(256) not null,
+        display_label varchar(512),
+        primary key (field_id),
+        constraint uk_semantic_field_key unique (contract_id, semantic_key)
+    );
+
+    create table runtime_semantic_insight_recipe (
+        conclusion_eligible boolean not null,
+        display_order integer not null,
+        enabled boolean not null,
+        presentation_priority integer not null,
+        presentation_mode varchar(32) not null,
+        operator varchar(64) not null,
+        contract_id varchar(128) not null,
+        recipe_id varchar(128) not null,
+        recipe_key varchar(128) not null,
+        section_key varchar(128),
+        label varchar(512),
+        relevance_hint varchar(1000),
+        primary key (recipe_id),
+        constraint uk_semantic_recipe_key unique (contract_id, recipe_key)
+    );
+
+    create table runtime_semantic_insight_recipe_parameter (
+        boolean_value boolean,
+        decimal_value numeric(38,10),
+        display_order integer not null,
+        integer_value bigint,
+        value_type varchar(16) not null,
+        parameter_id varchar(128) not null,
+        parameter_key varchar(128) not null,
+        recipe_id varchar(128) not null,
+        string_value varchar(2000),
+        primary key (parameter_id),
+        constraint uk_semantic_recipe_parameter unique (recipe_id, parameter_key)
+    );
+
+    create table runtime_summary_contract (
+        enabled boolean not null,
+        immutable boolean not null,
+        created_at timestamp(6) with time zone not null,
+        checksum_sha256 varchar(64) not null,
+        contract_key varchar(64) not null,
+        contract_version varchar(64) not null,
+        contract_id varchar(128) not null,
+        primary key (contract_id)
+    );
+
+    create table runtime_summary_contract_rule (
+        array_index integer,
+        storage_order integer not null,
+        value_type varchar(16) not null,
+        contract_id varchar(128) not null,
+        rule_key varchar(256),
+        parent_path varchar(512) not null,
+        rule_path varchar(512) not null,
+        value_text text,
+        primary key (storage_order, contract_id),
+        constraint uk_summary_contract_rule_path unique (contract_id, rule_path)
+    );
+
+    create table scheduled_task (
+        max_retries integer,
+        notification_condition_enabled boolean not null,
+        notify_enabled boolean not null,
+        retry_count integer,
+        schedule_window_enabled boolean,
+        trading_day_only boolean not null,
+        schedule_window_end varchar(5),
+        schedule_window_start varchar(5),
+        created_at timestamp(6) with time zone not null,
+        expired_at timestamp(6) with time zone,
+        interval_seconds bigint,
+        last_fire_time timestamp(6) with time zone,
+        next_fire_time timestamp(6) with time zone,
+        retry_delay_seconds bigint,
+        updated_at timestamp(6) with time zone not null,
+        notification_recipient_mode varchar(16),
+        trigger_type varchar(24) not null,
+        last_task_status varchar(32),
+        notification_channel_type varchar(32),
+        status varchar(32) not null,
+        last_task_id varchar(64),
+        notification_channel_id varchar(64),
+        schedule_zone_id varchar(64),
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        cron_expr varchar(120),
+        agent_id varchar(128),
+        name varchar(200) not null,
+        notification_channel_name varchar(200),
+        last_error varchar(1000),
+        notification_receiver varchar(2000),
+        question varchar(4000) not null,
+        notification_condition TEXT,
+        payload_json TEXT not null,
+        primary key (task_id)
+    );
+
+    create table scheduled_task_run (
+        manual_run boolean not null,
+        created_at timestamp(6) with time zone not null,
+        duration_ms bigint,
+        finished_at timestamp(6) with time zone,
+        fire_time timestamp(6) with time zone not null,
+        notification_sent_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        notification_channel_type varchar(32),
+        notification_status varchar(32),
+        status varchar(32) not null,
+        run_id varchar(64) not null,
+        scheduled_task_id varchar(64) not null,
+        task_id varchar(64),
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        agent_id varchar(128),
+        notification_channel_name varchar(200),
+        error_message varchar(1000),
+        notification_error varchar(1000),
+        notification_receiver varchar(2000),
+        answer_summary TEXT,
+        notification_decision_json TEXT,
+        question TEXT not null,
+        primary key (run_id)
+    );
+
+    create table search_feedback (
+        positive boolean,
+        created_at bigint,
+        id bigint generated by default as identity,
+        doc_id varchar(100),
+        feedback_type varchar(100),
+        user_id varchar(100),
+        chunk_id varchar(120),
+        query_text varchar(500) not null,
+        chunk_text TEXT,
+        primary key (id)
+    );
+
+    create table semantic_lexicon_entry (
+        builtin boolean,
+        enabled boolean,
+        priority integer,
+        version integer,
+        weight integer,
+        created_at bigint,
+        id bigint generated by default as identity,
+        updated_at bigint,
+        language varchar(20),
+        category varchar(50),
+        domain varchar(50),
+        mapped_term varchar(120),
+        normalized_term varchar(120) not null,
+        term varchar(120) not null,
+        aliases TEXT,
+        primary key (id)
+    );
+
+    create table skill_config (
+        builtin boolean default false not null,
+        default_agent boolean default false not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        default_mode varchar(32) not null,
+        market_status varchar(32) not null,
+        id varchar(64) not null,
+        label varchar(128) not null,
+        model_name varchar(128),
+        description varchar(1024),
+        asset_selection_policy_json TEXT,
+        bound_document_ids_json TEXT,
+        bound_document_tags_json TEXT,
+        bound_mcp_service_ids_json TEXT,
+        bound_mcp_tool_names_json TEXT,
+        default_data_asset_json TEXT,
+        first_use_greeting TEXT,
+        preferred_tool_prefixes_json TEXT,
+        quick_questions_json TEXT,
+        routing_settings_json TEXT,
+        skill_tags_json TEXT,
+        system_prompt TEXT,
+        tool_configs_json TEXT,
+        usage_scenarios_json TEXT,
+        workflow_config_json TEXT,
+        primary key (id)
+    );
+
+    create table skill_config_version (
+        default_agent boolean default false not null,
+        created_at timestamp(6) with time zone not null,
+        default_mode varchar(32) not null,
+        market_status varchar(32),
+        action varchar(64),
+        id varchar(64) not null,
+        skill_id varchar(64) not null,
+        label varchar(128) not null,
+        model_name varchar(128),
+        description varchar(1024),
+        asset_selection_policy_json TEXT,
+        bound_document_ids_json TEXT,
+        bound_document_tags_json TEXT,
+        bound_mcp_service_ids_json TEXT,
+        bound_mcp_tool_names_json TEXT,
+        default_data_asset_json TEXT,
+        first_use_greeting TEXT,
+        preferred_tool_prefixes_json TEXT,
+        quick_questions_json TEXT,
+        routing_settings_json TEXT,
+        skill_tags_json TEXT,
+        system_prompt TEXT,
+        tool_configs_json TEXT,
+        usage_scenarios_json TEXT,
+        workflow_config_json TEXT,
+        primary key (id)
+    );
+
+    create table skill_resource_scope (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        resource_type varchar(32) not null,
+        id varchar(64) not null,
+        skill_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        resource_id varchar(128) not null,
+        primary key (id)
+    );
+
+    create table sys_audit_log (
+        created_at timestamp(6) with time zone not null,
+        result varchar(32) not null,
+        action_name varchar(64) not null,
+        actor_id varchar(64),
+        id varchar(64) not null,
+        module_name varchar(64) not null,
+        resource_id varchar(64),
+        resource_type varchar(64),
+        tenant_id varchar(64),
+        actor_name varchar(128),
+        detail varchar(4000),
+        primary key (id)
+    );
+
+    create table sys_org (
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        org_code varchar(64) not null,
+        parent_id varchar(64),
+        tenant_id varchar(64) not null,
+        org_name varchar(128) not null,
+        primary key (id)
+    );
+
+    create table sys_permission (
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        http_method varchar(16),
+        permission_type varchar(32) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        parent_id varchar(64),
+        icon varchar(128),
+        permission_code varchar(128) not null unique,
+        permission_name varchar(128) not null,
+        resource_path varchar(512),
+        primary key (id)
+    );
+
+    create table sys_role (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        role_type varchar(32) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        role_code varchar(64) not null,
+        tenant_id varchar(64) not null,
+        role_name varchar(128) not null,
+        description varchar(1000),
+        primary key (id)
+    );
+
+    create table sys_role_org_scope (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        scope_type varchar(32) not null,
+        id varchar(64) not null,
+        org_id varchar(64),
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        primary key (id)
+    );
+
+    create table sys_role_permission (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        permission_id varchar(64) not null,
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        primary key (id)
+    );
+
+    create table sys_tenant (
+        created_at timestamp(6) with time zone not null,
+        tenant_no bigint unique,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(32) not null,
+        contact_name varchar(64),
+        contact_phone varchar(64),
+        id varchar(64) not null,
+        tenant_code varchar(64) not null unique,
+        tenant_name varchar(128) not null,
+        description varchar(1000),
+        primary key (id)
+    );
+
+    create table sys_user (
+        created_at timestamp(6) with time zone not null,
+        last_login_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        org_id varchar(64),
+        phone varchar(64),
+        tenant_id varchar(64) not null,
+        username varchar(64) not null unique,
+        display_name varchar(128) not null,
+        email varchar(128),
+        password_hash varchar(255),
+        primary key (id)
+    );
+
+    create table sys_user_role (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        role_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        primary key (id)
+    );
+
+    create table task_confirm (
+        confirmed_at timestamp(6) with time zone,
+        created_at timestamp(6) with time zone not null,
+        expired_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(32) not null,
+        confirmed_by varchar(64),
+        id varchar(64) not null,
+        task_id varchar(64) not null,
+        tool_name varchar(200),
+        confirm_message varchar(2000),
+        primary key (id)
+    );
+
+    create table tenant_notification_recipient (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        channel_type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        receiver varchar(2000) not null,
+        primary key (id),
+        constraint uk_tenant_notification_recipient_channel unique (tenant_id, channel_type)
+    );
+
+    create table tenant_runtime_quota (
+        active_runs integer not null,
+        max_concurrent_runs integer not null,
+        last_dispatch_at timestamp(6) with time zone,
+        revision bigint not null,
+        tenant_id varchar(64) not null,
+        primary key (tenant_id)
+    );
+
+    create table tenant_tool_rate_bucket (
+        token_limit integer not null,
+        used_tokens integer not null,
+        expires_at timestamp(6) with time zone not null,
+        revision bigint not null,
+        window_start timestamp(6) with time zone not null,
+        window_type varchar(16) not null,
+        tenant_id varchar(64) not null,
+        tool_name varchar(200) not null,
+        bucket_id varchar(512) not null,
+        primary key (bucket_id)
+    );
+
+    create table todo_task (
+        created_at timestamp(6) with time zone not null,
+        expired_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        priority varchar(24) not null,
+        status varchar(32) not null,
+        todo_type varchar(48) not null,
+        id varchar(64) not null,
+        task_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        agent_id varchar(128),
+        source varchar(128),
+        title varchar(300) not null,
+        payload_json TEXT,
+        primary key (id)
+    );
+
+    create table tuser (
+        id bigint not null,
+        last_login timestamp(6) with time zone,
+        orgid bigint,
+        status bigint,
+        hr_telephone varchar(30),
+        name varchar(30),
+        oa_telphone varchar(50),
+        userid varchar(50),
+        password varchar(64),
+        oa_email varchar(100),
+        oa_fno varchar(100),
+        eml varchar(128),
+        photo bytea,
+        primary key (id)
+    );
+
+    create table ui_artifact (
+        resource_count integer not null,
+        revision integer not null,
+        created_at timestamp(6) with time zone not null,
+        expires_at timestamp(6) with time zone,
+        total_bytes bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        status varchar(32) not null,
+        store_type varchar(32) not null,
+        catalog_version varchar(64) not null,
+        schema_version varchar(64) not null,
+        artifact_id varchar(128) not null,
+        task_id varchar(128),
+        tenant_id varchar(128) not null,
+        manifest_key varchar(512) not null,
+        primary key (artifact_id)
+    );
+
+    create table ui_trend_semantic_config (
+        ruleset_version integer default 1 not null,
+        revision bigint not null,
+        updated_at timestamp(6) with time zone not null,
+        down_color varchar(16) not null,
+        neutral_color varchar(16) not null,
+        up_color varchar(16) not null,
+        tenant_id varchar(128) not null,
+        primary key (tenant_id)
+    );
+
+    create table ui_trend_semantic_keyword (
+        sort_order integer not null,
+        keyword varchar(64) not null,
+        tenant_id varchar(128) not null,
+        primary key (keyword, tenant_id)
+    );
+
+    create table user_activity (
+        created_at timestamp(6) with time zone not null,
+        action_type varchar(32) not null,
+        target_type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        target_id varchar(128) not null,
+        title varchar(300),
+        summary varchar(1000),
+        extra_json TEXT,
+        primary key (id)
+    );
+
+    create table user_favorite (
+        created_at timestamp(6) with time zone not null,
+        target_type varchar(32) not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        category varchar(80),
+        target_id varchar(128) not null,
+        title varchar(300) not null,
+        primary key (id)
+    );
+
+    create table user_favorite_category (
+        created_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        user_id varchar(64) not null,
+        category_name varchar(80) not null,
+        primary key (id),
+        constraint uk_user_favorite_category_name unique (tenant_id, user_id, category_name)
+    );
+
+    create index idx_agent_api_token_user
+       on agent_api_token (tenant_id, user_id);
+
+    create index idx_agent_api_token_status
+       on agent_api_token (status, expires_at);
+
+    create index idx_execution_event_task_seq
+       on agent_execution_event (tenant_id, task_id, sequence_number);
+
+    create index idx_execution_event_session_time
+       on agent_execution_event (tenant_id, session_id, created_at);
+
+    create index idx_execution_event_run_time
+       on agent_execution_event (run_id, created_at);
+
+    create index idx_agent_experience_tenant_score
+       on agent_experience (tenant_id, feedback_score);
+
+    create index idx_agent_experience_scenario
+       on agent_experience (tenant_id, scenario_key);
+
+    create index idx_agent_experience_task
+       on agent_experience (tenant_id, task_id);
+
+    create index idx_agent_optimization_queue
+       on agent_optimization_proposal (tenant_id, proposal_status, created_at);
+
+    create index idx_agent_optimization_agent
+       on agent_optimization_proposal (tenant_id, agent_id, created_at);
+
+    create index idx_agent_release_status
+       on agent_release (agent_id, release_status, release_version);
+
+    create index idx_runtime_checkpoint_run
+       on agent_runtime_checkpoint (run_id, step_id);
+
+    create index idx_runtime_plan_task
+       on agent_runtime_plan (tenant_id, task_id, plan_version);
+
+    create index idx_runtime_run_tenant_updated
+       on agent_runtime_run (tenant_id, updated_at);
+
+    create index idx_runtime_run_status_updated
+       on agent_runtime_run (run_status, updated_at);
+
+    create index idx_runtime_run_execution
+       on agent_runtime_run (tenant_id, execution_id, attempt_number);
+
+    create index idx_agent_task_tenant_created
+       on agent_task_latest (tenant_id, create_time);
+
+    create index idx_agent_task_session_created
+       on agent_task_latest (tenant_id, session_id, create_time);
+
+    create index idx_agent_task_status_updated
+       on agent_task_latest (status, update_time);
+
+    create index idx_agent_task_execution
+       on agent_task_latest (tenant_id, execution_id, execution_attempt_number);
+
+    create index idx_agent_task_attempt
+       on agent_task_latest (tenant_id, execution_attempt_id);
+
+    create index idx_agent_task_dispatch
+       on agent_task_latest (status, available_at, priority, create_time);
+
+    create index idx_agent_task_lease
+       on agent_task_latest (lease_expires_at, status);
+
+    create index idx_chat_message_session_created
+       on chat_message_index (session_id, created_at);
+
+    create index idx_chat_message_user_created
+       on chat_message_index (user_id, created_at);
+
+    create index idx_chat_message_tenant_created
+       on chat_message_index (tenant_id, created_at);
+
+    create index idx_chat_session_user_updated
+       on chat_session (user_id, updated_at);
+
+    create index idx_chat_session_tenant_updated
+       on chat_session (tenant_id, updated_at);
+
+    create index idx_chat_session_title
+       on chat_session (title);
+
+    create index idx_conversation_summary_session_created
+       on conversation_summary (session_id, created_at);
+
+    create index idx_conversation_summary_end
+       on conversation_summary (message_end_id);
+
+    create index idx_domain_skill_owner
+       on ds_domain_skill (tenant_id, owner_id, updated_at);
+
+    create index idx_domain_skill_status
+       on ds_domain_skill (tenant_id, status, updated_at);
+
+    create index idx_domain_skill_category
+       on ds_domain_skill (tenant_id, category, updated_at);
+
+    create index idx_domain_skill_category_tenant
+       on ds_domain_skill_category (tenant_id, updated_at);
+
+    create index idx_python_asset_owner
+       on ds_python_asset (tenant_id, owner_id, status);
+
+    create index idx_python_data_owner
+       on ds_python_data_file (tenant_id, owner_id, created_at);
+
+    create index idx_python_data_expiry
+       on ds_python_data_file (status, expire_at);
+
+    create index idx_python_script_owner
+       on ds_python_script (tenant_id, owner_id, updated_at);
+
+    create index idx_python_script_folder_owner
+       on ds_python_script_folder (tenant_id, owner_id, sort_order, name);
+
+    create index idx_experience_index_lookup
+       on experience_index (tenant_id, agent_id, scenario, intent_type);
+
+    create index idx_experience_index_score
+       on experience_index (tenant_id, success_rate);
+
+    create index idx_experience_index_key
+       on experience_index (tenant_id, index_key);
+
+    create index idx_image_analysis_file
+       on image_analysis_result (file_id, created_at);
+
+    create index idx_image_analysis_tenant
+       on image_analysis_result (tenant_id, created_at);
+
+    create index idx_image_analysis_type
+       on image_analysis_result (tenant_id, image_type);
+
+    create index idx_image_asset_tenant
+       on image_asset (tenant_id, created_at);
+
+    create index idx_image_asset_user
+       on image_asset (tenant_id, user_id);
+
+    create index idx_kb_document_category_sort
+       on kb_document_business_category (sort_order, name);
+
+    create index idx_knowledge_ir_document
+       on knowledge_ir_unit (document_id, active);
+
+    create index idx_knowledge_ir_tenant_type
+       on knowledge_ir_unit (tenant_id, knowledge_type, active);
+
+    create index idx_python_execution_owner
+       on mcp_python_execution (tenant_id, owner_id, started_at);
+
+    create index idx_python_template_status
+       on mcp_python_template (tenant_id, status, published_at);
+
+    create index idx_python_template_owner
+       on mcp_python_template (tenant_id, owner_id);
+
+    create index idx_mcp_tool_contract_active
+       on mcp_tool_workflow_contract (tool_id, status);
+
+    create index idx_mcp_tool_contract_checksum
+       on mcp_tool_workflow_contract (contract_checksum);
+
+    create index idx_mcp_user_tool_policy_lookup
+       on mcp_user_tool_policy (tenant_id, user_id, tool_name);
+
+    create index idx_personal_todo_user_status
+       on personal_todo (tenant_id, user_id, completed, updated_at);
+
+    create index idx_resource_grant_scope
+       on resource_grant (tenant_id, resource_type, resource_id);
+
+    create index idx_role_agent_role
+       on role_agent_binding (role_id);
+
+    create index idx_role_agent_agent
+       on role_agent_binding (tenant_id, agent_id);
+
+    create index idx_dag_governance_contract_active
+       on runtime_dag_governance_contract (contract_key, enabled, created_at);
+
+    create index idx_dag_node_attempt_run
+       on runtime_dag_node_attempt (tenant_id, run_id, node_id);
+
+    create index idx_dag_node_attempt_state
+       on runtime_dag_node_attempt (tenant_id, state, updated_at);
+
+    create index idx_dag_node_attempt_lease
+       on runtime_dag_node_attempt (state, lease_expires_at);
+
+    create index idx_semantic_contract_active
+       on runtime_semantic_insight_contract (tenant_id, status, enabled, priority);
+
+    create index idx_semantic_contract_agent_tool
+       on runtime_semantic_insight_contract (tenant_id, agent_id, tool_name);
+
+    create index idx_semantic_contract_dataset_task
+       on runtime_semantic_insight_contract (tenant_id, dataset_key, task_type);
+
+    create index idx_semantic_field_contract_order
+       on runtime_semantic_insight_field (contract_id, display_order);
+
+    create index idx_semantic_recipe_contract_order
+       on runtime_semantic_insight_recipe (contract_id, display_order);
+
+    create index idx_semantic_parameter_recipe_order
+       on runtime_semantic_insight_recipe_parameter (recipe_id, display_order);
+
+    create index idx_summary_contract_active
+       on runtime_summary_contract (contract_key, enabled, created_at);
+
+    create index idx_scheduled_task_tenant_created
+       on scheduled_task (tenant_id, created_at);
+
+    create index idx_scheduled_task_status_next
+       on scheduled_task (status, next_fire_time);
+
+    create index idx_scheduled_task_status_expired
+       on scheduled_task (status, expired_at);
+
+    create index idx_scheduled_task_last_task
+       on scheduled_task (last_task_id);
+
+    create index idx_scheduled_task_run_schedule_fire
+       on scheduled_task_run (scheduled_task_id, fire_time);
+
+    create index idx_scheduled_task_run_tenant_agent_fire
+       on scheduled_task_run (tenant_id, agent_id, fire_time);
+
+    create index idx_scheduled_task_run_task
+       on scheduled_task_run (task_id);
+
+    create index idx_scheduled_task_run_status_updated
+       on scheduled_task_run (status, updated_at);
+
+    create index idx_scheduled_task_run_notification
+       on scheduled_task_run (tenant_id, scheduled_task_id, notification_sent_at);
+
+    create index idx_skill_resource_scope
+       on skill_resource_scope (tenant_id, skill_id, resource_type);
+
+    create index idx_task_confirm_task_created
+       on task_confirm (task_id, created_at);
+
+    create index idx_task_confirm_status_expired
+       on task_confirm (status, expired_at);
+
+    create index idx_tenant_notification_recipient_tenant
+       on tenant_notification_recipient (tenant_id);
+
+    create index idx_tool_rate_bucket_expiry
+       on tenant_tool_rate_bucket (expires_at);
+
+    create index idx_todo_task_tenant_user_status
+       on todo_task (tenant_id, user_id, status);
+
+    create index idx_todo_task_task_type
+       on todo_task (tenant_id, task_id, todo_type);
+
+    create index idx_ui_artifact_tenant_created
+       on ui_artifact (tenant_id, created_at);
+
+    create index idx_ui_artifact_expiry
+       on ui_artifact (status, expires_at);
+
+    create index idx_ui_artifact_task
+       on ui_artifact (tenant_id, task_id);
+
+    create index idx_user_activity_user_target
+       on user_activity (tenant_id, user_id, target_type, created_at);
+
+    create index idx_user_activity_user_action
+       on user_activity (tenant_id, user_id, target_type, action_type, created_at);
+
+    create index idx_user_favorite_user_created
+       on user_favorite (tenant_id, user_id, created_at);
+
+    create index idx_user_favorite_user_category
+       on user_favorite (tenant_id, user_id, category, created_at);
+
+    create index idx_user_favorite_target
+       on user_favorite (tenant_id, user_id, target_type, target_id);
+
+    create index idx_user_favorite_category_user
+       on user_favorite_category (tenant_id, user_id, created_at);
+
+    alter table if exists runtime_dag_governance_contract_rule
+       add constraint FKc01ycbv0ic5yx8n8qv7ovin2x
+       foreign key (contract_id)
+       references runtime_dag_governance_contract;
+
+    alter table if exists runtime_semantic_insight_field
+       add constraint fk_semantic_field_contract
+       foreign key (contract_id)
+       references runtime_semantic_insight_contract;
+
+    alter table if exists runtime_semantic_insight_recipe
+       add constraint fk_semantic_recipe_contract
+       foreign key (contract_id)
+       references runtime_semantic_insight_contract;
+
+    alter table if exists runtime_semantic_insight_recipe_parameter
+       add constraint fk_semantic_parameter_recipe
+       foreign key (recipe_id)
+       references runtime_semantic_insight_recipe;
+
+    alter table if exists runtime_summary_contract_rule
+       add constraint FKld2mcn4rv000xxcdvek7hrihl
+       foreign key (contract_id)
+       references runtime_summary_contract;

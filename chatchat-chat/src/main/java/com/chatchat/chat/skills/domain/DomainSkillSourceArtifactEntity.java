@@ -3,7 +3,6 @@ package com.chatchat.chat.skills.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -33,11 +32,9 @@ public class DomainSkillSourceArtifactEntity {
     private String originalFileName;
     @Column(name = "original_hash", length = 64, nullable = false)
     private String originalHash;
-    @Lob
-    @Column(name = "original_artifact", nullable = false, columnDefinition = "LONGBLOB")
+    @Column(name = "original_artifact", nullable = false, length = org.hibernate.Length.LONG32)
     private byte[] originalArtifact;
-    @Lob
-    @Column(name = "parsed_document_json", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "parsed_document_json", nullable = false, length = org.hibernate.Length.LONG32)
     private String parsedDocumentJson;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

@@ -1,7 +1,7 @@
 spring:
   config:
-    # Database type selector: datasource-mysql.yml or datasource-h2.yml.
-    import: datasource-h2.yml
+    # Set CHATCHAT_DATASOURCE_CONFIG to datasource-mysql.yml or datasource-postgresql.yml.
+    import: ${CHATCHAT_DATASOURCE_CONFIG:datasource-h2.yml}
   application:
     name: chatchat
     version: 1.0.0-SNAPSHOT

@@ -4,7 +4,6 @@ import com.chatchat.enterprise.entity.common.EnterpriseAuditable;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,13 +31,9 @@ public class McpToolAsset extends EnterpriseAuditable {
 
     @Column(length = 32, nullable = false)
     private String resourceType = "tool";
-
-    @Lob
-    @Column(name = "input_schema_json", columnDefinition = "LONGTEXT")
+    @Column(name = "input_schema_json", length = org.hibernate.Length.LONG32)
     private String inputSchemaJson;
-
-    @Lob
-    @Column(name = "output_schema_json", columnDefinition = "LONGTEXT")
+    @Column(name = "output_schema_json", length = org.hibernate.Length.LONG32)
     private String outputSchemaJson;
 
     @Column(nullable = false)

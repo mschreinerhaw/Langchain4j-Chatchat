@@ -4,7 +4,6 @@ import com.chatchat.mcpserver.routing.target.AssetExecutionTargetBinding;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -56,9 +55,7 @@ public class SshHostConfig {
 
     @Column(length = 1000)
     private String password;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String privateKey;
 
     @Column(length = 1000)
@@ -75,13 +72,9 @@ public class SshHostConfig {
 
     @Column(length = 1000)
     private String tags;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String routingLabelsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String capabilitiesJson;
 
     @Transient
@@ -92,13 +85,9 @@ public class SshHostConfig {
 
     @Transient
     private List<AssetExecutionTargetBinding> executionTargets = new ArrayList<>();
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String allowedCommandsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String governanceJson;
 
     @Column(nullable = false, length = 32)

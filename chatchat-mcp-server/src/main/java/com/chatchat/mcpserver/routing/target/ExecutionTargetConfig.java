@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.routing.target;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -43,9 +42,7 @@ public class ExecutionTargetConfig {
 
     @Column(nullable = false, length = 300)
     private String selectorValue;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String labelsJson;
 
     @Column(nullable = false)

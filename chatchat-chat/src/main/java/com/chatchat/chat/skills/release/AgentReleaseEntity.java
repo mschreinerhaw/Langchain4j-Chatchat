@@ -37,10 +37,10 @@ public class AgentReleaseEntity {
     @Column(name = "artifact_checksum", length = 64, nullable = false, updatable = false)
     private String artifactChecksum;
 
-    @Column(name = "artifact_json", columnDefinition = "LONGTEXT", nullable = false, updatable = false)
+    @Column(name = "artifact_json", length = org.hibernate.Length.LONG32, nullable = false, updatable = false)
     private String artifactJson;
 
-    @Column(name = "quality_report_json", columnDefinition = "LONGTEXT", nullable = false, updatable = false)
+    @Column(name = "quality_report_json", length = org.hibernate.Length.LONG32, nullable = false, updatable = false)
     private String qualityReportJson;
 
     @Column(name = "created_at", nullable = false, updatable = false)

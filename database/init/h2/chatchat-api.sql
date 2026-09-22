@@ -44,7 +44,7 @@
         agent_id varchar(128),
         error_code varchar(128),
         tool_name varchar(256),
-        payload_json LONGTEXT,
+        payload_json clob,
         primary key (event_id),
         constraint uk_execution_event_task_sequence unique (task_id, sequence_number)
     );
@@ -68,12 +68,12 @@
         scenario_name varchar(256),
         attribution_summary varchar(1000),
         feedback_comment varchar(1000),
-        answer_summary LONGTEXT,
         improvement_suggestions_json TEXT,
         model_raw_output TEXT,
         primary_factors_json TEXT,
         question TEXT,
         success_pattern_json TEXT,
+        answer_summary clob,
         primary key (experience_id)
     );
 
@@ -89,11 +89,11 @@
         tenant_id varchar(64) not null,
         created_by varchar(128) not null,
         reviewed_by varchar(128),
-        canary_metrics_json LONGTEXT,
-        evidence_json LONGTEXT not null,
-        patch_json LONGTEXT not null,
-        regression_report_json LONGTEXT,
         source_experience_ids_json TEXT not null,
+        canary_metrics_json clob,
+        evidence_json clob not null,
+        patch_json clob not null,
+        regression_report_json clob,
         primary key (proposal_id)
     );
 
@@ -105,8 +105,8 @@
         agent_id varchar(64) not null,
         artifact_checksum varchar(64) not null,
         release_id varchar(64) not null,
-        artifact_json LONGTEXT not null,
-        quality_report_json LONGTEXT not null,
+        artifact_json clob not null,
+        quality_report_json clob not null,
         primary key (release_id),
         constraint uk_agent_release_version unique (agent_id, release_version)
     );
@@ -116,7 +116,7 @@
         updated_at bigint not null,
         run_id varchar(64) not null,
         checkpoint_id varchar(128) not null,
-        checkpoint_json LONGTEXT not null,
+        checkpoint_json clob not null,
         primary key (checkpoint_id)
     );
 
@@ -129,8 +129,8 @@
         tenant_id varchar(64) not null,
         plan_id varchar(256) not null,
         record_id varchar(256) not null,
-        dag_json LONGTEXT not null,
-        plan_json LONGTEXT not null,
+        dag_json clob not null,
+        plan_json clob not null,
         primary key (record_id),
         constraint uk_runtime_plan_version unique (tenant_id, task_id, plan_version)
     );
@@ -147,7 +147,7 @@
         run_id varchar(64) not null,
         tenant_id varchar(64),
         user_id varchar(64),
-        run_json LONGTEXT not null,
+        run_json clob not null,
         primary key (run_id)
     );
 
@@ -185,11 +185,11 @@
         feedback_comment varchar(1000),
         required_worker_capabilities varchar(1000),
         dead_letter_reason varchar(2000),
-        answer_summary LONGTEXT,
         error_message TEXT,
-        final_notification_json LONGTEXT,
         question TEXT,
         request_payload_json TEXT,
+        answer_summary clob,
+        final_notification_json clob,
         primary key (task_id),
         constraint uk_agent_task_tenant_idempotency unique (tenant_id, idempotency_key)
     );
@@ -240,7 +240,7 @@
         message_end_id varchar(64) not null,
         message_start_id varchar(64) not null,
         session_id varchar(64) not null,
-        summary LONGTEXT not null,
+        summary clob not null,
         primary key (id)
     );
 
@@ -288,7 +288,7 @@
         original_file_name varchar(300),
         description varchar(2000),
         search_text varchar(4000) not null,
-        markdown_content LONGTEXT not null,
+        markdown_content clob not null,
         primary key (id)
     );
 
@@ -312,7 +312,7 @@
         source_id varchar(64) not null,
         tenant_id varchar(64) not null,
         compiler_model varchar(200),
-        skill_ir_json LONGTEXT not null,
+        skill_ir_json clob not null,
         primary key (id)
     );
 
@@ -343,8 +343,8 @@
         tenant_id varchar(64) not null,
         original_file_name varchar(300),
         source_reference varchar(2000),
-        original_artifact LONGBLOB not null,
-        parsed_document_json LONGTEXT not null,
+        original_artifact blob not null,
+        parsed_document_json clob not null,
         primary key (id)
     );
 
@@ -408,7 +408,7 @@
         tenant_id varchar(64) not null,
         file_name varchar(180) not null,
         title varchar(300),
-        source_code LONGTEXT not null,
+        source_code clob not null,
         primary key (id),
         constraint uk_python_script_name unique (asset_id, file_name)
     );
@@ -431,7 +431,7 @@
         id varchar(64) not null,
         script_id varchar(64) not null,
         source_hash varchar(64) not null,
-        source_code LONGTEXT not null,
+        source_code clob not null,
         primary key (id),
         constraint uk_python_script_version unique (script_id, version_number)
     );
@@ -606,9 +606,9 @@
         tenant_id varchar(64) not null,
         container_id varchar(128),
         parameters_json TEXT,
-        result_json LONGTEXT,
-        stderr LONGTEXT,
-        stdout LONGTEXT,
+        result_json clob,
+        stderr clob,
+        stdout clob,
         primary key (id)
     );
 
@@ -636,7 +636,7 @@
         input_schema_json TEXT,
         output_schema_json TEXT,
         search_text TEXT not null,
-        source_snapshot LONGTEXT not null,
+        source_snapshot clob not null,
         primary key (id)
     );
 
@@ -707,8 +707,8 @@
         remote_tool_name varchar(128) not null,
         service_name varchar(128),
         description varchar(2000),
-        input_schema_json LONGTEXT,
-        output_schema_json LONGTEXT,
+        input_schema_json clob,
+        output_schema_json clob,
         primary key (id)
     );
 
@@ -744,9 +744,9 @@
         schema_version varchar(64) not null,
         tool_id varchar(64) not null,
         published_by varchar(128),
-        extensions_json LONGTEXT,
-        input_schema_json LONGTEXT,
-        output_schema_json LONGTEXT,
+        extensions_json clob,
+        input_schema_json clob,
+        output_schema_json clob,
         primary key (id),
         constraint uk_mcp_tool_contract_version unique (tool_id, contract_version)
     );
@@ -863,7 +863,7 @@
         rule_key varchar(256),
         parent_path varchar(512) not null,
         rule_path varchar(512) not null,
-        value_text LONGTEXT,
+        value_text clob,
         primary key (storage_order, contract_id),
         constraint uk_dag_governance_contract_rule_path unique (contract_id, rule_path)
     );
@@ -890,7 +890,7 @@
         run_id varchar(128) not null,
         worker_id varchar(128),
         state_reason varchar(1000),
-        metadata_json LONGTEXT,
+        metadata_json clob,
         primary key (attempt_id),
         constraint uk_dag_node_attempt_number unique (tenant_id, run_id, node_id, attempt_number)
     );
@@ -913,7 +913,7 @@
         tenant_id varchar(128) not null,
         dataset_key varchar(256),
         tool_name varchar(256),
-        contract_json LONGTEXT,
+        contract_json clob,
         primary key (contract_id),
         constraint uk_semantic_contract_version unique (tenant_id, contract_key, contract_version)
     );
@@ -982,7 +982,7 @@
         rule_key varchar(256),
         parent_path varchar(512) not null,
         rule_path varchar(512) not null,
-        value_text LONGTEXT,
+        value_text clob,
         primary key (storage_order, contract_id),
         constraint uk_summary_contract_rule_path unique (contract_id, rule_path)
     );

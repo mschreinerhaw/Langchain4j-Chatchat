@@ -3,7 +3,6 @@ package com.chatchat.mcpserver.database.definition;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -33,9 +32,7 @@ public class DatabaseQueryConfig {
 
     @Column(length = 1000)
     private String description;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String implementationSteps;
 
     @Column(length = 64)
@@ -49,9 +46,7 @@ public class DatabaseQueryConfig {
 
     @Column(length = 1000)
     private String businessScope;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String indexTagsJson;
 
     @Column(length = 128)
@@ -62,29 +57,17 @@ public class DatabaseQueryConfig {
 
     @Column(length = 1000)
     private String businessGroupDescription;
-
-    @Lob
-    @Column(nullable = false, columnDefinition = "longtext")
+    @Column(nullable = false, length = org.hibernate.Length.LONG32)
     private String sqlTemplate;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String sqlStepsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String inputSchemaJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String governanceJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String routingLabelsJson;
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String capabilitiesJson;
 
     @Column(length = 128)
@@ -92,9 +75,7 @@ public class DatabaseQueryConfig {
 
     @Column(length = 64)
     private String databaseType = "generic";
-
-    @Lob
-    @Column(columnDefinition = "longtext")
+    @Column(length = org.hibernate.Length.LONG32)
     private String tagsJson;
 
     @Column(length = 32)

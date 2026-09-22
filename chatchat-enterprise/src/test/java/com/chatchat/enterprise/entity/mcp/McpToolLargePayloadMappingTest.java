@@ -25,8 +25,8 @@ class McpToolLargePayloadMappingTest {
         Field field = entityType.getDeclaredField(fieldName);
         Column column = field.getAnnotation(Column.class);
         assertThat(column)
-            .as("%s.%s must publish an explicit database type", entityType.getSimpleName(), fieldName)
+            .as("%s.%s must retain a portable large-text length", entityType.getSimpleName(), fieldName)
             .isNotNull();
-        assertThat(column.columnDefinition()).isEqualToIgnoringCase("LONGTEXT");
+        assertThat(column.length()).isEqualTo(org.hibernate.Length.LONG32);
     }
 }

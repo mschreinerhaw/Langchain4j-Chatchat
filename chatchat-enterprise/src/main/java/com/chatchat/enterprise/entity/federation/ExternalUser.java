@@ -3,7 +3,6 @@ package com.chatchat.enterprise.entity.federation;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -55,7 +54,6 @@ public class ExternalUser {
     @Column(name = "OA_FNO", length = 100)
     private String oaFno;
 
-    @Lob
-    @Column(name = "Photo")
+    @Column(name = "Photo", length = org.hibernate.Length.LONG32)
     private byte[] photo;
 }

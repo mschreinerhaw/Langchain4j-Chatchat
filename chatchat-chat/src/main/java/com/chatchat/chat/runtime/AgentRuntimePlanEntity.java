@@ -34,10 +34,10 @@ public class AgentRuntimePlanEntity {
     @Column(name = "plan_version", nullable = false)
     private Integer version;
 
-    @Column(name = "plan_json", columnDefinition = "LONGTEXT", nullable = false)
+    @Column(name = "plan_json", length = org.hibernate.Length.LONG32, nullable = false)
     private String planJson;
 
-    @Column(name = "dag_json", columnDefinition = "LONGTEXT", nullable = false)
+    @Column(name = "dag_json", length = org.hibernate.Length.LONG32, nullable = false)
     private String dagJson;
 
     @Column(name = "plan_status", length = 32, nullable = false)

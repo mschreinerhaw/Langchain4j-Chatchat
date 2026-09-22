@@ -40,6 +40,11 @@
                     <include>mysql/chatchat-mcp-server.sql</include>
                     <include>postgresql/chatchat-api.sql</include>
                     <include>postgresql/chatchat-mcp-server.sql</include>
+                    <include>mysql/chatchat-api-securities-seed.sql</include>
+                    <include>mysql/chatchat-mcp-securities-seed.sql</include>
+                    <include>postgresql/chatchat-api-securities-seed.sql</include>
+                    <include>postgresql/chatchat-mcp-securities-seed.sql</include>
+                    <include>postgresql/chatchat-api-post-schema.sql</include>
                 </includes>
             </resource>
         </resources>

@@ -62,6 +62,16 @@ final class MigrationSchema {
         }
     }
 
+    static String resourceSql(String engine, String file) throws IOException {
+        String path = "/migration-schema/" + engine + "/" + file;
+        try (InputStream stream = MigrationSchema.class.getResourceAsStream(path)) {
+            if (stream == null) {
+                throw new IOException("Schema resource missing from JAR: " + path);
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
     private static Set<String> difference(Set<String> left, Set<String> right) {
         Set<String> result = new TreeSet<>(left);
         result.removeAll(right);

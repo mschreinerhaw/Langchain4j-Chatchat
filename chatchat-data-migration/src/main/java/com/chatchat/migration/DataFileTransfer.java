@@ -139,9 +139,17 @@ final class DataFileTransfer {
             if (!expected.equals(new HashSet<>(archivedTables))) {
                 throw new IllegalStateException("Archive tables differ from database/init for " + options.module);
             }
-            try (Connection target = connection(options)) {
-                target.setAutoCommit(false);
+            try (Connection target = TargetBootstrap.connectTarget(options.engine, options.module,
+                    setting("MYSQL_DATABASE", "live_runtime_" + options.module),
+                    setting("PGDATABASE", "live_runtime_" + options.module), options.dryRun)) {
+                if (target == null) {
+                    return;
+                }
                 String scope = scope(target, options.engine);
+                if (TargetBootstrap.ensureTables(target, options.engine, options.module, scope, options.dryRun)) {
+                    return;
+                }
+                target.setAutoCommit(false);
                 try {
                     Set<String> found = MigrationSchema.selectTables(tables(target, scope), expected,
                             "Target database");
@@ -193,6 +201,7 @@ final class DataFileTransfer {
                     if (options.engine == Engine.POSTGRESQL) {
                         resetSequences(target, scope, order);
                     }
+                    TargetBootstrap.seedMissingRows(target, options.engine, options.module, scope);
                     target.commit();
                     System.out.printf("Import completed: %d rows across %d tables.%n", total, order.size());
                 } catch (Exception exception) {

@@ -34,6 +34,10 @@ public final class DataMigrationApplication {
 
     public static void main(String[] args) {
         try {
+            if (Arrays.asList(args).contains("--init-only")) {
+                TargetBootstrap.initOnly(args);
+                return;
+            }
             if (Arrays.asList(args).contains("--export-file") || Arrays.asList(args).contains("--import-file")) {
                 DataFileTransfer.execute(args);
                 return;
@@ -56,15 +60,22 @@ public final class DataMigrationApplication {
         String pgDatabase = setting("PGDATABASE", "live_runtime_" + options.module);
         String pgSchema = identifier(setting("PGSCHEMA", "public"));
         try (Connection source = connect(sourceEngine, options.module, mysqlDatabase, pgDatabase);
-             Connection target = connect(targetEngine, options.module, mysqlDatabase, pgDatabase)) {
+             Connection target = TargetBootstrap.connectTarget(targetEngine, options.module,
+                     mysqlDatabase, pgDatabase, options.dryRun)) {
+            if (target == null) {
+                return;
+            }
             String sourceDatabase = source.getCatalog();
             String targetDatabase = target.getCatalog();
             source.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             source.setReadOnly(true);
             source.setAutoCommit(false);
-            target.setAutoCommit(false);
             String sourceScope = sourceEngine == Engine.MYSQL ? sourceDatabase : pgSchema;
             String targetScope = targetEngine == Engine.MYSQL ? targetDatabase : pgSchema;
+            if (TargetBootstrap.ensureTables(target, targetEngine, options.module, targetScope, options.dryRun)) {
+                return;
+            }
+            target.setAutoCommit(false);
             try {
                 Set<String> expectedTables = MigrationSchema.expectedTables(options.module);
                 Set<String> sourceTables = MigrationSchema.selectTables(tables(source, sourceScope), expectedTables,
@@ -118,6 +129,7 @@ public final class DataMigrationApplication {
                 if (targetEngine == Engine.POSTGRESQL) {
                     resetSequences(target, targetScope, order);
                 }
+                TargetBootstrap.seedMissingRows(target, targetEngine, options.module, targetScope);
                 target.commit();
                 System.out.printf("Migration completed: %d rows across %d tables.%n", total, order.size());
             } catch (Exception exception) {
@@ -153,7 +165,7 @@ public final class DataMigrationApplication {
         return value == null || value.isBlank() ? fallback : value;
     }
 
-    private static String secret(String name, String fallback) throws IOException {
+    static String secret(String name, String fallback) throws IOException {
         String file = System.getenv(name + "_FILE");
         if (file != null && !file.isBlank()) {
             return Files.readString(Path.of(file), StandardCharsets.UTF_8).replaceFirst("[\\r\\n]+$", "");
@@ -416,7 +428,9 @@ public final class DataMigrationApplication {
                         + "[--mysql-timezone Asia/Shanghai]\n"
                         + "       java -jar chatchat-data-migration.jar --export-file FILE --engine mysql|postgresql --module api|mcp\n"
                         + "       java -jar chatchat-data-migration.jar --import-file FILE --engine mysql|postgresql --module api|mcp "
-                        + "[--dry-run] [--replace-target] [--batch-size 500] [--mysql-timezone Asia/Shanghai]");
+                        + "[--dry-run] [--replace-target] [--batch-size 500] [--mysql-timezone Asia/Shanghai]\n"
+                        + "       java -jar chatchat-data-migration.jar --init-only --engine mysql|postgresql --module api|mcp "
+                        + "[--dry-run]");
                 return null;
             }
             Map<String, String> values = new HashMap<>();

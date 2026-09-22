@@ -56,6 +56,23 @@ import static org.mockito.Mockito.when;
 class DocumentSearchControlPlaneTest {
 
     @Test
+    void excludesIndexedSnippetMissingFromCurrentRocksDbDocument() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(any(), any(), any(), any(), any(), any(), any(),
+            any(SearchPermissionContext.class))).thenReturn(new SearchPage(
+                "ACME 2025 revenue policy", List.of(), List.of(searchResult()), 1, 8, 1, 8,
+                1, false, 1L, 1, null));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+        when(searchService.get(eq("doc-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(
+            SearchDocument.builder().docId("doc-1").content("A replacement source document.").build()));
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy", 8, null, null, null, null, null, false));
+
+        assertThat(result.results()).isEmpty();
+    }
+
+    @Test
     void broadQueryStopsBeforeSearchAndDoesNotSpendBudget() {
         SearchService searchService = mock(SearchService.class);
         DocumentSearchEvidenceService service = newEvidenceService(searchService);
@@ -720,6 +737,12 @@ class DocumentSearchControlPlaneTest {
 
     private DocumentSearchEvidenceService newEvidenceService(SearchService searchService,
                                                              Consumer<SearchProperties> propertiesCustomizer) {
+        when(searchService.get(eq("doc-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(
+            SearchDocument.builder().docId("doc-1")
+                .content("ACME 2025 revenue policy requires quarterly review.").build()));
+        when(searchService.get(eq("doc-blocked"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(
+            SearchDocument.builder().docId("doc-blocked")
+                .content("ACME 2025 revenue policy: Blocked private evidence should never be returned.").build()));
         SearchProperties properties = new SearchProperties();
         propertiesCustomizer.accept(properties);
         SearchTokenizer tokenizer = new SearchTokenizer();

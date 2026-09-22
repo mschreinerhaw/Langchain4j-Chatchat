@@ -252,7 +252,7 @@ public class DocumentSearchEvidenceService {
                     );
                     if (chunks.size() > before) {
                         if (chunks.size() >= topK) {
-                            return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext), state, events, elapsedMs(startedAt));
+                            return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
                         }
                         continue;
                     }
@@ -274,7 +274,7 @@ public class DocumentSearchEvidenceService {
                         permissionContext
                     );
                     if (chunks.size() > before && chunks.size() >= topK) {
-                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext), state, events, elapsedMs(startedAt));
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
                     }
                 }
                 int beforeFine = chunks.size();
@@ -291,7 +291,7 @@ public class DocumentSearchEvidenceService {
                 );
                 if (chunks.size() > beforeFine) {
                     if (chunks.size() >= topK) {
-                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext), state, events, elapsedMs(startedAt));
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
                     }
                     continue;
                 }
@@ -301,7 +301,7 @@ public class DocumentSearchEvidenceService {
                     }
                     chunks.add(toEvidence(result, chunk, query, intent, debug));
                     if (chunks.size() >= topK) {
-                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext), state, events, elapsedMs(startedAt));
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
                     }
                 }
             }
@@ -309,13 +309,8 @@ public class DocumentSearchEvidenceService {
                 break;
             }
         }
-        return controlledResult(toV2SearchResult(
-            query,
-            intent,
-            permissionGuard.visibleChunks(chunks, visibilityContext),
-            permissionGuard.visibleDocuments(documents, visibilityContext),
-            permissionGuard.visibleOutline(outline, visibilityContext)
-        ), state, events, elapsedMs(startedAt));
+        return controlledResult(visibleResult(query, intent, chunks, documents, outline,
+            visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
     }
 
     public DocumentSearchExpandResult expand(DocumentSearchExpandRequest request) {
@@ -566,14 +561,43 @@ public class DocumentSearchEvidenceService {
                                                List<DocumentEvidenceChunk> chunks,
                                                List<DocumentSearchHit> documents,
                                                List<DocumentOutlineItem> outline,
-                                               DocumentVisibilityContext visibilityContext) {
+                                               DocumentVisibilityContext visibilityContext,
+                                               SearchPermissionContext permissionContext) {
+        Map<String, java.util.Optional<SearchDocument>> verifiedDocuments = new LinkedHashMap<>();
+        Map<String, String> sourceTexts = new LinkedHashMap<>();
+        List<DocumentEvidenceChunk> sourceChunks = permissionGuard.visibleChunks(chunks, visibilityContext)
+            .stream()
+            .filter(chunk -> {
+                if (chunk == null || !hasText(chunk.fileId()) || !hasText(chunk.content())) return false;
+                SearchDocument source = verifiedDocuments.computeIfAbsent(chunk.fileId(),
+                    id -> perDocumentIndexService.openDocumentIndex(id, permissionContext)).orElse(null);
+                return source != null && hasText(source.getContent())
+                    && sourceTexts.computeIfAbsent(chunk.fileId(),
+                        id -> normalizeSourceText(source.getContent()))
+                        .contains(normalizeSourceText(chunk.content()));
+            })
+            .toList();
+        List<DocumentSearchHit> sourceDocuments = permissionGuard.visibleDocuments(documents, visibilityContext)
+            .stream()
+            .filter(document -> verifiedDocuments.computeIfAbsent(document.docId(),
+                id -> perDocumentIndexService.openDocumentIndex(id, permissionContext)).isPresent())
+            .toList();
+        List<DocumentOutlineItem> sourceOutline = permissionGuard.visibleOutline(outline, visibilityContext)
+            .stream()
+            .filter(item -> verifiedDocuments.computeIfAbsent(item.docId(),
+                id -> perDocumentIndexService.openDocumentIndex(id, permissionContext)).isPresent())
+            .toList();
         return toV2SearchResult(
             query,
             intent,
-            permissionGuard.visibleChunks(chunks, visibilityContext),
-            permissionGuard.visibleDocuments(documents, visibilityContext),
-            permissionGuard.visibleOutline(outline, visibilityContext)
+            sourceChunks,
+            sourceDocuments,
+            sourceOutline
         );
+    }
+
+    private String normalizeSourceText(String value) {
+        return nullToEmpty(value).replaceAll("\\s+", " ").trim();
     }
 
     private boolean isTitleOnlyHit(SearchResult result) {

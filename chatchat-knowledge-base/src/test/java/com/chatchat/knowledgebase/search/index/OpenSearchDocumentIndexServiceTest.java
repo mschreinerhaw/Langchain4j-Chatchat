@@ -115,6 +115,7 @@ class OpenSearchDocumentIndexServiceTest {
 
         assertThat(service.localRerankBatchSize()).isEqualTo(102);
         assertThat(service.resultSourceFilter(false)).doesNotContain("contentVector");
+        assertThat(service.resultSourceFilter(false)).contains("fileId", "sectionId", "chunkId", "sourceVersion");
         assertThat(service.resultSourceFilter(true)).contains("contentVector");
     }
 

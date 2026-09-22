@@ -1073,7 +1073,17 @@ public class SearchService {
             Map<String, Integer> titleMemoryRawScores = new HashMap<>();
             Map<String, Integer> titleMemoryCalibratedScores = new HashMap<>();
             Set<String> candidates = new LinkedHashSet<>();
+            Map<String, Optional<SearchDocument>> sourceDocuments = new HashMap<>();
             for (LuceneSearchHit hit : hits) {
+                SearchDocument sourceDocument = sourceDocuments
+                    .computeIfAbsent(hit.docId(), store::get).orElse(null);
+                if (sourceDocument == null || !isLatestVersion(sourceDocument)
+                    || !canAccess(sourceDocument, context)
+                    || (hit.sourceVersion() != null
+                        && !hit.sourceVersion().equals(sourceDocument.getVersion() == null
+                            ? 1 : sourceDocument.getVersion()))) {
+                    continue;
+                }
                 candidates.add(hit.docId());
                 hitsByDocId.computeIfAbsent(hit.docId(), ignored -> new ArrayList<>()).add(hit);
                 scores.merge(hit.docId(), Math.max(1, Math.round(hit.score() * 10)), Math::max);

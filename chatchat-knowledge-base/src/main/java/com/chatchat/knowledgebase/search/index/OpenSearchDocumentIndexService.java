@@ -60,6 +60,8 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     private static final String FILE_ID = "fileId";
     private static final String FILE_NAME = "fileName";
     private static final String CHUNK_ID = "chunkId";
+    private static final String SECTION_ID = "sectionId";
+    private static final String SOURCE_VERSION = "sourceVersion";
     private static final String CHUNK_INDEX = "chunkIndex";
     private static final String CHUNK_TEXT = "chunkText";
     private static final String CONTENT = "content";
@@ -105,7 +107,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         TITLE_TEXT + "^5.0", FILE_NAME + "^4.0", KEYWORDS_TEXT + "^3.0", CONTENT
     );
     private static final List<String> RESULT_SOURCE_FIELDS = List.of(
-        FILE_ID, FILE_NAME, SECTION, CHUNK_TYPE, CHUNK_ID, CHUNK_INDEX,
+        FILE_ID, FILE_NAME, SECTION, SECTION_ID, SOURCE_VERSION, CHUNK_TYPE, CHUNK_ID, CHUNK_INDEX,
         CONTENT, CHUNK_TEXT, POSITION_RATIO, TENANT_ID, USER_ID, VISIBILITY, PERMISSION_ROLE
     );
 
@@ -420,7 +422,9 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
                 text(source, TENANT_ID),
                 text(source, USER_ID),
                 text(source, VISIBILITY),
-                stringList(source.path(PERMISSION_ROLE))
+                stringList(source.path(PERMISSION_ROLE)),
+                text(source, SECTION_ID),
+                source.path(SOURCE_VERSION).isNumber() ? source.path(SOURCE_VERSION).asInt() : null
             );
             hits.add(hit);
         }
@@ -512,6 +516,8 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put(FILE_ID, Map.of("type", "keyword"));
         fields.put(CHUNK_ID, Map.of("type", "keyword"));
+        fields.put(SECTION_ID, Map.of("type", "keyword"));
+        fields.put(SOURCE_VERSION, Map.of("type", "integer"));
         fields.put(CHUNK_INDEX, Map.of("type", "integer"));
         fields.put(FILE_NAME, chineseTextMapping(true));
         fields.put(TITLE_TEXT, chineseTextMapping(true));
@@ -716,6 +722,10 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         source.put(FILE_ID, document.getDocId());
         source.put(FILE_NAME, nullToEmpty(document.getFileName()));
         source.put(CHUNK_ID, document.getDocId() + "_" + chunkIndex);
+        source.put(SECTION_ID, document.getDocId() + ":section:"
+            + java.util.UUID.nameUUIDFromBytes((document.getDocId() + "\n"
+                + nullToEmpty(chunk.section())).getBytes(StandardCharsets.UTF_8)));
+        source.put(SOURCE_VERSION, document.getVersion() == null ? 1 : document.getVersion());
         source.put(CHUNK_INDEX, chunkIndex);
         source.put(CHUNK_TEXT, chunkText);
         source.put(CONTENT, chunkText);
@@ -1369,7 +1379,9 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             hit.tenantId(),
             hit.userId(),
             hit.visibility(),
-            hit.permissionRoles()
+            hit.permissionRoles(),
+            hit.sectionId(),
+            hit.sourceVersion()
         );
     }
 
@@ -1451,7 +1463,9 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
                 hit.tenantId(),
                 hit.userId(),
                 hit.visibility(),
-                hit.permissionRoles()
+                hit.permissionRoles(),
+                hit.sectionId(),
+                hit.sourceVersion()
             );
         }
     }

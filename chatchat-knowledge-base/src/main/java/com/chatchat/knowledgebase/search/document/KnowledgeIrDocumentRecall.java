@@ -2,7 +2,11 @@ package com.chatchat.knowledgebase.search.document;
 
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIREntity;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
+import com.chatchat.knowledgebase.search.index.PerDocumentIndexService;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
+import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -24,9 +28,11 @@ import java.util.Set;
 public class KnowledgeIrDocumentRecall {
     private static final int MAX_TERMS = 12;
     private static final int MAX_UNITS_PER_TERM = 200;
+    private static final ObjectMapper ACL_MAPPER = new ObjectMapper();
 
     private final KnowledgeIRRepository repository;
     private final SearchTokenizer tokenizer;
+    private final PerDocumentIndexService perDocumentIndexService;
 
     @Transactional(readOnly = true)
     public Recall recall(DocumentSearchPlan plan, int limit) {
@@ -42,13 +48,17 @@ public class KnowledgeIrDocumentRecall {
         if (allowed.isEmpty() && plan.visibilityContext().active()) {
             allowed.addAll(plan.visibilityScopeIds());
         }
+        Map<String, Boolean> accessibleDocuments = new HashMap<>();
         for (String term : terms) {
             Set<String> documentsForTerm = new HashSet<>();
             List<KnowledgeIREntity> matches = repository.findMatchingUnits(
                 plan.permissionContext().tenantId(), "%" + term + "%", PageRequest.of(0, MAX_UNITS_PER_TERM));
             for (KnowledgeIREntity unit : matches) {
                 String documentId = unit.getDocumentId();
-                if (documentId == null || documentId.isBlank() || (!allowed.isEmpty() && !allowed.contains(documentId))) {
+                if (documentId == null || documentId.isBlank() || (!allowed.isEmpty() && !allowed.contains(documentId))
+                    || !coarseAllowed(unit, plan.permissionContext())
+                    || !accessibleDocuments.computeIfAbsent(documentId, id ->
+                        perDocumentIndexService.openDocumentIndex(id, plan.permissionContext()).isPresent())) {
                     continue;
                 }
                 units.putIfAbsent(documentId + ":" + unit.getKnowledgeId(), unit);
@@ -96,6 +106,24 @@ public class KnowledgeIrDocumentRecall {
 
     private boolean contains(String value, String term) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(term);
+    }
+
+    private boolean coarseAllowed(KnowledgeIREntity unit, SearchPermissionContext context) {
+        if (unit.getVisibility() == null || context == null) return true;
+        String visibility = unit.getVisibility().trim().toLowerCase(Locale.ROOT);
+        if (!"private".equals(visibility) && !"role".equals(visibility)) return true;
+        if (context.userId().equals(unit.getOwnerUserId())) return true;
+        if ("private".equals(visibility)) return false;
+        try {
+            List<String> roles = ACL_MAPPER.readValue(unit.getPermissionRolesJson(),
+                new TypeReference<List<String>>() { });
+            Set<String> callerRoles = context.roles().stream()
+                .map(role -> role.toLowerCase(Locale.ROOT)).collect(java.util.stream.Collectors.toSet());
+            return roles.stream().filter(role -> role != null)
+                .map(role -> role.toLowerCase(Locale.ROOT)).anyMatch(callerRoles::contains);
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     public record Recall(List<String> documentIds, String focusedQuery) {

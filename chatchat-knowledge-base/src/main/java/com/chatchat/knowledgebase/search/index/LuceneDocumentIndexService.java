@@ -36,7 +36,9 @@ import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TermInSetQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -258,6 +260,13 @@ public class LuceneDocumentIndexService implements DocumentSearchIndex {
     }
 
     public synchronized List<LuceneSearchHit> search(String keyword, int maxHits, SearchPermissionContext permissionContext) {
+        return search(keyword, maxHits, permissionContext, null);
+    }
+
+    @Override
+    public synchronized List<LuceneSearchHit> search(String keyword, int maxHits,
+                                                     SearchPermissionContext permissionContext,
+                                                     List<String> allowedDocumentIds) {
         if (!isAvailable() || keyword == null || keyword.isBlank()) {
             return List.of();
         }
@@ -283,7 +292,7 @@ public class LuceneDocumentIndexService implements DocumentSearchIndex {
                 if (properties.isLucenePrfEnabled()) {
                     List<LuceneSearchHit> initialHits = executeSearch(
                         searcher,
-                        buildQuery(terms, List.of(), permissionContext),
+                        buildQuery(terms, List.of(), permissionContext, allowedDocumentIds),
                         Math.max(1, properties.getLucenePrfTopN()),
                         normalizedKeyword,
                         terms,
@@ -304,7 +313,7 @@ public class LuceneDocumentIndexService implements DocumentSearchIndex {
                 );
                 List<LuceneSearchHit> hits = executeSearch(
                     searcher,
-                    buildQuery(finalTerms, negativeTerms, permissionContext),
+                    buildQuery(finalTerms, negativeTerms, permissionContext, allowedDocumentIds),
                     Math.max(1, maxHits),
                     normalizedKeyword,
                     finalTerms,
@@ -441,7 +450,9 @@ public class LuceneDocumentIndexService implements DocumentSearchIndex {
      * @param terms the terms value
      * @return the built query
      */
-    private BooleanQuery buildQuery(List<String> terms, List<String> negativeTerms, SearchPermissionContext permissionContext) {
+    private BooleanQuery buildQuery(List<String> terms, List<String> negativeTerms,
+                                    SearchPermissionContext permissionContext,
+                                    List<String> allowedDocumentIds) {
         BooleanQuery.Builder query = new BooleanQuery.Builder();
         for (String term : terms) {
             BooleanQuery.Builder termQuery = new BooleanQuery.Builder();
@@ -466,6 +477,11 @@ public class LuceneDocumentIndexService implements DocumentSearchIndex {
             addNegativeTermQuery(query, CONTENT_TOKENS, term);
         }
         addPermissionFilter(query, permissionContext);
+        if (allowedDocumentIds != null && !allowedDocumentIds.isEmpty()) {
+            query.add(new TermInSetQuery(FILE_ID, allowedDocumentIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(BytesRef::new).toList()), BooleanClause.Occur.FILTER);
+        }
         query.setMinimumNumberShouldMatch(minimumShouldMatch(terms.size()));
         return query.build();
     }

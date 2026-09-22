@@ -217,6 +217,10 @@ public class DocumentSearchEvidenceService {
 
         DocumentRecallResult recallResult = com.chatchat.knowledgebase.search.query.QueryExpander
             .withoutExpansion(() -> orchestrator.recall(plan, hybridDocumentLimit(topK)));
+        if (properties.isDocumentFirstEnabled()) {
+            DocumentSearchResult result = documentFirstResult(plan, recallResult);
+            return controlledResult(result, state, events, elapsedMs(startedAt));
+        }
 
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
         List<DocumentSearchHit> documents = new ArrayList<>();
@@ -406,6 +410,52 @@ public class DocumentSearchEvidenceService {
             reasoning,
             decision
         );
+    }
+
+    private DocumentSearchResult documentFirstResult(DocumentSearchPlan plan,
+                                                     DocumentRecallResult recall) {
+        String query = plan.query();
+        String focus = recall.focusedQuery();
+        List<DocumentEvidenceChunk> chunks = new ArrayList<>();
+        Map<String, java.util.Optional<SearchDocument>> verified = new LinkedHashMap<>();
+        int candidateLimit = Math.max(plan.topK(), plan.topK() * 3);
+        for (DocumentSearchCandidate candidate : recall.candidates()) {
+            SearchResult result = candidate.result();
+            if (result == null || !recall.irDocumentIds().contains(result.docId())
+                || !matchesFileType(result, plan.filters() == null ? null : plan.filters().fileType())) continue;
+            SearchDocument source = verified.computeIfAbsent(result.docId(),
+                id -> perDocumentIndexService.openDocumentIndex(id, plan.permissionContext())).orElse(null);
+            if (source == null || (source.getVersion() != null && result.version() > 0
+                && !source.getVersion().equals(result.version()))
+                || !matchesDocumentFilters(source, plan.filters())) continue;
+            for (SearchMatchedChunk matched : result.matchedChunks() == null
+                ? List.<SearchMatchedChunk>of() : result.matchedChunks()) {
+                if (!matchesChunkType(matched, plan.filters() == null ? null : plan.filters().chunkType())
+                    || !hasText(firstNonBlank(matched.content(), matched.text()))) continue;
+                chunks.add(toEvidence(result, matched, query, plan.intent(), plan.debug()));
+                if (chunks.size() >= candidateLimit) break;
+            }
+            if (chunks.size() >= candidateLimit) break;
+        }
+        DocumentSearchResult indexed = visibleResult(query, plan.intent(), chunks, List.of(), List.of(),
+            plan.visibilityContext(), plan.permissionContext(), focus, verified);
+        if (!indexed.results().isEmpty() || recall.irDocumentIds().isEmpty()) return indexed;
+
+        // An index miss may be caused by an incomplete/stale passage index. Only
+        // the already selected document IDs are eligible for source-text fallback.
+        List<DocumentEvidenceChunk> fallback = new ArrayList<>();
+        for (String id : recall.irDocumentIds()) {
+            SearchDocument source = verified.computeIfAbsent(id,
+                key -> perDocumentIndexService.openDocumentIndex(key, plan.permissionContext())).orElse(null);
+            if (source == null || !matchesDocumentFilters(source, plan.filters())
+                || !documentContainsSubject(source, focus)) continue;
+            List<DocumentEvidenceChunk> local = toScopedEvidence(source, query, plan.queryTokens(),
+                plan.intent(), plan.debug(), Math.min(3, plan.topK() - fallback.size()));
+            fallback.addAll(local);
+            if (fallback.size() >= plan.topK()) break;
+        }
+        return visibleResult(query, plan.intent(), fallback, List.of(), List.of(),
+            plan.visibilityContext(), plan.permissionContext(), focus, verified);
     }
 
     private DocumentSearchResult searchScopedDocuments(String query,
@@ -613,7 +663,19 @@ public class DocumentSearchEvidenceService {
                                                DocumentVisibilityContext visibilityContext,
                                                SearchPermissionContext permissionContext,
                                                String focusedQuery) {
-        Map<String, java.util.Optional<SearchDocument>> verifiedDocuments = new LinkedHashMap<>();
+        return visibleResult(query, intent, chunks, documents, outline, visibilityContext,
+            permissionContext, focusedQuery, new LinkedHashMap<>());
+    }
+
+    private DocumentSearchResult visibleResult(String query,
+                                               String intent,
+                                               List<DocumentEvidenceChunk> chunks,
+                                               List<DocumentSearchHit> documents,
+                                               List<DocumentOutlineItem> outline,
+                                               DocumentVisibilityContext visibilityContext,
+                                               SearchPermissionContext permissionContext,
+                                               String focusedQuery,
+                                               Map<String, java.util.Optional<SearchDocument>> verifiedDocuments) {
         Map<String, String> sourceTexts = new LinkedHashMap<>();
         List<DocumentEvidenceChunk> sourceChunks = permissionGuard.visibleChunks(chunks, visibilityContext)
             .stream()

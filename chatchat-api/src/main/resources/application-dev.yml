@@ -239,6 +239,7 @@ chatchat:
     analysis-spill-ttl-ms: 604800000
   search:
     engine: opensearch
+    document-first-enabled: true
     max-upload-bytes: 57671680
     upload-chunk-bytes: 5242880
     store-path: ./data/search-rocksdb

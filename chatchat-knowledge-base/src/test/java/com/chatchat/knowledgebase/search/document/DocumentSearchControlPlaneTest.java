@@ -97,6 +97,29 @@ class DocumentSearchControlPlaneTest {
     }
 
     @Test
+    void documentFirstFallsBackOnlyToPostgresSelectedSource() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.get(eq("livedata-doc"), any(SearchPermissionContext.class)))
+            .thenReturn(java.util.Optional.of(SearchDocument.builder().docId("livedata-doc")
+                .title("LiveData setup").fileName("LiveData installation.md")
+                .content("LiveData installation requires a configured database. Verify the service starts.")
+                .build()));
+        KnowledgeIrDocumentRecall irRecall = mock(KnowledgeIrDocumentRecall.class);
+        when(irRecall.recall(any(DocumentSearchPlan.class), any(Integer.class)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of("livedata-doc"), "livedata"));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService,
+            properties -> properties.setDocumentFirstEnabled(true), irRecall);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "livedata installation guide", 8, null, null, null, null, null, false));
+
+        assertThat(result.results()).extracting(DocumentEvidenceChunk::fileId)
+            .containsExactly("livedata-doc");
+        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.never()).frontendQuickSearch(
+            any(), any(), any(), any(), any(), any(), any(), any(SearchPermissionContext.class));
+    }
+
+    @Test
     void excludesIndexedSnippetMissingFromCurrentRocksDbDocument() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.frontendQuickSearch(any(), any(), any(), any(), any(), any(), any(),

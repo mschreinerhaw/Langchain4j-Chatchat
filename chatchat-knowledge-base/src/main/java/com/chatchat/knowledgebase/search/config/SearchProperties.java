@@ -35,6 +35,8 @@ public class SearchProperties {
     private QueryBudget queryBudget = new QueryBudget();
     private RetrievalControl retrievalControl = new RetrievalControl();
     private HybridRetrieval hybridRetrieval = new HybridRetrieval();
+    /** Enables PostgreSQL document navigation before scoped passage retrieval. */
+    private boolean documentFirstEnabled = false;
     private Ocr ocr = new Ocr();
     private OpenSearch openSearch = new OpenSearch();
     private boolean lucenePrfEnabled = true;

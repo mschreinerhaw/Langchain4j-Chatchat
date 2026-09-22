@@ -17,8 +17,50 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class DocumentSearchOrchestratorIrTest {
+    @Test
+    void documentFirstStopsWhenPostgresFindsNoDocument() {
+        GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);
+        GlobalChunkIndexService chunks = mock(GlobalChunkIndexService.class);
+        KnowledgeIrDocumentRecall ir = mock(KnowledgeIrDocumentRecall.class);
+        when(ir.recall(any(DocumentSearchPlan.class), eq(8)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of(), "livedata"));
+        SearchProperties properties = new SearchProperties();
+        properties.setDocumentFirstEnabled(true);
+        DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
+            documents, chunks, properties, new IndexVersionManager(), ir);
+
+        DocumentRecallResult result = orchestrator.recall(plan(), 8);
+
+        assertThat(result.candidates()).isEmpty();
+        assertThat(result.irDocumentIds()).isEmpty();
+        verifyNoInteractions(documents, chunks);
+    }
+
+    @Test
+    void documentFirstSearchesOnlySelectedIds() {
+        GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);
+        GlobalChunkIndexService chunks = mock(GlobalChunkIndexService.class);
+        KnowledgeIrDocumentRecall ir = mock(KnowledgeIrDocumentRecall.class);
+        when(ir.recall(any(DocumentSearchPlan.class), eq(8)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of("livedata-doc"), "livedata"));
+        when(chunks.recall(any(DocumentSearchPlan.class))).thenAnswer(invocation -> {
+            DocumentSearchPlan scoped = invocation.getArgument(0);
+            assertThat(scoped.visibilityScopeIds()).containsExactly("livedata-doc");
+            return page(result("livedata-doc", "LiveData install"));
+        });
+        SearchProperties properties = new SearchProperties();
+        properties.setDocumentFirstEnabled(true);
+        DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
+            documents, chunks, properties, new IndexVersionManager(), ir);
+
+        assertThat(orchestrator.recall(plan(), 8).candidates())
+            .extracting(candidate -> candidate.result().docId()).containsExactly("livedata-doc");
+        verifyNoInteractions(documents);
+    }
+
     @Test
     void documentAndChunkRanksFuseWithoutComparingRawIndexScores() {
         GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);

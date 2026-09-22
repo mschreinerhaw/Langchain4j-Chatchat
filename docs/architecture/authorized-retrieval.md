@@ -42,6 +42,19 @@ The common pipeline does not fetch documents, execute tools, or load skill conte
 
 ## Document evidence recall order
 
+The API enables `chatchat.search.document-first-enabled` in its development and
+production profiles. For an unscoped `document_search` request, it looks up
+accessible document IDs in PostgreSQL `knowledge_ir_unit` first. An empty match
+ends the recall; it does not start a corpus-wide chunk or RocksDB scan. For a
+nonempty match, the passage index receives those IDs as a filter in OpenSearch
+or Lucene. The API then opens only candidate source documents in RocksDB to
+check current authorization, version, and verbatim passage content before
+returning citations. If the passage index misses or fails, it reads only the
+PostgreSQL-selected documents for local evidence. A request with explicit
+document IDs continues to search those selected documents directly. This mode
+requires populated `knowledge_ir_unit` rows for searchable documents; rebuild
+the IR navigation data before enabling it on a corpus with older documents.
+
 The MCP `document_search` tool preserves the caller's query on the first recall.
 The Knowledge retrieval kernel suppresses semantic and bilingual expansion during
 that recall. If the first response contains document titles but no body chunks,

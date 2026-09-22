@@ -802,6 +802,22 @@ class SearchServiceTest {
     }
 
     @Test
+    void luceneAppliesDocumentIdScopeBeforeRankingPassages() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder().docId("doc-one")
+            .title("LiveData install one")
+            .content("LiveData install instructions for the first environment.").build());
+        service.createOrUpdate(SearchDocument.builder().docId("doc-two")
+            .title("LiveData install two")
+            .content("LiveData install instructions for the second environment.").build());
+
+        assertThat(luceneStore.search("livedata install", 10, SearchPermissionContext.system(),
+            List.of("doc-two"))).extracting(hit -> hit.docId()).containsOnly("doc-two");
+        assertThat(luceneStore.search("livedata install", 10, SearchPermissionContext.system(),
+            List.of())).extracting(hit -> hit.docId()).contains("doc-one", "doc-two");
+    }
+
+    @Test
     void expandsSynonymsForLuceneSearchWithoutVectorStore() {
         SearchService service = newSearchService();
         service.createOrUpdate(SearchDocument.builder()

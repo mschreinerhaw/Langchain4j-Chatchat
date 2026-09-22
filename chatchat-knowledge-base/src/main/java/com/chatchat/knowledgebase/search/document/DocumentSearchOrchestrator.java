@@ -44,6 +44,10 @@ public class DocumentSearchOrchestrator {
                 plan.query(), ex.getMessage());
             return new DocumentRecallResult(null, null, List.of(), List.of(), "");
         }
+        if (properties.isDocumentFirstEnabled() && irDocumentIds.isEmpty()) {
+            log.info("document_recall_scope source=knowledge_ir allowedDocumentCount=0 action=stop_before_chunk_index");
+            return new DocumentRecallResult(null, null, List.of(), List.of(), focusedQuery);
+        }
         DocumentSearchPlan searchPlan = irDocumentIds.isEmpty() ? plan : new DocumentSearchPlan(
             plan.query(), plan.topK(), plan.filters(), plan.scopedFileIds(),
             plan.effectiveScopedFileIds(), irDocumentIds, String.join(",", irDocumentIds),
@@ -52,7 +56,7 @@ public class DocumentSearchOrchestrator {
         );
         log.info("document_recall_scope source={} allowedDocumentCount={}",
             irDocumentIds.isEmpty() ? "legacy_metadata_acl" : "knowledge_ir", irDocumentIds.size());
-        boolean indexedDatabaseScope = !irDocumentIds.isEmpty()
+        boolean indexedDatabaseScope = properties.isDocumentFirstEnabled() || !irDocumentIds.isEmpty()
             && properties.getHybridRetrieval() != null
             && properties.getHybridRetrieval().isEnabled();
         SearchPage documentPage = indexedDatabaseScope ? null

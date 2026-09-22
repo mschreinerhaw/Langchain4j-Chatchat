@@ -56,6 +56,22 @@ public class CompositeDocumentSearchIndexService implements DocumentSearchIndex 
     }
 
     @Override
+    public List<LuceneSearchHit> search(String keyword, int maxHits,
+                                        SearchPermissionContext permissionContext,
+                                        List<String> allowedDocumentIds) {
+        DocumentSearchIndex index = delegate();
+        try {
+            return index.search(keyword, maxHits, permissionContext, allowedDocumentIds);
+        } catch (RuntimeException ex) {
+            if (index == openSearchIndex && luceneIndex.isAvailable()) {
+                log.warn("OpenSearch scoped search failed; falling back to local Lucene error={}", ex.getMessage());
+                return luceneIndex.search(keyword, maxHits, permissionContext, allowedDocumentIds);
+            }
+            throw ex;
+        }
+    }
+
+    @Override
     public boolean isAvailable() {
         return delegate().isAvailable();
     }

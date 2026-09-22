@@ -1,5 +1,9 @@
 # MCP tool workflow-contract migration
 
+For MySQL ↔ PostgreSQL data transfer of the API and standalone MCP relational
+databases, see `mysql-postgresql-transfer.md` and its two Shell entry points.
+For a standalone Java 17 executable, see `../../chatchat-data-migration/README.md`.
+
 Apply the script for the target database before deploying the matching application build:
 
 - MySQL: `mysql/V20260822_01__mcp_tool_workflow_contract.sql`

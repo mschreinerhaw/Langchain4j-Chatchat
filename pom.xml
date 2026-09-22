@@ -31,6 +31,7 @@
     </properties>
 
     <modules>
+        <module>chatchat-data-migration</module>
         <module>chatchat-common</module>
         <module>chatchat-platform-spring</module>
         <module>chatchat-mcp-grpc</module>

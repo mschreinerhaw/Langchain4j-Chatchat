@@ -41,3 +41,7 @@ the data separately, then verify row counts, role grants, Skill scopes, document
 and indexing state before routing users to the new database. The standalone News
 Runtime and governed market storage are separate from this control plane and retain
 their existing MySQL/H2 configurations.
+
+For a one-time copy in either direction, use the Shell entry points documented in
+`database/migration/mysql-postgresql-transfer.md`.
+The standalone Java migration tool is documented in `chatchat-data-migration/README.md`.

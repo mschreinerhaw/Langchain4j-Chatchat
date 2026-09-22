@@ -1143,6 +1143,18 @@
         primary key (id)
     );
 
+    create table skill_resource_scope (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        resource_type varchar(32) not null,
+        id varchar(64) not null,
+        skill_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        resource_id varchar(128) not null,
+        primary key (id)
+    );
+
     create table sys_audit_log (
         created_at timestamp(6) with time zone not null,
         result varchar(32) not null,
@@ -1657,6 +1669,9 @@
 
     create index idx_scheduled_task_run_notification
        on scheduled_task_run (tenant_id, scheduled_task_id, notification_sent_at);
+
+    create index idx_skill_resource_scope
+       on skill_resource_scope (tenant_id, skill_id, resource_type);
 
     create index idx_task_confirm_task_created
        on task_confirm (task_id, created_at);

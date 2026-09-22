@@ -43,7 +43,8 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
         DocumentSearchResult result = documentSearchService.search(new DocumentSearchRequest(
             query, topK, documentIds, documentIds, documentIds, true,
             new DocumentSearchFilters(null, null, null, null, null, tags),
-            context.request().scope().tenantId(), context.request().scope().userId(), List.of(), false));
+            context.request().scope().tenantId(), context.request().scope().userId(),
+            context.request().scope().roles(), false));
         List<KnowledgeIR> units = toUnits(context, result);
         return new KnowledgeSkillResult(skill.instanceId(), skill.skillType(), units,
             units.isEmpty() ? "empty" : "used",

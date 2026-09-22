@@ -10,6 +10,8 @@ import com.chatchat.common.knowledge.KnowledgeSkillResult;
 import com.chatchat.common.knowledge.KnowledgeSkillSynthesizerPort;
 import com.chatchat.common.knowledge.KnowledgeSkillType;
 import com.chatchat.common.knowledge.KnowledgeType;
+import com.chatchat.common.knowledge.KnowledgeSourceReference;
+import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -23,6 +25,35 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DefaultKnowledgeRuntimeServiceTest {
+
+    @Test
+    void rechecksSkillDocumentScopeBeforeCompilingEvidence() {
+        KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
+        KnowledgeSkillExecutorPort executor = mock(KnowledgeSkillExecutorPort.class);
+        SkillExecutionScopePort authorization = mock(SkillExecutionScopePort.class);
+        KnowledgeSkillInstance skill = new KnowledgeSkillInstance(
+            "rule", KnowledgeSkillType.RULE_LOOKUP, "risk", "lookup", List.of(), 1, 200, Map.of());
+        when(planner.synthesize(any())).thenReturn(new KnowledgeSkillPlan("v", "RISK", List.of(skill), 200));
+        when(executor.supports(KnowledgeSkillType.RULE_LOOKUP)).thenReturn(true);
+        KnowledgeIR unit = new KnowledgeIR("unit", "risk", KnowledgeType.RULE, "Rule", "Rule text",
+            List.of(), List.of(), List.of(), List.of(), "Rule text",
+            new KnowledgeSourceReference("src", "doc-revoked", "chunk", "doc", null, null, null), 0.8);
+        when(executor.execute(any())).thenReturn(new KnowledgeSkillResult(
+            skill.instanceId(), skill.skillType(), List.of(unit), "used", Map.of()));
+        when(authorization.resolve("tenant", "user", "agent", List.of("doc-revoked"), List.of()))
+            .thenReturn(new SkillExecutionScopePort.EffectiveScope(
+                List.of("doc-allowed"), List.of(), List.of(), true, true));
+        DefaultKnowledgeRuntimeService runtime = new DefaultKnowledgeRuntimeService(
+            planner, List.of(executor), new BudgetedKnowledgeContextCompiler());
+        org.springframework.test.util.ReflectionTestUtils.setField(runtime, "skillExecutionScope", authorization);
+
+        var result = runtime.retrieveKnowledge(new KnowledgeRequest(
+            "v", "lookup", "RISK", 200,
+            new KnowledgeScope("agent", "tenant", "user", List.of("doc-revoked"), List.of(), List.of()),
+            null, Map.of("skillScopeManaged", true)));
+
+        assertThat(result.knowledgeUnits()).isEmpty();
+    }
 
     @Test
     void timesOutOneSlowSkillWithoutBlockingTheKnowledgeResponse() {

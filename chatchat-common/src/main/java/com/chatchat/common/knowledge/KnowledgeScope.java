@@ -9,8 +9,14 @@ public record KnowledgeScope(
     String userId,
     List<String> documentIds,
     List<String> tags,
-    List<String> domains
+    List<String> domains,
+    List<String> roles
 ) {
+    public KnowledgeScope(String agentId, String tenantId, String userId,
+                          List<String> documentIds, List<String> tags, List<String> domains) {
+        this(agentId, tenantId, userId, documentIds, tags, domains, List.of());
+    }
+
     public KnowledgeScope {
         agentId = clean(agentId);
         tenantId = clean(tenantId);
@@ -18,6 +24,7 @@ public record KnowledgeScope(
         documentIds = clean(documentIds);
         tags = clean(tags);
         domains = clean(domains);
+        roles = clean(roles);
         if (documentIds.isEmpty() && tags.isEmpty() && domains.isEmpty()) {
             throw new IllegalArgumentException("At least one knowledge scope selector is required");
         }

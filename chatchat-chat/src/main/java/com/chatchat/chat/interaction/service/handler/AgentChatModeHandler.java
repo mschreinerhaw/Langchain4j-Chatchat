@@ -27,6 +27,7 @@ import com.chatchat.common.knowledge.KnowledgeScope;
 import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
+import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -60,6 +61,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private DomainSkillRuntimePort domainSkillRuntime;
     @Autowired(required = false)
     private DomainSkillPlanningRouter domainSkillPlanningRouter;
+    @Autowired(required = false)
+    private SkillExecutionScopePort skillExecutionScope;
 
     private static final int DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET = 1500;
 
@@ -146,10 +149,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             return roleChatModeHandler.handle(request, context);
         }
         String resolvedSkillId = resolvedSkillId(request, skill);
+        SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill, resolvedSkillId);
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
         Map<String, Object> agentRoleContext = agentRoleContext(skill);
-        KnowledgeContext domainKnowledge = retrieveDomainKnowledge(request, skill);
+        KnowledgeContext domainKnowledge = retrieveDomainKnowledge(request, skill, effectiveScope);
         AgentLearningService.RuntimeExperienceContext runtimeExperience = learningService == null
             ? AgentLearningService.RuntimeExperienceContext.empty()
             : learningService.resolveRuntimeExperience(
@@ -210,7 +214,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             toolPolicy,
             systemPrompt,
             modelName,
-            runtimeAttributes
+            runtimeAttributes,
+            effectiveScope
         );
         logAgentRunOutput(context, result, modelName);
 
@@ -275,6 +280,19 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return resolved;
     }
 
+    private SkillExecutionScopePort.EffectiveScope resolveSkillScope(InteractionRequest request,
+                                                                      SkillDefinition skill, String skillId) {
+        List<String> ids = cleanList(skill == null ? null : skill.boundDocumentIds());
+        List<String> tags = cleanList(skill == null ? null : skill.boundDocumentTags());
+        if (skillExecutionScope == null) {
+            return new SkillExecutionScopePort.EffectiveScope(ids, tags, List.of(), false, true);
+        }
+        SkillExecutionScopePort.EffectiveScope effective = skillExecutionScope.resolve(
+            request.getTenantId(), request.getUserId(), skillId, ids, tags);
+        if (!effective.skillAllowed()) throw new SecurityException("Agent Skill is not authorized for this user");
+        return effective;
+    }
+
     private AgentRunResult executeThroughRuntime(InteractionRequest request,
                                                  InteractionContext context,
                                                  SkillDefinition skill,
@@ -282,7 +300,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                                                  AgentToolPolicyResolver.ToolPolicy toolPolicy,
                                                  String systemPrompt,
                                                  String modelName,
-                                                 Map<String, Object> runtimeAttributes) {
+                                                 Map<String, Object> runtimeAttributes,
+                                                 SkillExecutionScopePort.EffectiveScope effectiveScope) {
         String runId = runtimeId(runtimeAttributes, context.requestId());
         AgentRunRequest runRequest = AgentRunRequest.builder()
             .runId(runId)
@@ -291,8 +310,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .availableTools(toolPolicy.availableTools())
             .systemPrompt(systemPrompt)
             .modelName(modelName)
-            .boundDocumentIds(skill == null ? List.of() : skill.boundDocumentIds())
-            .boundDocumentTags(skill == null ? List.of() : skill.boundDocumentTags())
+            .boundDocumentIds(effectiveScope.documentIds())
+            .boundDocumentTags(effectiveScope.tags())
             .skillId(resolvedSkillId)
             .requestId(context.requestId())
             .conversationId(context.conversationId())
@@ -456,9 +475,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return builder.toString();
     }
 
-    private KnowledgeContext retrieveDomainKnowledge(InteractionRequest request, SkillDefinition skill) {
-        List<String> documentIds = cleanList(skill == null ? null : skill.boundDocumentIds());
-        List<String> documentTags = cleanList(skill == null ? null : skill.boundDocumentTags());
+    private KnowledgeContext retrieveDomainKnowledge(InteractionRequest request, SkillDefinition skill,
+                                                      SkillExecutionScopePort.EffectiveScope effectiveScope) {
+        List<String> documentIds = effectiveScope.documentIds();
+        List<String> documentTags = effectiveScope.tags();
         AgentRuntimePolicy runtimePolicy = skill == null
             ? AgentRuntimePolicy.from(Map.of(), DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET)
             : AgentRuntimePolicy.from(skill.workflowConfig(), DEFAULT_DOMAIN_KNOWLEDGE_TOKEN_BUDGET);
@@ -476,9 +496,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 KnowledgeRequest.SCHEMA_VERSION, request.getQuery(), "TOOL_ANALYSIS",
                 knowledgeTokenBudget,
                 new KnowledgeScope(skill == null ? request.getSkillId() : skill.id(),
-                    request.getTenantId(), request.getUserId(), documentIds, documentTags, List.of()),
+                    request.getTenantId(), request.getUserId(), documentIds, documentTags,
+                    List.of(), effectiveScope.roles()),
                 null, Map.of("modelName", modelName == null ? "" : modelName,
                     "executionMode", "TOOL_AGENT",
+                    "skillScopeManaged", effectiveScope.managed(),
                     "knowledgeSkillTimeoutMs", runtimePolicy.knowledgeSkillTimeoutMs())));
             log.info("agentDomainKnowledgeRetrieved skillId={} status={} used={} sourceCount={} "
                     + "estimatedTokens={} maxTokens={} truncated={} skillCount={}",

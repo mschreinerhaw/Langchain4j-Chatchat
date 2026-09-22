@@ -22,6 +22,15 @@ import static org.mockito.Mockito.mock;
 class GlobalExceptionHandlerTest {
 
     @Test
+    void deniedAgentSkillReturnsForbidden() {
+        ResponseEntity<ApiResponse<Void>> response = new GlobalExceptionHandler().handleSecurityException(
+            new SecurityException("Agent Skill is not authorized for this user"),
+            new ServletWebRequest(new MockHttpServletRequest()));
+        assertEquals(403, response.getStatusCode().value());
+        assertEquals(403, response.getBody().getCode());
+    }
+
+    @Test
     void unsupportedHttpMethodReturnsMethodNotAllowedInsteadOfInternalServerError() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
 

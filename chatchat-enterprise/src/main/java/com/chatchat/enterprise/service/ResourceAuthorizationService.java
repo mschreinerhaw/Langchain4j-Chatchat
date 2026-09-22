@@ -32,6 +32,25 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
     @Transactional(readOnly = true)
     public Set<String> allowedIds(String resourceType, String tenantId, String userId,
                                   Set<String> ignoredCallerRoles, Set<String> candidateIds) {
+        return evaluate(resourceType, tenantId, userId, candidateIds, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> explicitlyAllowedIds(String resourceType, String tenantId, String userId,
+                                             Set<String> ignoredCallerRoles, Set<String> candidateIds) {
+        return evaluate(resourceType, tenantId, userId, candidateIds, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasConfiguredRules(String resourceType, String tenantId) {
+        return tenantId != null && resourceType != null
+            && grants.existsByTenantIdAndResourceType(tenantId, resourceType);
+    }
+
+    private Set<String> evaluate(String resourceType, String tenantId, String userId,
+                                 Set<String> candidateIds, boolean explicitOnly) {
         if (candidateIds == null || candidateIds.isEmpty()) return Set.of();
         if (tenantId == null || tenantId.isBlank() || resourceType == null || resourceType.isBlank()) return Set.of();
         SysUser user = userId == null ? null : users.findById(userId).orElse(null);
@@ -62,7 +81,10 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
         for (String id : candidateIds) {
             List<ResourceGrant> applicable = rules.stream()
                 .filter(rule -> id.equals(rule.getResourceId()) || "*".equals(rule.getResourceId())).toList();
-            if (applicable.isEmpty()) { allowed.add(id); continue; }
+            if (applicable.isEmpty()) {
+                if (!explicitOnly) allowed.add(id);
+                continue;
+            }
             boolean deny = applicable.stream().filter(rule -> active(rule, now)).anyMatch(rule -> principalMatches(rule, tenantId, userId,
                 validUser, activeRoleIds) && "DENY".equalsIgnoreCase(rule.getEffect()));
             boolean allow = applicable.stream().filter(rule -> active(rule, now)).anyMatch(rule -> principalMatches(rule, tenantId, userId,

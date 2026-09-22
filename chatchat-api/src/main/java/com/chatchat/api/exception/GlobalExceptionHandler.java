@@ -118,6 +118,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSecurityException(SecurityException ex, WebRequest request) {
+        log.warn("Resource access denied: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.error(HttpStatus.FORBIDDEN.value(), ex.getMessage()),
+            HttpStatus.FORBIDDEN);
+    }
+
     @ExceptionHandler(ConversationInProgressException.class)
     public ResponseEntity<ApiResponse<Void>> handleConversationInProgressException(
             ConversationInProgressException ex,

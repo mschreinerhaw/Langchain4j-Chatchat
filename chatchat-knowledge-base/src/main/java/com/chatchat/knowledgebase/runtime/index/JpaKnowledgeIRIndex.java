@@ -127,6 +127,10 @@ public class JpaKnowledgeIRIndex implements KnowledgeIRIndexPort {
         if (!normalizeTenant(entity.getTenantId()).equals(normalizeTenant(query.scope().tenantId()))) return false;
         String visibility = entity.getVisibility() == null ? "tenant" : entity.getVisibility().toLowerCase(Locale.ROOT);
         if ("public".equals(visibility) || "tenant".equals(visibility)) return true;
+        if ("role".equals(visibility)) {
+            Set<String> allowedRoles = new LinkedHashSet<>(readStrings(entity.getPermissionRolesJson()));
+            return query.scope().roles().stream().anyMatch(allowedRoles::contains);
+        }
         return entity.getOwnerUserId() != null && entity.getOwnerUserId().equals(query.scope().userId());
     }
 

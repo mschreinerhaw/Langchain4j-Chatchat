@@ -11,6 +11,7 @@ import com.chatchat.common.knowledge.KnowledgeSkillInstance;
 import com.chatchat.common.knowledge.KnowledgeSkillPlan;
 import com.chatchat.common.knowledge.KnowledgeSkillResult;
 import com.chatchat.common.knowledge.KnowledgeSkillSynthesizerPort;
+import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -36,6 +37,8 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
     private final List<KnowledgeSkillExecutorPort> skillExecutors;
     private final KnowledgeContextCompilerPort contextCompiler;
     private final ExecutorService knowledgeExecutor;
+    @Autowired(required = false)
+    private SkillExecutionScopePort skillExecutionScope;
 
     public DefaultKnowledgeRuntimeService(KnowledgeSkillSynthesizerPort skillSynthesizer,
                                           List<KnowledgeSkillExecutorPort> skillExecutors,
@@ -95,6 +98,18 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
             } catch (java.util.concurrent.ExecutionException ex) {
                 log.warn("knowledgeSkillExecutionFailed instanceId={} type={} error={}",
                     skill.instanceId(), skill.skillType(), ex.getCause() == null ? ex.getMessage() : ex.getCause().getMessage());
+            }
+        }
+        if (skillExecutionScope != null && request.scope().agentId() != null) {
+            SkillExecutionScopePort.EffectiveScope fresh = skillExecutionScope.resolve(
+                request.scope().tenantId(), request.scope().userId(), request.scope().agentId(),
+                request.scope().documentIds(), request.scope().tags());
+            if (!fresh.skillAllowed() || (Boolean.TRUE.equals(request.attributes().get("skillScopeManaged"))
+                && !fresh.managed())) units.clear();
+            else if (fresh.managed()) {
+                java.util.Set<String> allowed = new java.util.HashSet<>(fresh.documentIds());
+                units.removeIf(unit -> unit.source() == null || unit.source().documentId() == null
+                    || !allowed.contains(unit.source().documentId()));
             }
         }
         return contextCompiler.compile(request, plan, units);

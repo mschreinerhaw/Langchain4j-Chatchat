@@ -16,6 +16,7 @@ import com.chatchat.common.knowledge.KnowledgeRuntimePort;
 import com.chatchat.common.knowledge.KnowledgeScope;
 import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
+import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -46,6 +47,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     private final KnowledgeRuntimePort knowledgeRuntime;
     @Autowired(required = false)
     private DomainSkillRuntimePort domainSkillRuntime;
+    @Autowired(required = false)
+    private SkillExecutionScopePort skillExecutionScope;
 
     public RoleChatModeHandler(ChatModel defaultChatModel,
                                ConfigurableChatModelFactory chatModelFactory,
@@ -69,7 +72,8 @@ public class RoleChatModeHandler implements InteractionModeHandler {
             throw new IllegalArgumentException(
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
-        com.chatchat.common.knowledge.KnowledgeContext knowledge = retrieveKnowledge(request, skill);
+        SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
+        com.chatchat.common.knowledge.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
         String prompt = buildPrompt(request, context, skill, knowledge.compiledContext());
         ChatModel model = resolveModel(request, skill);
 
@@ -187,10 +191,21 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         prompt.append("</domain_skills>\nApply these governed skill instructions when relevant to the request.\n");
     }
 
+    private SkillExecutionScopePort.EffectiveScope resolveSkillScope(InteractionRequest request, SkillDefinition skill) {
+        List<String> ids = clean(skill.boundDocumentIds());
+        List<String> tags = clean(skill.boundDocumentTags());
+        if (skillExecutionScope == null)
+            return new SkillExecutionScopePort.EffectiveScope(ids, tags, List.of(), false, true);
+        SkillExecutionScopePort.EffectiveScope effective = skillExecutionScope.resolve(
+            request.getTenantId(), request.getUserId(), skill.id(), ids, tags);
+        if (!effective.skillAllowed()) throw new SecurityException("Agent Skill is not authorized for this user");
+        return effective;
+    }
+
     private com.chatchat.common.knowledge.KnowledgeContext retrieveKnowledge(
-        InteractionRequest request, SkillDefinition skill) {
-        List<String> documentIds = clean(skill.boundDocumentIds());
-        List<String> documentTags = clean(skill.boundDocumentTags());
+        InteractionRequest request, SkillDefinition skill, SkillExecutionScopePort.EffectiveScope effectiveScope) {
+        List<String> documentIds = effectiveScope.documentIds();
+        List<String> documentTags = effectiveScope.tags();
         AgentRuntimePolicy runtimePolicy = AgentRuntimePolicy.from(
             skill.workflowConfig(), DEFAULT_KNOWLEDGE_TOKEN_BUDGET);
         int knowledgeTokenBudget = runtimePolicy.knowledgeTokenBudget();
@@ -203,8 +218,9 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                 KnowledgeRequest.SCHEMA_VERSION, request.getQuery(), "ROLE_CHAT",
                 knowledgeTokenBudget,
                 new KnowledgeScope(skill.id(), request.getTenantId(), request.getUserId(),
-                    documentIds, documentTags, List.of()),
+                    documentIds, documentTags, List.of(), effectiveScope.roles()),
                 null, Map.of("modelName", resolvedModelName(request, skill), "executionMode", "ROLE_CHAT",
+                    "skillScopeManaged", effectiveScope.managed(),
                     "knowledgeSkillTimeoutMs", runtimePolicy.knowledgeSkillTimeoutMs())));
         } catch (RuntimeException ex) {
             log.warn("roleChatKnowledgeRetrievalFailed skillId={} error={}", skill.id(), ex.getMessage());

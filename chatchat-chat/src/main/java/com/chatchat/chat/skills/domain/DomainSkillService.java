@@ -119,8 +119,7 @@ public class DomainSkillService implements DomainSkillRuntimePort {
             .forEach(s -> found.put(s.getId(), s));
         Set<String> roleIds = roles == null ? Set.of() : new LinkedHashSet<>(roles);
         if (resourceAuthorization != null && !found.isEmpty()) {
-            Set<String> grantAllowed = resourceAuthorization.allowedIds(ResourceAuthorizationPort.SKILL,
-                tenantId, userId, roleIds, found.keySet());
+            Set<String> grantAllowed = skillGrantAllowed(tenantId, userId, roleIds, found.keySet());
             found.keySet().retainAll(grantAllowed);
         }
         List<String> recalled = query == null || query.isBlank() ? List.of()
@@ -138,11 +137,19 @@ public class DomainSkillService implements DomainSkillRuntimePort {
                     && !skill.isPublicationDirty()
                     && (skill.isBuiltin() || tenantId.equals(skill.getTenantId()))
                     && (resourceAuthorization == null
-                        || resourceAuthorization.allowedIds(ResourceAuthorizationPort.SKILL,
-                            tenantId, userId, roleIds, Set.of(id)).contains(id));
+                        || skillGrantAllowed(tenantId, userId, roleIds, Set.of(id)).contains(id));
             }, Math.min(12, ordered.size()));
         return verifiedIds.stream().map(finalFound::get)
             .map(s -> new DomainSkillContent(s.getId(), s.getName(), s.getCategory(), trim(s.getMarkdownContent(), 64 * 1024))).toList();
+    }
+
+    private Set<String> skillGrantAllowed(String tenantId, String userId, Set<String> roleIds,
+                                          Set<String> candidateIds) {
+        return resourceAuthorization.hasConfiguredRules(ResourceAuthorizationPort.SKILL, tenantId)
+            ? resourceAuthorization.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL,
+                tenantId, userId, roleIds, candidateIds)
+            : resourceAuthorization.allowedIds(ResourceAuthorizationPort.SKILL,
+                tenantId, userId, roleIds, candidateIds);
     }
 
     @Transactional

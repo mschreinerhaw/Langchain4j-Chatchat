@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 
 public interface ResourceGrantRepository extends JpaRepository<ResourceGrant, String> {
+    boolean existsByTenantIdAndResourceType(String tenantId, String resourceType);
     List<ResourceGrant> findByTenantIdAndResourceTypeAndResourceIdIn(
         String tenantId, String resourceType, Collection<String> resourceIds);
 

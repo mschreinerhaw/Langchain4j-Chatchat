@@ -18,6 +18,7 @@ import com.chatchat.common.knowledge.KnowledgeRuntimePort;
 import com.chatchat.common.knowledge.KnowledgeSourceReference;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
+import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -136,6 +137,12 @@ class AgentChatModeHandlerTest {
             new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge),
             knowledgeRuntime
         );
+        SkillExecutionScopePort scopePort = mock(SkillExecutionScopePort.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillExecutionScope", scopePort);
+        when(scopePort.resolve(eq("tenant-a"), eq("user-a"), eq("ops"),
+            eq(List.of("doc-risk-policy")), eq(List.of()))).thenReturn(
+                new SkillExecutionScopePort.EffectiveScope(
+                    List.of("doc-allowed"), List.of(), List.of("advisor"), true, true));
         SkillDefinition configured = skill(List.of("mcp_customer_assets"), List.of("doc-risk-policy"));
         when(skillCatalogService.resolve("ops")).thenReturn(configured);
         when(knowledgeRuntime.retrieveKnowledge(any())).thenReturn(new KnowledgeContext(
@@ -169,14 +176,17 @@ class AgentChatModeHandlerTest {
         ArgumentCaptor<KnowledgeRequest> retrieval = ArgumentCaptor.forClass(KnowledgeRequest.class);
         ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<List<String>> availableTools = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<String>> boundDocuments = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<Map<String, Object>> runtimeAttributes = ArgumentCaptor.forClass(Map.class);
         verify(knowledgeRuntime).retrieveKnowledge(retrieval.capture());
         verify(orchestrator).executeAgent(
-            any(), eq("tenant-a"), availableTools.capture(), systemPrompt.capture(), any(), any(), any(),
+            any(), eq("tenant-a"), availableTools.capture(), systemPrompt.capture(), any(), boundDocuments.capture(), any(),
             any(), any(), any(), eq("user-a"), anyInt(), any(), anyBoolean(), runtimeAttributes.capture()
         );
 
-        assertThat(retrieval.getValue().scope().documentIds()).containsExactly("doc-risk-policy");
+        assertThat(retrieval.getValue().scope().documentIds()).containsExactly("doc-allowed");
+        assertThat(retrieval.getValue().scope().roles()).containsExactly("advisor");
+        assertThat(boundDocuments.getValue()).containsExactly("doc-allowed");
         assertThat(retrieval.getValue().scope().tenantId()).isEqualTo("tenant-a");
         assertThat(retrieval.getValue().maxTokens()).isEqualTo(1500);
         assertThat(retrieval.getValue().attributes()).doesNotContainKey("preferDeterministicPlan");

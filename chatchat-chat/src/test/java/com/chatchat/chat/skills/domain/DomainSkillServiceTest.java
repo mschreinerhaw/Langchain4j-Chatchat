@@ -6,6 +6,7 @@ import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;
 import com.chatchat.chat.skills.domain.adapter.SkillMdExternalSkillAdapter;
 import com.chatchat.chat.skills.domain.adapter.SkillFormatDetector;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -234,6 +235,23 @@ class DomainSkillServiceTest {
             .retrievePublished("tenant-a", "user-a", List.of(), "finance", List.of("skill-1", "missing"));
 
         assertThat(resolved).extracting(item -> item.id()).containsExactly("skill-1");
+    }
+
+    @Test
+    void tenantSkillGrantsRequireAnExplicitRoleGrantForDomainSkills() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillEntity skill = skill("skill-1", "Finance", "Published guidance");
+        skill.setStatus("PUBLISHED");
+        when(repository.findVisibleByIdInAndStatus("tenant-a", List.of("skill-1"), "PUBLISHED"))
+            .thenReturn(List.of(skill));
+        ResourceAuthorizationPort grants = mock(ResourceAuthorizationPort.class);
+        when(grants.hasConfiguredRules(ResourceAuthorizationPort.SKILL, "tenant-a")).thenReturn(true);
+        DomainSkillService domainSkills = service(repository, mock(McpLicenseEntitlementPort.class),
+            mock(DomainSkillIndexService.class));
+        org.springframework.test.util.ReflectionTestUtils.setField(domainSkills, "resourceAuthorization", grants);
+
+        assertThat(domainSkills.retrievePublished("tenant-a", "user-a", List.of(), "finance",
+            List.of("skill-1"))).isEmpty();
     }
 
     @Test

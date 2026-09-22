@@ -10,6 +10,7 @@ import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.knowledge.KnowledgeContext;
 import com.chatchat.common.knowledge.KnowledgeRequest;
 import com.chatchat.common.knowledge.KnowledgeRuntimePort;
+import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -106,6 +107,12 @@ class RoleChatModeHandlerTest {
         KnowledgeRuntimePort knowledgeRuntime = mock(KnowledgeRuntimePort.class);
         RoleChatModeHandler handler = new RoleChatModeHandler(
             defaultModel, modelFactory, skillCatalog, knowledgeRuntime);
+        SkillExecutionScopePort scopePort = mock(SkillExecutionScopePort.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(handler, "skillExecutionScope", scopePort);
+        when(scopePort.resolve("tenant-a", "user-a", "document-role",
+            List.of("doc-options", "doc-policy"), List.of())).thenReturn(
+                new SkillExecutionScopePort.EffectiveScope(
+                    List.of("doc-policy"), List.of(), List.of("advisor"), true, true));
         SkillDefinition role = mock(SkillDefinition.class);
         when(role.id()).thenReturn("document-role");
         when(role.defaultMode()).thenReturn("role_chat");
@@ -135,7 +142,8 @@ class RoleChatModeHandlerTest {
 
         ArgumentCaptor<KnowledgeRequest> searchRequest = ArgumentCaptor.forClass(KnowledgeRequest.class);
         verify(knowledgeRuntime).retrieveKnowledge(searchRequest.capture());
-        assertThat(searchRequest.getValue().scope().documentIds()).containsExactly("doc-options", "doc-policy");
+        assertThat(searchRequest.getValue().scope().documentIds()).containsExactly("doc-policy");
+        assertThat(searchRequest.getValue().scope().roles()).containsExactly("advisor");
         assertThat(searchRequest.getValue().scope().tenantId()).isEqualTo("tenant-a");
         assertThat(searchRequest.getValue().maxTokens()).isEqualTo(1200);
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);

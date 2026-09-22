@@ -60,6 +60,26 @@ class JpaKnowledgeIRIndexTest {
         assertThat(result.get(0).source().documentId()).isEqualTo("doc-1");
     }
 
+    @Test
+    void roleVisibleIrRequiresCanonicalRoleFromKnowledgeScope() {
+        KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        JpaKnowledgeIRIndex index = new JpaKnowledgeIRIndex(repository, new ObjectMapper(), new SearchTokenizer());
+        KnowledgeIREntity roleDocument = entity(4L, "doc-role", "tenant-a", "other-user",
+            "role", "RULE", "advisor policy");
+        roleDocument.setPermissionRolesJson("[\"advisor\"]");
+        when(repository.findByDocumentIdInAndActiveTrue(List.of("doc-role"))).thenReturn(List.of(roleDocument));
+
+        List<KnowledgeIR> granted = index.search(new KnowledgeIRQuery(
+            new KnowledgeScope("agent", "tenant-a", "user-a", List.of("doc-role"), List.of(),
+                List.of(), List.of("advisor")), Set.of(KnowledgeType.RULE), "advisor", List.of(), 10));
+        List<KnowledgeIR> denied = index.search(new KnowledgeIRQuery(
+            new KnowledgeScope("agent", "tenant-a", "user-b", List.of("doc-role"), List.of(),
+                List.of(), List.of("viewer")), Set.of(KnowledgeType.RULE), "advisor", List.of(), 10));
+
+        assertThat(granted).hasSize(1);
+        assertThat(denied).isEmpty();
+    }
+
     private KnowledgeIREntity entity(Long id, String documentId, String tenant, String owner,
                                      String visibility, String type, String text) {
         KnowledgeIREntity entity = new KnowledgeIREntity();

@@ -32,7 +32,8 @@ import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
 @RequestMapping(AppConstants.API_V1 + "/enterprise/resource-grants")
 public class ResourceGrantAdminController {
     private static final Set<String> RESOURCE_TYPES = Set.of(ResourceAuthorizationPort.KNOWLEDGE,
-        ResourceAuthorizationPort.MCP_TOOL, ResourceAuthorizationPort.SKILL);
+        ResourceAuthorizationPort.KNOWLEDGE_BASE, ResourceAuthorizationPort.MCP_TOOL,
+        ResourceAuthorizationPort.SKILL, ResourceAuthorizationPort.AGENT_SKILL);
     private static final Set<String> PRINCIPAL_TYPES = Set.of("TENANT", "ROLE", "USER");
     private static final Set<String> EFFECTS = Set.of("ALLOW", "DENY");
     private final ResourceGrantRepository repository;
@@ -89,6 +90,10 @@ public class ResourceGrantAdminController {
         require(grant.getResourceId(), "resourceId");
         require(grant.getPrincipalId(), "principalId");
         grant.setResourceType(normalized(grant.getResourceType(), RESOURCE_TYPES, "resourceType"));
+        if (ResourceAuthorizationPort.KNOWLEDGE_BASE.equals(grant.getResourceType())
+            && !"*".equals(grant.getResourceId())) {
+            grant.setResourceId(grant.getResourceId().trim().toLowerCase(java.util.Locale.ROOT));
+        }
         grant.setPrincipalType(normalized(grant.getPrincipalType(), PRINCIPAL_TYPES, "principalType"));
         grant.setEffect(normalized(grant.getEffect(), EFFECTS, "effect"));
     }

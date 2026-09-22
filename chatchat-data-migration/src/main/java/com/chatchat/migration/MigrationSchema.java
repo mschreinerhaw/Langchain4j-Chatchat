@@ -13,6 +13,9 @@ import java.util.regex.Pattern;
 final class MigrationSchema {
     private static final Pattern CREATE_TABLE = Pattern.compile(
             "(?im)^\\s*create\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?[`\"]?([A-Za-z_][A-Za-z0-9_]*)[`\"]?\\s*\\(");
+    private static final Pattern OPTIONAL_TABLE = Pattern.compile(
+            "(?im)^\\h*--\\h*migration-optional\\h*\\R\\h*create\\s+table\\s+"
+                    + "[`\"]?([A-Za-z_][A-Za-z0-9_]*)[`\"]?\\s*\\(");
 
     private MigrationSchema() { }
 
@@ -32,7 +35,13 @@ final class MigrationSchema {
     }
 
     static Set<String> selectTables(Set<String> databaseTables, Set<String> expected, String location) {
+        return selectTables(databaseTables, expected, Set.of(), location);
+    }
+
+    static Set<String> selectTables(Set<String> databaseTables, Set<String> expected, Set<String> optional,
+            String location) {
         Set<String> missing = difference(expected, databaseTables);
+        missing.removeAll(optional);
         if (!missing.isEmpty()) {
             throw new IllegalStateException(location + " is missing tables defined in database/init: " + missing);
         }
@@ -40,22 +49,48 @@ final class MigrationSchema {
         if (!ignored.isEmpty()) {
             System.out.println(location + ": skipping tables outside database/init: " + ignored);
         }
-        return expected;
+        Set<String> selected = new TreeSet<>(expected);
+        selected.retainAll(databaseTables);
+        return selected;
+    }
+
+    static Set<String> optionalTables(String module) throws IOException {
+        if (!Set.of("api", "mcp").contains(module)) {
+            throw new IllegalArgumentException("Unknown module: " + module);
+        }
+        String file = module.equals("api") ? "chatchat-api.sql" : "chatchat-mcp-server.sql";
+        Set<String> mysql = readOptional("mysql/" + file);
+        Set<String> postgresql = readOptional("postgresql/" + file);
+        if (!mysql.equals(postgresql)) {
+            throw new IllegalStateException("MySQL/PostgreSQL optional init tables differ for " + module);
+        }
+        if (!expectedTables(module).containsAll(mysql)) {
+            throw new IllegalStateException("Optional table marker has no matching CREATE TABLE in " + file);
+        }
+        return Collections.unmodifiableSet(mysql);
     }
 
     private static Set<String> read(String resource) throws IOException {
+        return readMatching(resource, CREATE_TABLE);
+    }
+
+    private static Set<String> readOptional(String resource) throws IOException {
+        return readMatching(resource, OPTIONAL_TABLE);
+    }
+
+    private static Set<String> readMatching(String resource, Pattern pattern) throws IOException {
         String path = "/migration-schema/" + resource;
         try (InputStream stream = MigrationSchema.class.getResourceAsStream(path)) {
             if (stream == null) {
                 throw new IOException("Schema resource missing from JAR: " + path);
             }
             String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            Matcher matcher = CREATE_TABLE.matcher(sql);
+            Matcher matcher = pattern.matcher(sql);
             Set<String> tables = new TreeSet<>();
             while (matcher.find()) {
                 tables.add(matcher.group(1));
             }
-            if (tables.isEmpty()) {
+            if (tables.isEmpty() && pattern == CREATE_TABLE) {
                 throw new IOException("No CREATE TABLE statements found in " + path);
             }
             return tables;

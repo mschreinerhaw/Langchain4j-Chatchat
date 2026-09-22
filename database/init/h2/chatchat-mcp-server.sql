@@ -53,6 +53,35 @@
         primary key (id)
     );
 
+    -- migration-optional
+    create table mcp_api_service_category (
+        enabled boolean not null,
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        code varchar(128) not null unique,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json clob,
+        primary key (id)
+    );
+
+    -- migration-optional
+    create table mcp_data_query_category (
+        enabled boolean not null,
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        code varchar(128) not null unique,
+        domain varchar(128) not null,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json clob,
+        primary key (id)
+    );
+
     create table mcp_business_category (
         enabled boolean not null,
         sort_order integer not null,

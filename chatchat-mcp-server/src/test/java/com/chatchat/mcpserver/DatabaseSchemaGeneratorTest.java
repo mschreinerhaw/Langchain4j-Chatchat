@@ -13,10 +13,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DatabaseSchemaGeneratorTest {
+    private static final Set<String> LEGACY_CATEGORY_TABLES = Set.of(
+        "mcp_api_service_category", "mcp_data_query_category");
+
     @Test
     void generateMcpServerSchemasFromJpaEntities() throws Exception {
         Path output = Path.of("target", "generated-schema");
@@ -51,13 +55,32 @@ class DatabaseSchemaGeneratorTest {
 
     private void assertSchemaMatches(Path generated, Path committed, int expectedTables) throws Exception {
         String generatedSql = normalize(Files.readString(generated));
-        String committedSql = normalize(Files.readString(committed));
-        assertThat(committedSql.split("create table ", -1).length - 1).isEqualTo(expectedTables);
+        String committedSource = Files.readString(committed);
+        String committedSql = normalize(committedSource);
+        assertThat(committedSql.split("create table ", -1).length - 1)
+            .isEqualTo(expectedTables + LEGACY_CATEGORY_TABLES.size());
+        for (String table : LEGACY_CATEGORY_TABLES) {
+            assertThat(committedSql).contains("create table " + table + " (");
+        }
+        committedSql = normalizeWithoutLegacyTables(committedSource);
         assertThat(committedSql).isEqualTo(generatedSql);
     }
 
+    private String normalizeWithoutLegacyTables(String sql) {
+        String withoutComments = sql.replaceAll("(?m)^\\h*--.*$", "");
+        List<String> retained = new ArrayList<>();
+        for (String raw : withoutComments.split(";")) {
+            String statement = raw.trim();
+            if (LEGACY_CATEGORY_TABLES.stream().noneMatch(table ->
+                    statement.toLowerCase().startsWith("create table " + table + " ("))) {
+                retained.add(raw);
+            }
+        }
+        return normalize(String.join(";", retained));
+    }
+
     private String normalize(String sql) {
-        String withoutComments = sql.replaceAll("(?m)^--.*$", "");
+        String withoutComments = sql.replaceAll("(?m)^\\h*--.*$", "");
         List<String> statements = new ArrayList<>();
         for (String raw : withoutComments.split(";")) {
             String statement = raw.trim();

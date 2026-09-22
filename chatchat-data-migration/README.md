@@ -57,7 +57,7 @@ java -jar "$JAR" --direction postgresql-to-mysql --module api --replace-target
 
 程序先补建缺失目标对象并校验可写列，再按外键顺序迁移，每张表核对源库、已复制及目标库的行数，并重置 PostgreSQL 自增序列。复制完成后，仅对目标库中缺失的内置种子记录按 `id` 补齐；已有记录不覆盖。若写入失败，目标库行变更会回滚。它只执行一次性关系数据复制；OpenSearch 索引、RocksDB 原文、外部附件以及 News/Market 数据库不在范围内。切换服务配置前，请核验这些存储及权限、Skill、MCP 功能。
 
-**迁移表范围由 `database/init/mysql/chatchat-api.sql`、`database/init/postgresql/chatchat-api.sql`（MCP 则对应 `chatchat-mcp-server.sql`）中的 `CREATE TABLE` 定义决定。**这些 SQL 会打包进 JAR。数据库中额外存在的表会跳过并打印名称；目标缺失的表会补建，源库缺失的表仍会停止。修改初始化 SQL 后需重新构建并部署 JAR。
+**迁移表范围由 `database/init/mysql/chatchat-api.sql`、`database/init/postgresql/chatchat-api.sql`（MCP 则对应 `chatchat-mcp-server.sql`）中的 `CREATE TABLE` 定义决定。**这些 SQL 会打包进 JAR。数据库中额外存在的表会跳过并打印名称；目标缺失的表会补建，源库缺失的必需表会停止。MCP 的两张旧分类表标记为 `migration-optional`：旧源库没有时可跳过，目标库仍会补建。修改初始化 SQL 后需重新构建并部署 JAR。
 
 `--module api` 只处理 API 脚本中的表，`--module mcp` 只处理独立 MCP 脚本中的表。如果两类表位于同一个源库，要分别执行两次迁移。旧库缺少目标表的可空列或有默认值列时，由目标库填充；若只缺少必填的 `created_at`/`updated_at` 时间列，程序以本次迁移时间填充并打印提示。其他必填列缺失、或源库有目标库没有的列时，会停止，避免无声丢失数据。
 

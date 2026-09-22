@@ -53,6 +53,35 @@
         primary key (id)
     ) engine=InnoDB;
 
+    -- migration-optional
+    create table mcp_api_service_category (
+        enabled bit not null,
+        sort_order integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        code varchar(128) not null unique,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
+    -- migration-optional
+    create table mcp_data_query_category (
+        enabled bit not null,
+        sort_order integer not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        code varchar(128) not null unique,
+        domain varchar(128) not null,
+        name varchar(200) not null,
+        description varchar(1000),
+        keywords_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_business_category (
         enabled bit not null,
         sort_order integer not null,

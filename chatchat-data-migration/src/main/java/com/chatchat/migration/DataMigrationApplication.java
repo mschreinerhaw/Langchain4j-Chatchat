@@ -79,7 +79,7 @@ public final class DataMigrationApplication {
             try {
                 Set<String> expectedTables = MigrationSchema.expectedTables(options.module);
                 Set<String> sourceTables = MigrationSchema.selectTables(tables(source, sourceScope), expectedTables,
-                        "Source database");
+                        MigrationSchema.optionalTables(options.module), "Source database");
                 MigrationSchema.selectTables(tables(target, targetScope), expectedTables, "Target database");
                 Map<String, ColumnMigrationPlan.Plan> tablePlans = new LinkedHashMap<>();
                 for (String table : new TreeSet<>(sourceTables)) {

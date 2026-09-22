@@ -89,7 +89,8 @@ final class DataFileTransfer {
                 source.setAutoCommit(false);
                 String scope = scope(source, options.engine);
                 Set<String> found = MigrationSchema.selectTables(tables(source, scope),
-                        MigrationSchema.expectedTables(options.module), "Source database");
+                        MigrationSchema.expectedTables(options.module), MigrationSchema.optionalTables(options.module),
+                        "Source database");
                 List<String> order = parentFirst(found, dependencies(source, options.engine, scope));
                 Properties manifest = new Properties();
                 manifest.setProperty("format", Integer.toString(VERSION));
@@ -136,7 +137,10 @@ final class DataFileTransfer {
             List<String> archivedTables = archiveTables(manifest, options.module);
             Map<String, Header> headers = validateArchive(archive, manifest, archivedTables);
             Set<String> expected = MigrationSchema.expectedTables(options.module);
-            if (!expected.equals(new HashSet<>(archivedTables))) {
+            Set<String> archived = new HashSet<>(archivedTables);
+            Set<String> required = new HashSet<>(expected);
+            required.removeAll(MigrationSchema.optionalTables(options.module));
+            if (!expected.containsAll(archived) || !archived.containsAll(required)) {
                 throw new IllegalStateException("Archive tables differ from database/init for " + options.module);
             }
             try (Connection target = TargetBootstrap.connectTarget(options.engine, options.module,
@@ -151,15 +155,14 @@ final class DataFileTransfer {
                 }
                 target.setAutoCommit(false);
                 try {
-                    Set<String> found = MigrationSchema.selectTables(tables(target, scope), expected,
-                            "Target database");
+                    MigrationSchema.selectTables(tables(target, scope), expected, "Target database");
                     Map<String, ColumnMigrationPlan.Plan> tablePlans = new HashMap<>();
                     for (String table : archivedTables) {
                         LinkedHashMap<String, Column> columns = columns(target, options.engine, scope, table);
                         tablePlans.put(table, ColumnMigrationPlan.create(table,
                                 headers.get(table).fields.keySet(), columns));
                     }
-                    List<String> order = parentFirst(found, dependencies(target, options.engine, scope));
+                    List<String> order = parentFirst(archived, dependencies(target, options.engine, scope));
                     List<String> populated = new ArrayList<>();
                     for (String table : order) {
                         if (rowExists(target, options.engine, scope, table)) {

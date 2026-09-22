@@ -11,7 +11,9 @@ import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigRepository;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +37,34 @@ class BusinessCategoryServiceTest {
     private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final BusinessCategoryService service = new BusinessCategoryService(
         categories, apiTemplates, databaseTemplates, sshAssets, databaseAssets, apiAssets, jdbcTemplate);
+
+    @Test
+    void skipsAbsentLegacyTablesBeforeQueryingInsideStartupTransaction() {
+        JdbcTemplate database = legacyDatabase();
+        BusinessCategoryService migration = new BusinessCategoryService(
+            categories, apiTemplates, databaseTemplates, sshAssets, databaseAssets, apiAssets, database);
+
+        assertThat(migration.legacyTableExists("mcp_data_query_category")).isFalse();
+        database.execute("create table mcp_data_query_category (id varchar(64))");
+        assertThat(migration.legacyTableExists("mcp_data_query_category")).isTrue();
+    }
+
+    @Test
+    void existingLegacyTableWithBrokenColumnsFailsInsteadOfBeingIgnored() {
+        JdbcTemplate database = legacyDatabase();
+        database.execute("create table mcp_data_query_category (id varchar(64))");
+        BusinessCategoryService migration = new BusinessCategoryService(
+            categories, apiTemplates, databaseTemplates, sshAssets, databaseAssets, apiAssets, database);
+
+        assertThatThrownBy(migration::migrateLegacyCategories)
+            .isInstanceOf(BadSqlGrammarException.class);
+    }
+
+    private JdbcTemplate legacyDatabase() {
+        String name = "category_legacy_" + java.util.UUID.randomUUID().toString().replace("-", "");
+        return new JdbcTemplate(new DriverManagerDataSource(
+            "jdbc:h2:mem:" + name + ";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE", "sa", ""));
+    }
 
     @Test
     void oneCategoryUpdatePropagatesToApiAndDatabaseTemplates() {

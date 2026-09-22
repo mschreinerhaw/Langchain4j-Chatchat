@@ -5,10 +5,11 @@ The project uses separate database boundaries. Choose the script matching both t
 | Application | MySQL 8+ | PostgreSQL | H2 2.x | Tables |
 | --- | --- | --- | --- | ---: |
 | ChatChat API | `mysql/chatchat-api.sql` | `postgresql/chatchat-api.sql` | `h2/chatchat-api.sql` | 84 |
-| Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `postgresql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 37 |
+| Standalone MCP Server | `mysql/chatchat-mcp-server.sql` | `postgresql/chatchat-mcp-server.sql` | `h2/chatchat-mcp-server.sql` | 39 |
 | Standalone News Runtime + governed market storage | `mysql/chatchat-runtime-news.sql` | — | `h2/chatchat-runtime-news.sql` | 20 |
 
 Run these scripts only against a new, empty database. They contain the current JPA schema, including generated indexes and unique constraints, and intentionally do not drop existing objects. PostgreSQL has an additional partial index in `postgresql/chatchat-api-post-schema.sql`.
+The MCP script also creates `mcp_data_query_category` and `mcp_api_service_category` for legacy category migration. These two tables are not JPA-managed; the startup migrator reads them only when present and copies their records into `mcp_business_category`.
 
 Example:
 

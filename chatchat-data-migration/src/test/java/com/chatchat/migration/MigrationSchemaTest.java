@@ -33,4 +33,18 @@ class MigrationSchemaTest {
         assertThrows(IllegalStateException.class,
                 () -> MigrationSchema.selectTables(actual, expected, "Target database"));
     }
+
+    @Test
+    void legacyMcpCategoriesAreCreatedButOptionalInOlderSources() throws Exception {
+        Set<String> expected = MigrationSchema.expectedTables("mcp");
+        Set<String> optional = MigrationSchema.optionalTables("mcp");
+        assertEquals(Set.of("mcp_api_service_category", "mcp_data_query_category"), optional);
+        assertTrue(expected.containsAll(optional));
+
+        Set<String> oldSource = new HashSet<>(expected);
+        oldSource.removeAll(optional);
+        assertEquals(oldSource, MigrationSchema.selectTables(oldSource, expected, optional, "Source database"));
+        assertThrows(IllegalStateException.class,
+                () -> MigrationSchema.selectTables(oldSource, expected, "Target database"));
+    }
 }

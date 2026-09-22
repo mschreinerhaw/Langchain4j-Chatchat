@@ -43,6 +43,10 @@
         <KeyRound :size="16" />
         <span>登录审计</span>
       </button>
+      <button type="button" :class="{ active: activeManagementTab === 'resources' }" @click="activeManagementTab = 'resources'">
+        <ShieldCheck :size="16" />
+        <span>资源授权</span>
+      </button>
     </nav>
 
     <div class="rbac-board">
@@ -188,6 +192,14 @@
           </div>
         </div>
       </aside>
+
+      <ResourceAuthorizationPanel
+        v-else-if="activeManagementTab === 'resources'"
+        :tenant-id="selectedTenantId"
+        :roles="roles"
+        :agents="agentOptions"
+        :initial-role-id="selectedRoleId"
+      />
 
       <aside v-else class="rbac-panel login-audit-panel system-tab-panel">
         <div class="panel-head">

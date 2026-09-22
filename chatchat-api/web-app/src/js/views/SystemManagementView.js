@@ -13,6 +13,7 @@ import {
   X
 } from "@lucide/vue";
 import "../../styles/pages/system-management.css";
+import ResourceAuthorizationPanel from "../../views/ResourceAuthorizationPanel.vue";
 import {
   AUTH_REQUIRED_EVENT,
   changeAdminPassword,
@@ -89,6 +90,7 @@ export default {
     Pencil,
     Plus,
     RefreshCw,
+    ResourceAuthorizationPanel,
     RotateCcw,
     Save,
     ShieldCheck,

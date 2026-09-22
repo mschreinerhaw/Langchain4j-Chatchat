@@ -1617,6 +1617,32 @@ export function fetchAgentOptions() {
   return apiRequest("/enterprise/agent-options");
 }
 
+export function fetchResourceGrants(tenantId, resourceType) {
+  const query = new URLSearchParams({ tenantId, resourceType });
+  return apiRequest(`/enterprise/resource-grants?${query}`);
+}
+
+export function createResourceGrant(payload) {
+  return apiRequest("/enterprise/resource-grants", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function deleteResourceGrant(id) {
+  return apiRequest(`/enterprise/resource-grants/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function fetchSkillResourceScopes(tenantId, skillId) {
+  const query = new URLSearchParams({ tenantId, skillId });
+  return apiRequest(`/enterprise/skill-resource-scopes?${query}`);
+}
+
+export function createSkillResourceScope(payload) {
+  return apiRequest("/enterprise/skill-resource-scopes", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function deleteSkillResourceScope(id) {
+  return apiRequest(`/enterprise/skill-resource-scopes/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export function createPermission(payload) {
   return apiRequest("/enterprise/permissions", {
     method: "POST",

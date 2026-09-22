@@ -37,6 +37,10 @@ public final class DataMigrationApplication {
 
     public static void main(String[] args) {
         try {
+            if (Arrays.asList(args).contains("--export-file") || Arrays.asList(args).contains("--import-file")) {
+                DataFileTransfer.execute(args);
+                return;
+            }
             Options options = Options.parse(args);
             if (options == null) {
                 return;
@@ -138,7 +142,7 @@ public final class DataMigrationApplication {
         }
     }
 
-    private static Connection connect(Engine engine, String module, String mysqlDatabase, String pgDatabase)
+    static Connection connect(Engine engine, String module, String mysqlDatabase, String pgDatabase)
             throws SQLException, IOException {
         Properties properties = new Properties();
         String url;
@@ -157,7 +161,7 @@ public final class DataMigrationApplication {
         return DriverManager.getConnection(url, properties);
     }
 
-    private static String setting(String name, String fallback) {
+    static String setting(String name, String fallback) {
         String value = System.getenv(name);
         return value == null || value.isBlank() ? fallback : value;
     }
@@ -170,23 +174,23 @@ public final class DataMigrationApplication {
         return setting(name, fallback);
     }
 
-    private static String identifier(String name) {
+    static String identifier(String name) {
         if (!IDENTIFIER.matcher(name).matches()) {
             throw new IllegalArgumentException("Unsupported SQL identifier: " + name);
         }
         return name;
     }
 
-    private static String quoted(Engine engine, String name) {
+    static String quoted(Engine engine, String name) {
         return engine == Engine.MYSQL ? "`" + identifier(name) + "`" : "\"" + identifier(name) + "\"";
     }
 
-    private static String qualified(Engine engine, String scope, String table) {
+    static String qualified(Engine engine, String scope, String table) {
         return engine == Engine.MYSQL ? quoted(engine, table)
                 : quoted(engine, scope) + "." + quoted(engine, table);
     }
 
-    private static Set<String> tables(Connection connection, String scope) throws SQLException {
+    static Set<String> tables(Connection connection, String scope) throws SQLException {
         Set<String> found = new TreeSet<>();
         try (PreparedStatement query = connection.prepareStatement("SELECT table_name FROM information_schema.tables "
                 + "WHERE table_schema=? AND table_type='BASE TABLE'")) {
@@ -200,7 +204,7 @@ public final class DataMigrationApplication {
         return found;
     }
 
-    private static LinkedHashMap<String, Column> columns(Connection connection, Engine engine, String scope,
+    static LinkedHashMap<String, Column> columns(Connection connection, Engine engine, String scope,
             String table) throws SQLException {
         String generated = engine == Engine.MYSQL ? "extra" : "is_generated";
         LinkedHashMap<String, Column> result = new LinkedHashMap<>();
@@ -223,7 +227,7 @@ public final class DataMigrationApplication {
         return result;
     }
 
-    private static Map<String, Set<String>> dependencies(Connection connection, Engine engine, String scope)
+    static Map<String, Set<String>> dependencies(Connection connection, Engine engine, String scope)
             throws SQLException {
         Map<String, Set<String>> result = new HashMap<>();
         String sql = engine == Engine.MYSQL
@@ -277,7 +281,7 @@ public final class DataMigrationApplication {
         return result;
     }
 
-    private static boolean rowExists(Connection connection, Engine engine, String scope, String table)
+    static boolean rowExists(Connection connection, Engine engine, String scope, String table)
             throws SQLException {
         try (Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("SELECT 1 FROM " + qualified(engine, scope, table) + " LIMIT 1")) {
@@ -285,7 +289,7 @@ public final class DataMigrationApplication {
         }
     }
 
-    private static long count(Connection connection, Engine engine, String scope, String table) throws SQLException {
+    static long count(Connection connection, Engine engine, String scope, String table) throws SQLException {
         try (Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("SELECT COUNT(*) FROM " + qualified(engine, scope, table))) {
             rows.next();
@@ -366,7 +370,7 @@ public final class DataMigrationApplication {
         }
     }
 
-    private static void resetSequences(Connection target, String schema, List<String> tables) throws SQLException {
+    static void resetSequences(Connection target, String schema, List<String> tables) throws SQLException {
         for (String table : tables) {
             try (PreparedStatement columns = target.prepareStatement("SELECT column_name FROM information_schema.columns "
                     + "WHERE table_schema=? AND table_name=? AND identity_generation IS NOT NULL")) {
@@ -406,9 +410,9 @@ public final class DataMigrationApplication {
         }
     }
 
-    private enum Engine { MYSQL, POSTGRESQL }
+    enum Engine { MYSQL, POSTGRESQL }
 
-    private record Column(String name, String type) { }
+    record Column(String name, String type) { }
 
     private record Options(String direction, String module, boolean replaceTarget, boolean dryRun, int batchSize,
                            ZoneId mysqlZone) {
@@ -416,7 +420,10 @@ public final class DataMigrationApplication {
             if (Arrays.asList(args).contains("--help")) {
                 System.out.println("Usage: java -jar chatchat-data-migration.jar --direction mysql-to-postgresql|postgresql-to-mysql "
                         + "--module api|mcp [--dry-run] [--replace-target] [--batch-size 500] "
-                        + "[--mysql-timezone Asia/Shanghai]");
+                        + "[--mysql-timezone Asia/Shanghai]\n"
+                        + "       java -jar chatchat-data-migration.jar --export-file FILE --engine mysql|postgresql --module api|mcp\n"
+                        + "       java -jar chatchat-data-migration.jar --import-file FILE --engine mysql|postgresql --module api|mcp "
+                        + "[--dry-run] [--replace-target] [--batch-size 500] [--mysql-timezone Asia/Shanghai]");
                 return null;
             }
             Map<String, String> values = new HashMap<>();

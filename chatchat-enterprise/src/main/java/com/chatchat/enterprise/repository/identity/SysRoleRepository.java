@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface SysRoleRepository extends JpaRepository<SysRole, String> {
+    List<SysRole> findByTenantIdAndIdIn(String tenantId, Collection<String> ids);
     /**
      * Finds the by tenant id order by role name asc.
      *

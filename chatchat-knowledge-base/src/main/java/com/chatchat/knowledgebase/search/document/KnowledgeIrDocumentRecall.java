@@ -52,8 +52,9 @@ public class KnowledgeIrDocumentRecall {
         if (allowed.isEmpty() && plan.visibilityContext().active()) {
             allowed.addAll(plan.visibilityScopeIds());
         }
+        Map<String, List<KnowledgeIREntity>> matchesByTerm = new LinkedHashMap<>();
+        Set<String> matchedIds = new HashSet<>();
         for (String term : terms) {
-            Set<String> documentsForTerm = new HashSet<>();
             Map<String, KnowledgeIREntity> matchesById = new LinkedHashMap<>();
             String pattern = "%" + term + "%";
             repository.findMatchingHeadings(plan.permissionContext().tenantId(), pattern,
@@ -63,15 +64,17 @@ public class KnowledgeIrDocumentRecall {
                 PageRequest.of(0, MAX_UNITS_PER_TERM)).forEach(unit ->
                 matchesById.putIfAbsent(unit.getDocumentId() + ":" + unit.getKnowledgeId(), unit));
             List<KnowledgeIREntity> matches = new ArrayList<>(matchesById.values());
-            Set<String> grantAllowed = null;
-            if (resourceAuthorization != null) {
-                Set<String> matchedIds = matches.stream().map(KnowledgeIREntity::getDocumentId)
-                    .filter(id -> id != null && !id.isBlank()).collect(java.util.stream.Collectors.toSet());
-                grantAllowed = resourceAuthorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
-                    plan.permissionContext().tenantId(), plan.permissionContext().userId(),
-                    new HashSet<>(plan.permissionContext().roles()), matchedIds);
-            }
-            for (KnowledgeIREntity unit : matches) {
+            matchesByTerm.put(term, matches);
+            matches.stream().map(KnowledgeIREntity::getDocumentId)
+                .filter(id -> id != null && !id.isBlank()).forEach(matchedIds::add);
+        }
+        Set<String> grantAllowed = resourceAuthorization == null ? null
+            : resourceAuthorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
+                plan.permissionContext().tenantId(), plan.permissionContext().userId(),
+                new HashSet<>(plan.permissionContext().roles()), matchedIds);
+        for (String term : terms) {
+            Set<String> documentsForTerm = new HashSet<>();
+            for (KnowledgeIREntity unit : matchesByTerm.getOrDefault(term, List.of())) {
                 String documentId = unit.getDocumentId();
                 if (documentId == null || documentId.isBlank() || (!allowed.isEmpty() && !allowed.contains(documentId))
                     || (grantAllowed != null && !grantAllowed.contains(documentId))

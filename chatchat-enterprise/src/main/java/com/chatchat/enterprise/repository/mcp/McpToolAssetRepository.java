@@ -9,8 +9,10 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface McpToolAssetRepository extends JpaRepository<McpToolAsset, String> {
+    List<McpToolAsset> findByLocalToolNameInOrderByLocalToolNameAsc(Collection<String> localToolNames);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select tool from McpToolAsset tool where tool.id = :id")

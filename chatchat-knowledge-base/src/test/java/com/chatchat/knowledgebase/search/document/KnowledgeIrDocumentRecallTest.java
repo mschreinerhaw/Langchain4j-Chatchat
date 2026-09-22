@@ -2,14 +2,17 @@ package com.chatchat.knowledgebase.search.document;
 
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIREntity;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,8 +20,28 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 class KnowledgeIrDocumentRecallTest {
+    @Test
+    void checksAllCandidateIdsInOneAuthorizationBatch() {
+        KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        KnowledgeIREntity named = unit("livedata-doc", "livedata installation", "setup", "livedata installation");
+        when(repository.findMatchingUnits(eq("tenant-1"), anyString(), any(Pageable.class)))
+            .thenReturn(List.of(named));
+        ResourceAuthorizationPort authorization = mock(ResourceAuthorizationPort.class);
+        when(authorization.allowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE), eq("tenant-1"),
+            eq("user-1"), any(), eq(Set.of("livedata-doc"))))
+            .thenReturn(Set.of("livedata-doc"));
+        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+        ReflectionTestUtils.setField(recall, "resourceAuthorization", authorization);
+
+        assertThat(recall.recall(plan(List.of()), 8).documentIds()).contains("livedata-doc");
+        verify(authorization, times(1)).allowedIds(eq(ResourceAuthorizationPort.KNOWLEDGE),
+            eq("tenant-1"), eq("user-1"), any(), eq(Set.of("livedata-doc")));
+    }
+
     @Test
     void chapterAndParagraphFactsRankTheNamedDocumentAboveGenericInstructions() {
         KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);

@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 
 /** Shared RBAC overlay. Domain ACLs are intersected with this result. */
@@ -62,7 +64,8 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
             userRoles.findByUserId(userId).stream()
                 .filter(binding -> tenantId.equals(binding.getTenantId()))
                 .forEach(binding -> assigned.add(binding.getRoleId()));
-            for (SysRole role : roles.findByTenantIdOrderByRoleNameAsc(tenantId)) {
+            for (SysRole role : assigned.isEmpty() ? List.<SysRole>of()
+                : roles.findByTenantIdAndIdIn(tenantId, assigned)) {
                 if (assigned.contains(role.getId()) && "enabled".equalsIgnoreCase(role.getStatus())) {
                     if ("super_admin".equalsIgnoreCase(role.getRoleCode())) return Set.copyOf(candidateIds);
                     activeRoleIds.add(role.getId());
@@ -77,18 +80,30 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
                 tenantId, resourceType, lookupIds.subList(offset, Math.min(offset + 500, lookupIds.size()))));
         }
         Instant now = Instant.now();
+        Map<String, List<ResourceGrant>> rulesById = new HashMap<>();
+        for (ResourceGrant rule : rules) {
+            rulesById.computeIfAbsent(rule.getResourceId(), ignored -> new ArrayList<>()).add(rule);
+        }
+        List<ResourceGrant> wildcardRules = rulesById.getOrDefault("*", List.of());
         Set<String> allowed = new LinkedHashSet<>();
         for (String id : candidateIds) {
-            List<ResourceGrant> applicable = rules.stream()
-                .filter(rule -> id.equals(rule.getResourceId()) || "*".equals(rule.getResourceId())).toList();
-            if (applicable.isEmpty()) {
+            List<ResourceGrant> directRules = rulesById.getOrDefault(id, List.of());
+            if (directRules.isEmpty() && wildcardRules.isEmpty()) {
                 if (!explicitOnly) allowed.add(id);
                 continue;
             }
-            boolean deny = applicable.stream().filter(rule -> active(rule, now)).anyMatch(rule -> principalMatches(rule, tenantId, userId,
-                validUser, activeRoleIds) && "DENY".equalsIgnoreCase(rule.getEffect()));
-            boolean allow = applicable.stream().filter(rule -> active(rule, now)).anyMatch(rule -> principalMatches(rule, tenantId, userId,
-                validUser, activeRoleIds) && "ALLOW".equalsIgnoreCase(rule.getEffect()));
+            boolean deny = false;
+            boolean allow = false;
+            for (ResourceGrant rule : directRules) {
+                if (!active(rule, now) || !principalMatches(rule, tenantId, userId, validUser, activeRoleIds)) continue;
+                deny |= "DENY".equalsIgnoreCase(rule.getEffect());
+                allow |= "ALLOW".equalsIgnoreCase(rule.getEffect());
+            }
+            for (ResourceGrant rule : wildcardRules) {
+                if (!active(rule, now) || !principalMatches(rule, tenantId, userId, validUser, activeRoleIds)) continue;
+                deny |= "DENY".equalsIgnoreCase(rule.getEffect());
+                allow |= "ALLOW".equalsIgnoreCase(rule.getEffect());
+            }
             if (!deny && allow) allowed.add(id);
         }
         return allowed;

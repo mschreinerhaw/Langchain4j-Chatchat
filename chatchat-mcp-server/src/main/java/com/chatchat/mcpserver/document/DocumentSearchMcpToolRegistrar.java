@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.document;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.mcp.service.McpResultKind;
 import com.chatchat.common.mcp.service.McpResultProvenance;
@@ -43,6 +44,8 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
     private final Environment environment;
     private final ApiDocumentEvidenceClient apiClient;
     private final FederatedDocumentEvidenceSelector selector;
+    private final DocumentEvidenceAuthorizationFilter authorizationFilter;
+    private final McpAuthorizationService authorizationService;
 
     @Override
     public void registerTools(ToolRegistry toolRegistry) {
@@ -117,8 +120,16 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
         @Override
         public ToolOutput execute(ToolInput input) {
             try {
-                DocumentSearchRequest request = requestMapper.map(
-                    input == null ? Map.of() : input.getParameters(), defaultTopK);
+                Map<String, Object> parameters = new LinkedHashMap<>(input == null ? Map.of() : input.getParameters());
+                McpAuthorizationService.CallerAuthorizationContext caller =
+                    authorizationService.currentCallerContext(parameters);
+                parameters.remove("tenantId");
+                parameters.remove("userId");
+                parameters.remove("roles");
+                if (caller.tenantId() != null) parameters.put("tenantId", caller.tenantId());
+                if (caller.userId() != null) parameters.put("userId", caller.userId());
+                parameters.put("roles", caller.roleIds());
+                DocumentSearchRequest request = requestMapper.map(parameters, defaultTopK);
                 DocumentSearchResult localResult = evidenceService.search(request);
                 DocumentSearchResult apiResult = null;
                 try {
@@ -126,7 +137,8 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
                 } catch (RuntimeException ex) {
                     log.warn("API document evidence search unavailable; using MCP corpus: {}", ex.getMessage());
                 }
-                DocumentSearchResult result = selector.select(request.query(), request.topK(), localResult, apiResult);
+                DocumentSearchResult result = authorizationFilter.filter(request,
+                    selector.select(request.query(), request.topK(), localResult, apiResult));
                 Map<String, Object> metadata = new LinkedHashMap<>();
                 metadata.put(McpServiceResult.RESULT_KIND_KEY, McpResultKind.DOCUMENT.name());
                 metadata.put(McpServiceResult.RESULT_SCHEMA_REF_KEY,
@@ -149,6 +161,9 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
                     .build();
             } catch (IllegalArgumentException exception) {
                 return ToolOutput.failure(exception.getMessage());
+            } catch (IllegalStateException exception) {
+                log.warn("Document evidence authorization unavailable: {}", exception.getMessage());
+                return ToolOutput.failure("Document evidence authorization is unavailable");
             }
         }
 

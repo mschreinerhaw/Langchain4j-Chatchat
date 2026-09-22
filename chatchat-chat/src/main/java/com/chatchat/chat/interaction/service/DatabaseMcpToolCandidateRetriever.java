@@ -51,8 +51,7 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
             return new Selection(Set.of(), Set.of(), List.of());
         }
         Set<String> candidateSet = new HashSet<>(candidateNames);
-        List<McpToolAsset> catalog = tools.findAllByOrderByLocalToolNameAsc().stream()
-            .filter(tool -> candidateSet.contains(tool.getLocalToolName())).toList();
+        List<McpToolAsset> catalog = tools.findByLocalToolNameInOrderByLocalToolNameAsc(candidateSet);
         Set<String> managed = new LinkedHashSet<>();
         catalog.forEach(tool -> managed.add(tool.getLocalToolName()));
         if (managed.isEmpty()) return new Selection(Set.of(), Set.of(), List.of());
@@ -63,13 +62,16 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
             return new Selection(managed, Set.of(), List.of());
         }
         Map<String, SysRole> activeRoles = new LinkedHashMap<>();
-        roles.findByTenantIdOrderByRoleNameAsc(user.getTenantId()).stream()
+        Set<String> assignedRoleIds = new LinkedHashSet<>();
+        userRoles.findByUserId(user.getId()).stream()
+            .filter(binding -> user.getTenantId().equals(binding.getTenantId()))
+            .map(binding -> binding.getRoleId()).forEach(assignedRoleIds::add);
+        (assignedRoleIds.isEmpty() ? List.<SysRole>of()
+            : roles.findByTenantIdAndIdIn(user.getTenantId(), assignedRoleIds)).stream()
             .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
             .forEach(role -> activeRoles.put(role.getId(), role));
         Set<String> roleIds = new LinkedHashSet<>();
-        userRoles.findByUserId(user.getId()).stream()
-            .filter(binding -> user.getTenantId().equals(binding.getTenantId()))
-            .map(binding -> binding.getRoleId())
+        assignedRoleIds.stream()
             .filter(activeRoles::containsKey)
             .forEach(roleIds::add);
         boolean admin = ("admin".equalsIgnoreCase(user.getUsername())

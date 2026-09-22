@@ -38,6 +38,31 @@ class InternalDocumentSearchAuthFilterTest {
         assertThat(replay.getStatus()).isEqualTo(401);
     }
 
+    @Test
+    void protectsResourceAuthorizationEndpoint() throws Exception {
+        InternalCredentialProperties credentials = mock(InternalCredentialProperties.class);
+        when(credentials.isEnabled()).thenReturn(true);
+        when(credentials.resolvedUsername()).thenReturn("service-user");
+        when(credentials.resolvedSecret()).thenReturn("test-secret");
+        InternalDocumentSearchAuthFilter filter = new InternalDocumentSearchAuthFilter(credentials);
+        String path = "/internal/v1/resource-authorization";
+        String nonce = UUID.randomUUID().toString();
+        String timestamp = String.valueOf(Instant.now().getEpochSecond());
+        MockHttpServletResponse unsigned = new MockHttpServletResponse();
+        filter.doFilter(new MockHttpServletRequest("POST", path), unsigned, new MockFilterChain());
+        assertThat(unsigned.getStatus()).isEqualTo(401);
+
+        MockHttpServletRequest signed = new MockHttpServletRequest("POST", path);
+        signed.addHeader(InternalRequestSigner.USER_HEADER, "service-user");
+        signed.addHeader(InternalRequestSigner.TIMESTAMP_HEADER, timestamp);
+        signed.addHeader(InternalRequestSigner.NONCE_HEADER, nonce);
+        signed.addHeader(InternalRequestSigner.SIGNATURE_HEADER,
+            InternalRequestSigner.sign("test-secret", "POST", path, timestamp, nonce));
+        MockHttpServletResponse accepted = new MockHttpServletResponse();
+        filter.doFilter(signed, accepted, new MockFilterChain());
+        assertThat(accepted.getStatus()).isEqualTo(200);
+    }
+
     private MockHttpServletRequest request(String timestamp, String nonce) {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/v1/document-search");
         if (timestamp != null) {

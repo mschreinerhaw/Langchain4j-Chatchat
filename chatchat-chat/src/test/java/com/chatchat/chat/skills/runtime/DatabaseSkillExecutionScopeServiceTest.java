@@ -21,6 +21,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -47,7 +48,7 @@ class DatabaseSkillExecutionScopeServiceTest {
         membership.setTenantId("tenant-a"); membership.setUserId("user-a"); membership.setRoleId("role-a");
         when(users.findById("user-a")).thenReturn(Optional.of(user));
         when(userRoles.findByUserId("user-a")).thenReturn(List.of(membership));
-        when(roles.findByTenantIdOrderByRoleNameAsc("tenant-a")).thenReturn(List.of(role));
+        when(roles.findByTenantIdAndIdIn(eq("tenant-a"), anyCollection())).thenReturn(List.of(role));
         when(grants.allowedIds(ResourceAuthorizationPort.AGENT_SKILL, "tenant-a", "user-a",
             Set.of("role-a"), Set.of("agent-skill"))).thenReturn(Set.of("agent-skill"));
     }

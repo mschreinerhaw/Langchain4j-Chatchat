@@ -101,6 +101,7 @@ chatchat:
     server:
       endpoint: /mcp
       document-search:
+        api-authorization-enabled: ${CHATCHAT_MCP_DOCUMENT_API_AUTHORIZATION_ENABLED:true}
         default-limit: 8
         max-limit: 20
         timeout-ms: 300000

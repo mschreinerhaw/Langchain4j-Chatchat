@@ -37,7 +37,7 @@ class ResourceAuthorizationServiceTest {
         when(memberships.findByUserId("user-1")).thenReturn(List.of(membership));
         SysRole role = new SysRole();
         role.setId("analyst"); role.setStatus("enabled"); role.setRoleCode("analyst");
-        when(roles.findByTenantIdOrderByRoleNameAsc("tenant-1")).thenReturn(List.of(role));
+        when(roles.findByTenantIdAndIdIn(eq("tenant-1"), anyCollection())).thenReturn(List.of(role));
         when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"),
             eq(ResourceAuthorizationPort.SKILL), anyCollection())).thenReturn(List.of(
                 grant("skill-a", "ROLE", "analyst", "ALLOW"),

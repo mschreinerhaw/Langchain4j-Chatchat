@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -39,7 +40,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolAsset allowed = tool("allowed", true);
         McpToolAsset disabled = tool("disabled", false);
         McpToolAsset forbidden = tool("forbidden", true);
-        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(allowed, disabled, forbidden));
+        when(tools.findByLocalToolNameInOrderByLocalToolNameAsc(anyCollection())).thenReturn(List.of(allowed, disabled, forbidden));
         when(tools.findByLocalToolName("allowed")).thenReturn(Optional.of(allowed));
         SysUser user = new SysUser();
         user.setId("user-1");
@@ -48,7 +49,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         user.setUsername("alice");
         when(users.findById("user-1")).thenReturn(Optional.of(user));
         when(userRoles.findByUserId("user-1")).thenReturn(List.of());
-        when(roles.findByTenantIdOrderByRoleNameAsc("tenant-1")).thenReturn(List.of());
+        when(roles.findByTenantIdAndIdIn(eq("tenant-1"), anyCollection())).thenReturn(List.of());
         when(permissions.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
             eq("tenant-1"), eq("USER"), eq("user-1"))).thenReturn(List.of(grant("allowed"), grant("disabled")));
         when(index.rank(any(), any(), eq(3))).thenReturn(List.of("forbidden", "allowed"));
@@ -72,7 +73,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolPermissionRepository permissions = mock(McpToolPermissionRepository.class);
         SysUserRepository users = mock(SysUserRepository.class);
         McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
-        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(tool("allowed", true)));
+        when(tools.findByLocalToolNameInOrderByLocalToolNameAsc(anyCollection())).thenReturn(List.of(tool("allowed", true)));
         SysUser user = new SysUser();
         user.setTenantId("other-tenant");
         user.setStatus("enabled");
@@ -92,7 +93,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolPermissionRepository permissions = mock(McpToolPermissionRepository.class);
         SysUserRepository users = mock(SysUserRepository.class);
         McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
-        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(tool("restricted", true)));
+        when(tools.findByLocalToolNameInOrderByLocalToolNameAsc(anyCollection())).thenReturn(List.of(tool("restricted", true)));
         SysUser user = new SysUser();
         user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
         when(users.findById("user-1")).thenReturn(Optional.of(user));
@@ -120,7 +121,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
         McpToolAsset initiallyOnline = tool("report_generation", true);
         McpToolAsset nowDisabled = tool("report_generation", false);
-        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(initiallyOnline));
+        when(tools.findByLocalToolNameInOrderByLocalToolNameAsc(anyCollection())).thenReturn(List.of(initiallyOnline));
         when(tools.findByLocalToolName("report_generation")).thenReturn(Optional.of(nowDisabled));
         SysUser user = new SysUser();
         user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
@@ -148,7 +149,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
         ResourceAuthorizationPort grants = mock(ResourceAuthorizationPort.class);
         McpToolAsset tool = tool("report_generation", true);
-        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(tool));
+        when(tools.findByLocalToolNameInOrderByLocalToolNameAsc(anyCollection())).thenReturn(List.of(tool));
         SysUser user = new SysUser();
         user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
         when(users.findById("user-1")).thenReturn(Optional.of(user));
@@ -178,7 +179,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolAsset asset = tool("asset_query", true);
         McpToolAsset analysis = tool("profit_analysis", true);
         McpToolAsset forbidden = tool("report_generation", true);
-        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(asset, analysis, forbidden));
+        when(tools.findByLocalToolNameInOrderByLocalToolNameAsc(anyCollection())).thenReturn(List.of(asset, analysis, forbidden));
         when(tools.findByLocalToolName("asset_query")).thenReturn(Optional.of(asset));
         when(tools.findByLocalToolName("profit_analysis")).thenReturn(Optional.of(analysis));
         SysUser user = new SysUser();

@@ -20,7 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 5)
 public class InternalDocumentSearchAuthFilter extends OncePerRequestFilter {
-    private static final String PATH = "/internal/v1/document-search";
+    private static final String SEARCH_PATH = "/internal/v1/document-search";
+    private static final String AUTHORIZATION_PATH = "/internal/v1/resource-authorization";
     private final InternalCredentialProperties credentials;
     private final Map<String, Long> nonces = new ConcurrentHashMap<>();
 
@@ -29,7 +30,8 @@ public class InternalDocumentSearchAuthFilter extends OncePerRequestFilter {
     }
 
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !PATH.equals(request.getRequestURI());
+        return !SEARCH_PATH.equals(request.getRequestURI())
+            && !AUTHORIZATION_PATH.equals(request.getRequestURI());
     }
 
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -59,7 +61,7 @@ public class InternalDocumentSearchAuthFilter extends OncePerRequestFilter {
             nonces.entrySet().removeIf(entry -> now - entry.getValue() > 300);
             if (nonces.putIfAbsent(nonce, seconds) != null) return false;
             boolean valid = InternalRequestSigner.matches(signature, InternalRequestSigner.sign(
-                secret, request.getMethod(), PATH, timestamp, nonce));
+                secret, request.getMethod(), request.getRequestURI(), timestamp, nonce));
             if (!valid) nonces.remove(nonce);
             return valid;
         } catch (RuntimeException ex) {

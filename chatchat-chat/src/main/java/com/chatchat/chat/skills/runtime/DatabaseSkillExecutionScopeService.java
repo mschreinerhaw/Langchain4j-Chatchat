@@ -53,7 +53,8 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
             .forEach(binding -> assigned.add(binding.getRoleId()));
         Set<String> roleIds = new LinkedHashSet<>();
         Set<String> nativeRoles = new LinkedHashSet<>();
-        for (SysRole role : roles.findByTenantIdOrderByRoleNameAsc(tenantId)) {
+        for (SysRole role : assigned.isEmpty() ? List.<SysRole>of()
+            : roles.findByTenantIdAndIdIn(tenantId, assigned)) {
             if (!assigned.contains(role.getId()) || !"enabled".equalsIgnoreCase(role.getStatus())) continue;
             roleIds.add(role.getId());
             nativeRoles.add(role.getId());

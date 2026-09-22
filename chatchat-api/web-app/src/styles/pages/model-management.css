@@ -7,6 +7,15 @@
   margin-bottom: 18px;
 }
 
+.model-management-view .model-filter-bar {
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 190px) auto;
+  margin: 0 0 18px;
+}
+
+.model-filter-bar .feature-search-field {
+  align-self: end;
+}
+
 .model-summary-stats {
   display: flex;
   align-items: center;
@@ -238,6 +247,10 @@
 }
 
 @media (max-width: 600px) {
+  .model-management-view .model-filter-bar {
+    grid-template-columns: 1fr;
+  }
+
   .model-summary-stats {
     justify-content: space-between;
     gap: 12px;

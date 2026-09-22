@@ -23,6 +23,22 @@
       </div>
     </div>
 
+    <div v-if="models.length" class="feature-filter-bar model-filter-bar">
+      <label class="feature-search-field">
+        <Search class="feature-search-icon" :size="17" aria-hidden="true" />
+        <input v-model.trim="searchQuery" type="search" aria-label="检索模型" placeholder="检索别名、名称、描述、模型 ID 或接口地址" />
+      </label>
+      <label class="feature-select-field">
+        <span>模型类型</span>
+        <select v-model="typeFilter">
+          <option value="">全部类型</option>
+          <option value="chat">大语言模型</option>
+          <option value="embedding">向量模型</option>
+        </select>
+      </label>
+      <span class="feature-result-count">找到 <strong>{{ filteredModels.length }}</strong> 个模型</span>
+    </div>
+
     <div v-if="loading" class="feature-empty-state model-state" role="status">
       <span class="feature-empty-icon loading" aria-hidden="true"></span>
       <strong>正在加载模型</strong><p>请稍候…</p>
@@ -33,8 +49,14 @@
       <p>添加模型后，即可在这里管理连接和默认模型。</p>
       <button type="button" class="feature-button primary" @click="openCreate"><Plus :size="16" />新增模型</button>
     </div>
+    <div v-else-if="!filteredModels.length" class="feature-empty-state model-state">
+      <span class="feature-empty-icon"><Search :size="18" /></span>
+      <strong>没有找到匹配的模型</strong>
+      <p>试试其他关键字或模型类型。</p>
+      <button type="button" class="feature-button" @click="clearFilters">清除筛选</button>
+    </div>
     <div v-else class="feature-card-grid model-grid">
-      <article v-for="model in models" :key="`${model.type}:${model.name}`" class="feature-content-card model-card">
+      <article v-for="model in pagedModels" :key="`${model.type}:${model.name}`" class="feature-content-card model-card">
         <div class="model-card-head">
           <span class="model-type-icon"><Database v-if="model.type === 'embedding'" :size="20" /><MessageSquare v-else :size="20" /></span>
           <div class="model-card-title"><strong :title="model.alias || model.name">{{ model.alias || model.name }}</strong><small :title="model.name">{{ model.name }} · {{ model.type === 'embedding' ? '向量模型' : '大语言模型' }}</small></div>
@@ -56,6 +78,14 @@
         </div>
       </article>
     </div>
+    <AppPagination
+      v-if="!loading && filteredModels.length"
+      :page="page"
+      :page-size="pageSize"
+      :total="filteredModels.length"
+      aria-label="模型分页"
+      @change="page = $event"
+    />
 
     <div v-if="editing" class="feature-modal-backdrop" @click.self="editing = false">
       <form class="feature-modal model-dialog" aria-labelledby="model-dialog-title" @submit.prevent="save">
@@ -101,7 +131,8 @@
 </template>
 
 <script>
-import { Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Star, Trash2, X } from '@lucide/vue';
+import { Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Search, Star, Trash2, X } from '@lucide/vue';
+import AppPagination from '../components/AppPagination.vue';
 import { deletePlatformModel, fetchPlatformModels, savePlatformModel, setDefaultPlatformModel } from '../services/api';
 import '../styles/pages/model-management.css';
 
@@ -111,11 +142,33 @@ const emptyForm = () => ({ name: '', alias: '', description: '', type: 'chat', p
 
 export default {
   name: 'ModelManagementView',
-  components: { Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Star, Trash2, X },
+  components: { AppPagination, Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Search, Star, Trash2, X },
   data: () => ({ models: [], loading: false, saving: false, editing: false, isNew: true,
-    form: emptyForm(), message: '', error: false }),
+    form: emptyForm(), message: '', error: false, searchQuery: '', typeFilter: '', page: 1, pageSize: 9 }),
+  computed: {
+    filteredModels() {
+      const query = this.searchQuery.toLocaleLowerCase();
+      return this.models.filter(model => {
+        if (this.typeFilter && model.type !== this.typeFilter) return false;
+        if (!query) return true;
+        return [model.alias, model.name, model.description, model.providerModel, model.baseUrl]
+          .some(value => String(value || '').toLocaleLowerCase().includes(query));
+      });
+    },
+    pageCount() { return Math.max(1, Math.ceil(this.filteredModels.length / this.pageSize)); },
+    pagedModels() {
+      const start = (this.page - 1) * this.pageSize;
+      return this.filteredModels.slice(start, start + this.pageSize);
+    }
+  },
+  watch: {
+    searchQuery() { this.page = 1; },
+    typeFilter() { this.page = 1; },
+    filteredModels() { this.page = Math.min(this.page, this.pageCount); }
+  },
   mounted() { this.load(); },
   methods: {
+    clearFilters() { this.searchQuery = ''; this.typeFilter = ''; this.page = 1; },
     async load() {
       this.loading = true;
       try { this.models = await fetchPlatformModels(); this.error = false; }

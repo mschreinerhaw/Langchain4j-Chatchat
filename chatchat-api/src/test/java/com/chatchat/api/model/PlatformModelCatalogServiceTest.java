@@ -11,6 +11,14 @@ import org.springframework.mock.env.MockEnvironment;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class PlatformModelCatalogServiceTest {
     @Test
@@ -30,8 +38,9 @@ class PlatformModelCatalogServiceTest {
             + "dimension INTEGER,timeout INTEGER,max_tokens INTEGER,max_retries INTEGER,api_key_cipher TEXT,"
             + "enabled BOOLEAN NOT NULL,is_default BOOLEAN NOT NULL,"
             + "source VARCHAR(24) NOT NULL,updated_at BIGINT NOT NULL,PRIMARY KEY(model_type,name))");
+        McpModelSyncClient mcpSync = mock(McpModelSyncClient.class);
         PlatformModelCatalogService service = new PlatformModelCatalogService(jdbc, file, search,
-            new MockEnvironment().withProperty("chatchat.models.crypto-key", "test-only-encryption-key"));
+            new MockEnvironment().withProperty("chatchat.models.crypto-key", "test-only-encryption-key"), mcpSync);
         ModelResourceRegistry registry = new ModelResourceRegistry(file);
         registry.setCatalog(service);
 
@@ -39,6 +48,7 @@ class PlatformModelCatalogServiceTest {
         assertThat(jdbc.queryForObject("SELECT api_key_cipher FROM platform_model_config", String.class))
             .startsWith("ENC(").doesNotContain("file-secret");
         assertThat(service.list().toString()).doesNotContain("file-secret");
+        assertThat(registry.defaultChatModel()).isEqualTo("configured-chat");
 
         service.save(new PlatformModelCatalogService.ModelDraft("new-chat", "通用问答", "适合日常问答与内容总结", "chat", "provider-chat",
             "https://user.example/v1", "openai", null, 180000, 4096, 2,
@@ -46,22 +56,41 @@ class PlatformModelCatalogServiceTest {
         assertThat(service.list().stream().filter(model -> "new-chat".equals(model.name())).findFirst().orElseThrow())
             .extracting(PlatformModelCatalogService.ModelView::alias, PlatformModelCatalogService.ModelView::description)
             .containsExactly("通用问答", "适合日常问答与内容总结");
+        assertThat(registry.selectableChatModels()).doesNotContain("new-chat");
         service.save(new PlatformModelCatalogService.ModelDraft("new-chat", "分析助手", "适合复杂任务分析", "chat", "provider-chat",
             "https://user.example/v1", "openai", null, 180000, 4096, 2,
             "", true, true));
         assertThat(service.list().stream().filter(model -> "new-chat".equals(model.name())).findFirst().orElseThrow())
             .extracting(PlatformModelCatalogService.ModelView::alias, PlatformModelCatalogService.ModelView::description)
             .containsExactly("分析助手", "适合复杂任务分析");
+        service.publish("chat", "new-chat");
         assertThat(registry.defaultChatModel()).isEqualTo("new-chat");
         assertThat(registry.require("new-chat").config().getApiKey()).isEqualTo("new-secret");
         assertThat(registry.selectableChatModels()).contains("new-chat", "configured-chat");
         assertThat(service.list().toString()).doesNotContain("new-secret");
+        service.save(new PlatformModelCatalogService.ModelDraft("new-chat", "分析助手", "新版描述",
+            "chat", "next-provider", "https://next.example/v1", "openai", null, 180000, 4096, 2,
+            "", true, true));
+        assertThat(service.list().stream().filter(model -> "new-chat".equals(model.name()))
+            .findFirst().orElseThrow().pendingChanges()).isTrue();
+        assertThat(registry.require("new-chat").config().getModelName()).isEqualTo("provider-chat");
+        service.publish("chat", "new-chat");
+        assertThat(registry.require("new-chat").config().getModelName()).isEqualTo("next-provider");
 
         service.save(new PlatformModelCatalogService.ModelDraft("vector-v2", null, null, "embedding", "vector-provider",
             "https://vector.example/v1/embeddings", "openai", 1536, 120000, null, null,
             "vector-secret", true, true));
+        assertThat(search.getOpenSearch().getEmbedding().isEnabled()).isFalse();
+        doThrow(new IllegalStateException("MCP unavailable")).doNothing().when(mcpSync)
+            .synchronize(anyList(), eq("vector-v2"));
+        assertThatThrownBy(() -> service.publish("embedding", "vector-v2"))
+            .isInstanceOf(IllegalStateException.class);
+        assertThat(service.list().stream().filter(model -> "vector-v2".equals(model.name()))
+            .findFirst().orElseThrow().published()).isFalse();
+        service.publish("embedding", "vector-v2");
         assertThat(search.getOpenSearch().getEmbedding().getModel()).isEqualTo("vector-provider");
         assertThat(search.getOpenSearch().getEmbedding().getDimension()).isEqualTo(1536);
+        verify(mcpSync, times(2)).synchronize(anyList(), eq("vector-v2"));
         service.delete("embedding", "vector-v2");
         assertThat(search.getOpenSearch().getEmbedding().isEnabled()).isFalse();
     }

@@ -10,6 +10,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.nio.file.Files;
@@ -27,6 +28,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     private final ModelsConfig fileConfig;
     private final SearchProperties searchProperties;
     private final Environment environment;
+    private final McpModelSyncClient mcpSync;
     private volatile boolean initialized;
 
     @Override public synchronized void run(ApplicationArguments args) { initialize(); }
@@ -34,7 +36,9 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     public record ModelView(String name, String alias, String description, String type, String providerModel, String baseUrl,
                             String protocol, Integer dimension, Integer timeout, Integer maxTokens,
                             Integer maxRetries, boolean enabled, boolean defaultModel,
-                            boolean hasApiKey, String source, long updatedAt) { }
+                            boolean hasApiKey, String source, long updatedAt,
+                            boolean published, boolean pendingChanges,
+                            boolean activeEnabled, boolean activeDefault) { }
     public record ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
                              String protocol, Integer dimension, Integer timeout, Integer maxTokens,
                              Integer maxRetries, String apiKey, Boolean enabled,
@@ -44,7 +48,15 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         initialize();
         return jdbc.query("SELECT name,alias,description,model_type,provider_model,base_url,protocol,dimension,timeout,"
                 + "max_tokens,max_retries,"
-                + "enabled,is_default,api_key_cipher,source,updated_at FROM platform_model_config "
+                + "enabled,is_default,api_key_cipher,source,updated_at,"
+                + "(SELECT COUNT(*) FROM platform_model_publication p WHERE p.model_type=platform_model_config.model_type"
+                + " AND p.name=platform_model_config.name) AS publication_count,"
+                + "(SELECT p.published_at FROM platform_model_publication p WHERE p.model_type=platform_model_config.model_type"
+                + " AND p.name=platform_model_config.name) AS published_at,"
+                + "(SELECT p.enabled FROM platform_model_publication p WHERE p.model_type=platform_model_config.model_type"
+                + " AND p.name=platform_model_config.name) AS active_enabled,"
+                + "(SELECT p.is_default FROM platform_model_publication p WHERE p.model_type=platform_model_config.model_type"
+                + " AND p.name=platform_model_config.name) AS active_default FROM platform_model_config "
                 + "ORDER BY model_type,is_default DESC,updated_at DESC",
             (rs, row) -> new ModelView(rs.getString("name"), rs.getString("alias"),
                 rs.getString("description"), rs.getString("model_type"),
@@ -53,9 +65,13 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 (Integer) rs.getObject("max_tokens"), (Integer) rs.getObject("max_retries"),
                 rs.getBoolean("enabled"),
                 rs.getBoolean("is_default"), rs.getString("api_key_cipher") != null,
-                rs.getString("source"), rs.getLong("updated_at")));
+                rs.getString("source"), rs.getLong("updated_at"),
+                rs.getInt("publication_count") > 0,
+                rs.getObject("published_at") != null && rs.getLong("updated_at") > rs.getLong("published_at"),
+                rs.getBoolean("active_enabled"), rs.getBoolean("active_default")));
     }
 
+    @Transactional
     public synchronized ModelView save(ModelDraft draft) {
         initialize();
         String name = required(draft == null ? null : draft.name(), "name");
@@ -71,8 +87,15 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         String cipher = draft.apiKey() == null || draft.apiKey().isBlank()
             ? oldCipher : InternalSecretCipher.encrypt(draft.apiKey().trim(), cryptoKey());
         boolean makeDefault = Boolean.TRUE.equals(draft.defaultModel());
-        if (makeDefault) jdbc.update("UPDATE platform_model_config SET is_default=FALSE WHERE model_type=?", type);
+        if (makeDefault && Boolean.FALSE.equals(draft.enabled())) {
+            throw new IllegalArgumentException("Disabled model cannot be the default");
+        }
         long now = System.currentTimeMillis();
+        Long publishedAt = jdbc.queryForObject("SELECT MAX(published_at) FROM platform_model_publication "
+            + "WHERE model_type=?", Long.class, type);
+        if (publishedAt != null) now = Math.max(now, publishedAt + 1);
+        if (makeDefault) jdbc.update("UPDATE platform_model_config SET is_default=FALSE,"
+            + "source='user',updated_at=? WHERE model_type=? AND is_default=TRUE AND name<>?", now, type, name);
         int updated = jdbc.update("UPDATE platform_model_config SET alias=?,description=?,provider_model=?,base_url=?,protocol=?,"
                 + "dimension=?,timeout=?,max_tokens=?,max_retries=?,api_key_cipher=?,enabled=?,is_default=?,"
                 + "source='user',updated_at=? "
@@ -91,60 +114,126 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 !Boolean.FALSE.equals(draft.enabled()), makeDefault,
                 "user", now);
         }
-        ensureDefault(type);
-        applyEmbedding();
         return list().stream().filter(row -> type.equals(row.type()) && name.equals(row.name()))
             .findFirst().orElseThrow();
     }
 
+    @Transactional
+    public synchronized ModelView publish(String type, String name) {
+        initialize();
+        type = normalizeType(type);
+        List<Map<String, Object>> drafts = jdbc.queryForList(
+            "SELECT * FROM platform_model_config WHERE model_type=? AND name=?", type, name);
+        if (drafts.isEmpty()) throw new IllegalArgumentException("Model not found: " + name);
+        Map<String, Object> draft = drafts.get(0);
+        Integer activeDefaultCount = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_publication "
+            + "WHERE model_type=? AND enabled=TRUE AND is_default=TRUE", Integer.class, type);
+        if (Boolean.TRUE.equals(draft.get("enabled")) && (activeDefaultCount == null || activeDefaultCount == 0)) {
+            jdbc.update("UPDATE platform_model_config SET is_default=TRUE WHERE model_type=? AND name=?", type, name);
+            draft = jdbc.queryForMap("SELECT * FROM platform_model_config WHERE model_type=? AND name=?", type, name);
+        }
+        if ("embedding".equals(type)) {
+            List<Map<String, Object>> candidate = jdbc.queryForList(
+                "SELECT name,provider_model,base_url,dimension,timeout,api_key_cipher,enabled,is_default "
+                    + "FROM platform_model_publication WHERE model_type='embedding' AND name<>?", name);
+            candidate.add(draft);
+            mcpSync.synchronize(candidate.stream().map(row -> new McpModelSyncClient.EmbeddingModel(
+                (String) row.get("name"), (String) row.get("provider_model"),
+                (String) row.get("base_url"), ((Number) row.get("dimension")).intValue(),
+                row.get("timeout") == null ? null : ((Number) row.get("timeout")).intValue(),
+                decrypt((String) row.get("api_key_cipher")),
+                Boolean.TRUE.equals(row.get("enabled")),
+                Boolean.TRUE.equals(row.get("is_default")))).toList(),
+                Boolean.TRUE.equals(draft.get("is_default")) ? name : null);
+        }
+        if (Boolean.TRUE.equals(draft.get("is_default"))) {
+            jdbc.update("UPDATE platform_model_publication SET is_default=FALSE WHERE model_type=?", type);
+        }
+        jdbc.update("DELETE FROM platform_model_publication WHERE model_type=? AND name=?", type, name);
+        jdbc.update("INSERT INTO platform_model_publication "
+                + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,max_tokens,max_retries,"
+                + "api_key_cipher,enabled,is_default,source,published_at) "
+                + "SELECT model_type,name,provider_model,base_url,protocol,dimension,timeout,max_tokens,max_retries,"
+                + "api_key_cipher,enabled,is_default,source,? FROM platform_model_config WHERE model_type=? AND name=?",
+            System.currentTimeMillis(), type, name);
+        ensureDefault(type);
+        applyEmbedding();
+        String publishedType = type;
+        return list().stream().filter(row -> publishedType.equals(row.type()) && name.equals(row.name()))
+            .findFirst().orElseThrow();
+    }
+
+    @Transactional
     public synchronized void setDefault(String type, String name) {
         initialize();
         type = normalizeType(type);
         Integer exists = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_config WHERE model_type=? "
             + "AND name=? AND enabled=TRUE", Integer.class, type, name);
         if (exists == null || exists == 0) throw new IllegalArgumentException("Enabled model not found: " + name);
-        jdbc.update("UPDATE platform_model_config SET is_default=FALSE WHERE model_type=?", type);
+        long now = System.currentTimeMillis();
+        Long publishedAt = jdbc.queryForObject("SELECT MAX(published_at) FROM platform_model_publication "
+            + "WHERE model_type=?", Long.class, type);
+        if (publishedAt != null) now = Math.max(now, publishedAt + 1);
+        jdbc.update("UPDATE platform_model_config SET is_default=FALSE,source='user',updated_at=? "
+            + "WHERE model_type=? AND is_default=TRUE AND name<>?", now, type, name);
         int changed = jdbc.update("UPDATE platform_model_config SET is_default=TRUE,source='user',updated_at=? "
-            + "WHERE model_type=? AND name=? AND enabled=TRUE", System.currentTimeMillis(), type, name);
+            + "WHERE model_type=? AND name=? AND enabled=TRUE", now, type, name);
         if (changed == 0) throw new IllegalStateException("Default model update failed");
-        applyEmbedding();
+        // The selected default becomes active only when its draft is published.
     }
 
+    @Transactional
     public synchronized void delete(String type, String name) {
         initialize();
         type = normalizeType(type);
+        if ("embedding".equals(type)) {
+            Integer published = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_publication "
+                + "WHERE model_type=? AND name=?", Integer.class, type, name);
+            if (published != null && published > 0) {
+                List<McpModelSyncClient.EmbeddingModel> remaining = jdbc.query(
+                    "SELECT name,provider_model,base_url,dimension,timeout,api_key_cipher,enabled,is_default "
+                        + "FROM platform_model_publication WHERE model_type='embedding' AND name<>?",
+                    (rs, row) -> new McpModelSyncClient.EmbeddingModel(
+                        rs.getString("name"), rs.getString("provider_model"), rs.getString("base_url"),
+                        rs.getInt("dimension"), (Integer) rs.getObject("timeout"),
+                        decrypt(rs.getString("api_key_cipher")), rs.getBoolean("enabled"),
+                        rs.getBoolean("is_default")), name);
+                mcpSync.synchronize(remaining, null);
+            }
+        }
         jdbc.update("DELETE FROM platform_model_config WHERE model_type=? AND name=?", type, name);
+        jdbc.update("DELETE FROM platform_model_publication WHERE model_type=? AND name=?", type, name);
         ensureDefault(type);
         applyEmbedding();
     }
 
     @Override public synchronized String defaultChatModel() {
         initialize();
-        List<String> names = jdbc.query("SELECT name FROM platform_model_config WHERE model_type='chat' "
-            + "AND enabled=TRUE ORDER BY is_default DESC,updated_at DESC", (rs, row) -> rs.getString(1));
+        List<String> names = jdbc.query("SELECT name FROM platform_model_publication WHERE model_type='chat' "
+            + "AND enabled=TRUE ORDER BY is_default DESC,published_at DESC", (rs, row) -> rs.getString(1));
         return names.isEmpty() ? null : names.get(0);
     }
 
     @Override public synchronized boolean hasChatModels() {
         initialize();
-        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_config WHERE model_type='chat'",
+        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_publication WHERE model_type='chat'",
             Integer.class);
         return count != null && count > 0;
     }
 
     @Override public synchronized List<String> chatModelNames() {
         initialize();
-        return jdbc.query("SELECT name FROM platform_model_config WHERE model_type='chat' AND enabled=TRUE "
-            + "ORDER BY is_default DESC,updated_at DESC", (rs, row) -> rs.getString(1));
+        return jdbc.query("SELECT name FROM platform_model_publication WHERE model_type='chat' AND enabled=TRUE "
+            + "ORDER BY is_default DESC,published_at DESC", (rs, row) -> rs.getString(1));
     }
 
     @Override public synchronized ModelsConfig.ResolvedModelConnection resolveChatModel(String name) {
         initialize();
         List<ModelsConfig.ResolvedModelConnection> matches = jdbc.query(
             "SELECT name,provider_model,base_url,protocol,timeout,max_tokens,max_retries,api_key_cipher "
-                + "FROM platform_model_config "
+                + "FROM platform_model_publication "
                 + "WHERE model_type='chat' AND enabled=TRUE AND (LOWER(name)=LOWER(?) "
-                + "OR LOWER(provider_model)=LOWER(?)) ORDER BY updated_at DESC",
+                + "OR LOWER(provider_model)=LOWER(?)) ORDER BY published_at DESC",
             (rs, row) -> {
                 ModelsConfig.ModelConnectionConfig config = new ModelsConfig.ModelConnectionConfig();
                 config.setModelName(rs.getString("provider_model"));
@@ -176,8 +265,21 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
             + "source VARCHAR(24) NOT NULL,updated_at BIGINT NOT NULL,PRIMARY KEY(model_type,name))");
         addColumnIfMissing("alias", "VARCHAR(128)");
         addColumnIfMissing("description", "TEXT");
+        jdbc.execute("CREATE TABLE IF NOT EXISTS platform_model_publication ("
+            + "model_type VARCHAR(24) NOT NULL,name VARCHAR(128) NOT NULL,"
+            + "provider_model VARCHAR(128),base_url VARCHAR(1024) NOT NULL,protocol VARCHAR(40),"
+            + "dimension INTEGER,timeout INTEGER,max_tokens INTEGER,max_retries INTEGER,api_key_cipher TEXT,"
+            + "enabled BOOLEAN NOT NULL,is_default BOOLEAN NOT NULL,source VARCHAR(24) NOT NULL,"
+            + "published_at BIGINT NOT NULL,PRIMARY KEY(model_type,name))");
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_config", Integer.class);
         if (count != null && count == 0) importFileConfig();
+        jdbc.update("INSERT INTO platform_model_publication "
+                + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,max_tokens,max_retries,"
+                + "api_key_cipher,enabled,is_default,source,published_at) "
+                + "SELECT c.model_type,c.name,c.provider_model,c.base_url,c.protocol,c.dimension,c.timeout,"
+                + "c.max_tokens,c.max_retries,c.api_key_cipher,c.enabled,c.is_default,c.source,c.updated_at "
+                + "FROM platform_model_config c WHERE c.source='file' AND NOT EXISTS "
+                + "(SELECT 1 FROM platform_model_publication p WHERE p.model_type=c.model_type AND p.name=c.name)");
         initialized = true;
         applyEmbedding();
     }
@@ -222,8 +324,8 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
 
     private void applyEmbedding() {
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT provider_model,base_url,api_key_cipher,dimension,timeout "
-            + "FROM platform_model_config WHERE model_type='embedding' AND enabled=TRUE "
-            + "ORDER BY is_default DESC,updated_at DESC");
+            + "FROM platform_model_publication WHERE model_type='embedding' AND enabled=TRUE "
+            + "ORDER BY is_default DESC,published_at DESC");
         if (searchProperties.getOpenSearch() == null) return;
         if (rows.isEmpty()) {
             searchProperties.getOpenSearch().getEmbedding().setEnabled(false);
@@ -240,12 +342,12 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     }
 
     private void ensureDefault(String type) {
-        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_config WHERE model_type=? "
+        Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_publication WHERE model_type=? "
             + "AND enabled=TRUE AND is_default=TRUE", Integer.class, type);
         if (count != null && count > 0) return;
-        List<String> names = jdbc.query("SELECT name FROM platform_model_config WHERE model_type=? AND enabled=TRUE "
-            + "ORDER BY updated_at DESC", (rs, row) -> rs.getString(1), type);
-        if (!names.isEmpty()) jdbc.update("UPDATE platform_model_config SET is_default=TRUE "
+        List<String> names = jdbc.query("SELECT name FROM platform_model_publication WHERE model_type=? AND enabled=TRUE "
+            + "ORDER BY name ASC", (rs, row) -> rs.getString(1), type);
+        if (!names.isEmpty()) jdbc.update("UPDATE platform_model_publication SET is_default=TRUE "
             + "WHERE model_type=? AND name=?", type, names.get(0));
     }
 

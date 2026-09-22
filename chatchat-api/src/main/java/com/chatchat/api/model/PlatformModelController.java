@@ -32,6 +32,11 @@ public class PlatformModelController {
 
     public record ModelIdentity(String type, String name) { }
 
+    @PostMapping("/publish")
+    public ApiResponse<PlatformModelCatalogService.ModelView> publish(@RequestBody ModelIdentity identity) {
+        return ApiResponse.success(catalog.publish(identity.type(), identity.name()));
+    }
+
     @PostMapping("/default")
     public ApiResponse<Void> setDefault(@RequestBody ModelIdentity identity) {
         catalog.setDefault(identity.type(), identity.name());

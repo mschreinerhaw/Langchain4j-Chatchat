@@ -4,7 +4,7 @@
       <div class="feature-page-heading">
         <span class="feature-breadcrumb">平台管理 / 模型管理</span>
         <h1>模型管理</h1>
-        <p>统一管理大语言模型和向量模型。数据库中的最近配置优先于配置文件。</p>
+        <p>统一管理大语言模型和向量模型。页面维护的配置发布后才会供系统使用。</p>
       </div>
       <div class="feature-page-actions">
         <button type="button" class="feature-button primary" @click="openCreate"><Plus :size="16" />新增模型</button>
@@ -19,7 +19,7 @@
       </div>
       <div class="model-summary-stats">
         <span><strong>{{ models.length }}</strong> 个模型</span>
-        <span><strong>{{ models.filter(model => model.enabled).length }}</strong> 个已启用</span>
+        <span><strong>{{ models.filter(model => model.published).length }}</strong> 个已发布</span>
       </div>
     </div>
 
@@ -60,10 +60,12 @@
         <div class="model-card-head">
           <span class="model-type-icon"><Database v-if="model.type === 'embedding'" :size="20" /><MessageSquare v-else :size="20" /></span>
           <div class="model-card-title"><strong :title="model.alias || model.name">{{ model.alias || model.name }}</strong><small :title="model.name">{{ model.name }} · {{ model.type === 'embedding' ? '向量模型' : '大语言模型' }}</small></div>
-          <span class="feature-status" :class="model.enabled ? 'published' : 'recalled'">{{ model.enabled ? '已启用' : '已停用' }}</span>
+          <span class="feature-status" :class="model.published && !model.pendingChanges ? 'published' : 'warning'">{{ !model.published ? '待发布' : model.pendingChanges ? '待发布更新' : '已发布' }}</span>
         </div>
         <div class="model-badges">
-          <span v-if="model.defaultModel" class="feature-status builtin"><Star :size="12" />默认模型</span>
+          <span v-if="model.activeDefault" class="feature-status builtin"><Star :size="12" />当前默认</span>
+          <span v-else-if="model.defaultModel" class="feature-status builtin"><Star :size="12" />拟设默认</span>
+          <span class="feature-status" :class="model.enabled ? 'published' : 'recalled'">{{ model.pendingChanges || !model.published ? (model.enabled ? '草稿启用' : '草稿停用') : (model.enabled ? '已启用' : '已停用') }}</span>
           <span class="feature-status" :class="model.hasApiKey ? 'published' : 'warning'"><KeyRound :size="12" />{{ model.hasApiKey ? '密钥已配置' : '密钥未配置' }}</span>
         </div>
         <p class="model-description">{{ model.description || '暂无能力与适用范围描述' }}</p>
@@ -74,6 +76,7 @@
         <div class="feature-card-actions model-actions">
           <button type="button" class="feature-button" @click="openEdit(model)"><Pencil :size="14" />编辑</button>
           <button type="button" class="feature-button" :disabled="!model.enabled || model.defaultModel" @click="makeDefault(model)"><Star :size="14" />设为默认</button>
+          <button v-if="!model.published || model.pendingChanges" type="button" class="feature-button primary" :disabled="publishingKey === `${model.type}:${model.name}`" @click="publish(model)">{{ publishingKey === `${model.type}:${model.name}` ? '发布中…' : '发布' }}</button>
           <button type="button" class="feature-button danger" @click="remove(model)"><Trash2 :size="14" />删除</button>
         </div>
       </article>
@@ -120,7 +123,7 @@
           <label class="feature-form-field"><span>API Key</span><input v-model="form.apiKey" type="password" autocomplete="new-password" :placeholder="isNew ? '输入 API Key' : '留空则保持原有密钥'" /></label>
           <p class="model-form-hint">密钥提交后加密保存，页面不会回显。</p>
           <div class="model-options">
-            <label class="model-checkbox"><input v-model="form.enabled" type="checkbox" />启用</label>
+            <label class="model-checkbox"><input v-model="form.enabled" type="checkbox" @change="onEnabledChange" />启用</label>
             <label class="model-checkbox"><input v-model="form.defaultModel" type="checkbox" />设为该类型的默认模型</label>
           </div>
         </div>
@@ -133,7 +136,7 @@
 <script>
 import { Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Search, Star, Trash2, X } from '@lucide/vue';
 import AppPagination from '../components/AppPagination.vue';
-import { deletePlatformModel, fetchPlatformModels, savePlatformModel, setDefaultPlatformModel } from '../services/api';
+import { deletePlatformModel, fetchPlatformModels, publishPlatformModel, savePlatformModel, setDefaultPlatformModel } from '../services/api';
 import '../styles/pages/model-management.css';
 
 const emptyForm = () => ({ name: '', alias: '', description: '', type: 'chat', providerModel: '', baseUrl: '', protocol: 'auto',
@@ -144,7 +147,7 @@ export default {
   name: 'ModelManagementView',
   components: { AppPagination, Cpu, Database, KeyRound, MessageSquare, Pencil, Plus, Search, Star, Trash2, X },
   data: () => ({ models: [], loading: false, saving: false, editing: false, isNew: true,
-    form: emptyForm(), message: '', error: false, searchQuery: '', typeFilter: '', page: 1, pageSize: 9 }),
+    form: emptyForm(), message: '', error: false, publishingKey: '', searchQuery: '', typeFilter: '', page: 1, pageSize: 9 }),
   computed: {
     filteredModels() {
       const query = this.searchQuery.toLocaleLowerCase();
@@ -168,6 +171,7 @@ export default {
   },
   mounted() { this.load(); },
   methods: {
+    onEnabledChange() { if (!this.form.enabled) this.form.defaultModel = false; },
     clearFilters() { this.searchQuery = ''; this.typeFilter = ''; this.page = 1; },
     async load() {
       this.loading = true;
@@ -183,14 +187,23 @@ export default {
         await savePlatformModel(this.form);
         this.form.apiKey = '';
         this.editing = false;
-        this.message = '模型配置已保存'; this.error = false;
+        this.message = '模型草稿已保存，请点击发布后使用'; this.error = false;
         await this.load();
       } catch (error) { this.message = error.message; this.error = true; }
       finally { this.saving = false; }
     },
     async makeDefault(model) {
-      try { await setDefaultPlatformModel(model.type, model.name); this.message = '默认模型已更新'; await this.load(); }
+      try { await setDefaultPlatformModel(model.type, model.name); this.message = '默认模型已设为待发布，请点击发布后生效'; this.error = false; await this.load(); }
       catch (error) { this.message = error.message; this.error = true; }
+    },
+    async publish(model) {
+      this.publishingKey = `${model.type}:${model.name}`;
+      try {
+        await publishPlatformModel(model.type, model.name);
+        this.message = '模型已发布并生效'; this.error = false;
+        await this.load();
+      } catch (error) { this.message = error.message; this.error = true; }
+      finally { this.publishingKey = ''; }
     },
     async remove(model) {
       if (!window.confirm(`确定删除模型 ${model.name}？`)) return;

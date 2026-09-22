@@ -1158,12 +1158,17 @@ public class OpenSearchMcpSearchService {
             JsonNode settings = request("GET", "/" + index + "/_settings", null, false);
             boolean knnEnabled = settings.path(index).path("settings").path("index").path("knn").asBoolean(false);
             JsonNode mapping = request("GET", "/" + index + "/_mapping", null, false);
-            String type = mapping.path(index).path("mappings").path("properties").path(vectorField()).path("type").asText("");
-            boolean available = knnEnabled && "knn_vector".equalsIgnoreCase(type);
+            JsonNode vectorMapping = mapping.path(index).path("mappings").path("properties").path(vectorField());
+            String type = vectorMapping.path("type").asText("");
+            int dimension = vectorMapping.path("dimension").asInt(0);
+            boolean available = knnEnabled && "knn_vector".equalsIgnoreCase(type)
+                && dimension == embeddingConfig().getDimension();
             if (!available && vectorCompatibilityWarnings.add(index)) {
-                log.warn("MCP OpenSearch vector search disabled for index={} because index.knn={} vectorField={} type={}. "
+                log.warn("MCP OpenSearch vector search disabled for index={} because index.knn={} vectorField={} type={} "
+                        + "indexDimension={} modelDimension={}. "
                         + "Delete this MCP index and rebuild it to enable KNN vectors.",
-                    index, knnEnabled, vectorField(), type == null || type.isBlank() ? "<missing>" : type);
+                    index, knnEnabled, vectorField(), type == null || type.isBlank() ? "<missing>" : type,
+                    dimension, embeddingConfig().getDimension());
             }
             return available;
         } catch (Exception ex) {

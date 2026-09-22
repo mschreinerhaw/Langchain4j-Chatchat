@@ -25,12 +25,14 @@ public class MarketInternalAuthFilter extends OncePerRequestFilter {
 
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !path.startsWith("/internal/v1/market/") && !path.startsWith("/internal/v1/license/");
+        return !path.startsWith("/internal/v1/market/") && !path.startsWith("/internal/v1/license/")
+            && !path.startsWith("/internal/v1/models/");
     }
 
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                               FilterChain chain) throws ServletException, IOException {
-        if (!credentials.isEnabled() || valid(request)) {
+        if ((!credentials.isEnabled() && !request.getRequestURI().startsWith("/internal/v1/models/"))
+            || credentials.isEnabled() && valid(request)) {
             chain.doFilter(request, response);
             return;
         }
@@ -46,13 +48,15 @@ public class MarketInternalAuthFilter extends OncePerRequestFilter {
         if (!credentials.resolvedUsername().equals(request.getHeader(InternalRequestSigner.USER_HEADER))
             || timestamp == null || nonce == null || nonce.length() < 16 || signature == null) return false;
         try {
+            String secret = credentials.resolvedSecret();
+            if (secret.isBlank()) return false;
             long seconds = Long.parseLong(timestamp);
             long now = Instant.now().getEpochSecond();
             if (Math.abs(now - seconds) > 300) return false;
             nonces.entrySet().removeIf(entry -> now - entry.getValue() > 300);
             if (nonces.putIfAbsent(nonce, seconds) != null) return false;
             boolean valid = InternalRequestSigner.matches(signature, InternalRequestSigner.sign(
-                credentials.resolvedSecret(), request.getMethod(), request.getRequestURI(), timestamp, nonce));
+                secret, request.getMethod(), request.getRequestURI(), timestamp, nonce));
             if (!valid) nonces.remove(nonce);
             return valid;
         } catch (RuntimeException ex) {

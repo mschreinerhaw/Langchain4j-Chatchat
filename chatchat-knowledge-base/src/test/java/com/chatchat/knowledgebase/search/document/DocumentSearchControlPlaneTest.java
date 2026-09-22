@@ -730,11 +730,15 @@ class DocumentSearchControlPlaneTest {
         RetrievalQueryValidator queryValidator = new RetrievalQueryValidator(tokenizer, properties);
         QueryPlanningService queryPlanningService = new QueryPlanningService(tokenizer, intentClassifier, queryValidator, permissionGuard);
         IndexVersionManager indexVersionManager = new IndexVersionManager();
+        KnowledgeIrDocumentRecall irRecall = mock(KnowledgeIrDocumentRecall.class);
+        when(irRecall.recall(any(DocumentSearchPlan.class), any(Integer.class)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of(), ""));
         DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
             new GlobalDocumentIndexService(searchService),
             new GlobalChunkIndexService(searchService, properties),
             properties,
-            indexVersionManager
+            indexVersionManager,
+            irRecall
         );
         DocumentIndexRegistry registry = new DocumentIndexRegistry(searchService, indexVersionManager);
         DocumentChunkStore chunkStore = new DocumentChunkStore(registry);

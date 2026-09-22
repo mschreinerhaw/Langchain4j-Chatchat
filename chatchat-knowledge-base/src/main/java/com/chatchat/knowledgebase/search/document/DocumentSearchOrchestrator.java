@@ -14,20 +14,47 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentSearchOrchestrator {
 
     private final GlobalDocumentIndexService globalDocumentIndexService;
     private final GlobalChunkIndexService globalChunkIndexService;
     private final SearchProperties properties;
     private final IndexVersionManager indexVersionManager;
+    private final KnowledgeIrDocumentRecall knowledgeIrDocumentRecall;
 
     public DocumentRecallResult recall(DocumentSearchPlan plan, int documentLimit) {
         SearchPage documentPage = globalDocumentIndexService.recall(plan, documentLimit);
         SearchPage chunkPage = globalChunkIndexService.recall(plan);
         List<DocumentSearchCandidate> candidates = hybridCandidates(documentPage, chunkPage, plan.topK());
+        try {
+            KnowledgeIrDocumentRecall.Recall irRecall = knowledgeIrDocumentRecall.recall(
+                plan, Math.max(documentLimit, plan.topK()));
+            List<String> irDocumentIds = irRecall.documentIds();
+            if (!irDocumentIds.isEmpty()) {
+                DocumentSearchPlan irPlan = new DocumentSearchPlan(
+                    irRecall.focusedQuery(), plan.topK(), plan.filters(), plan.scopedFileIds(),
+                    plan.effectiveScopedFileIds(), irDocumentIds, String.join(",", irDocumentIds),
+                    plan.intent(), List.of(irRecall.focusedQuery()), plan.debug(), plan.permissionContext(),
+                    plan.visibilityContext(), plan.validation()
+                );
+                SearchPage irDocuments = globalDocumentIndexService.recall(irPlan, documentLimit);
+                SearchPage irChunks = globalChunkIndexService.recall(irPlan);
+                List<DocumentSearchCandidate> irCandidates = hybridCandidates(irDocuments, irChunks, plan.topK());
+                LinkedHashMap<String, DocumentSearchCandidate> combined = new LinkedHashMap<>();
+                irCandidates.forEach(candidate -> combined.put(candidate.result().docId(), candidate));
+                candidates.forEach(candidate -> combined.putIfAbsent(candidate.result().docId(), candidate));
+                candidates = new ArrayList<>(combined.values());
+            }
+        } catch (RuntimeException ex) {
+            log.warn("knowledge_ir_document_recall_failed query='{}' error={}",
+                plan.query(), ex.getMessage());
+        }
         return new DocumentRecallResult(documentPage, chunkPage, candidates);
     }
 

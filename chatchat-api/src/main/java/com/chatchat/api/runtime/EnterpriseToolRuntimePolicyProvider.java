@@ -61,6 +61,13 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         if (tenantId == null) {
             return denied("MCP asset authorization requires tenant and tool context");
         }
+        McpToolAsset asset = toolAssetRepository.findByLocalToolName(toolName)
+            .or(() -> metadata == null || normalize(metadata.getId()) == null
+                ? java.util.Optional.empty() : toolAssetRepository.findById(normalize(metadata.getId())))
+            .orElse(null);
+        if (asset != null && (!asset.isEnabled() || !"online".equalsIgnoreCase(asset.getStatus()))) {
+            return denied("MCP tool is disabled or offline");
+        }
 
         String requestedUserId = normalize(request.getUserId());
         SysUser caller = resolveUser(requestedUserId);

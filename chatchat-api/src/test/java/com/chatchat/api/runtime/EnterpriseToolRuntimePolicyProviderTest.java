@@ -63,6 +63,18 @@ class EnterpriseToolRuntimePolicyProviderTest {
     }
 
     @Test
+    void disabledToolCannotBeInvokedEvenWhenPermissionExists() {
+        McpToolAsset disabled = managedTool();
+        disabled.setEnabled(false);
+        when(toolAssetRepository.findByLocalToolName("sql_asset_query")).thenReturn(Optional.of(disabled));
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("disabled or offline");
+    }
+
+    @Test
     void leavesNonMcpToolsToOtherRuntimePolicies() {
         when(toolAssetRepository.findByLocalToolName("local_image_tool")).thenReturn(Optional.empty());
 

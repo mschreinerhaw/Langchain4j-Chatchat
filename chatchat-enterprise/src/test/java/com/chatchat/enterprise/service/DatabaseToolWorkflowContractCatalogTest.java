@@ -32,6 +32,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ContextConfiguration(classes = DatabaseToolWorkflowContractCatalogTest.Config.class)
 class DatabaseToolWorkflowContractCatalogTest {
 
+    @Test
+    void rediscoveryDoesNotReactivateAdministrativelyDisabledTool() {
+        catalog.synchronizeDiscovery("service-a", "Service A", "manual_tool", "remote-tool",
+            "first", Map.of(), Map.of(), Map.of(), true);
+        McpToolAsset tool = tools.findByLocalToolName("manual_tool").orElseThrow();
+        tool.setEnabled(false);
+        tool.setStatus("offline");
+        tools.saveAndFlush(tool);
+
+        catalog.synchronizeDiscovery("service-a", "Service A", "manual_tool", "remote-tool",
+            "updated", Map.of(), Map.of(), Map.of(), true);
+
+        McpToolAsset stored = tools.findByLocalToolName("manual_tool").orElseThrow();
+        assertThat(stored.isEnabled()).isFalse();
+        assertThat(stored.getStatus()).isEqualTo("offline");
+    }
+
     @Autowired
     private DatabaseToolWorkflowContractCatalog catalog;
 

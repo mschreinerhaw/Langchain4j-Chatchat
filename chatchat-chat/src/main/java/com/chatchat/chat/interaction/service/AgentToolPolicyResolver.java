@@ -6,7 +6,8 @@ import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -22,7 +23,6 @@ import java.util.Set;
  * Resolves runtime tool policy before the agent loop starts.
  */
 @Component
-@RequiredArgsConstructor
 public class AgentToolPolicyResolver {
 
     private static final int DEFAULT_MAX_RELEVANT_MCP_TOOLS = 3;
@@ -37,6 +37,28 @@ public class AgentToolPolicyResolver {
     private final ToolRegistry toolRegistry;
     private final SkillCatalogService skillCatalogService;
     private final McpToolCatalogQueryPort mcpToolCatalog;
+    private final McpToolCandidateRetriever candidateRetriever;
+
+    public AgentToolPolicyResolver(ToolRegistry toolRegistry, SkillCatalogService skillCatalogService,
+                                   McpToolCatalogQueryPort mcpToolCatalog) {
+        this(toolRegistry, skillCatalogService, mcpToolCatalog, (McpToolCandidateRetriever) null);
+    }
+
+    @Autowired
+    public AgentToolPolicyResolver(ToolRegistry toolRegistry, SkillCatalogService skillCatalogService,
+                                   McpToolCatalogQueryPort mcpToolCatalog,
+                                   ObjectProvider<McpToolCandidateRetriever> retrieverProvider) {
+        this(toolRegistry, skillCatalogService, mcpToolCatalog, retrieverProvider.getIfAvailable());
+    }
+
+    AgentToolPolicyResolver(ToolRegistry toolRegistry, SkillCatalogService skillCatalogService,
+                            McpToolCatalogQueryPort mcpToolCatalog,
+                            McpToolCandidateRetriever candidateRetriever) {
+        this.toolRegistry = toolRegistry;
+        this.skillCatalogService = skillCatalogService;
+        this.mcpToolCatalog = mcpToolCatalog;
+        this.candidateRetriever = candidateRetriever;
+    }
 
     /**
      * Resolves the resolve.
@@ -76,20 +98,25 @@ public class AgentToolPolicyResolver {
         List<String> requiredTools = mergeToolNames(workflowTools.requiredTools(), activatedRequiredTools);
         availableTools = mergeRequestedTools(availableTools, requiredTools, requestedIntents);
         ToolSelection selection = selectRelevantTools(request, skill, availableTools, requiredTools);
+        List<String> effectiveRequiredTools = requiredTools.stream()
+            .filter(selection.availableTools()::contains).toList();
+        List<ToolActivation> effectiveActivations = activations.stream()
+            .filter(activation -> selection.availableTools().contains(activation.localToolName()))
+            .toList();
         boolean hasMcpBinding = hasMcpBinding(skill);
         Map<String, String> skippedToolReasons = new LinkedHashMap<>(workflowTools.skippedToolReasons());
         skippedToolReasons.putAll(selection.skippedToolReasons());
         List<String> optionalTools = selection.availableTools().stream()
-            .filter(tool -> requiredTools.stream().noneMatch(required -> required.equalsIgnoreCase(tool)))
+            .filter(tool -> effectiveRequiredTools.stream().noneMatch(required -> required.equalsIgnoreCase(tool)))
             .toList();
 
         return new ToolPolicy(
             selection.availableTools(),
-            requiredTools,
+            effectiveRequiredTools,
             optionalTools,
             hasMcpBinding,
-            !requiredTools.isEmpty(),
-            activations.stream().map(ToolActivation::intentName).toList(),
+            !effectiveRequiredTools.isEmpty(),
+            effectiveActivations.stream().map(ToolActivation::intentName).toList(),
             selection.selectedCandidateTools(),
             skippedToolReasons,
             workflowTools.autoAddedTools()
@@ -450,6 +477,32 @@ public class AgentToolPolicyResolver {
         Set<String> registeredMcpToolNames = new LinkedHashSet<>();
         mcpToolCatalog.registeredTools().forEach(tool -> registeredMcpToolNames.add(tool.localToolName()));
 
+        int maxRelevantMcpTools = resolveMaxRelevantMcpTools(skill);
+        if (candidateRetriever != null && request != null) {
+            McpToolCandidateRetriever.Selection db = candidateRetriever.retrieve(
+                request, normalizedTools, maxRelevantMcpTools);
+            if (normalizedTools.stream().anyMatch(tool -> isMcpToolName(tool, registeredMcpToolNames))) {
+                Map<String, String> skipped = new LinkedHashMap<>();
+                LinkedHashSet<String> selected = new LinkedHashSet<>();
+                required.stream().filter(tool -> !isMcpToolName(tool, registeredMcpToolNames)
+                    || db.allowedNames().contains(tool)).forEach(selected::add);
+                db.rankedNames().stream().filter(db.allowedNames()::contains)
+                    .limit(maxRelevantMcpTools).forEach(selected::add);
+                normalizedTools.stream()
+                    .filter(tool -> !isMcpToolName(tool, registeredMcpToolNames))
+                    .forEach(selected::add);
+                normalizedTools.stream()
+                    .filter(tool -> isMcpToolName(tool, registeredMcpToolNames))
+                    .filter(tool -> !selected.contains(tool))
+                    .forEach(tool -> skipped.put(tool, db.managedNames().contains(tool)
+                        && !db.allowedNames().contains(tool)
+                        ? "MCP tool is not enabled or authorized in the database"
+                        : "MCP tool was outside the bounded relevance selection"));
+                return new ToolSelection(new ArrayList<>(selected),
+                    selected.stream().filter(tool -> isMcpToolName(tool, registeredMcpToolNames)).toList(), skipped);
+            }
+        }
+
         List<ScoredTool> scoredMcpTools = normalizedTools.stream()
             .filter(toolName -> isMcpToolName(toolName, registeredMcpToolNames))
             .filter(toolName -> !required.contains(toolName))
@@ -461,7 +514,6 @@ public class AgentToolPolicyResolver {
                 .thenComparing(ScoredTool::toolName))
             .toList();
 
-        int maxRelevantMcpTools = resolveMaxRelevantMcpTools(skill);
         Set<String> selectedMcpTools = scoredMcpTools.stream()
             .limit(maxRelevantMcpTools)
             .map(ScoredTool::toolName)

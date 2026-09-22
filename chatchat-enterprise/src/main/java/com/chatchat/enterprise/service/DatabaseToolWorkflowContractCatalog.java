@@ -103,8 +103,10 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
         tool.setResourceType("tool");
         tool.setInputSchemaJson(inputSchemaJson);
         tool.setOutputSchemaJson(outputSchemaJson);
-        tool.setEnabled(true);
-        tool.setStatus("online");
+        if (!existingCatalogTool) {
+            tool.setEnabled(true);
+            tool.setStatus("online");
+        }
         tool = tools.saveAndFlush(tool);
         String synchronizedToolId = tool.getId();
         // Serialize discovery/publication for this tool across scheduler threads and nodes.
@@ -202,9 +204,7 @@ public class DatabaseToolWorkflowContractCatalog implements ToolWorkflowContract
             && Objects.equals(tool.getDescription(), description)
             && Objects.equals(tool.getResourceType(), "tool")
             && Objects.equals(tool.getInputSchemaJson(), inputSchemaJson)
-            && Objects.equals(tool.getOutputSchemaJson(), outputSchemaJson)
-            && tool.isEnabled()
-            && Objects.equals(tool.getStatus(), "online");
+            && Objects.equals(tool.getOutputSchemaJson(), outputSchemaJson);
     }
 
     private record DiscoveryContract(ToolWorkflowRole role,

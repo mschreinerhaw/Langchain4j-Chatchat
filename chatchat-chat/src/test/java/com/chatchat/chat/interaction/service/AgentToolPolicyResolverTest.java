@@ -19,6 +19,53 @@ import static org.mockito.Mockito.when;
 class AgentToolPolicyResolverTest {
 
     @Test
+    void presentsOnlyAuthorizedRankedMcpToolsWhenDatabaseScopeIsAvailable() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        SkillCatalogService skills = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort catalog = mock(McpToolCatalogQueryPort.class);
+        McpToolCandidateRetriever retriever = mock(McpToolCandidateRetriever.class);
+        List<String> names = List.of("mcp_assets", "mcp_trades", "mcp_forbidden");
+        when(catalog.registeredTools()).thenReturn(List.of(
+            registered("mcp_assets", "assets"), registered("mcp_trades", "trades"),
+            registered("mcp_forbidden", "forbidden")));
+        when(retriever.retrieve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyList(),
+            org.mockito.ArgumentMatchers.eq(3))).thenReturn(new McpToolCandidateRetriever.Selection(
+                java.util.Set.copyOf(names), java.util.Set.of("mcp_assets", "mcp_trades"),
+                List.of("mcp_assets")));
+        AgentToolPolicyResolver resolver = new AgentToolPolicyResolver(registry, skills, catalog, retriever);
+
+        AgentToolPolicyResolver.ToolPolicy policy = resolver.resolve(InteractionRequest.builder()
+            .tenantId("tenant-1").userId("user-1").query("customer assets")
+            .availableTools(names).build(), null);
+
+        assertThat(policy.availableTools()).containsExactly("mcp_assets");
+        assertThat(policy.skippedToolReasons()).containsKeys("mcp_trades", "mcp_forbidden");
+    }
+
+    @Test
+    void excludesRequiredMcpToolMissingFromDatabase() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        SkillCatalogService skills = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort catalog = mock(McpToolCatalogQueryPort.class);
+        McpToolCandidateRetriever retriever = mock(McpToolCandidateRetriever.class);
+        String missing = "mcp_missing";
+        when(catalog.registeredTools()).thenReturn(List.of(registered(missing, "missing")));
+        when(retriever.retrieve(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyList(),
+            org.mockito.ArgumentMatchers.anyInt())).thenReturn(new McpToolCandidateRetriever.Selection(
+                java.util.Set.of(), java.util.Set.of(), List.of()));
+        AgentToolPolicyResolver resolver = new AgentToolPolicyResolver(registry, skills, catalog, retriever);
+        SkillDefinition skill = skillWithWorkflow(List.of(Map.of("step", "lookup", "tool", missing,
+            "required", true)));
+
+        AgentToolPolicyResolver.ToolPolicy policy = resolver.resolve(InteractionRequest.builder()
+            .tenantId("tenant-1").userId("user-1").query("lookup")
+            .availableTools(List.of(missing)).build(), skill);
+
+        assertThat(policy.availableTools()).doesNotContain(missing);
+        assertThat(policy.requiredTools()).doesNotContain(missing);
+    }
+
+    @Test
     void doesNotAutoAddRegisteredWorkflowToolThatUserDidNotBind() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);

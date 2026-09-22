@@ -793,6 +793,7 @@ class McpToolRegistryBridgeLifecycleTest {
                 "fallbackPolicy", "DENY_WHEN_NO_IMPLEMENTATION"));
         when(configService.listEnabled()).thenReturn(List.of(service));
         when(gateway.discoverTools(service, 0)).thenReturn(List.of(parent));
+        when(configService.getById("abstract-service")).thenReturn(service);
         McpToolRegistryBridge bridge = new McpToolRegistryBridge(
             registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
 
@@ -805,6 +806,33 @@ class McpToolRegistryBridgeLifecycleTest {
 
         assertThat(output.isSuccess()).isFalse();
         assertThat(output.getExceptionType()).isEqualTo("MCP_CAPABILITY_IMPLEMENTATION_UNAVAILABLE");
+        verify(gateway, never()).invokeTool(eq(service), anyString(), anyMap(), any());
+    }
+
+    @Test
+    void refusesInvocationAfterServiceIsDisabled() {
+        ToolRegistry registry = mock(ToolRegistry.class);
+        McpServiceConfigService configService = mock(McpServiceConfigService.class);
+        McpGatewayClient gateway = mock(McpGatewayClient.class);
+        McpServiceConfig service = new McpServiceConfig();
+        service.setId("service-disabled");
+        service.setName("Disabled service");
+        McpToolDefinition definition = new McpToolDefinition(
+            "asset_query", "Query assets", Map.of(), "query", "low", "read",
+            null, true, Map.of(), Map.of(), Map.of(), Map.of(), null, Map.of());
+        when(configService.listEnabled()).thenReturn(List.of(service));
+        when(gateway.discoverTools(service, 0)).thenReturn(List.of(definition));
+        when(configService.getById("service-disabled")).thenReturn(service);
+        McpToolRegistryBridge bridge = new McpToolRegistryBridge(
+            registry, configService, gateway, new ObjectMapper(), new DynamicMcpToolRouteService());
+        bridge.refreshRegistry(0);
+        service.setEnabled(false);
+        ArgumentCaptor<ToolRegistry.EnhancedTool> captured =
+            ArgumentCaptor.forClass(ToolRegistry.EnhancedTool.class);
+        verify(registry).registerTool(anyString(), any(ToolMetadata.class), captured.capture());
+
+        assertThat(captured.getValue().execute(com.chatchat.common.tool.ToolInput.builder()
+            .parameters(Map.of()).build()).isSuccess()).isFalse();
         verify(gateway, never()).invokeTool(eq(service), anyString(), anyMap(), any());
     }
 }

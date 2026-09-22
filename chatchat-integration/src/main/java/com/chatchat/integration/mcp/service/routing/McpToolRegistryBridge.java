@@ -860,6 +860,13 @@ public class McpToolRegistryBridge {
          */
         @Override
         public ToolOutput execute(ToolInput input) {
+            try {
+                if (!configService.getById(serviceId).isEnabled()) {
+                    return ToolOutput.failure("MCP service is disabled");
+                }
+            } catch (IllegalArgumentException ex) {
+                return ToolOutput.failure("MCP service is unavailable");
+            }
             McpCapabilityNode declaredNode = McpCapabilityNode.fromMetadata(
                 mapValue(metadata.getMetadata() == null ? null
                     : metadata.getMetadata().get(McpCapabilityHierarchy.METADATA_KEY)),

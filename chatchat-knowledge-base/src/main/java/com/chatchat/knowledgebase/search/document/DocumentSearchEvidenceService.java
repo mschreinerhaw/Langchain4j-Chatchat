@@ -221,10 +221,39 @@ public class DocumentSearchEvidenceService {
         List<DocumentSearchHit> documents = new ArrayList<>();
         List<DocumentOutlineItem> outline = new ArrayList<>();
         List<String> queryTokens = plan.queryTokens();
+        String focusedQuery = recallResult.focusedQuery();
         List<SearchResult> searchResults = recallResult.candidates().stream()
             .map(DocumentSearchCandidate::result)
+            .filter(result -> sourceContainsSubject(result == null ? null : result.docId(),
+                focusedQuery, permissionContext))
             .toList();
+        if (hasText(focusedQuery)) {
+            log.info("document_focus_gate query='{}' focus={} candidates={} sourceMatches={}",
+                safeLogQuery(query), focusedQuery, recallResult.candidates().size(), searchResults.size());
+        }
+        for (String documentId : recallResult.irDocumentIds()) {
+            if (chunks.size() >= topK) break;
+            perDocumentIndexService.openDocumentIndex(documentId, permissionContext)
+                .filter(document -> matchesDocumentFilters(document, filters))
+                .filter(document -> documentContainsSubject(document, focusedQuery))
+                .ifPresent(document -> {
+                    String evidenceQuery = hasText(focusedQuery) ? focusedQuery : query;
+                    List<String> focusedTokens = hasText(focusedQuery) ? List.of(focusedQuery) : queryTokens;
+                    List<DocumentEvidenceChunk> facts = toScopedEvidence(document, evidenceQuery,
+                        focusedTokens, intent, debug, Math.min(3, topK - chunks.size()));
+                    if (hasText(focusedQuery) && !containsFocus(document.getTitle(), focusedQuery)
+                        && !containsFocus(document.getFileName(), focusedQuery)) {
+                        facts = facts.stream().filter(chunk ->
+                            containsFocus(chunk.content(), focusedQuery)).toList();
+                    }
+                    for (DocumentEvidenceChunk fact : facts) {
+                        if (chunks.size() >= topK) break;
+                        chunks.add(fact);
+                    }
+                });
+        }
         for (SearchResult result : searchResults) {
+            if (chunks.size() >= topK) break;
             if (!matchesFileType(result, filters == null ? null : filters.fileType())) {
                 continue;
             }
@@ -252,7 +281,7 @@ public class DocumentSearchEvidenceService {
                     );
                     if (chunks.size() > before) {
                         if (chunks.size() >= topK) {
-                            return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
+                            return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext, focusedQuery), state, events, elapsedMs(startedAt));
                         }
                         continue;
                     }
@@ -274,7 +303,7 @@ public class DocumentSearchEvidenceService {
                         permissionContext
                     );
                     if (chunks.size() > before && chunks.size() >= topK) {
-                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext, focusedQuery), state, events, elapsedMs(startedAt));
                     }
                 }
                 int beforeFine = chunks.size();
@@ -291,7 +320,7 @@ public class DocumentSearchEvidenceService {
                 );
                 if (chunks.size() > beforeFine) {
                     if (chunks.size() >= topK) {
-                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext, focusedQuery), state, events, elapsedMs(startedAt));
                     }
                     continue;
                 }
@@ -301,7 +330,7 @@ public class DocumentSearchEvidenceService {
                     }
                     chunks.add(toEvidence(result, chunk, query, intent, debug));
                     if (chunks.size() >= topK) {
-                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext, permissionContext, focusedQuery), state, events, elapsedMs(startedAt));
                     }
                 }
             }
@@ -310,7 +339,7 @@ public class DocumentSearchEvidenceService {
             }
         }
         return controlledResult(visibleResult(query, intent, chunks, documents, outline,
-            visibilityContext, permissionContext), state, events, elapsedMs(startedAt));
+            visibilityContext, permissionContext, focusedQuery), state, events, elapsedMs(startedAt));
     }
 
     public DocumentSearchExpandResult expand(DocumentSearchExpandRequest request) {
@@ -397,6 +426,25 @@ public class DocumentSearchEvidenceService {
         }
         List<DocumentEvidenceChunk> ranked = evidenceReranker.rerank(query, chunks, topK);
         return evidenceAssembler.evidenceOnly(query, intent, ranked);
+    }
+
+    private boolean sourceContainsSubject(String documentId, String focusedQuery,
+                                          SearchPermissionContext permissionContext) {
+        if (!hasText(focusedQuery)) return true;
+        if (!hasText(documentId)) return false;
+        return perDocumentIndexService.openDocumentIndex(documentId, permissionContext)
+            .map(document -> documentContainsSubject(document, focusedQuery)).orElse(false);
+    }
+
+    private boolean documentContainsSubject(SearchDocument document, String focusedQuery) {
+        return document != null && (!hasText(focusedQuery)
+            || containsFocus(document.getTitle(), focusedQuery)
+            || containsFocus(document.getFileName(), focusedQuery)
+            || containsFocus(document.getContent(), focusedQuery));
+    }
+
+    private boolean containsFocus(String value, String focusedQuery) {
+        return value != null && value.toLowerCase(java.util.Locale.ROOT).contains(focusedQuery);
     }
 
     private int hybridDocumentLimit(int topK) {
@@ -562,7 +610,8 @@ public class DocumentSearchEvidenceService {
                                                List<DocumentSearchHit> documents,
                                                List<DocumentOutlineItem> outline,
                                                DocumentVisibilityContext visibilityContext,
-                                               SearchPermissionContext permissionContext) {
+                                               SearchPermissionContext permissionContext,
+                                               String focusedQuery) {
         Map<String, java.util.Optional<SearchDocument>> verifiedDocuments = new LinkedHashMap<>();
         Map<String, String> sourceTexts = new LinkedHashMap<>();
         List<DocumentEvidenceChunk> sourceChunks = permissionGuard.visibleChunks(chunks, visibilityContext)
@@ -571,12 +620,19 @@ public class DocumentSearchEvidenceService {
                 if (chunk == null || !hasText(chunk.fileId()) || !hasText(chunk.content())) return false;
                 SearchDocument source = verifiedDocuments.computeIfAbsent(chunk.fileId(),
                     id -> perDocumentIndexService.openDocumentIndex(id, permissionContext)).orElse(null);
-                return source != null && hasText(source.getContent())
+                return source != null && (!hasText(focusedQuery)
+                    || containsFocus(source.getTitle(), focusedQuery)
+                    || containsFocus(source.getFileName(), focusedQuery)
+                    || containsFocus(chunk.section(), focusedQuery)
+                    || containsFocus(chunk.content(), focusedQuery))
+                    && hasText(source.getContent())
                     && sourceTexts.computeIfAbsent(chunk.fileId(),
                         id -> normalizeSourceText(source.getContent()))
                         .contains(normalizeSourceText(chunk.content()));
             })
-            .toList();
+            .collect(java.util.stream.Collectors.toMap(DocumentEvidenceChunk::refId,
+                chunk -> chunk, (first, duplicate) -> first, LinkedHashMap::new))
+            .values().stream().toList();
         List<DocumentSearchHit> sourceDocuments = permissionGuard.visibleDocuments(documents, visibilityContext)
             .stream()
             .filter(document -> verifiedDocuments.computeIfAbsent(document.docId(),

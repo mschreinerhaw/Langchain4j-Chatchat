@@ -45,17 +45,14 @@ class DocumentSearchOrchestratorIrTest {
         GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);
         GlobalChunkIndexService chunks = mock(GlobalChunkIndexService.class);
         KnowledgeIrDocumentRecall ir = mock(KnowledgeIrDocumentRecall.class);
-        SearchPage genericPage = page(result("linux-doc", "Linux maintenance"));
         SearchPage namedPage = page(result("livedata-doc", "livedata install"));
-        when(documents.recall(any(DocumentSearchPlan.class), eq(8)))
+        when(chunks.recall(any(DocumentSearchPlan.class)))
             .thenAnswer(invocation -> {
                 DocumentSearchPlan request = invocation.getArgument(0);
-                if (request.query().equals("livedata")) {
-                    assertThat(request.permissionContext().tenantId()).isEqualTo("tenant-1");
-                    assertThat(request.joinedVisibilityScopeIds()).isEqualTo("livedata-doc");
-                    return namedPage;
-                }
-                return genericPage;
+                assertThat(request.query()).isEqualTo(plan().query());
+                assertThat(request.permissionContext().tenantId()).isEqualTo("tenant-1");
+                assertThat(request.joinedVisibilityScopeIds()).isEqualTo("livedata-doc");
+                return namedPage;
             });
         when(ir.recall(any(DocumentSearchPlan.class), eq(8)))
             .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of("livedata-doc"), "livedata"));
@@ -63,7 +60,40 @@ class DocumentSearchOrchestratorIrTest {
             documents, chunks, new SearchProperties(), new IndexVersionManager(), ir);
         assertThat(orchestrator.recall(plan(), 8).candidates())
             .extracting(candidate -> candidate.result().docId())
-            .containsExactly("livedata-doc", "linux-doc");
+            .containsExactly("livedata-doc");
+        org.mockito.Mockito.verifyNoInteractions(documents);
+    }
+
+    @Test
+    void retainsDatabaseDocumentWhenSearchIndexHasNoHit() {
+        GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);
+        GlobalChunkIndexService chunks = mock(GlobalChunkIndexService.class);
+        KnowledgeIrDocumentRecall ir = mock(KnowledgeIrDocumentRecall.class);
+        when(documents.recall(any(DocumentSearchPlan.class), eq(8)))
+            .thenReturn(page(List.of()));
+        when(ir.recall(any(DocumentSearchPlan.class), eq(8)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of("livedata-doc"), "livedata"));
+        DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
+            documents, chunks, new SearchProperties(), new IndexVersionManager(), ir);
+
+        DocumentRecallResult result = orchestrator.recall(plan(), 8);
+
+        assertThat(result.candidates()).isEmpty();
+        assertThat(result.irDocumentIds()).containsExactly("livedata-doc");
+    }
+
+    @Test
+    void stopsBeforeSearchWhenDatabaseScopeCannotBeResolved() {
+        GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);
+        GlobalChunkIndexService chunks = mock(GlobalChunkIndexService.class);
+        KnowledgeIrDocumentRecall ir = mock(KnowledgeIrDocumentRecall.class);
+        when(ir.recall(any(DocumentSearchPlan.class), eq(8)))
+            .thenThrow(new IllegalStateException("database unavailable"));
+        DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
+            documents, chunks, new SearchProperties(), new IndexVersionManager(), ir);
+
+        assertThat(orchestrator.recall(plan(), 8).candidates()).isEmpty();
+        org.mockito.Mockito.verifyNoInteractions(documents, chunks);
     }
 
     private SearchPage page(SearchResult result) {

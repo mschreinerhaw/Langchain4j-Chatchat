@@ -22,6 +22,20 @@ class OpenSearchDocumentIndexServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void databaseDocumentScopeIsIncludedInOpenSearchQuery() {
+        OpenSearchDocumentIndexService service = service(new SearchProperties());
+
+        Map<String, Object> query = service.searchQuery("livedata installation",
+            List.of("livedata", "installation"), SearchPermissionContext.of(
+                "tenant-1", "user-1", List.of()), List.of("allowed-doc"));
+
+        Map<String, Object> bool = (Map<String, Object>) query.get("bool");
+        assertThat((List<Object>) bool.get("filter"))
+            .contains(Map.of("terms", Map.of("fileId", List.of("allowed-doc"))));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void lexicalQueryKeepsExpandedTermsWithinClauseBudget() {
         SearchProperties properties = new SearchProperties();
         properties.setLuceneMaxQueryTerms(80);

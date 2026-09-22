@@ -38,6 +38,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolAsset disabled = tool("disabled", false);
         McpToolAsset forbidden = tool("forbidden", true);
         when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(allowed, disabled, forbidden));
+        when(tools.findByLocalToolName("allowed")).thenReturn(Optional.of(allowed));
         SysUser user = new SysUser();
         user.setId("user-1");
         user.setTenantId("tenant-1");
@@ -84,6 +85,60 @@ class DatabaseMcpToolCandidateRetrieverTest {
     }
 
     @Test
+    void scopedGrantForAnotherToolDoesNotAuthorizeCandidate() {
+        McpToolAssetRepository tools = mock(McpToolAssetRepository.class);
+        McpToolPermissionRepository permissions = mock(McpToolPermissionRepository.class);
+        SysUserRepository users = mock(SysUserRepository.class);
+        McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
+        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(tool("restricted", true)));
+        SysUser user = new SysUser();
+        user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
+        when(users.findById("user-1")).thenReturn(Optional.of(user));
+        McpToolPermission unrelated = grant("other-tool");
+        unrelated.setScopeExpression("region=west");
+        when(permissions.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-1", "USER", "user-1")).thenReturn(List.of(unrelated));
+        DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
+            tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
+            mock(SysTenantRepository.class), index, mock(ToolWorkflowContractCatalog.class));
+
+        McpToolCandidateRetriever.Selection result = retriever.retrieve(InteractionRequest.builder()
+            .tenantId("tenant-1").userId("user-1").query("restricted").build(),
+            List.of("restricted"), 3);
+
+        assertThat(result.allowedNames()).isEmpty();
+        assertThat(result.rankedNames()).isEmpty();
+    }
+
+    @Test
+    void removesToolDisabledAfterInitialDatabaseScopeBeforeReturningIndexHit() {
+        McpToolAssetRepository tools = mock(McpToolAssetRepository.class);
+        McpToolPermissionRepository permissions = mock(McpToolPermissionRepository.class);
+        SysUserRepository users = mock(SysUserRepository.class);
+        McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
+        McpToolAsset initiallyOnline = tool("report_generation", true);
+        McpToolAsset nowDisabled = tool("report_generation", false);
+        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(initiallyOnline));
+        when(tools.findByLocalToolName("report_generation")).thenReturn(Optional.of(nowDisabled));
+        SysUser user = new SysUser();
+        user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
+        when(users.findById("user-1")).thenReturn(Optional.of(user));
+        when(permissions.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-1", "USER", "user-1")).thenReturn(List.of(grant("report_generation")));
+        DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
+            tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
+            mock(SysTenantRepository.class), index, mock(ToolWorkflowContractCatalog.class));
+
+        McpToolCandidateRetriever.Selection result = retriever.retrieve(InteractionRequest.builder()
+            .tenantId("tenant-1").userId("user-1").query("generate report").build(),
+            List.of("report_generation"), 3);
+
+        assertThat(result.allowedNames()).isEmpty();
+        assertThat(result.rankedNames()).isEmpty();
+        verifyNoInteractions(index);
+    }
+
+    @Test
     void expandsPublishedDependenciesOnlyWithinAuthorizedTools() {
         McpToolAssetRepository tools = mock(McpToolAssetRepository.class);
         McpToolPermissionRepository permissions = mock(McpToolPermissionRepository.class);
@@ -94,6 +149,8 @@ class DatabaseMcpToolCandidateRetrieverTest {
         McpToolAsset analysis = tool("profit_analysis", true);
         McpToolAsset forbidden = tool("report_generation", true);
         when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(asset, analysis, forbidden));
+        when(tools.findByLocalToolName("asset_query")).thenReturn(Optional.of(asset));
+        when(tools.findByLocalToolName("profit_analysis")).thenReturn(Optional.of(analysis));
         SysUser user = new SysUser();
         user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled"); user.setUsername("alice");
         when(users.findById("user-1")).thenReturn(Optional.of(user));

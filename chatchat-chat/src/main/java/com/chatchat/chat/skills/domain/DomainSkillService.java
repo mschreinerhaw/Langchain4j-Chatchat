@@ -2,6 +2,7 @@ package com.chatchat.chat.skills.domain;
 
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
+import com.chatchat.common.retrieval.AuthorizedRetrieval;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillAdapterGateway;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillCompilation;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillSource;
@@ -102,7 +103,16 @@ public class DomainSkillService implements DomainSkillRuntimePort {
         List<String> ordered = ids.stream().filter(id -> id != null && !id.isBlank()).distinct().limit(20).toList();
         Map<String, DomainSkillEntity> found = new HashMap<>();
         repository.findVisibleByIdInAndStatus(tenantId, ordered, PUBLISHED).forEach(s -> found.put(s.getId(), s));
-        return ordered.stream().map(found::get).filter(Objects::nonNull)
+        List<String> verifiedIds = AuthorizedRetrieval.select(
+            AuthorizedRetrieval.Scope.restricted(tenantId, null, found.keySet()),
+            ignored -> ordered, id -> id,
+            id -> {
+                DomainSkillEntity skill = found.get(id);
+                return skill != null && PUBLISHED.equalsIgnoreCase(skill.getStatus())
+                    && !skill.isPublicationDirty()
+                    && (skill.isBuiltin() || tenantId.equals(skill.getTenantId()));
+            }, ordered.size());
+        return verifiedIds.stream().map(found::get)
             .map(s -> new DomainSkillContent(s.getId(), s.getName(), s.getCategory(), trim(s.getMarkdownContent(), 64 * 1024))).toList();
     }
 

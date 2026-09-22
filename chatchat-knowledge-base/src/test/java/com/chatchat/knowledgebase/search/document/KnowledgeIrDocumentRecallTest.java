@@ -2,8 +2,6 @@ package com.chatchat.knowledgebase.search.document;
 
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIREntity;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
-import com.chatchat.knowledgebase.search.index.PerDocumentIndexService;
-import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
@@ -12,7 +10,6 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,10 +31,7 @@ class KnowledgeIrDocumentRecallTest {
                 return units.stream().filter(unit -> (unit.getTitle() + " " + unit.getSourceSection()
                     + " " + unit.getSearchText()).toLowerCase(Locale.ROOT).contains(term)).toList();
             });
-        PerDocumentIndexService documents = mock(PerDocumentIndexService.class);
-        when(documents.openDocumentIndex(anyString(), any()))
-            .thenAnswer(invocation -> Optional.of(SearchDocument.builder().docId(invocation.getArgument(0)).build()));
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer(), documents);
+        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
 
         assertThat(recall.recall(plan(List.of()), 8).focusedQuery()).isEqualTo("livedata");
         assertThat(recall.recall(plan(List.of()), 8).documentIds()).containsExactly("livedata-doc");
@@ -46,31 +40,57 @@ class KnowledgeIrDocumentRecallTest {
     }
 
     @Test
-    void excludesIrUnitsForDocumentsTheUserCannotRead() {
+    void doesNotTreatGenericInstallationFactsAsNamedDocumentExistence() {
         KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        KnowledgeIREntity generic = unit("linux-doc", "Linux commands", "FreeIPA installation", "installation guide");
         when(repository.findMatchingUnits(eq("tenant-1"), anyString(), any(Pageable.class)))
-            .thenReturn(List.of(unit("private-doc", "livedata", "setup", "livedata")));
-        PerDocumentIndexService documents = mock(PerDocumentIndexService.class);
-        when(documents.openDocumentIndex(eq("private-doc"), any())).thenReturn(Optional.empty());
+            .thenAnswer(invocation -> {
+                String pattern = invocation.getArgument(1, String.class).toLowerCase(Locale.ROOT);
+                return pattern.contains("livedata") ? List.of() : List.of(generic);
+            });
+        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
 
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer(), documents);
+        KnowledgeIrDocumentRecall.Recall result = recall.recall(plan(List.of()), 8);
 
-        assertThat(recall.recall(plan(List.of()), 8).documentIds()).isEmpty();
+        assertThat(result.focusedQuery()).isEqualTo("livedata");
+        assertThat(result.documentIds()).isEmpty();
     }
 
     @Test
-    void appliesIrAclBeforeLookingUpTheOriginalDocument() {
+    void findsDocumentByDatabaseChapterHeadingBeforeParagraphMatches() {
+        KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        KnowledgeIREntity named = unit("livedata-doc", "Operations", "LiveData setup", "prerequisites");
+        when(repository.findMatchingHeadings(eq("tenant-1"), eq("%livedata%"), any(Pageable.class)))
+            .thenReturn(List.of(named));
+        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+
+        assertThat(recall.recall(plan(List.of()), 8).documentIds()).containsExactly("livedata-doc");
+    }
+
+    @Test
+    void excludesPrivateIrUnitsBeforeSearch() {
         KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
         KnowledgeIREntity privateUnit = unit("private-doc", "livedata", "setup", "livedata");
         privateUnit.setVisibility("private");
         privateUnit.setOwnerUserId("another-user");
         when(repository.findMatchingUnits(eq("tenant-1"), anyString(), any(Pageable.class)))
             .thenReturn(List.of(privateUnit));
-        PerDocumentIndexService documents = mock(PerDocumentIndexService.class);
-        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer(), documents);
+        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
 
         assertThat(recall.recall(plan(List.of()), 8).documentIds()).isEmpty();
-        org.mockito.Mockito.verifyNoInteractions(documents);
+    }
+
+    @Test
+    void appliesIrAclBeforeReturningCandidateIds() {
+        KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        KnowledgeIREntity privateUnit = unit("private-doc", "livedata", "setup", "livedata");
+        privateUnit.setVisibility("private");
+        privateUnit.setOwnerUserId("another-user");
+        when(repository.findMatchingUnits(eq("tenant-1"), anyString(), any(Pageable.class)))
+            .thenReturn(List.of(privateUnit));
+        KnowledgeIrDocumentRecall recall = new KnowledgeIrDocumentRecall(repository, new SearchTokenizer());
+
+        assertThat(recall.recall(plan(List.of()), 8).documentIds()).isEmpty();
     }
 
     private DocumentSearchPlan plan(List<String> scope) {

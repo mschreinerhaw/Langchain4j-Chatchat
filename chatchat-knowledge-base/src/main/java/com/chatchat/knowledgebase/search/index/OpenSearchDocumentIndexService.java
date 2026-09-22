@@ -222,6 +222,13 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
 
     @Override
     public synchronized List<LuceneSearchHit> search(String keyword, int maxHits, SearchPermissionContext permissionContext) {
+        return search(keyword, maxHits, permissionContext, List.of());
+    }
+
+    @Override
+    public synchronized List<LuceneSearchHit> search(String keyword, int maxHits,
+                                                      SearchPermissionContext permissionContext,
+                                                      List<String> allowedDocumentIds) {
         if (!isAvailable() || keyword == null || keyword.isBlank()) {
             return List.of();
         }
@@ -248,8 +255,10 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             Math.max(1, properties.getLuceneMaxHits()),
             Math.max(Math.max(1, maxHits), embeddingConfig().getVectorCandidateLimit())
         );
-        List<LuceneSearchHit> lexicalHits = lexicalSearch(focusedKeyword, terms, candidateLimit, permissionContext);
-        List<LuceneSearchHit> vectorHits = vectorSearch(normalizedKeyword, candidateLimit, permissionContext);
+        List<LuceneSearchHit> lexicalHits = lexicalSearch(focusedKeyword, terms, candidateLimit,
+            permissionContext, allowedDocumentIds);
+        List<LuceneSearchHit> vectorHits = vectorSearch(normalizedKeyword, candidateLimit,
+            permissionContext, allowedDocumentIds);
         if (vectorHits.isEmpty() && localVectorRerank) {
             vectorHits = vectorRerankHits(normalizedKeyword, lexicalHits, candidateLimit);
         }
@@ -263,11 +272,12 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         String normalizedKeyword,
         List<String> terms,
         int maxHits,
-        SearchPermissionContext permissionContext
+        SearchPermissionContext permissionContext,
+        List<String> allowedDocumentIds
     ) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("size", Math.max(1, maxHits));
-        body.put("query", searchQuery(normalizedKeyword, terms, permissionContext));
+        body.put("query", searchQuery(normalizedKeyword, terms, permissionContext, allowedDocumentIds));
         body.put("_source", resultSourceFilter(false));
         logSearchQuery("primary", normalizedKeyword, terms, body);
         JsonNode root;
@@ -279,7 +289,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             }
             Map<String, Object> simplifiedBody = new LinkedHashMap<>();
             simplifiedBody.put("size", Math.max(1, maxHits));
-            simplifiedBody.put("query", simplifiedSearchQuery(terms, permissionContext));
+            simplifiedBody.put("query", simplifiedSearchQuery(terms, permissionContext, allowedDocumentIds));
             simplifiedBody.put("_source", resultSourceFilter(false));
             log.warn("opensearch_query_clause_overflow index={} terms={} action=simplify_once",
                 indexName(), terms == null ? 0 : terms.size());
@@ -292,7 +302,8 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     private List<LuceneSearchHit> vectorSearch(
         String normalizedKeyword,
         int maxHits,
-        SearchPermissionContext permissionContext
+        SearchPermissionContext permissionContext,
+        List<String> allowedDocumentIds
     ) {
         if (!vectorSearchAvailable()) {
             return List.of();
@@ -308,7 +319,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
                 "k", Math.max(1, maxHits)
             ))
         )));
-        bool.put("filter", searchFilters(permissionContext));
+        bool.put("filter", searchFilters(permissionContext, allowedDocumentIds));
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("size", Math.max(1, maxHits));
         body.put("query", Map.of("bool", bool));
@@ -553,6 +564,12 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     }
 
     Map<String, Object> searchQuery(String keyword, List<String> terms, SearchPermissionContext permissionContext) {
+        return searchQuery(keyword, terms, permissionContext, List.of());
+    }
+
+    Map<String, Object> searchQuery(String keyword, List<String> terms,
+                                    SearchPermissionContext permissionContext,
+                                    List<String> allowedDocumentIds) {
         List<String> boundedTerms = limitTerms(
             terms,
             Math.min(Math.max(1, config().getMaxQueryTerms()), Math.max(1, properties.getLuceneMaxQueryTerms()))
@@ -581,16 +598,18 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         Map<String, Object> bool = new LinkedHashMap<>();
         bool.put("should", should);
         bool.put("minimum_should_match", 1);
-        bool.put("filter", searchFilters(permissionContext));
+        bool.put("filter", searchFilters(permissionContext, allowedDocumentIds));
         return Map.of("bool", bool);
     }
 
-    private Map<String, Object> simplifiedSearchQuery(List<String> terms, SearchPermissionContext permissionContext) {
+    private Map<String, Object> simplifiedSearchQuery(List<String> terms,
+                                                       SearchPermissionContext permissionContext,
+                                                       List<String> allowedDocumentIds) {
         List<String> boundedTerms = limitTerms(terms, SIMPLIFIED_QUERY_TERM_LIMIT);
         String query = boundedTerms.isEmpty() ? "_none_" : String.join(" ", boundedTerms);
         Map<String, Object> bool = new LinkedHashMap<>();
         bool.put("must", List.of(multiMatchQuery(query, SIMPLIFIED_SEARCH_FIELDS)));
-        bool.put("filter", searchFilters(permissionContext));
+        bool.put("filter", searchFilters(permissionContext, allowedDocumentIds));
         return Map.of("bool", bool);
     }
 
@@ -645,12 +664,17 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         return false;
     }
 
-    private List<Object> searchFilters(SearchPermissionContext permissionContext) {
+    private List<Object> searchFilters(SearchPermissionContext permissionContext,
+                                       List<String> allowedDocumentIds) {
         List<Object> filters = new ArrayList<>();
         if (properties.isTenantIsolationEnabled()) {
             filters.add(Map.of("term", Map.of(TENANT_ID, normalizeTenant(permissionContext == null ? null : permissionContext.tenantId()))));
         }
         filters.add(permissionFilter(permissionContext));
+        if (allowedDocumentIds != null && !allowedDocumentIds.isEmpty()) {
+            filters.add(Map.of("terms", Map.of(FILE_ID, allowedDocumentIds.stream()
+                .filter(id -> id != null && !id.isBlank()).distinct().toList())));
+        }
         return filters;
     }
 

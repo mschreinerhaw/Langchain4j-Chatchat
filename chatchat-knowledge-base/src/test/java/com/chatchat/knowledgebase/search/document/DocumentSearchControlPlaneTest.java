@@ -56,6 +56,47 @@ import static org.mockito.Mockito.when;
 class DocumentSearchControlPlaneTest {
 
     @Test
+    void rejectsGenericInstallationHitWithoutNamedSubjectInOriginalDocument() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(any(), any(), any(), any(), any(), any(), any(),
+            any(SearchPermissionContext.class))).thenReturn(new SearchPage(
+                "livedata installation guide", List.of(), List.of(searchResult()), 1, 8, 1, 8,
+                1, false, 1L, 1, null));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "livedata installation guide", 8, null, null, null, null, null, false));
+
+        assertThat(result.results()).isEmpty();
+        assertThat(result.documents()).isEmpty();
+    }
+
+    @Test
+    void returnsDatabaseLocatedSourceEvenWhenSearchIndexHasNoHit() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(any(), any(), any(), any(), any(), any(), any(),
+            any(SearchPermissionContext.class))).thenReturn(new SearchPage(
+                "livedata installation guide", List.of(), List.of(), 0, 8, 1, 8,
+                1, false, 1L, 1, null));
+        when(searchService.get(eq("livedata-doc"), any(SearchPermissionContext.class)))
+            .thenReturn(java.util.Optional.of(SearchDocument.builder().docId("livedata-doc")
+                .title("LiveData setup").fileName("LiveData installation.md")
+                .content("LiveData installation requires a configured database. Verify the service starts.")
+                .build()));
+        KnowledgeIrDocumentRecall irRecall = mock(KnowledgeIrDocumentRecall.class);
+        when(irRecall.recall(any(DocumentSearchPlan.class), any(Integer.class)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of("livedata-doc"), "livedata"));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService, properties -> { }, irRecall);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "livedata installation guide", 8, null, null, null, null, null, false));
+
+        assertThat(result.results()).extracting(DocumentEvidenceChunk::fileId)
+            .containsExactly("livedata-doc");
+        assertThat(result.results().get(0).content()).contains("LiveData installation");
+    }
+
+    @Test
     void excludesIndexedSnippetMissingFromCurrentRocksDbDocument() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.frontendQuickSearch(any(), any(), any(), any(), any(), any(), any(),
@@ -737,6 +778,15 @@ class DocumentSearchControlPlaneTest {
 
     private DocumentSearchEvidenceService newEvidenceService(SearchService searchService,
                                                              Consumer<SearchProperties> propertiesCustomizer) {
+        KnowledgeIrDocumentRecall irRecall = mock(KnowledgeIrDocumentRecall.class);
+        when(irRecall.recall(any(DocumentSearchPlan.class), any(Integer.class)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of(), ""));
+        return newEvidenceService(searchService, propertiesCustomizer, irRecall);
+    }
+
+    private DocumentSearchEvidenceService newEvidenceService(SearchService searchService,
+                                                             Consumer<SearchProperties> propertiesCustomizer,
+                                                             KnowledgeIrDocumentRecall irRecall) {
         when(searchService.get(eq("doc-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(
             SearchDocument.builder().docId("doc-1")
                 .content("ACME 2025 revenue policy requires quarterly review.").build()));
@@ -753,9 +803,6 @@ class DocumentSearchControlPlaneTest {
         RetrievalQueryValidator queryValidator = new RetrievalQueryValidator(tokenizer, properties);
         QueryPlanningService queryPlanningService = new QueryPlanningService(tokenizer, intentClassifier, queryValidator, permissionGuard);
         IndexVersionManager indexVersionManager = new IndexVersionManager();
-        KnowledgeIrDocumentRecall irRecall = mock(KnowledgeIrDocumentRecall.class);
-        when(irRecall.recall(any(DocumentSearchPlan.class), any(Integer.class)))
-            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of(), ""));
         DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
             new GlobalDocumentIndexService(searchService),
             new GlobalChunkIndexService(searchService, properties),

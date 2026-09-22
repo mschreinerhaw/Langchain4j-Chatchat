@@ -2,12 +2,12 @@ package com.chatchat.knowledgebase.search.document;
 
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIREntity;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
-import com.chatchat.knowledgebase.search.index.PerDocumentIndexService;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +25,7 @@ import java.util.Set;
 /** Finds source documents through persisted chapter and paragraph facts. */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class KnowledgeIrDocumentRecall {
     private static final int MAX_TERMS = 12;
     private static final int MAX_UNITS_PER_TERM = 200;
@@ -32,12 +33,10 @@ public class KnowledgeIrDocumentRecall {
 
     private final KnowledgeIRRepository repository;
     private final SearchTokenizer tokenizer;
-    private final PerDocumentIndexService perDocumentIndexService;
 
     @Transactional(readOnly = true)
     public Recall recall(DocumentSearchPlan plan, int limit) {
-        List<String> terms = tokenizer.searchTokens(plan.query()).stream()
-            .distinct().limit(MAX_TERMS).toList();
+        List<String> terms = tokenizer.searchTokens(plan.query()).stream().limit(MAX_TERMS).toList();
         if (terms.isEmpty()) return new Recall(List.of(), "");
 
         Map<String, KnowledgeIREntity> units = new LinkedHashMap<>();
@@ -48,17 +47,21 @@ public class KnowledgeIrDocumentRecall {
         if (allowed.isEmpty() && plan.visibilityContext().active()) {
             allowed.addAll(plan.visibilityScopeIds());
         }
-        Map<String, Boolean> accessibleDocuments = new HashMap<>();
         for (String term : terms) {
             Set<String> documentsForTerm = new HashSet<>();
-            List<KnowledgeIREntity> matches = repository.findMatchingUnits(
-                plan.permissionContext().tenantId(), "%" + term + "%", PageRequest.of(0, MAX_UNITS_PER_TERM));
+            Map<String, KnowledgeIREntity> matchesById = new LinkedHashMap<>();
+            String pattern = "%" + term + "%";
+            repository.findMatchingHeadings(plan.permissionContext().tenantId(), pattern,
+                PageRequest.of(0, MAX_UNITS_PER_TERM)).forEach(unit ->
+                matchesById.put(unit.getDocumentId() + ":" + unit.getKnowledgeId(), unit));
+            repository.findMatchingUnits(plan.permissionContext().tenantId(), pattern,
+                PageRequest.of(0, MAX_UNITS_PER_TERM)).forEach(unit ->
+                matchesById.putIfAbsent(unit.getDocumentId() + ":" + unit.getKnowledgeId(), unit));
+            List<KnowledgeIREntity> matches = new ArrayList<>(matchesById.values());
             for (KnowledgeIREntity unit : matches) {
                 String documentId = unit.getDocumentId();
                 if (documentId == null || documentId.isBlank() || (!allowed.isEmpty() && !allowed.contains(documentId))
-                    || !coarseAllowed(unit, plan.permissionContext())
-                    || !accessibleDocuments.computeIfAbsent(documentId, id ->
-                        perDocumentIndexService.openDocumentIndex(id, plan.permissionContext()).isPresent())) {
+                    || !coarseAllowed(unit, plan.permissionContext())) {
                     continue;
                 }
                 units.putIfAbsent(documentId + ":" + unit.getKnowledgeId(), unit);
@@ -70,14 +73,24 @@ public class KnowledgeIrDocumentRecall {
             }
             documentFrequency.put(term, documentsForTerm.size());
         }
-        if (documentTerms.isEmpty()) return new Recall(List.of(), "");
-
-        String focusedTerm = terms.stream()
-            .filter(term -> documentFrequency.getOrDefault(term, 0) > 0)
-            .min(Comparator.comparingInt((String term) -> documentFrequency.get(term))
-                .thenComparing(Comparator.comparingInt((String term) -> termFieldStrength.getOrDefault(term, 0)).reversed())
-                .thenComparing(Comparator.comparingInt(String::length).reversed()))
-            .orElse(terms.get(0));
+        // Prefer a term supported by actual IR facts. When the leading product/name token
+        // has no IR match, do not silently replace it with a generic installation match.
+        String leadingTerm = terms.get(0);
+        List<String> supportedTerms = terms.stream()
+            .filter(term -> documentFrequency.getOrDefault(term, 0) > 0).toList();
+        List<String> latinSupported = supportedTerms.stream().filter(this::latinTerm).toList();
+        List<String> focusCandidates = latinSupported.isEmpty() ? supportedTerms : latinSupported;
+        String focusedTerm = latinTerm(leadingTerm) && documentFrequency.getOrDefault(leadingTerm, 0) == 0
+            ? leadingTerm : focusCandidates.stream()
+                .min(Comparator.comparingInt((String term) -> documentFrequency.get(term))
+                    .thenComparing(Comparator.comparingInt((String term) -> termFieldStrength.getOrDefault(term, 0)).reversed())
+                    .thenComparing(Comparator.comparingInt(String::length).reversed()))
+                .orElse(leadingTerm);
+        if (documentFrequency.getOrDefault(focusedTerm, 0) == 0) {
+            log.info("knowledge_ir_focus_lookup focus={} accessibleDocuments=0 genericDocuments={}",
+                focusedTerm, documentTerms.size());
+            return new Recall(List.of(), focusedTerm);
+        }
 
         Map<String, Double> scores = new HashMap<>();
         for (KnowledgeIREntity unit : units.values()) {
@@ -101,7 +114,14 @@ public class KnowledgeIrDocumentRecall {
                 .reversed().thenComparing(id -> id))
             .limit(Math.max(1, limit))
             .toList();
+        log.info("knowledge_ir_focus_lookup focus={} accessibleDocuments={}", focusedTerm, documentIds.size());
         return new Recall(documentIds, focusedTerm);
+    }
+
+    private boolean latinTerm(String term) {
+        return term.length() >= 3 && term.chars().allMatch(ch ->
+            (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
+            && term.chars().anyMatch(ch -> ch >= 'a' && ch <= 'z');
     }
 
     private boolean contains(String value, String term) {

@@ -18,6 +18,13 @@ public interface KnowledgeIRRepository extends JpaRepository<KnowledgeIREntity, 
     List<KnowledgeIREntity> findMatchingUnits(@Param("tenantId") String tenantId,
                                               @Param("pattern") String pattern,
                                               Pageable pageable);
+    @Query("select u from KnowledgeIREntity u where u.tenantId = :tenantId and u.active = true and ("
+        + "lower(u.title) like :pattern or "
+        + "lower(u.sourceSection) like :pattern or "
+        + "lower(u.sourceDocumentName) like :pattern)")
+    List<KnowledgeIREntity> findMatchingHeadings(@Param("tenantId") String tenantId,
+                                                 @Param("pattern") String pattern,
+                                                 Pageable pageable);
     void deleteByDocumentId(String documentId);
     long countByDocumentIdAndActiveTrue(String documentId);
 }

@@ -37,6 +37,20 @@ class FederatedDocumentEvidenceSelectorTest {
         assertThat(selected.citations()).hasSize(2);
     }
 
+    @Test
+    void returnsNoEvidenceWhenBothSearchesReturnNoEvidence() {
+        DocumentSearchResult local = new DocumentSearchResult("document_evidence_v1", "query", "how_to", 0,
+            List.of(), "", List.of());
+        DocumentSearchResult api = new DocumentSearchResult("document_evidence_v1", "query", "how_to", 0,
+            List.of(), "", List.of());
+
+        DocumentSearchResult selected = selector.select("livedata installation guide", 8, local, api);
+
+        assertThat(selected.total()).isZero();
+        assertThat(selected.results()).isEmpty();
+        assertThat(selected.documents()).isEmpty();
+    }
+
     private DocumentSearchResult result(DocumentEvidenceChunk chunk) {
         return new DocumentSearchResult("document_evidence_v1", "query", "how_to", 1,
             List.of(chunk), "", List.of());

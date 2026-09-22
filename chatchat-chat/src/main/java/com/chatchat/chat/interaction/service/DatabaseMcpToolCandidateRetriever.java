@@ -1,6 +1,7 @@
 package com.chatchat.chat.interaction.service;
 
 import com.chatchat.chat.interaction.model.InteractionRequest;
+import com.chatchat.common.retrieval.AuthorizedRetrieval;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.chatchat.enterprise.entity.identity.SysRole;
@@ -74,6 +75,35 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
             || roleIds.stream().map(activeRoles::get).anyMatch(role ->
                 "super_admin".equalsIgnoreCase(role.getRoleCode()));
 
+        List<McpToolPermission> grants = loadGrants(user, roleIds);
+        List<McpToolPermission> activeGrants = grants.stream().filter(this::active).toList();
+
+        List<McpToolAsset> allowed = catalog.stream()
+            .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
+            .filter(tool -> admin || permitted(tool, activeGrants))
+            .toList();
+        Set<String> allowedNames = new LinkedHashSet<>();
+        allowed.forEach(tool -> allowedNames.add(tool.getLocalToolName()));
+        List<McpToolPermission> finalGrants = loadGrants(user, roleIds).stream()
+            .filter(this::active).toList();
+        java.util.function.Predicate<String> stillAllowed = name -> tools.findByLocalToolName(name)
+            .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
+            .filter(tool -> admin || permitted(tool, finalGrants)).isPresent();
+        Set<String> verifiedAllowedNames = allowedNames.stream().filter(stillAllowed)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<String> ranked = AuthorizedRetrieval.select(
+            AuthorizedRetrieval.Scope.restricted(user.getTenantId(), user.getId(), roleIds,
+                verifiedAllowedNames),
+            ignored -> expandPublishedRelations(
+                semanticIndex.rank(request.getQuery(), allowed, Math.max(1, limit)),
+                allowed, Math.max(1, limit)),
+            name -> name,
+            stillAllowed,
+            Math.max(1, limit));
+        return new Selection(managed, verifiedAllowedNames, ranked);
+    }
+
+    private List<McpToolPermission> loadGrants(SysUser user, Set<String> roleIds) {
         List<McpToolPermission> grants = new ArrayList<>();
         grants.addAll(permissions.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
             user.getTenantId(), "USER", user.getId()));
@@ -83,17 +113,7 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
         }
         grants.addAll(permissions.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
             user.getTenantId(), "TENANT", user.getTenantId()));
-        List<McpToolPermission> activeGrants = grants.stream().filter(this::active).toList();
-
-        List<McpToolAsset> allowed = catalog.stream()
-            .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
-            .filter(tool -> admin || permitted(tool, activeGrants))
-            .toList();
-        Set<String> allowedNames = new LinkedHashSet<>();
-        allowed.forEach(tool -> allowedNames.add(tool.getLocalToolName()));
-        List<String> ranked = semanticIndex.rank(request.getQuery(), allowed, Math.max(1, limit));
-        return new Selection(managed, allowedNames,
-            expandPublishedRelations(ranked, allowed, Math.max(1, limit)));
+        return grants;
     }
 
     private List<String> expandPublishedRelations(List<String> ranked, List<McpToolAsset> allowed, int limit) {
@@ -151,9 +171,9 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
         boolean allow = false;
         for (McpToolPermission permission : grants) {
             boolean toolMatched = matches(tool, permission);
-            if (!toolMatched && blank(permission.getScopeExpression())) continue;
+            if (!toolMatched) continue;
             // Scoped rules require invocation arguments and remain an over-approximation here.
-            if (toolMatched && "deny".equalsIgnoreCase(permission.getEffect())
+            if ("deny".equalsIgnoreCase(permission.getEffect())
                 && blank(permission.getScopeExpression())) return false;
             if ("allow".equalsIgnoreCase(permission.getEffect())) allow = true;
         }

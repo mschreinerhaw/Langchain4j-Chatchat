@@ -204,6 +204,21 @@ class DomainSkillServiceTest {
     }
 
     @Test
+    void excludesPublishedSkillWithUnpublishedEditsFromRuntimeResolution() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillEntity skill = skill("skill-1", "Finance", "Unpublished replacement content");
+        skill.setStatus("PUBLISHED");
+        skill.setPublicationDirty(true);
+        when(repository.findVisibleByIdInAndStatus("tenant-a", List.of("skill-1"), "PUBLISHED"))
+            .thenReturn(List.of(skill));
+
+        var resolved = service(repository, mock(McpLicenseEntitlementPort.class),
+            mock(DomainSkillIndexService.class)).resolvePublished("tenant-a", List.of("skill-1"));
+
+        assertThat(resolved).isEmpty();
+    }
+
+    @Test
     void createsAnEmptyTenantCategory() {
         DomainSkillRepository repository = mock(DomainSkillRepository.class);
         DomainSkillCategoryRepository categories = mock(DomainSkillCategoryRepository.class);

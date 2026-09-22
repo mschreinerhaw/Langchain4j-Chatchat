@@ -1055,7 +1055,8 @@ public class SearchService {
         }
         try {
             SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
-            List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits(), context);
+            List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits(),
+                context, parseList(docIds));
             Map<String, Integer> safeTitleMemoryScores = titleMemoryScores == null ? Map.of() : titleMemoryScores;
             String activeIndexEngine = activeIndexEngine();
             String vectorStatus = vectorStatus();

@@ -1,15 +1,21 @@
 # MySQL and PostgreSQL for the Agent control plane
 
 The ChatChat API and standalone MCP Server can each use MySQL or PostgreSQL as their
-relational store. The default `dev` configuration still selects MySQL. Set
-`CHATCHAT_DATASOURCE_CONFIG=datasource-postgresql.yml` for PostgreSQL. For MySQL,
-use `datasource-mysql.yml` (or the existing `mysql` profile). The two processes can
+relational store. The MCP server now selects PostgreSQL by default in `dev` and
+`prod`; the API still selects MySQL by default. Set
+`CHATCHAT_DATASOURCE_CONFIG=datasource-postgresql.yml` explicitly for the API.
+For MySQL, use `datasource-mysql.yml` (or the existing `mysql` profile). The two processes can
 use different engines.
 
 | Process | PostgreSQL connection variables | Default database |
 | --- | --- | --- |
 | API | `CHATCHAT_API_POSTGRESQL_URL`, `CHATCHAT_API_POSTGRESQL_USERNAME`, `CHATCHAT_API_POSTGRESQL_PASSWORD` | `live_runtime_api` |
 | MCP | `CHATCHAT_MCP_POSTGRESQL_URL`, `CHATCHAT_MCP_POSTGRESQL_USERNAME`, `CHATCHAT_MCP_POSTGRESQL_PASSWORD` | `live_runtime_mcp` |
+
+For the MCP server, set the three `CHATCHAT_MCP_POSTGRESQL_*` variables before
+starting either profile. Its default datasource import is now
+`datasource-postgresql.yml`; set `CHATCHAT_DATASOURCE_CONFIG` only to override it.
+The API and MCP use separate databases and must each be migrated independently.
 
 Example for the API:
 

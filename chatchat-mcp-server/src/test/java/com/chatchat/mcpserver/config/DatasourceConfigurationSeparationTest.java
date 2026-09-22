@@ -20,12 +20,17 @@ class DatasourceConfigurationSeparationTest {
 
     @Test
     void developmentAndProductionProfilesSelectSeparateDatasourceFiles() throws Exception {
-        assertProfileSelects(Path.of("src/main/resources/application-dev.yml"), "datasource-mysql.yml");
-        assertProfileSelects(Path.of("src/main/resources/application-prod.yml"), "datasource-h2.yml");
-        assertProfileSelects(Path.of("src/main/distribution/config/application-dev.yml"), "datasource-mysql.yml");
-        assertProfileSelects(Path.of("src/main/distribution/config/application-prod.yml"), "datasource-h2.yml");
-        assertProfileSelects(Path.of("src/main/resources/application-prod.template"), "datasource-h2.yml");
-        assertProfileSelects(Path.of("src/main/distribution/config/application-prod.template"), "datasource-h2.yml");
+        for (Path profile : List.of(
+            Path.of("src/main/resources/application-dev.yml"),
+            Path.of("src/main/resources/application-prod.yml"),
+            Path.of("src/main/distribution/config/application-dev.yml"),
+            Path.of("src/main/distribution/config/application-prod.yml"),
+            Path.of("src/main/resources/application-dev.template"),
+            Path.of("src/main/resources/application-prod.template"),
+            Path.of("src/main/distribution/config/application-dev.template"),
+            Path.of("src/main/distribution/config/application-prod.template"))) {
+            assertProfileSelects(profile, "datasource-postgresql.yml");
+        }
     }
 
     @Test
@@ -100,32 +105,33 @@ class DatasourceConfigurationSeparationTest {
         )) {
             assertThat(context.getEnvironment().getActiveProfiles()).isEmpty();
             assertThat(context.getEnvironment().getDefaultProfiles()).contains("dev");
-            assertThat(context.getEnvironment().getProperty("spring.datasource.url")).startsWith("jdbc:mysql:");
+            assertThat(context.getEnvironment().getProperty("spring.datasource.url")).startsWith("jdbc:postgresql:");
             assertThat(context.getEnvironment().getProperty("spring.jpa.database-platform"))
-                .isEqualTo("org.hibernate.dialect.MySQLDialect");
+                .isEqualTo("org.hibernate.dialect.PostgreSQLDialect");
         }
     }
 
     @Test
-    void postgresqlDevelopmentProfileDoesNotInheritMysqlConnectionSql() {
+    void mysqlDevelopmentOverrideDoesNotInheritPostgresqlConnectionSql() {
         SpringApplication application = new SpringApplication(EmptyConfiguration.class);
         application.setWebApplicationType(WebApplicationType.NONE);
         application.setLogStartupInfo(false);
         try (ConfigurableApplicationContext context = application.run(
             "--spring.config.location=classpath:/application.yml",
-            "--CHATCHAT_DATASOURCE_CONFIG=datasource-postgresql.yml",
+            "--CHATCHAT_DATASOURCE_CONFIG=datasource-mysql.yml",
             "--spring.main.banner-mode=off"
         )) {
             assertThat(context.getEnvironment().getProperty("spring.datasource.url"))
-                .startsWith("jdbc:postgresql:");
+                .startsWith("jdbc:mysql:");
             assertThat(context.getEnvironment().getProperty("spring.datasource.hikari.connection-init-sql"))
-                .startsWith("SET lock_timeout").doesNotContain("innodb");
+                .contains("innodb_lock_wait_timeout").doesNotContain("SET lock_timeout =");
         }
     }
 
     private void assertProfileSelects(Path path, String expectedImport) throws Exception {
         List<PropertySource<?>> sources = load(path);
-        assertThat(value(sources, "spring.config.import")).isEqualTo(expectedImport);
+        assertThat(String.valueOf(value(sources, "spring.config.import")))
+            .contains("CHATCHAT_DATASOURCE_CONFIG:", expectedImport);
         assertThat(value(sources, "spring.datasource.url")).isNull();
         assertThat(value(sources, "spring.datasource.username")).isNull();
         assertThat(value(sources, "spring.datasource.password")).isNull();

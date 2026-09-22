@@ -2,57 +2,27 @@
 
 ## Database selection
 
-Application settings and datasource settings are separated. Select the database
-used by the development profile in `config/application-dev.yml`:
-
-```yaml
-spring:
-  config:
-    import: datasource-mysql.yml
-```
-
-Change the import to `datasource-h2.yml` to use H2. Connection URLs, usernames,
-passwords, pool settings, and JPA dialects belong only in the selected
-`datasource-*.yml` file.
-
-## H2 database password
-
-The MCP server uses a password-protected H2 file database by default.
-
-Default connection settings:
-
-```text
-JDBC URL: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
-Username: sa
-Password: chatchat_mcp_h2_pwd
-```
-
-Override them in production:
+The MCP server's development and production profiles use PostgreSQL by default.
+Configure the connection before startup:
 
 ```powershell
-$env:CHAT_MCP_DATASOURCE_USERNAME = "sa"
-$env:CHAT_MCP_DATASOURCE_PASSWORD = "your_strong_password"
+$env:CHATCHAT_MCP_POSTGRESQL_URL = "jdbc:postgresql://127.0.0.1:5432/live_runtime_mcp"
+$env:CHATCHAT_MCP_POSTGRESQL_USERNAME = "chatchat_mcp"
+$env:CHATCHAT_MCP_POSTGRESQL_PASSWORD = "your_password"
 ```
 
-H2 Console is disabled by default. Enable it only for local maintenance:
+Set `CHATCHAT_DATASOURCE_CONFIG=datasource-mysql.yml` or
+`CHATCHAT_DATASOURCE_CONFIG=datasource-h2.yml` to select another database.
+Connection URLs, credentials, pool settings, and JPA dialects live in the selected
+`datasource-*.yml` file. Existing MySQL or H2 data is not copied by changing this
+setting; migrate it before routing traffic to PostgreSQL. See
+[`docs/postgresql-support.md`](../docs/postgresql-support.md) for the migration steps.
 
-```powershell
-$env:CHAT_MCP_H2_CONSOLE_ENABLED = "true"
-```
+## Local H2 option
 
-Then open:
-
-```text
-http://localhost:8090/h2-console
-```
-
-If an existing local H2 database was created with an empty password, update it once before using the new password:
-
-```sql
-ALTER USER SA SET PASSWORD 'your_strong_password';
-```
-
-For a fresh deployment, just set `CHAT_MCP_DATASOURCE_PASSWORD` before the first startup.
+For local use, set `CHATCHAT_DATASOURCE_CONFIG=datasource-h2.yml`. Its file path
+and credentials are defined in `datasource-h2.yml`; the H2 console is disabled.
+Do not treat this local database as migrated when switching back to PostgreSQL.
 
 ## Release package
 

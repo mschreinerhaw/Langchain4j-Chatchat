@@ -1,7 +1,7 @@
 spring:
   config:
-    # Set CHATCHAT_DATASOURCE_CONFIG=datasource-postgresql.yml to use PostgreSQL.
-    import: ${CHATCHAT_DATASOURCE_CONFIG:datasource-mysql.yml}
+    # Override with datasource-mysql.yml or datasource-h2.yml when needed.
+    import: ${CHATCHAT_DATASOURCE_CONFIG:datasource-postgresql.yml}
   application:
     name: chatchat-mcp-server
 

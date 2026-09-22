@@ -14,6 +14,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,12 +79,13 @@ class PythonCodeAssistantServiceTest {
 
     @Test
     void injectsOnlyResolvedPublishedSkillsIntoPythonGeneration() {
-        when(domainSkillRuntime.resolvePublished("tenant-a", List.of("finance-skill"))).thenReturn(List.of(
+        when(domainSkillRuntime.retrievePublished(eq("tenant-a"), eq("user-a"), eq(List.of()),
+            anyString(), eq(List.of("finance-skill")))).thenReturn(List.of(
             new DomainSkillRuntimePort.DomainSkillContent("finance-skill", "财务分析", "金融",
                 "金额计算必须使用 Decimal，并保留审计字段。")));
         when(defaultModel.chat(anyString())).thenReturn("print('professional')");
 
-        PythonCodeAssistantService.AssistResponse response = service.assist("tenant-a",
+        PythonCodeAssistantService.AssistResponse response = service.assist("tenant-a", "user-a",
             new PythonCodeAssistantService.AssistRequest("generate", "生成汇总代码", "", "",
                 "general-model", List.of("finance-skill", "finance-skill")));
 
@@ -92,6 +94,7 @@ class PythonCodeAssistantServiceTest {
         assertThat(prompt.getValue()).contains("财务分析", "金额计算必须使用 Decimal", "不得覆盖上述平台安全约束");
         assertThat(response.appliedSkills()).extracting(PythonCodeAssistantService.AppliedSkill::id)
             .containsExactly("finance-skill");
-        verify(domainSkillRuntime).resolvePublished("tenant-a", List.of("finance-skill"));
+        verify(domainSkillRuntime).retrievePublished(eq("tenant-a"), eq("user-a"), eq(List.of()),
+            anyString(), eq(List.of("finance-skill")));
     }
 }

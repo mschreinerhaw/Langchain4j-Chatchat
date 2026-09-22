@@ -124,7 +124,10 @@ public class PythonDataScienceController {
 
     @PostMapping("/assist")
     public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body, HttpServletRequest request) {
-        return call(() -> codeAssistant.assist(scope(request).tenant(), body));
+        return call(() -> {
+            Scope s = scope(request);
+            return codeAssistant.assist(s.tenant(), s.user(), body);
+        });
     }
 
     private record AssistSkillOption(String id, String name, String category, String description) { }

@@ -1,5 +1,7 @@
 package com.chatchat.integration.mcp.service.routing;
 
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
+
 import com.chatchat.integration.mcp.service.routing.DynamicMcpToolRouteService;
 import com.chatchat.integration.mcp.service.transport.McpGatewayClient;
 import com.chatchat.integration.mcp.service.routing.McpInvocationArgumentAdapter;
@@ -61,6 +63,8 @@ public class McpToolRegistryBridge {
     private final ObjectMapper objectMapper;
     private final DynamicMcpToolRouteService routeService;
     private final ToolWorkflowContractCatalog contractCatalog;
+    @Autowired(required = false)
+    private ResourceAuthorizationPort resourceAuthorization;
     private final McpInvocationArgumentAdapter invocationArgumentAdapter =
         new McpInvocationArgumentAdapter();
 
@@ -315,6 +319,16 @@ public class McpToolRegistryBridge {
         if (registered == null) {
             return McpToolInvokeResult.failure("MCP tool is not registered in the active runtime snapshot",
                 "MCP_TOOL_NOT_FOUND", true, "REFRESH_OR_DISCOVER");
+        }
+        if (resourceAuthorization != null) {
+            String tenantId = stringValue(call.context().get("tenantId"));
+            String userId = stringValue(call.context().get("userId"));
+            if (tenantId == null || !resourceAuthorization.allowedIds(
+                ResourceAuthorizationPort.MCP_TOOL, tenantId, userId, Set.of(),
+                Set.of(registered.localToolName())).contains(registered.localToolName())) {
+                return McpToolInvokeResult.failure("MCP tool is not authorized for this caller",
+                    "MCP_TOOL_FORBIDDEN", false, "REQUEST_ACCESS");
+            }
         }
         Map<String, Object> context = new LinkedHashMap<>(call.context());
         Map<String, Object> parameters = new LinkedHashMap<>(call.arguments());

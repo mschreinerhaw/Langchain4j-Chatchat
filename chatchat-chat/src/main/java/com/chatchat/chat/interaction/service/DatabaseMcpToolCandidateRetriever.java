@@ -2,6 +2,7 @@ package com.chatchat.chat.interaction.service;
 
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.common.retrieval.AuthorizedRetrieval;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
 import com.chatchat.enterprise.entity.identity.SysRole;
@@ -16,6 +17,7 @@ import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,6 +40,9 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
     private final SysTenantRepository tenants;
     private final McpToolSemanticIndex semanticIndex;
     private final ToolWorkflowContractCatalog contracts;
+
+    @Autowired(required = false)
+    private ResourceAuthorizationPort resourceAuthorization;
 
     @Override
     public Selection retrieve(InteractionRequest request, List<String> candidateNames, int limit) {
@@ -78,17 +83,29 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
         List<McpToolPermission> grants = loadGrants(user, roleIds);
         List<McpToolPermission> activeGrants = grants.stream().filter(this::active).toList();
 
-        List<McpToolAsset> allowed = catalog.stream()
+        List<McpToolAsset> nativeAllowed = catalog.stream()
             .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
             .filter(tool -> admin || permitted(tool, activeGrants))
             .toList();
+        Set<String> grantAllowedIds = resourceAuthorization == null ? nativeAllowed.stream()
+            .map(McpToolAsset::getLocalToolName).collect(java.util.stream.Collectors.toSet())
+            : resourceAuthorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL,
+                user.getTenantId(), user.getId(), roleIds,
+                nativeAllowed.stream().map(McpToolAsset::getLocalToolName)
+                    .collect(java.util.stream.Collectors.toSet()));
+        List<McpToolAsset> allowed = nativeAllowed.stream()
+            .filter(tool -> grantAllowedIds.contains(tool.getLocalToolName())).toList();
         Set<String> allowedNames = new LinkedHashSet<>();
         allowed.forEach(tool -> allowedNames.add(tool.getLocalToolName()));
         List<McpToolPermission> finalGrants = loadGrants(user, roleIds).stream()
             .filter(this::active).toList();
         java.util.function.Predicate<String> stillAllowed = name -> tools.findByLocalToolName(name)
             .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
-            .filter(tool -> admin || permitted(tool, finalGrants)).isPresent();
+            .filter(tool -> admin || permitted(tool, finalGrants))
+            .filter(tool -> resourceAuthorization == null
+                || resourceAuthorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL,
+                    user.getTenantId(), user.getId(), roleIds, Set.of(tool.getLocalToolName()))
+                    .contains(tool.getLocalToolName())).isPresent();
         Set<String> verifiedAllowedNames = allowedNames.stream().filter(stillAllowed)
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         List<String> ranked = AuthorizedRetrieval.select(

@@ -3,6 +3,7 @@ package com.chatchat.chat.skills.domain;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.OpenSearchEmbeddingClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
@@ -19,6 +20,8 @@ import javax.net.ssl.SSLContext;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.Base64;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,63 @@ public class DomainSkillIndexService {
     private final SearchProperties searchProperties;
     private final OpenSearchEmbeddingClient embeddingClient;
     private final ObjectMapper objectMapper;
+
+    /** Returns IDs only; database authorization and content loading remain outside the index. */
+    public List<String> searchIds(String query, List<String> allowedIds, int limit) {
+        if (!openSearchEnabled() || query == null || query.isBlank()
+            || allowedIds == null || allowedIds.isEmpty() || limit <= 0) return List.of();
+        try (RestClient client = client()) {
+            int size = Math.min(Math.max(limit * 3, limit), allowedIds.size());
+            List<Object> filters = List.of(
+                Map.of("terms", Map.of("skillId", allowedIds)),
+                Map.of("term", Map.of("status", "PUBLISHED")));
+            Map<String, Object> lexical = Map.of("size", size, "_source", List.of("skillId"),
+                "query", Map.of("bool", Map.of("must", List.of(Map.of("multi_match", Map.of(
+                    "query", query, "fields", List.of("name^5", "category^3", "description^2", "searchText")))),
+                    "filter", filters)));
+            List<String> lexicalIds = queryIds(client, lexical);
+            List<String> vectorIds = List.of();
+            try {
+                List<Float> vector = embeddingClient.embed(query);
+                if (!vector.isEmpty()) {
+                    Map<String, Object> semantic = Map.of("size", size, "_source", List.of("skillId"),
+                        "query", Map.of("knn", Map.of("embedding", Map.of(
+                            "vector", vector, "k", size,
+                            "filter", Map.of("bool", Map.of("filter", filters))))));
+                    vectorIds = queryIds(client, semantic);
+                }
+            } catch (Exception ex) {
+                log.debug("Domain skill vector recall unavailable: {}", ex.getMessage());
+            }
+            Map<String, Double> scores = new HashMap<>();
+            fuse(scores, lexicalIds);
+            fuse(scores, vectorIds);
+            return scores.entrySet().stream()
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed()
+                    .thenComparing(Map.Entry::getKey))
+                .map(Map.Entry::getKey).limit(limit).toList();
+        } catch (Exception ex) {
+            log.warn("Domain skill OpenSearch recall unavailable: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> queryIds(RestClient client, Map<String, Object> body) throws Exception {
+        Request request = new Request("POST", "/" + properties.getIndexName() + "/_search");
+        request.setJsonEntity(objectMapper.writeValueAsString(body));
+        JsonNode hits = objectMapper.readTree(client.performRequest(request).getEntity().getContent())
+            .path("hits").path("hits");
+        List<String> ids = new ArrayList<>();
+        for (JsonNode hit : hits) {
+            String id = hit.path("_source").path("skillId").asText("");
+            if (!id.isBlank() && !ids.contains(id)) ids.add(id);
+        }
+        return ids;
+    }
+
+    private void fuse(Map<String, Double> scores, List<String> ids) {
+        for (int i = 0; i < ids.size(); i++) scores.merge(ids.get(i), 1D / (60 + i + 1), Double::sum);
+    }
 
     public IndexResult index(DomainSkillEntity skill) {
         if (!openSearchEnabled()) return new IndexResult(true, "LOCAL_ONLY", "OpenSearch disabled; database search remains available");

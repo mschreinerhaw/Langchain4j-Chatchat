@@ -155,7 +155,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                     .collect(Collectors.joining("\n")))
                 .append("\n");
         }
-        appendDomainSkills(prompt, request.getTenantId(), skill);
+        appendDomainSkills(prompt, request.getTenantId(), request.getUserId(), request.getQuery(), skill);
         if (hasText(knowledgeContext)) {
             prompt.append("\n<domain_knowledge>\n")
                 .append(PromptBoundaryEscaper.escapeMarkupText(knowledgeContext.trim()))
@@ -171,13 +171,15 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         return prompt.toString();
     }
 
-    private void appendDomainSkills(StringBuilder prompt, String tenantId, SkillDefinition skill) {
+    private void appendDomainSkills(StringBuilder prompt, String tenantId, String userId,
+                                    String query, SkillDefinition skill) {
         if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return;
         Object configured = skill.workflowConfig().get("boundDomainSkillIds");
         if (!(configured instanceof Iterable<?> values)) return;
         List<String> ids = new ArrayList<>();
         values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
-        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.resolvePublished(tenantId, ids);
+        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.retrievePublished(
+            tenantId, userId, List.of(), query, ids);
         if (skills.isEmpty()) return;
         prompt.append("\n<domain_skills>\n");
         skills.forEach(item -> prompt.append("## ").append(item.name()).append(" [").append(item.category()).append("]\n")

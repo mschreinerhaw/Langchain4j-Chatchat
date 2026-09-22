@@ -163,7 +163,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         }
         String experienceContext = runtimeExperience.prompt();
         List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = resolveDomainSkills(
-            request.getTenantId(), skill);
+            request.getTenantId(), request.getUserId(), request.getQuery(), skill);
         String modelName = skill.modelName() != null && !skill.modelName().isBlank()
             ? skill.modelName()
             : request.getModelName();
@@ -258,6 +258,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     }
 
     private List<DomainSkillRuntimePort.DomainSkillContent> resolveDomainSkills(String tenantId,
+                                                                                String userId, String query,
                                                                                 SkillDefinition skill) {
         if (domainSkillRuntime == null || skill == null || skill.workflowConfig() == null) return List.of();
         Object configured = skill.workflowConfig().get("boundDomainSkillIds");
@@ -265,7 +266,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         List<String> ids = new ArrayList<>();
         values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
         if (ids.isEmpty()) return List.of();
-        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.resolvePublished(tenantId, ids);
+        List<DomainSkillRuntimePort.DomainSkillContent> skills = domainSkillRuntime.retrievePublished(
+            tenantId, userId, List.of(), query, ids);
         List<DomainSkillRuntimePort.DomainSkillContent> resolved = skills == null
             ? List.of() : skills.stream().filter(item -> item != null).toList();
         log.info("agentDomainSkillsResolved skillId={} tenantId={} configuredCount={} resolvedPublishedCount={} configuredIds={}",

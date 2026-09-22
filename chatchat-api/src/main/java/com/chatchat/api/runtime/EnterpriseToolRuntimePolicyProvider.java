@@ -5,6 +5,7 @@ import com.chatchat.agents.runtime.tool.ToolRuntimePolicyProvider;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.identity.SysRole;
@@ -16,6 +17,7 @@ import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -39,6 +41,8 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
     private final SysUserRoleRepository userRoleRepository;
     private final SysUserRepository userRepository;
     private final SysTenantRepository tenantRepository;
+    @Autowired(required = false)
+    private ResourceAuthorizationPort resourceAuthorization;
 
     /**
      * Resolves the resolve.
@@ -82,6 +86,11 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         // they are intentionally not required to be duplicated in mcp_tool_asset.
         if (!managedMcpTool) {
             return null;
+        }
+        if (resourceAuthorization != null && !resourceAuthorization.allowedIds(
+            ResourceAuthorizationPort.MCP_TOOL, tenantId, userId, roleIds, Set.of(toolName))
+            .contains(toolName)) {
+            return denied("MCP tool denied by resource grant policy");
         }
         if (isAdminUser(userId) || hasRoleCode(roleIds, tenantId, "super_admin")) {
             return ToolRuntimePolicy.builder().allowed(true).build();

@@ -3,11 +3,13 @@ package com.chatchat.chat.skills.domain;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import com.chatchat.common.retrieval.AuthorizedRetrieval;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillAdapterGateway;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillCompilation;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillSource;
 import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,9 @@ public class DomainSkillService implements DomainSkillRuntimePort {
     private final DomainSkillRemoteImporter remoteImporter;
     private final ExternalSkillAdapterGateway externalSkillGateway;
     private final DomainSkillArtifactStore artifactStore;
+
+    @Autowired(required = false)
+    private ResourceAuthorizationPort resourceAuthorization;
 
     public Workspace workspace(String tenantId, String keyword, String category, String status, int page, int pageSize) {
         int p = Math.max(0, page), size = Math.max(1, Math.min(100, pageSize));
@@ -99,20 +104,44 @@ public class DomainSkillService implements DomainSkillRuntimePort {
 
     @Override
     public List<DomainSkillContent> resolvePublished(String tenantId, List<String> ids) {
+        return retrievePublished(tenantId, null, List.of(), null, ids);
+    }
+
+    @Override
+    public List<DomainSkillContent> retrievePublished(String tenantId, String userId, List<String> roles,
+                                                       String query, List<String> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
         List<String> ordered = ids.stream().filter(id -> id != null && !id.isBlank()).distinct().limit(20).toList();
         Map<String, DomainSkillEntity> found = new HashMap<>();
-        repository.findVisibleByIdInAndStatus(tenantId, ordered, PUBLISHED).forEach(s -> found.put(s.getId(), s));
+        repository.findVisibleByIdInAndStatus(tenantId, ordered, PUBLISHED).stream()
+            .filter(s -> !s.isPublicationDirty())
+            .filter(s -> s.isBuiltin() || tenantId.equals(s.getTenantId()))
+            .forEach(s -> found.put(s.getId(), s));
+        Set<String> roleIds = roles == null ? Set.of() : new LinkedHashSet<>(roles);
+        if (resourceAuthorization != null && !found.isEmpty()) {
+            Set<String> grantAllowed = resourceAuthorization.allowedIds(ResourceAuthorizationPort.SKILL,
+                tenantId, userId, roleIds, found.keySet());
+            found.keySet().retainAll(grantAllowed);
+        }
+        List<String> recalled = query == null || query.isBlank() ? List.of()
+            : indexService.searchIds(query, new ArrayList<>(found.keySet()), Math.min(12, ordered.size()));
+        List<String> candidateIds = recalled == null || recalled.isEmpty() ? ordered : recalled;
+        Map<String, DomainSkillEntity> finalFound = new HashMap<>();
         List<String> verifiedIds = AuthorizedRetrieval.select(
-            AuthorizedRetrieval.Scope.restricted(tenantId, null, found.keySet()),
-            ignored -> ordered, id -> id,
+            AuthorizedRetrieval.Scope.restricted(tenantId, userId,
+                roleIds, found.keySet()),
+            ignored -> candidateIds, id -> id,
             id -> {
-                DomainSkillEntity skill = found.get(id);
+                DomainSkillEntity skill = repository.findVisibleById(tenantId, id).orElse(null);
+                if (skill != null) finalFound.put(id, skill);
                 return skill != null && PUBLISHED.equalsIgnoreCase(skill.getStatus())
                     && !skill.isPublicationDirty()
-                    && (skill.isBuiltin() || tenantId.equals(skill.getTenantId()));
-            }, ordered.size());
-        return verifiedIds.stream().map(found::get)
+                    && (skill.isBuiltin() || tenantId.equals(skill.getTenantId()))
+                    && (resourceAuthorization == null
+                        || resourceAuthorization.allowedIds(ResourceAuthorizationPort.SKILL,
+                            tenantId, userId, roleIds, Set.of(id)).contains(id));
+            }, Math.min(12, ordered.size()));
+        return verifiedIds.stream().map(finalFound::get)
             .map(s -> new DomainSkillContent(s.getId(), s.getName(), s.getCategory(), trim(s.getMarkdownContent(), 64 * 1024))).toList();
     }
 

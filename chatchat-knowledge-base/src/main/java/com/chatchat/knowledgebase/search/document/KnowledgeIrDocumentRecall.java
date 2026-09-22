@@ -1,5 +1,6 @@
 package com.chatchat.knowledgebase.search.document;
 
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIREntity;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,9 @@ public class KnowledgeIrDocumentRecall {
     private final KnowledgeIRRepository repository;
     private final SearchTokenizer tokenizer;
 
+    @Autowired(required = false)
+    private ResourceAuthorizationPort resourceAuthorization;
+
     @Transactional(readOnly = true)
     public Recall recall(DocumentSearchPlan plan, int limit) {
         List<String> terms = tokenizer.searchTokens(plan.query()).stream().limit(MAX_TERMS).toList();
@@ -58,9 +63,18 @@ public class KnowledgeIrDocumentRecall {
                 PageRequest.of(0, MAX_UNITS_PER_TERM)).forEach(unit ->
                 matchesById.putIfAbsent(unit.getDocumentId() + ":" + unit.getKnowledgeId(), unit));
             List<KnowledgeIREntity> matches = new ArrayList<>(matchesById.values());
+            Set<String> grantAllowed = null;
+            if (resourceAuthorization != null) {
+                Set<String> matchedIds = matches.stream().map(KnowledgeIREntity::getDocumentId)
+                    .filter(id -> id != null && !id.isBlank()).collect(java.util.stream.Collectors.toSet());
+                grantAllowed = resourceAuthorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
+                    plan.permissionContext().tenantId(), plan.permissionContext().userId(),
+                    new HashSet<>(plan.permissionContext().roles()), matchedIds);
+            }
             for (KnowledgeIREntity unit : matches) {
                 String documentId = unit.getDocumentId();
                 if (documentId == null || documentId.isBlank() || (!allowed.isEmpty() && !allowed.contains(documentId))
+                    || (grantAllowed != null && !grantAllowed.contains(documentId))
                     || !coarseAllowed(unit, plan.permissionContext())) {
                     continue;
                 }

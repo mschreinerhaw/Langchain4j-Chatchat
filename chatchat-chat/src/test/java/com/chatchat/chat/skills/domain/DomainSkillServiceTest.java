@@ -195,6 +195,7 @@ class DomainSkillServiceTest {
         skill.setStatus("PUBLISHED");
         when(repository.findVisibleByIdInAndStatus("tenant-a", List.of("skill-1", "missing"), "PUBLISHED"))
             .thenReturn(List.of(skill));
+        when(repository.findVisibleById("tenant-a", "skill-1")).thenReturn(Optional.of(skill));
 
         var resolved = service(repository, mock(McpLicenseEntitlementPort.class), mock(DomainSkillIndexService.class))
             .resolvePublished("tenant-a", List.of("skill-1", "missing", "skill-1"));
@@ -216,6 +217,23 @@ class DomainSkillServiceTest {
             mock(DomainSkillIndexService.class)).resolvePublished("tenant-a", List.of("skill-1"));
 
         assertThat(resolved).isEmpty();
+    }
+
+    @Test
+    void semanticSkillRecallCannotReturnIdsOutsidePublishedDatabaseScope() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillIndexService index = mock(DomainSkillIndexService.class);
+        DomainSkillEntity skill = skill("skill-1", "Finance", "Published finance guidance");
+        skill.setStatus("PUBLISHED");
+        when(repository.findVisibleByIdInAndStatus("tenant-a", List.of("skill-1", "missing"), "PUBLISHED"))
+            .thenReturn(List.of(skill));
+        when(repository.findVisibleById("tenant-a", "skill-1")).thenReturn(Optional.of(skill));
+        when(index.searchIds(eq("finance"), anyList(), eq(2))).thenReturn(List.of("missing", "skill-1"));
+
+        var resolved = service(repository, mock(McpLicenseEntitlementPort.class), index)
+            .retrievePublished("tenant-a", "user-a", List.of(), "finance", List.of("skill-1", "missing"));
+
+        assertThat(resolved).extracting(item -> item.id()).containsExactly("skill-1");
     }
 
     @Test

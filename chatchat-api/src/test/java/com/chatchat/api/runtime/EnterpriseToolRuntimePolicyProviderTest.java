@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.tool.ToolRuntimePolicy;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.identity.SysRole;
@@ -18,10 +19,12 @@ import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -60,6 +63,19 @@ class EnterpriseToolRuntimePolicyProviderTest {
 
         assertThat(policy.allowed()).isFalse();
         assertThat(policy.reason()).contains("No MCP asset authorization");
+    }
+
+    @Test
+    void resourceGrantDenialStopsManagedToolAtRuntime() {
+        ResourceAuthorizationPort authorization = mock(ResourceAuthorizationPort.class);
+        ReflectionTestUtils.setField(provider, "resourceAuthorization", authorization);
+        when(authorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL,
+            "tenant-a", "user-a", Set.of(), Set.of("sql_asset_query"))).thenReturn(Set.of());
+
+        ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
+
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("resource grant");
     }
 
     @Test

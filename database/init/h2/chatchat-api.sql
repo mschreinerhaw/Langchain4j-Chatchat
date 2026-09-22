@@ -292,34 +292,6 @@
         primary key (id)
     );
 
-    create table ds_domain_skill_source (
-        created_at timestamp(6) with time zone not null,
-        id varchar(64) not null,
-        skill_id varchar(64) not null,
-        tenant_id varchar(64) not null,
-        source_type varchar(32) not null,
-        original_hash varchar(64) not null,
-        original_file_name varchar(300),
-        source_reference varchar(2000),
-        original_artifact BLOB not null,
-        parsed_document_json LONGTEXT not null,
-        primary key (id)
-    );
-
-    create table ds_domain_skill_compilation (
-        created_at timestamp(6) with time zone not null,
-        id varchar(64) not null,
-        skill_id varchar(64) not null,
-        source_id varchar(64) not null,
-        tenant_id varchar(64) not null,
-        compilation_mode varchar(40) not null,
-        ir_schema_version varchar(48) not null,
-        compiler_version varchar(64) not null,
-        compiler_model varchar(200),
-        skill_ir_json LONGTEXT not null,
-        primary key (id)
-    );
-
     create table ds_domain_skill_category (
         created_at timestamp(6) with time zone not null,
         updated_at timestamp(6) with time zone not null,
@@ -330,21 +302,49 @@
         constraint uk_domain_skill_category_tenant_name unique (tenant_id, name)
     );
 
+    create table ds_domain_skill_compilation (
+        created_at timestamp(6) with time zone not null,
+        compilation_mode varchar(40) not null,
+        ir_schema_version varchar(48) not null,
+        compiler_version varchar(64) not null,
+        id varchar(64) not null,
+        skill_id varchar(64) not null,
+        source_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        compiler_model varchar(200),
+        skill_ir_json LONGTEXT not null,
+        primary key (id)
+    );
+
     create table ds_domain_skill_import_task (
+        completed_at timestamp(6) with time zone,
         created_at timestamp(6) with time zone not null,
         started_at timestamp(6) with time zone,
-        completed_at timestamp(6) with time zone,
         updated_at timestamp(6) with time zone not null,
-        id varchar(64) not null,
-        owner_id varchar(64) not null,
-        tenant_id varchar(64) not null,
-        skill_id varchar(64),
         import_type varchar(24) not null,
         status varchar(24) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        skill_id varchar(64),
+        tenant_id varchar(64) not null,
         category varchar(120) not null,
         requested_name varchar(200),
-        source_reference varchar(2000),
         error_message varchar(2000),
+        source_reference varchar(2000),
+        primary key (id)
+    );
+
+    create table ds_domain_skill_source (
+        created_at timestamp(6) with time zone not null,
+        source_type varchar(32) not null,
+        id varchar(64) not null,
+        original_hash varchar(64) not null,
+        skill_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        original_file_name varchar(300),
+        source_reference varchar(2000),
+        original_artifact LONGBLOB not null,
+        parsed_document_json LONGTEXT not null,
         primary key (id)
     );
 
@@ -549,8 +549,6 @@
         source_chunk_id varchar(200),
         source_id varchar(200),
         source_document_name varchar(500),
-        source_section TEXT,
-        title TEXT,
         applicable_intents_json TEXT,
         compact_representation TEXT not null,
         constraints_json TEXT,
@@ -560,7 +558,9 @@
         search_text TEXT not null,
         semantic_description TEXT,
         source_citation TEXT,
+        source_section TEXT,
         tags_json TEXT,
+        title TEXT,
         primary key (id),
         constraint uk_knowledge_ir_doc_unit unique (document_id, knowledge_id)
     );
@@ -803,6 +803,21 @@
         name varchar(100),
         keywords TEXT,
         regex TEXT,
+        primary key (id)
+    );
+
+    create table resource_grant (
+        enabled boolean not null,
+        created_at timestamp(6) with time zone not null,
+        effect varchar(8) not null,
+        expires_at timestamp(6) with time zone,
+        updated_at timestamp(6) with time zone not null,
+        principal_type varchar(16) not null,
+        resource_type varchar(32) not null,
+        id varchar(64) not null,
+        principal_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        resource_id varchar(128) not null,
         primary key (id)
     );
 
@@ -1502,17 +1517,8 @@
     create index idx_domain_skill_category
        on ds_domain_skill (tenant_id, category, updated_at);
 
-    create index idx_domain_skill_source_skill
-       on ds_domain_skill_source (tenant_id, skill_id, created_at);
-
-    create index idx_domain_skill_compilation_skill
-       on ds_domain_skill_compilation (tenant_id, skill_id, created_at);
-
     create index idx_domain_skill_category_tenant
        on ds_domain_skill_category (tenant_id, updated_at);
-
-    create index idx_domain_skill_import_task_tenant_status
-       on ds_domain_skill_import_task (tenant_id, status, updated_at);
 
     create index idx_python_asset_owner
        on ds_python_asset (tenant_id, owner_id, status);
@@ -1582,6 +1588,9 @@
 
     create index idx_personal_todo_user_status
        on personal_todo (tenant_id, user_id, completed, updated_at);
+
+    create index idx_resource_grant_scope
+       on resource_grant (tenant_id, resource_type, resource_id);
 
     create index idx_role_agent_role
        on role_agent_binding (role_id);

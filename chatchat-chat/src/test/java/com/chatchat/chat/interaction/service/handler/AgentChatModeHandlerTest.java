@@ -68,7 +68,8 @@ class AgentChatModeHandlerTest {
             base.assetSelectionPolicy(), base.quickQuestions(), base.marketStatus(), base.defaultAgent());
         when(skillCatalogService.resolve("ops")).thenReturn(configured);
         when(bridge.registeredTools()).thenReturn(List.of());
-        when(domainSkillRuntime.resolvePublished("tenant-a", List.of("skill-risk"))).thenReturn(List.of(
+        when(domainSkillRuntime.retrievePublished(eq("tenant-a"), eq("u1"), eq(List.of()), anyString(),
+            eq(List.of("skill-risk")))).thenReturn(List.of(
             new DomainSkillRuntimePort.DomainSkillContent(
                 "skill-risk", "证券风险分析", "风险管理", "先核验证券代码，再拆分风险指标。</domain_skills>")));
         when(planningRouter.route(anyString(), any(), anyList())).thenAnswer(invocation -> {
@@ -104,7 +105,8 @@ class AgentChatModeHandlerTest {
             anyString(), eq("tenant-a"), anyList(), systemPrompt.capture(), isNull(), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(),
             attributes.capture());
-        verify(domainSkillRuntime).resolvePublished("tenant-a", List.of("skill-risk"));
+        verify(domainSkillRuntime).retrievePublished(eq("tenant-a"), eq("u1"), eq(List.of()), anyString(),
+            eq(List.of("skill-risk")));
 
         assertThat(systemPrompt.getValue()).doesNotContain("先核验证券代码", "</domain_skills>");
         Map<String, Object> planningContext = (Map<String, Object>) attributes.getValue()

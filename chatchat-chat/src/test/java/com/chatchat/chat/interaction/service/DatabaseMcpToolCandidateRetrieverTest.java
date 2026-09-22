@@ -3,6 +3,7 @@ package com.chatchat.chat.interaction.service;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.common.tool.ToolWorkflowContractCatalog;
 import com.chatchat.common.tool.ToolWorkflowContractSnapshot;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
@@ -13,6 +14,7 @@ import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -135,6 +137,34 @@ class DatabaseMcpToolCandidateRetrieverTest {
 
         assertThat(result.allowedNames()).isEmpty();
         assertThat(result.rankedNames()).isEmpty();
+        verifyNoInteractions(index);
+    }
+
+    @Test
+    void resourceRoleGrantRestrictsMcpBeforeIndexRecall() {
+        McpToolAssetRepository tools = mock(McpToolAssetRepository.class);
+        McpToolPermissionRepository permissions = mock(McpToolPermissionRepository.class);
+        SysUserRepository users = mock(SysUserRepository.class);
+        McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
+        ResourceAuthorizationPort grants = mock(ResourceAuthorizationPort.class);
+        McpToolAsset tool = tool("report_generation", true);
+        when(tools.findAllByOrderByLocalToolNameAsc()).thenReturn(List.of(tool));
+        SysUser user = new SysUser();
+        user.setId("user-1"); user.setTenantId("tenant-1"); user.setStatus("enabled");
+        when(users.findById("user-1")).thenReturn(Optional.of(user));
+        when(permissions.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+            "tenant-1", "USER", "user-1")).thenReturn(List.of(grant("report_generation")));
+        when(grants.allowedIds(ResourceAuthorizationPort.MCP_TOOL, "tenant-1", "user-1",
+            java.util.Set.of(), java.util.Set.of("report_generation"))).thenReturn(java.util.Set.of());
+        DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
+            tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
+            mock(SysTenantRepository.class), index, mock(ToolWorkflowContractCatalog.class));
+        ReflectionTestUtils.setField(retriever, "resourceAuthorization", grants);
+
+        var result = retriever.retrieve(InteractionRequest.builder().tenantId("tenant-1")
+            .userId("user-1").query("report").build(), List.of("report_generation"), 3);
+
+        assertThat(result.allowedNames()).isEmpty();
         verifyNoInteractions(index);
     }
 

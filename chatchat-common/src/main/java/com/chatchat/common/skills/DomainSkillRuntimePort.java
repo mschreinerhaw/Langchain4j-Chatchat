@@ -9,5 +9,11 @@ public interface DomainSkillRuntimePort {
 
     List<DomainSkillContent> resolvePublished(String tenantId, List<String> skillIds);
 
+    default List<DomainSkillContent> retrievePublished(String tenantId, String userId,
+                                                       List<String> roles, String query,
+                                                       List<String> skillIds) {
+        return resolvePublished(tenantId, skillIds);
+    }
+
     record DomainSkillContent(String id, String name, String category, String markdownContent) { }
 }

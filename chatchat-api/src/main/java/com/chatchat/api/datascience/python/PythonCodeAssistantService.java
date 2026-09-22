@@ -37,6 +37,10 @@ public class PythonCodeAssistantService {
     }
 
     public AssistResponse assist(String tenantId, AssistRequest request) {
+        return assist(tenantId, null, request);
+    }
+
+    public AssistResponse assist(String tenantId, String userId, AssistRequest request) {
         if (request == null || blank(request.prompt())) {
             throw new IllegalArgumentException("请先描述希望 AI 完成的 Python 开发任务");
         }
@@ -45,7 +49,8 @@ public class PythonCodeAssistantService {
         String selection = limited(text(request.selectedCode()), MAX_SELECTION_LENGTH, "选中代码");
         String action = normalizeAction(request.action());
         String modelName = resolveModelName(request.modelName());
-        List<DomainSkillRuntimePort.DomainSkillContent> appliedSkills = resolveSkills(tenantId, request.skillIds());
+        List<DomainSkillRuntimePort.DomainSkillContent> appliedSkills = resolveSkills(
+            tenantId, userId, prompt, request.skillIds());
         String skillContext = skillContext(appliedSkills);
         String instruction = switch (action) {
             case "continue" ->
@@ -92,12 +97,14 @@ public class PythonCodeAssistantService {
             appliedSkills.stream().map(skill -> new AppliedSkill(skill.id(), skill.name(), skill.category())).toList());
     }
 
-    private List<DomainSkillRuntimePort.DomainSkillContent> resolveSkills(String tenantId, List<String> requestedIds) {
+    private List<DomainSkillRuntimePort.DomainSkillContent> resolveSkills(String tenantId, String userId,
+                                                                          String query, List<String> requestedIds) {
         if (requestedIds == null || requestedIds.isEmpty()) return List.of();
         List<String> ids = requestedIds.stream().filter(id -> id != null && !id.isBlank())
             .map(String::trim).distinct().limit(MAX_APPLIED_SKILLS).toList();
         if (ids.isEmpty()) return List.of();
-        return domainSkillRuntime.resolvePublished(text(tenantId).isBlank() ? "default" : tenantId.trim(), ids);
+        return domainSkillRuntime.retrievePublished(text(tenantId).isBlank() ? "default" : tenantId.trim(),
+            userId, List.of(), query, ids);
     }
 
     private String skillContext(List<DomainSkillRuntimePort.DomainSkillContent> skills) {

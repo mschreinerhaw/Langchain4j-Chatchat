@@ -33,6 +33,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -87,8 +88,8 @@ final class DataFileTransfer {
                 source.setReadOnly(true);
                 source.setAutoCommit(false);
                 String scope = scope(source, options.engine);
-                Set<String> found = tables(source, scope);
-                requireModuleSchema(options.module, found);
+                Set<String> found = MigrationSchema.selectTables(tables(source, scope),
+                        MigrationSchema.expectedTables(options.module), "Source database");
                 List<String> order = parentFirst(found, dependencies(source, options.engine, scope));
                 Properties manifest = new Properties();
                 manifest.setProperty("format", Integer.toString(VERSION));
@@ -134,23 +135,21 @@ final class DataFileTransfer {
             Properties manifest = manifest(archive);
             List<String> archivedTables = archiveTables(manifest, options.module);
             Map<String, Header> headers = validateArchive(archive, manifest, archivedTables);
+            Set<String> expected = MigrationSchema.expectedTables(options.module);
+            if (!expected.equals(new HashSet<>(archivedTables))) {
+                throw new IllegalStateException("Archive tables differ from database/init for " + options.module);
+            }
             try (Connection target = connection(options)) {
                 target.setAutoCommit(false);
                 String scope = scope(target, options.engine);
                 try {
-                    Set<String> found = tables(target, scope);
-                    requireModuleSchema(options.module, found);
-                    if (!found.equals(new HashSet<>(archivedTables))) {
-                        throw new IllegalStateException("Target tables differ from archive");
-                    }
-                    Map<String, LinkedHashMap<String, Column>> targetColumns = new HashMap<>();
+                    Set<String> found = MigrationSchema.selectTables(tables(target, scope), expected,
+                            "Target database");
+                    Map<String, ColumnMigrationPlan.Plan> tablePlans = new HashMap<>();
                     for (String table : archivedTables) {
                         LinkedHashMap<String, Column> columns = columns(target, options.engine, scope, table);
-                        Set<String> archivedNames = new HashSet<>(headers.get(table).fields.keySet());
-                        if (!columns.keySet().equals(archivedNames)) {
-                            throw new IllegalStateException("Target columns differ from archive in " + table);
-                        }
-                        targetColumns.put(table, columns);
+                        tablePlans.put(table, ColumnMigrationPlan.create(table,
+                                headers.get(table).fields.keySet(), columns));
                     }
                     List<String> order = parentFirst(found, dependencies(target, options.engine, scope));
                     List<String> populated = new ArrayList<>();
@@ -184,9 +183,10 @@ final class DataFileTransfer {
                         }
                     }
                     long total = 0;
+                    Instant migrationTime = Instant.now();
                     for (String table : order) {
                         long rows = importTable(archive, manifest, target, options, scope, table,
-                                headers.get(table), targetColumns.get(table));
+                                headers.get(table), tablePlans.get(table), migrationTime);
                         total += rows;
                         System.out.printf("%s: %d rows%n", table, rows);
                     }
@@ -210,15 +210,6 @@ final class DataFileTransfer {
 
     private static String scope(Connection connection, Engine engine) throws SQLException {
         return engine == Engine.MYSQL ? connection.getCatalog() : identifier(setting("PGSCHEMA", "public"));
-    }
-
-    private static void requireModuleSchema(String module, Set<String> tables) {
-        Set<String> anchors = module.equals("api")
-                ? Set.of("knowledge_ir_unit", "skill_config", "resource_grant")
-                : Set.of("mcp_service_config", "mcp_sql_datasource", "mcp_business_category");
-        if (!tables.containsAll(anchors)) {
-            throw new IllegalStateException("Missing " + module + " schema anchors: " + anchors);
-        }
     }
 
     private static String entryName(String table) {
@@ -304,19 +295,25 @@ final class DataFileTransfer {
     }
 
     private static long importTable(ZipFile archive, Properties manifest, Connection target, Options options,
-            String scope, String table, Header header, LinkedHashMap<String, Column> targetFields)
+            String scope, String table, Header header, ColumnMigrationPlan.Plan plan, Instant migrationTime)
             throws SQLException, IOException {
         List<String> names = new ArrayList<>(header.fields.keySet());
-        String fields = String.join(", ", names.stream().map(name -> quoted(options.engine, name)).toList());
-        String parameters = String.join(", ", java.util.Collections.nCopies(names.size(), "?"));
+        List<String> insertedNames = new ArrayList<>(names);
+        insertedNames.addAll(plan.filled().stream().map(Column::name).toList());
+        String fields = String.join(", ", insertedNames.stream().map(name -> quoted(options.engine, name)).toList());
+        String parameters = String.join(", ", java.util.Collections.nCopies(insertedNames.size(), "?"));
         String sql = "INSERT INTO " + qualified(options.engine, scope, table) + " (" + fields + ") VALUES ("
                 + parameters + ")";
         try (PreparedStatement insert = target.prepareStatement(sql)) {
             int[] pending = {0};
             readTable(archive, manifest, table, (cells, sourceFields) -> {
                 for (int index = 0; index < names.size(); index++) {
-                    bindCell(insert, index + 1, cells.get(index), targetFields.get(names.get(index)).type(),
+                    bindCell(insert, index + 1, cells.get(index), plan.copied().get(names.get(index)).type(),
                             options.engine, options.mysqlZone);
+                }
+                for (int index = 0; index < plan.filled().size(); index++) {
+                    ColumnMigrationPlan.bindSynthetic(insert, names.size() + index + 1,
+                            plan.filled().get(index), migrationTime, options.mysqlZone);
                 }
                 insert.addBatch();
                 if (++pending[0] == options.batchSize) {

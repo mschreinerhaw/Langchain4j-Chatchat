@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -29,10 +30,6 @@ import java.util.regex.Pattern;
 /** Standalone, one-shot relational data transfer between matching ChatChat schemas. */
 public final class DataMigrationApplication {
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
-    private static final Map<String, Set<String>> ANCHORS = Map.of(
-            "api", Set.of("knowledge_ir_unit", "skill_config", "resource_grant"),
-            "mcp", Set.of("mcp_service_config", "mcp_sql_datasource", "mcp_business_category"));
-
     private DataMigrationApplication() { }
 
     public static void main(String[] args) {
@@ -69,26 +66,15 @@ public final class DataMigrationApplication {
             String sourceScope = sourceEngine == Engine.MYSQL ? sourceDatabase : pgSchema;
             String targetScope = targetEngine == Engine.MYSQL ? targetDatabase : pgSchema;
             try {
-                Set<String> sourceTables = tables(source, sourceScope);
-                Set<String> targetTables = tables(target, targetScope);
-                Set<String> anchors = ANCHORS.get(options.module);
-                if (!sourceTables.containsAll(anchors) || !targetTables.containsAll(anchors)) {
-                    throw new IllegalStateException("Missing " + options.module + " schema anchors: " + anchors);
-                }
-                if (!sourceTables.equals(targetTables)) {
-                    throw new IllegalStateException("Table mismatch; source-only=" + difference(sourceTables, targetTables)
-                            + ", target-only=" + difference(targetTables, sourceTables));
-                }
-                Map<String, LinkedHashMap<String, Column>> targetColumns = new LinkedHashMap<>();
+                Set<String> expectedTables = MigrationSchema.expectedTables(options.module);
+                Set<String> sourceTables = MigrationSchema.selectTables(tables(source, sourceScope), expectedTables,
+                        "Source database");
+                MigrationSchema.selectTables(tables(target, targetScope), expectedTables, "Target database");
+                Map<String, ColumnMigrationPlan.Plan> tablePlans = new LinkedHashMap<>();
                 for (String table : new TreeSet<>(sourceTables)) {
                     LinkedHashMap<String, Column> sourceDefinition = columns(source, sourceEngine, sourceScope, table);
                     LinkedHashMap<String, Column> targetDefinition = columns(target, targetEngine, targetScope, table);
-                    if (!sourceDefinition.keySet().equals(targetDefinition.keySet())) {
-                        throw new IllegalStateException("Column mismatch in " + table + "; source-only="
-                                + difference(sourceDefinition.keySet(), targetDefinition.keySet()) + ", target-only="
-                                + difference(targetDefinition.keySet(), sourceDefinition.keySet()));
-                    }
-                    targetColumns.put(table, targetDefinition);
+                    tablePlans.put(table, ColumnMigrationPlan.create(table, sourceDefinition.keySet(), targetDefinition));
                 }
                 List<String> order = parentFirst(sourceTables, dependencies(target, targetEngine, targetScope));
                 List<String> populated = new ArrayList<>();
@@ -122,9 +108,10 @@ public final class DataMigrationApplication {
                     }
                 }
                 long total = 0;
+                Instant migrationTime = Instant.now();
                 for (String table : order) {
                     long rows = copyTable(source, target, sourceEngine, targetEngine, sourceScope, targetScope,
-                            table, targetColumns.get(table), options);
+                            table, tablePlans.get(table), options, migrationTime);
                     total += rows;
                     System.out.printf("%s: %d rows%n", table, rows);
                 }
@@ -209,7 +196,8 @@ public final class DataMigrationApplication {
         String generated = engine == Engine.MYSQL ? "extra" : "is_generated";
         LinkedHashMap<String, Column> result = new LinkedHashMap<>();
         try (PreparedStatement query = connection.prepareStatement("SELECT column_name, data_type, " + generated
-                + " FROM information_schema.columns WHERE table_schema=? AND table_name=? ORDER BY ordinal_position")) {
+                + ", is_nullable, column_default FROM information_schema.columns "
+                + "WHERE table_schema=? AND table_name=? ORDER BY ordinal_position")) {
             query.setString(1, scope);
             query.setString(2, table);
             try (ResultSet rows = query.executeQuery()) {
@@ -219,7 +207,8 @@ public final class DataMigrationApplication {
                             : marker != null && !marker.equalsIgnoreCase("NEVER");
                     if (!computed) {
                         String name = identifier(rows.getString(1));
-                        result.put(name, new Column(name, rows.getString(2).toLowerCase()));
+                        result.put(name, new Column(name, rows.getString(2).toLowerCase(),
+                                "YES".equalsIgnoreCase(rows.getString(4)), rows.getString(5)));
                     }
                 }
             }
@@ -275,12 +264,6 @@ public final class DataMigrationApplication {
         return order;
     }
 
-    private static Set<String> difference(Set<String> left, Set<String> right) {
-        Set<String> result = new TreeSet<>(left);
-        result.removeAll(right);
-        return result;
-    }
-
     static boolean rowExists(Connection connection, Engine engine, String scope, String table)
             throws SQLException {
         try (Statement statement = connection.createStatement();
@@ -298,15 +281,17 @@ public final class DataMigrationApplication {
     }
 
     private static long copyTable(Connection source, Connection target, Engine sourceEngine, Engine targetEngine,
-            String sourceScope, String targetScope, String table, LinkedHashMap<String, Column> columns,
-            Options options) throws SQLException {
-        List<Column> ordered = new ArrayList<>(columns.values());
+            String sourceScope, String targetScope, String table, ColumnMigrationPlan.Plan plan,
+            Options options, Instant migrationTime) throws SQLException {
+        List<Column> ordered = new ArrayList<>(plan.copied().values());
         if (ordered.isEmpty()) {
             throw new IllegalStateException("No transferable columns in " + table);
         }
         String sourceFields = String.join(", ", ordered.stream().map(column -> quoted(sourceEngine, column.name)).toList());
-        String targetFields = String.join(", ", ordered.stream().map(column -> quoted(targetEngine, column.name)).toList());
-        String placeholders = String.join(", ", java.util.Collections.nCopies(ordered.size(), "?"));
+        List<Column> inserted = new ArrayList<>(ordered);
+        inserted.addAll(plan.filled());
+        String targetFields = String.join(", ", inserted.stream().map(column -> quoted(targetEngine, column.name)).toList());
+        String placeholders = String.join(", ", java.util.Collections.nCopies(inserted.size(), "?"));
         String select = "SELECT " + sourceFields + " FROM " + qualified(sourceEngine, sourceScope, table);
         String insert = "INSERT INTO " + qualified(targetEngine, targetScope, table) + " (" + targetFields
                 + ") VALUES (" + placeholders + ")";
@@ -321,6 +306,10 @@ public final class DataMigrationApplication {
                     for (int index = 0; index < ordered.size(); index++) {
                         bind(write, index + 1, rows, index + 1, sourceEngine, targetEngine,
                                 ordered.get(index).type, options.mysqlZone);
+                    }
+                    for (int index = 0; index < plan.filled().size(); index++) {
+                        ColumnMigrationPlan.bindSynthetic(write, ordered.size() + index + 1,
+                                plan.filled().get(index), migrationTime, options.mysqlZone);
                     }
                     write.addBatch();
                     pending++;
@@ -412,7 +401,11 @@ public final class DataMigrationApplication {
 
     enum Engine { MYSQL, POSTGRESQL }
 
-    record Column(String name, String type) { }
+    record Column(String name, String type, boolean nullable, String defaultValue) {
+        Column(String name, String type) {
+            this(name, type, false, null);
+        }
+    }
 
     private record Options(String direction, String module, boolean replaceTarget, boolean dryRun, int batchSize,
                            ZoneId mysqlZone) {
@@ -443,7 +436,7 @@ public final class DataMigrationApplication {
             String module = values.get("--module");
             if (direction == null || module == null
                     || !Set.of("mysql-to-postgresql", "postgresql-to-mysql").contains(direction)
-                    || !ANCHORS.containsKey(module)) {
+                    || !Set.of("api", "mcp").contains(module)) {
                 throw new IllegalArgumentException("Specify --direction mysql-to-postgresql|postgresql-to-mysql "
                         + "and --module api|mcp; use --help for details.");
             }

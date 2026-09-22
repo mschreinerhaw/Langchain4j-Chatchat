@@ -31,6 +31,18 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/../database/init</directory>
+                <targetPath>migration-schema</targetPath>
+                <includes>
+                    <include>mysql/chatchat-api.sql</include>
+                    <include>mysql/chatchat-mcp-server.sql</include>
+                    <include>postgresql/chatchat-api.sql</include>
+                    <include>postgresql/chatchat-mcp-server.sql</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

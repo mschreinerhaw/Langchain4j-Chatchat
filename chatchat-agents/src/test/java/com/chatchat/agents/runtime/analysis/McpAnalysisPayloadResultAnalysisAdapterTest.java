@@ -13,6 +13,78 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpAnalysisPayloadResultAnalysisAdapterTest {
 
     @Test
+    void undeclaredDocumentEvidenceProjectsChunksInsteadOfTransportJson() {
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind", "UNDECLARED",
+            "data", Map.of("data", Map.of(
+                "contractVersion", "document_evidence_v1",
+                "results", List.of(Map.of("fileId", "doc-live", "content", "安装 LiveData 第一步")),
+                "documents", List.of(Map.of("docId", "doc-live", "title", "LiveData 安装")))));
+
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("document_search", payload, 10_000));
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.datasetReference()).endsWith("#results");
+            assertThat(dataset.records()).containsExactly(Map.of("fileId", "doc-live",
+                "content", "安装 LiveData 第一步"));
+            assertThat(dataset.analysisContext()).containsEntry("evidenceBodyPresent", true);
+        });
+    }
+
+    @Test
+    void titleOnlyEvidenceProjectsCandidatesWithoutInventingSourceChunks() {
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "data", Map.of("contractVersion", "document_evidence_v1",
+                "results", List.of(),
+                "documents", List.of(Map.of("docId", "doc-live", "title", "LiveData 安装"))));
+
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("document_search", payload, 10_000));
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.datasetReference()).endsWith("#documents");
+            assertThat(dataset.records()).containsExactly(Map.of("docId", "doc-live", "title", "LiveData 安装"));
+            assertThat(dataset.analysisContext()).containsEntry("evidenceBodyPresent", false);
+        });
+    }
+
+    @Test
+    void declaredDocumentEvidenceUsesSourceChunksRatherThanSerializedEnvelope() {
+        Map<String, Object> payload = Map.of(
+            "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind", "DOCUMENT",
+            "data", Map.of("contractVersion", "document_evidence_v1",
+                "results", List.of(Map.of("fileId", "doc-live", "content", "install step"))));
+
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("document_search", payload, 10_000));
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.records()).containsExactly(Map.of("fileId", "doc-live", "content", "install step"));
+            assertThat(dataset.analysisContext()).containsEntry("evidenceBodyPresent", true);
+        });
+    }
+
+    @Test
+    void metadataOnlyResultRowsDoNotCountAsDocumentBody() {
+        Map<String, Object> payload = Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "data", Map.of("contractVersion", "document_evidence_v1",
+                "results", List.of(Map.of("fileId", "doc-live", "chunkIndex", 1)),
+                "documents", List.of(Map.of("docId", "doc-live", "title", "LiveData 安装"))));
+
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(
+            new AnalysisRequest("document_search", payload, 10_000));
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.datasetReference()).endsWith("#documents");
+            assertThat(dataset.analysisContext()).containsEntry("evidenceBodyPresent", false);
+        });
+    }
+
+    @Test
     void unifiedSearchUsesCanonicalFactRecordsInsteadOfAssetCatalogResults() {
         Map<String, Object> payload = Map.of(
             "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,

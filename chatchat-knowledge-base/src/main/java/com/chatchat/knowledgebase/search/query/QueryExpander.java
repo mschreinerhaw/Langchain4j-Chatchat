@@ -9,10 +9,25 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 
 @Component
 @RequiredArgsConstructor
 public class QueryExpander {
+
+    private static final ThreadLocal<Boolean> EXACT_DOCUMENT_QUERY = ThreadLocal.withInitial(() -> false);
+
+    /** Keeps a document evidence recall on the caller's current query. */
+    public static <T> T withoutExpansion(Supplier<T> recall) {
+        boolean previous = EXACT_DOCUMENT_QUERY.get();
+        EXACT_DOCUMENT_QUERY.set(true);
+        try {
+            return recall.get();
+        } finally {
+            if (previous) EXACT_DOCUMENT_QUERY.set(true);
+            else EXACT_DOCUMENT_QUERY.remove();
+        }
+    }
 
     private static final List<BilingualRetrievalEntry> BILINGUAL_RETRIEVAL_ENTRIES = List.of(
         entry(List.of("服务器", "主机", "节点", "server", "host", "node", "machine"), List.of("服务器", "主机", "节点", "server", "host", "node", "machine")),
@@ -60,6 +75,7 @@ public class QueryExpander {
         if (tokens == null || tokens.isEmpty()) {
             return List.of();
         }
+        if (EXACT_DOCUMENT_QUERY.get()) return List.copyOf(new LinkedHashSet<>(tokens));
         Set<String> expanded = new LinkedHashSet<>();
         for (String token : tokens) {
             addToken(expanded, token);
@@ -104,6 +120,7 @@ public class QueryExpander {
             return "";
         }
         normalized = focusQuery(normalized);
+        if (EXACT_DOCUMENT_QUERY.get()) return normalized;
         Set<String> appended = new LinkedHashSet<>();
         String normalizedText = normalize(normalized);
         List<String> baseTokens = tokenizer.searchTokens(normalizedText);

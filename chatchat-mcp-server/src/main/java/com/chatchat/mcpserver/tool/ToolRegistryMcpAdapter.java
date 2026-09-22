@@ -460,20 +460,8 @@ public class ToolRegistryMcpAdapter {
             values.put("contract_version", "document_evidence_v1");
             values.put("retrieval_guidance", DOCUMENT_SEARCH_EVIDENCE_GUIDANCE);
             values.put("default_debug", false);
-            values.put("modelInputBridgeContract", Map.of(
-                "contractVersion", "model_assisted_retrieval.v1",
-                "mode", "QUERY_EXPANSION",
-                "contextPaths", List.of("query"),
-                "allowedArgumentPaths", List.of("query"),
-                "mergeModes", Map.of("query", "append_text"),
-                "qualityGate", Map.of(
-                    "enabled", true,
-                    "minimumResultCount", 1,
-                    "countPaths", List.of("count", "total", "results", "chunks", "evidence")
-                ),
-                "guidance", "Create a concise retrieval query with exact titles, entities, codes, versions, dates and bilingual domain synonyms. "
-                    + "Do not alter document ids, permission filters, tenant, user or roles."
-            ));
+            // Document search owns its recall order. Model rewriting here broadens the
+            // first request before the exact user query has been evaluated.
         }
         return values;
     }

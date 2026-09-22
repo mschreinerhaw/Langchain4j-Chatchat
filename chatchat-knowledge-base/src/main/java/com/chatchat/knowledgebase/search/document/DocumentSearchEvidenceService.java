@@ -215,7 +215,8 @@ public class DocumentSearchEvidenceService {
             return controlledResult(result, state, events, elapsedMs(startedAt));
         }
 
-        DocumentRecallResult recallResult = orchestrator.recall(plan, hybridDocumentLimit(topK));
+        DocumentRecallResult recallResult = com.chatchat.knowledgebase.search.query.QueryExpander
+            .withoutExpansion(() -> orchestrator.recall(plan, hybridDocumentLimit(topK)));
 
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
         List<DocumentSearchHit> documents = new ArrayList<>();

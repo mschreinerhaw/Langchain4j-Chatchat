@@ -11,6 +11,8 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.DocumentSearchHit;
+import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mock.env.MockEnvironment;
@@ -22,8 +24,94 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 class DocumentSearchMcpToolRegistrarTest {
+
+    @Test
+    void retriesWithOnlyOneExpansionTermAfterEmptyOriginalQuery() {
+        DocumentSearchEvidenceService evidenceService = mock(DocumentSearchEvidenceService.class);
+        DocumentSearchResult empty = new DocumentSearchResult("document_evidence_v1", "服务器安装", "how_to",
+            0, List.of(), "", List.of());
+        DocumentSearchResult found = new DocumentSearchResult("document_evidence_v1", "服务器安装 server", "how_to",
+            1, List.of(), "", List.of(), null, null, List.of(), null, null,
+            List.of(new DocumentSearchHit("doc-1", "服务器安装", "server.md", "markdown", 90D, List.of())),
+            List.of(), null, null, null, null);
+        when(evidenceService.search(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> {
+            DocumentSearchRequest request = invocation.getArgument(0);
+            return request.query().contains("server") ? found : empty;
+        });
+        com.chatchat.knowledgebase.search.query.QueryExpander expander =
+            mock(com.chatchat.knowledgebase.search.query.QueryExpander.class);
+        when(expander.expandQuery("服务器安装")).thenReturn(List.of("服务器安装", "server", "host"));
+        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        when(authorization.currentCallerContext(org.mockito.ArgumentMatchers.anyMap())).thenReturn(
+            new McpAuthorizationService.CallerAuthorizationContext("tenant-a", "user-a", "caller", List.of()));
+        DocumentEvidenceAuthorizationFilter filter = mock(DocumentEvidenceAuthorizationFilter.class);
+        when(filter.filter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(1));
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        new DocumentSearchMcpToolRegistrar(evidenceService, new DocumentSearchRequestMapper(),
+            new MockEnvironment(), mock(ApiDocumentEvidenceClient.class),
+            new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
+                new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
+            filter, authorization, expander, new com.chatchat.knowledgebase.search.query.SearchTokenizer())
+            .registerTools(registry);
+
+        ToolOutput output = registry.getEnhancedTool(DocumentSearchMcpToolRegistrar.TOOL_NAME)
+            .execute(ToolInput.builder().parameters(Map.of("query", "服务器安装")).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        ArgumentCaptor<DocumentSearchRequest> requests = ArgumentCaptor.forClass(DocumentSearchRequest.class);
+        verify(evidenceService, times(2)).search(requests.capture());
+        assertThat(requests.getAllValues().get(0).query()).isEqualTo("服务器安装");
+        assertThat(requests.getAllValues().get(1).query()).isEqualTo("服务器安装 server");
+    }
+
+    @Test
+    void titleOnlyHitIsExpandedWithOriginalQueryAndAuthorizedDocumentScope() {
+        DocumentSearchEvidenceService evidenceService = mock(DocumentSearchEvidenceService.class);
+        DocumentSearchHit hit = new DocumentSearchHit("doc-live", "LiveData installation", "LiveData.md",
+            "markdown", 90D, List.of());
+        DocumentSearchResult titleOnly = new DocumentSearchResult("document_evidence_v1", "livedata 安装说明",
+            "how_to", 1, List.of(), "", List.of(), null, null, List.of(), null, null,
+            List.of(hit), List.of(), null, null, null, null);
+        DocumentEvidenceChunk chunk = new DocumentEvidenceChunk("doc-live:1", "1", "doc-live", "LiveData.md",
+            "安装", 1, "TEXT", 90D, "安装 LiveData 的第一步", List.of(), null,
+            null, "tenant-a", "user-a", "tenant", List.of());
+        DocumentSearchResult withBody = new DocumentSearchResult("document_evidence_v1", "livedata 安装说明",
+            "how_to", 1, List.of(chunk), "安装 LiveData 的第一步", List.of());
+        when(evidenceService.search(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> {
+            DocumentSearchRequest request = invocation.getArgument(0);
+            return request.fileIds() == null || request.fileIds().isEmpty() ? titleOnly : withBody;
+        });
+        McpAuthorizationService authorization = mock(McpAuthorizationService.class);
+        when(authorization.currentCallerContext(org.mockito.ArgumentMatchers.anyMap())).thenReturn(
+            new McpAuthorizationService.CallerAuthorizationContext("tenant-a", "user-a", "caller", List.of()));
+        DocumentEvidenceAuthorizationFilter filter = mock(DocumentEvidenceAuthorizationFilter.class);
+        when(filter.filter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(1));
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        new DocumentSearchMcpToolRegistrar(evidenceService, new DocumentSearchRequestMapper(),
+            new MockEnvironment(), mock(ApiDocumentEvidenceClient.class),
+            new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
+                new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
+            filter, authorization, mock(com.chatchat.knowledgebase.search.query.QueryExpander.class),
+            new com.chatchat.knowledgebase.search.query.SearchTokenizer()).registerTools(registry);
+
+        ToolOutput output = registry.getEnhancedTool(DocumentSearchMcpToolRegistrar.TOOL_NAME)
+            .execute(ToolInput.builder().parameters(Map.of("query", "livedata 安装说明")).build());
+
+        assertThat(output.isSuccess()).isTrue();
+        DocumentSearchResult result = (DocumentSearchResult) output.getData();
+        assertThat(result.results()).hasSize(1);
+        assertThat(result.results().get(0).content()).contains("安装 LiveData");
+        ArgumentCaptor<DocumentSearchRequest> requests = ArgumentCaptor.forClass(DocumentSearchRequest.class);
+        verify(evidenceService, times(2)).search(requests.capture());
+        assertThat(requests.getAllValues().get(0).query()).isEqualTo("livedata 安装说明");
+        assertThat(requests.getAllValues().get(1).query()).isEqualTo("livedata 安装说明");
+        assertThat(requests.getAllValues().get(1).fileIds()).containsExactly("doc-live");
+    }
 
     @Test
     void failsClosedWhenAuthorizationServiceIsUnavailable() {
@@ -42,7 +130,8 @@ class DocumentSearchMcpToolRegistrarTest {
             new MockEnvironment(), mock(ApiDocumentEvidenceClient.class),
             new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
                 new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
-            evidenceFilter, authorization).registerTools(registry);
+            evidenceFilter, authorization, mock(com.chatchat.knowledgebase.search.query.QueryExpander.class),
+            new com.chatchat.knowledgebase.search.query.SearchTokenizer()).registerTools(registry);
 
         ToolOutput output = registry.getEnhancedTool(DocumentSearchMcpToolRegistrar.TOOL_NAME)
             .execute(ToolInput.builder().parameters(Map.of("query", "query")).build());
@@ -70,7 +159,9 @@ class DocumentSearchMcpToolRegistrarTest {
             new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
                 new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter()),
             evidenceFilter,
-            authorization
+            authorization,
+            mock(com.chatchat.knowledgebase.search.query.QueryExpander.class),
+            new com.chatchat.knowledgebase.search.query.SearchTokenizer()
         );
 
         registrar.registerTools(registry);

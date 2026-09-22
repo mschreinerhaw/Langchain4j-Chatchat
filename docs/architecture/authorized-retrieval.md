@@ -40,6 +40,20 @@ Manage the bindings with `GET/POST/PUT/DELETE /api/v1/enterprise/skill-resource-
 
 The common pipeline does not fetch documents, execute tools, or load skill content. These operations remain with RocksDB, MCP Runtime, and the skill repository respectively.
 
+## Document evidence recall order
+
+The MCP `document_search` tool preserves the caller's query on the first recall.
+The Knowledge retrieval kernel suppresses semantic and bilingual expansion during
+that recall. If the first response contains document titles but no body chunks,
+MCP retries up to two authorized document IDs with the original query and an
+exact document scope. If neither a chunk nor a document is found, MCP may make
+one synonym retry, adding only one expansion term. A product identifier such
+as `livedata` is not broadened into a generic `data` query.
+
+The analysis adapter projects document evidence from `results` (or title-only
+`documents`) even when an older MCP gateway labels the envelope `UNDECLARED`.
+It does not split the serialized transport JSON into apparent source chunks.
+
 ## MCP authorization across the PostgreSQL boundary
 
 MCP does not read the API database directly. Its `ResourceAuthorizationPort` adapter

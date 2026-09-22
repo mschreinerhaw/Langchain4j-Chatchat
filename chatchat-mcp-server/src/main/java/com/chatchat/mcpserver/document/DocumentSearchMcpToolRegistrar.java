@@ -13,6 +13,9 @@ import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
+import com.chatchat.knowledgebase.search.document.DocumentSearchHit;
+import com.chatchat.knowledgebase.search.query.QueryExpander;
+import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.chatchat.tools.mcp.McpServerToolRegistrar;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
@@ -46,6 +49,8 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
     private final FederatedDocumentEvidenceSelector selector;
     private final DocumentEvidenceAuthorizationFilter authorizationFilter;
     private final McpAuthorizationService authorizationService;
+    private final QueryExpander queryExpander;
+    private final SearchTokenizer tokenizer;
 
     @Override
     public void registerTools(ToolRegistry toolRegistry) {
@@ -139,6 +144,56 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
                 }
                 DocumentSearchResult result = authorizationFilter.filter(request,
                     selector.select(request.query(), request.topK(), localResult, apiResult));
+                // A title hit is a useful candidate, but it is not quoted evidence.
+                // Revisit at most two authorized documents with the original query and
+                // an exact document scope before returning a metadata-only result.
+                if (result != null && result.results() != null && result.results().isEmpty()
+                    && result.documents() != null && !result.documents().isEmpty()
+                    && (request.fileIds() == null || request.fileIds().isEmpty())) {
+                    for (DocumentSearchHit hit : result.documents().stream().limit(2).toList()) {
+                        DocumentSearchRequest scoped = new DocumentSearchRequest(request.query(), request.topK(),
+                            List.of(hit.docId()), request.selectedFileIds(), request.selectedDocumentIds(),
+                            request.documentVisibilityEnforced(), request.filters(), request.tenantId(),
+                            request.userId(), request.roles(), request.debug());
+                        DocumentSearchResult scopedLocal = evidenceService.search(scoped);
+                        DocumentSearchResult scopedApi = null;
+                        try {
+                            scopedApi = apiClient.search(scoped).orElse(null);
+                        } catch (RuntimeException ex) {
+                            log.warn("API scoped document evidence search unavailable: {}", ex.getMessage());
+                        }
+                        DocumentSearchResult scopedResult = authorizationFilter.filter(scoped,
+                            selector.select(request.query(), request.topK(), scopedLocal, scopedApi));
+                        if (scopedResult != null && scopedResult.results() != null
+                            && !scopedResult.results().isEmpty()) {
+                            result = selector.select(request.query(), request.topK(), scopedResult, result);
+                            break;
+                        }
+                    }
+                }
+                // The optional synonym retry runs only after the original query
+                // found neither a body nor a document candidate. Add one term.
+                if ((request.fileIds() == null || request.fileIds().isEmpty())
+                    && result != null && result.results() != null && result.results().isEmpty()
+                    && result.documents() != null && result.documents().isEmpty()) {
+                    String term = firstSafeExpansion(request.query());
+                    if (term != null) {
+                        DocumentSearchRequest retry = new DocumentSearchRequest(
+                            request.query() + " " + term, request.topK(), request.fileIds(),
+                            request.selectedFileIds(), request.selectedDocumentIds(),
+                            request.documentVisibilityEnforced(), request.filters(), request.tenantId(),
+                            request.userId(), request.roles(), request.debug());
+                        DocumentSearchResult retryLocal = evidenceService.search(retry);
+                        DocumentSearchResult retryApi = null;
+                        try {
+                            retryApi = apiClient.search(retry).orElse(null);
+                        } catch (RuntimeException ex) {
+                            log.warn("API document evidence retry unavailable: {}", ex.getMessage());
+                        }
+                        result = authorizationFilter.filter(retry,
+                            selector.select(retry.query(), retry.topK(), retryLocal, retryApi));
+                    }
+                }
                 Map<String, Object> metadata = new LinkedHashMap<>();
                 metadata.put(McpServiceResult.RESULT_KIND_KEY, McpResultKind.DOCUMENT.name());
                 metadata.put(McpServiceResult.RESULT_SCHEMA_REF_KEY,
@@ -177,5 +232,24 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
             if (request.filters() != null) summary.put("documentFiltersApplied", true);
             return summary;
         }
+    }
+
+    private String firstSafeExpansion(String query) {
+        List<String> original = tokenizer.searchTokens(query);
+        if (original.isEmpty()) return null;
+        String subject = original.get(0).toLowerCase(java.util.Locale.ROOT);
+        boolean namedSubject = subject.length() >= 5 && subject.matches("[a-z0-9]+")
+            && !List.of("install", "guide", "document", "search").contains(subject);
+        List<String> alternatives = queryExpander.expandQuery(query);
+        if (alternatives == null) return null;
+        for (String term : alternatives) {
+            if (term == null) continue;
+            String candidate = term.toLowerCase(java.util.Locale.ROOT).trim();
+            if (candidate.length() < 2 || original.contains(candidate)
+                || query.toLowerCase(java.util.Locale.ROOT).contains(candidate)
+                || (namedSubject && !candidate.contains(subject))) continue;
+            return term;
+        }
+        return null;
     }
 }

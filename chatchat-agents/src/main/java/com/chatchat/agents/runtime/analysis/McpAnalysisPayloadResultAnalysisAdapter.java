@@ -85,6 +85,11 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
             return new AnalysisResult(string(envelope.get("resultSchemaRef")), "MCP_DECLARED_CALCULATION",
                 List.of(new AnalysisDataset(request.datasetReference(), contractContext, List.of(row))));
         }
+        // Older MCP gateways may lose resultKind while retaining the document
+        // contract in data. Project actual evidence or document candidates,
+        // never a sliced JSON transport envelope as if it were source text.
+        AnalysisResult documentProjection = projectDocumentEvidence(request, governedData, contractContext);
+        if (documentProjection != null) return documentProjection;
         List<AnalysisDataset> stdoutDatasets = new PythonStdoutRecordProjector().project(
             request.datasetReference(), governedData);
         if (!stdoutDatasets.isEmpty()) return withContext(new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,
@@ -109,6 +114,8 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
 
     private AnalysisResult documentResult(AnalysisRequest request, Object governedData,
                                           Map<String, Object> contractContext) {
+        AnalysisResult documentProjection = projectDocumentEvidence(request, governedData, contractContext);
+        if (documentProjection != null) return documentProjection;
         Map<String, Object> value = map(normalizeJson(governedData));
         Object document = value.get("text");
         if (document == null) document = value.get("content");
@@ -124,6 +131,33 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         }
         return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, "MCP_DECLARED_DOCUMENT",
             List.of(new AnalysisDataset(request.datasetReference() + "#document", contractContext, records)));
+    }
+
+    private AnalysisResult projectDocumentEvidence(AnalysisRequest request, Object governedData,
+                                                   Map<String, Object> contractContext) {
+        Map<String, Object> documentEvidence = findDocumentEvidence(governedData, 0);
+        if (documentEvidence.isEmpty()) return null;
+        List<Map<String, Object>> rows = objectRows(documentEvidence.get("results"));
+        String source = "results";
+        boolean hasBody = rows != null && rows.stream().anyMatch(row ->
+            (row.get("content") != null && !String.valueOf(row.get("content")).isBlank())
+                || (row.get("text") != null && !String.valueOf(row.get("text")).isBlank()));
+        if (!hasBody) {
+            List<Map<String, Object>> documents = objectRows(documentEvidence.get("documents"));
+            if (documents != null && !documents.isEmpty()) {
+                rows = documents;
+                source = "documents";
+            }
+        }
+        if (rows == null || rows.isEmpty()) {
+            return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, "MCP_DOCUMENT_EVIDENCE", List.of());
+        }
+        Map<String, Object> context = new LinkedHashMap<>(contractContext);
+        context.put("projectionMode", "DOCUMENT_EVIDENCE");
+        context.put("evidenceBodyPresent", hasBody);
+        context.put("canonicalPath", "$.data." + source);
+        return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, "MCP_DOCUMENT_EVIDENCE",
+            List.of(new AnalysisDataset(request.datasetReference() + "#" + source, Map.copyOf(context), rows)));
     }
 
     private AnalysisResult withContext(AnalysisResult source, Map<String, Object> contractContext, String routing) {
@@ -152,6 +186,21 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         if (right != null) result.putAll(right);
         result.values().removeIf(java.util.Objects::isNull);
         return Map.copyOf(result);
+    }
+
+    private Map<String, Object> findDocumentEvidence(Object value, int depth) {
+        if (depth > 5) return Map.of();
+        Map<String, Object> current = map(normalizeJson(value));
+        if (current.isEmpty()) return Map.of();
+        if ("document_evidence_v1".equals(string(current.get("contractVersion")))
+            && (current.containsKey("results") || current.containsKey("documents"))) {
+            return current;
+        }
+        for (String key : ENVELOPE_KEYS) {
+            Map<String, Object> nested = findDocumentEvidence(current.get(key), depth + 1);
+            if (!nested.isEmpty()) return nested;
+        }
+        return Map.of();
     }
 
     private List<Candidate> canonicalCandidates(Object value, String path) {

@@ -33,7 +33,10 @@ class DocumentSearchMcpToolRegistrarTest {
         DocumentSearchMcpToolRegistrar registrar = new DocumentSearchMcpToolRegistrar(
             evidenceService,
             new DocumentSearchRequestMapper(),
-            new MockEnvironment().withProperty("chatchat.mcp.server.document-search.default-limit", "6")
+            new MockEnvironment().withProperty("chatchat.mcp.server.document-search.default-limit", "6"),
+            mock(ApiDocumentEvidenceClient.class),
+            new FederatedDocumentEvidenceSelector(new com.chatchat.knowledgebase.search.query.SearchTokenizer(),
+                new com.chatchat.knowledgebase.search.evidence.EvidenceContextFormatter())
         );
 
         registrar.registerTools(registry);
@@ -52,7 +55,7 @@ class DocumentSearchMcpToolRegistrarTest {
             McpServiceResult.RESULT_SCHEMA_REF_KEY, "document_evidence_v1");
         McpResultProvenance provenance = (McpResultProvenance) output.getMetadata()
             .get(McpServiceResult.PROVENANCE_KEY);
-        assertThat(provenance.sourceRef()).isEqualTo("knowledge-base://document-index");
+        assertThat(provenance.sourceRef()).isEqualTo("knowledge-base://mcp-document-index");
         assertThat(provenance.inputFingerprint()).startsWith("sha256:");
         ArgumentCaptor<DocumentSearchRequest> request = ArgumentCaptor.forClass(DocumentSearchRequest.class);
         verify(evidenceService).search(request.capture());

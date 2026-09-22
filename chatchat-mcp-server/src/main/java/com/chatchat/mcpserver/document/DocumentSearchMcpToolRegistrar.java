@@ -16,6 +16,7 @@ import com.chatchat.tools.mcp.McpServerToolRegistrar;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -25,6 +26,7 @@ import java.util.Map;
 /** Publishes document retrieval as an MCP-owned capability backed directly by the retrieval kernel. */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
 
     public static final String TOOL_NAME = "document_search";
@@ -39,6 +41,8 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
     private final DocumentSearchEvidenceService evidenceService;
     private final DocumentSearchRequestMapper requestMapper;
     private final Environment environment;
+    private final ApiDocumentEvidenceClient apiClient;
+    private final FederatedDocumentEvidenceSelector selector;
 
     @Override
     public void registerTools(ToolRegistry toolRegistry) {
@@ -115,14 +119,22 @@ public class DocumentSearchMcpToolRegistrar implements McpServerToolRegistrar {
             try {
                 DocumentSearchRequest request = requestMapper.map(
                     input == null ? Map.of() : input.getParameters(), defaultTopK);
-                DocumentSearchResult result = evidenceService.search(request);
+                DocumentSearchResult localResult = evidenceService.search(request);
+                DocumentSearchResult apiResult = null;
+                try {
+                    apiResult = apiClient.search(request).orElse(null);
+                } catch (RuntimeException ex) {
+                    log.warn("API document evidence search unavailable; using MCP corpus: {}", ex.getMessage());
+                }
+                DocumentSearchResult result = selector.select(request.query(), request.topK(), localResult, apiResult);
                 Map<String, Object> metadata = new LinkedHashMap<>();
                 metadata.put(McpServiceResult.RESULT_KIND_KEY, McpResultKind.DOCUMENT.name());
                 metadata.put(McpServiceResult.RESULT_SCHEMA_REF_KEY,
                     result.contractVersion() == null || result.contractVersion().isBlank()
                         ? RESULT_SCHEMA : result.contractVersion());
                 metadata.put(McpServiceResult.PROVENANCE_KEY, new McpResultProvenance(
-                    "knowledge-base://document-index",
+                    apiResult != null
+                        ? "knowledge-base://api-and-mcp-document-index" : "knowledge-base://mcp-document-index",
                     null,
                     Instant.now().toString(),
                     "sha256:" + ModelProtocolJson.sha256Hex(request),

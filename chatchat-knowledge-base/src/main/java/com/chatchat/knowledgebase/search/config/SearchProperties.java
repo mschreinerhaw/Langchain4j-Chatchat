@@ -84,7 +84,7 @@ public class SearchProperties {
         private boolean enabled = true;
         private int globalDocumentLimit = 8;
         private int globalChunkLimit = 50;
-        private int candidateDocumentLimit = 5;
+        private int candidateDocumentLimit = 20;
         private int chunksPerDocument = 3;
     }
 

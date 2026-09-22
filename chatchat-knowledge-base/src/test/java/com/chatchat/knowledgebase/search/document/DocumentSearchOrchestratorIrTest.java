@@ -20,6 +20,27 @@ import static org.mockito.Mockito.when;
 
 class DocumentSearchOrchestratorIrTest {
     @Test
+    void documentAndChunkRanksFuseWithoutComparingRawIndexScores() {
+        GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);
+        GlobalChunkIndexService chunks = mock(GlobalChunkIndexService.class);
+        KnowledgeIrDocumentRecall ir = mock(KnowledgeIrDocumentRecall.class);
+        SearchResult generic = result("generic-doc", "General installation guide", 900);
+        SearchResult corroborated = result("corroborated-doc", "Product deployment", 10);
+        when(documents.recall(any(DocumentSearchPlan.class), eq(8)))
+            .thenReturn(page(List.of(generic, corroborated)));
+        when(chunks.recall(any(DocumentSearchPlan.class)))
+            .thenReturn(page(List.of(corroborated)));
+        when(ir.recall(any(DocumentSearchPlan.class), eq(8)))
+            .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of(), ""));
+        DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
+            documents, chunks, new SearchProperties(), new IndexVersionManager(), ir);
+
+        assertThat(orchestrator.recall(plan(), 8).candidates())
+            .extracting(candidate -> candidate.result().docId())
+            .containsExactly("corroborated-doc", "generic-doc");
+    }
+
+    @Test
     void chapterRecallPromotesNamedDocumentUsingSamePermissionScope() {
         GlobalDocumentIndexService documents = mock(GlobalDocumentIndexService.class);
         GlobalChunkIndexService chunks = mock(GlobalChunkIndexService.class);
@@ -40,26 +61,36 @@ class DocumentSearchOrchestratorIrTest {
             .thenReturn(new KnowledgeIrDocumentRecall.Recall(List.of("livedata-doc"), "livedata"));
         DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
             documents, chunks, new SearchProperties(), new IndexVersionManager(), ir);
-        DocumentSearchPlan plan = new DocumentSearchPlan(
-            "livedata 安装说明 installation guide", 8, null, List.of(), List.of(), List.of(),
-            "", "how_to", List.of(), false,
-            SearchPermissionContext.of("tenant-1", "user-1", List.of()),
-            DocumentVisibilityContext.unrestricted(), null);
-
-        assertThat(orchestrator.recall(plan, 8).candidates())
+        assertThat(orchestrator.recall(plan(), 8).candidates())
             .extracting(candidate -> candidate.result().docId())
             .containsExactly("livedata-doc", "linux-doc");
     }
 
     private SearchPage page(SearchResult result) {
-        return new SearchPage("query", List.of(), List.of(result), 1, 8, 1, 8, 1,
+        return page(List.of(result));
+    }
+
+    private SearchPage page(List<SearchResult> results) {
+        return new SearchPage("query", List.of(), results, results.size(), 8, 1, 8, 1,
             false, 1L, 1, null);
     }
 
     private SearchResult result(String id, String title) {
+        return result(id, title, 20);
+    }
+
+    private SearchResult result(String id, String title, int score) {
         return new SearchResult(id, title, title, "upload", "2026-09-22", title + ".md",
-            "md", null, List.of(), List.of(), List.of(), 20, null, List.of(), List.of(),
+            "md", null, List.of(), List.of(), List.of(), score, null, List.of(), List.of(),
             id, 1, true, "tenant-1", "user-1", "tenant", List.of(), "active",
             System.currentTimeMillis(), null, null);
+    }
+
+    private DocumentSearchPlan plan() {
+        return new DocumentSearchPlan(
+            "livedata 安装说明 installation guide", 8, null, List.of(), List.of(), List.of(),
+            "", "how_to", List.of(), false,
+            SearchPermissionContext.of("tenant-1", "user-1", List.of()),
+            DocumentVisibilityContext.unrestricted(), null);
     }
 }

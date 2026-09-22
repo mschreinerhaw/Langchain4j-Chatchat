@@ -22,6 +22,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DocumentSearchOrchestrator {
 
+    private static final int RRF_RANK_CONSTANT = 60;
+    private static final int RRF_SCORE_SCALE = 100_000;
+
     private final GlobalDocumentIndexService globalDocumentIndexService;
     private final GlobalChunkIndexService globalChunkIndexService;
     private final SearchProperties properties;
@@ -68,12 +71,12 @@ public class DocumentSearchOrchestrator {
                 .toList();
         }
         Map<String, DocumentSearchCandidate> candidates = new LinkedHashMap<>();
-        int order = 0;
-        for (SearchResult result : documentResults) {
-            addHybridCandidate(candidates, result, true, false, order++);
+        for (int rank = 0; rank < documentResults.size(); rank++) {
+            addHybridCandidate(candidates, documentResults.get(rank), true, false, rank);
         }
-        for (SearchResult result : pageResults(chunkPage)) {
-            addHybridCandidate(candidates, result, false, true, order++);
+        List<SearchResult> chunkResults = pageResults(chunkPage);
+        for (int rank = 0; rank < chunkResults.size(); rank++) {
+            addHybridCandidate(candidates, chunkResults.get(rank), false, true, rank);
         }
         int limit = Math.max(1, Math.max(topK, hybrid.getCandidateDocumentLimit()));
         return candidates.values().stream()
@@ -93,7 +96,8 @@ public class DocumentSearchOrchestrator {
         if (result == null || !hasText(result.docId()) || !indexVersionManager.retrievable(result)) {
             return;
         }
-        int score = hybridCandidateScore(result, documentLevel, chunkLevel);
+        // Reciprocal rank fusion keeps OpenSearch and RocksDB scores on separate scales.
+        int score = RRF_SCORE_SCALE / (RRF_RANK_CONSTANT + order + 1);
         DocumentSearchCandidate current = candidates.get(result.docId());
         if (current == null) {
             candidates.put(result.docId(), new DocumentSearchCandidate(result, score, order, documentLevel, chunkLevel));
@@ -103,25 +107,11 @@ public class DocumentSearchOrchestrator {
         SearchResult selected = preferIncoming ? result : current.result();
         candidates.put(result.docId(), new DocumentSearchCandidate(
             selected,
-            Math.max(current.score(), score),
+            current.score() + score,
             Math.min(current.order(), order),
             current.documentLevelMatched() || documentLevel,
             current.chunkLevelMatched() || chunkLevel
         ));
-    }
-
-    private int hybridCandidateScore(SearchResult result, boolean documentLevel, boolean chunkLevel) {
-        int score = result == null ? 0 : Math.max(0, result.score());
-        if (documentLevel) {
-            score += 10;
-        }
-        if (chunkLevel || hasMatchedChunks(result)) {
-            score += 30;
-        }
-        if (result != null && result.scoreBreakdown() != null && result.scoreBreakdown().contentScore() > 0) {
-            score += 12;
-        }
-        return score;
     }
 
     private List<SearchResult> pageResults(SearchPage page) {

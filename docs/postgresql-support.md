@@ -45,3 +45,11 @@ their existing MySQL/H2 configurations.
 For a one-time copy in either direction, use the Shell entry points documented in
 `database/migration/mysql-postgresql-transfer.md`.
 The standalone Java migration tool is documented in `chatchat-data-migration/README.md`.
+
+If the MCP Server fails on startup with `syntax error at or near
+"innodb_lock_wait_timeout"`, its PostgreSQL connection is still receiving a MySQL
+Hikari `connection-init-sql`. Set `CHATCHAT_DATASOURCE_CONFIG=datasource-postgresql.yml`
+for the MCP process and remove any external
+`SPRING_DATASOURCE_HIKARI_CONNECTION_INIT_SQL` or
+`spring.datasource.hikari.connection-init-sql` override containing MySQL SQL.
+The PostgreSQL datasource config now sets `lock_timeout` using PostgreSQL syntax.

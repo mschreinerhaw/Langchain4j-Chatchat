@@ -14,6 +14,7 @@ spring:
       max-lifetime: ${CHATCHAT_MCP_DB_MAX_LIFETIME_MS:1800000}
       keepalive-time: ${CHATCHAT_MCP_DB_KEEPALIVE_MS:30000}
       leak-detection-threshold: ${CHATCHAT_MCP_DB_LEAK_DETECTION_MS:60000}
+      connection-init-sql: "SET lock_timeout = '${CHATCHAT_MCP_DB_LOCK_WAIT_SECONDS:5}s'"
   jpa:
     hibernate:
       ddl-auto: update

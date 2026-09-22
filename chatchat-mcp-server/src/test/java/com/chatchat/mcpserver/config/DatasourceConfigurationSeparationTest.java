@@ -31,9 +31,22 @@ class DatasourceConfigurationSeparationTest {
     @Test
     void datasourceFilesContainDatabaseSettings() throws Exception {
         assertDatasource(Path.of("src/main/resources/datasource-mysql.yml"), "jdbc:mysql:", "org.hibernate.dialect.MySQLDialect");
+        assertDatasource(Path.of("src/main/resources/datasource-postgresql.yml"), "jdbc:postgresql:", "org.hibernate.dialect.PostgreSQLDialect");
         assertDatasource(Path.of("src/main/resources/datasource-h2.yml"), "jdbc:h2:", "org.hibernate.dialect.H2Dialect");
         assertDatasource(Path.of("src/main/distribution/config/datasource-mysql.yml"), "jdbc:mysql:", "org.hibernate.dialect.MySQLDialect");
+        assertDatasource(Path.of("src/main/distribution/config/datasource-postgresql.yml"), "jdbc:postgresql:", "org.hibernate.dialect.PostgreSQLDialect");
         assertDatasource(Path.of("src/main/distribution/config/datasource-h2.yml"), "jdbc:h2:", "org.hibernate.dialect.H2Dialect");
+    }
+
+    @Test
+    void postgresqlDatasourceUsesPostgresqlLockTimeoutSql() throws Exception {
+        for (Path datasource : List.of(
+            Path.of("src/main/resources/datasource-postgresql.yml"),
+            Path.of("src/main/distribution/config/datasource-postgresql.yml"))) {
+            String initSql = String.valueOf(value(load(datasource),
+                "spring.datasource.hikari.connection-init-sql"));
+            assertThat(initSql).contains("SET lock_timeout").doesNotContain("innodb");
+        }
     }
 
     @Test
@@ -90,6 +103,23 @@ class DatasourceConfigurationSeparationTest {
             assertThat(context.getEnvironment().getProperty("spring.datasource.url")).startsWith("jdbc:mysql:");
             assertThat(context.getEnvironment().getProperty("spring.jpa.database-platform"))
                 .isEqualTo("org.hibernate.dialect.MySQLDialect");
+        }
+    }
+
+    @Test
+    void postgresqlDevelopmentProfileDoesNotInheritMysqlConnectionSql() {
+        SpringApplication application = new SpringApplication(EmptyConfiguration.class);
+        application.setWebApplicationType(WebApplicationType.NONE);
+        application.setLogStartupInfo(false);
+        try (ConfigurableApplicationContext context = application.run(
+            "--spring.config.location=classpath:/application.yml",
+            "--CHATCHAT_DATASOURCE_CONFIG=datasource-postgresql.yml",
+            "--spring.main.banner-mode=off"
+        )) {
+            assertThat(context.getEnvironment().getProperty("spring.datasource.url"))
+                .startsWith("jdbc:postgresql:");
+            assertThat(context.getEnvironment().getProperty("spring.datasource.hikari.connection-init-sql"))
+                .startsWith("SET lock_timeout").doesNotContain("innodb");
         }
     }
 

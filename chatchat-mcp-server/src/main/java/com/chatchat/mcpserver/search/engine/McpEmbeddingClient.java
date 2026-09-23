@@ -76,7 +76,8 @@ class McpEmbeddingClient {
         Object payloadInput = requestInputs.size() == 1 ? requestInputs.get(0) : requestInputs;
         Map<String, Object> body = Map.of(
             "model", config.getModel(),
-            "input", payloadInput
+            "input", payloadInput,
+            "dimensions", config.getDimension()
         );
         try {
             HttpRequest request = HttpRequest.newBuilder()

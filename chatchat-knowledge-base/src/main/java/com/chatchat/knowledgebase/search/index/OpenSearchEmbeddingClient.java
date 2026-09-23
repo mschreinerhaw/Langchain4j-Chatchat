@@ -71,7 +71,8 @@ public class OpenSearchEmbeddingClient {
         }
         Map<String, Object> body = Map.of(
             "model", config.getModel(),
-            "input", text
+            "input", text,
+            "dimensions", config.getDimension()
         );
         try {
             HttpRequest request = HttpRequest.newBuilder()

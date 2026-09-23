@@ -72,3 +72,7 @@ staged lifecycle and selects one of three effective execution modes:
 and public schema metadata. It delegates the governed execution sequence to the
 workflow. The query, script, routing, template, and database-query services stay
 as replaceable operators below that workflow.
+
+Registered business-query templates resolve their request parameters through
+[`template-parameter-workflow.md`](template-parameter-workflow.md) before the
+database-query operator is invoked.

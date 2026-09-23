@@ -329,6 +329,9 @@ class SqlMcpToolPublisherTest {
         config.setId("query-1");
         config.setToolName("query_edayQuqtMoni");
         config.setTitle("行情波动提醒");
+        config.setInputSchemaJson("""
+            {"type":"object","properties":{"limit":{"type":"integer","default":20}},"required":["limit"]}
+            """);
         when(databaseQueryConfigService.listEnabled()).thenReturn(List.of(config));
         when(databaseQueryInvokeService.invoke(org.mockito.ArgumentMatchers.eq(config), org.mockito.ArgumentMatchers.anyMap()))
             .thenReturn(ToolOutput.success(Map.of("rows", List.of(Map.of("PD_CODE", "000001")))));
@@ -355,7 +358,7 @@ class SqlMcpToolPublisherTest {
         method.setAccessible(true);
         Object result = method.invoke(publisher, Map.of(
             "templateId", "query_edayQuqtMoni",
-            "parameters", Map.of("limit", 10),
+            "parameters", Map.of("limit", "10"),
             "executionContext", Map.of("assetName", "达梦测试服务器", "env", "DEV")
         ));
 
@@ -365,7 +368,8 @@ class SqlMcpToolPublisherTest {
         assertThat(argumentsCaptor.getValue()).containsEntry("limit", 10);
         assertThat(result).isInstanceOf(McpSchema.CallToolResult.class);
         assertThat(((McpSchema.CallToolResult) result).structuredContent().toString())
-            .contains("execute.sql-query.v1", "BUSINESS_QUERY", "RESOLVE_BUSINESS_TEMPLATE");
+            .contains("execute.sql-query.v1", "BUSINESS_QUERY", "RESOLVE_BUSINESS_TEMPLATE",
+                "resolve.template-parameters.v1", "EXPLICIT_PARAMETERS");
     }
 
     @Test

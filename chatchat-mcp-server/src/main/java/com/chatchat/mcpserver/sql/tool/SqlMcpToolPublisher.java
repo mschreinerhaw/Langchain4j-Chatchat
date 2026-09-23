@@ -28,6 +28,8 @@ import com.chatchat.mcpserver.routing.target.TargetKindRegistry;
 import com.chatchat.mcpserver.ops.discovery.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
+import com.chatchat.mcpserver.template.TemplateParameterValidator;
+import com.chatchat.mcpserver.template.workflow.TemplateParameterWorkflow;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -357,7 +359,9 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             sqlQueryExecutionWorkflow = new SqlQueryExecutionWorkflow(
                 sqlTemplateService, executeService, scriptExecuteService,
                 databaseQueryConfigService, databaseQueryInvokeService,
-                executionTargetRouter, standardResultFactory);
+                executionTargetRouter, standardResultFactory,
+                new TemplateParameterWorkflow(
+                    new TemplateParameterValidator(objectMapper), objectMapper));
         }
         return sqlQueryExecutionWorkflow;
     }

@@ -350,7 +350,25 @@ class RuntimeOsArchitectureBoundaryTest {
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/execution/workflow/SqlQueryExecutionWorkflow.java"))
             .contains("extends AbstractStagedExecutionWorkflow", "RESOLVE_BUSINESS_TEMPLATE",
                 "ROUTE_LOGICAL_DATASOURCE", "CLASSIFY_SQL_CARDINALITY",
-                "ENFORCE_READ_ONLY_POLICY", "ASSEMBLE_EVIDENCE");
+                "ENFORCE_READ_ONLY_POLICY", "ASSEMBLE_EVIDENCE",
+                "TemplateParameterWorkflow");
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/template/workflow/TemplateParameterWorkflow.java"))
+            .contains("extends AbstractStagedExecutionWorkflow", "COLLECT_EXPLICIT_PARAMETERS",
+                "COLLECT_REQUEST_FIELDS", "APPLY_DECLARED_DEFAULTS",
+                "COERCE_DECLARED_TYPES", "VALIDATE_REQUIRED_PARAMETERS");
+    }
+
+    @Test
+    void apiTemplateExecutorsUseTemplateParameterWorkflow() {
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/api/invocation/ApiInvokeService.java"))
+            .contains("TemplateParameterWorkflow", "templateParameterWorkflow().execute")
+            .doesNotContain("parameterValidator.validateDeclaredOnly");
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/ops/http/HttpRequestToolService.java"))
+            .contains("TemplateParameterWorkflow", "templateParameterWorkflow().execute")
+            .doesNotContain("parameterValidator.validateDeclaredOnly");
     }
 
     @Test

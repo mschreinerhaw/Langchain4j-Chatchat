@@ -5,6 +5,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.http.ApiBusinessResponseEvaluator;
 import com.chatchat.mcpserver.template.TemplateParameterValidator;
+import com.chatchat.mcpserver.template.workflow.TemplateParameterWorkflow;
 import com.chatchat.tools.livedata.LivedataSessionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -44,6 +46,12 @@ public class HttpRequestToolService {
     private final InvocationAuditService auditService;
     private final TemplateParameterValidator parameterValidator;
     private final ObjectProvider<LivedataSessionService> livedataSessionServiceProvider;
+    private TemplateParameterWorkflow parameterWorkflow;
+
+    @Autowired
+    void configureTemplateParameterWorkflow(TemplateParameterWorkflow parameterWorkflow) {
+        this.parameterWorkflow = parameterWorkflow;
+    }
 
     public HttpRequestToolResult execute(Map<String, Object> arguments) {
         return executeRequest(new LinkedHashMap<>(arguments == null ? Map.of() : arguments), false);
@@ -188,14 +196,18 @@ public class HttpRequestToolService {
         Map<String, Object> explicitParameters = explicit instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : Map.of();
-        Map<String, Object> parameters = parameterValidator.validateDeclaredOnly(
-            config.getToolName(),
-            config.getInputSchemaJson(),
-            explicitParameters,
-            arguments
-        );
+        Map<String, Object> parameters = new LinkedHashMap<>(templateParameterWorkflow().execute(
+            new TemplateParameterWorkflow.Request(config.getToolName(), config.getInputSchemaJson(),
+                explicitParameters, arguments)).parameters());
         copyIfPresent(arguments, parameters, "sourceTaskId");
         return parameters;
+    }
+
+    private TemplateParameterWorkflow templateParameterWorkflow() {
+        if (parameterWorkflow == null) {
+            parameterWorkflow = new TemplateParameterWorkflow(parameterValidator, objectMapper);
+        }
+        return parameterWorkflow;
     }
 
     private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {

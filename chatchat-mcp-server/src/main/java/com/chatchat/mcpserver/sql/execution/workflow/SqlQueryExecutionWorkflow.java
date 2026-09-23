@@ -15,6 +15,7 @@ import com.chatchat.mcpserver.sql.parsing.SqlStatementExtractor;
 import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
+import com.chatchat.mcpserver.template.workflow.TemplateParameterWorkflow;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,7 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
     private final DatabaseQueryInvokeService databaseQueryInvokeService;
     private final ExecutionTargetRouter executionTargetRouter;
     private final StandardToolExecutionResultFactory resultFactory;
+    private final TemplateParameterWorkflow parameterWorkflow;
 
     public SqlQueryExecutionWorkflow(SqlTemplateService sqlTemplateService,
                                      SqlQueryExecuteService queryExecuteService,
@@ -48,7 +50,8 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
                                      DatabaseQueryConfigService databaseQueryConfigService,
                                      DatabaseQueryInvokeService databaseQueryInvokeService,
                                      ExecutionTargetRouter executionTargetRouter,
-                                     StandardToolExecutionResultFactory resultFactory) {
+                                     StandardToolExecutionResultFactory resultFactory,
+                                     TemplateParameterWorkflow parameterWorkflow) {
         this.sqlTemplateService = sqlTemplateService;
         this.queryExecuteService = queryExecuteService;
         this.scriptExecuteService = scriptExecuteService;
@@ -56,6 +59,7 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
         this.databaseQueryInvokeService = databaseQueryInvokeService;
         this.executionTargetRouter = executionTargetRouter;
         this.resultFactory = resultFactory;
+        this.parameterWorkflow = parameterWorkflow;
     }
 
     @Override public String workflowId() { return WORKFLOW_ID; }
@@ -70,7 +74,9 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
         validateTemplateArgumentContract(input);
         validateExecutableSelector(input);
         DatabaseQueryConfig businessQuery = businessDatabaseQueryTemplate(input);
-        return new Analysis(input, businessQuery == null ? "ROUTED_SQL" : "BUSINESS_QUERY", businessQuery);
+        SqlTemplateConfig sqlTemplate = businessQuery == null ? registeredSqlTemplate(input) : null;
+        return new Analysis(input, businessQuery == null ? "ROUTED_SQL" : "BUSINESS_QUERY",
+            businessQuery, sqlTemplate);
     }
 
     @Override
@@ -80,7 +86,7 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
                 "BIND_TEMPLATE_PARAMETERS", "EXECUTE_DATABASE_QUERY_WORKFLOW",
                 "VERIFY_RESULT", "ASSEMBLE_EVIDENCE")
             : List.of("VALIDATE_ARGUMENT_CONTRACT", "ROUTE_LOGICAL_DATASOURCE",
-                "CLASSIFY_SQL_CARDINALITY", "ENFORCE_READ_ONLY_POLICY",
+                "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT", "CLASSIFY_SQL_CARDINALITY", "ENFORCE_READ_ONLY_POLICY",
                 "EXECUTE_QUERY_OR_SCRIPT", "VERIFY_RESULT", "ASSEMBLE_EVIDENCE");
         return new Plan(analysis.mode(), steps);
     }
@@ -89,26 +95,43 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
     protected Execution executePlan(Map<String, Object> input, Analysis analysis, Plan plan,
                                      KernelDataScope scope) {
         if (analysis.businessQuery() != null) {
-            Map<String, Object> arguments = databaseQueryArguments(analysis.arguments());
+            Map<String, Object> supplied = databaseQueryArguments(analysis.arguments());
+            TemplateParameterWorkflow.Resolution parameterResolution = parameterWorkflow.execute(
+                new TemplateParameterWorkflow.Request(
+                    analysis.businessQuery().getToolName(),
+                    analysis.businessQuery().getInputSchemaJson(),
+                    supplied,
+                    analysis.arguments()));
+            Map<String, Object> arguments = parameterResolution.parameters();
             ToolOutput output = databaseQueryInvokeService.invoke(analysis.businessQuery(), arguments);
             Object structured = resultFactory.fromDatabaseQuery(analysis.businessQuery(), arguments, output);
             boolean success = output != null && output.isSuccess();
             String summary = success ? summarizeDatabaseQueryData(output.getData())
                 : output == null ? "database_query returned no output" : output.getErrorMessage();
-            return new Execution("BUSINESS_QUERY", success, summary, structured);
+            return new Execution("BUSINESS_QUERY", success, summary, structured, parameterResolution);
         }
 
-        Map<String, Object> routed = executionTargetRouter.routeSqlQuery(analysis.arguments());
+        Map<String, Object> executableArguments = analysis.arguments();
+        TemplateParameterWorkflow.Resolution parameterResolution = null;
+        if (analysis.sqlTemplate() != null) {
+            parameterResolution = parameterWorkflow.execute(new TemplateParameterWorkflow.Request(
+                analysis.sqlTemplate().getCode(), analysis.sqlTemplate().getParameterSchemaJson(),
+                explicitParameters(analysis.arguments()),
+                hasSchema(analysis.sqlTemplate().getParameterSchemaJson()) ? analysis.arguments() : Map.of()));
+            executableArguments = new LinkedHashMap<>(analysis.arguments());
+            executableArguments.put("parameters", parameterResolution.parameters());
+        }
+        Map<String, Object> routed = executionTargetRouter.routeSqlQuery(executableArguments);
         if (shouldExecuteAsScript(routed)) {
             SqlScriptResult result = scriptExecuteService.execute(toScriptArguments(routed));
             return new Execution("SQL_SCRIPT", result.success(),
                 result.success() ? "SQL script completed" : result.errorMessage(),
-                resultFactory.fromSqlScript(result));
+                resultFactory.fromSqlScript(result), parameterResolution);
         }
         SqlQueryResult result = queryExecuteService.execute(routed);
         return new Execution("SQL_QUERY", result.success(),
             result.success() ? "SQL query completed" : result.errorMessage(),
-            resultFactory.fromSql(result));
+            resultFactory.fromSql(result), parameterResolution);
     }
 
     @Override
@@ -123,7 +146,7 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
     protected McpSchema.CallToolResult assemble(Map<String, Object> input, Analysis analysis, Plan plan,
                                                  Execution execution, KernelDataScope scope) {
         Object structured = withWorkflowTrace(execution.structuredContent(), execution.mode(),
-            plan.steps(), execution.success());
+            plan.steps(), execution.success(), execution.parameterResolution());
         return McpSchema.CallToolResult.builder()
             .addTextContent(execution.summary() == null ? "" : execution.summary())
             .structuredContent(structured)
@@ -185,6 +208,15 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
         return databaseQueryConfigService.listEnabled().stream()
             .filter(config -> config != null && config.getToolName() != null
                 && config.getToolName().equalsIgnoreCase(template))
+            .findFirst().orElse(null);
+    }
+
+    private SqlTemplateConfig registeredSqlTemplate(Map<String, Object> arguments) {
+        String template = templateId(arguments);
+        if (template == null) return null;
+        return sqlTemplateService.listEnabled().stream()
+            .filter(config -> config != null && config.getCode() != null
+                && config.getCode().equalsIgnoreCase(template))
             .findFirst().orElse(null);
     }
 
@@ -251,12 +283,28 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
         return values;
     }
 
-    private Object withWorkflowTrace(Object structured, String mode, List<String> steps, boolean success) {
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> explicitParameters(Map<String, Object> arguments) {
+        Object parameters = arguments.get("parameters");
+        return parameters instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : Map.of();
+    }
+
+    private Object withWorkflowTrace(Object structured, String mode, List<String> steps, boolean success,
+                                     TemplateParameterWorkflow.Resolution parameterResolution) {
         if (!(structured instanceof Map<?, ?> source)) return structured;
         Map<String, Object> result = new LinkedHashMap<>();
         source.forEach((key, value) -> result.put(String.valueOf(key), value));
-        result.put("executionWorkflow", Map.of(
-            "workflowId", WORKFLOW_ID, "mode", mode, "steps", steps, "verified", success));
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("workflowId", WORKFLOW_ID);
+        trace.put("mode", mode);
+        trace.put("steps", steps);
+        trace.put("verified", success);
+        if (parameterResolution != null) {
+            trace.put("parameterWorkflow", parameterResolution.traceSummary());
+        }
+        result.put("executionWorkflow", Map.copyOf(trace));
         return result;
     }
 
@@ -281,6 +329,10 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
             firstText(text(arguments, "templateId"), text(arguments, "template_id")));
     }
 
+    private boolean hasSchema(String schemaJson) {
+        return schemaJson != null && !schemaJson.isBlank();
+    }
+
     private String text(Map<String, Object> source, String key) {
         if (source == null || source.get(key) == null) return null;
         String value = String.valueOf(source.get(key)).trim();
@@ -291,7 +343,8 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
         return first == null || first.isBlank() ? second : first;
     }
 
-    public record Analysis(Map<String, Object> arguments, String mode, DatabaseQueryConfig businessQuery) {
+    public record Analysis(Map<String, Object> arguments, String mode, DatabaseQueryConfig businessQuery,
+                           SqlTemplateConfig sqlTemplate) {
         public Analysis {
             arguments = arguments == null ? Map.of()
                 : Collections.unmodifiableMap(new LinkedHashMap<>(arguments));
@@ -302,5 +355,6 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
         public Plan { steps = steps == null ? List.of() : List.copyOf(steps); }
     }
 
-    public record Execution(String mode, boolean success, String summary, Object structuredContent) { }
+    public record Execution(String mode, boolean success, String summary, Object structuredContent,
+                            TemplateParameterWorkflow.Resolution parameterResolution) { }
 }

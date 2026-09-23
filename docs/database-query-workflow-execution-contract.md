@@ -34,6 +34,8 @@ Agent Runtime 外层结果继续遵循统一工具结果和执行图契约。
 
 `sql_query_execute` 的能力内执行由 `SqlQueryExecutionWorkflow` 负责。该工作流统一执行参数契约校验、业务模板解析、逻辑数据源路由、单 SQL/脚本分类、只读执行、结果验证和证据组装；MCP 发布器仅保留协议发布、确认和并发治理。工作流关系见 [`architecture/search-execution-workflows.md`](architecture/search-execution-workflows.md)。
 
+业务查询模板在执行前通过 `TemplateParameterWorkflow` 解析请求参数。参数优先级、schema 默认值、类型转换、必填约束和来源追踪遵循 [`architecture/template-parameter-workflow.md`](architecture/template-parameter-workflow.md)。
+
 ## 适用范围
 
 本规范适用于：

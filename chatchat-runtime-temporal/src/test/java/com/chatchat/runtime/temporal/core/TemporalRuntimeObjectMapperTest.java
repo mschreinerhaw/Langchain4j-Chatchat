@@ -1,14 +1,14 @@
 package com.chatchat.runtime.temporal.core;
 
-import com.chatchat.common.runtime.analysis.workflow.AnalysisCapability;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisExecutionOutcome;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisWorkflowType;
-import com.chatchat.common.runtime.analysis.workflow.ComputationEvidence;
-import com.chatchat.common.runtime.analysis.workflow.EvidenceBundle;
-import com.chatchat.common.runtime.analysis.workflow.EvidenceRequirement;
-import com.chatchat.common.runtime.analysis.workflow.PlanStep;
-import com.chatchat.common.runtime.analysis.workflow.StandardWorkflowPlan;
-import com.chatchat.common.runtime.analysis.workflow.VerificationResult;
+import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
+import com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType;
+import com.chatchat.common.runtime.analysis.evidence.ComputationEvidence;
+import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
+import com.chatchat.common.runtime.analysis.plan.EvidenceRequirement;
+import com.chatchat.common.runtime.analysis.plan.PlanStep;
+import com.chatchat.common.runtime.analysis.plan.StandardWorkflowPlan;
+import com.chatchat.common.runtime.analysis.execution.VerificationResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

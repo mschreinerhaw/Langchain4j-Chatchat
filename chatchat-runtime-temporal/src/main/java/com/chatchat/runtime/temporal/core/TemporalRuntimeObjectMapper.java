@@ -1,13 +1,13 @@
 package com.chatchat.runtime.temporal.core;
 
-import com.chatchat.common.runtime.analysis.workflow.AnalysisEvidence;
-import com.chatchat.common.runtime.analysis.workflow.ComputationEvidence;
-import com.chatchat.common.runtime.analysis.workflow.DocumentAnalysisEvidence;
-import com.chatchat.common.runtime.analysis.workflow.ExternalResearchEvidence;
-import com.chatchat.common.runtime.analysis.workflow.StandardWorkflowPlan;
-import com.chatchat.common.runtime.analysis.workflow.StructuredDataEvidence;
-import com.chatchat.common.runtime.analysis.workflow.ToolAnalysisEvidence;
-import com.chatchat.common.runtime.analysis.workflow.WorkflowPlan;
+import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.ComputationEvidence;
+import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.ExternalResearchEvidence;
+import com.chatchat.common.runtime.analysis.plan.StandardWorkflowPlan;
+import com.chatchat.common.runtime.analysis.evidence.StructuredDataEvidence;
+import com.chatchat.common.runtime.analysis.evidence.ToolAnalysisEvidence;
+import com.chatchat.common.runtime.analysis.plan.WorkflowPlan;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;

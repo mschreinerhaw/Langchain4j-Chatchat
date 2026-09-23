@@ -1,7 +1,20 @@
 package com.chatchat.agents.runtime.analysis.workflow;
 
+import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.ComputationEvidence;
+import com.chatchat.common.runtime.analysis.evidence.StructuredDataEvidence;
+import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
+import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
+import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.model.AnalysisContext;
+import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
+import com.chatchat.common.runtime.analysis.model.AnalysisScope;
+import com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType;
+import com.chatchat.common.runtime.analysis.plan.WorkflowPlan;
+import com.chatchat.common.runtime.analysis.spi.AnalysisCapabilityOperator;
+import com.chatchat.common.runtime.analysis.spi.AnalysisWorkflow;
+
 import com.chatchat.common.kernel.KernelDataScope;
-import com.chatchat.common.runtime.analysis.workflow.*;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
 import com.chatchat.agents.runtime.execution.LocalWorkflowRuntime;
 import org.junit.jupiter.api.Test;

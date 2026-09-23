@@ -1,2 +1,2 @@
-/** Domain-neutral problem-analysis workflow lifecycle, routing, plans, capabilities, and evidence. */
+/** Template lifecycle shared by concrete problem-analysis workflows. */
 package com.chatchat.common.runtime.analysis.workflow;

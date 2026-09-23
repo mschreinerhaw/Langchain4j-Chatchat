@@ -19,6 +19,25 @@ Agent Runtime OS
   -> AnalysisExecutionOutcome
 ```
 
+## Common contract package layout
+
+`chatchat-common` groups the framework-neutral analysis API by responsibility:
+
+| Package | Responsibility |
+| --- | --- |
+| `analysis.model` | Intent, context, scope, capability, workflow type, and execution mode values |
+| `analysis.plan` | Workflow plans, steps, and evidence requirements |
+| `analysis.evidence` | Evidence bundle and typed evidence records |
+| `analysis.execution` | Execution, verification, and final outcome records |
+| `analysis.spi` | Extension ports implemented by analyzers, workflows, operators, and the Runtime |
+| `analysis.routing` | Deterministic query analysis and workflow selection |
+| `analysis.workflow` | The shared workflow lifecycle template |
+
+Dependencies point from lifecycle and routing code toward stable contracts.
+Domain modules implement the SPIs; infrastructure frameworks remain outside
+`chatchat-common`. New contracts must be placed in the package matching their
+role instead of accumulating in `analysis.workflow`.
+
 ```mermaid
 flowchart TD
     A[Agent Runtime] --> B[AnalysisQueryAnalyzer]

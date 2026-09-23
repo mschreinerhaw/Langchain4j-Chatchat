@@ -1,8 +1,10 @@
 package com.chatchat.agents.runtime.analysis.workflow;
 
-import com.chatchat.common.runtime.analysis.workflow.AnalysisCapability;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisCapabilityOperator;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisContext;
+import com.chatchat.common.runtime.analysis.spi.AnalysisCapabilityOperator;
+
+import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.spi.AnalysisCapabilityOperator;
+import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

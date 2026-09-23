@@ -1,11 +1,11 @@
 package com.chatchat.knowledgebase.runtime.workflow;
 
 import com.chatchat.common.kernel.KernelDataScope;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisCapability;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisContext;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisIntent;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisExecutionOutcome;
-import com.chatchat.common.runtime.analysis.workflow.DocumentAnalysisEvidence;
+import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.model.AnalysisContext;
+import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
+import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
+import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
 import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
 import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;

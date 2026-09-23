@@ -290,7 +290,7 @@ class RuntimeOsArchitectureBoundaryTest {
             .doesNotExist();
 
         assertThat(allJava(
-            "chatchat-common/src/main/java/com/chatchat/common/runtime/analysis/workflow"))
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/analysis"))
             .doesNotContain("dev.langchain4j", "org.bsc.langgraph4j", "io.temporal", "org.springframework");
         assertThat(allJava(
             "chatchat-agents/src/main/java/com/chatchat/agents/runtime/analysis/workflow"))

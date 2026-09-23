@@ -1,5 +1,9 @@
 # Unified authorized retrieval
 
+This document describes the document child workflow. The parent lifecycle,
+router, other problem classes, and unified evidence protocol are documented in
+[`problem-analysis-workflows.md`](problem-analysis-workflows.md).
+
 `AuthorizedRetrieval` in `chatchat-common` defines the shared boundary for Knowledge, MCP tools, and Skills:
 
 1. The domain resolves a `Scope` from its authoritative database. The scope carries tenant, user, role IDs, and allowed resource IDs.

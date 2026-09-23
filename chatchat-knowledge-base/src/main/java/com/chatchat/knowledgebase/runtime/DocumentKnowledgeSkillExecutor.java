@@ -7,25 +7,42 @@ import com.chatchat.common.knowledge.KnowledgeSkillInstance;
 import com.chatchat.common.knowledge.KnowledgeSkillResult;
 import com.chatchat.common.knowledge.KnowledgeSkillType;
 import com.chatchat.common.knowledge.KnowledgeSourceReference;
-import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisContext;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisIntent;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisResult;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisRuntimePort;
+import com.chatchat.common.runtime.analysis.workflow.DocumentAnalysisEvidence;
 import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
-import com.chatchat.knowledgebase.search.document.DocumentSearchFilters;
-import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
-import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
-import lombok.RequiredArgsConstructor;
+import com.chatchat.knowledgebase.runtime.workflow.DocumentProblemAnalysisWorkflow;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.core.annotation.Order;
 
-import java.util.List;
 import java.util.Map;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /** Current document-index adapter. It can later be replaced by a native Knowledge IR index. */
 @Component
 @Order(100)
-@RequiredArgsConstructor
 public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPort {
 
-    private final DocumentSearchEvidenceService documentSearchService;
+    private final DocumentProblemAnalysisWorkflow workflow;
+    @Autowired(required = false)
+    private AnalysisRuntimePort analysisRuntime;
+
+    @Autowired
+    public DocumentKnowledgeSkillExecutor(DocumentProblemAnalysisWorkflow workflow) {
+        this.workflow = workflow;
+    }
+
+    /** Compatibility constructor for isolated callers. */
+    public DocumentKnowledgeSkillExecutor(DocumentSearchEvidenceService documentSearchService) {
+        this(new DocumentProblemAnalysisWorkflow(documentSearchService));
+    }
 
     @Override
     public boolean supports(KnowledgeSkillType skillType) {
@@ -37,44 +54,44 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
         KnowledgeSkillInstance skill = context.skill();
         String query = skill.goal() + (skill.queryHints().isEmpty()
             ? "" : "；检索提示：" + String.join("、", skill.queryHints()));
-        List<String> documentIds = context.request().scope().documentIds();
-        List<String> tags = context.request().scope().tags();
         int topK = Math.max(1, Math.min(8, (skill.tokenBudget() + 299) / 300));
-        DocumentSearchResult result = documentSearchService.search(new DocumentSearchRequest(
-            query, topK, documentIds, documentIds, documentIds, true,
-            new DocumentSearchFilters(null, null, null, null, null, tags),
-            context.request().scope().tenantId(), context.request().scope().userId(),
-            context.request().scope().roles(), false));
+        com.chatchat.common.knowledge.KnowledgeScope knowledgeScope = context.request().scope();
+        Map<String, Object> kernelAttributes = knowledgeScope.agentId() == null
+            ? Map.of() : Map.of("agentId", knowledgeScope.agentId());
+        KernelDataScope kernelScope = new KernelDataScope(knowledgeScope.tenantId(), knowledgeScope.userId(),
+            UUID.randomUUID().toString(), null, null, null, kernelAttributes);
+        AnalysisIntent intent = new AnalysisIntent("DOCUMENT_KNOWLEDGE", List.of(),
+            Set.of(AnalysisCapability.DOCUMENT_SEARCH), "UNSPECIFIED", true);
+        AnalysisContext analysisContext = new AnalysisContext(query, kernelScope, skill.instanceId(),
+            knowledgeScope.documentIds(), knowledgeScope.tags(), knowledgeScope.roles(), intent,
+            Map.of("topK", topK));
+        AnalysisResult result = analysisRuntime == null
+            ? workflow.execute(analysisContext, kernelScope) : analysisRuntime.analyze(analysisContext);
         List<KnowledgeIR> units = toUnits(context, result);
         return new KnowledgeSkillResult(skill.instanceId(), skill.skillType(), units,
             units.isEmpty() ? "empty" : "used",
             Map.of("adapter", "document-index", "topK", topK, "tokenBudget", skill.tokenBudget()));
     }
 
-    private List<KnowledgeIR> toUnits(KnowledgeSkillExecutionContext context, DocumentSearchResult result) {
+    private List<KnowledgeIR> toUnits(KnowledgeSkillExecutionContext context, AnalysisResult result) {
         if (result == null) return List.of();
-        if (!result.results().isEmpty()) {
-            return result.results().stream().map(chunk -> toIr(context.skill(), chunk)).toList();
+        List<DocumentAnalysisEvidence> evidence = result.evidenceBundle().evidence().stream()
+            .filter(DocumentAnalysisEvidence.class::isInstance).map(DocumentAnalysisEvidence.class::cast).toList();
+        if (!evidence.isEmpty()) {
+            return evidence.stream().map(chunk -> toIr(context.skill(), chunk)).toList();
         }
-        if (result.context() == null || result.context().isBlank()) return List.of();
-        KnowledgeSourceReference source = result.citations().isEmpty() ? null
-            : new KnowledgeSourceReference(
-                result.citations().get(0).refId(), result.citations().get(0).fileId(),
-                result.citations().get(0).chunkId(), result.citations().get(0).fileName(),
-                result.citations().get(0).section(), null, result.citations().get(0).citation());
+        if (result.synthesis() == null || result.synthesis().isBlank()) return List.of();
         KnowledgeSkillInstance skill = context.skill();
         return List.of(new KnowledgeIR(
             skill.instanceId() + "-context", skill.domain(), skill.skillType().knowledgeType(),
-            skill.goal(), result.context(), List.of(), List.of(),
-            List.of(context.request().taskType()), List.of(), result.context(), source, 0.5D));
+            skill.goal(), result.synthesis(), List.of(), List.of(),
+            List.of(context.request().taskType()), List.of(), result.synthesis(), null, 0.5D));
     }
 
-    private KnowledgeIR toIr(KnowledgeSkillInstance skill, DocumentEvidenceChunk chunk) {
+    private KnowledgeIR toIr(KnowledgeSkillInstance skill, DocumentAnalysisEvidence chunk) {
         KnowledgeSourceReference source = new KnowledgeSourceReference(
-            chunk.refId(), chunk.fileId(), chunk.chunkId(), chunk.fileName(), chunk.section(), null,
-            chunk.citation() == null ? null
-                : chunk.citation().source() + (chunk.citation().locator() == null
-                    ? "" : "#" + chunk.citation().locator()));
+            chunk.evidenceId(), chunk.documentId(), chunk.chunkId(), chunk.documentName(), chunk.section(), null,
+            chunk.citation());
         return new KnowledgeIR(
             chunk.chunkId() == null || chunk.chunkId().isBlank() ? skill.instanceId() + "-unit" : chunk.chunkId(),
             skill.domain(), skill.skillType().knowledgeType(),

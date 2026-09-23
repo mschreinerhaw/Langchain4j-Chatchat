@@ -320,6 +320,27 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void complexSearchPublishersDelegateToStagedExecutionWorkflows() {
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/news/tool/RemoteNewsMcpToolProvider.java"))
+            .contains("WebSearchExecutionWorkflow", "workflow::execute")
+            .doesNotContain("newsSearch.search", "financialSearch.map");
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/news/tool/WebSearchExecutionWorkflow.java"))
+            .contains("extends AbstractStagedExecutionWorkflow", "SEARCH_GOVERNED_FINANCIAL_DATA",
+                "SEARCH_LOCAL_NEWS", "SUPPLEMENT_EXTERNAL_WEB", "VERIFY_EVIDENCE");
+
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/metadata/tool/EnterpriseMetadataMcpToolPublisher.java"))
+            .contains("EnterpriseMetadataSearchWorkflow", "workflow.execute")
+            .doesNotContain("matchingService.match", "searchService.searchRequirements");
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/metadata/search/workflow/EnterpriseMetadataSearchWorkflow.java"))
+            .contains("extends AbstractStagedExecutionWorkflow", "RETRIEVE_REQUIRED_TYPES",
+                "RANK_PER_REQUIREMENT", "RETRIEVE_FIELD_CANDIDATES", "VERIFY_COVERAGE");
+    }
+
+    @Test
     void publishedMcpServicesUseCapabilityTreeIdentityAcrossRuntimeLayers() {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityHierarchy.java"))

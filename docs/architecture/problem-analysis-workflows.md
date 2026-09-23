@@ -161,3 +161,8 @@ deployments that do not include the Agent Runtime module.
 
 Add a new top-level workflow only for a new analysis mechanism. Domain-specific
 behavior belongs in Skills, plans, or capability operators.
+
+Complex search capabilities may contain their own execution workflow below the
+selected problem-analysis workflow. `web_search` and
+`enterprise_metadata_search` follow this pattern; see
+[`search-execution-workflows.md`](search-execution-workflows.md).

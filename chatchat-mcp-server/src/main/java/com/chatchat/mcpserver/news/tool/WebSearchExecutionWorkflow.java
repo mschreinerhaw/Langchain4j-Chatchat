@@ -1,0 +1,400 @@
+package com.chatchat.mcpserver.news.tool;
+
+import com.chatchat.common.concurrent.CancellationSupport;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.runtime.workflow.AbstractStagedExecutionWorkflow;
+import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.news.financial.FinancialEnrichmentService;
+import com.chatchat.mcpserver.news.runtime.NewsSearchService;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+/** Executes the governed local-first web search analysis workflow. */
+@Component
+public class WebSearchExecutionWorkflow extends AbstractStagedExecutionWorkflow<
+    ToolInput, WebSearchExecutionWorkflow.Analysis, WebSearchExecutionWorkflow.Plan,
+    ToolOutput, ToolOutput> {
+
+    public static final String WORKFLOW_ID = "search.web.v1";
+    private final NewsSearchService newsSearch;
+    private final Optional<InternalFinancialDataSearchExecutor> financialSearch;
+
+    public WebSearchExecutionWorkflow(NewsSearchService newsSearch,
+                                      Optional<FinancialEnrichmentService> financialEnrichment) {
+        this.newsSearch = newsSearch;
+        this.financialSearch = financialEnrichment == null ? Optional.empty()
+            : financialEnrichment.map(InternalFinancialDataSearchExecutor::new);
+    }
+
+    @Override public String workflowId() { return WORKFLOW_ID; }
+
+    @Override
+    protected void validateInput(ToolInput input, KernelDataScope scope) {
+        if (input == null) throw new IllegalArgumentException("web_search input is required");
+    }
+
+    @Override
+    protected Analysis analyze(ToolInput input, KernelDataScope scope) {
+        String dataset = input.getParameterAsString("dataset", "").trim();
+        String query = input.getParameterAsString("query", "").trim();
+        return new Analysis(dataset.isBlank() ? "DISCOVERY" : "DATASET_QUERY", query, dataset);
+    }
+
+    @Override
+    protected Plan plan(ToolInput input, Analysis analysis, KernelDataScope scope) {
+        List<String> steps = "DATASET_QUERY".equals(analysis.mode())
+            ? List.of("VALIDATE_DATASET_SCOPE", "LOAD_GOVERNED_DATASET", "VERIFY_FACT_ROWS", "ASSEMBLE_EVIDENCE")
+            : List.of("ANALYZE_QUERY", "SEARCH_GOVERNED_FINANCIAL_DATA", "SEARCH_LOCAL_NEWS",
+                "SUPPLEMENT_EXTERNAL_WEB", "MERGE_AND_RANK", "VERIFY_EVIDENCE");
+        return new Plan(analysis.mode(), steps);
+    }
+
+    @Override
+    protected ToolOutput executePlan(ToolInput input, Analysis analysis, Plan plan, KernelDataScope scope) {
+        return executeSearch(input, analysis);
+    }
+
+    @Override
+    protected void verify(ToolInput input, Analysis analysis, Plan plan,
+                          ToolOutput execution, KernelDataScope scope) {
+        if (execution == null) throw new IllegalStateException("web_search produced no result");
+        execution.getMetadata().put("executionWorkflow", WORKFLOW_ID);
+        execution.getMetadata().put("workflowMode", plan.mode());
+        execution.getMetadata().put("workflowSteps", plan.steps());
+        execution.getMetadata().put("workflowVerified", execution.isSuccess());
+    }
+
+    @Override
+    protected ToolOutput assemble(ToolInput input, Analysis analysis, Plan plan,
+                                  ToolOutput execution, KernelDataScope scope) {
+        return execution;
+    }
+    private ToolOutput executeSearch(ToolInput input, Analysis analysis) {
+        CancellationSupport.throwIfCancelled("unified web_search");
+        String dataset = analysis.dataset();
+        if (!dataset.isBlank()) {
+            try {
+                InternalFinancialDataSearchExecutor enrichment = financialSearch.orElseThrow(() ->
+                    new IllegalStateException("Financial query capability is unavailable"));
+                Map<String, Object> data = new LinkedHashMap<>(enrichment.queryDataset(dataset, input));
+                // FinancialDataStore already applies the caller's query limit. Do not apply a
+                // second presentation-layer row/field truncation at the MCP boundary: these
+                // rows are the authoritative facts requested by the caller.
+                List<Map<String, Object>> factRows = rows(data);
+                data.put("rows", factRows);
+                data.put("count", factRows.size());
+                data.put("resultView", "complete_fact_rows");
+                data.put("provider", "chatchat-mcp-market");
+                data.put("mode", "financial_dataset_query");
+                data.put("result_type", "financial_dataset_query");
+                data.put("retrieval_stage", "EXECUTION");
+                data.put("sample_only", false);
+                data.put("requires_second_query", false);
+                data.put("empty_result", factRows.isEmpty());
+                String discoveryId = input.getParameterAsString("discovery_id", "").trim();
+                if (!discoveryId.isBlank()) data.put("discovery_id", discoveryId);
+                ToolOutput result = ToolOutput.success(data, "Financial dataset query completed");
+                result.getMetadata().put("financialRetrievalStage", "EXECUTION");
+                result.getMetadata().put("financialDataset", dataset);
+                result.getMetadata().put("financialEmptyResult", factRows.isEmpty());
+                if (!discoveryId.isBlank()) result.getMetadata().put("financialDiscoveryId", discoveryId);
+                return result;
+            } catch (Exception ex) {
+                CancellationSupport.rethrowIfCancelled(ex, "financial dataset query");
+                return ToolOutput.failure(ex);
+            }
+        }
+
+        String query = analysis.query();
+        if (query.isBlank()) return ToolOutput.failure("query parameter is required when dataset is absent");
+        String discoveryId = UUID.randomUUID().toString();
+        int limit = bounded(input.getParameterAsNumber("num_results"), 10, 1, 50);
+        int financialDatasetLimit = bounded(
+            input.getParameterAsNumber("financial_dataset_limit"), 2, 1, 3);
+        int financialCandidateLimit = Math.min(6,
+            Math.max(financialDatasetLimit, financialDatasetLimit * 2));
+        List<String> warnings = new ArrayList<>();
+        // Local governed financial retrieval is authoritative and must finish before
+        // the news runtime is allowed to consider supplemental internet recall.
+        InternalFinancialDataSearchExecutor.SearchResult financialSearchResult = financialSearch
+            .map(service -> service.search(input, financialCandidateLimit))
+            .orElseGet(() -> new InternalFinancialDataSearchExecutor.SearchResult(query,
+                new FinancialEnrichmentService.EnrichmentResult(
+                    query, List.of(), List.of(), List.of(), "capability_unavailable")));
+        FinancialEnrichmentService.EnrichmentResult enrichment = financialSearchResult.enrichment();
+        warnings.addAll(enrichment.warnings());
+        String financialAssetQuery = enrichment.assetQuery();
+        List<Map<String, Object>> assets = enrichment.assets().stream()
+            .map(source -> assetResult(source, discoveryId)).toList();
+        List<Map<String, Object>> financialData = enrichment.financialData().stream()
+            .map(this::financialFactResult).toList();
+        boolean requiresSecondQuery = !assets.isEmpty() && financialData.isEmpty();
+        CancellationSupport.throwIfCancelled("unified web_search");
+        int financialObservationCount = financialData.stream()
+            .mapToInt(item -> ((Number) item.getOrDefault("count", 0)).intValue()).sum();
+        NewsSearchService.SearchResult newsResult = newsSearch.search(input, financialObservationCount);
+        List<Map<String, Object>> news = newsResult.results();
+        if (newsResult.warning() != null) warnings.add(newsResult.warning());
+        CancellationSupport.throwIfCancelled("unified web_search");
+        if (news.isEmpty() && assets.isEmpty() && warnings.size() == 2) {
+            return ToolOutput.failure("Both news and market search are unavailable: " + String.join("; ", warnings));
+        }
+
+        List<Map<String, Object>> marketResults = new ArrayList<>(financialData);
+        marketResults.addAll(assets);
+        List<Map<String, Object>> results = interleave(marketResults, news, limit);
+        List<String> urls = results.stream().map(item -> item.get("url")).filter(String.class::isInstance)
+            .map(String.class::cast).filter(value -> !value.isBlank()).distinct().toList();
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("query", query);
+        data.put("financialSearchQuery", financialSearchResult.query());
+        data.put("financialSearchQueryAligned", query.equals(financialSearchResult.query()));
+        data.put("financialSearchTool", InternalFinancialDataSearchExecutor.TOOL_NAME);
+        data.put("financialSearchToolVisibility", "internal_bridge_only");
+        data.put("financialAssetQuery", financialAssetQuery);
+        data.put("discovery_id", discoveryId);
+        data.put("result_type", "unified_search_results");
+        data.put("retrieval_stage", "DISCOVERY");
+        data.put("sample_only", false);
+        data.put("requires_second_query", requiresSecondQuery);
+        data.put("provider", "chatchat-unified-search");
+        data.put("mode", "unified_news_and_financial_asset_discovery");
+        data.put("retrievalOrder", List.of(
+            "financial_data_search_internal",
+            "local_news_index",
+            "external_web_search_internal"
+        ));
+        data.put("externalSearchRole", "supplementary_fallback");
+        data.put("count", results.size());
+        data.put("newsCount", news.size());
+        // Facts are the primary MCP result. Asset-catalog entries are discovery metadata and
+        // must never obscure or replace observations already returned by the governed store.
+        data.put("financialDatasetCount", financialData.size());
+        data.put("financialObservationCount", financialObservationCount);
+        List<Map<String, Object>> financialFacts = financialEvidenceRows(financialData);
+        List<Map<String, Object>> factRecords = new ArrayList<>(financialFacts);
+        factRecords.addAll(news.stream().map(LinkedHashMap::new).toList());
+        data.put("schemaVersion", "unified_search_fact_result.v1");
+        data.put("recordCount", factRecords.size());
+        data.put("records", List.copyOf(factRecords));
+        data.put("financialFacts", financialFacts);
+        data.put("financialEvidenceRows", financialFacts);
+        data.put("financialData", financialData);
+        data.put("structuredDatasetCount", financialData.size());
+        data.put("structuredObservationCount", financialObservationCount);
+        data.put("structuredData", financialData);
+        data.put("financialAssetCount", assets.size());
+        data.put("financialAssets", assets);
+        data.put("financialIndex", financialIndexGuide(assets, discoveryId));
+        boolean financialDataRequired = input.getParameterAsBoolean("financial_data_required", false);
+        data.put("financialDataRequired", financialDataRequired);
+        data.put("financialDataPolicy", "local_first_auto");
+        data.put("financialDataAutoRetrieved", !financialData.isEmpty());
+        data.put("financialDataSatisfied", !financialData.isEmpty()
+            && financialData.stream().anyMatch(item -> ((Number) item.getOrDefault("count", 0)).intValue() > 0));
+        if (enrichment.skippedReason() != null) data.put("financialEnrichmentSkippedReason", enrichment.skippedReason());
+        data.put("results", results);
+        data.put("reference_urls", urls);
+        if (!warnings.isEmpty()) data.put("warnings", warnings);
+        ToolOutput result = ToolOutput.success(data, "Unified news and financial asset discovery completed");
+        result.getMetadata().put("financialRetrievalStage", "DISCOVERY");
+        result.getMetadata().put("financialDiscoveryId", discoveryId);
+        result.getMetadata().put("financialCandidateDatasetCount", assets.size());
+        result.getMetadata().put("financialQueriedDatasetCount", financialData.size());
+        result.getMetadata().put("financialDataRequired", financialDataRequired);
+        result.getMetadata().put("financialSearchQuery", financialSearchResult.query());
+        result.getMetadata().put("financialSearchQueryAligned", query.equals(financialSearchResult.query()));
+        result.getMetadata().put("financialSearchToolVisibility", "internal_bridge_only");
+        result.getMetadata().put("financialSecondQueryRequired", requiresSecondQuery);
+        return result;
+    }
+
+    private List<Map<String, Object>> financialEvidenceRows(List<Map<String, Object>> datasets) {
+        List<Map<String, Object>> evidence = new ArrayList<>();
+        for (Map<String, Object> dataset : datasets == null ? List.<Map<String, Object>>of() : datasets) {
+            String datasetCode = String.valueOf(dataset.getOrDefault("dataset", ""));
+            for (Map<String, Object> row : rows(dataset)) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                if (!datasetCode.isBlank()) item.put("dataset", datasetCode);
+                item.putAll(row);
+                evidence.add(item);
+            }
+        }
+        return List.copyOf(evidence);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> rows(Map<String, Object> result) {
+        if (result == null || !(result.get("rows") instanceof List<?> values)) return List.of();
+        return values.stream().filter(Map.class::isInstance)
+            .map(value -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) value)).toList();
+    }
+
+    private Map<String, Object> financialFactResult(Map<String, Object> source) {
+        Map<String, Object> result = new LinkedHashMap<>(source == null ? Map.of() : source);
+        List<Map<String, Object>> facts = rows(result);
+        result.put("rows", facts);
+        result.put("count", facts.size());
+        result.put("empty_result", facts.isEmpty());
+        result.put("resultView", "complete_fact_rows");
+        result.put("runtimeEvidenceType", "structured_data_observation");
+        return result;
+    }
+
+    private String firstNonBlank(String first, String fallback) {
+        return first == null || first.isBlank() ? fallback : first;
+    }
+
+    private Map<String, Object> assetResult(Map<String, Object> source, String discoveryId) {
+        String dataset = text(source, "dataset_code", "datasetCode");
+        String title = text(source, "title", "asset_name", "assetName");
+        String description = text(source, "description", "business_description", "businessDescription");
+        String storage = text(source, "storage_location", "storageLocation");
+        if (storage.isBlank()) {
+            String database = text(source, "database_name", "databaseName");
+            String table = text(source, "table_name", "tableName");
+            storage = database.isBlank() ? table : database + "." + table;
+        }
+        String database = text(source, "database_name", "databaseName");
+        String archiveTable = text(source, "archive_table_name", "archiveTableName");
+        String archiveStorage = archiveTable.isBlank() ? ""
+            : (database.isBlank() ? archiveTable : database + "." + archiveTable);
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("resultType", "financial_data_asset");
+        item.put("documentKind", "market_asset_catalog");
+        item.put("dataset", dataset);
+        item.put("title", title.isBlank() ? dataset : title);
+        item.put("snippet", description);
+        if (source.get("relevance_score") instanceof Number score) {
+            item.put("relevanceScore", score.doubleValue());
+        }
+        item.put("businessTags", source.getOrDefault("business_tags_json", List.of()));
+        item.put("updateFrequency", text(source, "update_frequency", "updateFrequency"));
+        item.put("lastObservationDate", text(source, "last_observation_date", "lastObservationDate"));
+        item.put("availableFields", financialFields(source.get("fields")));
+        item.put("storageLocation", storage);
+        item.put("archiveStorageLocation", archiveStorage);
+        item.put("retentionPolicy", Map.of(
+            "dailyHotDays", numberValue(source, "hot_retention_days", "hotRetentionDays", 7),
+            "weeklySnapshotDays", numberValue(source, "archive_retention_days", "archiveRetentionDays", 1825),
+            "historyGranularity", text(source, "history_granularity", "historyGranularity")));
+        item.put("readTool", "web_search");
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("dataset", dataset);
+        evidence.put("storageLocation", storage);
+        evidence.put("archiveStorageLocation", archiveStorage);
+        evidence.put("catalogIndex", "financial-data-asset");
+        item.put("evidence", evidence);
+        item.put("followUp", Map.of(
+            "tool", "web_search",
+            "arguments", Map.of("dataset", dataset, "discovery_id", discoveryId, "limit", 50)));
+        return item;
+    }
+
+    private Map<String, Object> financialIndexGuide(List<Map<String, Object>> assets, String discoveryId) {
+        Map<String, Object> guide = new LinkedHashMap<>();
+        guide.put("name", "financial-data-asset");
+        guide.put("contractVersion", "financial_index_capability_v1");
+        guide.put("purpose",
+            "Search governed financial datasets by business meaning, discover their fields and supported scenarios, "
+                + "then explicitly select a dataset before reading authoritative observations.");
+        guide.put("searchBehavior",
+            "Every web_search call searches this governed financial index and requested financial rows first. "
+                + "The local news index follows, and external web APIs are supplemental fallback only. "
+                + "Revise the query when evidence is incomplete; an exact dataset code is optional.");
+        guide.put("supportedScenarios", List.of(
+            "A-share and exchange-traded instrument price/return/volume lookup",
+            "major index close, change, valuation and market breadth review",
+            "security master lookup by code or Chinese security name",
+            "historical market observations and date-range comparison",
+            "financial dataset and field discovery for follow-up analysis"
+        ));
+        guide.put("matchedDatasets", assets);
+        guide.put("matchedDatasetCount", assets.size());
+        guide.put("availableFieldsByDataset", assets.stream().collect(java.util.stream.Collectors.toMap(
+            asset -> String.valueOf(asset.getOrDefault("dataset", "")),
+            asset -> asset.getOrDefault("availableFields", List.of()),
+            (left, right) -> left,
+            LinkedHashMap::new
+        )));
+        guide.put("compatibleDirectQuery", true);
+        guide.put("secondStage", Map.of(
+            "tool", "web_search",
+            "requiredArgument", "dataset",
+            "reason", "Use for explicit dataset follow-up or expanded reads beyond the bounded web_search result"));
+        guide.put("queryRevisionHint",
+            "Use the evidence gaps to add the security/index name or code, target metric, event/news topic, "
+                + "and requested date or range. Do not change the web_search tool.");
+        guide.put("discovery_id", discoveryId);
+        return Map.copyOf(guide);
+    }
+
+    private List<Map<String, Object>> financialFields(Object rawFields) {
+        if (!(rawFields instanceof Iterable<?> fields)) return List.of();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object raw : fields) {
+            if (!(raw instanceof Map<?, ?> field)) continue;
+            String name = firstNonBlank(fieldText(field, "field_name"), fieldText(field, "fieldName"));
+            if (name.isBlank()) continue;
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", name);
+            String type = firstNonBlank(fieldText(field, "field_type"), fieldText(field, "fieldType"));
+            if (!type.isBlank()) item.put("type", type);
+            String description = firstNonBlank(
+                fieldText(field, "business_description"), fieldText(field, "businessDescription"));
+            if (!description.isBlank()) item.put("description", description);
+            item.put("exactFilterKey", name);
+            if ("STRING".equalsIgnoreCase(type)) item.put("containsFilterKey", name + "_like");
+            result.add(Map.copyOf(item));
+            if (result.size() >= 40) break;
+        }
+        return List.copyOf(result);
+    }
+
+    private String fieldText(Map<?, ?> field, String key) {
+        Object value = field.get(key);
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private List<Map<String, Object>> interleave(List<Map<String, Object>> first,
+                                                  List<Map<String, Object>> second, int limit) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int i = 0; result.size() < limit && (i < first.size() || i < second.size()); i++) {
+            if (i < first.size()) result.add(first.get(i));
+            if (result.size() < limit && i < second.size()) result.add(second.get(i));
+        }
+        return result;
+    }
+
+    private String text(Map<String, Object> source, String... names) {
+        for (String name : names) {
+            Object value = source.get(name);
+            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value);
+        }
+        return "";
+    }
+
+    private int bounded(Number value, int fallback, int min, int max) {
+        return Math.max(min, Math.min(max, value == null ? fallback : value.intValue()));
+    }
+
+    private int numberValue(Map<String, Object> source, String snake, String camel, int fallback) {
+        Object value = source.containsKey(snake) ? source.get(snake) : source.get(camel);
+        if (value instanceof Number number) return number.intValue();
+        try { return value == null ? fallback : Integer.parseInt(String.valueOf(value)); }
+        catch (NumberFormatException ignored) { return fallback; }
+    }
+
+    public record Analysis(String mode, String query, String dataset) { }
+
+    public record Plan(String mode, List<String> steps) {
+        public Plan { steps = steps == null ? List.of() : List.copyOf(steps); }
+    }
+}

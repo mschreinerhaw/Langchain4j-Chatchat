@@ -58,6 +58,13 @@ class RemoteNewsMcpToolProviderTest {
             .parameters(Map.of("query", "latest announcements")).build());
 
         assertThat(output.isSuccess()).isTrue();
+        assertThat(output.getMetadata())
+            .containsEntry("executionWorkflow", WebSearchExecutionWorkflow.WORKFLOW_ID)
+            .containsEntry("workflowMode", "DISCOVERY")
+            .containsEntry("workflowVerified", true);
+        assertThat((List<String>) output.getMetadata().get("workflowSteps"))
+            .containsExactly("ANALYZE_QUERY", "SEARCH_GOVERNED_FINANCIAL_DATA", "SEARCH_LOCAL_NEWS",
+                "SUPPLEMENT_EXTERNAL_WEB", "MERGE_AND_RANK", "VERIFY_EVIDENCE");
         assertThat((Map<String, Object>) output.getData())
             .containsEntry("newsCount", 1)
             .containsEntry("financialAssetCount", 0)
@@ -444,6 +451,10 @@ class RemoteNewsMcpToolProviderTest {
         ToolOutput output = provider.findExecutor("web_search").orElseThrow().execute(ToolInput.builder()
             .parameters(Map.of("dataset", "index_valuation_daily", "discovery_id", "discovery-123")).build());
 
+        assertThat(output.getMetadata())
+            .containsEntry("executionWorkflow", WebSearchExecutionWorkflow.WORKFLOW_ID)
+            .containsEntry("workflowMode", "DATASET_QUERY")
+            .containsEntry("workflowVerified", true);
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data).containsEntry("resultView", "complete_fact_rows")
             .containsEntry("result_type", "financial_dataset_query")

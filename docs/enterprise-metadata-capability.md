@@ -16,6 +16,12 @@ to the existing Agent Runtime.
 - Returned `evidenceObjects[]` form the factual boundary. The Agent must not add
   field names or definitions that are absent from the returned records.
 
+Execution is delegated by the MCP publisher to
+`EnterpriseMetadataSearchWorkflow`. The workflow analyzes the request, selects
+the discovery or field-matching plan, executes the existing search operators,
+verifies coverage, and assembles the evidence result. See
+[`architecture/search-execution-workflows.md`](architecture/search-execution-workflows.md).
+
 ## Database master data and Excel import
 
 The database is the source of truth:

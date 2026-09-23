@@ -10,6 +10,7 @@ import com.chatchat.mcpserver.metadata.governance.MetadataGovernancePolicyServic
 
 import com.chatchat.mcpserver.sql.metadata.SqlMetadataSearchService;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -68,6 +69,10 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .containsEntry("success", true)
             .containsEntry("invokedCapability", "enterprise_metadata_search")
             .containsEntry("retrievalMode", "UNIFIED_FIELD_EVIDENCE_BUNDLE");
+        assertThat((Map<String, Object>) result.get("executionWorkflow"))
+            .containsEntry("workflowId", "search.enterprise-metadata.v1")
+            .containsEntry("mode", "FIELD_MATCH")
+            .containsEntry("verified", true);
         assertThat((Map<String, Object>) result.get("coverage"))
             .containsEntry("inputFieldCount", 2)
             .containsEntry("processedFieldCount", 2)
@@ -107,6 +112,10 @@ class EnterpriseMetadataMcpToolPublisherTest {
             .containsEntry("invokedCapability", "enterprise_metadata_search")
             .containsEntry("operationMode", "ENTERPRISE_METADATA_DISCOVERY")
             .containsEntry("count", 3);
+        assertThat((Map<String, Object>) result.get("executionWorkflow"))
+            .containsEntry("workflowId", "search.enterprise-metadata.v1")
+            .containsEntry("mode", "DISCOVERY")
+            .containsEntry("verified", true);
         assertThat((List<String>) result.get("inputTerms"))
             .contains("客户", "客户号", "客户名称", "手机", "状态");
         ArgumentCaptor<EnterpriseMetadataSearchService.SearchRequest> request =
@@ -286,6 +295,9 @@ class EnterpriseMetadataMcpToolPublisherTest {
     @Test
     void refreshPublishesSearchOnlyAndRemovesRetiredMatchTool() {
         McpSyncServer server = mock(McpSyncServer.class);
+        McpSchema.Tool retiredTool = mock(McpSchema.Tool.class);
+        when(retiredTool.name()).thenReturn(EnterpriseMetadataMcpToolPublisher.RETIRED_MATCH_TOOL_NAME);
+        when(server.listTools()).thenReturn(List.of(retiredTool));
         EnterpriseMetadataMcpToolPublisher publisher = new EnterpriseMetadataMcpToolPublisher(
             server,
             mock(EnterpriseMetadataMatchingService.class),

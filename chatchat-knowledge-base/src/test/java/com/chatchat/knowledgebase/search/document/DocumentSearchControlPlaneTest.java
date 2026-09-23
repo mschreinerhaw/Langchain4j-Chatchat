@@ -111,7 +111,7 @@ class DocumentSearchControlPlaneTest {
             properties -> properties.setDocumentFirstEnabled(true), irRecall);
 
         DocumentSearchResult result = service.search(new DocumentSearchRequest(
-            "livedata installation guide", 8, null, null, null, null, null, false));
+            "livedata installation guide", 8, List.of("livedata-doc"), null, null, null, null, false));
 
         assertThat(result.results()).extracting(DocumentEvidenceChunk::fileId)
             .containsExactly("livedata-doc");
@@ -259,16 +259,16 @@ class DocumentSearchControlPlaneTest {
             any(),
             any(),
             eq(1),
-            eq(50),
+            eq(30),
             any(SearchPermissionContext.class)
         )).thenReturn(new SearchPage(
             "ACME 2026 margin source",
             List.of("acme", "2026", "margin", "source"),
             List.of(chunkRecallSearchResult()),
             1,
-            50,
+            30,
             1,
-            50,
+            30,
             1,
             false,
             5L,

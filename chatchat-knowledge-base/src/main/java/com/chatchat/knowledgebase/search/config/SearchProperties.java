@@ -35,6 +35,7 @@ public class SearchProperties {
     private QueryBudget queryBudget = new QueryBudget();
     private RetrievalControl retrievalControl = new RetrievalControl();
     private HybridRetrieval hybridRetrieval = new HybridRetrieval();
+    private ProblemAnalysis problemAnalysis = new ProblemAnalysis();
     /** Enables PostgreSQL document navigation before scoped passage retrieval. */
     private boolean documentFirstEnabled = false;
     private Ocr ocr = new Ocr();
@@ -85,9 +86,31 @@ public class SearchProperties {
     public static class HybridRetrieval {
         private boolean enabled = true;
         private int globalDocumentLimit = 8;
-        private int globalChunkLimit = 50;
-        private int candidateDocumentLimit = 20;
+        private int globalChunkLimit = 30;
+        private int candidateDocumentLimit = 30;
         private int chunksPerDocument = 3;
+    }
+
+    @Getter
+    @Setter
+    public static class ProblemAnalysis {
+        private int routingMinDocuments = 3;
+        private int routingMaxDocuments = 10;
+        private int fusionCandidateLimit = 30;
+        private int finalEvidenceLimit = 5;
+        private int parentSectionLimitPerDocument = 20;
+        private BgeReranker bgeReranker = new BgeReranker();
+
+        @Getter
+        @Setter
+        public static class BgeReranker {
+            private boolean enabled = false;
+            private String endpoint = "";
+            private String apiKey = "";
+            private String model = "BAAI/bge-reranker-v2-m3";
+            private int requestTimeoutMs = 30000;
+            private int maxDocumentChars = 6000;
+        }
     }
 
     @Getter

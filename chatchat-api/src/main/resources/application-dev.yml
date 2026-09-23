@@ -240,6 +240,19 @@ chatchat:
   search:
     engine: opensearch
     document-first-enabled: true
+    problem-analysis:
+      routing-min-documents: 3
+      routing-max-documents: 10
+      fusion-candidate-limit: 30
+      final-evidence-limit: 5
+      parent-section-limit-per-document: 20
+      bge-reranker:
+        enabled: ${CHATCHAT_BGE_RERANKER_ENABLED:false}
+        endpoint: ${CHATCHAT_BGE_RERANKER_ENDPOINT:}
+        api-key: ${CHATCHAT_BGE_RERANKER_API_KEY:}
+        model: ${CHATCHAT_BGE_RERANKER_MODEL:BAAI/bge-reranker-v2-m3}
+        request-timeout-ms: 30000
+        max-document-chars: 6000
     max-upload-bytes: 57671680
     upload-chunk-bytes: 5242880
     store-path: ./data/search-rocksdb

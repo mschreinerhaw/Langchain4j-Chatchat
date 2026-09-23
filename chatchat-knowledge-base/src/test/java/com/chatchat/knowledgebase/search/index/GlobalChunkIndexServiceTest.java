@@ -28,7 +28,7 @@ class GlobalChunkIndexServiceTest {
         SearchService rocksDbSearch = mock(SearchService.class);
         DocumentSearchIndex index = mock(DocumentSearchIndex.class);
         when(index.isAvailable()).thenReturn(true);
-        when(index.search(eq("livedata install"), eq(50), any(SearchPermissionContext.class),
+        when(index.search(eq("livedata install"), eq(30), any(SearchPermissionContext.class),
             eq(List.of("doc-1")))).thenReturn(List.of(new LuceneSearchHit(
             "doc-1", "LiveData.md", "Install", "content", "doc-1_0", 0,
             "Install LiveData with this command.", 0.1F, 3.0F,
@@ -48,7 +48,7 @@ class GlobalChunkIndexServiceTest {
         assertThat(page.results().get(0).matchedChunks().get(0).content())
             .isEqualTo("Install LiveData with this command.");
         assertThat(page.results().get(0).version()).isEqualTo(2);
-        verify(index).search(eq("livedata install"), eq(50), any(SearchPermissionContext.class),
+        verify(index).search(eq("livedata install"), eq(30), any(SearchPermissionContext.class),
             eq(List.of("doc-1")));
         verifyNoInteractions(rocksDbSearch);
     }

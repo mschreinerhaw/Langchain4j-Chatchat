@@ -210,13 +210,12 @@ public class DocumentSearchEvidenceService {
             ));
         }
 
-        if (!effectiveScopedFileIds.isEmpty()) {
+        if (!effectiveScopedFileIds.isEmpty() && !properties.isDocumentFirstEnabled()) {
             DocumentSearchResult result = searchScopedDocuments(query, topK, effectiveScopedFileIds, filters, debug, permissionContext);
             return controlledResult(result, state, events, elapsedMs(startedAt));
         }
 
-        DocumentRecallResult recallResult = com.chatchat.knowledgebase.search.query.QueryExpander
-            .withoutExpansion(() -> orchestrator.recall(plan, hybridDocumentLimit(topK)));
+        DocumentRecallResult recallResult = orchestrator.recall(plan, hybridDocumentLimit(topK));
         if (properties.isDocumentFirstEnabled()) {
             DocumentSearchResult result = documentFirstResult(plan, recallResult);
             return controlledResult(result, state, events, elapsedMs(startedAt));
@@ -418,7 +417,9 @@ public class DocumentSearchEvidenceService {
         String focus = recall.focusedQuery();
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
         Map<String, java.util.Optional<SearchDocument>> verified = new LinkedHashMap<>();
-        int candidateLimit = Math.max(plan.topK(), plan.topK() * 3);
+        recall.verifiedSources().forEach((id, source) -> verified.put(id, java.util.Optional.of(source)));
+        int evidenceLimit = problemEvidenceLimit(plan.topK());
+        int candidateLimit = Math.max(evidenceLimit, evidenceLimit * 3);
         for (DocumentSearchCandidate candidate : recall.candidates()) {
             SearchResult result = candidate.result();
             if (result == null || !recall.irDocumentIds().contains(result.docId())
@@ -432,12 +433,14 @@ public class DocumentSearchEvidenceService {
                 ? List.<SearchMatchedChunk>of() : result.matchedChunks()) {
                 if (!matchesChunkType(matched, plan.filters() == null ? null : plan.filters().chunkType())
                     || !hasText(firstNonBlank(matched.content(), matched.text()))) continue;
-                chunks.add(toEvidence(result, matched, query, plan.intent(), plan.debug()));
+                chunks.add(withParentSection(toEvidence(result, matched, query, plan.intent(), plan.debug()),
+                    recall, result.docId(), matched.chunkId()));
                 if (chunks.size() >= candidateLimit) break;
             }
             if (chunks.size() >= candidateLimit) break;
         }
-        DocumentSearchResult indexed = visibleResult(query, plan.intent(), chunks, List.of(), List.of(),
+        List<DocumentEvidenceChunk> reranked = evidenceReranker.rerank(query, chunks, evidenceLimit);
+        DocumentSearchResult indexed = visibleResult(query, plan.intent(), reranked, List.of(), List.of(),
             plan.visibilityContext(), plan.permissionContext(), focus, verified);
         if (!indexed.results().isEmpty() || recall.irDocumentIds().isEmpty()) return indexed;
 
@@ -450,11 +453,12 @@ public class DocumentSearchEvidenceService {
             if (source == null || !matchesDocumentFilters(source, plan.filters())
                 || !documentContainsSubject(source, focus)) continue;
             List<DocumentEvidenceChunk> local = toScopedEvidence(source, query, plan.queryTokens(),
-                plan.intent(), plan.debug(), Math.min(3, plan.topK() - fallback.size()));
+                plan.intent(), plan.debug(), Math.min(3, evidenceLimit - fallback.size()));
             fallback.addAll(local);
-            if (fallback.size() >= plan.topK()) break;
+            if (fallback.size() >= evidenceLimit) break;
         }
-        return visibleResult(query, plan.intent(), fallback, List.of(), List.of(),
+        List<DocumentEvidenceChunk> rerankedFallback = evidenceReranker.rerank(query, fallback, evidenceLimit);
+        return visibleResult(query, plan.intent(), rerankedFallback, List.of(), List.of(),
             plan.visibilityContext(), plan.permissionContext(), focus, verified);
     }
 
@@ -477,6 +481,24 @@ public class DocumentSearchEvidenceService {
         }
         List<DocumentEvidenceChunk> ranked = evidenceReranker.rerank(query, chunks, topK);
         return evidenceAssembler.evidenceOnly(query, intent, ranked);
+    }
+
+    private DocumentEvidenceChunk withParentSection(DocumentEvidenceChunk chunk,
+                                                    DocumentRecallResult recall,
+                                                    String documentId,
+                                                    String chunkId) {
+        if (chunk == null || hasText(chunk.section()) || recall.parentSections().isEmpty()) return chunk;
+        com.chatchat.knowledgebase.search.workflow.DocumentParentSection parent = recall.parentSections()
+            .getOrDefault(documentId, List.of()).stream()
+            .filter(section -> !hasText(chunkId) || chunkId.equals(section.chunkId()))
+            .filter(section -> hasText(firstNonBlank(section.section(), section.title())))
+            .findFirst().orElse(null);
+        if (parent == null) return chunk;
+        String section = firstNonBlank(parent.section(), parent.title());
+        return new DocumentEvidenceChunk(chunk.refId(), chunk.chunkId(), chunk.fileId(), chunk.fileName(),
+            section, chunk.chunkIndex(), chunk.chunkType(), chunk.score(), chunk.content(), chunk.highlights(),
+            citation(chunk.fileName(), section, chunk.chunkIndex()), chunk.trace(), chunk.tenantId(), chunk.userId(),
+            chunk.visibility(), chunk.permissionRoles());
     }
 
     private boolean sourceContainsSubject(String documentId, String focusedQuery,
@@ -505,6 +527,12 @@ public class DocumentSearchEvidenceService {
             return defaultLimit;
         }
         return Math.max(defaultLimit, Math.max(1, hybrid.getGlobalDocumentLimit()));
+    }
+
+    private int problemEvidenceLimit(int requestedTopK) {
+        SearchProperties.ProblemAnalysis workflow = properties.getProblemAnalysis();
+        int configured = workflow == null ? requestedTopK : workflow.getFinalEvidenceLimit();
+        return Math.max(1, Math.min(requestedTopK, configured));
     }
 
     private void addFineDocumentEvidence(List<DocumentEvidenceChunk> chunks,

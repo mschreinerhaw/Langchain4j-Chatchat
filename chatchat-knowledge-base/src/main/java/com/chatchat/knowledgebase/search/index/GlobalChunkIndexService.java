@@ -33,7 +33,8 @@ public class GlobalChunkIndexService {
         if (hybrid == null || !hybrid.isEnabled()) {
             return null;
         }
-        if (properties.isDocumentFirstEnabled()) {
+        if (properties.isDocumentFirstEnabled()
+            && plan.visibilityScopeIds() != null && !plan.visibilityScopeIds().isEmpty()) {
             try {
                 return scopedIndexRecall(plan, hybrid);
             } catch (RuntimeException ex) {

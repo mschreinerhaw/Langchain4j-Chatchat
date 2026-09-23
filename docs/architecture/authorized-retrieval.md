@@ -42,6 +42,46 @@ The common pipeline does not fetch documents, execute tools, or load skill conte
 
 ## Document evidence recall order
 
+Document retrieval is implemented by `DocumentRetrievalWorkflow`, rather than
+by conditionals in the orchestrator. Spring discovers `DocumentRetrievalStage`
+implementations and executes them by `order()`:
+
+| Order | Stage | Responsibility |
+| ---: | --- | --- |
+| 100 | `original-query` | Preserve the caller's query and suppress first-pass synonym expansion |
+| 150 | `skill-role-context` | Materialize Skill document bindings, tags, and database-resolved roles |
+| 200 | `authorized-document-scope` | Resolve PostgreSQL IR matches and the effective ACL document IDs |
+| 300 | `bm25-vector-recall` | Run lexical/vector recall only inside that scope |
+| 400 | `rrf-fusion` | Fuse independent ranked channels and reapply the authorized ID boundary |
+| 500 | `candidate-rerank` | Run registered rankers, including the optional BGE HTTP adapter |
+| 550 | `parent-section-expansion` | Load parent/section navigation for reranked documents from PostgreSQL |
+| 600 | `source-verification` | Verify current RocksDB ACL, version, and passage text before evidence assembly |
+
+Add a retrieval phase by implementing `DocumentRetrievalStage` with a unique ID
+and order. Add a cross encoder or business ranker by implementing
+`DocumentCandidateReranker`; all registered rankers run in their declared order.
+The workflow context carries scoped IDs, channel results, candidates, completed
+stages, and verified sources. A stage may stop execution, which is how an empty
+or unavailable authoritative scope fails closed. `DocumentSearchOrchestrator`
+is retained as a thin compatibility facade.
+
+The default problem-analysis budgets route at most 10 documents, retain 30 RRF
+candidates, and return at most 5 reranked document candidates. Configure them
+under `chatchat.search.problem-analysis`. A BGE-compatible endpoint accepts
+`model`, `query`, `documents`, and `top_n`, and returns `results` containing
+`index` plus `relevance_score` (or `score`). Enable it with
+`CHATCHAT_BGE_RERANKER_ENABLED`, `CHATCHAT_BGE_RERANKER_ENDPOINT`, and optionally
+`CHATCHAT_BGE_RERANKER_API_KEY`. When it is disabled or unavailable, the stage
+keeps RRF order and still applies the final candidate budget.
+
+`QueryPlanningService` supplies intent and normalized tokens. The first workflow
+stage turns those signals plus company, industry, and tags into a
+`ProblemQueryAnalysis`. The Skill/Role stage carries explicit document bindings,
+tags, and trusted roles into PostgreSQL routing. After source verification,
+`DocumentSearchEvidenceService` assembles chunks, citations, context, quality,
+and reasoning as the Evidence Bundle consumed by `DocumentKnowledgeSkillExecutor`
+and Agent Runtime.
+
 The API enables `chatchat.search.document-first-enabled` in its development and
 production profiles. For an unscoped `document_search` request, it looks up
 accessible document IDs in PostgreSQL `knowledge_ir_unit` first. An empty match

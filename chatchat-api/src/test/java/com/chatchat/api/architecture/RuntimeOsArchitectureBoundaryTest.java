@@ -341,6 +341,19 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void sqlExecutionGatewayDelegatesToStagedExecutionWorkflow() {
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/tool/SqlMcpToolPublisher.java"))
+            .contains("SqlQueryExecutionWorkflow", "sqlQueryExecutionWorkflow().execute")
+            .doesNotContain("return toCallToolResult(executeService.execute(routed))");
+        assertThat(source(
+            "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/execution/workflow/SqlQueryExecutionWorkflow.java"))
+            .contains("extends AbstractStagedExecutionWorkflow", "RESOLVE_BUSINESS_TEMPLATE",
+                "ROUTE_LOGICAL_DATASOURCE", "CLASSIFY_SQL_CARDINALITY",
+                "ENFORCE_READ_ONLY_POLICY", "ASSEMBLE_EVIDENCE");
+    }
+
+    @Test
     void publishedMcpServicesUseCapabilityTreeIdentityAcrossRuntimeLayers() {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityHierarchy.java"))

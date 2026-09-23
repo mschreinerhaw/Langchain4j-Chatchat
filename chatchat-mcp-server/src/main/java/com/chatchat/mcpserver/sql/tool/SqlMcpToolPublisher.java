@@ -7,16 +7,15 @@ import com.chatchat.mcpserver.sql.execution.SqlQueryExecuteService;
 import com.chatchat.mcpserver.sql.execution.SqlQueryResult;
 import com.chatchat.mcpserver.sql.execution.SqlScriptExecuteService;
 import com.chatchat.mcpserver.sql.execution.SqlScriptResult;
+import com.chatchat.mcpserver.sql.execution.workflow.SqlQueryExecutionWorkflow;
 import com.chatchat.mcpserver.sql.parsing.SqlStatementExtractor;
 import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 
-import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolProtocolDriverContract;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
-import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.execution.DatabaseQueryInvokeService;
 import com.chatchat.mcpserver.mcp.McpToolApplicability;
@@ -77,6 +76,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     private CommandTemplateDiscoveryService templateDiscoveryService;
     private TargetKindRegistry targetKindRegistry;
     private TemplateQueryMcpToolPublisher dynamicTemplateQueries;
+    private SqlQueryExecutionWorkflow sqlQueryExecutionWorkflow;
 
     @Autowired
     void configureDataQueryBridge(CommandTemplateDiscoveryService templateDiscoveryService,
@@ -88,6 +88,11 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     @Autowired
     void configureDynamicTemplateQueries(TemplateQueryMcpToolPublisher dynamicTemplateQueries) {
         this.dynamicTemplateQueries = dynamicTemplateQueries;
+    }
+
+    @Autowired
+    void configureSqlQueryExecutionWorkflow(SqlQueryExecutionWorkflow sqlQueryExecutionWorkflow) {
+        this.sqlQueryExecutionWorkflow = sqlQueryExecutionWorkflow;
     }
 
     public synchronized void refresh() {
@@ -340,35 +345,21 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     }
 
     private String sqlGatewayRuntimeLevel(Map<String, Object> arguments) {
-        String script = firstText(text(arguments, "script"), text(arguments, "sql"));
-        if (script == null || script.isBlank()) {
-            DatabaseQueryConfig query = businessDatabaseQueryTemplate(arguments);
-            script = query == null ? null : query.getSqlTemplate();
-        }
-        if (script == null || script.isBlank()) {
-            return "sql";
-        }
-        try {
-            return scriptExecuteService.extractStatements(script).size() > 1 ? "sql_script" : "sql";
-        } catch (Exception ignored) {
-            return script.contains(";") ? "sql_script" : "sql";
-        }
+        return sqlQueryExecutionWorkflow().runtimeLevel(arguments);
     }
 
     private McpSchema.CallToolResult executeSqlGateway(Map<String, Object> arguments) {
-        validateTemplateArgumentContract(arguments);
-        validateExecutableSelector(arguments);
-        DatabaseQueryConfig databaseQuery = businessDatabaseQueryTemplate(arguments);
-        if (databaseQuery != null) {
-            Map<String, Object> queryArguments = databaseQueryArguments(arguments);
-            ToolOutput output = databaseQueryInvokeService.invoke(databaseQuery, queryArguments);
-            return toDatabaseQueryCallToolResult(databaseQuery, queryArguments, output);
+        return sqlQueryExecutionWorkflow().execute(arguments == null ? Map.of() : arguments);
+    }
+
+    private SqlQueryExecutionWorkflow sqlQueryExecutionWorkflow() {
+        if (sqlQueryExecutionWorkflow == null) {
+            sqlQueryExecutionWorkflow = new SqlQueryExecutionWorkflow(
+                sqlTemplateService, executeService, scriptExecuteService,
+                databaseQueryConfigService, databaseQueryInvokeService,
+                executionTargetRouter, standardResultFactory);
         }
-        Map<String, Object> routed = executionTargetRouter.routeSqlQuery(arguments);
-        if (shouldExecuteAsScript(routed)) {
-            return toScriptCallToolResult(scriptExecuteService.execute(toScriptArguments(routed)));
-        }
-        return toCallToolResult(executeService.execute(routed));
+        return sqlQueryExecutionWorkflow;
     }
 
     private McpSchema.CallToolResult executeDatasourceSql(SqlDatasourceConfig datasource, Map<String, Object> arguments) {
@@ -421,137 +412,6 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             values.put("maxRowsPerStatement", values.get("maxRows"));
         }
         return values;
-    }
-
-    private DatabaseQueryConfig businessDatabaseQueryTemplate(Map<String, Object> arguments) {
-        String template = firstText(
-            text(arguments, "template"),
-            firstText(text(arguments, "templateId"), text(arguments, "template_id"))
-        );
-        if (template == null || template.isBlank()) {
-            return null;
-        }
-        return databaseQueryConfigService.listEnabled().stream()
-            .filter(config -> config != null && equalsIgnoreCase(config.getToolName(), template))
-            .findFirst()
-            .orElse(null);
-    }
-
-    private void validateTemplateArgumentContract(Map<String, Object> arguments) {
-        if (arguments == null || arguments.isEmpty()) {
-            return;
-        }
-        List<String> aliases = List.of("template", "templateId", "template_id");
-        Set<String> values = new LinkedHashSet<>();
-        for (String alias : aliases) {
-            Object value = arguments.get(alias);
-            if (value == null) {
-                continue;
-            }
-            if (!(value instanceof CharSequence) || String.valueOf(value).isBlank()) {
-                throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + alias
-                    + " must be a non-empty scalar string; template objects and arrays are not executable ids");
-            }
-            String text = String.valueOf(value).trim();
-            if (text.startsWith("{") || text.startsWith("[")) {
-                throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + alias
-                    + " must contain only the scalar template id");
-            }
-            values.add(text);
-        }
-        if (values.size() > 1) {
-            throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: template aliases must identify "
-                + "the same template: " + values);
-        }
-        Object parameters = arguments.get("parameters");
-        if (parameters != null && !(parameters instanceof Map<?, ?>)) {
-            throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: parameters must be an object "
-                + "containing execution values only");
-        }
-        if (parameters instanceof Map<?, ?> map
-            && (map.containsKey("properties") || map.containsKey("$schema"))
-            && map.containsKey("type")) {
-            throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: parameterSchema is read-only "
-                + "metadata and cannot be used as execution parameters");
-        }
-        for (String contextKey : List.of("executionContext", "mcpExecutionContext")) {
-            Object context = arguments.get(contextKey);
-            if (context != null && !(context instanceof Map<?, ?>)) {
-                throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + contextKey
-                    + " must be an object");
-            }
-        }
-    }
-
-    private void validateExecutableSelector(Map<String, Object> arguments) {
-        String template = firstText(
-            text(arguments, "template"),
-            firstText(text(arguments, "templateId"), text(arguments, "template_id"))
-        );
-        String sql = firstText(text(arguments, "sql"), text(arguments, "script"));
-        if (template == null && sql == null) {
-            throw new IllegalArgumentException(
-                "SQL_EXECUTION_SOURCE_REQUIRED: provide a template/templateId returned by template discovery "
-                    + "or an explicit read-only sql/script");
-        }
-        if (template != null && sql != null) {
-            throw new IllegalArgumentException(
-                "SQL_EXECUTION_SOURCE_CONFLICT: use either template/templateId or sql/script, not both");
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> databaseQueryArguments(Map<String, Object> arguments) {
-        if (arguments == null || arguments.isEmpty()) {
-            return Map.of();
-        }
-        Object parameters = arguments.get("parameters");
-        if (parameters instanceof Map<?, ?> map) {
-            return new LinkedHashMap<>((Map<String, Object>) map);
-        }
-        Map<String, Object> values = new LinkedHashMap<>(arguments);
-        values.remove("template");
-        values.remove("templateId");
-        values.remove("template_id");
-        values.remove("executionContext");
-        values.remove("mcpExecutionContext");
-        return values;
-    }
-
-    private McpSchema.CallToolResult toDatabaseQueryCallToolResult(DatabaseQueryConfig config,
-                                                                   Map<String, Object> arguments,
-                                                                   ToolOutput output) {
-        Object structured = standardResultFactory.fromDatabaseQuery(config, arguments, output);
-        boolean success = output != null && output.isSuccess();
-        String text = success
-            ? summarizeDatabaseQueryData(output.getData())
-            : output == null ? "database_query returned no output" : output.getErrorMessage();
-        return McpSchema.CallToolResult.builder()
-            .addTextContent(text == null ? "" : text)
-            .structuredContent(structured)
-            .isError(!success)
-            .build();
-    }
-
-    private String summarizeDatabaseQueryData(Object data) {
-        if (data == null) {
-            return "database_query executed successfully";
-        }
-        if (data instanceof Map<?, ?> map) {
-            Map<String, Object> summary = new LinkedHashMap<>();
-            summary.put("mode", map.get("mode"));
-            summary.put("schemaVersion", map.get("schemaVersion"));
-            summary.put("tool", map.get("tool"));
-            summary.put("execution", map.get("execution"));
-            summary.put("resultSetCount", map.get("resultSetCount"));
-            summary.put("structuredContent", "Complete workflow steps, result semantics and row data are available in structuredContent.data");
-            try {
-                return com.chatchat.agents.protocol.ModelProtocolJson.compact(summary);
-            } catch (RuntimeException ignored) {
-                return "database_query workflow executed; complete data is available in structuredContent.data";
-            }
-        }
-        return String.valueOf(data);
     }
 
     private String summarizeMetadataSearchResult(Map<String, Object> result) {

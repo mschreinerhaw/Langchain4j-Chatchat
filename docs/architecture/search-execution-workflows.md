@@ -51,3 +51,24 @@ OpenSearch, and catalog remain replaceable operators below it.
 Both results expose the workflow ID, selected mode, planned steps, and
 verification status. This trace describes execution and does not add factual
 claims beyond the returned evidence.
+
+## SQL query execution
+
+`SqlQueryExecutionWorkflow` uses workflow ID `execute.sql-query.v1`. Although it
+is an execution capability rather than a search capability, it follows the same
+staged lifecycle and selects one of three effective execution modes:
+
+- `BUSINESS_QUERY`: validate the template contract, resolve the registered
+  business query, bind parameters, execute its internal query workflow, verify
+  the result, and assemble evidence.
+- `SQL_QUERY`: route the logical datasource, classify the SQL, enforce the
+  read-only policy through the SQL operator, execute one statement, and verify
+  the result.
+- `SQL_SCRIPT`: route the logical datasource, classify multiple statements,
+  enforce the read-only policy through the script operator, execute the bounded
+  script, and verify all result sets.
+
+`SqlMcpToolPublisher` retains MCP publication, confirmation, concurrency limits,
+and public schema metadata. It delegates the governed execution sequence to the
+workflow. The query, script, routing, template, and database-query services stay
+as replaceable operators below that workflow.

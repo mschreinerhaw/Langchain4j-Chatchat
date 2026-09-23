@@ -60,7 +60,9 @@ class SqlMcpToolPublisherTest {
         SqlQueryExecuteService executeService = mock(SqlQueryExecuteService.class);
         when(executeService.minRowsLimit()).thenReturn(1);
         when(executeService.maxRowsLimit()).thenReturn(1000);
-        when(mcpSyncServer.listTools()).thenReturn(List.of());
+        McpSchema.Tool retiredScriptTool = mock(McpSchema.Tool.class);
+        when(retiredScriptTool.name()).thenReturn("sql_script_execute");
+        when(mcpSyncServer.listTools()).thenReturn(List.of(retiredScriptTool));
         when(datasourceConfigService.listAll()).thenReturn(List.of());
         when(datasourceConfigService.listEnabled()).thenReturn(List.of());
         when(databaseQueryConfigService.listEnabled()).thenReturn(List.of());
@@ -361,7 +363,9 @@ class SqlMcpToolPublisherTest {
         verify(databaseQueryInvokeService).invoke(org.mockito.ArgumentMatchers.eq(config), argumentsCaptor.capture());
         verify(executionTargetRouter, never()).routeSqlQuery(org.mockito.ArgumentMatchers.anyMap());
         assertThat(argumentsCaptor.getValue()).containsEntry("limit", 10);
-        assertThat(result).isNotNull();
+        assertThat(result).isInstanceOf(McpSchema.CallToolResult.class);
+        assertThat(((McpSchema.CallToolResult) result).structuredContent().toString())
+            .contains("execute.sql-query.v1", "BUSINESS_QUERY", "RESOLVE_BUSINESS_TEMPLATE");
     }
 
     @Test
@@ -422,7 +426,9 @@ class SqlMcpToolPublisherTest {
             .containsEntry("script", "select 1; select 2")
             .containsEntry("maxRowsPerStatement", 20);
         assertThat(argumentsCaptor.getValue()).doesNotContainKey("sql");
-        assertThat(result).isNotNull();
+        assertThat(result).isInstanceOf(McpSchema.CallToolResult.class);
+        assertThat(((McpSchema.CallToolResult) result).structuredContent().toString())
+            .contains("execute.sql-query.v1", "SQL_SCRIPT", "CLASSIFY_SQL_CARDINALITY");
     }
 
     @Test

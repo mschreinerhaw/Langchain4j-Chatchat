@@ -44,7 +44,8 @@ public class PlatformModelController {
     }
 
     @DeleteMapping
-    public ApiResponse<Void> delete(@RequestParam String type, @RequestParam String name) {
+    public ApiResponse<Void> delete(@RequestParam("type") String type,
+                                    @RequestParam("name") String name) {
         catalog.delete(type, name);
         return ApiResponse.success(null);
     }

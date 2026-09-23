@@ -550,7 +550,7 @@ public class AgentWorkshopController {
         return SearchPermissionContext.of(
             tenantId == null ? user.tenantId() : tenantId,
             userId,
-            user.roleIds()
+            enterpriseAdminService.authorizationRoleKeys(userId)
         );
     }
 

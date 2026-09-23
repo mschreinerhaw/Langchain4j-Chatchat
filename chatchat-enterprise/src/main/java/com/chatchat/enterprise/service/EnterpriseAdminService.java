@@ -1066,6 +1066,48 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .orElseThrow(() -> new IllegalArgumentException("user not found"));
     }
 
+    /**
+     * Returns trusted role identifiers used by downstream resource ACLs.
+     * IDs preserve persisted grants, while codes and names preserve legacy
+     * document ACLs. The platform administrator receives the same explicit
+     * super-admin marker as a database SUPER_ADMIN role.
+     */
+    @Transactional(readOnly = true)
+    public List<String> authorizationRoleKeys(String userId) {
+        SysUser user = userRepository.findById(requireText(userId, "userId"))
+            .orElseThrow(() -> new IllegalArgumentException("user not found"));
+        if (!"enabled".equalsIgnoreCase(user.getStatus())
+            || user.getTenantId() == null || user.getTenantId().isBlank()) {
+            return List.of();
+        }
+        String tenantId = user.getTenantId().trim();
+        Set<String> assignedRoleIds = userRoleRepository.findByUserId(user.getId()).stream()
+            .filter(binding -> tenantId.equals(binding.getTenantId()))
+            .map(SysUserRole::getRoleId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        for (SysRole role : assignedRoleIds.isEmpty() ? List.<SysRole>of()
+            : roleRepository.findByTenantIdAndIdIn(tenantId, assignedRoleIds)) {
+            if (!"enabled".equalsIgnoreCase(role.getStatus())) {
+                continue;
+            }
+            addRoleKey(keys, role.getId());
+            addRoleKey(keys, role.getRoleCode());
+            addRoleKey(keys, role.getRoleName());
+        }
+        if (isAdminUser(user)) {
+            keys.add("SUPER_ADMIN");
+        }
+        return List.copyOf(keys);
+    }
+
+    private void addRoleKey(Set<String> keys, String value) {
+        if (value != null && !value.isBlank()) {
+            keys.add(value.trim());
+        }
+    }
+
     private List<String> permissionCodes(SysUser user, List<String> roleIds) {
         if (isAdminUser(user)) {
             return permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc().stream()

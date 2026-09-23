@@ -670,7 +670,11 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         if (properties.isTenantIsolationEnabled()) {
             filters.add(Map.of("term", Map.of(TENANT_ID, normalizeTenant(permissionContext == null ? null : permissionContext.tenantId()))));
         }
-        filters.add(permissionFilter(permissionContext));
+        SearchPermissionContext context = permissionContext == null
+            ? SearchPermissionContext.system() : permissionContext;
+        if (!context.isSuperAdmin()) {
+            filters.add(permissionFilter(context));
+        }
         if (allowedDocumentIds != null && !allowedDocumentIds.isEmpty()) {
             filters.add(Map.of("terms", Map.of(FILE_ID, allowedDocumentIds.stream()
                 .filter(id -> id != null && !id.isBlank()).distinct().toList())));

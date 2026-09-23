@@ -41,7 +41,7 @@ public class InternalDocumentSearchController {
             DocumentSearchRequest authorized = new DocumentSearchRequest(
                 request.query(), request.topK(), request.fileIds(), request.selectedFileIds(),
                 request.selectedDocumentIds(), request.documentVisibilityEnforced(), request.filters(),
-                user.tenantId(), user.id(), user.roleIds(), request.debug());
+                user.tenantId(), user.id(), adminService.authorizationRoleKeys(user.id()), request.debug());
             return ApiResponse.success(evidenceService.search(authorized));
         } catch (IllegalArgumentException ex) {
             return ApiResponse.badRequest(ex.getMessage());

@@ -40,8 +40,9 @@ public class ResourceGrantAdminController {
     private final EnterpriseAdminService adminService;
 
     @GetMapping
-    public ApiResponse<List<ResourceGrant>> list(HttpServletRequest request, @RequestParam String tenantId,
-                                                 @RequestParam String resourceType) {
+    public ApiResponse<List<ResourceGrant>> list(HttpServletRequest request,
+                                                 @RequestParam("tenantId") String tenantId,
+                                                 @RequestParam("resourceType") String resourceType) {
         require(tenantId, "tenantId");
         requireTenantAccess(request, tenantId);
         String kind = normalized(resourceType, RESOURCE_TYPES, "resourceType");
@@ -57,7 +58,7 @@ public class ResourceGrantAdminController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<ResourceGrant> update(HttpServletRequest request, @PathVariable String id,
+    public ApiResponse<ResourceGrant> update(HttpServletRequest request, @PathVariable("id") String id,
                                              @RequestBody ResourceGrant input) {
         ResourceGrant stored = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Resource grant not found"));
@@ -76,7 +77,7 @@ public class ResourceGrantAdminController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(HttpServletRequest request, @PathVariable String id) {
+    public ApiResponse<Void> delete(HttpServletRequest request, @PathVariable("id") String id) {
         ResourceGrant stored = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Resource grant not found"));
         requireTenantAccess(request, stored.getTenantId());

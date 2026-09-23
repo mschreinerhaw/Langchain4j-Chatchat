@@ -73,6 +73,14 @@ class EnterpriseAdminServiceIntegrationTest {
     }
 
     @Test
+    void exposesTrustedSuperAdminKeysForDownstreamDocumentAuthorization() {
+        EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
+
+        assertThat(service.authorizationRoleKeys(login.user().id()))
+            .contains("SUPER_ADMIN", "超级管理员");
+    }
+
+    @Test
     void persistsTenantGovernanceAndRejectsCrossTenantRoleEscalation() {
         SysTenant tenantA = service.saveTenant(tenant("release-a"));
         SysTenant tenantB = service.saveTenant(tenant("release-b"));

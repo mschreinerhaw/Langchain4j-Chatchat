@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.nio.charset.StandardCharsets;
 
@@ -47,6 +48,8 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
     private DocumentGrpcTransferClient documentGrpcTransferClient;
     @Autowired(required = false)
     private ObjectMapper objectMapper;
+    @Autowired(required = false)
+    private EnterpriseAdminService enterpriseAdminService;
 
     public DocumentMcpGatewayFilter(
         @Value("${chatchat.mcp.center.base-url}") String baseUrl,
@@ -91,8 +94,8 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
         outgoing.header("X-Document-Gateway-Token", token);
         if (username != null) outgoing.header("X-Document-Username", username);
         Object view = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
-        if (view instanceof EnterpriseAdminService.UserView user && user.roleIds() != null) {
-            outgoing.header("X-Document-Roles", String.join(",", user.roleIds()));
+        if (view instanceof EnterpriseAdminService.UserView user) {
+            outgoing.header("X-Document-Roles", String.join(",", documentRoleKeys(user)));
         }
         for (String name : List.of("Content-Type", "Accept", "X-Upload-Request-Id")) {
             String value = request.getHeader(name);
@@ -155,8 +158,8 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
                 fields.put("tags", tags.isBlank() ? category : category + "," + tags);
             }
             Object view = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
-            String roles = view instanceof EnterpriseAdminService.UserView user && user.roleIds() != null
-                ? String.join(",", user.roleIds()) : "";
+            String roles = view instanceof EnterpriseAdminService.UserView user
+                ? String.join(",", documentRoleKeys(user)) : "";
             List<SearchDocument> saved = new ArrayList<>();
             for (Part part : files) {
                 if (part.getSize() > (batch ? 5L : 55L) * 1024 * 1024) {
@@ -201,6 +204,18 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
     private boolean hasBody(String method) {
         return "POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)
             || "PATCH".equalsIgnoreCase(method);
+    }
+
+    private List<String> documentRoleKeys(EnterpriseAdminService.UserView user) {
+        if (enterpriseAdminService != null) {
+            return enterpriseAdminService.authorizationRoleKeys(user.id());
+        }
+        LinkedHashSet<String> fallback = new LinkedHashSet<>(
+            user.roleIds() == null ? List.of() : user.roleIds());
+        if ("admin".equalsIgnoreCase(user.username())) {
+            fallback.add("SUPER_ADMIN");
+        }
+        return List.copyOf(fallback);
     }
 
     private String attribute(HttpServletRequest request, String name) {

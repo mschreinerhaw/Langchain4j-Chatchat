@@ -37,7 +37,7 @@ public class SkillResourceScopeAdminController {
 
     @GetMapping
     public ApiResponse<List<SkillResourceScope>> list(HttpServletRequest request,
-            @RequestParam String tenantId, @RequestParam String skillId) {
+            @RequestParam("tenantId") String tenantId, @RequestParam("skillId") String skillId) {
         requireTenant(request, tenantId);
         required(skillId, "skillId");
         return ApiResponse.success(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(
@@ -54,7 +54,7 @@ public class SkillResourceScopeAdminController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<SkillResourceScope> update(HttpServletRequest request, @PathVariable String id,
+    public ApiResponse<SkillResourceScope> update(HttpServletRequest request, @PathVariable("id") String id,
                                                    @RequestBody SkillResourceScope input) {
         SkillResourceScope stored = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Skill resource scope not found"));
@@ -70,7 +70,7 @@ public class SkillResourceScopeAdminController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(HttpServletRequest request, @PathVariable String id) {
+    public ApiResponse<Void> delete(HttpServletRequest request, @PathVariable("id") String id) {
         SkillResourceScope stored = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Skill resource scope not found"));
         requireTenant(request, stored.getTenantId());

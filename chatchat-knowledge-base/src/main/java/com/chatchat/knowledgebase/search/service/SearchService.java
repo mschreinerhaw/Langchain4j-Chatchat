@@ -3704,6 +3704,9 @@ public class SearchService {
             && !normalizeTenant(document.getTenantId()).equals(normalizeTenant(context.tenantId()))) {
             return false;
         }
+        if (context.isSuperAdmin()) {
+            return true;
+        }
         String visibility = normalizeVisibility(document.getVisibility());
         if ("public".equals(visibility) || "tenant".equals(visibility)) {
             return true;

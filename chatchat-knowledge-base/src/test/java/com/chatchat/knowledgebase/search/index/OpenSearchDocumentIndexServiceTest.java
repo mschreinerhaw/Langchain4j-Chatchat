@@ -36,6 +36,22 @@ class OpenSearchDocumentIndexServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void superAdminKeepsTenantFilterButBypassesDocumentVisibilityFilter() {
+        SearchProperties properties = new SearchProperties();
+        properties.setTenantIsolationEnabled(true);
+        OpenSearchDocumentIndexService service = service(properties);
+
+        Map<String, Object> query = service.searchQuery("private runbook",
+            List.of("private", "runbook"), SearchPermissionContext.of(
+                "tenant-1", "admin-user", List.of("SUPER_ADMIN")), List.of());
+
+        Map<String, Object> bool = (Map<String, Object>) query.get("bool");
+        assertThat((List<Object>) bool.get("filter"))
+            .containsExactly(Map.of("term", Map.of("tenantId", "tenant-1")));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void lexicalQueryKeepsExpandedTermsWithinClauseBudget() {
         SearchProperties properties = new SearchProperties();
         properties.setLuceneMaxQueryTerms(80);

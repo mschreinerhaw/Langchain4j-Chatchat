@@ -6,6 +6,7 @@ import com.chatchat.enterprise.repository.security.SkillResourceScopeRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -14,8 +15,29 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 class SkillResourceScopeAdminControllerTest {
+    @Test
+    void bindsNamedListParametersWithoutCompilerParameterMetadata() throws Exception {
+        SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);
+        EnterpriseAdminService admin = mock(EnterpriseAdminService.class);
+        when(admin.getUserView("user-a")).thenReturn(new EnterpriseAdminService.UserView(
+            "user-a", "tenant-a", 100001L, null, "user-a", "User A", null, null,
+            "enabled", null, List.of(), List.of(), null, null));
+        when(repository.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(
+            "tenant-a", "agent-skill")).thenReturn(List.of());
+        MockMvc mvc = standaloneSetup(new SkillResourceScopeAdminController(repository, admin)).build();
+
+        mvc.perform(get("/api/v1/enterprise/skill-resource-scopes")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a")
+                .param("tenantId", "tenant-a")
+                .param("skillId", "agent-skill"))
+            .andExpect(status().isOk());
+    }
+
     @Test
     void tenantAdministratorCannotBindAnotherTenantsDocuments() {
         SkillResourceScopeRepository repository = mock(SkillResourceScopeRepository.class);

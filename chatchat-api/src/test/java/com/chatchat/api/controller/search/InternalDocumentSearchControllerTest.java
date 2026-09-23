@@ -35,6 +35,7 @@ class InternalDocumentSearchControllerTest {
         when(users.getUserView("user-1")).thenReturn(new EnterpriseAdminService.UserView(
             "user-1", "tenant-1", null, null, null, "alice", null, null, null,
             "enabled", null, List.of("reader-role"), List.of(), null, null, false));
+        when(users.authorizationRoleKeys("user-1")).thenReturn(List.of("reader-role", "READER"));
         InternalDocumentSearchController controller = new InternalDocumentSearchController(evidence, users);
         DocumentSearchRequest forged = request("tenant-2");
         assertThat(controller.search(forged).getCode()).isEqualTo(403);
@@ -45,7 +46,7 @@ class InternalDocumentSearchControllerTest {
         assertThat(controller.search(request("tenant-1")).getCode()).isEqualTo(200);
         ArgumentCaptor<DocumentSearchRequest> captured = ArgumentCaptor.forClass(DocumentSearchRequest.class);
         verify(evidence).search(captured.capture());
-        assertThat(captured.getValue().roles()).containsExactly("reader-role");
+        assertThat(captured.getValue().roles()).containsExactly("reader-role", "READER");
         assertThat(captured.getValue().userId()).isEqualTo("user-1");
     }
 

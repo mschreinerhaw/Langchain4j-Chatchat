@@ -16,7 +16,7 @@ class AnalysisWorkflowArchitectureTest {
         List<String> phases = new ArrayList<>();
         AbstractAnalysisWorkflow workflow = workflow(AnalysisWorkflowType.DOCUMENT, phases);
 
-        AnalysisResult result = workflow.execute(context(Set.of(AnalysisCapability.DOCUMENT_SEARCH)), scope());
+        AnalysisExecutionOutcome result = workflow.execute(context(Set.of(AnalysisCapability.DOCUMENT_SEARCH)), scope());
 
         assertThat(phases).containsExactly("understand", "scope", "plan", "execute", "verify", "bundle", "synthesize");
         assertThat(result.workflowType()).isEqualTo(AnalysisWorkflowType.DOCUMENT);
@@ -58,11 +58,11 @@ class AnalysisWorkflowArchitectureTest {
                                                               WorkflowExecutionResult e, VerificationResult v) {
                 phases.add("bundle"); return EvidenceBundle.empty("");
             }
-            @Override protected AnalysisResult synthesize(AnalysisContext c, AnalysisScope s, WorkflowPlan p,
+            @Override protected AnalysisExecutionOutcome synthesize(AnalysisContext c, AnalysisScope s, WorkflowPlan p,
                                                           WorkflowExecutionResult e, VerificationResult v,
                                                           EvidenceBundle b) {
                 phases.add("synthesize");
-                return new AnalysisResult(null, type, p, v, b, "", Map.of());
+                return new AnalysisExecutionOutcome(null, type, p, v, b, "", Map.of());
             }
         };
     }

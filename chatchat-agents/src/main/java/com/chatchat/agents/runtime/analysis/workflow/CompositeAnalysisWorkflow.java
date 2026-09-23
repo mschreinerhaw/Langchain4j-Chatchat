@@ -62,7 +62,7 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                 observations.add("No child workflow for " + capability);
                 continue;
             }
-            AnalysisResult result = child.execute(childContext, context.kernelScope());
+            AnalysisExecutionOutcome result = child.execute(childContext, context.kernelScope());
             childResults.put(capability.name(), result);
             evidence.addAll(result.evidenceBundle().evidence());
             observations.addAll(result.evidenceBundle().limitations());

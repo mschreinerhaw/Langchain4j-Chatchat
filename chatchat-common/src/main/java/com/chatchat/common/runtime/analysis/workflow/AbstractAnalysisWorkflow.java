@@ -6,11 +6,11 @@ import com.chatchat.common.runtime.workflow.AbstractRuntimeWorkflow;
 import java.util.Map;
 
 /** Template method for UNDERSTAND -> SCOPE -> PLAN -> EXECUTE -> VERIFY -> SYNTHESIZE -> RETURN. */
-public abstract class AbstractAnalysisWorkflow extends AbstractRuntimeWorkflow<AnalysisContext, AnalysisResult>
+public abstract class AbstractAnalysisWorkflow extends AbstractRuntimeWorkflow<AnalysisContext, AnalysisExecutionOutcome>
     implements AnalysisWorkflow {
 
     @Override
-    protected final AnalysisResult doExecute(AnalysisContext input, KernelDataScope kernelScope) {
+    protected final AnalysisExecutionOutcome doExecute(AnalysisContext input, KernelDataScope kernelScope) {
         AnalysisContext understood = understand(input);
         AnalysisScope scope = resolveScope(understood);
         WorkflowPlan plan = plan(understood, scope);
@@ -21,7 +21,7 @@ public abstract class AbstractAnalysisWorkflow extends AbstractRuntimeWorkflow<A
     }
 
     @Override
-    protected final AnalysisResult doExecute(AnalysisContext input) {
+    protected final AnalysisExecutionOutcome doExecute(AnalysisContext input) {
         throw new UnsupportedOperationException("Kernel-scoped execution is required");
     }
 
@@ -40,10 +40,10 @@ public abstract class AbstractAnalysisWorkflow extends AbstractRuntimeWorkflow<A
             verification.findings(), Map.of("workflowType", type().name(), "planId", plan.planId()));
     }
 
-    protected AnalysisResult synthesize(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
+    protected AnalysisExecutionOutcome synthesize(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
                                         WorkflowExecutionResult execution, VerificationResult verification,
                                         EvidenceBundle bundle) {
-        return new AnalysisResult(AnalysisResult.SCHEMA_VERSION, type(), plan, verification, bundle,
+        return new AnalysisExecutionOutcome(AnalysisExecutionOutcome.SCHEMA_VERSION, type(), plan, verification, bundle,
             "", Map.of("workflowId", workflowId()));
     }
 }

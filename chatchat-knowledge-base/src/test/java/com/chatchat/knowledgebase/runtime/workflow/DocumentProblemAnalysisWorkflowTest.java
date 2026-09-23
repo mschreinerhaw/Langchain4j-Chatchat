@@ -4,7 +4,7 @@ import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.analysis.workflow.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.workflow.AnalysisContext;
 import com.chatchat.common.runtime.analysis.workflow.AnalysisIntent;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisResult;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.workflow.DocumentAnalysisEvidence;
 import com.chatchat.knowledgebase.search.document.DocumentEvidenceChunk;
 import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
@@ -42,7 +42,7 @@ class DocumentProblemAnalysisWorkflowTest {
                 Set.of(AnalysisCapability.DOCUMENT_SEARCH), "CURRENT", true),
             Map.of("topK", 5));
 
-        AnalysisResult result = workflow.execute(context, kernelScope);
+        AnalysisExecutionOutcome result = workflow.execute(context, kernelScope);
 
         assertThat(result.plan().steps()).extracting(step -> step.operation()).containsExactly(
             "QUERY_ANALYZE", "SKILL_ROLE_CONTEXT", "POSTGRES_DOCUMENT_ROUTE",

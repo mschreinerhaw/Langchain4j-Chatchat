@@ -15,7 +15,7 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
     }
 
     @Override
-    public AnalysisResult analyze(AnalysisContext context) {
+    public AnalysisExecutionOutcome analyze(AnalysisContext context) {
         AnalysisWorkflowRouter.RoutedWorkflow routed = router.route(context);
         return routed.workflow().execute(routed.context(), routed.context().kernelScope());
     }

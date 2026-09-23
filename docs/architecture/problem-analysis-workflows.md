@@ -3,6 +3,22 @@
 `document_search` is an operator inside the document-class problem workflow. It
 is not the Agent Runtime's top-level execution model.
 
+The stable Runtime OS execution line is:
+
+```text
+Agent Runtime OS
+  -> Query Analyzer
+  -> AnalysisIntent
+  -> Workflow Router
+  -> AbstractAnalysisWorkflow
+  -> Concrete Workflow
+  -> WorkflowPlan
+  -> Operators / Capabilities
+  -> EvidenceBundle
+  -> Verification / Synthesis
+  -> AnalysisExecutionOutcome
+```
+
 ```mermaid
 flowchart TD
     A[Agent Runtime] --> B[AnalysisQueryAnalyzer]
@@ -33,6 +49,12 @@ UNDERSTAND -> SCOPE -> PLAN -> EXECUTE -> VERIFY -> SYNTHESIZE -> RETURN
 The parent class contains no OpenSearch, SQL, MCP, calculation, or web-search
 logic. Infrastructure is reached through a child workflow or an
 `AnalysisCapabilityOperator`.
+
+The Runtime kernel owns context, routing, plans, execution, loop control,
+governance, evidence, state, and observability. Workflows own the analysis
+method, Skills own domain rules, and Operators own atomic infrastructure
+capabilities. `AnalysisExecutionOutcome` is the stable result contract returned
+to the Runtime.
 
 `AnalysisWorkflowRouter` uses the capabilities declared by `AnalysisIntent`.
 One capability selects its child workflow; multiple capabilities select

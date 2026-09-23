@@ -71,11 +71,11 @@ public class DocumentProblemAnalysisWorkflow extends AbstractAnalysisWorkflow {
     }
 
     @Override
-    protected AnalysisResult synthesize(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
+    protected AnalysisExecutionOutcome synthesize(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
                                         WorkflowExecutionResult execution, VerificationResult verification,
                                         EvidenceBundle bundle) {
         DocumentSearchResult result = (DocumentSearchResult) execution.outputs().get("documentSearchResult");
-        return new AnalysisResult(AnalysisResult.SCHEMA_VERSION, type(), plan, verification, bundle,
+        return new AnalysisExecutionOutcome(AnalysisExecutionOutcome.SCHEMA_VERSION, type(), plan, verification, bundle,
             result == null ? "" : result.context(), Map.of("workflowId", workflowId()));
     }
 

@@ -11,7 +11,7 @@ import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.analysis.workflow.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.workflow.AnalysisContext;
 import com.chatchat.common.runtime.analysis.workflow.AnalysisIntent;
-import com.chatchat.common.runtime.analysis.workflow.AnalysisResult;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.workflow.AnalysisRuntimePort;
 import com.chatchat.common.runtime.analysis.workflow.DocumentAnalysisEvidence;
 import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
@@ -65,7 +65,7 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
         AnalysisContext analysisContext = new AnalysisContext(query, kernelScope, skill.instanceId(),
             knowledgeScope.documentIds(), knowledgeScope.tags(), knowledgeScope.roles(), intent,
             Map.of("topK", topK));
-        AnalysisResult result = analysisRuntime == null
+        AnalysisExecutionOutcome result = analysisRuntime == null
             ? workflow.execute(analysisContext, kernelScope) : analysisRuntime.analyze(analysisContext);
         List<KnowledgeIR> units = toUnits(context, result);
         return new KnowledgeSkillResult(skill.instanceId(), skill.skillType(), units,
@@ -73,7 +73,7 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
             Map.of("adapter", "document-index", "topK", topK, "tokenBudget", skill.tokenBudget()));
     }
 
-    private List<KnowledgeIR> toUnits(KnowledgeSkillExecutionContext context, AnalysisResult result) {
+    private List<KnowledgeIR> toUnits(KnowledgeSkillExecutionContext context, AnalysisExecutionOutcome result) {
         if (result == null) return List.of();
         List<DocumentAnalysisEvidence> evidence = result.evidenceBundle().evidence().stream()
             .filter(DocumentAnalysisEvidence.class::isInstance).map(DocumentAnalysisEvidence.class::cast).toList();

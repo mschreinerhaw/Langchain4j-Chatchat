@@ -31,7 +31,7 @@ class DefaultAnalysisWorkflowRuntimeTest {
         AnalysisIntent intent = new AnalysisIntent("RISK_CALCULATION", List.of(),
             Set.of(AnalysisCapability.COMPUTATION), "UNSPECIFIED", true);
 
-        AnalysisResult result = runtime.analyze(new AnalysisContext("calculate max drawdown", scope,
+        AnalysisExecutionOutcome result = runtime.analyze(new AnalysisContext("calculate max drawdown", scope,
             "risk-skill", List.of(), List.of(), List.of(), intent, Map.of()));
 
         assertThat(result.workflowType()).isEqualTo(AnalysisWorkflowType.COMPUTATION);
@@ -61,7 +61,7 @@ class DefaultAnalysisWorkflowRuntimeTest {
             Set.of(AnalysisCapability.STRUCTURED_DATA, AnalysisCapability.COMPUTATION),
             "CURRENT", true);
 
-        AnalysisResult result = runtime.analyze(new AnalysisContext("calculate current order total",
+        AnalysisExecutionOutcome result = runtime.analyze(new AnalysisContext("calculate current order total",
             KernelDataScope.system("request-2"), "finance-skill", List.of(), List.of(), List.of(),
             intent, Map.of()));
 

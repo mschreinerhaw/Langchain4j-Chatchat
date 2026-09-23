@@ -5,12 +5,12 @@ import com.chatchat.mcpserver.api.invocation.ApiInvokeService;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 
-import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
-import com.chatchat.common.knowledge.template.TemplateResolutionEventType;
-import com.chatchat.common.knowledge.template.TemplateServiceCall;
-import com.chatchat.common.knowledge.template.TemplateServiceOperation;
-import com.chatchat.common.knowledge.template.TemplateServicePort;
-import com.chatchat.common.knowledge.template.TemplateServiceResultStatus;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionEvent;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionEventType;
+import com.chatchat.common.knowledge.template.service.TemplateServiceCall;
+import com.chatchat.common.knowledge.template.service.TemplateServiceOperation;
+import com.chatchat.common.knowledge.template.service.TemplateServicePort;
+import com.chatchat.common.knowledge.template.service.TemplateServiceResultStatus;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;

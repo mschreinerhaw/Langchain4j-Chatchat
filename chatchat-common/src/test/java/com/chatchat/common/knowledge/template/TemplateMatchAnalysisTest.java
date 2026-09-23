@@ -1,5 +1,9 @@
 package com.chatchat.common.knowledge.template;
 
+import com.chatchat.common.knowledge.template.matching.TemplateCoverageDecision;
+import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
+import com.chatchat.common.knowledge.template.matching.TemplateRetrievalOutcome;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

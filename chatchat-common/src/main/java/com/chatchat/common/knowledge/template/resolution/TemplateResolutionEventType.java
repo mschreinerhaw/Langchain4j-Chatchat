@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.resolution;
 
 public enum TemplateResolutionEventType {
     TEMPLATE_ID_MISSING,

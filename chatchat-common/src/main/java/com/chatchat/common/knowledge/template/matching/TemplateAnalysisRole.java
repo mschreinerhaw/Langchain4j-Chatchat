@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.matching;
 
 /** Business role played by a template in the current analysis, independent of template type. */
 public enum TemplateAnalysisRole {

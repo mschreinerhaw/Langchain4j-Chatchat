@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.service;
 
 /** Capabilities exposed by a governed template service, independent of its transport. */
 public enum TemplateServiceOperation {

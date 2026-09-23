@@ -1,6 +1,6 @@
 package com.chatchat.mcpserver.api.publication;
 
-import com.chatchat.common.knowledge.template.TemplateServiceResult;
+import com.chatchat.common.knowledge.template.service.TemplateServiceResult;
 
 import java.time.Instant;
 import java.util.Collections;

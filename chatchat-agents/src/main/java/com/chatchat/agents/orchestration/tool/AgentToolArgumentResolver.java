@@ -8,7 +8,7 @@ import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.agents.runtime.toolcall.TemplateExecutionContractSelector;
 import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
-import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionEvent;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.mcp.contract.McpTemplateBindingEvidence;
 import com.chatchat.common.tool.ToolMetadata;

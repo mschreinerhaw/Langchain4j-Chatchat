@@ -43,11 +43,21 @@ The contracts are grouped by responsibility:
 | `knowledge.skill` | Whitelisted Skill definitions, plans and results |
 | `knowledge.runtime` | Runtime request, compiled context and Skill execution input |
 | `knowledge.spi` | Runtime, extraction, indexing, search, compiler and Skill extension ports |
-| `knowledge.template` | Governed business-template knowledge protocol |
+| `knowledge.template` | Root namespace for governed business-template contracts |
 
 Only `package-info.java` belongs directly in the `knowledge` root package. New
 contracts must be placed according to their role so infrastructure ports do not
 accumulate beside domain values.
+
+Template contracts are divided again by their lifecycle role:
+
+| Package | Responsibility |
+| --- | --- |
+| `knowledge.template.model` | Canonical template knowledge, business intent and relationships |
+| `knowledge.template.matching` | Candidate evaluation, semantic coverage and worker analysis context |
+| `knowledge.template.resolution` | Resolution events, failures and recovery actions |
+| `knowledge.template.service` | Transport-neutral discovery and execution service protocol |
+| `knowledge.template.protocol` | Provider payload normalization into canonical template knowledge |
 
 `KnowledgeRequest.maxTokens` is a first-class safety limit and is capped by a platform hard
 maximum. The current compiler uses UTF-8 byte length as a conservative token upper bound and

@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.model;
 
 import com.chatchat.common.knowledge.search.KnowledgeDocument;
 

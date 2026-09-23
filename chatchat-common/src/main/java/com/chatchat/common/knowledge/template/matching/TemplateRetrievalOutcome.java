@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.matching;
 
 /** Program-owned retrieval outcome. Each value has a distinct recovery action. */
 public enum TemplateRetrievalOutcome {

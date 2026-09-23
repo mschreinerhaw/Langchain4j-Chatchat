@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.template;
 
-import com.chatchat.common.knowledge.template.TemplateResolutionEvent;
-import com.chatchat.common.knowledge.template.TemplateResolutionException;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionEvent;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

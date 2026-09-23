@@ -1,5 +1,11 @@
 package com.chatchat.common.knowledge.template;
 
+import com.chatchat.common.knowledge.template.model.StandardTemplateKnowledge;
+import com.chatchat.common.knowledge.template.protocol.TemplateKnowledgeProtocol;
+import com.chatchat.common.knowledge.template.resolution.TemplateRecoveryAction;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionEvent;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionEventType;
+
 import com.chatchat.common.knowledge.search.SearchStatus;
 import com.chatchat.common.knowledge.search.StandardSearchResult;
 import org.junit.jupiter.api.Test;

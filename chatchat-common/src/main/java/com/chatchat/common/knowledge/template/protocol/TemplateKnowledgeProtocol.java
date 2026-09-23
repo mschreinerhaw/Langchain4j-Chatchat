@@ -1,4 +1,6 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.protocol;
+
+import com.chatchat.common.knowledge.template.model.StandardTemplateKnowledge;
 
 import com.chatchat.common.runtime.summary.analysis.semantic.model.ProducerSemanticDeclaration;
 import com.chatchat.common.runtime.summary.analysis.semantic.adapter.ProducerSemanticDeclarationProtocol;

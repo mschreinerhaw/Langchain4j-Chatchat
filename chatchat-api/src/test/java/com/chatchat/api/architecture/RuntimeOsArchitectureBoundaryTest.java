@@ -235,10 +235,10 @@ class RuntimeOsArchitectureBoundaryTest {
             .doesNotContain("McpApi", "KernelChannel.API", "chatchat.api.bridge");
 
         String port = source(
-            "chatchat-common/src/main/java/com/chatchat/common/knowledge/template/TemplateServicePort.java");
+            "chatchat-common/src/main/java/com/chatchat/common/knowledge/template/service/TemplateServicePort.java");
         assertThat(port).contains("interface TemplateServicePort extends RuntimeBridge");
         assertThat(source(
-            "chatchat-common/src/main/java/com/chatchat/common/knowledge/template/TemplateServiceCall.java"))
+            "chatchat-common/src/main/java/com/chatchat/common/knowledge/template/service/TemplateServiceCall.java"))
             .doesNotContain("caller", "targetService", "Http", "URL");
     }
 

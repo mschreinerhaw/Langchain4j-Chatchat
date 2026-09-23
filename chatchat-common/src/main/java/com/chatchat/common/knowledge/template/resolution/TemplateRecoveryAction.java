@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.resolution;
 
 public enum TemplateRecoveryAction {
     SEARCH_TEMPLATE,

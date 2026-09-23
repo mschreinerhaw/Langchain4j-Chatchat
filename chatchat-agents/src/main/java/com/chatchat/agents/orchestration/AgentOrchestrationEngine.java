@@ -150,7 +150,7 @@ import com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidate
 import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
-import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
+import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;

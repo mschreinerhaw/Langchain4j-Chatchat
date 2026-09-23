@@ -1,5 +1,11 @@
 package com.chatchat.common.knowledge.template;
 
+import com.chatchat.common.knowledge.template.service.TemplateServiceCall;
+import com.chatchat.common.knowledge.template.service.TemplateServiceOperation;
+import com.chatchat.common.knowledge.template.service.TemplateServicePort;
+import com.chatchat.common.knowledge.template.service.TemplateServiceResult;
+import com.chatchat.common.knowledge.template.service.TemplateServiceResultStatus;
+
 import com.chatchat.common.bridge.AbstractRuntimeBridge;
 import com.chatchat.common.bridge.BridgeContract;
 import com.chatchat.common.bridge.BridgeRequest;

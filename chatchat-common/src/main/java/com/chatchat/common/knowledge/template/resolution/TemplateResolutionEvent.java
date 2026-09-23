@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.resolution;
 
 import java.util.LinkedHashMap;
 import java.util.List;

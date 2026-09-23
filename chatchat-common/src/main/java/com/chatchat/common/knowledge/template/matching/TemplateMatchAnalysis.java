@@ -1,4 +1,7 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.matching;
+
+import com.chatchat.common.knowledge.template.model.BusinessAnalysisIntent;
+import com.chatchat.common.knowledge.template.model.TemplateRelationship;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

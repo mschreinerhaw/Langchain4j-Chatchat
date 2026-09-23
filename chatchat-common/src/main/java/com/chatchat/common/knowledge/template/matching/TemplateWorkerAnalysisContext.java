@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.matching;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

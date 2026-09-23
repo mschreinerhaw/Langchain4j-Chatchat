@@ -1,13 +1,13 @@
 package com.chatchat.agents.runtime.plan.selection;
 
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
-import com.chatchat.common.knowledge.template.BusinessAnalysisIntent;
-import com.chatchat.common.knowledge.template.TemplateAnalysisRole;
-import com.chatchat.common.knowledge.template.TemplateCoverageDecision;
-import com.chatchat.common.knowledge.template.TemplateMatchAnalysis;
-import com.chatchat.common.knowledge.template.TemplateRelationship;
-import com.chatchat.common.knowledge.template.TemplateRequirementMatchEvaluation;
-import com.chatchat.common.knowledge.template.TemplateRetrievalOutcome;
+import com.chatchat.common.knowledge.template.model.BusinessAnalysisIntent;
+import com.chatchat.common.knowledge.template.matching.TemplateAnalysisRole;
+import com.chatchat.common.knowledge.template.matching.TemplateCoverageDecision;
+import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
+import com.chatchat.common.knowledge.template.model.TemplateRelationship;
+import com.chatchat.common.knowledge.template.matching.TemplateRequirementMatchEvaluation;
+import com.chatchat.common.knowledge.template.matching.TemplateRetrievalOutcome;
 
 import java.util.ArrayList;
 import java.util.Comparator;

@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.template;
 
-import com.chatchat.common.knowledge.template.TemplateResolutionEventType;
-import com.chatchat.common.knowledge.template.TemplateResolutionException;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionEventType;
+import com.chatchat.common.knowledge.template.resolution.TemplateResolutionException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

@@ -1,4 +1,4 @@
-package com.chatchat.common.knowledge.template;
+package com.chatchat.common.knowledge.template.service;
 
 import com.chatchat.common.bridge.BridgeRequest;
 import com.chatchat.common.bridge.BridgeResponse;

@@ -1,2 +1,2 @@
-/** Governed template knowledge, requirement matching, recall, execution-port and recovery protocols. */
+/** Root namespace for governed template knowledge contracts. */
 package com.chatchat.common.knowledge.template;

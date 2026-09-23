@@ -372,6 +372,20 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void mcpKernelDelegatesProviderExecutionToStagedWorkflow() {
+        assertThat(source(
+            "chatchat-runtime-mcp/src/main/java/com/chatchat/runtime/mcp/kernel/DefaultMcpRuntimeKernel.java"))
+            .contains("McpExecutionWorkflow", "executionWorkflow.execute")
+            .doesNotContain("directory.invoke(call)", "directory.repair(new McpResultRepairRequest");
+        assertThat(source(
+            "chatchat-runtime-mcp/src/main/java/com/chatchat/runtime/mcp/workflow/McpExecutionWorkflow.java"))
+            .contains("extends AbstractStagedExecutionWorkflow", "DISCOVER_TOOL_TEMPLATE",
+                "CONTRACT_PREFLIGHT", "INVOKE_PROVIDER", "REPAIR_RESULT_IF_REQUIRED",
+                "CONTRACT_POSTFLIGHT", "McpExecutionWorkflowExtension")
+            .doesNotContain("McpGatewayClient", "McpSyncClient", "WebClient");
+    }
+
+    @Test
     void publishedMcpServicesUseCapabilityTreeIdentityAcrossRuntimeLayers() {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityHierarchy.java"))

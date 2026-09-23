@@ -5,9 +5,11 @@ import com.chatchat.integration.mcp.service.directory.DynamicMcpServiceDirectory
 
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.runtime.mcp.kernel.DefaultMcpRuntimeKernel;
+import com.chatchat.runtime.mcp.workflow.McpExecutionWorkflowExtension;
 import com.chatchat.common.mcp.runtime.McpRuntimeTransportPort;
 import com.chatchat.integration.mcp.grpc.GrpcBackedMcpRuntimeKernel;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,8 +21,10 @@ public class McpRuntimeKernelConfiguration {
     @Bean
     @ConditionalOnProperty(prefix = "chatchat.mcp.grpc.client", name = "enabled", havingValue = "false")
     McpRuntimeKernel mcpRuntimeKernel(DynamicMcpServiceDirectory directory,
-                                      DynamicMcpRuntimeContractService contracts) {
-        return new DefaultMcpRuntimeKernel(directory, contracts);
+                                      DynamicMcpRuntimeContractService contracts,
+                                      ObjectProvider<McpExecutionWorkflowExtension> extensions) {
+        return new DefaultMcpRuntimeKernel(directory, contracts,
+            extensions.orderedStream().toList());
     }
 
     @Bean

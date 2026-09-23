@@ -11,10 +11,10 @@ import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.runtime.AgentRuntimePolicy;
 import com.chatchat.chat.skills.model.SkillDefinition;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeRuntimePort;
-import com.chatchat.common.knowledge.KnowledgeScope;
-import com.chatchat.common.knowledge.KnowledgeSourceReference;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.spi.KnowledgeRuntimePort;
+import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import dev.langchain4j.model.chat.ChatModel;
@@ -73,7 +73,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
         SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
-        com.chatchat.common.knowledge.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
+        com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
         String prompt = buildPrompt(request, context, skill, knowledge.compiledContext());
         ChatModel model = resolveModel(request, skill);
 
@@ -202,7 +202,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         return effective;
     }
 
-    private com.chatchat.common.knowledge.KnowledgeContext retrieveKnowledge(
+    private com.chatchat.common.knowledge.runtime.KnowledgeContext retrieveKnowledge(
         InteractionRequest request, SkillDefinition skill, SkillExecutionScopePort.EffectiveScope effectiveScope) {
         List<String> documentIds = effectiveScope.documentIds();
         List<String> documentTags = effectiveScope.tags();
@@ -210,7 +210,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
             skill.workflowConfig(), DEFAULT_KNOWLEDGE_TOKEN_BUDGET);
         int knowledgeTokenBudget = runtimePolicy.knowledgeTokenBudget();
         if (documentIds.isEmpty() && documentTags.isEmpty()) {
-            return com.chatchat.common.knowledge.KnowledgeContext.empty(
+            return com.chatchat.common.knowledge.runtime.KnowledgeContext.empty(
                 "not_configured", knowledgeTokenBudget);
         }
         try {
@@ -224,7 +224,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                     "knowledgeSkillTimeoutMs", runtimePolicy.knowledgeSkillTimeoutMs())));
         } catch (RuntimeException ex) {
             log.warn("roleChatKnowledgeRetrievalFailed skillId={} error={}", skill.id(), ex.getMessage());
-            return com.chatchat.common.knowledge.KnowledgeContext.empty(
+            return com.chatchat.common.knowledge.runtime.KnowledgeContext.empty(
                 "failed", knowledgeTokenBudget);
         }
     }

@@ -1,6 +1,6 @@
 package com.chatchat.common.knowledge.template;
 
-import com.chatchat.common.knowledge.KnowledgeDocument;
+import com.chatchat.common.knowledge.search.KnowledgeDocument;
 
 import java.util.List;
 import java.util.Map;

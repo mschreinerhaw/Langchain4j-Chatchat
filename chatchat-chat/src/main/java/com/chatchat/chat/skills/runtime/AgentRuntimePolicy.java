@@ -1,6 +1,6 @@
 package com.chatchat.chat.skills.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeRequest;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
 
 import java.util.Map;
 

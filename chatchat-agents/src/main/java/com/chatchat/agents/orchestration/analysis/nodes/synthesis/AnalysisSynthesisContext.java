@@ -7,7 +7,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudget;
 import com.chatchat.common.runtime.summary.analysis.contract.DataAnalysisDecisionOperatingModel;
-import com.chatchat.common.knowledge.KnowledgeContext;
+import com.chatchat.common.knowledge.runtime.KnowledgeContext;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

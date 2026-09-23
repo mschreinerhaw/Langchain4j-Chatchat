@@ -1,5 +1,12 @@
 package com.chatchat.common.knowledge;
 
+import com.chatchat.common.knowledge.runtime.KnowledgeContext;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

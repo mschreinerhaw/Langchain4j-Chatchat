@@ -1,9 +1,9 @@
 package com.chatchat.chat.knowledge;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeScope;
-import com.chatchat.common.knowledge.KnowledgeSkillType;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
 import com.chatchat.knowledgebase.runtime.DefaultKnowledgeSkillSynthesizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;

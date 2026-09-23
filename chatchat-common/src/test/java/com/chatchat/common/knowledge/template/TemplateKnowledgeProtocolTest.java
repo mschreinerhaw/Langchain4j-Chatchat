@@ -1,7 +1,7 @@
 package com.chatchat.common.knowledge.template;
 
-import com.chatchat.common.knowledge.SearchStatus;
-import com.chatchat.common.knowledge.StandardSearchResult;
+import com.chatchat.common.knowledge.search.SearchStatus;
+import com.chatchat.common.knowledge.search.StandardSearchResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

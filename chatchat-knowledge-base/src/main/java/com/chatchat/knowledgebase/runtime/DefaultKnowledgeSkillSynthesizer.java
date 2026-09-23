@@ -1,10 +1,10 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeSkillInstance;
-import com.chatchat.common.knowledge.KnowledgeSkillPlan;
-import com.chatchat.common.knowledge.KnowledgeSkillSynthesizerPort;
-import com.chatchat.common.knowledge.KnowledgeSkillType;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillSynthesizerPort;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

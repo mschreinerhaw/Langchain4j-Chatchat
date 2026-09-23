@@ -1,16 +1,16 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeContext;
-import com.chatchat.common.knowledge.KnowledgeContextCompilerPort;
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeRuntimePort;
-import com.chatchat.common.knowledge.KnowledgeSkillExecutionContext;
-import com.chatchat.common.knowledge.KnowledgeSkillExecutorPort;
-import com.chatchat.common.knowledge.KnowledgeSkillInstance;
-import com.chatchat.common.knowledge.KnowledgeSkillPlan;
-import com.chatchat.common.knowledge.KnowledgeSkillResult;
-import com.chatchat.common.knowledge.KnowledgeSkillSynthesizerPort;
+import com.chatchat.common.knowledge.runtime.KnowledgeContext;
+import com.chatchat.common.knowledge.spi.KnowledgeContextCompilerPort;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.spi.KnowledgeRuntimePort;
+import com.chatchat.common.knowledge.runtime.KnowledgeSkillExecutionContext;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillExecutorPort;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillResult;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillSynthesizerPort;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

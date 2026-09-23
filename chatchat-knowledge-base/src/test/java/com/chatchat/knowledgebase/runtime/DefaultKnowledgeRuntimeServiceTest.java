@@ -1,16 +1,16 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeScope;
-import com.chatchat.common.knowledge.KnowledgeSkillExecutorPort;
-import com.chatchat.common.knowledge.KnowledgeSkillInstance;
-import com.chatchat.common.knowledge.KnowledgeSkillPlan;
-import com.chatchat.common.knowledge.KnowledgeSkillResult;
-import com.chatchat.common.knowledge.KnowledgeSkillSynthesizerPort;
-import com.chatchat.common.knowledge.KnowledgeSkillType;
-import com.chatchat.common.knowledge.KnowledgeType;
-import com.chatchat.common.knowledge.KnowledgeSourceReference;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillExecutorPort;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillResult;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillSynthesizerPort;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
+import com.chatchat.common.knowledge.model.KnowledgeType;
+import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import org.junit.jupiter.api.Test;
 

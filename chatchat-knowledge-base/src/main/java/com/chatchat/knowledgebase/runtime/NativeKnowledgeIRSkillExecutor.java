@@ -1,12 +1,12 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeIRIndexPort;
-import com.chatchat.common.knowledge.KnowledgeIRQuery;
-import com.chatchat.common.knowledge.KnowledgeSkillExecutionContext;
-import com.chatchat.common.knowledge.KnowledgeSkillExecutorPort;
-import com.chatchat.common.knowledge.KnowledgeSkillResult;
-import com.chatchat.common.knowledge.KnowledgeSkillType;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.spi.KnowledgeIRIndexPort;
+import com.chatchat.common.knowledge.index.KnowledgeIRQuery;
+import com.chatchat.common.knowledge.runtime.KnowledgeSkillExecutionContext;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillExecutorPort;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillResult;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

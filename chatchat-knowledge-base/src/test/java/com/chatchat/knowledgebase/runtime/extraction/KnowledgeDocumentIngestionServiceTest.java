@@ -1,10 +1,10 @@
 package com.chatchat.knowledgebase.runtime.extraction;
 
-import com.chatchat.common.knowledge.KnowledgeExtractionPort;
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeIRIndexPort;
-import com.chatchat.common.knowledge.KnowledgeIndexDocument;
-import com.chatchat.common.knowledge.KnowledgeType;
+import com.chatchat.common.knowledge.spi.KnowledgeExtractionPort;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.spi.KnowledgeIRIndexPort;
+import com.chatchat.common.knowledge.index.KnowledgeIndexDocument;
+import com.chatchat.common.knowledge.model.KnowledgeType;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

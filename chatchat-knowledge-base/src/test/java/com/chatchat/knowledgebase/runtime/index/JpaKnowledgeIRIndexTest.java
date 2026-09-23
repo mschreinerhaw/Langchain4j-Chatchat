@@ -1,11 +1,11 @@
 package com.chatchat.knowledgebase.runtime.index;
 
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeIndexDocument;
-import com.chatchat.common.knowledge.KnowledgeIRQuery;
-import com.chatchat.common.knowledge.KnowledgeScope;
-import com.chatchat.common.knowledge.KnowledgeSourceReference;
-import com.chatchat.common.knowledge.KnowledgeType;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.index.KnowledgeIndexDocument;
+import com.chatchat.common.knowledge.index.KnowledgeIRQuery;
+import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
+import com.chatchat.common.knowledge.model.KnowledgeType;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

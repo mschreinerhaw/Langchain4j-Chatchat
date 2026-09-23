@@ -1,6 +1,6 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.TokenEstimator;
+import com.chatchat.common.knowledge.spi.TokenEstimator;
 import org.springframework.stereotype.Component;
 
 /**

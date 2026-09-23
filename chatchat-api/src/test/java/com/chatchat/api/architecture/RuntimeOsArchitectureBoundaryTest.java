@@ -314,6 +314,12 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void knowledgeContractsRemainFrameworkNeutral() {
+        assertThat(allJava("chatchat-common/src/main/java/com/chatchat/common/knowledge"))
+            .doesNotContain("dev.langchain4j", "org.bsc.langgraph4j", "io.temporal", "org.springframework");
+    }
+
+    @Test
     void publishedMcpServicesUseCapabilityTreeIdentityAcrossRuntimeLayers() {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityHierarchy.java"))

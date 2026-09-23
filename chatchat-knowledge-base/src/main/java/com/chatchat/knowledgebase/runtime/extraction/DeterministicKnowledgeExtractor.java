@@ -1,11 +1,11 @@
 package com.chatchat.knowledgebase.runtime.extraction;
 
-import com.chatchat.common.knowledge.KnowledgeExtractionPort;
-import com.chatchat.common.knowledge.KnowledgeExtractionRequest;
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeRule;
-import com.chatchat.common.knowledge.KnowledgeSourceReference;
-import com.chatchat.common.knowledge.KnowledgeType;
+import com.chatchat.common.knowledge.spi.KnowledgeExtractionPort;
+import com.chatchat.common.knowledge.extraction.KnowledgeExtractionRequest;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.model.KnowledgeRule;
+import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
+import com.chatchat.common.knowledge.model.KnowledgeType;
 import com.chatchat.knowledgebase.search.query.TextChunker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

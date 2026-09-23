@@ -32,6 +32,23 @@ Stable, framework-neutral contracts live in `chatchat-common` under
 - `KnowledgeContextCompilerPort` ranks, deduplicates and compiles IR under `maxTokens`.
 - `KnowledgeRuntimePort` is the only knowledge dependency used by Agent Runtime.
 
+The contracts are grouped by responsibility:
+
+| Package | Responsibility |
+| --- | --- |
+| `knowledge.model` | Normalized IR, rules, scope, semantic types and source lineage |
+| `knowledge.search` | Search documents, ranked hits, statuses and result protocol |
+| `knowledge.index` | Scoped index query and document write messages |
+| `knowledge.extraction` | Ingestion-time extraction request |
+| `knowledge.skill` | Whitelisted Skill definitions, plans and results |
+| `knowledge.runtime` | Runtime request, compiled context and Skill execution input |
+| `knowledge.spi` | Runtime, extraction, indexing, search, compiler and Skill extension ports |
+| `knowledge.template` | Governed business-template knowledge protocol |
+
+Only `package-info.java` belongs directly in the `knowledge` root package. New
+contracts must be placed according to their role so infrastructure ports do not
+accumulate beside domain values.
+
 `KnowledgeRequest.maxTokens` is a first-class safety limit and is capped by a platform hard
 maximum. The current compiler uses UTF-8 byte length as a conservative token upper bound and
 never returns a compiled context above the request budget.

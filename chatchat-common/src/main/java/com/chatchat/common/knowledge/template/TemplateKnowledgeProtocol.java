@@ -2,9 +2,9 @@ package com.chatchat.common.knowledge.template;
 
 import com.chatchat.common.runtime.summary.analysis.semantic.model.ProducerSemanticDeclaration;
 import com.chatchat.common.runtime.summary.analysis.semantic.adapter.ProducerSemanticDeclarationProtocol;
-import com.chatchat.common.knowledge.SearchHit;
-import com.chatchat.common.knowledge.SearchStatus;
-import com.chatchat.common.knowledge.StandardSearchResult;
+import com.chatchat.common.knowledge.search.SearchHit;
+import com.chatchat.common.knowledge.search.SearchStatus;
+import com.chatchat.common.knowledge.search.StandardSearchResult;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

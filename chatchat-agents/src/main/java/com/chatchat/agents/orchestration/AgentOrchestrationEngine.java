@@ -5839,7 +5839,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private void recordDomainKnowledgeCompilation(Map<String, Object> runtimeAttributes,
                                                   Map<String, Object> metadata) {
         Map<String, Object> knowledge = objectMap(runtimeAttributes == null
-            ? null : runtimeAttributes.get(com.chatchat.common.knowledge.KnowledgeContext.RUNTIME_ATTRIBUTE));
+            ? null : runtimeAttributes.get(com.chatchat.common.knowledge.runtime.KnowledgeContext.RUNTIME_ATTRIBUTE));
         Map<String, Object> domainSkillContext = objectMap(runtimeAttributes == null
             ? null : runtimeAttributes.get(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE));
         List<Map<String, Object>> selectedDomainSkills = objectMapList(domainSkillContext.get("skills"));

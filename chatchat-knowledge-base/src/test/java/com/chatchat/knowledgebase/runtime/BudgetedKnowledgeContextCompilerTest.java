@@ -1,10 +1,10 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeScope;
-import com.chatchat.common.knowledge.KnowledgeSkillPlan;
-import com.chatchat.common.knowledge.KnowledgeType;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.model.KnowledgeType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

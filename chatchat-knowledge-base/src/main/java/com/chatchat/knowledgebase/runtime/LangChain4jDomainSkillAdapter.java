@@ -1,8 +1,8 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeSkillInstance;
-import com.chatchat.common.knowledge.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
 import dev.langchain4j.skills.Skill;
 import dev.langchain4j.skills.SkillResource;
 import dev.langchain4j.skills.Skills;

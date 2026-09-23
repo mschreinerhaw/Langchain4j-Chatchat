@@ -1,9 +1,9 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeScope;
-import com.chatchat.common.knowledge.KnowledgeType;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.model.KnowledgeScope;
+import com.chatchat.common.knowledge.model.KnowledgeType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -29,10 +29,10 @@ class LangChain4jKnowledgeFusionTest {
 
     @Test
     void runtimeSkillsAreRepresentedWithLangChain4jSkillCatalog() {
-        var skill = new com.chatchat.common.knowledge.KnowledgeSkillInstance(
-            "metric-analysis", com.chatchat.common.knowledge.KnowledgeSkillType.METRIC_LOOKUP,
+        var skill = new com.chatchat.common.knowledge.skill.KnowledgeSkillInstance(
+            "metric-analysis", com.chatchat.common.knowledge.skill.KnowledgeSkillType.METRIC_LOOKUP,
             "securities", "解释任务相关指标", List.of("资产", "盈亏"), 1, 300, Map.of());
-        var plan = new com.chatchat.common.knowledge.KnowledgeSkillPlan(
+        var plan = new com.chatchat.common.knowledge.skill.KnowledgeSkillPlan(
             "v", "TOOL_ANALYSIS", List.of(skill), 300);
 
         String rendered = new LangChain4jDomainSkillAdapter().renderActivatedSkills(

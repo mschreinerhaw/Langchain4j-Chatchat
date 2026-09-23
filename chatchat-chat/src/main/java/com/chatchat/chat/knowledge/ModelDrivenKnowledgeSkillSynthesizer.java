@@ -1,11 +1,11 @@
 package com.chatchat.chat.knowledge;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeSkillInstance;
-import com.chatchat.common.knowledge.KnowledgeSkillPlan;
-import com.chatchat.common.knowledge.KnowledgeSkillSynthesizerPort;
-import com.chatchat.common.knowledge.KnowledgeSkillType;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillSynthesizerPort;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
 import com.chatchat.knowledgebase.runtime.DefaultKnowledgeSkillSynthesizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

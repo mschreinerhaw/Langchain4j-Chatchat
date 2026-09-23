@@ -1,12 +1,12 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeContext;
-import com.chatchat.common.knowledge.KnowledgeContextCompilerPort;
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeRequest;
-import com.chatchat.common.knowledge.KnowledgeSkillPlan;
-import com.chatchat.common.knowledge.KnowledgeType;
-import com.chatchat.common.knowledge.TokenEstimator;
+import com.chatchat.common.knowledge.runtime.KnowledgeContext;
+import com.chatchat.common.knowledge.spi.KnowledgeContextCompilerPort;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.runtime.KnowledgeRequest;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillPlan;
+import com.chatchat.common.knowledge.model.KnowledgeType;
+import com.chatchat.common.knowledge.spi.TokenEstimator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -77,7 +77,7 @@ public class BudgetedKnowledgeContextCompiler implements KnowledgeContextCompile
             compiledValue = truncateToTokenBudget(compiledValue, request.maxTokens());
             truncated = true;
         }
-        List<com.chatchat.common.knowledge.KnowledgeSourceReference> sources = selected.stream()
+        List<com.chatchat.common.knowledge.model.KnowledgeSourceReference> sources = selected.stream()
             .map(KnowledgeIR::source).filter(java.util.Objects::nonNull).distinct().toList();
         int used = tokenEstimator.estimate(compiledValue);
         log.info("knowledgeContextCompiled framework=langchain4j skills=true fusion=rrf "

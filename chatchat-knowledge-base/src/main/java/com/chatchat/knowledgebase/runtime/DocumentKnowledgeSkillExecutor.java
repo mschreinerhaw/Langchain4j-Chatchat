@@ -1,12 +1,12 @@
 package com.chatchat.knowledgebase.runtime;
 
-import com.chatchat.common.knowledge.KnowledgeIR;
-import com.chatchat.common.knowledge.KnowledgeSkillExecutionContext;
-import com.chatchat.common.knowledge.KnowledgeSkillExecutorPort;
-import com.chatchat.common.knowledge.KnowledgeSkillInstance;
-import com.chatchat.common.knowledge.KnowledgeSkillResult;
-import com.chatchat.common.knowledge.KnowledgeSkillType;
-import com.chatchat.common.knowledge.KnowledgeSourceReference;
+import com.chatchat.common.knowledge.model.KnowledgeIR;
+import com.chatchat.common.knowledge.runtime.KnowledgeSkillExecutionContext;
+import com.chatchat.common.knowledge.spi.KnowledgeSkillExecutorPort;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillInstance;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillResult;
+import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
+import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
@@ -55,7 +55,7 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
         String query = skill.goal() + (skill.queryHints().isEmpty()
             ? "" : "；检索提示：" + String.join("、", skill.queryHints()));
         int topK = Math.max(1, Math.min(8, (skill.tokenBudget() + 299) / 300));
-        com.chatchat.common.knowledge.KnowledgeScope knowledgeScope = context.request().scope();
+        com.chatchat.common.knowledge.model.KnowledgeScope knowledgeScope = context.request().scope();
         Map<String, Object> kernelAttributes = knowledgeScope.agentId() == null
             ? Map.of() : Map.of("agentId", knowledgeScope.agentId());
         KernelDataScope kernelScope = new KernelDataScope(knowledgeScope.tenantId(), knowledgeScope.userId(),

@@ -22,18 +22,32 @@ import com.chatchat.knowledgebase.search.document.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.search.document.DocumentSearchFilters;
 import com.chatchat.knowledgebase.search.document.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.document.DocumentSearchResult;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /** Document-class implementation of the parent problem-analysis workflow. */
 @Component
-@RequiredArgsConstructor
 public class DocumentProblemAnalysisWorkflow extends AbstractAnalysisWorkflow {
     private final DocumentSearchEvidenceService documents;
+    private final DocumentSkillEnrichmentWorkflow skillEnrichment;
+
+    @Autowired
+    public DocumentProblemAnalysisWorkflow(DocumentSearchEvidenceService documents,
+                                           DocumentSkillEnrichmentWorkflow skillEnrichment) {
+        this.documents = documents;
+        this.skillEnrichment = skillEnrichment;
+    }
+
+    /** Compatibility constructor for isolated callers and tests. */
+    public DocumentProblemAnalysisWorkflow(DocumentSearchEvidenceService documents) {
+        this(documents, new DocumentSkillEnrichmentWorkflow(
+            (com.chatchat.common.skills.DomainSkillRuntimePort) null));
+    }
 
     @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.DOCUMENT; }
     @Override public String workflowId() { return "problem-analysis.document"; }
@@ -59,7 +73,10 @@ public class DocumentProblemAnalysisWorkflow extends AbstractAnalysisWorkflow {
             step("3", "POSTGRES_DOCUMENT_ROUTE"), step("4", "OPENSEARCH_HYBRID_RETRIEVE"),
             step("5", "RRF_FUSION"), step("6", "BGE_RERANK"),
             step("7", "POSTGRES_PARENT_SECTION"), step("8", "ROCKSDB_SOURCE_VERIFY"),
-            step("9", "EVIDENCE_BUNDLE")),
+            step("9", "CONTENT_SKILL_CANDIDATE_EXTRACT"),
+            step("10", "AUTHORIZED_SKILL_MATCH"),
+            step("11", "SKILL_ENRICHED_DOCUMENT_ANALYSIS"),
+            step("12", "EVIDENCE_BUNDLE")),
             List.of(new EvidenceRequirement("DOCUMENT", true, 1,
                 "current ACL, version, and source passage must match")));
     }
@@ -72,9 +89,17 @@ public class DocumentProblemAnalysisWorkflow extends AbstractAnalysisWorkflow {
             !context.documentIds().isEmpty(),
             new DocumentSearchFilters(null, null, null, null, null, context.documentTags()),
             scope.tenantId(), scope.userId(), scope.roles(), booleanAttribute(context, "debug")));
+        DocumentSkillEnrichmentWorkflow.Result skillResult = Boolean.FALSE.equals(
+            context.attributes().get("autoDocumentSkills"))
+            ? DocumentSkillEnrichmentWorkflow.Result.disabled()
+            : skillEnrichment.execute(new DocumentSkillEnrichmentWorkflow.Request(
+                context.query(), scope.roles(), result.results(),
+                integerAttribute(context, "maxDocumentSkills", 3)), context.kernelScope());
         List<AnalysisEvidence> evidence = result.results().stream()
-            .map(chunk -> (AnalysisEvidence) evidence(chunk)).toList();
-        return new WorkflowExecutionResult(evidence, Map.of("documentSearchResult", result),
+            .map(chunk -> (AnalysisEvidence) evidence(chunk, skillResult)).toList();
+        return new WorkflowExecutionResult(evidence, Map.of(
+            "documentSearchResult", result,
+            "documentSkillEnrichment", skillResult),
             evidence.isEmpty() ? List.of("Document workflow returned no verified evidence") : List.of());
     }
 
@@ -91,21 +116,59 @@ public class DocumentProblemAnalysisWorkflow extends AbstractAnalysisWorkflow {
                                         WorkflowExecutionResult execution, VerificationResult verification,
                                         EvidenceBundle bundle) {
         DocumentSearchResult result = (DocumentSearchResult) execution.outputs().get("documentSearchResult");
-        return new AnalysisExecutionOutcome(AnalysisExecutionOutcome.SCHEMA_VERSION, type(), plan, verification, bundle,
-            result == null ? "" : result.context(), Map.of("workflowId", workflowId()));
+        DocumentSkillEnrichmentWorkflow.Result skillResult = (DocumentSkillEnrichmentWorkflow.Result)
+            execution.outputs().get("documentSkillEnrichment");
+        Map<String, Object> bundleMetadata = new LinkedHashMap<>(bundle.metadata());
+        Map<String, Object> outcomeMetadata = new LinkedHashMap<>();
+        outcomeMetadata.put("workflowId", workflowId());
+        if (skillResult != null) {
+            Map<String, Object> skillProjection = skillProjection(skillResult);
+            bundleMetadata.put("documentSkillEnrichment", skillProjection);
+            outcomeMetadata.put("documentSkillEnrichment", skillProjection);
+            if (!skillResult.compiledContext().isBlank()) {
+                outcomeMetadata.put("skillAnalysisContext", skillResult.compiledContext());
+            }
+        }
+        EvidenceBundle enrichedBundle = new EvidenceBundle(bundle.schemaVersion(), bundle.evidence(),
+            bundle.limitations(), bundleMetadata);
+        return new AnalysisExecutionOutcome(AnalysisExecutionOutcome.SCHEMA_VERSION, type(), plan, verification,
+            enrichedBundle, result == null ? "" : result.context(), outcomeMetadata);
     }
 
     private PlanStep step(String id, String operation) {
         return new PlanStep(id, operation, AnalysisCapability.DOCUMENT_SEARCH, true, Map.of());
     }
 
-    private DocumentAnalysisEvidence evidence(DocumentEvidenceChunk chunk) {
+    private DocumentAnalysisEvidence evidence(DocumentEvidenceChunk chunk,
+                                              DocumentSkillEnrichmentWorkflow.Result skillResult) {
         String citation = chunk.citation() == null ? null
             : chunk.citation().source() + (chunk.citation().locator() == null ? "" : "#" + chunk.citation().locator());
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("chunkIndex", chunk.chunkIndex() == null ? -1 : chunk.chunkIndex());
+        attributes.put("chunkType", chunk.chunkType() == null ? "" : chunk.chunkType());
+        if (skillResult != null) {
+            attributes.put("activatedSkillIds", skillResult.activatedSkillIds());
+            attributes.put("skillEnrichmentStatus", skillResult.status());
+            if (!skillResult.planningKnowledge().isEmpty()) {
+                attributes.put("skillPlanningKnowledge", skillResult.planningKnowledge());
+            }
+        }
         return new DocumentAnalysisEvidence(chunk.refId(), chunk.fileId(), chunk.chunkId(), chunk.fileName(),
             chunk.section(), citation, chunk.content(), chunk.score() == null ? 0D : chunk.score(),
-            Map.of("chunkIndex", chunk.chunkIndex() == null ? -1 : chunk.chunkIndex(),
-                "chunkType", chunk.chunkType() == null ? "" : chunk.chunkType()));
+            attributes);
+    }
+
+    private Map<String, Object> skillProjection(DocumentSkillEnrichmentWorkflow.Result result) {
+        Map<String, Object> projection = new LinkedHashMap<>();
+        projection.put("schemaVersion", "document_skill_enrichment.v1");
+        projection.put("status", result.status());
+        projection.put("candidates", result.candidates());
+        projection.put("activatedSkills", result.activatedSkills());
+        projection.put("activatedSkillIds", result.activatedSkillIds());
+        projection.put("planningKnowledge", result.planningKnowledge());
+        projection.put("trace", result.trace());
+        if (result.error() != null && !result.error().isBlank()) projection.put("error", result.error());
+        return Map.copyOf(projection);
     }
 
     private int integerAttribute(AnalysisContext context, String key, int fallback) {

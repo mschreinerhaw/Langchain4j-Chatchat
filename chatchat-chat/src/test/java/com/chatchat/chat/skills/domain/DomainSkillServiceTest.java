@@ -7,6 +7,7 @@ import com.chatchat.chat.skills.domain.adapter.SkillMdExternalSkillAdapter;
 import com.chatchat.chat.skills.domain.adapter.SkillFormatDetector;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
+import com.chatchat.common.skills.DomainSkillRuntimePort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -252,6 +253,43 @@ class DomainSkillServiceTest {
 
         assertThat(domainSkills.retrievePublished("tenant-a", "user-a", List.of(), "finance",
             List.of("skill-1"))).isEmpty();
+    }
+
+    @Test
+    void activatesPublishedAuthorizedSkillsFromDocumentEvidence() {
+        DomainSkillRepository repository = mock(DomainSkillRepository.class);
+        DomainSkillIndexService index = mock(DomainSkillIndexService.class);
+        DomainSkillPlanningRouter router = mock(DomainSkillPlanningRouter.class);
+        DomainSkillEntity skill = skill("install-analysis", "Installation analysis",
+            "Analyze prerequisites, commands, configuration and verification.");
+        skill.setStatus("PUBLISHED");
+        when(repository.findVisibleByStatus("tenant-a", "PUBLISHED")).thenReturn(List.of(skill));
+        when(repository.findVisibleByIdInAndStatus("tenant-a", List.of("install-analysis"), "PUBLISHED"))
+            .thenReturn(List.of(skill));
+        when(repository.findVisibleById("tenant-a", "install-analysis")).thenReturn(Optional.of(skill));
+        when(index.searchIds(anyString(), eq(List.of("install-analysis")), eq(1)))
+            .thenReturn(List.of("install-analysis"));
+        when(router.route(anyString(), isNull(), anyList())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<DomainSkillRuntimePort.DomainSkillContent> candidates = invocation.getArgument(2);
+            return new DomainSkillPlanningRouter.RoutingResult(candidates, candidates,
+                java.util.Map.of("analysisDimensions", List.of("verification")),
+                "safe context", "test-model", "MODEL_ROUTED", null);
+        });
+        DomainSkillService service = service(repository, mock(McpLicenseEntitlementPort.class), index);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "planningRouter", router);
+
+        DomainSkillRuntimePort.EvidenceSkillActivation activation = service.activateForEvidence(
+            "tenant-a", "user-a", List.of("developer"), "Install LiveData",
+            List.of(new DomainSkillRuntimePort.EvidencePreview("ref-1", "doc-1",
+                "LiveData guide", "Installation", "Run setup and verify the service")), 3);
+
+        assertThat(activation.activatedSkillIds()).containsExactly("install-analysis");
+        assertThat(activation.compiledContext()).isEqualTo("safe context");
+        org.mockito.ArgumentCaptor<String> routingInput = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(router).route(routingInput.capture(), isNull(), anyList());
+        assertThat(routingInput.getValue()).contains("Install LiveData", "LiveData guide",
+            "Run setup and verify the service", "Untrusted document evidence previews");
     }
 
     @Test

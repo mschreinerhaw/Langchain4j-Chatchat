@@ -124,7 +124,7 @@ bounded rule-based baseline when no intent has been supplied.
 
 | Workflow | Required capability | Plan shape |
 | --- | --- | --- |
-| Document | `DOCUMENT_SEARCH` | PostgreSQL route, OpenSearch hybrid recall, RRF, BGE, parent section, RocksDB verification |
+| Document | `DOCUMENT_SEARCH` | PostgreSQL route, OpenSearch hybrid recall, RRF, BGE, parent section, RocksDB verification, authorized content-driven Skill enrichment |
 | Structured data | `STRUCTURED_DATA` | entity/metric resolution, dataset route, SQL plan/execute, quality check, aggregation |
 | Tool | `TOOL_CALL` | capability route, permission, selection, binding, execution, response verification |
 | Computation | `COMPUTATION` | input resolution, data check, algorithm selection, calculation, boundary/result verification |
@@ -149,6 +149,34 @@ Every workflow returns `EvidenceBundle` containing typed `AnalysisEvidence`:
 Composite workflows merge only child bundles and check that every required
 capability contributed verified evidence. Skills remain domain rules and
 knowledge; workflows define how evidence is obtained and analyzed.
+
+## Content-driven document Skill enrichment
+
+The document workflow performs Skill selection only after source verification:
+
+```text
+Original query retrieval
+  -> verified document previews
+  -> DocumentSkillEnrichmentWorkflow
+  -> published Skill recall
+  -> tenant/user/role authorization
+  -> semantic relevance routing
+  -> bounded activated Skill set
+  -> planning knowledge attached to document evidence
+  -> EvidenceBundle
+```
+
+Document text is untrusted input. It can contribute semantic signals but cannot
+create a Skill, name an executable Skill directly, grant a tool, or expand data
+access. `DomainSkillRuntimePort` returns only published and authorized candidates,
+and `DocumentSkillEnrichmentWorkflow` verifies that every activated Skill belongs
+to that candidate set. At most five Skills can be activated; the document workflow
+defaults to three. Set `autoDocumentSkills=false` in `AnalysisContext.attributes`
+to disable enrichment, or `maxDocumentSkills` to lower the limit.
+
+The public projection contains Skill identities and planning dimensions without
+the Skill Markdown body. The compiled planning context is carried in the analysis
+outcome metadata for downstream synthesis and is never treated as new evidence.
 
 ## Runtime integration
 

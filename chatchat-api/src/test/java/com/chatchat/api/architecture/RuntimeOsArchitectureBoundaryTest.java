@@ -341,6 +341,21 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void documentAnalysisUsesAuthorizedContentDrivenSkillWorkflow() {
+        assertThat(source(
+            "chatchat-knowledge-base/src/main/java/com/chatchat/knowledgebase/runtime/workflow/DocumentProblemAnalysisWorkflow.java"))
+            .contains("DocumentSkillEnrichmentWorkflow", "CONTENT_SKILL_CANDIDATE_EXTRACT",
+                "AUTHORIZED_SKILL_MATCH", "SKILL_ENRICHED_DOCUMENT_ANALYSIS",
+                "activatedSkillIds", "skillAnalysisContext");
+        assertThat(source(
+            "chatchat-knowledge-base/src/main/java/com/chatchat/knowledgebase/runtime/workflow/DocumentSkillEnrichmentWorkflow.java"))
+            .contains("extends AbstractStagedExecutionWorkflow", "DomainSkillRuntimePort",
+                "MATCH_PUBLISHED_SKILLS", "ENFORCE_ROLE_AND_RESOURCE_POLICY",
+                "SELECT_MINIMUM_SKILL_SET")
+            .doesNotContain("SkillCatalogService", "ChatModel", "McpGatewayClient");
+    }
+
+    @Test
     void sqlExecutionGatewayDelegatesToStagedExecutionWorkflow() {
         assertThat(source(
             "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/tool/SqlMcpToolPublisher.java"))

@@ -38,6 +38,45 @@ flowchart TD
     J --> K
 ```
 
+## Execution engines
+
+The Runtime OS owns two related contracts with different purposes:
+
+- `RuntimeWorkflow<I, O>` defines the lifecycle of one executable workflow.
+- `WorkflowRuntime` defines where a workflow execution runs and how it is started, observed, and cancelled.
+
+Both contracts live in `chatchat-common` and have no LangChain4j, LangGraph4j,
+Temporal, Spring, SQL, or storage dependency.
+
+```mermaid
+flowchart TD
+    OS[Agent Runtime OS] --> AP[AnalysisRuntimePort]
+    OS --> WR[WorkflowRuntime]
+    WR --> LOCAL[LocalWorkflowRuntime]
+    WR --> TEMPORAL[TemporalWorkflowRuntime]
+    AP --> POLICY{Execution mode}
+    POLICY -->|INLINE| CHILD[AnalysisWorkflow]
+    POLICY -->|DURABLE| WR
+    WR --> CHILD
+    CHILD --> GRAPH[LangGraph4j subgraph - optional]
+    CHILD --> OP[Capability Operators]
+    GRAPH --> OP
+    OP --> MODEL[LangChain4j model adapter]
+    OP --> INFRA[PostgreSQL / OpenSearch / RocksDB / MCP]
+```
+
+`INLINE` is the default. It runs short analysis inside the current Runtime
+invocation or Temporal Activity. `DURABLE` must be requested explicitly through
+`AnalysisContext.attributes.runtime.analysis.executionMode`; it submits `problem-analysis-v1`
+through `WorkflowRuntime`. This prevents a short document lookup from creating
+an unnecessary nested Temporal execution while still allowing long-running
+analysis to gain durable retries, cancellation, and lifecycle visibility.
+
+LangGraph4j remains invocation-local and may be used inside a concrete workflow
+for branching or evidence-refinement loops. LangChain4j remains behind model or
+capability adapters. Network, model, database, and search calls execute in an
+Activity or local executor, never in deterministic Temporal Workflow code.
+
 ## Parent lifecycle
 
 Every child extends `AbstractAnalysisWorkflow`, which fixes the lifecycle order:

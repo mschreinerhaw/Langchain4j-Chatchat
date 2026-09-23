@@ -15,9 +15,9 @@ import com.chatchat.agents.runtime.run.AgentRunQuery;
 import com.chatchat.agents.runtime.run.AgentRunStatus;
 import com.chatchat.agents.runtime.run.AgentRunStep;
 import com.chatchat.agents.runtime.store.AgentRunStore;
-import com.chatchat.agents.runtime.workflow.WorkflowHandle;
-import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
-import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
+import com.chatchat.common.runtime.workflow.WorkflowHandle;
+import com.chatchat.common.runtime.workflow.WorkflowRuntime;
+import com.chatchat.common.runtime.workflow.WorkflowStartRequest;
 
 import com.chatchat.common.kernel.KernelDataDomain;
 import com.chatchat.common.kernel.KernelDataScope;
@@ -288,7 +288,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
      */
     private AgentRunResult executeRegisteredWorkflow(
         AgentRunRequest input,
-        com.chatchat.agents.runtime.workflow.WorkflowExecutionContext context
+        com.chatchat.common.runtime.workflow.WorkflowExecutionContext context
     ) {
         AgentRun existing = runStore.find(input.getRunId()).orElse(null);
         if (existing != null && isTerminal(existing.status())) {

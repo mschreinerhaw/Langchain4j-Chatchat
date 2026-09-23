@@ -1,7 +1,7 @@
 package com.chatchat.agents.runtime.config;
 
 import com.chatchat.agents.runtime.execution.LocalWorkflowRuntime;
-import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
+import com.chatchat.common.runtime.workflow.WorkflowRuntime;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Qualifier;

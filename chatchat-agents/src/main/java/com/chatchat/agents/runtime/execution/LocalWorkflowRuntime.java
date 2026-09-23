@@ -1,14 +1,14 @@
 package com.chatchat.agents.runtime.execution;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
-import com.chatchat.agents.runtime.workflow.WorkflowDefinition;
-import com.chatchat.agents.runtime.workflow.WorkflowExecutionContext;
-import com.chatchat.agents.runtime.workflow.WorkflowExecutionSnapshot;
-import com.chatchat.agents.runtime.workflow.WorkflowExecutionStatus;
-import com.chatchat.agents.runtime.workflow.WorkflowHandle;
-import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
-import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
-import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
+import com.chatchat.common.runtime.workflow.WorkflowDefinition;
+import com.chatchat.common.runtime.workflow.WorkflowExecutionContext;
+import com.chatchat.common.runtime.workflow.WorkflowExecutionSnapshot;
+import com.chatchat.common.runtime.workflow.WorkflowExecutionStatus;
+import com.chatchat.common.runtime.workflow.WorkflowHandle;
+import com.chatchat.common.runtime.workflow.WorkflowRuntime;
+import com.chatchat.common.runtime.workflow.WorkflowRegistration;
+import com.chatchat.common.runtime.workflow.WorkflowStartRequest;
 
 import java.util.Optional;
 import java.util.concurrent.CancellationException;

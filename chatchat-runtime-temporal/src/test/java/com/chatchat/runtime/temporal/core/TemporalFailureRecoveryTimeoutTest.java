@@ -12,7 +12,7 @@ import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionCommand;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
-import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
+import com.chatchat.common.runtime.workflow.WorkflowStartRequest;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;

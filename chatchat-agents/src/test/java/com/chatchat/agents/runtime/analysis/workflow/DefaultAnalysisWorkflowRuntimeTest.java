@@ -2,11 +2,14 @@ package com.chatchat.agents.runtime.analysis.workflow;
 
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.analysis.workflow.*;
+import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
+import com.chatchat.agents.runtime.execution.LocalWorkflowRuntime;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
 
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
@@ -38,6 +41,7 @@ class DefaultAnalysisWorkflowRuntimeTest {
         assertThat(result.verification().accepted()).isTrue();
         assertThat(result.evidenceBundle().evidence()).singleElement()
             .isInstanceOf(ComputationEvidence.class);
+        assertThat(result.metadata()).containsEntry("executionMode", "INLINE");
     }
 
     @Test
@@ -70,6 +74,30 @@ class DefaultAnalysisWorkflowRuntimeTest {
         assertThat(result.evidenceBundle().evidence())
             .extracting(AnalysisEvidence::capability)
             .containsExactlyInAnyOrder(AnalysisCapability.STRUCTURED_DATA, AnalysisCapability.COMPUTATION);
+    }
+
+    @Test
+    void explicitlyDurableAnalysisUsesWorkflowRuntimeWithoutChangingChildWorkflow() {
+        AnalysisCapabilityOperator operator = operator(AnalysisCapability.COMPUTATION,
+            new ComputationEvidence("e-2", "sum", List.of("input"), "7", Map.of()));
+        ComputationAnalysisWorkflow computation = new ComputationAnalysisWorkflow(
+            new AnalysisOperatorRegistry(List.of(operator)));
+        LocalWorkflowRuntime workflowRuntime = new LocalWorkflowRuntime(
+            ForkJoinPool.commonPool(), new AgentRuntimeProperties());
+        DefaultAnalysisWorkflowRuntime runtime = new DefaultAnalysisWorkflowRuntime(
+            List.of(computation), workflowRuntime);
+        KernelDataScope scope = KernelDataScope.system("request-durable-1");
+        AnalysisContext context = new AnalysisContext("calculate total", scope, "math-skill",
+            List.of(), List.of(), List.of(),
+            new AnalysisIntent("TOTAL", List.of(), Set.of(AnalysisCapability.COMPUTATION),
+                "UNSPECIFIED", true), Map.of(AnalysisContext.EXECUTION_MODE_ATTRIBUTE, "DURABLE"));
+
+        AnalysisExecutionOutcome result = runtime.analyze(context);
+
+        assertThat(result.workflowType()).isEqualTo(AnalysisWorkflowType.COMPUTATION);
+        assertThat(result.metadata()).containsEntry("executionMode", "DURABLE");
+        assertThat(result.metadata().get("runtimeWorkflowId")).asString().startsWith("analysis-");
+        assertThat(workflowRuntime.activeExecutionCount()).isZero();
     }
 
     private AnalysisCapabilityOperator operator(AnalysisCapability capability, AnalysisEvidence evidence) {

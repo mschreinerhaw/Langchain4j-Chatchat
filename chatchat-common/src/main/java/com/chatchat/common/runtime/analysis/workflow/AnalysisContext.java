@@ -16,6 +16,8 @@ public record AnalysisContext(
     AnalysisIntent intent,
     Map<String, Object> attributes
 ) {
+    public static final String EXECUTION_MODE_ATTRIBUTE = "runtime.analysis.executionMode";
+
     public AnalysisContext {
         if (query == null || query.isBlank()) throw new IllegalArgumentException("analysis query is required");
         if (kernelScope == null) throw new IllegalArgumentException("kernel scope is required");
@@ -29,6 +31,10 @@ public record AnalysisContext(
 
     public AnalysisContext withIntent(AnalysisIntent value) {
         return new AnalysisContext(query, kernelScope, skillId, documentIds, documentTags, roles, value, attributes);
+    }
+
+    public AnalysisExecutionMode executionMode() {
+        return AnalysisExecutionMode.from(attributes.get(EXECUTION_MODE_ATTRIBUTE));
     }
 
     private static List<String> clean(List<String> values) {

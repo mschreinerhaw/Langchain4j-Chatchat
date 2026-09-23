@@ -1,8 +1,8 @@
 package com.chatchat.runtime.temporal.activity.agent;
 
-import com.chatchat.agents.runtime.workflow.WorkflowDefinition;
-import com.chatchat.agents.runtime.workflow.WorkflowExecutionContext;
-import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
+import com.chatchat.common.runtime.workflow.WorkflowDefinition;
+import com.chatchat.common.runtime.workflow.WorkflowExecutionContext;
+import com.chatchat.common.runtime.workflow.WorkflowRegistration;
 import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;

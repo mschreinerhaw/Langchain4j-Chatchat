@@ -1,6 +1,6 @@
 package com.chatchat.runtime.temporal.config;
 
-import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
+import com.chatchat.common.runtime.workflow.WorkflowRuntime;
 import com.chatchat.agents.runtime.plan.execution.PlanDagControlPort;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;

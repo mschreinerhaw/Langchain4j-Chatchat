@@ -279,6 +279,41 @@ class RuntimeOsArchitectureBoundaryTest {
     }
 
     @Test
+    void workflowEnginesRemainAdaptersAroundFrameworkNeutralRuntimeContracts() {
+        String workflowContracts = allJava(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/workflow");
+        assertThat(workflowContracts)
+            .contains("interface WorkflowRuntime", "interface RuntimeWorkflow")
+            .doesNotContain("dev.langchain4j", "org.bsc.langgraph4j", "io.temporal", "org.springframework");
+        assertThat(root().resolve(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/workflow/WorkflowRuntime.java"))
+            .doesNotExist();
+
+        assertThat(allJava(
+            "chatchat-common/src/main/java/com/chatchat/common/runtime/analysis/workflow"))
+            .doesNotContain("dev.langchain4j", "org.bsc.langgraph4j", "io.temporal", "org.springframework");
+        assertThat(allJava(
+            "chatchat-agents/src/main/java/com/chatchat/agents/runtime/analysis/workflow"))
+            .doesNotContain("dev.langchain4j", "org.bsc.langgraph4j", "io.temporal");
+
+        String temporalSources = allJava("chatchat-runtime-temporal/src/main/java");
+        assertThat(temporalSources)
+            .contains("implements WorkflowRuntime")
+            .doesNotContain("dev.langchain4j", "org.bsc.langgraph4j");
+        String graphEngines = source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/AnalysisExecutionGraph.java")
+            + source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/InterpretationAnalysisGraph.java")
+            + source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/graph/FindingAnalysisGraph.java")
+            + source(
+            "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/nodes/synthesis/ClaimAcceptanceGraph.java");
+        assertThat(graphEngines)
+            .contains("org.bsc.langgraph4j")
+            .doesNotContain("io.temporal", "dev.langchain4j");
+    }
+
+    @Test
     void publishedMcpServicesUseCapabilityTreeIdentityAcrossRuntimeLayers() {
         assertThat(source(
             "chatchat-common/src/main/java/com/chatchat/common/mcp/capability/McpCapabilityHierarchy.java"))

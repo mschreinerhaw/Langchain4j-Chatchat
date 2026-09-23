@@ -1,8 +1,18 @@
 package com.chatchat.runtime.temporal.core;
 
-import com.chatchat.agents.runtime.workflow.WorkflowExecutionStatus;
-import com.chatchat.agents.runtime.workflow.WorkflowHandle;
-import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
+import com.chatchat.common.runtime.workflow.WorkflowExecutionStatus;
+import com.chatchat.common.runtime.workflow.WorkflowHandle;
+import com.chatchat.common.runtime.workflow.WorkflowStartRequest;
+import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisContext;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisExecutionOutcome;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisIntent;
+import com.chatchat.common.runtime.analysis.workflow.AnalysisWorkflowType;
+import com.chatchat.common.runtime.analysis.workflow.ComputationEvidence;
+import com.chatchat.common.runtime.analysis.workflow.EvidenceBundle;
+import com.chatchat.common.runtime.analysis.workflow.StandardWorkflowPlan;
+import com.chatchat.common.runtime.analysis.workflow.VerificationResult;
 import com.chatchat.agents.runtime.tool.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.tool.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
@@ -49,6 +59,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -118,6 +129,31 @@ class TemporalWorkflowRuntimeTest {
             .newUntypedWorkflowStub("run-success" + RuntimeOsTemporalWorkflowImpl.EXECUTION_CHILD_SUFFIX)
             .getResult(TemporalWorkflowResult.class);
         assertThat(childResult.outputJson()).contains("HELLO");
+    }
+
+    @Test
+    void transportsProblemAnalysisContractsThroughTemporalActivityBoundary() throws Exception {
+        ComputationEvidence evidence = new ComputationEvidence(
+            "calc-1", "sum", List.of("input-1"), "42", Map.of());
+        runtime.register("problem-analysis-v1", AnalysisContext.class, AnalysisExecutionOutcome.class,
+            (input, context) -> new AnalysisExecutionOutcome(null, AnalysisWorkflowType.COMPUTATION,
+                new StandardWorkflowPlan("plan-1", AnalysisWorkflowType.COMPUTATION, List.of(), List.of()),
+                new VerificationResult(true, List.of(evidence), List.of()),
+                new EvidenceBundle(null, List.of(evidence), List.of(), Map.of()),
+                input.query() + "=42", Map.of()));
+        AnalysisContext input = new AnalysisContext("sum", KernelDataScope.system("analysis-request-1"),
+            "math", List.of(), List.of(), List.of(),
+            new AnalysisIntent("SUM", List.of(), Set.of(AnalysisCapability.COMPUTATION),
+                "UNSPECIFIED", true), Map.of(AnalysisContext.EXECUTION_MODE_ATTRIBUTE, "DURABLE"));
+
+        WorkflowHandle<AnalysisExecutionOutcome> handle = runtime.start(new WorkflowStartRequest<>(
+            "analysis-temporal-1", "problem-analysis-v1", "system", "analysis-request-1", input));
+        AnalysisExecutionOutcome result = handle.completion().get(10, TimeUnit.SECONDS);
+
+        assertThat(result.synthesis()).isEqualTo("sum=42");
+        assertThat(result.plan()).isInstanceOf(StandardWorkflowPlan.class);
+        assertThat(result.evidenceBundle().evidence()).singleElement()
+            .isInstanceOf(ComputationEvidence.class);
     }
 
     @Test

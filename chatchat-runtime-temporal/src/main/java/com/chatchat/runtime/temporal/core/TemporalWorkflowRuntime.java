@@ -1,13 +1,13 @@
 package com.chatchat.runtime.temporal.core;
 
 import com.chatchat.agents.runtime.AgentRunRequest;
-import com.chatchat.agents.runtime.workflow.WorkflowDefinition;
-import com.chatchat.agents.runtime.workflow.WorkflowExecutionSnapshot;
-import com.chatchat.agents.runtime.workflow.WorkflowExecutionStatus;
-import com.chatchat.agents.runtime.workflow.WorkflowHandle;
-import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
-import com.chatchat.agents.runtime.workflow.WorkflowRuntime;
-import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
+import com.chatchat.common.runtime.workflow.WorkflowDefinition;
+import com.chatchat.common.runtime.workflow.WorkflowExecutionSnapshot;
+import com.chatchat.common.runtime.workflow.WorkflowExecutionStatus;
+import com.chatchat.common.runtime.workflow.WorkflowHandle;
+import com.chatchat.common.runtime.workflow.WorkflowRegistration;
+import com.chatchat.common.runtime.workflow.WorkflowRuntime;
+import com.chatchat.common.runtime.workflow.WorkflowStartRequest;
 import com.chatchat.agents.runtime.tool.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.execution.PlanExecutionPhaseHandler;
 import com.chatchat.agents.runtime.plan.execution.ResumableAgentRunExecutor;
@@ -99,7 +99,7 @@ public final class TemporalWorkflowRuntime implements WorkflowRuntime, AutoClose
                                    Supplier<AnalysisDatasetExecutionPort> analysisExecutionPort) {
         this.client = client;
         this.workerFactory = workerFactory;
-        this.objectMapper = objectMapper.copy();
+        this.objectMapper = TemporalRuntimeObjectMapper.configure(objectMapper);
         this.properties = properties;
         this.activity = new RuntimeOsWorkflowActivityImpl(
             registry, this.objectMapper,

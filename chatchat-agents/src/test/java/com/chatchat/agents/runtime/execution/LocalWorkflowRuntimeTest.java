@@ -1,8 +1,8 @@
 package com.chatchat.agents.runtime.execution;
 
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
-import com.chatchat.agents.runtime.workflow.WorkflowHandle;
-import com.chatchat.agents.runtime.workflow.WorkflowStartRequest;
+import com.chatchat.common.runtime.workflow.WorkflowHandle;
+import com.chatchat.common.runtime.workflow.WorkflowStartRequest;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;

@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.workflow;
+package com.chatchat.common.runtime.workflow;
 
 @FunctionalInterface
 public interface WorkflowDefinition<I, O> {

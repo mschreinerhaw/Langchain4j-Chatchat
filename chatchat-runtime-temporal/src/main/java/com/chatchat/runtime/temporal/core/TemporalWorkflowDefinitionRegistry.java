@@ -1,7 +1,7 @@
 package com.chatchat.runtime.temporal.core;
 
-import com.chatchat.agents.runtime.workflow.WorkflowDefinition;
-import com.chatchat.agents.runtime.workflow.WorkflowRegistration;
+import com.chatchat.common.runtime.workflow.WorkflowDefinition;
+import com.chatchat.common.runtime.workflow.WorkflowRegistration;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;

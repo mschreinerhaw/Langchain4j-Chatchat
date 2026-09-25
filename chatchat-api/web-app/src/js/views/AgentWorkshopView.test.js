@@ -27,6 +27,30 @@ vi.mock("../../services/api.js", () => ({
 import AgentWorkshopView from "./AgentWorkshopView.js";
 
 describe("AgentWorkshopView remote compute registration", () => {
+  it("places remote Agent access in the same toolbar and card grid as new Agents", () => {
+    const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
+    const controls = template.split('<section class="agent-list-controls">')[1].split('</section>')[0];
+    expect(controls).toContain('@click="openCreateDialog"');
+    expect(controls).toContain('@click="openRemoteDialog"');
+    expect(template).toContain('class="feature-card agent-card remote-agent-card"');
+    expect(template).not.toContain('class="remote-registered-list"');
+  });
+
+  it("filters remote Agent cards with the shared list search", () => {
+    const context = { isPlatformAdmin: true, agentCategoryFilter: "all", agentStatusFilter: "all",
+      agentModelFilter: "all", searchQuery: "risk", remoteAgents: [
+        { agentId: "group.portfolio", metadata: { displayName: "Portfolio Agent",
+          professionalCapabilities: ["Risk analysis"] } },
+        { agentId: "group.research", metadata: { displayName: "Research Agent" } }
+      ] };
+    const matching = AgentWorkshopView.computed.matchingRemoteAgents.call(context);
+    expect(matching.map((agent) => agent.agentId)).toEqual(["group.portfolio"]);
+    expect(AgentWorkshopView.computed.visibleRemoteAgents.call({ agentPage: 1,
+      matchingRemoteAgents: matching })).toEqual(matching);
+    expect(AgentWorkshopView.computed.visibleRemoteAgents.call({ agentPage: 2,
+      matchingRemoteAgents: matching })).toEqual([]);
+  });
+
   it("stores user-written expertise without using data-category checkboxes as MCP grants", () => {
     const remoteForm = {
       agentId: "group.research", displayName: "Research Agent", endpoint: "https://group.example/a2a",

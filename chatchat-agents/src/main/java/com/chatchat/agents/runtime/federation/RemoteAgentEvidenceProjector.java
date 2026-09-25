@@ -42,8 +42,14 @@ public class RemoteAgentEvidenceProjector {
         });
         EvidenceBundle bundle = new EvidenceBundle(EvidenceBundle.SCHEMA_VERSION, List.copyOf(projected),
             request.evidence().limitations(), Map.of("projection", "remote-explicit-v1"));
+        Map<String, Object> safeMetadata = new java.util.LinkedHashMap<>();
+        for (String key : List.of(AgentExecutionRequest.MODE_METADATA_KEY,
+            AgentExecutionRequest.COLLABORATION_TASK_METADATA_KEY)) {
+            Object value = request.metadata().get(key);
+            if (value instanceof String text && !text.isBlank()) safeMetadata.put(key, text);
+        }
         return new AgentExecutionRequest(request.schemaVersion(), request.executionId(), request.capability(),
             request.task(), bundle, request.capabilityGrants(), request.constraints(), request.outputContract(),
-            request.scope(), Map.of());
+            request.scope(), safeMetadata);
     }
 }

@@ -83,6 +83,13 @@ const blankAdminPasswordForm = () => ({
 
 export default {
   name: "SystemManagementView",
+  props: {
+    section: {
+      type: String,
+      default: "users",
+      validator: (value) => ["users", "roles", "logins", "resources"].includes(value)
+    }
+  },
   components: {
     Building2,
     Copy,
@@ -115,7 +122,7 @@ export default {
       apiTokenCopyDialogOpen: false,
       error: "",
       message: "",
-      activeManagementTab: "users",
+      activeManagementTab: this.section,
       summary: {},
       tenants: [],
       orgs: [],
@@ -162,6 +169,22 @@ export default {
     };
   },
   computed: {
+    sectionTitle() {
+      return {
+        users: "用户管理",
+        roles: "角色管理",
+        logins: "登录审计",
+        resources: "资源授权"
+      }[this.section];
+    },
+    sectionDescription() {
+      return {
+        users: "管理账号、组织归属、角色分配与 Agent API 令牌",
+        roles: "维护角色档案、组织层级与成员关系",
+        logins: "查询用户登录和 Agent API 认证记录",
+        resources: "按角色配置可访问的资源与 Agent 能力"
+      }[this.section];
+    },
     metrics() {
       return [
         { label: "组织", value: this.summary.orgCount ?? this.orgs.length },
@@ -385,6 +408,10 @@ export default {
     this.loadInitialData();
   },
   watch: {
+    section(value) {
+      this.activeManagementTab = value;
+      this.setNotice("");
+    },
     draftScopeType() {
       this.normalizeDraftUsersInScope();
     },

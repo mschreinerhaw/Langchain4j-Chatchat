@@ -61,7 +61,10 @@ const AgentScheduleView = asyncView(() => import("../views/AgentScheduleView.vue
 const AgentRuntimeView = asyncView(() => import("../views/AgentRuntimeView.vue"));
 const RetrievalRulesView = asyncView(() => import("../views/RetrievalRulesView.vue"));
 const EvidenceDebuggerView = asyncView(() => import("../views/EvidenceDebuggerView.vue"));
-const SystemManagementView = asyncView(() => import("../views/SystemManagementView.vue"));
+const SystemUsersView = asyncView(() => import("../views/SystemUsersView.vue"));
+const SystemRolesView = asyncView(() => import("../views/SystemRolesView.vue"));
+const SystemLoginAuditView = asyncView(() => import("../views/SystemLoginAuditView.vue"));
+const SystemResourceAuthorizationView = asyncView(() => import("../views/SystemResourceAuthorizationView.vue"));
 const ModelManagementView = asyncView(() => import("../views/ModelManagementView.vue"));
 const TasksView = asyncView(() => import("../views/TasksView.vue"));
 const AccessDeniedView = asyncView(() => import("../views/AccessDeniedView.vue"));
@@ -91,6 +94,10 @@ const VIEW_PERMISSIONS = {
   rules: "platform:rules",
   tasks: "platform:tasks",
   system: "system",
+  systemUsers: "system",
+  systemRoles: "system",
+  systemLogins: "system",
+  systemResources: "system",
   models: "platform:models"
 };
 
@@ -113,7 +120,11 @@ const views = {
   rules: RetrievalRulesView,
   debugger: EvidenceDebuggerView,
   tasks: TasksView,
-  system: SystemManagementView,
+  system: SystemUsersView,
+  systemUsers: SystemUsersView,
+  systemRoles: SystemRolesView,
+  systemLogins: SystemLoginAuditView,
+  systemResources: SystemResourceAuthorizationView,
   models: ModelManagementView
 };
 
@@ -127,6 +138,7 @@ function currentHashRoute() {
 function viewFromHash() {
   const route = currentHashRoute();
   if (route === "dataScience") return "dataScienceEnvironment";
+  if (route === "system") return "systemUsers";
   return views[route] ? route : "";
 }
 
@@ -230,7 +242,15 @@ export default {
             { id: "debugger", label: "证据调试", icon: "tasks" },
             { id: "tasks", label: "运行监控", icon: "tasks", permissionCode: "platform:tasks" },
             { id: "models", label: "模型管理", icon: "gear", permissionCode: "platform:models" },
-            { id: "system", label: "系统管理", icon: "gear", permissionCode: "system" }
+            {
+              id: "system", label: "系统管理", icon: "gear", permissionCode: "system",
+              children: [
+                { id: "systemUsers", label: "用户管理", icon: "users", permissionCode: "system" },
+                { id: "systemRoles", label: "角色管理", icon: "shield", permissionCode: "system" },
+                { id: "systemLogins", label: "登录审计", icon: "schedule", permissionCode: "system" },
+                { id: "systemResources", label: "资源授权", icon: "key", permissionCode: "system" }
+              ]
+            }
           ]
         }
       ]
@@ -445,7 +465,7 @@ export default {
       return views[value] ? value : "";
     },
     navigateToView(view) {
-      const requested = views[view] ? view : DEFAULT_VIEW;
+      const requested = view === "system" ? "systemUsers" : (views[view] ? view : DEFAULT_VIEW);
       const nextView = this.canAccessView(requested) ? requested : this.firstAccessibleView();
       if (!nextView) {
         this.activeView = "";

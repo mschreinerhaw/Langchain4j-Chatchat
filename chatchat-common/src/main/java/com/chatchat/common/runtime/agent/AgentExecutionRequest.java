@@ -22,6 +22,9 @@ public record AgentExecutionRequest(
     Map<String, Object> metadata
 ) {
     public static final String SCHEMA_VERSION = "agent_execution_request.v1";
+    public static final String MODE_METADATA_KEY = "agentExecutionMode";
+    public static final String TARGET_AGENT_METADATA_KEY = "targetAgentId";
+    public static final String COLLABORATION_TASK_METADATA_KEY = "collaborationTaskId";
 
     public AgentExecutionRequest {
         schemaVersion = SCHEMA_VERSION;
@@ -34,6 +37,11 @@ public record AgentExecutionRequest(
         outputContract = outputContract == null ? OutputContract.defaults() : outputContract;
         if (scope == null) throw new IllegalArgumentException("kernel scope is required");
         metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+        AgentExecutionMode.parse(metadata.get(MODE_METADATA_KEY));
+    }
+
+    public AgentExecutionMode executionMode() {
+        return AgentExecutionMode.parse(metadata.get(MODE_METADATA_KEY));
     }
 
     public record TaskContract(String type, String instruction, Map<String, Object> parameters) {

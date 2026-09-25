@@ -25,6 +25,8 @@ public class AgentCapabilityPlanner {
 
     public List<AgentDescriptor> candidates(AgentExecutionRequest request) {
         return registry.findByCapability(request.capability()).stream()
+            .filter(agent -> targetAllowed(agent, request))
+            .filter(agent -> agent.supportsExecutionMode(request.executionMode()))
             .filter(agent -> tenantAllowed(agent, request))
             .filter(agent -> domainsAllowed(agent, request))
             .filter(agent -> evidenceAllowed(agent, request))
@@ -35,6 +37,11 @@ public class AgentCapabilityPlanner {
                 .thenComparingInt(agent -> trustRank(agent.trustLevel()))
                 .thenComparing(AgentDescriptor::agentId))
             .toList();
+    }
+
+    private boolean targetAllowed(AgentDescriptor agent, AgentExecutionRequest request) {
+        Object target = request.metadata().get(AgentExecutionRequest.TARGET_AGENT_METADATA_KEY);
+        return target == null || String.valueOf(target).isBlank() || agent.agentId().equals(target);
     }
 
     private boolean tenantAllowed(AgentDescriptor agent, AgentExecutionRequest request) {
@@ -62,7 +69,8 @@ public class AgentCapabilityPlanner {
         if (agent.origin() == AgentDescriptor.Origin.LOCAL || request.evidence().evidence().isEmpty()) return true;
         if (agent.allowedEvidenceTypes().isEmpty()) return false;
         return request.evidence().evidence().stream()
-            .map(value -> value.getClass().getSimpleName())
+            .map(value -> String.valueOf(value.attributes().getOrDefault("sourceType",
+                value.getClass().getSimpleName())))
             .allMatch(agent.allowedEvidenceTypes()::contains);
     }
 

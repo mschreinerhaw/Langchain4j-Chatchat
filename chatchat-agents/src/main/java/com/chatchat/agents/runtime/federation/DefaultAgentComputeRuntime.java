@@ -4,6 +4,8 @@ import com.chatchat.common.runtime.agent.AgentComputeRuntimePort;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentExecutionOutcome;
 import com.chatchat.common.runtime.agent.AgentExecutionRequest;
+import com.chatchat.common.runtime.agent.AgentExecutionMode;
+import com.chatchat.common.runtime.agent.AgentToolRequest;
 import com.chatchat.common.runtime.agent.AgentGatewayPort;
 import com.chatchat.common.runtime.agent.AgentProvider;
 import com.chatchat.common.runtime.agent.AgentEvidenceSupplementPort;
@@ -85,15 +87,22 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
             AgentExecutionOutcome outcome = invoke(candidate, effective);
             int attempts = 1;
             Set<String> requested = new LinkedHashSet<>();
-            while (candidate.origin() != AgentDescriptor.Origin.LOCAL && supplement != null
+            while (supplement != null
                 && (outcome.status() == AgentExecutionOutcome.Status.INPUT_REQUIRED
                     || outcome.status() == AgentExecutionOutcome.Status.SUPPLEMENT_EVIDENCE)
                 && attempts < Math.min(4, Math.min(request.constraints().maxAttempts(),
                     configuredAttempts(candidate)))
                 && System.nanoTime() < deadline) {
-                if (outcome.missingEvidence().isEmpty()) break;
+                List<com.chatchat.common.runtime.analysis.plan.EvidenceRequirement> requirements;
+                try { requirements = supplementRequirements(request, outcome); }
+                catch (IllegalArgumentException rejected) {
+                    outcome = failure(request, candidate.agentId(), AgentExecutionOutcome.Status.BLOCKED,
+                        "AGENT_TOOL_REQUEST_REJECTED", rejected.getMessage());
+                    break;
+                }
+                if (requirements.isEmpty()) break;
                 List<AnalysisEvidence> added = new ArrayList<>();
-                for (var requirement : outcome.missingEvidence()) {
+                for (var requirement : requirements) {
                     if (requirement.type() == null || !requested.add(requirement.type())) continue;
                     try { added.addAll(supplement.supplement(candidate, request, requirement)); }
                     catch (RuntimeException ignored) { /* a failed local skill cannot expand remote permissions */ }
@@ -112,13 +121,18 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
                     effective.evidence().limitations(), effective.evidence().metadata()),
                     effective.capabilityGrants(), new AgentExecutionRequest.Constraints(remaining,
                     constraints.maxAttempts(), constraints.citeEvidence(), constraints.rejectUnsupportedClaims(),
-                    constraints.allowedDataDomains()), effective.outputContract(), effective.scope(), Map.of());
-                try { effective = projector.project(merged); }
-                catch (IllegalArgumentException rejected) { break; }
-                if (!candidate.allowedEvidenceTypes().containsAll(effective.evidence().evidence().stream()
-                    .map(value -> value.attributes().getOrDefault("sourceType", value.getClass().getSimpleName()).toString()).toList())) break;
+                    constraints.allowedDataDomains()), effective.outputContract(), effective.scope(),
+                    effective.metadata());
+                if (candidate.origin() == AgentDescriptor.Origin.LOCAL) effective = merged;
+                else {
+                    try { effective = projector.project(merged); }
+                    catch (IllegalArgumentException rejected) { break; }
+                    if (!candidate.allowedEvidenceTypes().containsAll(effective.evidence().evidence().stream()
+                        .map(value -> value.attributes().getOrDefault("sourceType", value.getClass().getSimpleName()).toString()).toList())) break;
+                }
                 attempts++;
-                try { outcome = gateway.resume(candidate, effective); }
+                try { outcome = candidate.origin() == AgentDescriptor.Origin.LOCAL
+                    ? invoke(candidate, effective) : gateway.resume(candidate, effective); }
                 catch (RuntimeException unsupported) { break; }
             }
             AgentOutcomeVerifier.Verification verification = verifier.verify(candidate, effective, outcome);
@@ -185,5 +199,22 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
     private int configuredAttempts(AgentDescriptor candidate) {
         Object value = candidate.metadata().get("supplementMaxAttempts");
         return value instanceof Number number ? Math.max(1, number.intValue()) : 2;
+    }
+
+    private List<com.chatchat.common.runtime.analysis.plan.EvidenceRequirement> supplementRequirements(
+        AgentExecutionRequest request, AgentExecutionOutcome outcome) {
+        if (request.executionMode() != AgentExecutionMode.AGENTIC_EXECUTION)
+            return outcome.missingEvidence(); // Existing evidence-only compatibility path.
+        Object raw = outcome.metadata().get("toolRequests");
+        if (!(raw instanceof List<?> items)) return List.of();
+        if (items.size() > 3) throw new IllegalArgumentException("At most three tool requests are allowed per turn");
+        Set<String> ids = new LinkedHashSet<>();
+        List<com.chatchat.common.runtime.analysis.plan.EvidenceRequirement> requirements = new ArrayList<>();
+        for (Object item : items) {
+            AgentToolRequest tool = AgentToolRequest.from(item);
+            if (!ids.add(tool.requestId())) throw new IllegalArgumentException("Duplicate tool requestId");
+            requirements.add(tool.requirement());
+        }
+        return requirements;
     }
 }

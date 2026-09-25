@@ -252,6 +252,10 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         projected.put("capabilityGrants", request.capabilityGrants());
         projected.put("constraints", request.constraints());
         projected.put("outputContract", request.outputContract());
+        projected.put("agentExecutionMode", request.executionMode().name());
+        Object collaborationTaskId = request.metadata().get(AgentExecutionRequest.COLLABORATION_TASK_METADATA_KEY);
+        if (collaborationTaskId instanceof String taskId && !taskId.isBlank())
+            projected.put("collaborationTaskId", taskId);
         // User identity, run metadata, credentials and Runtime-internal scope attributes stay local.
         return projected;
     }

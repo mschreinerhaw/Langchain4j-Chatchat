@@ -13,6 +13,19 @@ has been migrated. The router deliberately fails closed for an unbound node or m
 Runtime OS treats local, group, and external agents as replaceable domain-compute providers. Runtime retains planning,
 authorization, data projection, evidence ownership, verification, and result publication.
 
+Agent source (`LOCAL`, `GROUP`, `EXTERNAL`) and agent execution mode are independent. The request selects
+`DOMAIN_INFERENCE` (default) or `AGENTIC_EXECUTION`; a provider must declare the requested mode in
+`metadata.supportedExecutionModes` as well as pass capability, tenant, evidence, health and schema admission.
+Legacy descriptors without that declaration are inference-only. The Runtime's `INLINE`/`DURABLE` placement is a
+separate dimension.
+Skill-catalog-backed local agents now participate in both modes through the controlled local adapter. In a
+federated run it supplies no MCP tools or document bindings to the legacy AgentRuntime and sets the tool-call
+budget to zero. The model returns structured evidence-cited claims or a bounded `SUPPLEMENT_EVIDENCE` request;
+only Runtime may authorize and perform the requested local Skill/data operation before re-invoking the agent.
+This does not change ordinary, non-federated Skill execution.
+Creating, updating, rolling back, publishing, or deleting a Skill-catalog Agent reconciles its local descriptor
+after the catalog transaction commits, so new local capabilities do not require a process restart.
+
 ## Closure status
 
 The diagram is a target architecture, not yet a claim that every branch is production-complete. The authenticated
@@ -182,6 +195,37 @@ not from request-provided claims. A denied local Skill or document scope prevent
 For a remote Agent that may request structured-data evidence later, this endpoint also accepts optional
 `dataTemplateId`, `dataAssetName`, `dataEnvironment` and `dataParameters`. They remain Runtime-local and are
 used only if an admitted provider requests `STRUCTURED_DATA` within the bounded A2A supplement loop.
+Set `agentExecutionMode` to `AGENTIC_EXECUTION` to admit only providers that explicitly declare that mode.
+In this mode an Agent may return `metadata.toolRequests`, for example:
+
+```json
+{"toolRequests":[{"requestId":"need-rules","type":"SUPPLEMENT_EVIDENCE",
+  "evidenceType":"RULE_LOOKUP","minimumCount":1,"reason":"Check the approved policy"}]}
+```
+
+No raw tool name, SQL, URL or datasource can be supplied in this protocol. The Runtime converts the request into
+an evidence requirement, checks the provider's supplement allowlist and the caller's Skill/data scope, executes
+the local authorized supplement and resumes the same Agent task within its attempt/deadline budget.
+
+For a bounded multi-Agent plan, use the same federated workflow through:
+
+```http
+POST /api/v1/agent/analysis/collaborate
+Content-Type: application/json
+
+{"query":"Review portfolio risk","skillId":"authorized-local-skill",
+ "tasks":[
+  {"taskId":"domain","agentId":"local.risk","capability":"finance.risk.v1",
+   "instruction":"Analyze the scoped evidence","mode":"DOMAIN_INFERENCE"},
+  {"taskId":"review","agentId":"group.risk","capability":"finance.risk.v1",
+   "instruction":"Review the prior analysis","mode":"AGENTIC_EXECUTION","dependsOn":["domain"]}
+ ]}
+```
+
+Plans contain at most five topologically ordered tasks. Each task independently passes the existing Provider
+admission policy; an explicit `agentId` narrows that set but never bypasses it. A dependent task receives only
+the original Runtime evidence and its declared predecessors' evidence. Final metadata records each task status;
+verified partial findings remain visible instead of imposing a cross-source sufficiency verdict on the user.
 
 For an explicitly bound read-only registered tool, use the separate governed path:
 

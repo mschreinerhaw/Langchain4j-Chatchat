@@ -433,7 +433,12 @@
           <label><span>业务能力 ID（每行一个）</span><textarea v-model="remoteForm.capabilities" rows="3" required placeholder="finance.industry-analysis.v1"></textarea></label>
           <label><span>允许的租户 ID（每行一个）</span><textarea v-model="remoteForm.tenantIds" rows="3" required></textarea></label>
           <label><span>允许的数据域</span><textarea v-model="remoteForm.dataDomains" rows="2" placeholder="portfolio"></textarea></label>
-          <label><span>可出站的证据类型</span><textarea v-model="remoteForm.evidenceTypes" rows="2" placeholder="DocumentAnalysisEvidence"></textarea></label>
+          <label><span>可出站的证据类型</span><textarea v-model="remoteForm.evidenceTypes" rows="2" placeholder="DocumentAnalysisEvidence"></textarea><small>参与多 Agent 依赖任务时，需明确允许 AgentAnalysisEvidence，才能接收前序 Agent 的已验证结论。</small></label>
+          <label class="wide-field"><span>支持的执行模式</span>
+            <span><input v-model="remoteForm.supportedExecutionModes" type="checkbox" value="DOMAIN_INFERENCE"> 领域推理：Runtime 提供证据，Agent 分析</span>
+            <span><input v-model="remoteForm.supportedExecutionModes" type="checkbox" value="AGENTIC_EXECUTION"> 自主执行：Agent 只能提出结构化补证请求，Runtime 授权执行</span>
+            <small>至少选择一种；请求模式与此处声明不匹配时，Runtime 不会路由到该 Agent。</small>
+          </label>
           <label><span>允许本地补证的 Knowledge Skill 类型</span><textarea v-model="remoteForm.supplementSkillTypes" rows="2" placeholder="RULE_LOOKUP"></textarea><small>仅白名单类型；文档 ID / 标签 / 领域由每次请求的授权上下文限定。</small></label>
           <label><span>允许的结构化数据补证</span><select v-model="remoteForm.structuredSupplement"><option value="">不允许</option><option value="STRUCTURED_DATA">仅预授权只读 SQL 模板</option></select><small>还需本地 Skill 绑定模板工具、数据资产授权，并在上方允许 `StructuredDataEvidence` 出站；远端仅收到最小化证据。</small></label>
           <label><span>凭据引用</span><input v-model.trim="remoteForm.credentialRef" placeholder="环境变量引用，不填写令牌"></label>
@@ -492,6 +497,7 @@
               Runtime 将加载角色、会话、响应规则和可选知识上下文，直接调用模型，不进入工具规划与执行链路。
             </small>
             <small v-else>Runtime 将根据当前 Agent 绑定的工具执行规划、调用和证据汇总。</small>
+            <small>此处控制普通对话。参与多 Agent 联邦分析时，自研 Agent 支持领域推理与受控自主执行；联邦调用不会直接执行这里绑定的工具，补证操作统一由 Runtime 授权。</small>
           </label>
           <label class="checkbox-row default-agent-row">
             <input v-model="form.defaultAgent" type="checkbox">

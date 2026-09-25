@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,8 @@ class SkillCatalogServiceTest {
         SkillCatalogService service = new SkillCatalogService(
             repository, versions, new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
         service.setAgentReleaseService(releases);
+        ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+        service.setCatalogEvents(events);
 
         SkillDefinition saved = service.upsert(new SkillDefinition(
             "finance_agent", "Finance Agent", null, List.of(), List.of(), "agent_chat",
@@ -83,6 +86,7 @@ class SkillCatalogServiceTest {
         assertThat(saved.workflowConfig()).containsEntry("boundDomainSkillIds", List.of("skill-market"));
         verify(releases).prepare(saved);
         verify(releases).markPublished("release-2");
+        verify(events).publishEvent(new SkillCatalogChange("finance_agent", false));
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
+import com.chatchat.common.runtime.agent.AgentCollaborationPlan;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,6 +25,34 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentAnalysisControllerTest {
+    @Test void collaborationEndpointBuildsBoundedPlanInsideExistingAnalysisRuntime() {
+        AtomicReference<AnalysisContext> observed = new AtomicReference<>();
+        AnalysisRuntimePort runtime = context -> {
+            observed.set(context);
+            return new AnalysisExecutionOutcome(null, null, null, null, null, "", Map.of());
+        };
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of("authorized-doc"), List.of(),
+                List.of("analyst"), true, true);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+        var controller = new AgentAnalysisController(runtime, scopes);
+        controller.collaborate(new AgentAnalysisController.CollaborateRequest("Analyze", "skill-1",
+            List.of("requested-doc"), List.of(), List.of(
+                Map.of("taskId", "first", "agentId", "local.agent", "capability", "finance.risk.v1",
+                    "instruction", "Analyze facts", "mode", "DOMAIN_INFERENCE"),
+                Map.of("taskId", "review", "agentId", "group.agent", "capability", "finance.risk.v1",
+                    "instruction", "Review first", "mode", "AGENTIC_EXECUTION", "dependsOn", List.of("first"))),
+            2, 60000L, null, null, null, null), request);
+
+        assertThat(observed.get().documentIds()).containsExactly("authorized-doc");
+        AgentCollaborationPlan plan = (AgentCollaborationPlan) observed.get().attributes()
+            .get(AgentCollaborationPlan.CONTEXT_ATTRIBUTE);
+        assertThat(plan.tasks()).hasSize(2);
+        assertThat(plan.tasks().get(1).dependsOn()).containsExactly("first");
+    }
+
     @Test void buildsContextFromAuthenticatedAndAuthorizedScope() {
         AtomicReference<AnalysisContext> observed = new AtomicReference<>();
         AnalysisRuntimePort runtime = context -> {

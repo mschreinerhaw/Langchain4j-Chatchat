@@ -5,6 +5,9 @@ import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 import com.chatchat.mcpserver.category.BusinessCategory;
 import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
+import com.chatchat.mcpserver.external.ExternalMcpService;
+import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
@@ -15,8 +18,10 @@ import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -87,6 +92,26 @@ class TemplateAssetCatalogServiceTest {
         assertThat(service.listAuthorizedForRoleAndType("role-1", TemplateAssetCatalogService.PYTHON))
             .extracting(TemplateAssetCatalogService.TemplateAsset::templateId)
             .containsExactly("python-1");
+
+        ExternalMcpRegistryService external = mock(ExternalMcpRegistryService.class);
+        ExternalMcpService partner = new ExternalMcpService();
+        partner.setId("partner-1");
+        partner.setName("集团服务");
+        partner.setEnabled(true);
+        when(external.list()).thenReturn(List.of(partner));
+        when(external.parentAssetType(partner)).thenReturn(TemplateAssetCatalogService.API);
+        when(external.templates(partner)).thenReturn(List.of(
+            new ExternalMcpRegistryService.ToolTemplate("read_data", "远端查询", "说明",
+                Map.of("type", "object", "properties", Map.of()), true)));
+        ReflectionTestUtils.setField(service, "externalMcpRegistry", external);
+        String published = ExternalMcpToolPublisher.publishedName("partner-1", "read_data");
+        when(authorization.roleAllows("role-1", "tenant-1", published, null)).thenReturn(true);
+        assertThat(service.listEnabledForType(TemplateAssetCatalogService.API))
+            .extracting(TemplateAssetCatalogService.TemplateAsset::templateId)
+            .contains(published);
+        assertThat(service.listAuthorizedForRoleAndType("role-1", TemplateAssetCatalogService.API))
+            .extracting(TemplateAssetCatalogService.TemplateAsset::templateId)
+            .contains(published);
     }
 
     private PythonTemplate pythonTemplate(String id, String tenantId, String name) {

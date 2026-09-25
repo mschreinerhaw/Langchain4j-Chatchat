@@ -183,6 +183,7 @@ function emptyRemoteForm() {
   return {
     agentId: "", endpoint: "", origin: "GROUP", capabilities: "",
     tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
+    supportedExecutionModes: ["DOMAIN_INFERENCE"],
     supplementSkillTypes: "", structuredSupplement: "", cardKeyId: "", cardPublicKeyPem: "",
     credentialRef: "", priority: 50, slaLatencyMs: 10000, maxAttempts: 2
   };
@@ -920,6 +921,7 @@ export default {
     },
     remoteDescriptor() {
       const form = this.remoteForm;
+      if (!form.supportedExecutionModes?.length) throw new Error("请至少选择一种 Agent 执行模式");
       const capabilities = parseList(form.capabilities).map((value) => {
         const parts = value.split(".");
         if (parts.length < 2) throw new Error(`能力标识格式错误：${value}`);
@@ -936,6 +938,7 @@ export default {
         priority: Number(form.priority) || 0, enabled: true,
         metadata: {
           allowedTenantIds: parseList(form.tenantIds),
+          supportedExecutionModes: form.supportedExecutionModes,
           supplementSkillTypes: parseList(form.supplementSkillTypes),
           supplementCapabilities: form.structuredSupplement === "STRUCTURED_DATA" ? ["STRUCTURED_DATA"] : [],
           cardKeyId: form.cardKeyId.trim(), cardPublicKeyPem: form.cardPublicKeyPem.trim(),

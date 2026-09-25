@@ -3,6 +3,7 @@ import App from "./App.js";
 import AiSearchView from "./views/AiSearchView.js";
 import ChatAssistantView from "./views/ChatAssistantView.js";
 import AssistantSidebar from "./components/AssistantSidebar.js";
+import SystemManagementView from "./views/SystemManagementView.js";
 
 describe("document Ask AI conversation isolation", () => {
   it("does not emit delete for an in-progress conversation", () => {
@@ -117,6 +118,49 @@ describe("document Ask AI conversation isolation", () => {
       tenantId: "tenant-1"
     });
     expect(props.initialTab).toBe("data");
+  });
+
+  it("exposes system management sections as permission-protected child routes", () => {
+    const state = App.data();
+    const platform = state.navItems.find((group) => group.id === "platform");
+    const system = platform.items.find((item) => item.id === "system");
+
+    expect(system.permissionCode).toBe("system");
+    expect(system.children.map((item) => item.id)).toEqual([
+      "systemUsers",
+      "systemRoles",
+      "systemLogins",
+      "systemResources"
+    ]);
+    expect(system.children.every((item) => item.permissionCode === "system")).toBe(true);
+
+    for (const child of system.children) {
+      expect(App.methods.canAccessView.call({ hasPermission: (permission) => permission === "system" }, child.id)).toBe(true);
+    }
+
+    const context = {
+      activeView: "",
+      canAccessView: () => true,
+      setHashRoute: vi.fn()
+    };
+    App.methods.navigateToView.call(context, "system");
+    expect(context.activeView).toBe("systemUsers");
+    expect(context.setHashRoute).toHaveBeenCalledWith("systemUsers");
+  });
+
+  it("shows the matching title for each system management page", () => {
+    const labels = {
+      users: "用户管理",
+      roles: "角色管理",
+      logins: "登录审计",
+      resources: "资源授权"
+    };
+    for (const [section, title] of Object.entries(labels)) {
+      const context = { section };
+      expect(SystemManagementView.data.call(context).activeManagementTab).toBe(section);
+      expect(SystemManagementView.computed.sectionTitle.call(context)).toBe(title);
+      expect(SystemManagementView.computed.sectionDescription.call(context)).toBeTruthy();
+    }
   });
 
   it("marks document result questions as new-session drafts", () => {

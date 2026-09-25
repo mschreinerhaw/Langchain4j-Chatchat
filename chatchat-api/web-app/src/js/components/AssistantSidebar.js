@@ -8,6 +8,7 @@ import {
   Code2,
   FileText,
   LayoutGrid,
+  KeyRound,
   LogOut,
   MessageCircle,
   MessageSquare,
@@ -17,8 +18,10 @@ import {
   PanelLeftOpen,
   Search,
   Settings,
+  ShieldCheck,
   Star,
   Trash2,
+  Users,
   Wrench,
   X
 } from "@lucide/vue";
@@ -251,13 +254,16 @@ export default {
         code: Code2,
         file: FileText,
         gear: Settings,
+        key: KeyRound,
         grid: LayoutGrid,
         hub: Boxes,
         mcp: Wrench,
         runtime: Boxes,
         search: Search,
+        shield: ShieldCheck,
         star: Star,
-        tasks: ClipboardList
+        tasks: ClipboardList,
+        users: Users
       }[icon] || LayoutGrid;
     },
     isGroupCollapsed(group) {

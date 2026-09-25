@@ -1,9 +1,10 @@
 <template>
-  <section class="feature-view system-management-view">
+  <section class="feature-view system-management-view" :class="{ 'has-message': !!message }">
     <header class="system-header">
       <div>
         <p>系统管理</p>
-        <h1>用户与角色管理</h1>
+        <h1>{{ sectionTitle }}</h1>
+        <span class="system-section-description">{{ sectionDescription }}</span>
       </div>
     </header>
 
@@ -17,37 +18,6 @@
         <span>{{ metric.label }}</span>
       </article>
     </div>
-
-    <nav class="system-tabs" aria-label="系统管理模块">
-      <button
-        type="button"
-        :class="{ active: activeManagementTab === 'users' }"
-        @click="activeManagementTab = 'users'"
-      >
-        <Users :size="16" />
-        <span>用户管理</span>
-      </button>
-      <button
-        type="button"
-        :class="{ active: activeManagementTab === 'roles' }"
-        @click="activeManagementTab = 'roles'"
-      >
-        <ShieldCheck :size="16" />
-        <span>角色管理</span>
-      </button>
-      <button
-        type="button"
-        :class="{ active: activeManagementTab === 'logins' }"
-        @click="activeManagementTab = 'logins'"
-      >
-        <KeyRound :size="16" />
-        <span>登录审计</span>
-      </button>
-      <button type="button" :class="{ active: activeManagementTab === 'resources' }" @click="activeManagementTab = 'resources'">
-        <ShieldCheck :size="16" />
-        <span>资源授权</span>
-      </button>
-    </nav>
 
     <div class="rbac-board">
       <aside v-if="activeManagementTab === 'users'" class="rbac-panel user-panel system-tab-panel">

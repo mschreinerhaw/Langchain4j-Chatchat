@@ -154,6 +154,22 @@ export const mcpServicesApi = {
     apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}/token`, { method: 'POST' })
 };
 
+export const externalMcpServicesApi = {
+  list: () => apiFetch(`${API_BASE}/external-mcp-services`),
+  parents: () => apiFetch(`${API_BASE}/external-mcp-services/parents`),
+  workflows: () => apiFetch(`${API_BASE}/external-mcp-services/workflows`),
+  save: (service) => saveEntity(`${API_BASE}/external-mcp-services`, service),
+  remove: (id) => apiFetch(`${API_BASE}/external-mcp-services/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  setEnabled: (id, enabled) => apiFetch(
+    `${API_BASE}/external-mcp-services/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' }
+  ),
+  discover: (id) => apiFetch(`${API_BASE}/external-mcp-services/${encodeURIComponent(id)}/discover`, { method: 'POST' }),
+  invoke: (id, toolName, args) => apiFetch(
+    `${API_BASE}/external-mcp-services/${encodeURIComponent(id)}/tools/${encodeURIComponent(toolName)}/invoke`,
+    { method: 'POST', body: JSON.stringify(args || {}) }
+  )
+};
+
 export const newsApi = {
   listSources: () => apiFetch(`${API_BASE}/news/sources`),
   listPresets: () => apiFetch(`${API_BASE}/news/presets`),

@@ -15,6 +15,8 @@ import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.capability.CapabilityId;
+import com.chatchat.common.runtime.agent.AgentCollaborationPlan;
+import com.chatchat.common.runtime.agent.AgentExecutionMode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -81,6 +83,12 @@ public class AgentAnalysisController {
             Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE), "UNSPECIFIED", true);
         Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE, capability.value());
+        try {
+            attributes.put(AnalysisContext.AGENT_EXECUTION_MODE_ATTRIBUTE,
+                AgentExecutionMode.parse(body.agentExecutionMode()).name());
+        } catch (IllegalArgumentException invalid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, invalid.getMessage(), invalid);
+        }
         attributes.put("agentMaxAttempts", attempts);
         attributes.put("agentTimeoutMs", timeout);
         if (body.dataTemplateId() != null && !body.dataTemplateId().isBlank()) {
@@ -93,6 +101,54 @@ public class AgentAnalysisController {
         AnalysisContext context = new AnalysisContext(body.query(), kernel, body.skillId(),
             scope.documentIds(), scope.tags(), scope.roles(), intent,
             attributes);
+        return ApiResponse.success(analysis.analyze(context));
+    }
+
+    @PostMapping("/collaborate")
+    @Operation(summary = "Execute a bounded multi-Agent DAG through the existing federated analysis workflow")
+    public ApiResponse<AnalysisExecutionOutcome> collaborate(@RequestBody CollaborateRequest body,
+                                                               HttpServletRequest request) {
+        String tenantId = attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        String userId = attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID);
+        if (tenantId == null || userId == null)
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated tenant and user are required");
+        if (body == null || body.query() == null || body.query().isBlank() || body.query().length() > 4000
+            || body.skillId() == null || body.skillId().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "query and skillId are required");
+        AgentCollaborationPlan collaboration;
+        try { collaboration = AgentCollaborationPlan.from(Map.of("tasks",
+            body.tasks() == null ? List.of() : body.tasks())); }
+        catch (IllegalArgumentException invalid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, invalid.getMessage(), invalid);
+        }
+        var scope = skillScopes.resolve(tenantId, userId, body.skillId(), bounded(body.documentIds()),
+            bounded(body.documentTags()));
+        if (!scope.skillAllowed() || scope.documentIds().contains(SkillExecutionScopePort.DENIED_DOCUMENT_ID))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Local Skill or document scope is not authorized");
+        String requestId = attribute(request, RequestCorrelationFilter.REQUEST_ID_ATTRIBUTE);
+        if (requestId == null) requestId = UUID.randomUUID().toString();
+        KernelDataScope kernel = new KernelDataScope(tenantId, userId, requestId, null, requestId, null, Map.of());
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put(AgentCollaborationPlan.CONTEXT_ATTRIBUTE, collaboration);
+        attributes.put("agentMaxAttempts", Math.max(1, Math.min(3,
+            body.maxAttempts() == null ? 2 : body.maxAttempts())));
+        attributes.put("agentTimeoutMs", Math.max(1000, Math.min(120_000,
+            body.timeoutMs() == null ? 60_000 : body.timeoutMs())));
+        if (body.dataTemplateId() != null && !body.dataTemplateId().isBlank()) {
+            if (body.dataAssetName() == null || body.dataAssetName().isBlank()
+                || body.dataEnvironment() == null || body.dataEnvironment().isBlank())
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "dataAssetName and dataEnvironment are required with dataTemplateId");
+            attributes.put(PreauthorizedStructuredDataOperator.TEMPLATE_ID, body.dataTemplateId());
+            attributes.put(PreauthorizedStructuredDataOperator.ASSET_NAME, body.dataAssetName());
+            attributes.put(PreauthorizedStructuredDataOperator.ENVIRONMENT, body.dataEnvironment());
+            attributes.put(PreauthorizedStructuredDataOperator.PARAMETERS,
+                body.dataParameters() == null ? Map.of() : body.dataParameters());
+        }
+        AnalysisIntent intent = new AnalysisIntent("MULTI_AGENT_ANALYSIS", List.of(),
+            Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE), "UNSPECIFIED", true);
+        AnalysisContext context = new AnalysisContext(body.query(), kernel, body.skillId(),
+            scope.documentIds(), scope.tags(), scope.roles(), intent, attributes);
         return ApiResponse.success(analysis.analyze(context));
     }
 
@@ -185,6 +241,12 @@ public class AgentAnalysisController {
         long timeout = Math.max(1000, Math.min(120_000, body.timeoutMs() == null ? 60_000 : body.timeoutMs()));
         Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE, capability.value());
+        try {
+            attributes.put(AnalysisContext.AGENT_EXECUTION_MODE_ATTRIBUTE,
+                AgentExecutionMode.parse(body.agentExecutionMode()).name());
+        } catch (IllegalArgumentException invalid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, invalid.getMessage(), invalid);
+        }
         attributes.put("agentMaxAttempts", attempts);
         attributes.put("agentTimeoutMs", timeout);
         if (required.contains(AnalysisCapability.TOOL_CALL)) {
@@ -232,14 +294,30 @@ public class AgentAnalysisController {
                                  List<String> documentIds, List<String> documentTags,
                                  Integer maxAttempts, Long timeoutMs,
                                  String dataTemplateId, String dataAssetName,
-                                 String dataEnvironment, Map<String, Object> dataParameters) {
+                                 String dataEnvironment, Map<String, Object> dataParameters,
+                                 String agentExecutionMode) {
+        public AnalyzeRequest(String query, String skillId, String capability,
+                              List<String> documentIds, List<String> documentTags,
+                              Integer maxAttempts, Long timeoutMs,
+                              String dataTemplateId, String dataAssetName,
+                              String dataEnvironment, Map<String, Object> dataParameters) {
+            this(query, skillId, capability, documentIds, documentTags, maxAttempts, timeoutMs,
+                dataTemplateId, dataAssetName, dataEnvironment, dataParameters, null);
+        }
         public AnalyzeRequest(String query, String skillId, String capability,
                               List<String> documentIds, List<String> documentTags,
                               Integer maxAttempts, Long timeoutMs) {
             this(query, skillId, capability, documentIds, documentTags, maxAttempts, timeoutMs,
-                null, null, null, null);
+                null, null, null, null, null);
         }
     }
+
+    public record CollaborateRequest(String query, String skillId,
+                                     List<String> documentIds, List<String> documentTags,
+                                     List<Map<String, Object>> tasks,
+                                     Integer maxAttempts, Long timeoutMs,
+                                     String dataTemplateId, String dataAssetName,
+                                     String dataEnvironment, Map<String, Object> dataParameters) { }
 
     public record ToolAnalyzeRequest(String query, String skillId, String toolName,
                                      Map<String, Object> arguments) { }
@@ -251,13 +329,26 @@ public class AgentAnalysisController {
                                           String dataTemplateId, String dataAssetName,
                                           String dataEnvironment, Map<String, Object> dataParameters,
                                           String metricOperation, String metricField,
-                                          String researchToolName, List<String> researchTerms) {
+                                          String researchToolName, List<String> researchTerms,
+                                          String agentExecutionMode) {
+        public CompositeAnalyzeRequest(String query, String skillId, String capability,
+                                       List<String> documentIds, List<String> documentTags,
+                                       String toolName, Map<String, Object> arguments,
+                                       Integer maxAttempts, Long timeoutMs,
+                                       String dataTemplateId, String dataAssetName,
+                                       String dataEnvironment, Map<String, Object> dataParameters,
+                                       String metricOperation, String metricField,
+                                       String researchToolName, List<String> researchTerms) {
+            this(query, skillId, capability, documentIds, documentTags, toolName, arguments,
+                maxAttempts, timeoutMs, dataTemplateId, dataAssetName, dataEnvironment, dataParameters,
+                metricOperation, metricField, researchToolName, researchTerms, null);
+        }
         public CompositeAnalyzeRequest(String query, String skillId, String capability,
                                        List<String> documentIds, List<String> documentTags,
                                        String toolName, Map<String, Object> arguments,
                                        Integer maxAttempts, Long timeoutMs) {
             this(query, skillId, capability, documentIds, documentTags, toolName, arguments,
-                maxAttempts, timeoutMs, null, null, null, null, null, null, null, null);
+                maxAttempts, timeoutMs, null, null, null, null, null, null, null, null, null);
         }
         public CompositeAnalyzeRequest(String query, String skillId, String capability,
                                        List<String> documentIds, List<String> documentTags,

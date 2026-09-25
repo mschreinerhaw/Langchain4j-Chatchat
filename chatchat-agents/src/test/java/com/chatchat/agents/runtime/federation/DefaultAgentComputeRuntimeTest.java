@@ -4,6 +4,8 @@ import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentExecutionOutcome;
 import com.chatchat.common.runtime.agent.AgentExecutionRequest;
+import com.chatchat.common.runtime.agent.AgentExecutionMode;
+import com.chatchat.common.runtime.agent.AgentToolRequest;
 import com.chatchat.common.runtime.agent.AgentGatewayPort;
 import com.chatchat.common.runtime.agent.AgentEvidenceSupplementPort;
 import com.chatchat.common.runtime.analysis.plan.EvidenceRequirement;
@@ -29,6 +31,68 @@ import static org.mockito.Mockito.when;
 
 class DefaultAgentComputeRuntimeTest {
     private static final CapabilityId CAPABILITY = CapabilityId.parse("finance.portfolio-analysis.v1");
+
+    @Test void toolRequestProtocolRejectsRawExecutableToolNames() {
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> AgentToolRequest.from(Map.of(
+            "requestId", "unsafe", "type", "SUPPLEMENT_EVIDENCE", "evidenceType", "STRUCTURED_DATA",
+            "toolName", "sql_query_execute"))))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("unsupported fields");
+    }
+
+    @Test void agenticModeRequiresProviderDeclarationAndUsesOnlyStructuredToolRequests() {
+        InMemoryAgentRegistry registry = new InMemoryAgentRegistry(List.of());
+        AgentDescriptor legacy = remoteDescriptor(Set.of("ToolAnalysisEvidence", "DocumentAnalysisEvidence"),
+            Set.of("portfolio"));
+        registry.register(legacy);
+        AgentExecutionRequest base = request(Set.of("portfolio"));
+        AgentExecutionRequest agentic = new AgentExecutionRequest(null, base.executionId(), base.capability(),
+            base.task(), base.evidence(), base.capabilityGrants(),
+            new AgentExecutionRequest.Constraints(5000, 2, true, true, Set.of("portfolio")),
+            base.outputContract(), base.scope(),
+            Map.of(AgentExecutionRequest.MODE_METADATA_KEY, AgentExecutionMode.AGENTIC_EXECUTION.name()));
+        assertThat(new AgentCapabilityPlanner(registry).candidates(agentic)).isEmpty();
+
+        AgentDescriptor optedIn = new AgentDescriptor(legacy.agentId(), legacy.version(), legacy.origin(),
+            legacy.protocol(), legacy.endpoint(), legacy.capabilities(), legacy.trustLevel(),
+            legacy.dataAccessMode(), legacy.allowedDataDomains(), legacy.allowedEvidenceTypes(),
+            legacy.outputSchema(), legacy.credentialRef(), legacy.priority(), true,
+            Map.of("allowedTenantIds", List.of("tenant-1"),
+                "supportedExecutionModes", List.of("DOMAIN_INFERENCE", "AGENTIC_EXECUTION")));
+        registry.register(optedIn);
+        AtomicInteger resumes = new AtomicInteger();
+        AgentGatewayPort gateway = new AgentGatewayPort() {
+            @Override public AgentExecutionOutcome invoke(AgentDescriptor agent, AgentExecutionRequest input) {
+                return new AgentExecutionOutcome(null, input.executionId(), agent.agentId(),
+                    AgentExecutionOutcome.Status.INPUT_REQUIRED, List.of(), List.of(), List.of(), List.of(),
+                    "", "", Map.of(), Map.of("toolRequests", List.of(Map.of(
+                        "requestId", "need-rule", "type", "SUPPLEMENT_EVIDENCE",
+                        "evidenceType", "RULE_LOOKUP", "minimumCount", 1))));
+            }
+            @Override public AgentExecutionOutcome resume(AgentDescriptor agent, AgentExecutionRequest input) {
+                resumes.incrementAndGet();
+                assertThat(input.executionMode()).isEqualTo(AgentExecutionMode.AGENTIC_EXECUTION);
+                return outcome(input, agent.agentId(), AgentExecutionOutcome.Status.COMPLETED,
+                    List.of(new AgentExecutionOutcome.GroundedClaim("C1", "grounded",
+                        List.of("skill:rule-1"), .9)), "");
+            }
+        };
+        AgentEvidenceSupplementPort supplement = (agent, input, requirement) -> {
+            assertThat(requirement.type()).isEqualTo("RULE_LOOKUP");
+            return List.of(new DocumentAnalysisEvidence("skill:rule-1", "doc-1", "chunk-1", "Policy",
+                "Rules", "doc-1#chunk-1", "private text", .9,
+                Map.of("remoteProjection", Map.of("text", "approved summary"))));
+        };
+        @SuppressWarnings("unchecked") ObjectProvider<AgentGatewayPort> gatewayProvider = mock(ObjectProvider.class);
+        when(gatewayProvider.getIfAvailable()).thenReturn(gateway);
+        @SuppressWarnings("unchecked") ObjectProvider<LocalAgentExecutionPort> adapters = mock(ObjectProvider.class);
+        var runtime = new DefaultAgentComputeRuntime(new AgentCapabilityPlanner(registry),
+            new AgentOutcomeVerifier(), gatewayProvider, List.of(), adapters,
+            new RemoteAgentEvidenceProjector(new ObjectMapper()), supplement, new AgentHealthTracker());
+
+        assertThat(runtime.execute(agentic).status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
+        assertThat(resumes.get()).isEqualTo(1);
+    }
 
     @Test void supplementsOnceAndResumesSameRemoteExecution() {
         InMemoryAgentRegistry registry = new InMemoryAgentRegistry(List.of());

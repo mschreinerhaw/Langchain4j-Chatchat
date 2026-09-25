@@ -6,6 +6,9 @@ import com.chatchat.mcpserver.category.BusinessCategoryService;
 import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.chatchat.mcpserver.authorization.McpScopeExpression;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
+import com.chatchat.mcpserver.external.ExternalMcpService;
+import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
@@ -17,6 +20,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -49,6 +53,8 @@ public class TemplateAssetCatalogService {
     private final SqlDatasourceConfigService sqlDatasourceConfigService;
     private final McpAuthorizationService authorizationService;
     private final ObjectMapper objectMapper;
+    @Autowired(required = false)
+    private ExternalMcpRegistryService externalMcpRegistry;
 
     public List<TemplateAsset> listEnabled() {
         return entries().stream().map(CatalogEntry::asset).toList();
@@ -57,7 +63,9 @@ public class TemplateAssetCatalogService {
     /** Loads only the requested asset family when a bound child route already fixed it. */
     public List<TemplateAsset> listEnabledForType(String assetType) {
         if (API.equals(assetType)) {
-            return apiEntries().stream().map(CatalogEntry::asset).toList();
+            return java.util.stream.Stream.concat(apiEntries().stream(), externalMcpEntries().stream()
+                .filter(entry -> API.equals(entry.asset().assetType())))
+                .map(CatalogEntry::asset).toList();
         }
         return listEnabled().stream().filter(asset -> assetType.equals(asset.assetType())).toList();
     }
@@ -88,7 +96,8 @@ public class TemplateAssetCatalogService {
             .filter(item -> item.id().equals(roleId))
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleId));
-        return apiEntries().stream()
+        return java.util.stream.Stream.concat(apiEntries().stream(), externalMcpEntries().stream()
+                .filter(entry -> API.equals(entry.asset().assetType())))
             .filter(entry -> entry.tenantId() == null || entry.tenantId().equals(role.tenantId()))
             .filter(entry -> entry.authorizationRefs().stream().anyMatch(ref ->
                 authorizationService.roleAllows(role.id(), role.tenantId(), ref.toolName(), ref.scope(role.tenantId()))))
@@ -155,6 +164,7 @@ public class TemplateAssetCatalogService {
             item.getInputSchemaJson()),
             List.of(new AuthorizationRef(PythonMcpToolPublisher.ANALYSIS_RUN_TOOL, null, null, null, null)),
             item.getTenantId())));
+        result.addAll(externalMcpEntries());
         return result.stream()
             .sorted(Comparator.comparing((CatalogEntry item) -> item.asset().assetType())
                 .thenComparing(item -> item.asset().title()))
@@ -163,6 +173,24 @@ public class TemplateAssetCatalogService {
 
     public boolean contains(String key) {
         return listEnabled().stream().anyMatch(item -> item.key().equals(key));
+    }
+
+    private List<CatalogEntry> externalMcpEntries() {
+        if (externalMcpRegistry == null) return List.of();
+        List<CatalogEntry> entries = new ArrayList<>();
+        for (ExternalMcpService service : externalMcpRegistry.list()) {
+            if (!service.isEnabled()) continue;
+            String type = externalMcpRegistry.parentAssetType(service);
+            for (ExternalMcpRegistryService.ToolTemplate template : externalMcpRegistry.templates(service)) {
+                if (!template.readOnly()) continue;
+                String publishedName = ExternalMcpToolPublisher.publishedName(service.getId(), template.name());
+                TemplateAsset asset = new TemplateAsset(type + ":" + publishedName,
+                    type, publishedName, template.title(), template.description(), service.getName(),
+                    "external_mcp", service.getName(), template.inputSchema());
+                entries.add(entry(asset, List.of(new AuthorizationRef(publishedName, null, null, null, null))));
+            }
+        }
+        return entries;
     }
 
     private List<AuthorizationRef> refsForCommand(String templateId,

@@ -20,6 +20,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -76,6 +77,16 @@ public class SkillCatalogService {
     private final JdbcTemplate jdbcTemplate;
     private final SummaryContractService summaryContractService;
     private AgentReleaseService agentReleaseService;
+    private ApplicationEventPublisher catalogEvents;
+
+    @Autowired(required = false)
+    public void setCatalogEvents(ApplicationEventPublisher catalogEvents) {
+        this.catalogEvents = catalogEvents;
+    }
+
+    private void notifyRegistry(String skillId, boolean deleted) {
+        if (catalogEvents != null) catalogEvents.publishEvent(new SkillCatalogChange(skillId, deleted));
+    }
 
     @Autowired
     public void setAgentReleaseService(AgentReleaseService agentReleaseService) {
@@ -406,6 +417,7 @@ public class SkillCatalogService {
             AgentReleaseService.AgentReleaseView release = agentReleaseService.prepare(savedDefinition);
             agentReleaseService.markPublished(release.releaseId());
         }
+        notifyRegistry(savedDefinition.id(), false);
         return savedDefinition;
     }
 
@@ -473,6 +485,7 @@ public class SkillCatalogService {
         current.setDefaultAgent(target.isDefaultAgent());
         SkillConfigEntity saved = repository.save(current);
         snapshotVersion(saved, "rollback");
+        notifyRegistry(id, false);
         return toDefinition(saved);
     }
 
@@ -491,6 +504,7 @@ public class SkillCatalogService {
         entity.setDefaultAgent(true);
         SkillConfigEntity saved = repository.save(entity);
         snapshotVersion(saved, "default_agent");
+        notifyRegistry(id, false);
         return toDefinition(saved);
     }
 
@@ -536,6 +550,7 @@ public class SkillCatalogService {
         entity.setMarketStatus(normalizedStatus);
         SkillConfigEntity saved = repository.save(entity);
         snapshotVersion(saved, action == null || action.isBlank() ? "market_status" : action);
+        notifyRegistry(id, false);
         return toDefinition(saved);
     }
 
@@ -559,6 +574,7 @@ public class SkillCatalogService {
             throw new IllegalArgumentException("maintained Agent capability cannot be deleted");
         }
         repository.deleteById(id);
+        notifyRegistry(id, true);
         return true;
     }
 

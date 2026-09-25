@@ -165,6 +165,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             item.put("parameterSchema", asset.parameterSchema());
             item.put("exists", true);
             item.put("selectionSource", "template_query_binding");
+            if (asset.businessCategoryCode().equals("external_mcp")) {
+                item.put("executionToolName", asset.templateId());
+                item.put("executionRoute", "published_mcp_tool");
+            }
             templates.add(Map.copyOf(item));
         }
         // Completeness belongs to the entire persisted binding, never to the current page.

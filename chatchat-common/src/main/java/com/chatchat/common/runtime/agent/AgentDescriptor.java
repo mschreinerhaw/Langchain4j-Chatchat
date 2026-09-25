@@ -59,6 +59,20 @@ public record AgentDescriptor(
 
     public boolean provides(CapabilityId capability) { return capabilities.contains(capability); }
 
+    /** Legacy descriptors are inference-only until they explicitly opt into agentic execution. */
+    public Set<AgentExecutionMode> supportedExecutionModes() {
+        Object value = metadata.get("supportedExecutionModes");
+        if (!(value instanceof Iterable<?> values)) return Set.of(AgentExecutionMode.DOMAIN_INFERENCE);
+        java.util.LinkedHashSet<AgentExecutionMode> modes = new java.util.LinkedHashSet<>();
+        values.forEach(item -> modes.add(AgentExecutionMode.parse(item)));
+        return Set.copyOf(modes);
+    }
+
+    public boolean supportsExecutionMode(AgentExecutionMode mode) {
+        try { return supportedExecutionModes().contains(mode); }
+        catch (IllegalArgumentException invalidDeclaration) { return false; }
+    }
+
     private static Set<String> clean(Set<String> values) {
         return values == null ? Set.of() : values.stream().filter(value -> value != null && !value.isBlank())
             .map(String::trim).collect(java.util.stream.Collectors.toUnmodifiableSet());

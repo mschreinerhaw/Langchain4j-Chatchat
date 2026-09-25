@@ -1,5 +1,5 @@
 ﻿import CrudCatalog from '../../components/CrudCatalog.vue';
-import { mcpServicesApi as api } from '../../services/api';
+import { externalMcpServicesApi as externalApi, mcpServicesApi as api } from '../../services/api';
 
 export default {
   name: 'McpServicesView',
@@ -8,6 +8,25 @@ export default {
   data() {
     return {
       api,
+      externalApi,
+      activeTab: 'external',
+      parents: [],
+      workflows: [],
+      templatesOpen: false,
+      selectedService: null,
+      selectedTemplate: null,
+      invokeArguments: '{}',
+      invokeResult: '',
+      invoking: false,
+      externalDefaults: { workflowId: 'mcp_streamable_http' },
+      externalColumns: [
+        { key: 'name', label: '服务名称' },
+        { key: 'endpoint', label: 'MCP 端点' },
+        { key: 'parentToolName', label: '父类模板' },
+        { key: 'workflowId', label: '执行工作流' },
+        { key: 'discoveredAt', label: '发现时间' },
+        { key: 'enabled', label: '状态', type: 'badge', formatter: value => value ? '启用' : '待审核 / 停用' }
+      ],
       defaults: { enabled: true, serviceType: 'REMOTE', environment: 'DEV', routingLabels: {}, capabilities: {} },
       columns: [
         { key: 'name', label: '服务名称' },
@@ -107,6 +126,65 @@ export default {
         }
       ]
     };
+  },
+  computed: {
+    externalFormFields() {
+      return [
+        { key: 'name', label: '服务名称', required: true, section: 'basic', sectionTitle: '外部服务',
+          sectionSubtitle: '登记可访问的远端 MCP 端点。' },
+        { key: 'endpoint', label: 'MCP 端点', required: true, span: 'col-12', section: 'basic',
+          placeholder: 'https://example.com/mcp' },
+        { key: 'authorization', label: 'Authorization 请求头', type: 'password', span: 'col-12',
+          section: 'basic', placeholder: 'Bearer ...（编辑留空表示不修改）',
+          help: '凭证仅用于出站连接，列表与编辑接口不会回显。' },
+        { key: 'parentToolName', label: '归属父类模板', type: 'select', required: true,
+          section: 'binding', sectionTitle: '模板归属与执行',
+          sectionSubtitle: 'API、数据库、HTTP 使用同一注册流程；新增工作流由后端插件扩展。',
+          options: this.parents.map(item => ({ value: item.toolName, label: `${item.title} (${item.assetType})` })) },
+        { key: 'workflowId', label: '执行工作流', type: 'select', required: true, section: 'binding',
+          options: this.workflows.map(value => ({ value, label: value })) }
+      ];
+    },
+    externalActions() {
+      return [
+        { key: 'discover', label: '发现工具', run: row => this.externalApi.discover(row.id),
+          successMessage: '已发现工具，请审核后启用服务' },
+        { key: 'templates', label: '模板', run: row => { this.openTemplates(row); },
+          successMessage: '已打开工具模板' }
+      ];
+    }
+  },
+  async mounted() {
+    try {
+      [this.parents, this.workflows] = await Promise.all([this.externalApi.parents(), this.externalApi.workflows()]);
+    } catch (error) { this.$emit('error', error); }
+  },
+  methods: {
+    parentTitle(name) { return this.parents.find(item => item.toolName === name)?.title || name || '未选择'; },
+    openTemplates(row) {
+      this.selectedService = row;
+      this.selectedTemplate = null;
+      this.invokeResult = '';
+      this.templatesOpen = true;
+    },
+    syncSelectedService(items) {
+      if (this.selectedService) this.selectedService = items.find(item => item.id === this.selectedService.id) || null;
+    },
+    selectTemplate(template) {
+      this.selectedTemplate = template;
+      this.invokeArguments = '{}';
+      this.invokeResult = '';
+    },
+    async invokeTemplate() {
+      try {
+        const args = JSON.parse(this.invokeArguments || '{}');
+        if (!args || Array.isArray(args) || typeof args !== 'object') throw new Error('参数必须是 JSON 对象');
+        this.invoking = true;
+        const result = await this.externalApi.invoke(this.selectedService.id, this.selectedTemplate.name, args);
+        this.invokeResult = JSON.stringify(result, null, 2);
+      } catch (error) { this.$emit('error', error); }
+      finally { this.invoking = false; }
+    }
   }
 };
 

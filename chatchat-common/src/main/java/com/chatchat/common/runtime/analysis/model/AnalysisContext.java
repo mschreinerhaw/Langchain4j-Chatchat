@@ -18,6 +18,7 @@ public record AnalysisContext(
 ) {
     public static final String EXECUTION_MODE_ATTRIBUTE = "runtime.analysis.executionMode";
     public static final String AGENT_CAPABILITY_ATTRIBUTE = "runtime.agent.capability";
+    public static final String AGENT_EXECUTION_MODE_ATTRIBUTE = "runtime.agent.executionMode";
     public static final String EVIDENCE_BUNDLE_ATTRIBUTE = "runtime.analysis.evidenceBundle";
 
     public AnalysisContext {

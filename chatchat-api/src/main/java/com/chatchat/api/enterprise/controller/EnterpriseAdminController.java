@@ -8,6 +8,10 @@ import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
+import com.chatchat.common.runtime.agent.AgentCredentialResolver;
+import com.chatchat.agents.runtime.federation.AgentHealthTracker;
+import com.chatchat.common.runtime.agent.AgentCardDiscoveryPort;
+import org.springframework.beans.factory.ObjectProvider;
 import com.chatchat.enterprise.entity.datasource.DataSourceConfig;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
@@ -61,6 +65,9 @@ public class EnterpriseAdminController {
     private final SkillCatalogService skillCatalogService;
     private final LoginAuditService loginAuditService;
     private final AgentRegistryPort agentRegistry;
+    private final AgentCardDiscoveryPort agentCards;
+    private final AgentHealthTracker agentHealth;
+    private final ObjectProvider<AgentCredentialResolver> agentCredentials;
 
     /**
      * Performs the login operation.
@@ -114,8 +121,36 @@ public class EnterpriseAdminController {
     public ApiResponse<AgentDescriptor> registerAgentComputeProvider(HttpServletRequest request,
                                                                       @RequestBody AgentDescriptor descriptor) {
         requirePlatformAgentRegistryAdmin(request);
+        if (descriptor.protocol() == AgentDescriptor.Protocol.A2A_HTTP_JSON) discoverCard(descriptor);
         agentRegistry.register(descriptor);
         return ApiResponse.success(agentRegistry.find(descriptor.agentId()).orElseThrow(), "agent registered");
+    }
+
+    @PostMapping("/agent-registry/discover")
+    @Operation(summary = "Discover and verify a remote A2A Agent Card before registration")
+    public ApiResponse<Map<String, Object>> discoverAgentCard(HttpServletRequest request,
+                                                                @RequestBody AgentDescriptor descriptor) {
+        requirePlatformAgentRegistryAdmin(request);
+        var card = discoverCard(descriptor);
+        return ApiResponse.success(Map.of("name", card.name(), "version", card.version(),
+            "skills", card.skills(), "signatureVerified", card.signatureVerified(),
+            "endpoint", card.endpoint()));
+    }
+
+    @GetMapping("/agent-registry/{agentId}/health")
+    @Operation(summary = "Current local health and SLA signal for a registered compute provider")
+    public ApiResponse<Map<String, Object>> agentComputeHealth(HttpServletRequest request,
+                                                                  @PathVariable String agentId) {
+        requirePlatformAgentRegistryAdmin(request);
+        if (agentRegistry.find(agentId).isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        return ApiResponse.success(agentHealth.snapshot(agentId));
+    }
+
+    private AgentCardDiscoveryPort.CardSummary discoverCard(AgentDescriptor descriptor) {
+        String token = descriptor.credentialRef().isBlank() ? null : agentCredentials.getObject()
+            .resolveBearerToken(descriptor.credentialRef())
+            .orElseThrow(() -> new IllegalArgumentException("Agent credential reference cannot be resolved"));
+        return agentCards.discoverSummary(descriptor, token);
     }
 
     @DeleteMapping("/agent-registry/{agentId}")

@@ -64,15 +64,30 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
         CapabilityId capability = CapabilityId.parse(String.valueOf(
             context.attributes().get(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE)));
         EvidenceBundle input = inputEvidence(context);
+        Map<String, Object> localMetadata = new LinkedHashMap<>();
+        localMetadata.put("workflowId", workflowId());
+        localMetadata.put("planId", plan.planId());
+        localMetadata.put("documentIds", context.documentIds());
+        localMetadata.put("roles", context.roles());
+        localMetadata.put("documentTags", stringSet(context.attributes().get("documentTags")));
+        localMetadata.put("knowledgeDomains", stringSet(context.attributes().get("knowledgeDomains")));
+        if (context.skillId() != null && !context.skillId().isBlank())
+            localMetadata.put("localSkillId", context.skillId());
         AgentExecutionRequest request = new AgentExecutionRequest(AgentExecutionRequest.SCHEMA_VERSION,
             UUID.randomUUID().toString(), capability,
             new AgentExecutionRequest.TaskContract(context.intent().intent(), context.query(),
                 Map.of("entities", context.intent().entities(), "freshness", context.intent().freshness())),
             input, Set.of(), constraints(context), AgentExecutionRequest.OutputContract.defaults(),
-            context.kernelScope(), Map.of("workflowId", workflowId(), "planId", plan.planId()));
+            context.kernelScope(), localMetadata);
         AgentExecutionOutcome outcome = computeNodes.execute(ComputeNodeType.AGENT, request,
             AgentExecutionOutcome.class, context.kernelScope());
         List<AnalysisEvidence> evidence = new ArrayList<>(input.evidence());
+        Object runtimeBundle = outcome.metadata().get("runtimeEvidenceBundle");
+        if (runtimeBundle instanceof EvidenceBundle supplied) {
+            Set<String> ids = new java.util.HashSet<>();
+            evidence.forEach(item -> ids.add(item.evidenceId()));
+            supplied.evidence().stream().filter(item -> ids.add(item.evidenceId())).forEach(evidence::add);
+        }
         outcome.claims().forEach(claim -> evidence.add(new AgentAnalysisEvidence(
             claim.claimId().isBlank() ? UUID.randomUUID().toString() : claim.claimId(), outcome.providerAgentId(),
             outcome.executionId(), claim.evidenceIds(), claim.text(), Map.of("confidence", claim.confidence(),
@@ -99,7 +114,7 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
                                                              WorkflowPlan plan, WorkflowExecutionResult execution,
                                                              VerificationResult verification, EvidenceBundle bundle) {
         AgentExecutionOutcome outcome = (AgentExecutionOutcome) execution.outputs().get("agentOutcome");
-        String synthesis = outcome == null ? "" : outcome.claims().stream()
+        String synthesis = outcome == null || !verification.accepted() ? "" : outcome.claims().stream()
             .map(AgentExecutionOutcome.GroundedClaim::text).filter(value -> !value.isBlank())
             .reduce((left, right) -> left + "\n" + right).orElse("");
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -108,6 +123,12 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
             metadata.put("agentId", outcome.providerAgentId());
             metadata.put("agentExecutionId", outcome.executionId());
             metadata.put("agentStatus", outcome.status().name());
+            metadata.put("judgeDecision", verification.accepted() ? "ACCEPT"
+                : switch (outcome.status()) {
+                    case REPLAN_REQUIRED -> "REPLAN";
+                    case INPUT_REQUIRED, SUPPLEMENT_EVIDENCE -> "SUPPLEMENT";
+                    default -> "REJECT";
+                });
         }
         return new AnalysisExecutionOutcome(AnalysisExecutionOutcome.SCHEMA_VERSION, type(), plan, verification,
             bundle, synthesis, metadata);
@@ -121,7 +142,8 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
     private AgentExecutionRequest.Constraints constraints(AnalysisContext context) {
         Set<String> domains = stringSet(context.attributes().get("allowedDataDomains"));
         long timeout = longValue(context.attributes().get("agentTimeoutMs"), 60_000);
-        return new AgentExecutionRequest.Constraints(timeout, 1, true, true, domains);
+        int attempts = (int) Math.max(1, Math.min(3, longValue(context.attributes().get("agentMaxAttempts"), 2)));
+        return new AgentExecutionRequest.Constraints(timeout, attempts, true, true, domains);
     }
 
     private Set<String> stringSet(Object value) {

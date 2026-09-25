@@ -8,13 +8,13 @@ import org.a2aproject.sdk.client.Client;
 import org.a2aproject.sdk.client.MessageEvent;
 import org.a2aproject.sdk.client.TaskEvent;
 import org.a2aproject.sdk.client.config.ClientConfig;
-import org.a2aproject.sdk.client.http.A2ACardResolver;
 import org.a2aproject.sdk.client.http.JdkA2AHttpClient;
 import org.a2aproject.sdk.client.transport.rest.RestTransport;
 import org.a2aproject.sdk.client.transport.rest.RestTransportConfig;
 import org.a2aproject.sdk.client.transport.spi.interceptors.ClientCallContext;
 import org.a2aproject.sdk.spec.*;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -44,31 +44,49 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
     private final ObjectMapper mapper;
     private final AgentCredentialResolver credentials;
     private final RemoteAgentEvidenceProjector projector;
+    private final AgentCardDiscoveryService cards;
     private final Map<String, TaskLink> taskLinks = new ConcurrentHashMap<>();
 
+    @Autowired
     public A2aHttpJsonAgentGateway(WebClient.Builder clients, ObjectMapper mapper,
                                    ObjectProvider<AgentCredentialResolver> credentials,
-                                   RemoteAgentEvidenceProjector projector) {
+                                   RemoteAgentEvidenceProjector projector, AgentCardDiscoveryService cards) {
         this.clients = clients;
         this.mapper = mapper;
         this.credentials = credentials.getIfAvailable();
         this.projector = projector;
+        this.cards = cards;
+    }
+
+    A2aHttpJsonAgentGateway(WebClient.Builder clients, ObjectMapper mapper,
+                            ObjectProvider<AgentCredentialResolver> credentials,
+                            RemoteAgentEvidenceProjector projector) {
+        this(clients, mapper, credentials, projector, new AgentCardDiscoveryService(mapper));
     }
 
     @Override
     public AgentExecutionOutcome invoke(AgentDescriptor agent, AgentExecutionRequest request) {
+        return dispatch(agent, request, false);
+    }
+
+    @Override
+    public AgentExecutionOutcome resume(AgentDescriptor agent, AgentExecutionRequest request) {
+        return dispatch(agent, request, true);
+    }
+
+    private AgentExecutionOutcome dispatch(AgentDescriptor agent, AgentExecutionRequest request, boolean resume) {
         AgentExecutionRequest safeRequest;
         try { safeRequest = projector.project(request); }
         catch (IllegalArgumentException error) {
             return failure(agent, request, "AGENT_PROJECTION_REJECTED", "Remote evidence projection was rejected");
         }
-        if (agent.protocol() == AgentDescriptor.Protocol.HTTP_JSON) return invokeGovernedHttp(agent, safeRequest);
+        if (agent.protocol() == AgentDescriptor.Protocol.HTTP_JSON && !resume) return invokeGovernedHttp(agent, safeRequest);
         if (agent.protocol() != AgentDescriptor.Protocol.A2A_HTTP_JSON) {
             return failure(agent, safeRequest, "AGENT_PROTOCOL_UNSUPPORTED", "Unsupported protocol " + agent.protocol());
         }
         try {
             String token = bearerToken(agent);
-            Future<AgentExecutionOutcome> call = A2A_CALLS.submit(() -> invokeSdk(agent, safeRequest, token));
+            Future<AgentExecutionOutcome> call = A2A_CALLS.submit(() -> invokeSdk(agent, safeRequest, token, resume));
             try {
                 return call.get(safeRequest.constraints().timeoutMs(), TimeUnit.MILLISECONDS);
             } catch (TimeoutException error) {
@@ -84,16 +102,24 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         }
     }
 
-    private AgentExecutionOutcome invokeSdk(AgentDescriptor agent, AgentExecutionRequest request, String token) throws Exception {
+    private AgentExecutionOutcome invokeSdk(AgentDescriptor agent, AgentExecutionRequest request, String token,
+                                            boolean resume) throws Exception {
         purgeTaskLinks();
-        if (taskLinks.size() >= 10_000)
+        TaskLink link = resume ? taskLinks.get(request.executionId()) : null;
+        if (resume && (link == null || !agent.agentId().equals(link.agentId())))
+            return failure(agent, request, "AGENT_TASK_UNKNOWN", "No resumable A2A task belongs to this execution");
+        if (!resume && taskLinks.size() >= 10_000)
             return failure(agent, request, "AGENT_TASK_CAPACITY", "A2A task tracking capacity exhausted");
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER).build();
         JdkA2AHttpClient transport = new JdkA2AHttpClient(http);
         Map<String, String> headers = token == null ? Map.of() : Map.of("Authorization", "Bearer " + token);
-        AgentCard card = A2ACardResolver.builder().baseUrl(agent.endpoint().toString())
-            .httpClient(transport).authHeaders(headers).build().getAgentCard();
+        AgentCard card;
+        try { card = cards.discover(agent, token); }
+        catch (IllegalArgumentException rejected) {
+            return failure(agent, request, rejected.getMessage().contains("endpoint")
+                ? "AGENT_CARD_MISMATCH" : "AGENT_CARD_UNTRUSTED", rejected.getMessage());
+        }
         if (!cardApproved(agent, card)) return failure(agent, request, "AGENT_CARD_MISMATCH",
             "Agent Card must advertise HTTP+JSON at the registered endpoint");
 
@@ -102,10 +128,12 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
             .setAcceptedOutputModes(request.outputContract().acceptedMediaTypes()).build();
         try (Client client = Client.builder(card).clientConfig(config)
             .withTransport(RestTransport.class, new RestTransportConfig(transport)).build()) {
-            Message message = Message.builder().role(Message.Role.ROLE_USER)
+            Message.Builder messageBuilder = Message.builder().role(Message.Role.ROLE_USER)
                 .messageId(UUID.randomUUID().toString())
                 .parts(new DataPart(mapper.convertValue(projectRemoteRequest(request), Map.class)))
-                .metadata(Map.of("runtimeProtocol", "runtime_os.agent_compute.v1")).build();
+                .metadata(Map.of("runtimeProtocol", "runtime_os.agent_compute.v1"));
+            if (resume) messageBuilder.taskId(link.taskId()).contextId(link.contextId());
+            Message message = messageBuilder.build();
             MessageSendConfiguration sendConfig = MessageSendConfiguration.builder()
                 .acceptedOutputModes(request.outputContract().acceptedMediaTypes())
                 .returnImmediately(true).build();
@@ -122,7 +150,9 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
             Task task = taskEvent.getTask();
             if (task.id() == null || task.id().isBlank())
                 return failure(agent, request, "AGENT_RESPONSE_INVALID", "A2A task has no identifier");
-            taskLinks.put(request.executionId(), new TaskLink(agent.agentId(), task.id(), System.currentTimeMillis()));
+            if (resume && !link.taskId().equals(task.id()))
+                return failure(agent, request, "AGENT_TASK_MISMATCH", "A2A response changed the task identity");
+            taskLinks.put(request.executionId(), new TaskLink(agent.agentId(), task.id(), task.contextId(), System.currentTimeMillis()));
             long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(request.constraints().timeoutMs());
             while (task.status() != null && !task.status().state().isFinal()
                 && !task.status().state().isInterrupted() && System.nanoTime() < deadline) {
@@ -160,8 +190,13 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER).build();
         JdkA2AHttpClient transport = new JdkA2AHttpClient(http);
-        AgentCard card = A2ACardResolver.builder().baseUrl(agent.endpoint().toString())
-            .httpClient(transport).authHeaders(headers).build().getAgentCard();
+        AgentCard card;
+        try { card = cards.discover(agent, token); }
+        catch (IllegalArgumentException rejected) {
+            return new AgentExecutionOutcome(null, executionId, agent.agentId(),
+                AgentExecutionOutcome.Status.BLOCKED, List.of(), List.of(), List.of(), List.of(),
+                "AGENT_CARD_UNTRUSTED", rejected.getMessage(), Map.of(), Map.of());
+        }
         if (!cardApproved(agent, card)) return new AgentExecutionOutcome(null, executionId, agent.agentId(),
             AgentExecutionOutcome.Status.BLOCKED, List.of(), List.of(), List.of(), List.of(),
             "AGENT_CARD_MISMATCH", "Agent Card changed since task dispatch", Map.of(), Map.of());
@@ -185,7 +220,7 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         taskLinks.entrySet().removeIf(entry -> entry.getValue().createdAt() < cutoff);
     }
 
-    private record TaskLink(String agentId, String taskId, long createdAt) { }
+    private record TaskLink(String agentId, String taskId, String contextId, long createdAt) { }
 
     private Map<String, Object> projectRemoteRequest(AgentExecutionRequest request) {
         Map<String, Object> projected = new LinkedHashMap<>();
@@ -244,7 +279,24 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
                     if (!AgentExecutionOutcome.SCHEMA_VERSION.equals(raw.path("schemaVersion").asText()))
                         throw new IllegalArgumentException("not an outcome contract");
                     AgentExecutionOutcome value = mapper.convertValue(data.data(), AgentExecutionOutcome.class);
-                    return validateIdentity(agent, request, value);
+                    AgentExecutionOutcome checked = validateIdentity(agent, request, value);
+                    if (checked != value) return checked;
+                    if (status == AgentExecutionOutcome.Status.INPUT_REQUIRED
+                        && checked.status() != AgentExecutionOutcome.Status.INPUT_REQUIRED
+                        && checked.status() != AgentExecutionOutcome.Status.SUPPLEMENT_EVIDENCE)
+                        return new AgentExecutionOutcome(null, checked.executionId(), checked.providerAgentId(),
+                            AgentExecutionOutcome.Status.INPUT_REQUIRED, checked.claims(), checked.artifacts(),
+                            checked.missingEvidence(), checked.limitations(), checked.errorCode(),
+                            checked.errorMessage(), checked.usage(), checked.metadata());
+                    if (status != AgentExecutionOutcome.Status.INPUT_REQUIRED
+                        && status != AgentExecutionOutcome.Status.PARTIAL
+                        && status != AgentExecutionOutcome.Status.COMPLETED
+                        && checked.status() != status)
+                        return new AgentExecutionOutcome(null, checked.executionId(), checked.providerAgentId(),
+                            status, checked.claims(), checked.artifacts(), checked.missingEvidence(),
+                            checked.limitations(), checked.errorCode(), checked.errorMessage(),
+                            checked.usage(), checked.metadata());
+                    return checked;
                 } catch (IllegalArgumentException ignored) { /* non-contract data remains an artifact */ }
                 artifacts.add(new AgentExecutionOutcome.Artifact(UUID.randomUUID().toString(),
                     "application/json", mapper.valueToTree(data.data()).toString(), Map.of()));

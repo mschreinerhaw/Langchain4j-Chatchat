@@ -1,5 +1,7 @@
 ﻿import {
   createWorkshopAgent,
+  discoverRemoteAgent,
+  registerRemoteAgent,
   deleteWorkshopAgent,
   fetchAgentWorkshop,
   fetchPublishedAgentCurlExample,
@@ -177,6 +179,15 @@ function emptyForm() {
   };
 }
 
+function emptyRemoteForm() {
+  return {
+    agentId: "", endpoint: "", origin: "GROUP", capabilities: "",
+    tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
+    supplementSkillTypes: "", cardKeyId: "", cardPublicKeyPem: "",
+    credentialRef: "", priority: 50, slaLatencyMs: 10000, maxAttempts: 2
+  };
+}
+
 export default {
   name: "AgentWorkshopView",
   data() {
@@ -197,6 +208,11 @@ export default {
       loading: false,
       saving: false,
       dialogOpen: false,
+      remoteDialogOpen: false,
+      remoteForm: emptyRemoteForm(),
+      remotePreview: null,
+      remoteError: "",
+      remoteBusy: false,
       documentPickerOpen: false,
       toolPickerOpen: false,
       dialogMode: "create",
@@ -895,6 +911,54 @@ export default {
       this.documentPickerOpen = false;
       this.toolPickerOpen = false;
       this.dialogOpen = true;
+    },
+    openRemoteDialog() {
+      this.remoteForm = emptyRemoteForm();
+      this.remotePreview = null;
+      this.remoteError = "";
+      this.remoteDialogOpen = true;
+    },
+    remoteDescriptor() {
+      const form = this.remoteForm;
+      const capabilities = parseList(form.capabilities).map((value) => {
+        const parts = value.split(".");
+        if (parts.length < 2) throw new Error(`能力标识格式错误：${value}`);
+        const version = /^v\d+$/.test(parts.at(-1)) ? parts.pop() : "v1";
+        return { namespace: parts.shift(), name: parts.join("."), version };
+      });
+      return {
+        agentId: form.agentId.trim(), version: this.remotePreview?.version || "v1",
+        origin: form.origin, protocol: "A2A_HTTP_JSON", endpoint: form.endpoint.trim(),
+        capabilities, trustLevel: form.origin === "GROUP" ? "GROUP_TRUSTED" : "PARTNER",
+        dataAccessMode: "RUNTIME_MANAGED", allowedDataDomains: parseList(form.dataDomains),
+        allowedEvidenceTypes: parseList(form.evidenceTypes),
+        outputSchema: "agent_execution_outcome.v1", credentialRef: form.credentialRef.trim(),
+        priority: Number(form.priority) || 0, enabled: true,
+        metadata: {
+          allowedTenantIds: parseList(form.tenantIds),
+          supplementSkillTypes: parseList(form.supplementSkillTypes),
+          cardKeyId: form.cardKeyId.trim(), cardPublicKeyPem: form.cardPublicKeyPem.trim(),
+          requireSignedCard: true, slaLatencyMs: Number(form.slaLatencyMs) || 10000,
+          supplementMaxAttempts: Number(form.maxAttempts) || 2
+        }
+      };
+    },
+    async previewRemoteAgent() {
+      this.remoteError = "";
+      this.remoteBusy = true;
+      try { this.remotePreview = await discoverRemoteAgent(this.remoteDescriptor()); }
+      catch (error) { this.remotePreview = null; this.remoteError = error.message || "Agent Card 发现失败"; }
+      finally { this.remoteBusy = false; }
+    },
+    async saveRemoteAgent() {
+      this.remoteError = "";
+      this.remoteBusy = true;
+      try {
+        if (!this.remotePreview) throw new Error("请先发现并验证 Agent Card");
+        await registerRemoteAgent(this.remoteDescriptor());
+        this.remoteDialogOpen = false;
+      } catch (error) { this.remoteError = error.message || "远程 Agent 接入失败"; }
+      finally { this.remoteBusy = false; }
     },
     closeDialog() {
       if (this.saving) {

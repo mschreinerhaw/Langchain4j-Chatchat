@@ -7,6 +7,8 @@ const { fetchPublishedAgentCurlExample, authSession } = vi.hoisted(() => ({
 
 vi.mock("../../services/api.js", () => ({
   createWorkshopAgent: vi.fn(),
+  discoverRemoteAgent: vi.fn(),
+  registerRemoteAgent: vi.fn(),
   deleteWorkshopAgent: vi.fn(),
   fetchAgentWorkshop: vi.fn(),
   fetchPublishedAgentCurlExample,
@@ -18,6 +20,28 @@ vi.mock("../../services/api.js", () => ({
 }));
 
 import AgentWorkshopView from "./AgentWorkshopView.js";
+
+describe("AgentWorkshopView remote compute registration", () => {
+  it("keeps A2A credentials as references and exposes explicit evidence grants", () => {
+    const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({
+      remotePreview: { version: "v2" },
+      remoteForm: {
+        agentId: "group.research", endpoint: "https://group.example/a2a", origin: "GROUP",
+        capabilities: "finance.research.v1", tenantIds: "tenant-1",
+        dataDomains: "market", evidenceTypes: "DocumentAnalysisEvidence",
+        supplementSkillTypes: "RULE_LOOKUP", cardKeyId: "group-key",
+        cardPublicKeyPem: "public-pem", credentialRef: "env:GROUP_TOKEN",
+        priority: 50, slaLatencyMs: 10000, maxAttempts: 2
+      }
+    });
+    expect(descriptor.protocol).toBe("A2A_HTTP_JSON");
+    expect(descriptor.capabilities).toEqual([{ namespace: "finance", name: "research", version: "v1" }]);
+    expect(descriptor.metadata.allowedTenantIds).toEqual(["tenant-1"]);
+    expect(descriptor.metadata.supplementSkillTypes).toEqual(["RULE_LOOKUP"]);
+    expect(descriptor.metadata.requireSignedCard).toBe(true);
+    expect(descriptor.credentialRef).toBe("env:GROUP_TOKEN");
+  });
+});
 
 describe("AgentWorkshopView MCP Chinese aliases", () => {
   it("keeps the English tool identity while exposing the Chinese alias for search and hover", () => {

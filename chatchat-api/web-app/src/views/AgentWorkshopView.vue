@@ -41,6 +41,7 @@
         </div>
         <div class="agent-light-actions">
           <button type="button" class="primary-button" @click="openCreateDialog">新增Agent</button>
+          <button v-if="isPlatformAdmin" type="button" class="light-button" @click="openRemoteDialog">接入集团 / 第三方 Agent</button>
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
           <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
             导出已选JSON（{{ selectedAgentCount }}）
@@ -418,17 +419,54 @@
       </section>
     </div>
 
+    <div v-if="remoteDialogOpen" class="agent-dialog-backdrop">
+      <form class="agent-dialog" @submit.prevent="saveRemoteAgent">
+        <header>
+          <div><p>Agent Runtime OS · Agents 算力节点</p><h2>接入集团 / 第三方 Agent</h2></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" @click="remoteDialogOpen = false">×</button>
+        </header>
+        <div class="dialog-body">
+          <p class="wide-field">Agent Card 自动发现 → 固定公钥验签 → 租户与证据授权 → 健康度 / SLA 路由。远端不能直接调用本地 Skill 或数据源；补证始终由 Runtime 在授权范围内执行。</p>
+          <label><span>来源</span><select v-model="remoteForm.origin"><option value="GROUP">集团 Agent</option><option value="EXTERNAL">第三方 Agent</option></select></label>
+          <label><span>Agent ID</span><input v-model.trim="remoteForm.agentId" required placeholder="group.industry-research"></label>
+          <label class="wide-field"><span>A2A HTTP+JSON 端点</span><input v-model.trim="remoteForm.endpoint" type="url" required placeholder="https://agent.example.com/a2a"></label>
+          <label><span>业务能力 ID（每行一个）</span><textarea v-model="remoteForm.capabilities" rows="3" required placeholder="finance.industry-analysis.v1"></textarea></label>
+          <label><span>允许的租户 ID（每行一个）</span><textarea v-model="remoteForm.tenantIds" rows="3" required></textarea></label>
+          <label><span>允许的数据域</span><textarea v-model="remoteForm.dataDomains" rows="2" placeholder="portfolio"></textarea></label>
+          <label><span>可出站的证据类型</span><textarea v-model="remoteForm.evidenceTypes" rows="2" placeholder="DocumentAnalysisEvidence"></textarea></label>
+          <label><span>允许本地补证的 Knowledge Skill 类型</span><textarea v-model="remoteForm.supplementSkillTypes" rows="2" placeholder="RULE_LOOKUP"></textarea><small>仅白名单类型；文档 ID / 标签 / 领域由每次请求的授权上下文限定。</small></label>
+          <label><span>凭据引用</span><input v-model.trim="remoteForm.credentialRef" placeholder="环境变量引用，不填写令牌"></label>
+          <label><span>签名 Key ID (kid)</span><input v-model.trim="remoteForm.cardKeyId" required></label>
+          <label class="wide-field"><span>Agent Card 验签公钥（PEM，RS256）</span><textarea v-model.trim="remoteForm.cardPublicKeyPem" rows="4" required placeholder="-----BEGIN PUBLIC KEY-----"></textarea></label>
+          <label><span>路由优先级</span><input v-model.number="remoteForm.priority" type="number" min="0" max="1000"></label>
+          <label><span>SLA 延迟阈值（毫秒）</span><input v-model.number="remoteForm.slaLatencyMs" type="number" min="100" max="600000"></label>
+          <p v-if="remotePreview" class="wide-field">已发现：{{ remotePreview.name }} · {{ remotePreview.version }} · 签名已验证 · {{ remotePreview.skills?.length || 0 }} 项 Card Skills</p>
+          <p v-if="remoteError" class="agent-error wide-field">{{ remoteError }}</p>
+        </div>
+        <footer>
+          <button type="button" class="secondary-button" :disabled="remoteBusy" @click="remoteDialogOpen = false">取消</button>
+          <button type="button" class="secondary-button" :disabled="remoteBusy" @click="previewRemoteAgent">发现并验签</button>
+          <button type="submit" class="primary-button" :disabled="remoteBusy || !remotePreview">注册算力节点</button>
+        </footer>
+      </form>
+    </div>
+
     <div v-if="dialogOpen" class="agent-dialog-backdrop">
       <form class="agent-dialog" @submit.prevent="saveAgent">
         <header>
           <div>
             <p>{{ dialogMode === "create" ? "新增Agent" : "Agent设置" }}</p>
-            <h2>{{ dialogMode === "create" ? "创建业务智能体" : form.name || form.id }}</h2>
+            <h2>{{ dialogMode === "create" ? "创建自研 Agent" : form.name || form.id }}</h2>
           </div>
           <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="saving" @click="closeDialog">×</button>
         </header>
 
         <div class="dialog-body">
+          <section v-if="dialogMode === 'create'" class="wide-field">
+            <strong>选择算力来源</strong>
+            <p>当前创建自研 Agent，可组合 Workflow、Skills 与知识证据；集团或第三方 Agent 通过 A2A 接入，由 Runtime 管理数据边界与补证。</p>
+            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; openRemoteDialog()">切换到集团 / 第三方 Agent 接入</button>
+          </section>
           <label>
             <span>Agent ID</span>
             <input

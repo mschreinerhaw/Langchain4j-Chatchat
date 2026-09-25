@@ -3,6 +3,9 @@ package com.chatchat.agents.runtime.analysis.workflow;
 import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
 import com.chatchat.common.runtime.analysis.evidence.ComputationEvidence;
 import com.chatchat.common.runtime.analysis.evidence.StructuredDataEvidence;
+import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
+import com.chatchat.common.runtime.analysis.evidence.AgentAnalysisEvidence;
+import com.chatchat.common.runtime.analysis.execution.VerificationResult;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
@@ -29,6 +32,49 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultAnalysisWorkflowRuntimeTest {
+    @Test
+    void compositeNeverPassesRejectedChildEvidenceToDomainAgent() {
+        java.util.concurrent.atomic.AtomicInteger domainCalls = new java.util.concurrent.atomic.AtomicInteger();
+        StructuredDataEvidence rejectedEvidence = new StructuredDataEvidence("data-rejected", "private",
+            "select *", 1, "2026-09-25", "unverified", Map.of());
+        AnalysisWorkflow rejectedData = new AnalysisWorkflow() {
+            @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.STRUCTURED_DATA; }
+            @Override public String workflowId() { return "test.rejected-data"; }
+            @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            @Override public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(false, List.of(), List.of("data rejected")),
+                    new EvidenceBundle(null, List.of(rejectedEvidence), List.of(), Map.of()), "", Map.of());
+            }
+        };
+        AnalysisWorkflow domain = new AnalysisWorkflow() {
+            @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.FEDERATED_AGENT; }
+            @Override public String workflowId() { return "test.domain"; }
+            @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            @Override public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                domainCalls.incrementAndGet();
+                var claim = new AgentAnalysisEvidence("agent-1", "agent", "exec", List.of(), "analysis", Map.of());
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(true, List.of(claim), List.of()),
+                    new EvidenceBundle(null, List.of(claim), List.of(), Map.of()), "analysis", Map.of());
+            }
+        };
+        StaticListableBeanFactory beans = new StaticListableBeanFactory();
+        beans.addBean("data", rejectedData);
+        beans.addBean("domain", domain);
+        CompositeAnalysisWorkflow composite = new CompositeAnalysisWorkflow(beans.getBeanProvider(AnalysisWorkflow.class));
+        var runtime = new DefaultAnalysisWorkflowRuntime(List.of(rejectedData, domain, composite));
+        AnalysisIntent intent = new AnalysisIntent("test", List.of(),
+            Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE, AnalysisCapability.STRUCTURED_DATA),
+            "UNSPECIFIED", true);
+        AnalysisExecutionOutcome result = runtime.analyze(new AnalysisContext("analyze", KernelDataScope.system("r"),
+            "skill", List.of(), List.of(), List.of(), intent, Map.of()));
+
+        assertThat(result.verification().accepted()).isFalse();
+        assertThat(result.evidenceBundle().evidence()).isEmpty();
+        assertThat(result.synthesis()).isBlank();
+        assertThat(domainCalls.get()).isZero();
+    }
     @Test
     void routesComputationIntentThroughParentLifecycleAndOperator() {
         AnalysisCapabilityOperator operator = new AnalysisCapabilityOperator() {

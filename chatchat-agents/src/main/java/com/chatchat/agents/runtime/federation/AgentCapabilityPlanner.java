@@ -4,6 +4,7 @@ import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentExecutionRequest;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Comparator;
 import java.util.List;
@@ -12,23 +13,36 @@ import java.util.List;
 @Component
 public class AgentCapabilityPlanner {
     private final AgentRegistryPort registry;
+    private final AgentHealthTracker health;
 
-    public AgentCapabilityPlanner(AgentRegistryPort registry) { this.registry = registry; }
+    @Autowired
+    public AgentCapabilityPlanner(AgentRegistryPort registry, AgentHealthTracker health) {
+        this.registry = registry;
+        this.health = health;
+    }
+
+    AgentCapabilityPlanner(AgentRegistryPort registry) { this(registry, new AgentHealthTracker()); }
 
     public List<AgentDescriptor> candidates(AgentExecutionRequest request) {
         return registry.findByCapability(request.capability()).stream()
             .filter(agent -> tenantAllowed(agent, request))
             .filter(agent -> domainsAllowed(agent, request))
             .filter(agent -> evidenceAllowed(agent, request))
+            .filter(health::available)
             .filter(agent -> agent.outputSchema().equals(request.outputContract().schema()))
-            .sorted(Comparator.comparingInt(AgentDescriptor::priority).reversed()
+            .sorted(Comparator.comparingInt((AgentDescriptor agent) ->
+                    agent.priority() - health.latencyPenalty(agent)).reversed()
                 .thenComparingInt(agent -> trustRank(agent.trustLevel()))
                 .thenComparing(AgentDescriptor::agentId))
             .toList();
     }
 
     private boolean tenantAllowed(AgentDescriptor agent, AgentExecutionRequest request) {
-        if (agent.origin() == AgentDescriptor.Origin.LOCAL) return true;
+        if (agent.origin() == AgentDescriptor.Origin.LOCAL) {
+            Object skillId = request.metadata().get("localSkillId");
+            return !(skillId instanceof String value) || value.isBlank()
+                || agent.agentId().equals("local.skill." + value);
+        }
         Object grants = agent.metadata().get("allowedTenantIds");
         if (!(grants instanceof Iterable<?> values)) return false;
         for (Object value : values) {

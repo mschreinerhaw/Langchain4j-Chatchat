@@ -1061,6 +1061,18 @@ export function rollbackSkillVersion(skillId, versionId) {
   });
 }
 
+export function discoverRemoteAgent(payload) {
+  return apiRequest("/enterprise/agent-registry/discover", {
+    method: "POST", body: JSON.stringify(payload)
+  });
+}
+
+export function registerRemoteAgent(payload) {
+  return apiRequest("/enterprise/agent-registry", {
+    method: "POST", body: JSON.stringify(payload)
+  });
+}
+
 export function fetchAgentWorkshop(filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {

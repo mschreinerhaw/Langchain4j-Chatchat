@@ -5,6 +5,9 @@ import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentExecutionOutcome;
 import com.chatchat.common.runtime.agent.AgentExecutionRequest;
 import com.chatchat.common.runtime.agent.AgentGatewayPort;
+import com.chatchat.common.runtime.agent.AgentEvidenceSupplementPort;
+import com.chatchat.common.runtime.analysis.plan.EvidenceRequirement;
+import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
 import com.chatchat.common.runtime.agent.AgentProvider;
 import com.chatchat.common.runtime.agent.LocalAgentExecutionPort;
 import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
@@ -18,6 +21,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -25,6 +29,46 @@ import static org.mockito.Mockito.when;
 
 class DefaultAgentComputeRuntimeTest {
     private static final CapabilityId CAPABILITY = CapabilityId.parse("finance.portfolio-analysis.v1");
+
+    @Test void supplementsOnceAndResumesSameRemoteExecution() {
+        InMemoryAgentRegistry registry = new InMemoryAgentRegistry(List.of());
+        registry.register(remoteDescriptor(Set.of("ToolAnalysisEvidence", "DocumentAnalysisEvidence"), Set.of("portfolio")));
+        AtomicInteger resumes = new AtomicInteger();
+        AgentGatewayPort gateway = new AgentGatewayPort() {
+            @Override public AgentExecutionOutcome invoke(AgentDescriptor agent, AgentExecutionRequest request) {
+                return new AgentExecutionOutcome(null, request.executionId(), agent.agentId(),
+                    AgentExecutionOutcome.Status.INPUT_REQUIRED, List.of(), List.of(),
+                    List.of(new EvidenceRequirement("RULE_LOOKUP", true, 1, "source")), List.of(),
+                    "", "", Map.of(), Map.of());
+            }
+            @Override public AgentExecutionOutcome resume(AgentDescriptor agent, AgentExecutionRequest request) {
+                resumes.incrementAndGet();
+                assertThat(request.evidence().evidence()).singleElement().satisfies(value ->
+                    assertThat(value.evidenceId()).isEqualTo("skill:rule-1"));
+                return outcome(request, agent.agentId(), AgentExecutionOutcome.Status.COMPLETED,
+                    List.of(new AgentExecutionOutcome.GroundedClaim("C1", "grounded",
+                        List.of("skill:rule-1"), .9)), "");
+            }
+        };
+        AgentEvidenceSupplementPort supplement = (agent, request, requirement) -> List.of(
+            new DocumentAnalysisEvidence("skill:rule-1", "doc-1", "chunk-1", "Policy", "Rules",
+                "doc-1#chunk-1", "private text", .9,
+                Map.of("remoteProjection", Map.of("text", "approved summary"))));
+        @SuppressWarnings("unchecked") ObjectProvider<AgentGatewayPort> gatewayProvider = mock(ObjectProvider.class);
+        when(gatewayProvider.getIfAvailable()).thenReturn(gateway);
+        @SuppressWarnings("unchecked") ObjectProvider<LocalAgentExecutionPort> adapters = mock(ObjectProvider.class);
+        AgentExecutionRequest original = request(Set.of("portfolio"));
+        AgentExecutionRequest bounded = new AgentExecutionRequest(null, original.executionId(),
+            original.capability(), original.task(), original.evidence(), original.capabilityGrants(),
+            new AgentExecutionRequest.Constraints(5000, 2, true, true, Set.of("portfolio")),
+            original.outputContract(), original.scope(), Map.of());
+        var runtime = new DefaultAgentComputeRuntime(new AgentCapabilityPlanner(registry),
+            new AgentOutcomeVerifier(), gatewayProvider, List.of(), adapters,
+            new RemoteAgentEvidenceProjector(new ObjectMapper()), supplement, new AgentHealthTracker());
+
+        assertThat(runtime.execute(bounded).status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
+        assertThat(resumes.get()).isEqualTo(1);
+    }
 
     @Test void fallsBackFromFailedRemoteAgentToGroundedLocalProvider() {
         AgentProvider local = localProvider();
@@ -46,6 +90,27 @@ class DefaultAgentComputeRuntimeTest {
         assertThat(result.providerAgentId()).isEqualTo("local.investment");
         assertThat(result.claims()).singleElement().satisfies(claim ->
             assertThat(claim.evidenceIds()).containsExactly("E1"));
+    }
+
+    @Test void replansToNextPolicyAdmittedProvider() {
+        AgentProvider local = localProvider();
+        InMemoryAgentRegistry registry = new InMemoryAgentRegistry(List.of(local));
+        registry.register(remoteDescriptor(Set.of("ToolAnalysisEvidence"), Set.of("portfolio")));
+        AgentGatewayPort gateway = (agent, request) -> outcome(request, agent.agentId(),
+            AgentExecutionOutcome.Status.REPLAN_REQUIRED, List.of(), "REPLAN");
+        @SuppressWarnings("unchecked") ObjectProvider<AgentGatewayPort> gatewayProvider = mock(ObjectProvider.class);
+        when(gatewayProvider.getIfAvailable()).thenReturn(gateway);
+        @SuppressWarnings("unchecked") ObjectProvider<LocalAgentExecutionPort> adapters = mock(ObjectProvider.class);
+        when(adapters.orderedStream()).thenReturn(java.util.stream.Stream.empty());
+        var runtime = new DefaultAgentComputeRuntime(new AgentCapabilityPlanner(registry),
+            new AgentOutcomeVerifier(), gatewayProvider, List.of(local), adapters,
+            new RemoteAgentEvidenceProjector(new ObjectMapper()));
+
+        AgentExecutionOutcome result = runtime.execute(request(Set.of("portfolio")));
+
+        assertThat(result.status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
+        assertThat(result.providerAgentId()).isEqualTo("local.investment");
+        assertThat(result.metadata()).containsKey("runtimeEvidenceBundle");
     }
 
     @Test void fallsBackWhenRemoteReturnsOnlyUnstructuredPartialText() {

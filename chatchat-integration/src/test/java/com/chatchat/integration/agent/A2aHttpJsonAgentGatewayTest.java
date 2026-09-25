@@ -24,6 +24,59 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class A2aHttpJsonAgentGatewayTest {
+    @Test void resumesInputRequiredTaskWithOriginalTaskAndContextIds() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        int port = server.getAddress().getPort();
+        AtomicInteger sends = new AtomicInteger();
+        AtomicReference<String> resumedBody = new AtomicReference<>();
+        server.createContext("/.well-known/agent-card.json", exchange -> reply(exchange, """
+            {"name":"group-test","description":"test","version":"v1",
+             "capabilities":{"streaming":false,"pushNotifications":false},
+             "defaultInputModes":["application/json"],"defaultOutputModes":["application/json"],
+             "skills":[],"supportedInterfaces":[{"protocolBinding":"HTTP+JSON",
+             "url":"http://127.0.0.1:%d","protocolVersion":"1.0"}]}
+            """.formatted(port)));
+        server.createContext("/message:send", exchange -> {
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            if (sends.incrementAndGet() == 1) reply(exchange, """
+                {"task":{"id":"task-1","contextId":"ctx-1","status":{"state":"TASK_STATE_INPUT_REQUIRED",
+                 "message":{"messageId":"reply-1","role":"ROLE_AGENT","parts":[{"data":{
+                   "schemaVersion":"agent_execution_outcome.v1","executionId":"exec-resume",
+                   "providerAgentId":"group-test","status":"SUPPLEMENT_EVIDENCE",
+                   "missingEvidence":[{"type":"RULE_LOOKUP","required":true,"minimumCount":1}]}}]}}}}
+                """);
+            else {
+                resumedBody.set(body);
+                reply(exchange, """
+                    {"task":{"id":"task-1","contextId":"ctx-1","status":{"state":"TASK_STATE_COMPLETED"},
+                     "artifacts":[{"artifactId":"a-1","parts":[{"data":{
+                       "schemaVersion":"agent_execution_outcome.v1","executionId":"exec-resume",
+                       "providerAgentId":"group-test","status":"COMPLETED",
+                       "claims":[{"claimId":"C1","text":"verified","evidenceIds":[],"confidence":0.9}]}}]}]}}
+                    """);
+            }
+        });
+        server.start();
+        try {
+            @SuppressWarnings("unchecked") ObjectProvider<AgentCredentialResolver> credentials = mock(ObjectProvider.class);
+            var gateway = new A2aHttpJsonAgentGateway(WebClient.builder(), new ObjectMapper(), credentials,
+                new RemoteAgentEvidenceProjector(new ObjectMapper()));
+            CapabilityId capability = CapabilityId.parse("finance.test.v1");
+            AgentDescriptor agent = new AgentDescriptor("group-test", "v1", AgentDescriptor.Origin.GROUP,
+                AgentDescriptor.Protocol.A2A_HTTP_JSON, URI.create("http://127.0.0.1:" + port),
+                Set.of(capability), AgentDescriptor.TrustLevel.GROUP_TRUSTED,
+                AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of(), null, "", 1, true, Map.of());
+            AgentExecutionRequest request = new AgentExecutionRequest(null, "exec-resume", capability,
+                new AgentExecutionRequest.TaskContract("test", "analyze", Map.of()), EvidenceBundle.empty("test"),
+                Set.of(), new AgentExecutionRequest.Constraints(3000, 2, false, false, Set.of()), null,
+                new KernelDataScope("tenant", "user", "request", "conversation", "run", "test", Map.of()), Map.of());
+
+            assertThat(gateway.invoke(agent, request).status()).isEqualTo(AgentExecutionOutcome.Status.SUPPLEMENT_EVIDENCE);
+            assertThat(gateway.resume(agent, request).status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
+            assertThat(resumedBody.get()).contains("task-1", "ctx-1");
+            assertThat(sends.get()).isEqualTo(2);
+        } finally { server.stop(0); }
+    }
     @Test void cancelsOutstandingTaskThroughSdk() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         int port = server.getAddress().getPort();

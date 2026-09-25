@@ -6,13 +6,21 @@ import com.chatchat.common.runtime.agent.AgentExecutionOutcome;
 import com.chatchat.common.runtime.agent.AgentExecutionRequest;
 import com.chatchat.common.runtime.agent.AgentGatewayPort;
 import com.chatchat.common.runtime.agent.AgentProvider;
+import com.chatchat.common.runtime.agent.AgentEvidenceSupplementPort;
 import com.chatchat.common.runtime.agent.LocalAgentExecutionPort;
+import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /** Capability-driven execution across local and remote agent compute providers. */
 @Service
@@ -23,13 +31,18 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
     private final RemoteAgentEvidenceProjector projector;
     private final Map<String, AgentProvider> localProviders;
     private final ObjectProvider<LocalAgentExecutionPort> localAdapters;
+    private final AgentEvidenceSupplementPort supplement;
+    private final AgentHealthTracker health;
 
+    @Autowired
     public DefaultAgentComputeRuntime(AgentCapabilityPlanner planner,
                                       AgentOutcomeVerifier verifier,
                                       ObjectProvider<AgentGatewayPort> gateway,
                                       List<AgentProvider> providers,
                                       ObjectProvider<LocalAgentExecutionPort> localAdapters,
-                                      RemoteAgentEvidenceProjector projector) {
+                                      RemoteAgentEvidenceProjector projector,
+                                      AgentEvidenceSupplementPort supplement,
+                                      AgentHealthTracker health) {
         this.planner = planner;
         this.verifier = verifier;
         this.gateway = gateway.getIfAvailable();
@@ -38,6 +51,15 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
         this.localProviders = Map.copyOf(indexed);
         this.localAdapters = localAdapters;
         this.projector = projector;
+        this.supplement = supplement;
+        this.health = health;
+    }
+
+    DefaultAgentComputeRuntime(AgentCapabilityPlanner planner, AgentOutcomeVerifier verifier,
+                               ObjectProvider<AgentGatewayPort> gateway, List<AgentProvider> providers,
+                               ObjectProvider<LocalAgentExecutionPort> localAdapters,
+                               RemoteAgentEvidenceProjector projector) {
+        this(planner, verifier, gateway, providers, localAdapters, projector, null, new AgentHealthTracker());
     }
 
     @Override
@@ -58,8 +80,50 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
                     "AGENT_PROJECTION_REJECTED", "Remote evidence projection was rejected");
                 continue;
             }
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(request.constraints().timeoutMs());
+            long started = System.nanoTime();
             AgentExecutionOutcome outcome = invoke(candidate, effective);
+            int attempts = 1;
+            Set<String> requested = new LinkedHashSet<>();
+            while (candidate.origin() != AgentDescriptor.Origin.LOCAL && supplement != null
+                && (outcome.status() == AgentExecutionOutcome.Status.INPUT_REQUIRED
+                    || outcome.status() == AgentExecutionOutcome.Status.SUPPLEMENT_EVIDENCE)
+                && attempts < Math.min(4, Math.min(request.constraints().maxAttempts(),
+                    configuredAttempts(candidate)))
+                && System.nanoTime() < deadline) {
+                if (outcome.missingEvidence().isEmpty()) break;
+                List<AnalysisEvidence> added = new ArrayList<>();
+                for (var requirement : outcome.missingEvidence()) {
+                    if (requirement.type() == null || !requested.add(requirement.type())) continue;
+                    try { added.addAll(supplement.supplement(candidate, request, requirement)); }
+                    catch (RuntimeException ignored) { /* a failed local skill cannot expand remote permissions */ }
+                }
+                if (added.isEmpty()) break;
+                List<AnalysisEvidence> combined = new ArrayList<>(effective.evidence().evidence());
+                Set<String> existing = new LinkedHashSet<>();
+                combined.forEach(value -> existing.add(value.evidenceId()));
+                added.stream().filter(value -> existing.add(value.evidenceId())).forEach(combined::add);
+                if (combined.size() == effective.evidence().evidence().size()) break;
+                long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+                if (remaining <= 0) break;
+                var constraints = effective.constraints();
+                AgentExecutionRequest merged = new AgentExecutionRequest(null, effective.executionId(),
+                    effective.capability(), effective.task(), new EvidenceBundle(null, combined,
+                    effective.evidence().limitations(), effective.evidence().metadata()),
+                    effective.capabilityGrants(), new AgentExecutionRequest.Constraints(remaining,
+                    constraints.maxAttempts(), constraints.citeEvidence(), constraints.rejectUnsupportedClaims(),
+                    constraints.allowedDataDomains()), effective.outputContract(), effective.scope(), Map.of());
+                try { effective = projector.project(merged); }
+                catch (IllegalArgumentException rejected) { break; }
+                if (!candidate.allowedEvidenceTypes().containsAll(effective.evidence().evidence().stream()
+                    .map(value -> value.attributes().getOrDefault("sourceType", value.getClass().getSimpleName()).toString()).toList())) break;
+                attempts++;
+                try { outcome = gateway.resume(candidate, effective); }
+                catch (RuntimeException unsupported) { break; }
+            }
             AgentOutcomeVerifier.Verification verification = verifier.verify(candidate, effective, outcome);
+            health.record(candidate, verification.accepted() ? outcome : null,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
             if (!verification.accepted()) {
                 lastFailure = failure(request, candidate.agentId(), AgentExecutionOutcome.Status.FAILED,
                     verification.code(), verification.message());
@@ -69,9 +133,18 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
                 || outcome.status() == AgentExecutionOutcome.Status.TIMED_OUT
                 || outcome.status() == AgentExecutionOutcome.Status.BLOCKED
                 || outcome.status() == AgentExecutionOutcome.Status.CANCELLED
+                || outcome.status() == AgentExecutionOutcome.Status.REPLAN_REQUIRED
                 || (outcome.status() == AgentExecutionOutcome.Status.PARTIAL && outcome.claims().isEmpty())) {
                 lastFailure = outcome;
                 continue;
+            }
+            if (outcome.successful()) {
+                Map<String, Object> runtimeMetadata = new LinkedHashMap<>(outcome.metadata());
+                runtimeMetadata.put("runtimeEvidenceBundle", effective.evidence());
+                return new AgentExecutionOutcome(null, outcome.executionId(), outcome.providerAgentId(),
+                    outcome.status(), outcome.claims(), outcome.artifacts(), outcome.missingEvidence(),
+                    outcome.limitations(), outcome.errorCode(), outcome.errorMessage(), outcome.usage(),
+                    runtimeMetadata);
             }
             return outcome;
         }
@@ -107,5 +180,10 @@ public class DefaultAgentComputeRuntime implements AgentComputeRuntimePort {
     private String safeMessage(RuntimeException error) {
         return error.getMessage() == null || error.getMessage().isBlank()
             ? error.getClass().getSimpleName() : error.getMessage();
+    }
+
+    private int configuredAttempts(AgentDescriptor candidate) {
+        Object value = candidate.metadata().get("supplementMaxAttempts");
+        return value instanceof Number number ? Math.max(1, number.intValue()) : 2;
     }
 }

@@ -51,13 +51,13 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
     protected WorkflowPlan plan(AnalysisContext context, AnalysisScope scope) {
         List<PlanStep> steps = new ArrayList<>();
         int index = 1;
-        for (AnalysisCapability capability : context.intent().requiredCapabilities()) {
+        for (AnalysisCapability capability : orderedCapabilities(context.intent())) {
             steps.add(new PlanStep(String.valueOf(index++), capability.name() + "_ANALYSIS", capability, true, Map.of()));
         }
         steps.add(new PlanStep(String.valueOf(index++), "EVIDENCE_MERGE", null, true, Map.of()));
         steps.add(new PlanStep(String.valueOf(index), "CROSS_VALIDATE", null, true, Map.of()));
         return new StandardWorkflowPlan(UUID.randomUUID().toString(), type(), steps,
-            context.intent().requiredCapabilities().stream()
+            orderedCapabilities(context.intent()).stream()
                 .map(capability -> new EvidenceRequirement(capability.name(), true, 1, "child workflow verified"))
                 .toList());
     }
@@ -67,7 +67,12 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
         List<AnalysisEvidence> evidence = new ArrayList<>();
         List<String> observations = new ArrayList<>();
         Map<String, Object> childResults = new LinkedHashMap<>();
-        for (AnalysisCapability capability : context.intent().requiredCapabilities()) {
+        boolean upstreamRejected = false;
+        for (AnalysisCapability capability : orderedCapabilities(context.intent())) {
+            if (capability == AnalysisCapability.DOMAIN_INTELLIGENCE && upstreamRejected) {
+                observations.add("Domain Agent skipped because upstream evidence was not verified");
+                continue;
+            }
             AnalysisIntent childIntent = new AnalysisIntent(context.intent().intent(), context.intent().entities(),
                 Set.of(capability), context.intent().freshness(), context.intent().evidenceRequired());
             EvidenceBundle accumulated = new EvidenceBundle(EvidenceBundle.SCHEMA_VERSION, evidence,
@@ -79,12 +84,20 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                 .filter(workflow -> workflow.supports(childContext, childIntent)).findFirst().orElse(null);
             if (child == null) {
                 observations.add("No child workflow for " + capability);
+                upstreamRejected = true;
                 continue;
             }
             AnalysisExecutionOutcome result = child.execute(childContext, context.kernelScope());
             childResults.put(capability.name(), result);
-            evidence.addAll(result.evidenceBundle().evidence());
-            observations.addAll(result.evidenceBundle().limitations());
+            if (result.verification() != null && result.verification().accepted()) {
+                result.evidenceBundle().evidence().stream()
+                    .filter(item -> item.capability() == capability)
+                    .forEach(evidence::add);
+            } else {
+                observations.add("Child workflow rejected " + capability);
+                upstreamRejected = true;
+            }
+            if (result.verification() != null) observations.addAll(result.verification().findings());
         }
         return new WorkflowExecutionResult(evidence, Map.of("childResults", Map.copyOf(childResults)), observations);
     }
@@ -94,9 +107,38 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                                         WorkflowExecutionResult execution) {
         Set<AnalysisCapability> present = execution.evidence().stream()
             .map(AnalysisEvidence::capability).collect(java.util.stream.Collectors.toSet());
-        List<String> missing = context.intent().requiredCapabilities().stream()
+        List<String> missing = orderedCapabilities(context.intent()).stream()
             .filter(capability -> !present.contains(capability))
             .map(capability -> "Missing verified evidence for " + capability).toList();
-        return new VerificationResult(missing.isEmpty(), execution.evidence(), missing);
+        List<String> findings = new ArrayList<>(execution.observations());
+        findings.addAll(missing);
+        return new VerificationResult(missing.isEmpty(), missing.isEmpty() ? execution.evidence() : List.of(), findings);
+    }
+
+    @Override
+    protected AnalysisExecutionOutcome synthesize(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
+                                                  WorkflowExecutionResult execution, VerificationResult verification,
+                                                  EvidenceBundle bundle) {
+        String synthesis = "";
+        if (verification.accepted()) {
+            @SuppressWarnings("unchecked") Map<String, AnalysisExecutionOutcome> children =
+                (Map<String, AnalysisExecutionOutcome>) execution.outputs().get("childResults");
+            if (children != null) synthesis = orderedCapabilities(context.intent()).stream()
+                .map(capability -> children.get(capability.name()))
+                .filter(result -> result != null && result.verification() != null
+                    && result.verification().accepted() && !result.synthesis().isBlank())
+                .map(AnalysisExecutionOutcome::synthesis)
+                .reduce((left, right) -> left + "\n" + right).orElse("");
+        }
+        return new AnalysisExecutionOutcome(null, type(), plan, verification, bundle, synthesis,
+            Map.of("workflowId", workflowId(), "childCount", context.intent().requiredCapabilities().size()));
+    }
+
+    private List<AnalysisCapability> orderedCapabilities(AnalysisIntent intent) {
+        List<AnalysisCapability> order = List.of(AnalysisCapability.STRUCTURED_DATA,
+            AnalysisCapability.DOCUMENT_SEARCH, AnalysisCapability.TOOL_CALL,
+            AnalysisCapability.EXTERNAL_RESEARCH, AnalysisCapability.COMPUTATION,
+            AnalysisCapability.DOMAIN_INTELLIGENCE);
+        return order.stream().filter(intent.requiredCapabilities()::contains).toList();
     }
 }

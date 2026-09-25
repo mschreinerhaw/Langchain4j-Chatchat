@@ -1068,7 +1068,11 @@ export function discoverRemoteAgent(payload) {
 }
 
 export function fetchDomainIntelligenceProviders() {
-  return apiRequest("/agent/analysis/domain-providers");
+    return apiRequest("/agent/analysis/domain-providers");
+}
+
+export function fetchIntelligenceProviders() {
+    return apiRequest("/agent/analysis/intelligence-providers");
 }
 
 export function fetchDomainSkillResources(payload) {

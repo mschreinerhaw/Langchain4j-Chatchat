@@ -21,6 +21,8 @@ public record AnalysisContext(
     public static final String AGENT_EXECUTION_MODE_ATTRIBUTE = "runtime.agent.executionMode";
     public static final String DOMAIN_PROVIDER_ATTRIBUTE = "runtime.analysis.domainProviderId";
     public static final String EVIDENCE_BUNDLE_ATTRIBUTE = "runtime.analysis.evidenceBundle";
+    public static final String SKILL_SELECTIONS_ATTRIBUTE = "runtime.analysis.skillSelections";
+    public static final String GENERAL_MODEL_ATTRIBUTE = "runtime.analysis.generalModelId";
 
     public AnalysisContext {
         if (query == null || query.isBlank()) throw new IllegalArgumentException("analysis query is required");
@@ -35,6 +37,11 @@ public record AnalysisContext(
 
     public AnalysisContext withIntent(AnalysisIntent value) {
         return new AnalysisContext(query, kernelScope, skillId, documentIds, documentTags, roles, value, attributes);
+    }
+
+    public AnalysisContext withSkillSelection(AnalysisSkillSelection selection) {
+        return new AnalysisContext(query, kernelScope, selection.skillId(), selection.documentIds(),
+            List.of(), selection.roles(), intent, attributes);
     }
 
     public AnalysisContext withAttribute(String name, Object value) {

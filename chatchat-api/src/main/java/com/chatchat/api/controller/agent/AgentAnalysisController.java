@@ -1,6 +1,7 @@
 package com.chatchat.api.controller.agent;
 
 import com.chatchat.api.config.RequestCorrelationFilter;
+import com.chatchat.api.model.IntelligenceProviderRegistry;
 import com.chatchat.api.runtime.RegisteredToolAnalysisOperator;
 import com.chatchat.api.runtime.PreauthorizedStructuredDataOperator;
 import com.chatchat.api.runtime.VerifiedEvidenceComputationOperator;
@@ -13,6 +14,7 @@ import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
+import com.chatchat.common.runtime.analysis.model.AnalysisSkillSelection;
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.capability.CapabilityId;
 import com.chatchat.common.runtime.agent.AgentCollaborationPlan;
@@ -46,17 +48,33 @@ public class AgentAnalysisController {
     private final AnalysisRuntimePort analysis;
     private final SkillExecutionScopePort skillScopes;
     private final AgentRegistryPort agentRegistry;
+    private final IntelligenceProviderRegistry intelligenceProviders;
 
     public AgentAnalysisController(AnalysisRuntimePort analysis, SkillExecutionScopePort skillScopes) {
-        this(analysis, skillScopes, null);
+        this(analysis, skillScopes, null, null);
+    }
+
+    public AgentAnalysisController(AnalysisRuntimePort analysis, SkillExecutionScopePort skillScopes,
+                                   AgentRegistryPort agentRegistry) {
+        this(analysis, skillScopes, agentRegistry, null);
     }
 
     @Autowired
     public AgentAnalysisController(AnalysisRuntimePort analysis, SkillExecutionScopePort skillScopes,
-                                   AgentRegistryPort agentRegistry) {
+                                   AgentRegistryPort agentRegistry,
+                                   IntelligenceProviderRegistry intelligenceProviders) {
         this.analysis = analysis;
         this.skillScopes = skillScopes;
         this.agentRegistry = agentRegistry;
+        this.intelligenceProviders = intelligenceProviders;
+    }
+
+    @GetMapping("/intelligence-providers")
+    @Operation(summary = "List admitted general LLM and domain Agent compute in one Registry")
+    public ApiResponse<List<IntelligenceProviderRegistry.Provider>> intelligenceProviders(HttpServletRequest request) {
+        String tenantId = attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        if (tenantId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated tenant is required");
+        return ApiResponse.success(intelligenceProviders.list(tenantId));
     }
 
     @GetMapping("/domain-providers")
@@ -104,7 +122,8 @@ public class AgentAnalysisController {
         if (tenantId == null || userId == null)
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated tenant and user are required");
         if (body == null || body.query() == null || body.query().isBlank() || body.query().length() > 4000
-            || body.skillId() == null || body.skillId().isBlank()
+            || ((body.skillId() == null || body.skillId().isBlank())
+                && (body.skills() == null || body.skills().isEmpty()))
             || body.providerId() == null || body.providerId().isBlank()
             || body.capability() == null || body.capability().isBlank()
             || !body.confirmRemoteTransfer())
@@ -115,40 +134,64 @@ public class AgentAnalysisController {
         catch (IllegalArgumentException invalid) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid capability", invalid);
         }
-        AgentDescriptor provider = agentRegistry.find(body.providerId()).orElseThrow(() ->
+        boolean generalModel = body.providerId().startsWith("llm:");
+        if (generalModel && (intelligenceProviders == null
+            || !intelligenceProviders.admits(tenantId, body.providerId(), capability.value())))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "General model is not published or admitted");
+        AgentDescriptor provider = generalModel ? null : agentRegistry.find(body.providerId()).orElseThrow(() ->
             new ResponseStatusException(HttpStatus.BAD_REQUEST, "Domain provider is unavailable"));
-        if (!provider.enabled() || provider.origin() == AgentDescriptor.Origin.LOCAL
+        if (!generalModel && (!provider.enabled() || provider.origin() == AgentDescriptor.Origin.LOCAL
             || !provider.capabilities().contains(capability)
             || !provider.supportsExecutionMode(AgentExecutionMode.DOMAIN_INFERENCE)
-            || !providerAllowsTenant(provider, tenantId))
+            || !providerAllowsTenant(provider, tenantId)))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Domain provider is not admitted for this request");
-        List<String> requestedDocuments = bounded(body.documentIds());
+        List<DomainSkillChoice> choices = body.skills() == null || body.skills().isEmpty()
+            ? List.of(new DomainSkillChoice(body.skillId(), body.documentIds())) : body.skills();
+        if (choices.size() > 4 || choices.stream().anyMatch(choice -> choice == null
+            || choice.skillId() == null || choice.skillId().isBlank())
+            || choices.stream().map(DomainSkillChoice::skillId).distinct().count() != choices.size())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Select 1..4 distinct Knowledge Skills");
+        List<AnalysisSkillSelection> selections = new java.util.ArrayList<>();
+        for (DomainSkillChoice choice : choices) {
+            List<String> documents = bounded(choice.documentIds());
+            var authorized = skillScopes.resolve(tenantId, userId, choice.skillId(), documents, List.of());
+            if (!authorized.skillAllowed() || !authorized.documentIds().containsAll(documents))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "One or more selected Skills or documents are not authorized");
+            selections.add(new AnalysisSkillSelection(choice.skillId(), documents, authorized.roles()));
+        }
+        List<String> requestedDocuments = selections.stream().flatMap(item -> item.documentIds().stream())
+            .distinct().toList();
         if (body.documentTags() != null && !body.documentTags().isEmpty())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Select explicit document IDs for domain evidence transfer");
-        var scope = skillScopes.resolve(tenantId, userId, body.skillId(), requestedDocuments, List.of());
-        if (!scope.skillAllowed())
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Local Skill is not authorized");
-        if (!requestedDocuments.isEmpty() && !scope.documentIds().containsAll(requestedDocuments))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "One or more selected documents are not authorized");
         List<DomainToolCall> tools = body.tools() == null ? List.of() : body.tools();
         if (tools.size() > 4 || tools.stream().anyMatch(tool -> tool == null || tool.toolName() == null
             || tool.toolName().isBlank() || tool.arguments() == null))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Select at most four named MCP tools with arguments");
+        for (DomainToolCall tool : tools) {
+            String skillId = tool.skillId() == null || tool.skillId().isBlank()
+                ? selections.get(0).skillId() : tool.skillId();
+            if (selections.stream().noneMatch(item -> item.skillId().equals(skillId)))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tool Skill is not selected and authorized");
+        }
         boolean structured = body.dataTemplateId() != null && !body.dataTemplateId().isBlank();
         if (structured && (body.dataAssetName() == null || body.dataAssetName().isBlank()
             || body.dataEnvironment() == null || body.dataEnvironment().isBlank()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Published data template requires an asset and environment");
+        String dataSkillId = body.dataSkillId() == null || body.dataSkillId().isBlank()
+            ? selections.get(0).skillId() : body.dataSkillId();
+        if (structured && selections.stream().noneMatch(item -> item.skillId().equals(dataSkillId)))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Data template Skill is not selected and authorized");
         EnumSet<AnalysisCapability> required = EnumSet.of(AnalysisCapability.DOMAIN_INTELLIGENCE);
         if (!requestedDocuments.isEmpty()) required.add(AnalysisCapability.DOCUMENT_SEARCH);
         if (!tools.isEmpty()) required.add(AnalysisCapability.TOOL_CALL);
         if (structured) required.add(AnalysisCapability.STRUCTURED_DATA);
-        if ((required.contains(AnalysisCapability.DOCUMENT_SEARCH)
+        if (!generalModel && ((required.contains(AnalysisCapability.DOCUMENT_SEARCH)
             && !provider.allowedEvidenceTypes().contains("DocumentAnalysisEvidence"))
             || (required.contains(AnalysisCapability.TOOL_CALL)
                 && !provider.allowedEvidenceTypes().contains("ToolAnalysisEvidence"))
-            || (structured && !provider.allowedEvidenceTypes().contains("StructuredDataEvidence")))
+            || (structured && !provider.allowedEvidenceTypes().contains("StructuredDataEvidence"))))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                 "Selected provider is not allowed to receive one or more selected evidence types");
         if (required.size() == 1)
@@ -157,7 +200,9 @@ public class AgentAnalysisController {
         if (requestId == null) requestId = UUID.randomUUID().toString();
         KernelDataScope kernel = new KernelDataScope(tenantId, userId, requestId, null, requestId, null, Map.of());
         Map<String, Object> attributes = new LinkedHashMap<>();
-        attributes.put(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE, provider.agentId());
+        if (generalModel) attributes.put(AnalysisContext.GENERAL_MODEL_ATTRIBUTE, body.providerId().substring(4));
+        else attributes.put(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE, provider.agentId());
+        attributes.put(AnalysisContext.SKILL_SELECTIONS_ATTRIBUTE, List.copyOf(selections));
         attributes.put(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE, capability.value());
         attributes.put(AnalysisContext.AGENT_EXECUTION_MODE_ATTRIBUTE, AgentExecutionMode.DOMAIN_INFERENCE.name());
         attributes.put("agentMaxAttempts", Math.max(1, Math.min(3,
@@ -165,18 +210,21 @@ public class AgentAnalysisController {
         attributes.put("agentTimeoutMs", Math.max(1000, Math.min(120_000,
             body.timeoutMs() == null ? 60_000 : body.timeoutMs())));
         if (!tools.isEmpty()) attributes.put(RegisteredToolAnalysisOperator.TOOL_CALLS, tools.stream()
-            .map(tool -> Map.of("toolName", tool.toolName(), "arguments", tool.arguments())).toList());
+            .map(tool -> Map.of("toolName", tool.toolName(), "arguments", tool.arguments(),
+                "skillId", tool.skillId() == null || tool.skillId().isBlank()
+                    ? selections.get(0).skillId() : tool.skillId())).toList());
         if (structured) {
             attributes.put(PreauthorizedStructuredDataOperator.TEMPLATE_ID, body.dataTemplateId());
             attributes.put(PreauthorizedStructuredDataOperator.ASSET_NAME, body.dataAssetName());
             attributes.put(PreauthorizedStructuredDataOperator.ENVIRONMENT, body.dataEnvironment());
             attributes.put(PreauthorizedStructuredDataOperator.PARAMETERS,
                 body.dataParameters() == null ? Map.of() : body.dataParameters());
+            attributes.put(PreauthorizedStructuredDataOperator.SKILL_ID, dataSkillId);
         }
         AnalysisIntent intent = new AnalysisIntent("DOMAIN_INTELLIGENCE_ANALYSIS", List.of(), required,
             "UNSPECIFIED", true);
-        AnalysisContext context = new AnalysisContext(body.query(), kernel, body.skillId(), requestedDocuments,
-            List.of(), scope.roles(), intent, attributes);
+        AnalysisContext context = new AnalysisContext(body.query(), kernel, selections.get(0).skillId(),
+            requestedDocuments, List.of(), selections.get(0).roles(), intent, attributes);
         return ApiResponse.success(analysis.analyze(context));
     }
 
@@ -468,13 +516,30 @@ public class AgentAnalysisController {
     public record DomainSkillResourcesRequest(String skillId, List<String> documentIds,
                                               List<String> documentTags) { }
 
-    public record DomainToolCall(String toolName, Map<String, Object> arguments) { }
+    public record DomainSkillChoice(String skillId, List<String> documentIds) { }
+
+    public record DomainToolCall(String skillId, String toolName, Map<String, Object> arguments) {
+        public DomainToolCall(String toolName, Map<String, Object> arguments) {
+            this(null, toolName, arguments);
+        }
+    }
 
     public record DomainAnalyzeRequest(String query, String skillId, String providerId, String capability,
                                        List<String> documentIds, List<String> documentTags,
                                        List<DomainToolCall> tools, String dataTemplateId, String dataAssetName,
                                        String dataEnvironment, Map<String, Object> dataParameters,
-                                       Integer maxAttempts, Long timeoutMs, boolean confirmRemoteTransfer) { }
+                                       Integer maxAttempts, Long timeoutMs, boolean confirmRemoteTransfer,
+                                       List<DomainSkillChoice> skills, String dataSkillId) {
+        public DomainAnalyzeRequest(String query, String skillId, String providerId, String capability,
+                                    List<String> documentIds, List<String> documentTags,
+                                    List<DomainToolCall> tools, String dataTemplateId, String dataAssetName,
+                                    String dataEnvironment, Map<String, Object> dataParameters,
+                                    Integer maxAttempts, Long timeoutMs, boolean confirmRemoteTransfer) {
+            this(query, skillId, providerId, capability, documentIds, documentTags, tools, dataTemplateId,
+                dataAssetName, dataEnvironment, dataParameters, maxAttempts, timeoutMs,
+                confirmRemoteTransfer, null, null);
+        }
+    }
 
     public record CompositeAnalyzeRequest(String query, String skillId, String capability,
                                           List<String> documentIds, List<String> documentTags,

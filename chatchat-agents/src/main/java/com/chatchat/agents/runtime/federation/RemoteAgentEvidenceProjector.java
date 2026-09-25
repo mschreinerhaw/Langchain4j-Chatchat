@@ -37,9 +37,12 @@ public class RemoteAgentEvidenceProjector {
                     ? document.content().substring(0, 8000) : document.content();
                 value = Map.of("documentId", safe(document.documentId()), "documentName", safe(document.documentName()),
                     "citation", document.citation() == null ? "" : document.citation(),
-                    "content", excerpt, "truncated", excerpt.length() < document.content().length());
+                    "content", excerpt, "skillId", safe(String.valueOf(document.attributes().getOrDefault("skillId", ""))),
+                    "truncated", excerpt.length() < document.content().length());
             } else if (domainPackage && value == null && evidence instanceof ToolAnalysisEvidence tool) {
-                value = Map.of("toolName", tool.toolName(), "data", sanitizedJson(tool.content()));
+                value = Map.of("toolName", tool.toolName(), "skillId",
+                    safe(String.valueOf(tool.attributes().getOrDefault("skillId", ""))),
+                    "data", sanitizedJson(tool.content()));
             } else if (domainPackage && evidence instanceof StructuredDataEvidence data) {
                 JsonNode payload = sanitizedJson(data.content()).path("data");
                 if (!payload.path("rows").isArray() || payload.path("rows").size() != data.rows())

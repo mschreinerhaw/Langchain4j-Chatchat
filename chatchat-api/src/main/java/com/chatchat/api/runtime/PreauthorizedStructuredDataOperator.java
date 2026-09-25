@@ -22,6 +22,7 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
     public static final String ASSET_NAME = "runtime.analysis.dataAssetName";
     public static final String ENVIRONMENT = "runtime.analysis.dataEnvironment";
     public static final String PARAMETERS = "runtime.analysis.dataParameters";
+    public static final String SKILL_ID = "runtime.analysis.dataSkillId";
     public static final String TOOL_NAME = "sql_template_analysis_execute";
 
     private final RegisteredToolAnalysisOperator tools;
@@ -53,6 +54,9 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
                 "assetDomain", asset, "domain", asset,
                 "maxRows", 100, "timeoutSeconds", 30,
                 "purpose", "Agent Runtime OS structured evidence"));
+        if (context.attributes().get(SKILL_ID) instanceof String skillId && !skillId.isBlank())
+            toolContext = new AnalysisContext(toolContext.query(), toolContext.kernelScope(), skillId,
+                List.of(), List.of(), toolContext.roles(), toolContext.intent(), toolContext.attributes());
         WorkflowExecutionResult result = tools.execute(toolContext, scope, plan);
         if (result.evidence().size() != 1) return result;
         String content = result.evidence().get(0).content();

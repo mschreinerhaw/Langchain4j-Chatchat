@@ -11,6 +11,7 @@ import com.chatchat.common.runtime.analysis.evidence.ToolAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
+import com.chatchat.common.runtime.analysis.model.AnalysisSkillSelection;
 import com.chatchat.common.runtime.analysis.model.AnalysisScope;
 import com.chatchat.common.runtime.analysis.plan.WorkflowPlan;
 import com.chatchat.common.runtime.analysis.spi.AnalysisCapabilityOperator;
@@ -65,8 +66,17 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
                 if (!(raw instanceof Map<?, ?> call) || !(call.get("toolName") instanceof String name)
                     || name.isBlank() || !(call.get("arguments") instanceof Map<?, ?> arguments))
                     return denied("Each tool call requires a name and JSON object arguments");
+                String skillId = call.get("skillId") instanceof String value && !value.isBlank()
+                    ? value : context.skillId();
+                if (context.attributes().get(AnalysisContext.SKILL_SELECTIONS_ATTRIBUTE) instanceof List<?> selections
+                    && selections.stream().noneMatch(item -> item instanceof AnalysisSkillSelection selected
+                        && selected.skillId().equals(skillId)))
+                    return denied("Tool Skill is not selected and authorized");
                 AnalysisContext single = context.withAttribute(TOOL_NAME, name)
                     .withAttribute(TOOL_ARGUMENTS, arguments).withAttribute(TOOL_CALLS, null);
+                if (!skillId.equals(context.skillId()))
+                    single = new AnalysisContext(single.query(), single.kernelScope(), skillId,
+                        List.of(), List.of(), single.roles(), single.intent(), single.attributes());
                 WorkflowExecutionResult result = executeSingle(single, scope, plan);
                 if (result.evidence().isEmpty()) return result;
                 evidence.addAll(result.evidence());

@@ -47,6 +47,7 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
     @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) {
         return intent.requiredCapabilities().equals(Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE))
             && !context.attributes().containsKey(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE)
+            && !context.attributes().containsKey(AnalysisContext.GENERAL_MODEL_ATTRIBUTE)
             && (context.attributes().containsKey(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE)
                 || context.attributes().containsKey(AgentCollaborationPlan.CONTEXT_ATTRIBUTE));
     }

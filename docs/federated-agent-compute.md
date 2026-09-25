@@ -99,11 +99,13 @@ from the execution kind. A workflow, skill, local agent, or remote agent may pro
 
 ## Domain intelligence as evidence-first compute
 
-The workspace's **专有模型分析** page and `POST /api/v1/agent/analysis/domain-intelligence`
-use a selected tenant-admitted group/external provider in `DOMAIN_INFERENCE` mode. The caller chooses one
-published Knowledge Skill, explicitly selected document IDs resolved through
+The workspace's **知识与数据联合分析** page and `POST /api/v1/agent/analysis/domain-intelligence`
+use either a published general chat model or a tenant-admitted group/external provider in
+`DOMAIN_INFERENCE` mode. The caller chooses up to four published Knowledge Skills, with explicitly selected
+document IDs resolved separately for each Skill through
 `POST /api/v1/agent/analysis/domain-resources`, up to four Skill-bound read-only MCP tools with explicit
-JSON arguments, and optionally a published preauthorized read-only SQL template. The caller must explicitly
+JSON arguments and their owning Skill IDs, and optionally a published preauthorized read-only SQL template
+bound to a selected Skill. The caller must explicitly
 confirm remote evidence transfer. Runtime checks the Skill/document scope, runs the evidence workflows before
 the provider, projects only bounded document excerpts and sanitized tool/structured-data results, then verifies
 the provider outcome. The remote provider never receives local tool credentials or permission to execute Skills.
@@ -111,10 +113,12 @@ Its A2A message includes `analysisPackage` (`analysis_package.v1`) alongside the
 The separate federated workflow remains available for agent-to-agent collaboration and controlled tool-request
 modes; this domain workflow does not grant autonomous execution.
 
-`GET /api/v1/agent/analysis/domain-providers` lists only enabled inference providers admitted for the caller's
-tenant and exposes no endpoint or credential reference. Provider registration remains an administrator action.
-The current composer uses one Skill as the authorization/binding scope per run; several documents and MCP tools
-bound to that Skill can participate in a single analysis.
+`GET /api/v1/agent/analysis/intelligence-providers` is the common read-only Registry for published enabled
+general LLMs and tenant-admitted domain Agents. It returns public capability and evidence descriptors, never
+endpoints or credential references. Model publication and Agent registration remain administrator actions.
+Each Skill retains its own authorization and document/tool binding throughout the composite workflow;
+the general LLM adapter receives the same bounded, sanitized evidence projection as a domain Agent.
+Its free-text result is labeled as model-stated grounding, not a claim-level verified conclusion.
 
 ## Register a group A2A agent
 

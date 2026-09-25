@@ -16,6 +16,9 @@
 .domain-skill-search input { flex: 1; }
 .domain-skill-search button { padding: 0 15px; border: 1px solid #cbdaf1; border-radius: 8px; background: #edf4ff; color: #2468d5; cursor: pointer; }
 .domain-resource-grid { margin-top: 16px; }
+.domain-skill-list { display: flex; flex-wrap: wrap; gap: 10px 18px; max-height: 150px; overflow: auto; }
+.domain-skill-list .domain-checkbox { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+.domain-skill-block { margin-top: 16px; padding: 14px; border: 1px solid #dae4f4; border-radius: 10px; }
 .domain-resource-grid > div { display: grid; align-content: start; gap: 9px; padding: 15px; border: 1px solid #e0e8f5; border-radius: 9px; }
 .domain-resource-grid strong { font-size: 13px; }
 .domain-resource-grid .domain-checkbox { display: flex; align-items: center; gap: 8px; font-weight: 400; overflow-wrap: anywhere; }

@@ -31,6 +31,45 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentAnalysisControllerTest {
+    @Test void multiSkillKeepsIndependentScopesAndRejectsForgedToolSkill() {
+        AtomicReference<AnalysisContext> observed = new AtomicReference<>();
+        AnalysisRuntimePort runtime = context -> {
+            observed.set(context);
+            return new AnalysisExecutionOutcome(null, null, null, null, null, "", Map.of());
+        };
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of("doc-" + skill), List.of(),
+                List.of("analyst"), true, true);
+        AgentRegistryPort registry = mock(AgentRegistryPort.class);
+        AgentDescriptor provider = new AgentDescriptor("group.analysis", "v1", AgentDescriptor.Origin.GROUP,
+            AgentDescriptor.Protocol.A2A_HTTP_JSON, URI.create("https://group.example/a2a"),
+            Set.of(CapabilityId.parse("finance.analysis.v1")), AgentDescriptor.TrustLevel.GROUP_TRUSTED,
+            AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of("DocumentAnalysisEvidence",
+                "ToolAnalysisEvidence"), null, "", 50, true,
+            Map.of("allowedTenantIds", List.of("tenant-1"),
+                "supportedExecutionModes", List.of("DOMAIN_INFERENCE")));
+        when(registry.find("group.analysis")).thenReturn(Optional.of(provider));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+        var controller = new AgentAnalysisController(runtime, scopes, registry);
+        var skills = List.of(new AgentAnalysisController.DomainSkillChoice("one", List.of("doc-one")),
+            new AgentAnalysisController.DomainSkillChoice("two", List.of("doc-two")));
+        controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest("Analyze", null,
+            "group.analysis", "finance.analysis.v1", List.of(), List.of(),
+            List.of(new AgentAnalysisController.DomainToolCall("two", "market_read", Map.of())),
+            null, null, null, null, 1, 60000L, true, skills, null), request);
+        assertThat(observed.get().attributes().get(AnalysisContext.SKILL_SELECTIONS_ATTRIBUTE))
+            .isEqualTo(List.of(new com.chatchat.common.runtime.analysis.model.AnalysisSkillSelection(
+                "one", List.of("doc-one"), List.of("analyst")),
+                new com.chatchat.common.runtime.analysis.model.AnalysisSkillSelection(
+                    "two", List.of("doc-two"), List.of("analyst"))));
+        assertThatThrownBy(() -> controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest(
+            "Analyze", null, "group.analysis", "finance.analysis.v1", List.of(), List.of(),
+            List.of(new AgentAnalysisController.DomainToolCall("other", "market_read", Map.of())),
+            null, null, null, null, 1, 60000L, true, skills, null), request))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("not selected");
+    }
     @Test void domainAnalysisPinsTenantAdmittedProviderAndPlansEvidenceBeforeInference() {
         AtomicReference<AnalysisContext> observed = new AtomicReference<>();
         AnalysisRuntimePort runtime = context -> {

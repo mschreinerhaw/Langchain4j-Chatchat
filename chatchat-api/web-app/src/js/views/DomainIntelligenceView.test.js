@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import DomainIntelligenceView from "./DomainIntelligenceView.js";
 
 describe("domain intelligence analysis composer", () => {
+  it("preserves documents and tools by Skill when selecting multiple Skills", () => {
+    const form = {
+      providerId: "llm:general", capability: "general.analysis.v1", skillId: "skill-a",
+      skillIds: ["skill-a", "skill-b"], query: "Compare", documentIds: [],
+      documentsBySkill: { "skill-a": ["doc-a"], "skill-b": ["doc-b"] },
+      selectedTools: ["skill-b::read_positions"],
+      toolArguments: { "skill-b::read_positions": '{"id":"42"}' },
+      dataTemplateId: "", dataAssetName: "", dataEnvironment: "", dataParameters: "{}",
+      confirmRemoteTransfer: true
+    };
+    const request = DomainIntelligenceView.methods.buildRequest.call({ form,
+      selectedProvider: { evidenceTypes: ["DocumentAnalysisEvidence", "ToolAnalysisEvidence"] } });
+    expect(request.skills).toEqual([
+      { skillId: "skill-a", documentIds: ["doc-a"] },
+      { skillId: "skill-b", documentIds: ["doc-b"] }
+    ]);
+    expect(request.tools).toEqual([{ skillId: "skill-b", toolName: "read_positions",
+      arguments: { id: "42" } }]);
+  });
   it("sends only selected knowledge scope, bounded tool calls and analysis instruction", () => {
     const form = {
       providerId: "group.analysis", capability: "finance.analysis.v1", skillId: "investment-skill",

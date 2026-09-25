@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.analysis.workflow;
 
 import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.execution.VerificationResult;
@@ -8,6 +9,7 @@ import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
+import com.chatchat.common.runtime.analysis.model.AnalysisSkillSelection;
 import com.chatchat.common.runtime.analysis.model.AnalysisScope;
 import com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType;
 import com.chatchat.common.runtime.analysis.plan.EvidenceRequirement;
@@ -79,9 +81,34 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
                 observations, Map.of("source", "composite-analysis"));
             AnalysisContext childContext = context.withIntent(childIntent)
                 .withAttribute(AnalysisContext.EVIDENCE_BUNDLE_ATTRIBUTE, accumulated);
-            AnalysisWorkflow child = workflows.orderedStream()
-                .filter(workflow -> workflow != this && workflow.type() != AnalysisWorkflowType.COMPOSITE)
-                .filter(workflow -> workflow.supports(childContext, childIntent)).findFirst().orElse(null);
+            if (capability == AnalysisCapability.DOCUMENT_SEARCH
+                && context.attributes().get(AnalysisContext.SKILL_SELECTIONS_ATTRIBUTE) instanceof List<?> rawSelections) {
+                int acceptedSelections = 0;
+                for (Object raw : rawSelections) {
+                    if (!(raw instanceof AnalysisSkillSelection selection) || selection.documentIds().isEmpty()) continue;
+                    AnalysisContext selectedContext = childContext.withSkillSelection(selection);
+                    AnalysisWorkflow selected = findChild(selectedContext, childIntent);
+                    if (selected == null) {
+                        observations.add("No document workflow for Skill " + selection.skillId());
+                        upstreamRejected = true;
+                        continue;
+                    }
+                    AnalysisExecutionOutcome result = selected.execute(selectedContext, context.kernelScope());
+                    if (result.verification() != null && result.verification().accepted()) {
+                        result.evidenceBundle().evidence().stream()
+                            .filter(item -> item.capability() == capability)
+                            .forEach(item -> evidence.add(skillEvidence(item, selection.skillId())));
+                        acceptedSelections++;
+                    } else {
+                        observations.add("Document workflow rejected Skill " + selection.skillId());
+                        upstreamRejected = true;
+                    }
+                    if (result.verification() != null) observations.addAll(result.verification().findings());
+                }
+                if (acceptedSelections == 0) upstreamRejected = true;
+                continue;
+            }
+            AnalysisWorkflow child = findChild(childContext, childIntent);
             if (child == null) {
                 observations.add("No child workflow for " + capability);
                 upstreamRejected = true;
@@ -100,6 +127,21 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
             if (result.verification() != null) observations.addAll(result.verification().findings());
         }
         return new WorkflowExecutionResult(evidence, Map.of("childResults", Map.copyOf(childResults)), observations);
+    }
+
+    private AnalysisWorkflow findChild(AnalysisContext context, AnalysisIntent intent) {
+        return workflows.orderedStream()
+            .filter(workflow -> workflow != this && workflow.type() != AnalysisWorkflowType.COMPOSITE)
+            .filter(workflow -> workflow.supports(context, intent)).findFirst().orElse(null);
+    }
+
+    private AnalysisEvidence skillEvidence(AnalysisEvidence evidence, String skillId) {
+        if (!(evidence instanceof DocumentAnalysisEvidence document)) return evidence;
+        Map<String, Object> attributes = new LinkedHashMap<>(document.attributes());
+        attributes.put("skillId", skillId);
+        return new DocumentAnalysisEvidence(skillId + ":" + document.evidenceId(),
+            document.documentId(), document.chunkId(), document.documentName(), document.section(),
+            document.citation(), document.content(), document.score(), attributes);
     }
 
     @Override

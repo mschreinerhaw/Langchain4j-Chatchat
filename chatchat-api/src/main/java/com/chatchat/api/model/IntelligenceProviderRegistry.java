@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** One discovery and admission surface; model and Agent execution adapters remain distinct. */
 @Service
@@ -21,7 +22,9 @@ public class IntelligenceProviderRegistry {
     }
 
     public record Provider(String providerId, String displayName, String kind, String origin,
-                           List<String> capabilities, List<String> evidenceTypes) { }
+                           List<String> capabilities, List<String> evidenceTypes,
+                           boolean grantRestricted, List<String> skillIds, List<String> documentIds,
+                           List<String> mcpToolNames) { }
 
     public List<Provider> list(String tenantId) {
         List<Provider> result = new ArrayList<>();
@@ -30,7 +33,8 @@ public class IntelligenceProviderRegistry {
                 result.add(new Provider("llm:" + model.name(),
                     model.alias() == null || model.alias().isBlank() ? model.name() : model.alias(),
                     "GENERAL_LLM", "PLATFORM", List.of("general.analysis.v1"),
-                    List.of("DocumentAnalysisEvidence", "ToolAnalysisEvidence", "StructuredDataEvidence")));
+                    List.of("DocumentAnalysisEvidence", "ToolAnalysisEvidence", "StructuredDataEvidence"),
+                    false, List.of(), List.of(), List.of()));
         }
         for (AgentDescriptor agent : agents.list()) {
             if (!agent.enabled() || agent.origin() == AgentDescriptor.Origin.LOCAL
@@ -39,12 +43,24 @@ public class IntelligenceProviderRegistry {
             boolean admitted = false;
             for (Object tenant : tenants) if (tenantId.equals(tenant)) admitted = true;
             if (!admitted) continue;
+            Object rawGrants = agent.metadata().get("analysisGrants");
+            Map<?, ?> grants = rawGrants instanceof Map<?, ?> map ? map : Map.of();
             result.add(new Provider(agent.agentId(),
                 String.valueOf(agent.metadata().getOrDefault("displayName", agent.agentId())),
                 "DOMAIN_AGENT", agent.origin().name(),
                 agent.capabilities().stream().map(CapabilityId::value).sorted().toList(),
-                agent.allowedEvidenceTypes().stream().sorted().toList()));
+                agent.allowedEvidenceTypes().stream().sorted().toList(),
+                rawGrants instanceof Map<?, ?>,
+                strings(grants.get("skillIds")), strings(grants.get("documentIds")),
+                strings(grants.get("mcpToolNames"))));
         }
+        return List.copyOf(result);
+    }
+
+    private List<String> strings(Object value) {
+        if (!(value instanceof Iterable<?> values)) return List.of();
+        List<String> result = new ArrayList<>();
+        for (Object item : values) if (item instanceof String text && !text.isBlank()) result.add(text);
         return List.copyOf(result);
     }
 

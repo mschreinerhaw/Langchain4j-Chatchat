@@ -4,6 +4,8 @@
   registerRemoteAgent,
   deleteWorkshopAgent,
   fetchAgentWorkshop,
+  fetchRegisteredAgents,
+  fetchSkills,
   fetchPublishedAgentCurlExample,
   getStoredAuthSession,
   publishWorkshopAgent,
@@ -181,7 +183,11 @@ function emptyForm() {
 
 function emptyRemoteForm() {
   return {
-    agentId: "", endpoint: "", origin: "GROUP", capabilities: "",
+    agentId: "", displayName: "", endpoint: "", origin: "GROUP", capabilities: "",
+    selectedCapabilities: [], selectedDocumentIds: [], selectedSkillIds: [],
+    selectedDataCapabilities: [], selectedMcpToolNames: [], autoMcp: true,
+    allowDocumentSupplement: false, allowDataSupplement: false, allowMcpSupplement: false,
+    defaultInstruction: "根据提供的知识和业务数据进行专业分析。所有结论必须基于提供的数据，不允许自行补充未经验证的事实。",
     tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
     supportedExecutionModes: ["DOMAIN_INFERENCE"],
     supplementSkillTypes: "", structuredSupplement: "", cardKeyId: "", cardPublicKeyPem: "",
@@ -193,6 +199,25 @@ function emptyRemoteForm() {
 function remoteSlug(value) {
   return String(value || "agent").toLowerCase().replace(/[^a-z0-9.-]+/g, "-")
     .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "") || "agent";
+}
+
+const remoteDataCategories = [
+  { key: "customer", label: "客户基本信息", keywords: ["customer", "客户", "profile", "画像"] },
+  { key: "asset", label: "资产数据", keywords: ["asset", "资产"] },
+  { key: "position", label: "持仓数据", keywords: ["position", "持仓", "portfolio"] },
+  { key: "transaction", label: "交易数据", keywords: ["transaction", "交易", "order"] },
+  { key: "return", label: "收益数据", keywords: ["return", "收益", "pnl"] },
+  { key: "market", label: "市场行情", keywords: ["market", "行情", "quote"] }
+];
+
+function remoteCapabilityLabel(value) {
+  const text = String(value || "").toLowerCase();
+  if (/attribution|pnl/.test(text)) return "收益归因分析";
+  if (/behavior|transaction/.test(text)) return "交易行为分析";
+  if (/risk/.test(text)) return "风险分析";
+  if (/financial|finance/.test(text)) return "财务分析";
+  if (/portfolio|investment/.test(text)) return "客户投资分析";
+  return String(value || "专业分析能力").replace(/[._-]+/g, " ");
 }
 
 function fixedRequestParameters(text, format) {
@@ -250,7 +275,16 @@ export default {
       remoteDialogOpen: false,
       remoteForm: emptyRemoteForm(),
       remotePreview: null,
+      remoteSkills: [],
+      remoteAgents: [],
+      remoteDocumentPickerOpen: false,
+      remoteSkillPickerOpen: false,
+      remoteDocSearch: "",
+      remoteSkillSearch: "",
+      remoteToolSearch: "",
+      remoteDataSourcesOpen: false,
       remoteError: "",
+      remoteDiagnostic: "",
       remoteBusy: false,
       remoteAdvancedOpen: false,
       documentPickerOpen: false,
@@ -304,6 +338,36 @@ export default {
     isPlatformAdmin() {
       const session = getStoredAuthSession();
       return String(session?.user?.username || "").toLowerCase() === "admin";
+    },
+    remoteCapabilityOptions() {
+      return parseList(this.remoteForm.capabilities).map((id, index) => ({ id,
+        label: remoteCapabilityLabel(this.remotePreview?.skills?.[index] || id) }));
+    },
+    remoteDocumentOptions() {
+      const query = this.remoteDocSearch.toLowerCase();
+      return (this.documents || []).filter((item) => item.docId && !item.deletedAt
+        && (!query || `${item.title || ""} ${item.docId}`.toLowerCase().includes(query)));
+    },
+    remoteSkillOptions() {
+      const query = this.remoteSkillSearch.toLowerCase();
+      return this.remoteSkills.filter((item) => !query
+        || `${item.label || ""} ${item.value}`.toLowerCase().includes(query));
+    },
+    remoteToolOptions() {
+      const query = this.remoteToolSearch.toLowerCase();
+      return (this.registeredMcpTools || []).filter((item) => item.localToolName
+        && (!query || `${item.chineseAlias || ""} ${item.description || ""} ${item.localToolName}`
+          .toLowerCase().includes(query)));
+    },
+    remoteDataOptions() {
+      const tools = this.registeredMcpTools || [];
+      return remoteDataCategories.map((category) => ({ ...category,
+        tools: tools.filter((tool) => {
+          const text = [tool.localToolName, tool.remoteToolName, tool.chineseAlias,
+            tool.description, tool.category, ...(tool.categories || []), ...(tool.tags || [])]
+            .filter(Boolean).join(" ").toLowerCase();
+          return category.keywords.some((keyword) => text.includes(keyword));
+        }).map((tool) => tool.localToolName).filter(Boolean) }));
     },
     filteredAgents() {
       return this.agents;
@@ -625,8 +689,16 @@ export default {
   },
   mounted() {
     this.loadWorkshop();
+    if (this.isPlatformAdmin) this.loadRemoteAgents();
   },
   methods: {
+    async loadRemoteAgents() {
+      try {
+        const agents = await fetchRegisteredAgents();
+        this.remoteAgents = Array.isArray(agents) ? agents.filter((item) =>
+          item.origin === "GROUP" || item.origin === "EXTERNAL") : [];
+      } catch { this.remoteAgents = []; }
+    },
     async loadWorkshop() {
       this.loading = true;
       this.error = "";
@@ -952,20 +1024,68 @@ export default {
       this.toolPickerOpen = false;
       this.dialogOpen = true;
     },
-    openRemoteDialog() {
+    async openRemoteDialog() {
       this.remoteForm = emptyRemoteForm();
       const session = getStoredAuthSession();
       this.remoteForm.tenantIds = String(session?.user?.tenantId || session?.tenantId || "");
       this.remotePreview = null;
+      this.remoteSkills = [];
+      this.remoteDocumentPickerOpen = false;
+      this.remoteSkillPickerOpen = false;
+      this.remoteDocSearch = "";
+      this.remoteSkillSearch = "";
+      this.remoteToolSearch = "";
+      this.remoteDataSourcesOpen = false;
       this.remoteError = "";
+      this.remoteDiagnostic = "";
       this.remoteAdvancedOpen = false;
       this.remoteDialogOpen = true;
+      await this.searchRemoteSkills();
     },
-    invalidateRemotePreview() { this.remotePreview = null; },
+    async searchRemoteSkills() {
+      try {
+        const page = await fetchSkills({ scope: "published", keyword: this.remoteSkillSearch.trim(), pageSize: 100 });
+        if (this.remoteDialogOpen) {
+          const found = Array.isArray(page?.items) ? page.items : [];
+          const selected = this.remoteSkills.filter((item) =>
+            this.remoteForm.selectedSkillIds.includes(item.value)
+            && !found.some((next) => next.value === item.value));
+          this.remoteSkills = [...selected, ...found];
+        }
+      } catch (error) {
+        if (this.remoteDialogOpen) this.remoteError = "知识 Skill 目录暂时不可用，请稍后重试。";
+      }
+    },
+    invalidateRemotePreview() {
+      this.remotePreview = null;
+      this.remoteForm.selectedCapabilities = [];
+      this.remoteError = "";
+      this.remoteDiagnostic = "";
+    },
+    remoteDocumentLabel(id) {
+      const document = (this.documents || []).find((item) => String(item.docId) === String(id));
+      return document?.title || document?.fileName || id;
+    },
+    remoteSkillLabel(id) {
+      const skill = (this.remoteSkills || []).find((item) => String(item.value) === String(id));
+      return skill?.label || id;
+    },
+    remoteSelectedToolNames() {
+      const selected = new Set(this.remoteForm.selectedMcpToolNames || []);
+      if (this.remoteForm.autoMcp) {
+        for (const category of this.remoteDataOptions || []) {
+          if ((this.remoteForm.selectedDataCapabilities || []).includes(category.key))
+            category.tools.forEach((name) => selected.add(name));
+        }
+      }
+      return [...selected];
+    },
     remoteDescriptor() {
       const form = this.remoteForm;
       if (!form.supportedExecutionModes?.length) throw new Error("请至少选择一种 Agent 执行模式");
-      const capabilities = parseList(form.capabilities).map((value) => {
+      const selectedCapabilities = Array.isArray(form.selectedCapabilities)
+        ? form.selectedCapabilities : parseList(form.capabilities);
+      const capabilities = selectedCapabilities.map((value) => {
         const parts = value.split(".");
         if (parts.length < 2) throw new Error(`能力标识格式错误：${value}`);
         const version = /^v\d+$/.test(parts.at(-1)) ? parts.pop() : "v1";
@@ -973,22 +1093,43 @@ export default {
       });
       const queryParameters = fixedRequestParameters(form.requestQueryParameters, "query");
       const bodyParameters = fixedRequestParameters(form.requestBodyParameters, "body");
+      const selectedDocuments = form.selectedDocumentIds || [];
+      const selectedSkills = form.selectedSkillIds || [];
+      const selectedTools = this.remoteSelectedToolNames?.() || form.selectedMcpToolNames || [];
+      const explicitGrants = Array.isArray(form.selectedDocumentIds)
+        || Array.isArray(form.selectedSkillIds) || Array.isArray(form.selectedMcpToolNames);
+      const evidenceTypes = explicitGrants ? [
+        ...(selectedDocuments.length || selectedSkills.length ? ["DocumentAnalysisEvidence"] : []),
+        ...(selectedTools.length ? ["ToolAnalysisEvidence"] : []),
+        ...(form.allowDataSupplement ? ["StructuredDataEvidence"] : [])
+      ] : parseList(form.evidenceTypes);
       return {
         agentId: form.agentId.trim() || "preview.remote-agent", version: this.remotePreview?.version || "v1",
         origin: form.origin, protocol: "A2A_HTTP_JSON", endpoint: form.endpoint.trim(),
         capabilities, trustLevel: form.origin === "GROUP" ? "GROUP_TRUSTED" : "PARTNER",
         dataAccessMode: "RUNTIME_MANAGED", allowedDataDomains: parseList(form.dataDomains),
-        allowedEvidenceTypes: parseList(form.evidenceTypes),
+        allowedEvidenceTypes: evidenceTypes,
         outputSchema: "agent_execution_outcome.v1", credentialRef: form.credentialRef.trim(),
         priority: Number(form.priority) || 0, enabled: true,
         metadata: {
           allowedTenantIds: parseList(form.tenantIds),
           providerType: "DOMAIN_AGENT",
           supportedExecutionModes: form.supportedExecutionModes,
-          supplementSkillTypes: parseList(form.supplementSkillTypes),
-          supplementCapabilities: form.structuredSupplement === "STRUCTURED_DATA" ? ["STRUCTURED_DATA"] : [],
+          supplementSkillTypes: form.allowDocumentSupplement ? ["RULE_LOOKUP"]
+            : parseList(form.supplementSkillTypes),
+          supplementCapabilities: form.allowDataSupplement || form.structuredSupplement === "STRUCTURED_DATA"
+            ? ["STRUCTURED_DATA"] : [],
+          ...(explicitGrants ? { analysisGrants: {
+            documentIds: selectedDocuments, skillIds: selectedSkills,
+            mcpToolNames: selectedTools, dataCapabilityKeys: form.selectedDataCapabilities || [],
+            autoMcp: Boolean(form.autoMcp), allowMcpSupplement: Boolean(form.allowMcpSupplement),
+            allowDocumentSupplement: Boolean(form.allowDocumentSupplement),
+            allowDataSupplement: Boolean(form.allowDataSupplement),
+            defaultInstruction: String(form.defaultInstruction || "").trim()
+          } } : {}),
           cardKeyId: form.cardKeyId.trim(), cardPublicKeyPem: form.cardPublicKeyPem.trim(),
-          ...(this.remotePreview?.name ? { displayName: this.remotePreview.name } : {}),
+          ...(form.displayName || this.remotePreview?.name
+            ? { displayName: form.displayName || this.remotePreview.name } : {}),
           requireSignedCard: true, slaLatencyMs: Number(form.slaLatencyMs) || 10000,
           supplementMaxAttempts: Number(form.maxAttempts) || 2,
           ...(Object.keys(queryParameters).length ? { requestQueryParameters: queryParameters } : {}),
@@ -998,7 +1139,9 @@ export default {
     },
     async previewRemoteAgent() {
       this.remoteError = "";
+      this.remoteDiagnostic = "";
       this.remoteBusy = true;
+      let discoveryStarted = false;
       try {
         if (!this.remoteForm.endpoint.trim()) throw new Error("请填写 Agent 服务地址");
         let endpoint;
@@ -1011,8 +1154,11 @@ export default {
         if (endpoint.search || endpoint.hash)
           throw new Error("请在高级设置中填写 URL 查询参数，服务地址本身不包含 ? 参数或 # 片段");
         if (!this.remoteForm.cardKeyId.trim() || !this.remoteForm.cardPublicKeyPem.trim())
-          throw new Error("请向 Agent 发布方索取签名 Key ID 和公钥，填入安全校验区后再发现");
+          throw new Error("此 Agent 尚未配置身份验证。请联系平台管理员在“高级设置”中配置发布方验签信息。");
+        discoveryStarted = true;
         const discovered = await discoverRemoteAgent(this.remoteDescriptor());
+        if (discovered.signatureVerified === false)
+          throw new Error("无法验证 Agent 身份，请检查服务地址或联系发布方。");
         if (!this.remoteForm.agentId.trim())
           this.remoteForm.agentId = `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(discovered.name)}`;
         if (!this.remoteForm.capabilities.trim() && Array.isArray(discovered.skills))
@@ -1021,9 +1167,17 @@ export default {
             return /^[a-z0-9][a-z0-9.-]*\.[a-z0-9][a-z0-9.-]*$/.test(value)
               ? value : `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(skill)}`;
           }).filter(Boolean).join("\n");
+        this.remoteForm.displayName ||= discovered.name || "";
+        this.remoteForm.selectedCapabilities = parseList(this.remoteForm.capabilities);
         this.remotePreview = discovered;
       }
-      catch (error) { this.remotePreview = null; this.remoteError = error.message || "Agent Card 发现失败"; }
+      catch (error) {
+        this.remotePreview = null;
+        this.remoteDiagnostic = error.message || "Agent Card 发现失败";
+        this.remoteError = discoveryStarted
+          ? "连接失败。无法验证 Agent 身份或协议兼容性，请检查服务地址或联系发布方。"
+          : this.remoteDiagnostic;
+      }
       finally { this.remoteBusy = false; }
     },
     async saveRemoteAgent() {
@@ -1033,12 +1187,13 @@ export default {
         if (!this.remotePreview) throw new Error("请先发现并验证 Agent Card");
         if (!parseList(this.remoteForm.tenantIds).length)
           throw new Error("请填写至少一个允许使用的租户编号");
-        if (!parseList(this.remoteForm.capabilities).length) {
-          this.remoteAdvancedOpen = true;
-          throw new Error("Agent Card 未提供可用能力标识，请在高级设置中补充业务能力 ID");
-        }
+        if (!(this.remoteForm.selectedCapabilities || []).length)
+          throw new Error("请至少选择一项已发现的专业能力");
+        if (!(this.remoteForm.selectedSkillIds || []).length)
+          throw new Error("请至少选择一个已发布的知识 Skill");
         await registerRemoteAgent(this.remoteDescriptor());
         this.remoteDialogOpen = false;
+        await this.loadRemoteAgents();
       } catch (error) { this.remoteError = error.message || "远程 Agent 接入失败"; }
       finally { this.remoteBusy = false; }
     },

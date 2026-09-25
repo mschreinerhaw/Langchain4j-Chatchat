@@ -1,17 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fetchPublishedAgentCurlExample, discoverRemoteAgent, authSession } = vi.hoisted(() => ({
+const { fetchPublishedAgentCurlExample, discoverRemoteAgent, registerRemoteAgent, authSession } = vi.hoisted(() => ({
   fetchPublishedAgentCurlExample: vi.fn(),
   discoverRemoteAgent: vi.fn(),
+  registerRemoteAgent: vi.fn(),
   authSession: { current: null }
 }));
 
 vi.mock("../../services/api.js", () => ({
   createWorkshopAgent: vi.fn(),
   discoverRemoteAgent,
-  registerRemoteAgent: vi.fn(),
+  registerRemoteAgent,
   deleteWorkshopAgent: vi.fn(),
   fetchAgentWorkshop: vi.fn(),
+  fetchRegisteredAgents: vi.fn(),
+  fetchSkills: vi.fn(),
   fetchPublishedAgentCurlExample,
   getStoredAuthSession: vi.fn(() => authSession.current),
   publishWorkshopAgent: vi.fn(),
@@ -23,6 +26,55 @@ vi.mock("../../services/api.js", () => ({
 import AgentWorkshopView from "./AgentWorkshopView.js";
 
 describe("AgentWorkshopView remote compute registration", () => {
+  it("uses only checked capabilities even when the verified Card lists more", () => {
+    const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({
+      remotePreview: { version: "v1" },
+      remoteSelectedToolNames: () => [],
+      remoteForm: {
+        agentId: "group.test", endpoint: "https://group.example/a2a", origin: "GROUP",
+        capabilities: "finance.risk.v1", selectedCapabilities: [],
+        selectedDocumentIds: [], selectedSkillIds: [], selectedMcpToolNames: [],
+        supportedExecutionModes: ["DOMAIN_INFERENCE"], tenantIds: "tenant-1",
+        dataDomains: "", cardKeyId: "kid", cardPublicKeyPem: "pem", credentialRef: "",
+        requestQueryParameters: "", requestBodyParameters: ""
+      }
+    });
+    expect(descriptor.capabilities).toEqual([]);
+  });
+
+  it("saves from the single-page form after connection and authorization", async () => {
+    registerRemoteAgent.mockResolvedValueOnce({});
+    const remoteForm = { tenantIds: "tenant-1", selectedCapabilities: ["finance.risk.v1"],
+      selectedSkillIds: ["investment-skill"] };
+    const context = { remoteForm, remotePreview: { name: "Risk Agent" }, remoteError: "",
+      remoteBusy: false, remoteDialogOpen: true, remoteDescriptor: () => ({ agentId: "group.risk" }),
+      loadRemoteAgents: vi.fn() };
+    await AgentWorkshopView.methods.saveRemoteAgent.call(context);
+    expect(registerRemoteAgent).toHaveBeenCalledWith({ agentId: "group.risk" });
+    expect(context.remoteDialogOpen).toBe(false);
+  });
+
+  it("persists selected business grants without exposing protocol choices in the main flow", () => {
+    const remoteForm = {
+      agentId: "group.investment", displayName: "客户投资分析", endpoint: "https://group.example/a2a",
+      origin: "GROUP", capabilities: "finance.portfolio.v1\nfinance.risk.v1",
+      selectedCapabilities: ["finance.risk.v1"], selectedDocumentIds: ["doc-1"],
+      selectedSkillIds: ["investment-skill"], selectedDataCapabilities: ["position"],
+      selectedMcpToolNames: [], autoMcp: true, allowDataSupplement: false,
+      allowDocumentSupplement: false, allowMcpSupplement: true,
+      defaultInstruction: "只根据证据分析", tenantIds: "tenant-1", dataDomains: "",
+      supportedExecutionModes: ["DOMAIN_INFERENCE"], supplementSkillTypes: "",
+      structuredSupplement: "", cardKeyId: "kid", cardPublicKeyPem: "pem",
+      credentialRef: "", requestQueryParameters: "", requestBodyParameters: "",
+      priority: 50, slaLatencyMs: 10000
+    };
+    const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({ remoteForm,
+      remotePreview: { version: "v1" }, remoteSelectedToolNames: () => ["position_query"] });
+    expect(descriptor.capabilities).toEqual([{ namespace: "finance", name: "risk", version: "v1" }]);
+    expect(descriptor.allowedEvidenceTypes).toEqual(["DocumentAnalysisEvidence", "ToolAnalysisEvidence"]);
+    expect(descriptor.metadata.analysisGrants).toMatchObject({ skillIds: ["investment-skill"],
+      documentIds: ["doc-1"], mcpToolNames: ["position_query"], defaultInstruction: "只根据证据分析" });
+  });
   it("keeps A2A credentials as references and exposes explicit evidence grants", () => {
     const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({
       remotePreview: { version: "v2" },

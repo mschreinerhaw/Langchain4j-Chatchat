@@ -23,6 +23,7 @@ public record AnalysisContext(
     public static final String EVIDENCE_BUNDLE_ATTRIBUTE = "runtime.analysis.evidenceBundle";
     public static final String SKILL_SELECTIONS_ATTRIBUTE = "runtime.analysis.skillSelections";
     public static final String GENERAL_MODEL_ATTRIBUTE = "runtime.analysis.generalModelId";
+    public static final String DEFAULT_INSTRUCTION_ATTRIBUTE = "runtime.analysis.defaultInstruction";
 
     public AnalysisContext {
         if (query == null || query.isBlank()) throw new IllegalArgumentException("analysis query is required");

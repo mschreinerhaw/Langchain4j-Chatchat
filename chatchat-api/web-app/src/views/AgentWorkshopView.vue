@@ -33,6 +33,17 @@
       </article>
     </section>
 
+    <section v-if="isPlatformAdmin" class="remote-registered-list">
+      <header><strong>已接入的专有分析 Agent <span>· {{ remoteAgents.length }} 个</span></strong><button type="button" class="light-button" @click="openRemoteDialog">接入 Agent</button></header>
+      <div v-if="remoteAgents.length" class="remote-registered-items">
+        <article v-for="agent in remoteAgents" :key="agent.agentId">
+          <div><strong>{{ agent.metadata?.displayName || agent.agentId }}</strong><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }} · {{ agent.enabled ? '已启用' : '已停用' }}</small></div>
+          <button type="button" class="light-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button>
+        </article>
+      </div>
+      <p v-else>尚未接入专有分析 Agent。点击“接入 Agent”开始配置。</p>
+    </section>
+
     <section class="agent-list-controls">
       <header>
         <div>
@@ -41,7 +52,6 @@
         </div>
         <div class="agent-light-actions">
           <button type="button" class="primary-button" @click="openCreateDialog">新增Agent</button>
-          <button v-if="isPlatformAdmin" type="button" class="light-button" @click="openRemoteDialog">接入集团 / 第三方专有算力</button>
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
           <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
             导出已选JSON（{{ selectedAgentCount }}）
@@ -422,55 +432,83 @@
     <div v-if="remoteDialogOpen" class="agent-dialog-backdrop">
       <form class="agent-dialog remote-agent-dialog" @submit.prevent="saveRemoteAgent">
         <header>
-          <div><p>Agent Runtime OS · Domain Intelligence</p><h2>接入集团 / 第三方专有算力</h2></div>
+          <div><p>Agent Runtime OS · 专有分析</p><h2>接入专有分析 Agent</h2></div>
           <button type="button" class="app-dialog-close" aria-label="关闭" @click="remoteDialogOpen = false">×</button>
         </header>
         <div class="dialog-body remote-dialog-body">
-          <p class="remote-intro">将已有 Agent 作为专业分析算力接入：Runtime 先授权获取文档与业务数据，再发送受控证据包供其分析。先填写服务地址、租户和发布方验签公钥；发现并验签后自动带入能力。</p>
-          <section class="remote-step">
-            <h3><span>1</span> 连接 Agent 服务</h3>
+          <p class="remote-intro">将集团或第三方 Agent 作为专业分析算力使用。Runtime 负责准备已授权的知识与业务数据，Agent 负责按要求进行专业推理。</p>
+          <button v-if="isPlatformAdmin" type="button" class="remote-advanced-toggle" :aria-expanded="remoteAdvancedOpen" @click="remoteAdvancedOpen = !remoteAdvancedOpen">{{ remoteAdvancedOpen ? '收起高级接入配置' : '高级接入配置' }} {{ remoteAdvancedOpen ? '⌃' : '⌄' }}</button>
+          <section v-if="isPlatformAdmin && remoteAdvancedOpen" class="remote-advanced-panel">
+            <p>仅供平台管理员配置身份认证、协议参数与路由。远端不能直接调用本地 Skill 或数据源。</p>
             <div class="remote-field-grid">
-              <label><span>接入来源</span><select v-model="remoteForm.origin"><option value="GROUP">集团内部平台</option><option value="EXTERNAL">外部合作方</option></select></label>
-              <label><span>允许使用的租户编号</span><textarea v-model.trim="remoteForm.tenantIds" rows="2" required placeholder="例如：tenant-001"></textarea><small>默认带入当前租户；多个租户可换行填写。</small></label>
-              <label class="wide-field"><span>Agent 服务地址（A2A HTTP+JSON）</span><input v-model.trim="remoteForm.endpoint" type="url" required placeholder="https://agent.example.com/a2a" @input="invalidateRemotePreview"><small>填写发布方提供的 HTTPS 服务地址。URL 查询参数可在下方“高级设置”中添加。</small></label>
-            </div>
-          </section>
-          <section class="remote-step">
-            <h3><span>2</span> 验证发布方身份</h3>
-            <p>请向 Agent 发布方索取 Agent Card 的签名 Key ID（kid）和 RS256 公钥。系统验签通过后才允许注册；私钥和令牌不要填在这里。</p>
-            <div class="remote-field-grid">
-              <label><span>签名 Key ID（kid）</span><input v-model.trim="remoteForm.cardKeyId" required placeholder="例如：group-agent-key-1" @input="invalidateRemotePreview"></label>
-              <label class="wide-field"><span>验签公钥（PEM）</span><textarea v-model.trim="remoteForm.cardPublicKeyPem" rows="3" required placeholder="-----BEGIN PUBLIC KEY-----" @input="invalidateRemotePreview"></textarea></label>
-            </div>
-          </section>
-          <section v-if="remotePreview" class="remote-preview" aria-live="polite">
-            <h3>3 已发现并验签</h3>
-            <p><strong>{{ remotePreview.name }}</strong> · {{ remotePreview.version }} · {{ remotePreview.skills?.length || 0 }} 项能力</p>
-            <small>将注册为 {{ remoteForm.agentId }}；能力标识已从 Agent Card 带入，可在高级设置中核对或调整。</small>
-          </section>
-          <button type="button" class="remote-advanced-toggle" :aria-expanded="remoteAdvancedOpen" @click="remoteAdvancedOpen = !remoteAdvancedOpen">{{ remoteAdvancedOpen ? "收起高级设置" : "高级设置：请求参数、能力与安全边界" }} <span aria-hidden="true">{{ remoteAdvancedOpen ? "⌃" : "⌄" }}</span></button>
-          <section v-if="remoteAdvancedOpen" class="remote-advanced-panel">
-            <p>以下为连接和路由配置，不是聊天时的用户输入。本接入默认仅进行领域推理；令牌只能使用凭据引用，远端不能直接调用本地 Skill 或数据源。</p>
-            <div class="remote-field-grid">
-              <label><span>URL 查询参数（每行 名称=值）</span><textarea v-model="remoteForm.requestQueryParameters" rows="3" placeholder="region=north\nchannel=research" @input="invalidateRemotePreview"></textarea><small>用于 Agent Card 发现及 A2A HTTP 请求；不要填写令牌或密钥。</small></label>
-              <label><span>A2A 消息参数（JSON 对象）</span><textarea v-model="remoteForm.requestBodyParameters" rows="3" placeholder='{"businessUnit":"research"}'></textarea><small>随每次分析请求发送给 Agent；不覆盖 Runtime 的任务与证据字段。</small></label>
-              <label><span>Agent 标识</span><input v-model.trim="remoteForm.agentId" placeholder="发现后自动填写"><small>系统内的唯一标识，发现后可修改。</small></label>
-              <label><span>业务能力 ID（每行一个）</span><textarea v-model="remoteForm.capabilities" rows="3" placeholder="发现后自动带入"></textarea><small>协作计划使用这些 ID 选择 Agent。</small></label>
-              <label><span>允许的数据域</span><textarea v-model="remoteForm.dataDomains" rows="2" placeholder="portfolio"></textarea></label>
-              <label><span>可出站的证据类型</span><textarea v-model="remoteForm.evidenceTypes" rows="2" placeholder="DocumentAnalysisEvidence"></textarea><small>依赖前序 Agent 结论时，增加 AgentAnalysisEvidence。</small></label>
-              <label><span>允许本地补证的 Knowledge Skill 类型</span><textarea v-model="remoteForm.supplementSkillTypes" rows="2" placeholder="RULE_LOOKUP"></textarea></label>
-              <label><span>结构化数据补证</span><select v-model="remoteForm.structuredSupplement"><option value="">不允许</option><option value="STRUCTURED_DATA">仅预授权只读 SQL 模板</option></select></label>
-              <label><span>凭据引用</span><input v-model.trim="remoteForm.credentialRef" placeholder="例如 env:GROUP_AGENT_TOKEN" @input="invalidateRemotePreview"><small>只填写环境变量引用，不填写实际令牌。</small></label>
+              <label><span>发布方签名 Key ID</span><input v-model.trim="remoteForm.cardKeyId" placeholder="由发布方提供" @input="invalidateRemotePreview"></label>
+              <label><span>凭据引用</span><input v-model.trim="remoteForm.credentialRef" placeholder="env:GROUP_AGENT_TOKEN" @input="invalidateRemotePreview"></label>
+              <label class="wide-field"><span>发布方验签公钥（PEM）</span><textarea v-model.trim="remoteForm.cardPublicKeyPem" rows="3" placeholder="-----BEGIN PUBLIC KEY-----" @input="invalidateRemotePreview"></textarea></label>
+              <label><span>允许使用的租户编号</span><textarea v-model.trim="remoteForm.tenantIds" rows="2" placeholder="每行一个租户编号"></textarea></label>
+              <label><span>URL 查询参数（每行 名称=值）</span><textarea v-model="remoteForm.requestQueryParameters" rows="2" @input="invalidateRemotePreview"></textarea></label>
+              <label><span>A2A 消息参数（JSON 对象）</span><textarea v-model="remoteForm.requestBodyParameters" rows="2" placeholder="{}"></textarea></label>
+              <label><span>Agent 标识</span><input v-model.trim="remoteForm.agentId" placeholder="发现后自动生成"></label>
               <label><span>路由优先级</span><input v-model.number="remoteForm.priority" type="number" min="0" max="1000"></label>
               <label><span>SLA 延迟阈值（毫秒）</span><input v-model.number="remoteForm.slaLatencyMs" type="number" min="100" max="600000"></label>
+              <label><span>业务能力 ID（仅异常时补充）</span><textarea v-model="remoteForm.capabilities" rows="2" placeholder="正常情况下由 Agent Card 自动发现"></textarea></label>
+              <label><span>允许的数据域代码</span><textarea v-model="remoteForm.dataDomains" rows="2" placeholder="可选"></textarea></label>
+              <label><span>证据类型代码</span><textarea v-model="remoteForm.evidenceTypes" rows="2" placeholder="由授权选择自动推导"></textarea></label>
+              <label><span>补证 Skill 类型</span><textarea v-model="remoteForm.supplementSkillTypes" rows="2" placeholder="由下方补证选择自动推导"></textarea></label>
             </div>
           </section>
+          <section class="remote-step">
+            <h3><span>1</span> 基本信息</h3>
+            <div class="remote-field-grid">
+              <label><span>Agent 名称</span><input v-model.trim="remoteForm.displayName" placeholder="例如：集团客户投资分析 Agent"></label>
+              <label><span>接入来源</span><select v-model="remoteForm.origin" @change="invalidateRemotePreview"><option value="GROUP">集团内部平台</option><option value="EXTERNAL">第三方平台</option></select></label>
+              <label class="wide-field"><span>服务地址</span><input v-model.trim="remoteForm.endpoint" type="url" placeholder="https://agent.example.com/a2a" @input="invalidateRemotePreview"></label>
+            </div>
+            <p class="remote-hint">测试连接会自动检查服务、身份与协议。首次接入时，请平台管理员配置发布方身份信息。</p>
+            <button type="button" class="secondary-button" :disabled="remoteBusy" @click="previewRemoteAgent">{{ remoteBusy ? '正在测试连接…' : '测试连接' }}</button>
+            <div v-if="remotePreview" class="remote-connection-status" aria-live="polite">✓ 连接成功　✓ 身份验证通过　✓ 已识别 {{ remoteCapabilityOptions.length }} 项专业能力</div>
+          </section>
+          <section class="remote-step">
+            <h3><span>2</span> 专业能力</h3>
+            <p>这个 Agent 擅长什么？测试连接后可勾选已发现的能力。</p>
+            <div class="remote-choice-list">
+              <label v-for="option in remoteCapabilityOptions" :key="option.id" class="remote-choice"><input v-model="remoteForm.selectedCapabilities" type="checkbox" :value="option.id"><span>{{ option.label }}<small v-if="remoteAdvancedOpen">{{ option.id }}</small></span></label>
+              <p v-if="!remoteCapabilityOptions.length" class="remote-hint">未发现可用能力，请联系发布方或在高级配置中核对能力标识。</p>
+            </div>
+          </section>
+          <section class="remote-step">
+            <h3><span>3</span> 允许使用的知识</h3>
+            <p>选择分析时允许 Runtime 提供的知识。至少选择一个已发布的 Skill；实际可用范围还受调用用户权限约束。</p>
+            <div class="remote-grant-grid">
+              <div><strong>文档知识</strong><button type="button" class="secondary-button remote-picker-button" :aria-expanded="remoteDocumentPickerOpen" @click="remoteDocumentPickerOpen = !remoteDocumentPickerOpen">{{ remoteDocumentPickerOpen ? '收起文档选择' : '＋ 选择文档 / 知识库' }}</button><small class="remote-hint">当前按知识库中的文档逐项授权。</small><div class="remote-selected-list"><span v-for="id in remoteForm.selectedDocumentIds" :key="id">✓ {{ remoteDocumentLabel(id) }}</span><small v-if="!remoteForm.selectedDocumentIds.length">尚未选择文档</small></div><div v-if="remoteDocumentPickerOpen" class="remote-picker-panel"><input v-model.trim="remoteDocSearch" type="search" placeholder="搜索文档名称"><div class="remote-choice-list remote-scroll-list"><label v-for="document in remoteDocumentOptions" :key="document.docId" class="remote-choice"><input v-model="remoteForm.selectedDocumentIds" type="checkbox" :value="document.docId"><span>{{ document.title || document.fileName || document.docId }}<small>{{ document.category || '文档' }}</small></span></label><small v-if="!remoteDocumentOptions.length">暂无可选文档</small></div></div></div>
+              <div><strong>Skills</strong><button type="button" class="secondary-button remote-picker-button" :aria-expanded="remoteSkillPickerOpen" @click="remoteSkillPickerOpen = !remoteSkillPickerOpen">{{ remoteSkillPickerOpen ? '收起 Skill 选择' : '＋ 选择 Skill' }}</button><div class="remote-selected-list"><span v-for="id in remoteForm.selectedSkillIds" :key="id">✓ {{ remoteSkillLabel(id) }}</span><small v-if="!remoteForm.selectedSkillIds.length">尚未选择 Skill</small></div><div v-if="remoteSkillPickerOpen" class="remote-picker-panel"><div class="remote-search-row"><input v-model.trim="remoteSkillSearch" type="search" placeholder="搜索已发布 Skill" @keyup.enter.prevent="searchRemoteSkills"><button type="button" class="secondary-button" @click="searchRemoteSkills">查找</button></div><div class="remote-choice-list remote-scroll-list"><label v-for="skill in remoteSkillOptions" :key="skill.value" class="remote-choice"><input v-model="remoteForm.selectedSkillIds" type="checkbox" :value="skill.value"><span>{{ skill.label || skill.value }}</span></label><small v-if="!remoteSkillOptions.length">暂无可选 Skill</small></div></div></div>
+            </div>
+            <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowDocumentSupplement" type="checkbox"><span>资料不足时，允许 Runtime 查询其他已授权文档</span></label>
+          </section>
+          <section class="remote-step">
+            <h3><span>4</span> 允许使用的数据能力</h3>
+            <p>Runtime 可调用以下已授权能力取数，整理后再发送给 Agent。</p>
+            <div class="remote-data-grid"><label v-for="category in remoteDataOptions" :key="category.key" class="remote-choice"><input v-model="remoteForm.selectedDataCapabilities" type="checkbox" :value="category.key" :disabled="!category.tools.length"><span>{{ category.label }}<small v-if="!category.tools.length">尚未接入数据来源</small></span></label></div>
+            <button type="button" class="remote-advanced-toggle" @click="remoteDataSourcesOpen = !remoteDataSourcesOpen">{{ remoteDataSourcesOpen ? '收起数据来源' : '查看数据来源' }}</button>
+            <p v-if="remoteDataSourcesOpen" class="remote-hint"><span v-for="category in remoteDataOptions.filter(item => remoteForm.selectedDataCapabilities.includes(item.key))" :key="category.key">{{ category.label }}：{{ category.tools.join('、') }}<br></span></p>
+            <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowDataSupplement" type="checkbox"><span>资料不足时，允许 Runtime 使用已发布的只读模板补充业务数据</span></label>
+          </section>
+          <section class="remote-step">
+            <h3><span>5</span> MCP 工具</h3>
+            <p>选择 Runtime 在取数或补证时可使用的工具。</p>
+            <label class="remote-choice"><input v-model="remoteForm.autoMcp" type="checkbox"><span>自动编排 MCP 工具<small>按已选数据能力生成授权清单；调用仍受只读工作流与用户权限控制</small></span></label>
+            <details class="remote-tool-details"><summary>高级配置：指定允许的 MCP 工具</summary><input v-model.trim="remoteToolSearch" type="search" placeholder="搜索工具"><div class="remote-choice-list remote-scroll-list"><label v-for="tool in remoteToolOptions" :key="tool.localToolName" class="remote-choice"><input v-model="remoteForm.selectedMcpToolNames" type="checkbox" :value="tool.localToolName"><span>{{ tool.chineseAlias || tool.remoteToolName || tool.localToolName }}<small>{{ tool.localToolName }}</small></span></label><small v-if="!remoteToolOptions.length">暂无可选 MCP 工具</small></div></details>
+            <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowMcpSupplement" type="checkbox"><span>资料不足时，允许 Runtime 调用已授权的 MCP 工具</span></label>
+          </section>
+          <section class="remote-step">
+            <h3><span>6</span> 默认分析要求</h3>
+            <textarea v-model.trim="remoteForm.defaultInstruction" rows="4" maxlength="1000" aria-label="默认分析要求"></textarea>
+          </section>
           <p v-if="remoteError" class="agent-error" role="alert">{{ remoteError }}</p>
+          <details v-if="remoteDiagnostic && isPlatformAdmin" class="remote-tool-details"><summary>查看诊断详情</summary><p>{{ remoteDiagnostic }}</p></details>
         </div>
         <footer>
           <button type="button" class="secondary-button" :disabled="remoteBusy" @click="remoteDialogOpen = false">取消</button>
-          <button type="button" class="secondary-button" :disabled="remoteBusy" @click="previewRemoteAgent">{{ remoteBusy ? "正在发现…" : "发现并验签" }}</button>
-          <button type="submit" class="primary-button" :disabled="remoteBusy || !remotePreview">注册算力节点</button>
+          <button type="submit" class="primary-button" :disabled="remoteBusy || !remotePreview">{{ remoteBusy ? '正在保存…' : '保存并启用' }}</button>
         </footer>
       </form>
     </div>
@@ -489,7 +527,7 @@
           <section v-if="dialogMode === 'create'" class="wide-field">
             <strong>选择算力来源</strong>
             <p>当前创建自研 Agent，可组合 Workflow、Skills 与知识证据；集团或第三方 Agent 通过 A2A 接入，由 Runtime 管理数据边界与补证。</p>
-            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; openRemoteDialog()">切换到集团 / 第三方专有算力接入</button>
+            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; openRemoteDialog()">切换到接入专有分析 Agent</button>
           </section>
           <label>
             <span>Agent ID</span>

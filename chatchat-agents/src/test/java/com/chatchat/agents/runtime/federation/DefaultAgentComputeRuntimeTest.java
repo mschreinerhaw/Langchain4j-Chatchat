@@ -32,6 +32,28 @@ import static org.mockito.Mockito.when;
 class DefaultAgentComputeRuntimeTest {
     private static final CapabilityId CAPABILITY = CapabilityId.parse("finance.portfolio-analysis.v1");
 
+    @Test void registeredAnalysisGrantsApplyToEveryPlannerEntryPoint() {
+        InMemoryAgentRegistry registry = new InMemoryAgentRegistry(List.of());
+        AgentDescriptor original = remoteDescriptor(Set.of("ToolAnalysisEvidence"), Set.of("portfolio"));
+        registry.register(new AgentDescriptor(original.agentId(), original.version(), original.origin(),
+            original.protocol(), original.endpoint(), original.capabilities(), original.trustLevel(),
+            original.dataAccessMode(), original.allowedDataDomains(), original.allowedEvidenceTypes(),
+            original.outputSchema(), original.credentialRef(), original.priority(), true,
+            Map.of("allowedTenantIds", List.of("tenant-1"), "analysisGrants",
+                Map.of("skillIds", List.of("approved-skill"),
+                    "documentIds", List.of(), "mcpToolNames", List.of("position-summary")))));
+        AgentExecutionRequest base = request(Set.of("portfolio"));
+        AgentCapabilityPlanner planner = new AgentCapabilityPlanner(registry);
+        AgentExecutionRequest approved = new AgentExecutionRequest(null, base.executionId(), base.capability(),
+            base.task(), base.evidence(), base.capabilityGrants(), base.constraints(), base.outputContract(),
+            base.scope(), Map.of("localSkillId", "approved-skill"));
+        assertThat(planner.candidates(approved)).hasSize(1);
+        AgentExecutionRequest forged = new AgentExecutionRequest(null, base.executionId(), base.capability(),
+            base.task(), base.evidence(), base.capabilityGrants(), base.constraints(), base.outputContract(),
+            base.scope(), Map.of("localSkillId", "other-skill"));
+        assertThat(planner.candidates(forged)).isEmpty();
+    }
+
     @Test void toolRequestProtocolRejectsRawExecutableToolNames() {
         assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> AgentToolRequest.from(Map.of(
             "requestId", "unsafe", "type", "SUPPLEMENT_EVIDENCE", "evidenceType", "STRUCTURED_DATA",

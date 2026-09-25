@@ -47,7 +47,11 @@ class AgentAnalysisControllerTest {
             AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of("DocumentAnalysisEvidence",
                 "ToolAnalysisEvidence"), null, "", 50, true,
             Map.of("allowedTenantIds", List.of("tenant-1"),
-                "supportedExecutionModes", List.of("DOMAIN_INFERENCE")));
+                "supportedExecutionModes", List.of("DOMAIN_INFERENCE"),
+                "analysisGrants", Map.of("skillIds", List.of("one", "two"),
+                    "documentIds", List.of("doc-one", "doc-two"),
+                    "mcpToolNames", List.of("market_read"), "allowDataSupplement", false,
+                    "defaultInstruction", "Use only supplied evidence")));
         when(registry.find("group.analysis")).thenReturn(Optional.of(provider));
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
@@ -64,11 +68,37 @@ class AgentAnalysisControllerTest {
                 "one", List.of("doc-one"), List.of("analyst")),
                 new com.chatchat.common.runtime.analysis.model.AnalysisSkillSelection(
                     "two", List.of("doc-two"), List.of("analyst"))));
+        assertThat(observed.get().attributes().get(AnalysisContext.DEFAULT_INSTRUCTION_ATTRIBUTE))
+            .isEqualTo("Use only supplied evidence");
         assertThatThrownBy(() -> controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest(
             "Analyze", null, "group.analysis", "finance.analysis.v1", List.of(), List.of(),
             List.of(new AgentAnalysisController.DomainToolCall("other", "market_read", Map.of())),
             null, null, null, null, 1, 60000L, true, skills, null), request))
             .isInstanceOf(ResponseStatusException.class).hasMessageContaining("not selected");
+        assertThatThrownBy(() -> controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest(
+            "Analyze", null, "group.analysis", "finance.analysis.v1", List.of(), List.of(),
+            List.of(new AgentAnalysisController.DomainToolCall("two", "unlisted", Map.of())),
+            null, null, null, null, 1, 60000L, true, skills, null), request))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("provider analysis grants");
+        assertThatThrownBy(() -> controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest(
+            "Analyze", null, "group.analysis", "finance.analysis.v1", List.of(), List.of(),
+            List.of(), null, null, null, null, 1, 60000L, true,
+            List.of(new AgentAnalysisController.DomainSkillChoice("three", List.of("doc-three"))), null), request))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("provider analysis grants");
+        AgentDescriptor noDocumentGrant = new AgentDescriptor("group.analysis", "v1", AgentDescriptor.Origin.GROUP,
+            AgentDescriptor.Protocol.A2A_HTTP_JSON, URI.create("https://group.example/a2a"),
+            Set.of(CapabilityId.parse("finance.analysis.v1")), AgentDescriptor.TrustLevel.GROUP_TRUSTED,
+            AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of("DocumentAnalysisEvidence"),
+            null, "", 50, true, Map.of("allowedTenantIds", List.of("tenant-1"),
+                "supportedExecutionModes", List.of("DOMAIN_INFERENCE"),
+                "analysisGrants", Map.of("skillIds", List.of("one"), "documentIds", List.of(),
+                    "mcpToolNames", List.of(), "allowDocumentSupplement", false)));
+        when(registry.find("group.analysis")).thenReturn(Optional.of(noDocumentGrant));
+        assertThatThrownBy(() -> controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest(
+            "Analyze", null, "group.analysis", "finance.analysis.v1", List.of(), List.of(),
+            List.of(), null, null, null, null, 1, 60000L, true,
+            List.of(new AgentAnalysisController.DomainSkillChoice("one", List.of("doc-one"))), null), request))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("Document is outside provider analysis grants");
     }
     @Test void domainAnalysisPinsTenantAdmittedProviderAndPlansEvidenceBeforeInference() {
         AtomicReference<AnalysisContext> observed = new AtomicReference<>();

@@ -183,6 +183,7 @@ public class AgentAnalysisController {
             ? selections.get(0).skillId() : body.dataSkillId();
         if (structured && selections.stream().noneMatch(item -> item.skillId().equals(dataSkillId)))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Data template Skill is not selected and authorized");
+        if (!generalModel) enforceAnalysisGrants(provider, selections, requestedDocuments, tools, structured);
         EnumSet<AnalysisCapability> required = EnumSet.of(AnalysisCapability.DOMAIN_INTELLIGENCE);
         if (!requestedDocuments.isEmpty()) required.add(AnalysisCapability.DOCUMENT_SEARCH);
         if (!tools.isEmpty()) required.add(AnalysisCapability.TOOL_CALL);
@@ -202,6 +203,12 @@ public class AgentAnalysisController {
         Map<String, Object> attributes = new LinkedHashMap<>();
         if (generalModel) attributes.put(AnalysisContext.GENERAL_MODEL_ATTRIBUTE, body.providerId().substring(4));
         else attributes.put(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE, provider.agentId());
+        if (!generalModel && provider.metadata().get("analysisGrants") instanceof Map<?, ?> grants
+            && grants.get("defaultInstruction") instanceof String instruction && !instruction.isBlank()) {
+            if (instruction.length() > 1000)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provider instruction exceeds limit");
+            attributes.put(AnalysisContext.DEFAULT_INSTRUCTION_ATTRIBUTE, instruction);
+        }
         attributes.put(AnalysisContext.SKILL_SELECTIONS_ATTRIBUTE, List.copyOf(selections));
         attributes.put(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE, capability.value());
         attributes.put(AnalysisContext.AGENT_EXECUTION_MODE_ATTRIBUTE, AgentExecutionMode.DOMAIN_INFERENCE.name());
@@ -233,6 +240,30 @@ public class AgentAnalysisController {
         if (!(allowed instanceof Iterable<?> values)) return false;
         for (Object value : values) if (tenantId.equals(value)) return true;
         return false;
+    }
+
+    private void enforceAnalysisGrants(AgentDescriptor provider, List<AnalysisSkillSelection> selections,
+                                       List<String> documents, List<DomainToolCall> tools, boolean structured) {
+        if (!(provider.metadata().get("analysisGrants") instanceof Map<?, ?> grants)) return;
+        Set<String> skills = grantStrings(grants.get("skillIds"));
+        Set<String> allowedDocuments = grantStrings(grants.get("documentIds"));
+        Set<String> allowedTools = grantStrings(grants.get("mcpToolNames"));
+        if (selections.stream().anyMatch(item -> !skills.contains(item.skillId())))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Skill is outside provider analysis grants");
+        if (!Boolean.TRUE.equals(grants.get("allowDocumentSupplement"))
+            && !allowedDocuments.containsAll(documents))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Document is outside provider analysis grants");
+        if (tools.stream().anyMatch(item -> !allowedTools.contains(item.toolName())))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "MCP tool is outside provider analysis grants");
+        if (structured && !Boolean.TRUE.equals(grants.get("allowDataSupplement")))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Structured data is outside provider analysis grants");
+    }
+
+    private Set<String> grantStrings(Object value) {
+        if (!(value instanceof Iterable<?> entries)) return Set.of();
+        Set<String> result = new java.util.LinkedHashSet<>();
+        for (Object item : entries) if (item instanceof String text && !text.isBlank()) result.add(text.trim());
+        return Set.copyOf(result);
     }
 
     @PostMapping

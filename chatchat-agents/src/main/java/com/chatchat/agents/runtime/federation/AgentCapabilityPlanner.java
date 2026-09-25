@@ -3,11 +3,15 @@ package com.chatchat.agents.runtime.federation;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentExecutionRequest;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
+import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.ToolAnalysisEvidence;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** Deterministic policy filter. Model ranking, when added, may only rank this admitted set. */
 @Component
@@ -30,6 +34,7 @@ public class AgentCapabilityPlanner {
             .filter(agent -> tenantAllowed(agent, request))
             .filter(agent -> domainsAllowed(agent, request))
             .filter(agent -> evidenceAllowed(agent, request))
+            .filter(agent -> analysisGrantsAllowed(agent, request))
             .filter(health::available)
             .filter(agent -> agent.outputSchema().equals(request.outputContract().schema()))
             .sorted(Comparator.comparingInt((AgentDescriptor agent) ->
@@ -72,6 +77,41 @@ public class AgentCapabilityPlanner {
             .map(value -> String.valueOf(value.attributes().getOrDefault("sourceType",
                 value.getClass().getSimpleName())))
             .allMatch(agent.allowedEvidenceTypes()::contains);
+    }
+
+    private boolean analysisGrantsAllowed(AgentDescriptor agent, AgentExecutionRequest request) {
+        if (!(agent.metadata().get("analysisGrants") instanceof Map<?, ?> grants)) return true;
+        Set<String> skills = strings(grants.get("skillIds"));
+        Set<String> documents = strings(grants.get("documentIds"));
+        Set<String> tools = strings(grants.get("mcpToolNames"));
+        Object localSkill = request.metadata().get("localSkillId");
+        if (localSkill instanceof String id && !id.isBlank() && !skills.contains(id)) return false;
+        if (!Boolean.TRUE.equals(grants.get("allowDocumentSupplement"))
+            && !documents.containsAll(strings(request.metadata().get("documentIds"))))
+            return false;
+        for (var evidence : request.evidence().evidence()) {
+            if (evidence instanceof DocumentAnalysisEvidence document) {
+                Object sourceSkill = document.attributes().get("skillId");
+                String skillId = sourceSkill instanceof String id && !id.isBlank() ? id
+                    : localSkill instanceof String fallback ? fallback : "";
+                if (!skills.contains(skillId)) return false;
+                if (!Boolean.TRUE.equals(grants.get("allowDocumentSupplement"))
+                    && !documents.contains(document.documentId())) return false;
+            } else if (evidence instanceof ToolAnalysisEvidence tool) {
+                Object sourceSkill = tool.attributes().get("skillId");
+                String skillId = sourceSkill instanceof String id && !id.isBlank() ? id
+                    : localSkill instanceof String fallback ? fallback : "";
+                if (!skills.contains(skillId) || !tools.contains(tool.toolName())) return false;
+            }
+        }
+        return true;
+    }
+
+    private Set<String> strings(Object value) {
+        if (!(value instanceof Iterable<?> values)) return Set.of();
+        java.util.LinkedHashSet<String> result = new java.util.LinkedHashSet<>();
+        for (Object item : values) if (item instanceof String text && !text.isBlank()) result.add(text.trim());
+        return Set.copyOf(result);
     }
 
     private int trustRank(AgentDescriptor.TrustLevel trust) {

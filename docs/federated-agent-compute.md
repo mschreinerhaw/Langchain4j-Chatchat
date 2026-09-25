@@ -122,8 +122,19 @@ Its free-text result is labeled as model-stated grounding, not a claim-level ver
 
 ## Register a group A2A agent
 
-Use the enterprise administration API. Registry reads and writes currently require the platform administrator;
-the registry is global until tenant-scoped agent definitions and grants are implemented.
+The Agent management page provides a four-step wizard: connect and verify the Agent, select discovered
+capabilities, grant Knowledge Skills/documents/data tools, then review and enable. Protocol identifiers,
+trust anchors, credential references, routing and SLA remain in administrator-only advanced settings.
+The selected `analysisGrants` are persisted with the provider and rechecked on every domain analysis request;
+they are an upper bound in addition to the caller's Skill and data permissions. A default analysis instruction
+is applied to the Agent task, while document retrieval keeps the user's original query. If document supplement
+is enabled, Runtime may expand retrieval only within the selected Skill and the caller's authorized documents.
+The MCP option generates an allowlist from selected data capabilities; it does not bypass the read-only tool
+workflow or autonomously invent tool arguments.
+
+The enterprise administration API remains available for platform administrators. Registry reads and writes
+currently require the platform administrator; the registry is global until tenant-scoped agent definitions
+and grants are implemented.
 
 ```http
 POST /api/v1/enterprise/agent-registry

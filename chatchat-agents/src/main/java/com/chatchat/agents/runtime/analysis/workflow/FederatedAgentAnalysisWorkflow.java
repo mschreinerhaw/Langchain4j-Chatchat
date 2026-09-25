@@ -94,7 +94,8 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
             AgentExecutionMode.parse(context.attributes().get(AnalysisContext.AGENT_EXECUTION_MODE_ATTRIBUTE)).name());
         AgentExecutionRequest request = new AgentExecutionRequest(AgentExecutionRequest.SCHEMA_VERSION,
             UUID.randomUUID().toString(), capability,
-            new AgentExecutionRequest.TaskContract(context.intent().intent(), context.query(),
+            new AgentExecutionRequest.TaskContract(context.intent().intent(),
+                instruction(context),
                 Map.of("entities", context.intent().entities(), "freshness", context.intent().freshness())),
             input, Set.of(), constraints(context), AgentExecutionRequest.OutputContract.defaults(),
             context.kernelScope(), localMetadata);
@@ -102,6 +103,12 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
             AgentExecutionOutcome.class, context.kernelScope());
         List<AnalysisEvidence> evidence = outcomeEvidence(input, outcome, "");
         return new WorkflowExecutionResult(evidence, Map.of("agentOutcome", outcome), outcome.limitations());
+    }
+
+    private String instruction(AnalysisContext context) {
+        Object value = context.attributes().get(AnalysisContext.DEFAULT_INSTRUCTION_ATTRIBUTE);
+        return value instanceof String instruction && !instruction.isBlank()
+            ? instruction + "\n\n用户分析要求：" + context.query() : context.query();
     }
 
     private WorkflowExecutionResult executeCollaboration(AnalysisContext context, WorkflowPlan plan,

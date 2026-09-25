@@ -63,6 +63,17 @@ class KnowledgeAgentEvidenceSupplementTest {
         assertThat(supplement.supplement(agent(true), request, requirement)).singleElement()
             .isInstanceOf(StructuredDataEvidence.class);
         assertThat(calls.get()).isEqualTo(1);
+        AgentDescriptor unrestricted = agent(true);
+        AgentDescriptor deniedByRegistration = new AgentDescriptor(unrestricted.agentId(),
+            unrestricted.version(), unrestricted.origin(), unrestricted.protocol(), unrestricted.endpoint(),
+            unrestricted.capabilities(), unrestricted.trustLevel(), unrestricted.dataAccessMode(),
+            unrestricted.allowedDataDomains(), unrestricted.allowedEvidenceTypes(),
+            unrestricted.outputSchema(), unrestricted.credentialRef(), unrestricted.priority(), true,
+            Map.of("supplementCapabilities", List.of("STRUCTURED_DATA"),
+                "analysisGrants", Map.of("skillIds", List.of("other-skill"),
+                    "allowDataSupplement", true)));
+        assertThat(supplement.supplement(deniedByRegistration, request, requirement)).isEmpty();
+        assertThat(calls.get()).isEqualTo(1);
         when(scopes.getIfAvailable()).thenReturn((tenant, user, skill, docs, tags) ->
             SkillExecutionScopePort.EffectiveScope.denied(List.of()));
         assertThat(supplement.supplement(agent(true), request, requirement)).isEmpty();

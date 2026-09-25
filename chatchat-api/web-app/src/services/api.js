@@ -1093,6 +1093,10 @@ export function registerRemoteAgent(payload) {
   });
 }
 
+export function fetchRegisteredAgents() {
+  return apiRequest("/enterprise/agent-registry");
+}
+
 export function fetchAgentWorkshop(filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {

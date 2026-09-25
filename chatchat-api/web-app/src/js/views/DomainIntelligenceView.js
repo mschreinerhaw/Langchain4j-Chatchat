@@ -18,12 +18,25 @@ export default {
   },
   computed: {
     selectedProvider() { return this.providers.find((item) => item.providerId === this.form.providerId) || null; },
+    selectableSkills() {
+      const provider = this.selectedProvider;
+      return provider?.grantRestricted
+        ? this.skills.filter((item) => provider.skillIds?.includes(item.value)) : this.skills;
+    },
+    providerEvidenceSummary() {
+      const types = this.selectedProvider?.evidenceTypes || [];
+      return [types.includes("DocumentAnalysisEvidence") && "文档知识",
+        types.includes("ToolAnalysisEvidence") && "业务数据 / MCP 工具",
+        types.includes("StructuredDataEvidence") && "只读数据模板"].filter(Boolean).join("、") || "暂无";
+    },
     selectedSkills() { return this.skills.filter((item) => this.form.skillIds.includes(item.value)); },
     availableTools() {
       return this.selectedSkills.flatMap((skill) => {
         const configured = (skill.toolConfigs || []).filter((item) => item?.enabled !== false)
           .map((item) => item.toolName);
         return [...new Set([...(skill.boundMcpToolNames || []), ...configured].filter(Boolean))]
+          .filter((name) => !this.selectedProvider?.grantRestricted
+            || this.selectedProvider.mcpToolNames?.includes(name))
           .map((toolName) => ({ skillId: skill.value, toolName, key: `${skill.value}::${toolName}` }));
       });
     }
@@ -49,7 +62,14 @@ export default {
     },
     changeProvider() {
       this.form.capability = this.selectedProvider?.capabilities?.[0] || "";
+      this.form.skillIds = this.form.skillIds.filter((id) => !this.selectedProvider?.grantRestricted
+        || this.selectedProvider.skillIds?.includes(id));
+      this.form.skillId = this.form.skillIds[0] || "";
+      this.form.selectedTools = [];
+      this.form.documentsBySkill = {};
+      this.documentsBySkill = {};
       this.result = null;
+      if (this.form.skillIds.length) this.changeSkills();
     },
     async changeSkills() {
       this.form.skillIds = this.form.skillIds.slice(0, 4);
@@ -67,7 +87,9 @@ export default {
           const documents = await fetchDomainSkillResources({ skillId: skill.value,
             documentIds: skill.boundDocumentIds || [], documentTags: skill.boundDocumentTags || [] });
           this.documentsBySkill = { ...this.documentsBySkill,
-            [skill.value]: Array.isArray(documents) ? documents : [] };
+            [skill.value]: Array.isArray(documents) ? documents.filter((id) =>
+              !this.selectedProvider?.grantRestricted || !this.selectedProvider.documentIds?.length
+                || this.selectedProvider.documentIds.includes(id)) : [] };
         } catch (error) { this.error = error.message || `${skill.label || skill.value} 的文档权限加载失败`; }
       }
     },

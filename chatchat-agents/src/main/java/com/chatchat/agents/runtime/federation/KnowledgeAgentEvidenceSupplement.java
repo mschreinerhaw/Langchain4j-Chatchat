@@ -53,11 +53,16 @@ public class KnowledgeAgentEvidenceSupplement implements AgentEvidenceSupplement
         Object localSkillId = request.metadata().get("localSkillId");
         SkillExecutionScopePort resolver = scopes.getIfAvailable();
         if (!(localSkillId instanceof String skillId) || skillId.isBlank() || resolver == null) return List.of();
+        if (!grantedSkill(agent, skillId)) return List.of();
+        boolean expandDocuments = allowDocumentSupplement(agent);
         var effective = resolver.resolve(request.scope().tenantId(), request.scope().userId(), skillId,
-            strings(request.metadata().get("documentIds")), strings(request.metadata().get("documentTags")));
+            expandDocuments ? List.of() : strings(request.metadata().get("documentIds")),
+            strings(request.metadata().get("documentTags")));
         if (!effective.skillAllowed() || effective.documentIds().contains(SkillExecutionScopePort.DENIED_DOCUMENT_ID))
             return List.of();
-        List<String> documents = effective.documentIds();
+        List<String> documents = grantedDocuments(agent, effective.documentIds());
+        if (!expandDocuments && agent.metadata().get("analysisGrants") instanceof Map<?, ?>
+            && documents.isEmpty()) return List.of();
         List<String> tags = effective.tags();
         List<String> domains = strings(request.metadata().get("knowledgeDomains"));
         if (documents.isEmpty() && tags.isEmpty()) return List.of();
@@ -99,6 +104,7 @@ public class KnowledgeAgentEvidenceSupplement implements AgentEvidenceSupplement
         AnalysisOperatorRegistry registry = operators.getIfAvailable();
         if (!(localSkillId instanceof String skillId) || skillId.isBlank()
             || resolver == null || registry == null) return List.of();
+        if (!grantedSkill(agent, skillId) || !grantedStructuredData(agent)) return List.of();
         var effective = resolver.resolve(request.scope().tenantId(), request.scope().userId(), skillId,
             strings(request.metadata().get("documentIds")), strings(request.metadata().get("documentTags")));
         if (!effective.skillAllowed() || effective.documentIds().contains(SkillExecutionScopePort.DENIED_DOCUMENT_ID))
@@ -110,14 +116,15 @@ public class KnowledgeAgentEvidenceSupplement implements AgentEvidenceSupplement
             if (value != null) attributes.put(key, value);
         }
         if (!attributes.containsKey("runtime.analysis.dataTemplateId")) return List.of();
+        List<String> documents = grantedDocuments(agent, effective.documentIds());
         AnalysisContext context = new AnalysisContext(request.task().instruction(), request.scope(), skillId,
-            effective.documentIds(), effective.tags(), effective.roles(),
+            documents, effective.tags(), effective.roles(),
             new AnalysisIntent("SUPPLEMENT_STRUCTURED_DATA", List.of(),
                 Set.of(AnalysisCapability.STRUCTURED_DATA), "UNSPECIFIED", true), attributes);
         var operator = registry.resolve(AnalysisCapability.STRUCTURED_DATA, context).orElse(null);
         if (operator == null) return List.of();
         var result = operator.execute(context, new AnalysisScope(request.scope().tenantId(),
-            request.scope().userId(), effective.roles(), effective.documentIds(), Map.of("skillId", skillId)), null);
+            request.scope().userId(), effective.roles(), documents, Map.of("skillId", skillId)), null);
         if (result.evidence().size() != 1 || !(result.evidence().get(0) instanceof StructuredDataEvidence data)
             || !request.scope().tenantId().equals(data.attributes().get("tenantId"))) return List.of();
         return List.of(data);
@@ -128,5 +135,27 @@ public class KnowledgeAgentEvidenceSupplement implements AgentEvidenceSupplement
         List<String> result = new ArrayList<>();
         for (Object item : items) if (item instanceof String text && !text.isBlank()) result.add(text.trim());
         return List.copyOf(result);
+    }
+
+    private boolean grantedSkill(AgentDescriptor agent, String skillId) {
+        if (!(agent.metadata().get("analysisGrants") instanceof Map<?, ?> grants)) return true;
+        return strings(grants.get("skillIds")).contains(skillId);
+    }
+
+    private List<String> grantedDocuments(AgentDescriptor agent, List<String> documents) {
+        if (!(agent.metadata().get("analysisGrants") instanceof Map<?, ?> grants)) return documents;
+        if (Boolean.TRUE.equals(grants.get("allowDocumentSupplement"))) return documents;
+        List<String> allowed = strings(grants.get("documentIds"));
+        return documents.stream().filter(allowed::contains).toList();
+    }
+
+    private boolean grantedStructuredData(AgentDescriptor agent) {
+        if (!(agent.metadata().get("analysisGrants") instanceof Map<?, ?> grants)) return true;
+        return Boolean.TRUE.equals(grants.get("allowDataSupplement"));
+    }
+
+    private boolean allowDocumentSupplement(AgentDescriptor agent) {
+        return agent.metadata().get("analysisGrants") instanceof Map<?, ?> grants
+            && Boolean.TRUE.equals(grants.get("allowDocumentSupplement"));
     }
 }

@@ -22,13 +22,13 @@
           </label>
         </div>
         <p v-if="!providers.length" class="domain-hint">当前暂无可用的分析算力，请联系管理员发布模型或接入并授权领域 Agent。</p>
-        <p v-else-if="selectedProvider" class="domain-hint">此模型获准接收的证据：{{ selectedProvider.evidenceTypes?.join('、') || '暂无' }}。若某类资源不可选，请联系管理员调整接入授权。</p>
+        <p v-else-if="selectedProvider" class="domain-hint">此算力可使用：{{ providerEvidenceSummary }}。具体资源仍以本次授权和调用用户的权限为准。</p>
       </section>
       <section>
         <h2><span>2</span> 选择知识与数据</h2>
         <div class="domain-skill-search"><input v-model.trim="skillSearch" type="search" placeholder="按名称查找已发布的知识 Skill" @keyup.enter.prevent="loadOptions"><button type="button" :disabled="loading" @click="loadOptions">查找</button></div>
         <p class="domain-hint">最多选择 4 个 Skill；每个 Skill 的文档和工具独立授权、独立取证。</p>
-        <div class="domain-skill-list"><label v-for="skill in skills" :key="skill.value" class="domain-checkbox"><input v-model="form.skillIds" type="checkbox" :value="skill.value" :disabled="form.skillIds.length >= 4 && !form.skillIds.includes(skill.value)" @change="changeSkills">{{ skill.label || skill.value }}</label></div>
+        <div class="domain-skill-list"><label v-for="skill in selectableSkills" :key="skill.value" class="domain-checkbox"><input v-model="form.skillIds" type="checkbox" :value="skill.value" :disabled="form.skillIds.length >= 4 && !form.skillIds.includes(skill.value)" @change="changeSkills">{{ skill.label || skill.value }}</label></div>
         <div v-for="skill in selectedSkills" :key="skill.value" class="domain-skill-block">
           <strong>{{ skill.label || skill.value }}</strong>
           <div class="domain-resource-grid">

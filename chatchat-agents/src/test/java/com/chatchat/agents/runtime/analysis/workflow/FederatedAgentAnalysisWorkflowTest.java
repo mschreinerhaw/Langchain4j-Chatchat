@@ -40,6 +40,7 @@ class FederatedAgentAnalysisWorkflowTest {
             "approved excerpt", Map.of("sourceType", "DocumentAnalysisEvidence"));
         AnalysisContext context = context()
             .withAttribute(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE, "group.agent")
+            .withAttribute(AnalysisContext.DEFAULT_INSTRUCTION_ATTRIBUTE, "Use supplied evidence")
             .withAttribute(AnalysisContext.EVIDENCE_BUNDLE_ATTRIBUTE,
                 new EvidenceBundle(null, List.of(seed), List.of(), Map.of()));
         var domain = new DomainIntelligenceAnalysisWorkflow(new ComputeNodeRouter(List.of(agent)));
@@ -52,6 +53,7 @@ class FederatedAgentAnalysisWorkflowTest {
             "group.agent").containsEntry(AgentExecutionRequest.DOMAIN_PACKAGE_METADATA_KEY,
                 "analysis_package.v1");
         assertThat(seen.get().executionMode()).isEqualTo(AgentExecutionMode.DOMAIN_INFERENCE);
+        assertThat(seen.get().task().instruction()).contains("Use supplied evidence", context.query());
     }
 
     @Test void collaborationRunsDependentAgentsAndMergesTheirEvidence() {

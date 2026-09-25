@@ -16,6 +16,7 @@ import PythonManagementView from '../views/PythonManagementView.vue';
 import ModalPanel from '../components/ModalPanel.vue';
 import JsonBlock from '../components/JsonBlock.vue';
 import { ElNotification } from 'element-plus';
+import { nextTick } from 'vue';
 import { MCP_ENDPOINT } from '../services/config';
 import { UnauthorizedError } from '../services/http';
 import { licenseApi } from '../services/api';
@@ -118,9 +119,13 @@ export default {
         if (!available.some(item => item.key === this.activeView)) {
           this.activeView = available[0]?.key || 'license';
         }
+        await nextTick();
+        this.$refs.sidebarMenu?.close('settings');
       } catch (error) {
         this.navItems = [systemSettingsMenu(null)];
         this.activeView = 'license';
+        await nextTick();
+        this.$refs.sidebarMenu?.close('settings');
         if (error instanceof UnauthorizedError) {
           this.authenticated = false;
           this.user = '';

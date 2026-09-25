@@ -10,7 +10,7 @@
             <small>LingDong Nexus</small>
           </div>
         </div>
-        <el-menu class="sidebar-menu" :default-active="activeView" :default-openeds="['settings']" @select="activeView = $event">
+        <el-menu ref="sidebarMenu" class="sidebar-menu" :default-active="activeView" @select="activeView = $event">
           <template v-for="item in navItems" :key="item.key">
             <el-sub-menu v-if="item.children?.length" :index="item.key">
               <template #title>

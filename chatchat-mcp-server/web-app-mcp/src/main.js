@@ -10,6 +10,7 @@ import {
   Connection,
   Cpu,
   DataLine,
+  DocumentChecked,
   FolderOpened,
   Key,
   Lock,
@@ -21,7 +22,8 @@ import {
   Setting,
   SwitchButton,
   Tickets,
-  User
+  User,
+  UserFilled
 } from '@element-plus/icons-vue';
 import App from './App.vue';
 import './styles/common.css';
@@ -37,6 +39,7 @@ Object.entries({
   Connection,
   Cpu,
   DataLine,
+  DocumentChecked,
   FolderOpened,
   Key,
   Lock,
@@ -48,7 +51,8 @@ Object.entries({
   Setting,
   SwitchButton,
   Tickets,
-  User
+  User,
+  UserFilled
 }).forEach(([key, component]) => app.component(key, component));
 
 app.mount('#app');

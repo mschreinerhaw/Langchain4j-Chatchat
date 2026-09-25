@@ -45,6 +45,17 @@ class AnalysisWorkflowArchitectureTest {
         assertThat(router.route(context).workflow().type()).isEqualTo(AnalysisWorkflowType.COMPOSITE);
     }
 
+    @Test
+    void routerSelectsDomainIntelligenceForExplicitProvider() {
+        AbstractAnalysisWorkflow domain = workflow(AnalysisWorkflowType.DOMAIN_INTELLIGENCE, new ArrayList<>());
+        AbstractAnalysisWorkflow federated = workflow(AnalysisWorkflowType.FEDERATED_AGENT, new ArrayList<>());
+        AnalysisWorkflowRouter router = new AnalysisWorkflowRouter(ctx -> ctx.intent(), List.of(domain, federated));
+        AnalysisContext context = context(Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE))
+            .withAttribute(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE, "group.analysis");
+
+        assertThat(router.route(context).workflow().type()).isEqualTo(AnalysisWorkflowType.DOMAIN_INTELLIGENCE);
+    }
+
     private AbstractAnalysisWorkflow workflow(AnalysisWorkflowType type, List<String> phases) {
         return new AbstractAnalysisWorkflow() {
             @Override public AnalysisWorkflowType type() { return type; }

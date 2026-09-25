@@ -47,7 +47,9 @@ class AgentCardDiscoveryServiceTest {
         card.putArray("signatures").addObject().put("protected", protectedHeader)
             .put("signature", Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign()));
         AtomicReference<String> served = new AtomicReference<>(mapper.writeValueAsString(card));
+        AtomicReference<String> discoveryQuery = new AtomicReference<>();
         server.createContext("/.well-known/agent-card.json", exchange -> {
+            discoveryQuery.set(exchange.getRequestURI().getRawQuery());
             byte[] bytes = served.get().getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, bytes.length);
             try (var output = exchange.getResponseBody()) { output.write(bytes); }
@@ -60,9 +62,13 @@ class AgentCardDiscoveryServiceTest {
                 AgentDescriptor.Protocol.A2A_HTTP_JSON, URI.create("http://127.0.0.1:" + port),
                 Set.of(CapabilityId.parse("finance.test.v1")), AgentDescriptor.TrustLevel.GROUP_TRUSTED,
                 AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of(), null, "", 1, true,
-                Map.of("requireSignedCard", true, "cardKeyId", "group-key-1", "cardPublicKeyPem", pem));
+                Map.of("requireSignedCard", true, "cardKeyId", "group-key-1", "cardPublicKeyPem", pem,
+                    "requestQueryParameters", Map.of("region", "north")));
             var discovery = new AgentCardDiscoveryService(mapper);
             assertThat(discovery.discoverSummary(descriptor, null).signatureVerified()).isTrue();
+            assertThat(discoveryQuery.get()).isEqualTo("region=north");
+            assertThat(discovery.discover(descriptor, null).supportedInterfaces().get(0).url())
+                .isEqualTo(descriptor.endpoint().toString());
             served.set(served.get().replace("signed-agent", "tampered-agent"));
             assertThatThrownBy(() -> discovery.discover(descriptor, null))
                 .isInstanceOf(IllegalArgumentException.class)

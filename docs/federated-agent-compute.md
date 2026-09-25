@@ -97,6 +97,25 @@ AnalysisContext
 `CapabilityId` describes the business function, such as `finance.portfolio-analysis.v1`. It is deliberately separate
 from the execution kind. A workflow, skill, local agent, or remote agent may provide the same capability.
 
+## Domain intelligence as evidence-first compute
+
+The workspace's **专有模型分析** page and `POST /api/v1/agent/analysis/domain-intelligence`
+use a selected tenant-admitted group/external provider in `DOMAIN_INFERENCE` mode. The caller chooses one
+published Knowledge Skill, explicitly selected document IDs resolved through
+`POST /api/v1/agent/analysis/domain-resources`, up to four Skill-bound read-only MCP tools with explicit
+JSON arguments, and optionally a published preauthorized read-only SQL template. The caller must explicitly
+confirm remote evidence transfer. Runtime checks the Skill/document scope, runs the evidence workflows before
+the provider, projects only bounded document excerpts and sanitized tool/structured-data results, then verifies
+the provider outcome. The remote provider never receives local tool credentials or permission to execute Skills.
+Its A2A message includes `analysisPackage` (`analysis_package.v1`) alongside the existing execution contract.
+The separate federated workflow remains available for agent-to-agent collaboration and controlled tool-request
+modes; this domain workflow does not grant autonomous execution.
+
+`GET /api/v1/agent/analysis/domain-providers` lists only enabled inference providers admitted for the caller's
+tenant and exposes no endpoint or credential reference. Provider registration remains an administrator action.
+The current composer uses one Skill as the authorization/binding scope per run; several documents and MCP tools
+bound to that Skill can participate in a single analysis.
+
 ## Register a group A2A agent
 
 Use the enterprise administration API. Registry reads and writes currently require the platform administrator;
@@ -131,7 +150,9 @@ Content-Type: application/json
     "requireSignedCard": true,
     "slaLatencyMs": 10000,
     "supplementSkillTypes": ["RULE_LOOKUP"],
-    "supplementMaxAttempts": 2
+    "supplementMaxAttempts": 2,
+    "requestQueryParameters": {"region": "north"},
+    "requestBodyParameters": {"businessUnit": "research"}
   }
 }
 ```
@@ -140,7 +161,12 @@ The endpoint is an A2A interface base URL. `POST /api/v1/enterprise/agent-regist
 Agent Card, and registration repeats discovery. The gateway also refreshes the Card before invocation/resumption.
 The Card is fetched without redirects, canonicalized with RFC 8785 JCS, and its RS256 JWS verified against the
 operator-pinned public key and `kid`; non-loopback Cards must be signed. The advertised HTTP+JSON interface URL
-must exactly match the registered endpoint. The gateway uses the official A2A Java SDK `1.3.2.Final` client and
+must match the registered endpoint's scheme, host, port, and path. Optional `requestQueryParameters` are fixed,
+non-secret values appended to Agent Card discovery and, after the SDK constructs each A2A operation URL,
+to the final HTTP request. The signed Card and its advertised interface URL remain unchanged;
+`requestBodyParameters` are sent as `providerRequestParameters` within the A2A task data, not as top-level
+Runtime fields. These maps allow up to 16 scalar values each. They are connection defaults, not arbitrary
+per-user input, and credentials belong only in `credentialRef`. The gateway uses the official A2A Java SDK `1.3.2.Final` client and
 REST transport for messages and tasks. For legacy
 services, protocol `HTTP_JSON` posts a minimized `AgentExecutionRequest` JSON shape to the configured endpoint and requires an
 `AgentExecutionOutcome` response. A credential

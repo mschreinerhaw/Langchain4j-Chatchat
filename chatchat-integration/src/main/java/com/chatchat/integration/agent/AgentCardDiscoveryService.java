@@ -40,8 +40,12 @@ public class AgentCardDiscoveryService implements AgentCardDiscoveryPort {
             throw new IllegalArgumentException("Agent Card requires A2A_HTTP_JSON protocol");
         try {
             URI base = agent.endpoint();
-            URI uri = new URI(base.getScheme(), null, base.getHost(), base.getPort(),
-                "/.well-known/agent-card.json", null, null);
+            if (base.getRawQuery() != null || base.getRawFragment() != null)
+                throw new IllegalArgumentException("Put A2A URL query parameters in requestQueryParameters");
+            Map<String, String> query = AgentRequestParameters.query(agent);
+            AgentRequestParameters.body(agent);
+            URI uri = AgentRequestParameters.withQuery(new URI(base.getScheme(), null, base.getHost(), base.getPort(),
+                "/.well-known/agent-card.json", null, null), query);
             HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(5)).GET();
             if (bearerToken != null) request.header("Authorization", "Bearer " + bearerToken);
             HttpResponse<String> response = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))

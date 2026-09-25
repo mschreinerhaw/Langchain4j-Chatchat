@@ -1067,6 +1067,22 @@ export function discoverRemoteAgent(payload) {
   });
 }
 
+export function fetchDomainIntelligenceProviders() {
+  return apiRequest("/agent/analysis/domain-providers");
+}
+
+export function fetchDomainSkillResources(payload) {
+  return apiRequest("/agent/analysis/domain-resources", {
+    method: "POST", body: JSON.stringify(payload)
+  });
+}
+
+export function runDomainIntelligenceAnalysis(payload) {
+  return apiRequest("/agent/analysis/domain-intelligence", {
+    method: "POST", body: JSON.stringify(payload)
+  });
+}
+
 export function registerRemoteAgent(payload) {
   return apiRequest("/enterprise/agent-registry", {
     method: "POST", body: JSON.stringify(payload)

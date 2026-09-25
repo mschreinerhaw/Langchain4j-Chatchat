@@ -51,6 +51,7 @@ const asyncView = (loader) => defineAsyncComponent({
 const ChatAssistantView = asyncView(() => import("../views/ChatAssistantView.vue"));
 const CapabilityMarketView = asyncView(() => import("../views/CapabilityMarketView.vue"));
 const AiSearchView = asyncView(() => import("../views/AiSearchView.vue"));
+const DomainIntelligenceView = asyncView(() => import("../views/DomainIntelligenceView.vue"));
 const LibraryView = asyncView(() => import("../views/LibraryView.vue"));
 const FavoritesView = asyncView(() => import("../views/FavoritesView.vue"));
 const McpCenterView = asyncView(() => import("../views/McpCenterView.vue"));
@@ -78,6 +79,7 @@ const DATA_SCIENCE_TABS = {
 const VIEW_PERMISSIONS = {
   chat: "workspace:chat",
   search: "workspace:search",
+  domainAnalysis: "workspace:search",
   market: "capability:market",
   favorites: "capability:market",
   library: "capability:library",
@@ -104,6 +106,7 @@ const VIEW_PERMISSIONS = {
 const views = {
   chat: ChatAssistantView,
   search: AiSearchView,
+  domainAnalysis: DomainIntelligenceView,
   market: CapabilityMarketView,
   favorites: FavoritesView,
   library: LibraryView,
@@ -207,7 +210,8 @@ export default {
           label: "工作台",
           items: [
             { id: "chat", label: "智能对话", icon: "chat", permissionCode: "workspace:chat" },
-            { id: "search", label: "文档检索", icon: "search", permissionCode: "workspace:search" }
+            { id: "search", label: "文档检索", icon: "search", permissionCode: "workspace:search" },
+            { id: "domainAnalysis", label: "专有模型分析", icon: "agent", permissionCode: "workspace:search" }
           ]
         },
         {

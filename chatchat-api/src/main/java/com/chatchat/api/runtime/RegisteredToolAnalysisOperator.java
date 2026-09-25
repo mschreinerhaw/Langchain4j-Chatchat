@@ -31,6 +31,7 @@ import java.util.UUID;
 public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperator {
     public static final String TOOL_NAME = "runtime.analysis.toolName";
     public static final String TOOL_ARGUMENTS = "runtime.analysis.toolArguments";
+    public static final String TOOL_CALLS = "runtime.analysis.toolCalls";
     private static final int MAX_EVIDENCE_CHARS = 65536;
 
     private final SkillCatalogService skills;
@@ -51,11 +52,31 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
     @Override public AnalysisCapability capability() { return AnalysisCapability.TOOL_CALL; }
 
     @Override public boolean available(AnalysisContext context) {
-        return context != null && context.attributes().get(TOOL_NAME) instanceof String name && !name.isBlank();
+        return context != null && ((context.attributes().get(TOOL_NAME) instanceof String name && !name.isBlank())
+            || context.attributes().get(TOOL_CALLS) instanceof List<?> calls && !calls.isEmpty());
     }
 
     @Override
     public WorkflowExecutionResult execute(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan) {
+        if (context.attributes().get(TOOL_CALLS) instanceof List<?> calls) {
+            if (calls.isEmpty() || calls.size() > 4) return denied("Select 1..4 governed MCP tools");
+            List<com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence> evidence = new java.util.ArrayList<>();
+            for (Object raw : calls) {
+                if (!(raw instanceof Map<?, ?> call) || !(call.get("toolName") instanceof String name)
+                    || name.isBlank() || !(call.get("arguments") instanceof Map<?, ?> arguments))
+                    return denied("Each tool call requires a name and JSON object arguments");
+                AnalysisContext single = context.withAttribute(TOOL_NAME, name)
+                    .withAttribute(TOOL_ARGUMENTS, arguments).withAttribute(TOOL_CALLS, null);
+                WorkflowExecutionResult result = executeSingle(single, scope, plan);
+                if (result.evidence().isEmpty()) return result;
+                evidence.addAll(result.evidence());
+            }
+            return new WorkflowExecutionResult(evidence, Map.of("toolCallCount", calls.size()), List.of());
+        }
+        return executeSingle(context, scope, plan);
+    }
+
+    private WorkflowExecutionResult executeSingle(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan) {
         if (scope == null || scope.tenantId() == null || scope.userId() == null)
             return denied("Authenticated tenant and user scope are required");
         String name = String.valueOf(context.attributes().get(TOOL_NAME));

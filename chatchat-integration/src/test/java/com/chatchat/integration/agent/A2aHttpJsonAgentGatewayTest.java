@@ -135,6 +135,7 @@ class A2aHttpJsonAgentGatewayTest {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         int port = server.getAddress().getPort();
         AtomicReference<String> sent = new AtomicReference<>();
+        AtomicReference<String> sentQuery = new AtomicReference<>();
         server.createContext("/.well-known/agent-card.json", exchange -> {
             String card = """
                 {"name":"group-test","description":"test","version":"v1",
@@ -147,6 +148,7 @@ class A2aHttpJsonAgentGatewayTest {
         });
         server.createContext("/message:send", exchange -> {
             sent.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            sentQuery.set(exchange.getRequestURI().getRawQuery());
             reply(exchange, """
                 {"task":{"id":"task-1","contextId":"ctx-1","status":{"state":"TASK_STATE_COMPLETED"},
                  "artifacts":[{"artifactId":"artifact-1","parts":[{"data":{
@@ -165,7 +167,9 @@ class A2aHttpJsonAgentGatewayTest {
             AgentDescriptor agent = new AgentDescriptor("group-test", "v1", AgentDescriptor.Origin.GROUP,
                 AgentDescriptor.Protocol.A2A_HTTP_JSON, URI.create("http://127.0.0.1:" + port),
                 Set.of(capability), AgentDescriptor.TrustLevel.GROUP_TRUSTED,
-                AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of(), null, "", 1, true, Map.of());
+                AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of(), null, "", 1, true,
+                Map.of("requestQueryParameters", Map.of("region", "north"),
+                    "requestBodyParameters", Map.of("businessUnit", "research")));
             EvidenceBundle evidence = new EvidenceBundle(null,
                 java.util.List.of(new ToolAnalysisEvidence("E1", "position", "call-1", "RAW-PRIVATE",
                     Map.of("remoteProjection", Map.of("positionCount", 3)))), java.util.List.of(), Map.of());
@@ -173,14 +177,18 @@ class A2aHttpJsonAgentGatewayTest {
                 new AgentExecutionRequest.TaskContract("test", "analyze", Map.of()), evidence,
                 Set.of(), new AgentExecutionRequest.Constraints(5000, 1, true, true, Set.of()), null,
                 new KernelDataScope("tenant", "sensitive-user", "request", "conversation", "run", "test", Map.of()),
-                Map.of("internalMarker", "never-send"));
+                Map.of("internalMarker", "never-send",
+                    AgentExecutionRequest.DOMAIN_PACKAGE_METADATA_KEY, "analysis_package.v1"));
 
             AgentExecutionOutcome outcome = gateway.invoke(agent, request);
 
             assertThat(outcome.status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
             assertThat(outcome.claims()).hasSize(1);
-            assertThat(sent.get()).contains("exec-1", "positionCount")
+            assertThat(sent.get()).contains("exec-1", "positionCount", "providerRequestParameters",
+                    "analysisPackage", "analysis_package.v1",
+                    "businessUnit", "research")
                 .doesNotContain("sensitive-user", "never-send", "RAW-PRIVATE");
+            assertThat(sentQuery.get()).isEqualTo("region=north");
         } finally {
             server.stop(0);
         }

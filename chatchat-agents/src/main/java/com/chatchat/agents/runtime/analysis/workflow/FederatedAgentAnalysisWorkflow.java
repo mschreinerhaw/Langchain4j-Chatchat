@@ -46,6 +46,7 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
     @Override public String workflowId() { return "problem-analysis.federated-agent"; }
     @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) {
         return intent.requiredCapabilities().equals(Set.of(AnalysisCapability.DOMAIN_INTELLIGENCE))
+            && !context.attributes().containsKey(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE)
             && (context.attributes().containsKey(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE)
                 || context.attributes().containsKey(AgentCollaborationPlan.CONTEXT_ATTRIBUTE));
     }
@@ -233,6 +234,11 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
         metadata.put("documentTags", stringSet(context.attributes().get("documentTags")));
         metadata.put("knowledgeDomains", stringSet(context.attributes().get("knowledgeDomains")));
         if (!context.skillId().isBlank()) metadata.put("localSkillId", context.skillId());
+        Object domainProvider = context.attributes().get(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE);
+        if (domainProvider instanceof String id && !id.isBlank())
+            metadata.put(AgentExecutionRequest.TARGET_AGENT_METADATA_KEY, id);
+        if (domainProvider instanceof String id && !id.isBlank())
+            metadata.put(AgentExecutionRequest.DOMAIN_PACKAGE_METADATA_KEY, "analysis_package.v1");
         for (String key : List.of("runtime.analysis.dataTemplateId", "runtime.analysis.dataAssetName",
             "runtime.analysis.dataEnvironment", "runtime.analysis.dataParameters")) {
             Object value = context.attributes().get(key);

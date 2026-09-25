@@ -122,7 +122,8 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
             return failure(agent, request, "AGENT_TASK_CAPACITY", "A2A task tracking capacity exhausted");
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER).build();
-        JdkA2AHttpClient transport = new JdkA2AHttpClient(http);
+        AgentQueryParameterHttpClient transport = new AgentQueryParameterHttpClient(
+            new JdkA2AHttpClient(http), AgentRequestParameters.query(agent));
         Map<String, String> headers = token == null ? Map.of() : Map.of("Authorization", "Bearer " + token);
         AgentCard card;
         try { card = cards.discover(agent, token); }
@@ -140,7 +141,7 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
             .withTransport(RestTransport.class, new RestTransportConfig(transport)).build()) {
             Message.Builder messageBuilder = Message.builder().role(Message.Role.ROLE_USER)
                 .messageId(UUID.randomUUID().toString())
-                .parts(new DataPart(mapper.convertValue(projectRemoteRequest(request), Map.class)))
+                .parts(new DataPart(mapper.convertValue(projectRemoteRequest(agent, request), Map.class)))
                 .metadata(Map.of("runtimeProtocol", "runtime_os.agent_compute.v1"));
             if (resume) messageBuilder.taskId(link.taskId()).contextId(link.contextId());
             Message message = messageBuilder.build();
@@ -210,7 +211,8 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         Map<String, String> headers = token == null ? Map.of() : Map.of("Authorization", "Bearer " + token);
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER).build();
-        JdkA2AHttpClient transport = new JdkA2AHttpClient(http);
+        AgentQueryParameterHttpClient transport = new AgentQueryParameterHttpClient(
+            new JdkA2AHttpClient(http), AgentRequestParameters.query(agent));
         AgentCard card;
         try { card = cards.discover(agent, token); }
         catch (IllegalArgumentException rejected) {
@@ -241,7 +243,7 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         taskLinks.deleteExpired(cutoff);
     }
 
-    private Map<String, Object> projectRemoteRequest(AgentExecutionRequest request) {
+    private Map<String, Object> projectRemoteRequest(AgentDescriptor agent, AgentExecutionRequest request) {
         Map<String, Object> projected = new LinkedHashMap<>();
         projected.put("schemaVersion", request.schemaVersion());
         projected.put("executionId", request.executionId());
@@ -253,6 +255,10 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         projected.put("constraints", request.constraints());
         projected.put("outputContract", request.outputContract());
         projected.put("agentExecutionMode", request.executionMode().name());
+        if ("analysis_package.v1".equals(request.metadata().get(AgentExecutionRequest.DOMAIN_PACKAGE_METADATA_KEY)))
+            projected.put("analysisPackage", AnalysisPackage.from(request));
+        Map<String, String> configured = AgentRequestParameters.body(agent);
+        if (!configured.isEmpty()) projected.put("providerRequestParameters", configured);
         Object collaborationTaskId = request.metadata().get(AgentExecutionRequest.COLLABORATION_TASK_METADATA_KEY);
         if (collaborationTaskId instanceof String taskId && !taskId.isBlank())
             projected.put("collaborationTaskId", taskId);
@@ -340,7 +346,7 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
                 .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON);
             String token = bearerToken(agent);
             if (token != null) call.headers(headers -> headers.setBearerAuth(token));
-            Map<String, Object> body = new LinkedHashMap<>(projectRemoteRequest(request));
+            Map<String, Object> body = new LinkedHashMap<>(projectRemoteRequest(agent, request));
             body.put("scope", new KernelDataScope(request.scope().tenantId(), null,
                 null, null, null, request.scope().environment(), Map.of()));
             AgentExecutionOutcome outcome = call.bodyValue(body).retrieve()

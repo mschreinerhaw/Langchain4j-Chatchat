@@ -45,7 +45,8 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
         Object parameters = context.attributes().getOrDefault(PARAMETERS, Map.of());
         if (template == null || asset == null || env == null || !(parameters instanceof Map<?, ?>))
             return failed("A published template, logical asset and environment are required");
-        AnalysisContext toolContext = context.withAttribute(RegisteredToolAnalysisOperator.TOOL_NAME, TOOL_NAME)
+        AnalysisContext toolContext = context.withAttribute(RegisteredToolAnalysisOperator.TOOL_CALLS, null)
+            .withAttribute(RegisteredToolAnalysisOperator.TOOL_NAME, TOOL_NAME)
             .withAttribute(RegisteredToolAnalysisOperator.TOOL_ARGUMENTS, Map.of(
                 "templateId", template, "parameters", parameters,
                 "executionContext", Map.of("assetName", asset, "env", env),

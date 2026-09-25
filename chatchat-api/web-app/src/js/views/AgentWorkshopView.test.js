@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fetchPublishedAgentCurlExample, authSession } = vi.hoisted(() => ({
+const { fetchPublishedAgentCurlExample, discoverRemoteAgent, authSession } = vi.hoisted(() => ({
   fetchPublishedAgentCurlExample: vi.fn(),
+  discoverRemoteAgent: vi.fn(),
   authSession: { current: null }
 }));
 
 vi.mock("../../services/api.js", () => ({
   createWorkshopAgent: vi.fn(),
-  discoverRemoteAgent: vi.fn(),
+  discoverRemoteAgent,
   registerRemoteAgent: vi.fn(),
   deleteWorkshopAgent: vi.fn(),
   fetchAgentWorkshop: vi.fn(),
@@ -43,6 +44,53 @@ describe("AgentWorkshopView remote compute registration", () => {
     expect(descriptor.metadata.supportedExecutionModes).toEqual(["DOMAIN_INFERENCE", "AGENTIC_EXECUTION"]);
     expect(descriptor.metadata.requireSignedCard).toBe(true);
     expect(descriptor.credentialRef).toBe("env:GROUP_TOKEN");
+  });
+
+  it("passes fixed URL and message parameters without treating them as credentials", () => {
+    const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({
+      remotePreview: null,
+      remoteForm: {
+        agentId: "", endpoint: "https://group.example/a2a", origin: "GROUP",
+        capabilities: "", tenantIds: "tenant-1", dataDomains: "", evidenceTypes: "",
+        supportedExecutionModes: ["DOMAIN_INFERENCE"], supplementSkillTypes: "",
+        structuredSupplement: "", cardKeyId: "kid", cardPublicKeyPem: "pem",
+        credentialRef: "", requestQueryParameters: "region=north east\nchannel=research",
+        requestBodyParameters: '{"businessUnit":"research","year":2026}',
+        priority: 50, slaLatencyMs: 10000, maxAttempts: 2
+      }
+    });
+    expect(descriptor.metadata.requestQueryParameters).toEqual({ region: "north east", channel: "research" });
+    expect(descriptor.metadata.requestBodyParameters).toEqual({ businessUnit: "research", year: 2026 });
+    expect(descriptor.capabilities).toEqual([]);
+    expect(descriptor.agentId).toBe("preview.remote-agent");
+  });
+
+  it("rejects secret-like fixed URL parameter names", () => {
+    const remoteForm = {
+      agentId: "", endpoint: "https://group.example/a2a", origin: "GROUP", capabilities: "",
+      supportedExecutionModes: ["DOMAIN_INFERENCE"], cardKeyId: "kid", cardPublicKeyPem: "pem",
+      credentialRef: "", requestQueryParameters: "authToken=plaintext", requestBodyParameters: ""
+    };
+    expect(() => AgentWorkshopView.methods.remoteDescriptor.call({ remoteForm }))
+      .toThrow(/敏感凭据/);
+  });
+
+  it("fills agent identity and capability IDs from a verified Card", async () => {
+    discoverRemoteAgent.mockResolvedValueOnce({
+      name: "Industry Research", version: "v2", skills: ["finance.industry.v1"]
+    });
+    const remoteForm = {
+      agentId: "", endpoint: "https://group.example/a2a", origin: "GROUP",
+      cardKeyId: "kid", cardPublicKeyPem: "pem", capabilities: ""
+    };
+    const context = {
+      remoteForm, remoteError: "", remoteBusy: false, remotePreview: null,
+      remoteDescriptor: () => ({ agentId: "preview.remote-agent" })
+    };
+    await AgentWorkshopView.methods.previewRemoteAgent.call(context);
+    expect(remoteForm.agentId).toBe("group.industry-research");
+    expect(remoteForm.capabilities).toBe("finance.industry.v1");
+    expect(context.remotePreview.version).toBe("v2");
   });
 });
 

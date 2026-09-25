@@ -1,0 +1,35 @@
+.domain-intelligence-view { max-width: 1100px; margin: 0 auto; padding: 22px 28px 48px; color: #1d2939; }
+.domain-intelligence-head { margin-bottom: 20px; }
+.domain-intelligence-head p { margin: 0 0 4px; color: #2468d5; font-size: 13px; font-weight: 700; }
+.domain-intelligence-head h1 { margin: 0 0 5px; font-size: 26px; }
+.domain-intelligence-head > span, .domain-hint { color: #66758d; font-size: 13px; line-height: 1.6; }
+.domain-intelligence-form { display: grid; gap: 16px; }
+.domain-intelligence-form > section, .domain-result { padding: 20px; border: 1px solid #dae4f4; border-radius: 12px; background: white; }
+.domain-intelligence-form h2, .domain-result h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; font-size: 17px; }
+.domain-intelligence-form h2 span { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #eaf2ff; color: #2468d5; font-size: 13px; }
+.domain-fields, .domain-resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.domain-intelligence-form label { display: grid; gap: 7px; font-size: 13px; font-weight: 650; }
+.domain-intelligence-form input:not([type="checkbox"]), .domain-intelligence-form select, .domain-intelligence-form textarea { width: 100%; min-height: 38px; padding: 9px 11px; border: 1px solid #ccd8eb; border-radius: 8px; background: white; color: #1d2939; font: inherit; }
+.domain-intelligence-form textarea { resize: vertical; line-height: 1.55; }
+.domain-full { width: 100%; }
+.domain-skill-search { display: flex; gap: 8px; margin-bottom: 12px; }
+.domain-skill-search input { flex: 1; }
+.domain-skill-search button { padding: 0 15px; border: 1px solid #cbdaf1; border-radius: 8px; background: #edf4ff; color: #2468d5; cursor: pointer; }
+.domain-resource-grid { margin-top: 16px; }
+.domain-resource-grid > div { display: grid; align-content: start; gap: 9px; padding: 15px; border: 1px solid #e0e8f5; border-radius: 9px; }
+.domain-resource-grid strong { font-size: 13px; }
+.domain-resource-grid .domain-checkbox { display: flex; align-items: center; gap: 8px; font-weight: 400; overflow-wrap: anywhere; }
+.domain-resource-grid .domain-checkbox input { accent-color: #2468d5; }
+.domain-intelligence-form .domain-consent { display: flex; align-items: flex-start; gap: 9px; margin-top: 14px; line-height: 1.6; font-weight: 400; }
+.domain-consent input { margin-top: 3px; accent-color: #2468d5; }
+.domain-resource-grid small { color: #74839b; }
+.domain-advanced-toggle { margin-top: 16px; padding: 0; border: 0; background: transparent; color: #2468d5; font-size: 13px; font-weight: 700; cursor: pointer; }
+.domain-advanced { display: grid; gap: 14px; margin-top: 12px; padding: 16px; border-radius: 9px; background: #f7faff; }
+.domain-error { margin: 0; color: #ba2540; font-size: 13px; }
+.domain-submit { justify-self: start; padding: 10px 23px; border: 0; border-radius: 8px; background: #2468d5; color: white; font-weight: 700; cursor: pointer; }
+.domain-submit:disabled { opacity: .55; cursor: not-allowed; }
+.domain-result { margin-top: 18px; }
+.domain-result h2 small { color: #66758d; font-size: 12px; font-weight: 400; }
+.domain-answer { white-space: pre-wrap; line-height: 1.75; }
+.domain-result details { margin-top: 16px; color: #66758d; font-size: 13px; }
+@media (max-width: 680px) { .domain-intelligence-view { padding: 16px; } .domain-fields, .domain-resource-grid { grid-template-columns: 1fr; } }

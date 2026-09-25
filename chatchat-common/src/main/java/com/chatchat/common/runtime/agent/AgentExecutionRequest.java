@@ -24,6 +24,7 @@ public record AgentExecutionRequest(
     public static final String SCHEMA_VERSION = "agent_execution_request.v1";
     public static final String MODE_METADATA_KEY = "agentExecutionMode";
     public static final String TARGET_AGENT_METADATA_KEY = "targetAgentId";
+    public static final String DOMAIN_PACKAGE_METADATA_KEY = "domainAnalysisPackage";
     public static final String COLLABORATION_TASK_METADATA_KEY = "collaborationTaskId";
 
     public AgentExecutionRequest {

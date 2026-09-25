@@ -185,8 +185,46 @@ function emptyRemoteForm() {
     tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
     supportedExecutionModes: ["DOMAIN_INFERENCE"],
     supplementSkillTypes: "", structuredSupplement: "", cardKeyId: "", cardPublicKeyPem: "",
-    credentialRef: "", priority: 50, slaLatencyMs: 10000, maxAttempts: 2
+    credentialRef: "", requestQueryParameters: "", requestBodyParameters: "",
+    priority: 50, slaLatencyMs: 10000, maxAttempts: 2
   };
+}
+
+function remoteSlug(value) {
+  return String(value || "agent").toLowerCase().replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "") || "agent";
+}
+
+function fixedRequestParameters(text, format) {
+  if (!String(text || "").trim()) return {};
+  let entries;
+  if (format === "query") {
+    entries = String(text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+      const separator = line.indexOf("=");
+      if (separator <= 0) throw new Error("URL 查询参数请按每行“名称=值”填写");
+      return [line.slice(0, separator).trim(), line.slice(separator + 1).trim()];
+    });
+  } else {
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch { throw new Error("A2A 消息参数必须是有效的 JSON 对象"); }
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object")
+      throw new Error("A2A 消息参数必须是 JSON 对象");
+    entries = Object.entries(parsed);
+  }
+  if (entries.length > 16) throw new Error("固定请求参数最多 16 项");
+  const result = {};
+  for (const [name, value] of entries) {
+    if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name)
+      || /(password|secret|token|api[_-]?key|authorization|credential|bearer)/i.test(name))
+      throw new Error("请求参数名称无效或包含敏感凭据字段；令牌请使用凭据引用");
+    if (!["string", "number", "boolean"].includes(typeof value)
+      || !String(value).trim() || String(value).length > 256 || /[\r\n]/.test(String(value)))
+      throw new Error(`请求参数 ${name} 只能填写 1–256 字符的文本、数字或布尔值`);
+    if (Object.hasOwn(result, name)) throw new Error(`重复的请求参数：${name}`);
+    result[name] = value;
+  }
+  return result;
 }
 
 export default {
@@ -214,6 +252,7 @@ export default {
       remotePreview: null,
       remoteError: "",
       remoteBusy: false,
+      remoteAdvancedOpen: false,
       documentPickerOpen: false,
       toolPickerOpen: false,
       dialogMode: "create",
@@ -915,10 +954,14 @@ export default {
     },
     openRemoteDialog() {
       this.remoteForm = emptyRemoteForm();
+      const session = getStoredAuthSession();
+      this.remoteForm.tenantIds = String(session?.user?.tenantId || session?.tenantId || "");
       this.remotePreview = null;
       this.remoteError = "";
+      this.remoteAdvancedOpen = false;
       this.remoteDialogOpen = true;
     },
+    invalidateRemotePreview() { this.remotePreview = null; },
     remoteDescriptor() {
       const form = this.remoteForm;
       if (!form.supportedExecutionModes?.length) throw new Error("请至少选择一种 Agent 执行模式");
@@ -928,8 +971,10 @@ export default {
         const version = /^v\d+$/.test(parts.at(-1)) ? parts.pop() : "v1";
         return { namespace: parts.shift(), name: parts.join("."), version };
       });
+      const queryParameters = fixedRequestParameters(form.requestQueryParameters, "query");
+      const bodyParameters = fixedRequestParameters(form.requestBodyParameters, "body");
       return {
-        agentId: form.agentId.trim(), version: this.remotePreview?.version || "v1",
+        agentId: form.agentId.trim() || "preview.remote-agent", version: this.remotePreview?.version || "v1",
         origin: form.origin, protocol: "A2A_HTTP_JSON", endpoint: form.endpoint.trim(),
         capabilities, trustLevel: form.origin === "GROUP" ? "GROUP_TRUSTED" : "PARTNER",
         dataAccessMode: "RUNTIME_MANAGED", allowedDataDomains: parseList(form.dataDomains),
@@ -938,19 +983,46 @@ export default {
         priority: Number(form.priority) || 0, enabled: true,
         metadata: {
           allowedTenantIds: parseList(form.tenantIds),
+          providerType: "DOMAIN_AGENT",
           supportedExecutionModes: form.supportedExecutionModes,
           supplementSkillTypes: parseList(form.supplementSkillTypes),
           supplementCapabilities: form.structuredSupplement === "STRUCTURED_DATA" ? ["STRUCTURED_DATA"] : [],
           cardKeyId: form.cardKeyId.trim(), cardPublicKeyPem: form.cardPublicKeyPem.trim(),
+          ...(this.remotePreview?.name ? { displayName: this.remotePreview.name } : {}),
           requireSignedCard: true, slaLatencyMs: Number(form.slaLatencyMs) || 10000,
-          supplementMaxAttempts: Number(form.maxAttempts) || 2
+          supplementMaxAttempts: Number(form.maxAttempts) || 2,
+          ...(Object.keys(queryParameters).length ? { requestQueryParameters: queryParameters } : {}),
+          ...(Object.keys(bodyParameters).length ? { requestBodyParameters: bodyParameters } : {})
         }
       };
     },
     async previewRemoteAgent() {
       this.remoteError = "";
       this.remoteBusy = true;
-      try { this.remotePreview = await discoverRemoteAgent(this.remoteDescriptor()); }
+      try {
+        if (!this.remoteForm.endpoint.trim()) throw new Error("请填写 Agent 服务地址");
+        let endpoint;
+        try { endpoint = new URL(this.remoteForm.endpoint.trim()); }
+        catch { throw new Error("请填写完整的 HTTP 或 HTTPS Agent 服务地址"); }
+        if (!["http:", "https:"].includes(endpoint.protocol))
+          throw new Error("Agent 服务地址只能使用 HTTP 或 HTTPS");
+        if (endpoint.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname))
+          throw new Error("远程 Agent 服务地址需使用 HTTPS；HTTP 仅允许本机调试");
+        if (endpoint.search || endpoint.hash)
+          throw new Error("请在高级设置中填写 URL 查询参数，服务地址本身不包含 ? 参数或 # 片段");
+        if (!this.remoteForm.cardKeyId.trim() || !this.remoteForm.cardPublicKeyPem.trim())
+          throw new Error("请向 Agent 发布方索取签名 Key ID 和公钥，填入安全校验区后再发现");
+        const discovered = await discoverRemoteAgent(this.remoteDescriptor());
+        if (!this.remoteForm.agentId.trim())
+          this.remoteForm.agentId = `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(discovered.name)}`;
+        if (!this.remoteForm.capabilities.trim() && Array.isArray(discovered.skills))
+          this.remoteForm.capabilities = discovered.skills.map((skill) => {
+            const value = String(skill || "").toLowerCase();
+            return /^[a-z0-9][a-z0-9.-]*\.[a-z0-9][a-z0-9.-]*$/.test(value)
+              ? value : `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(skill)}`;
+          }).filter(Boolean).join("\n");
+        this.remotePreview = discovered;
+      }
       catch (error) { this.remotePreview = null; this.remoteError = error.message || "Agent Card 发现失败"; }
       finally { this.remoteBusy = false; }
     },
@@ -959,6 +1031,12 @@ export default {
       this.remoteBusy = true;
       try {
         if (!this.remotePreview) throw new Error("请先发现并验证 Agent Card");
+        if (!parseList(this.remoteForm.tenantIds).length)
+          throw new Error("请填写至少一个允许使用的租户编号");
+        if (!parseList(this.remoteForm.capabilities).length) {
+          this.remoteAdvancedOpen = true;
+          throw new Error("Agent Card 未提供可用能力标识，请在高级设置中补充业务能力 ID");
+        }
         await registerRemoteAgent(this.remoteDescriptor());
         this.remoteDialogOpen = false;
       } catch (error) { this.remoteError = error.message || "远程 Agent 接入失败"; }

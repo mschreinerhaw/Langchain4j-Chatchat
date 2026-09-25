@@ -7,5 +7,6 @@ public enum AnalysisWorkflowType {
     COMPUTATION,
     EXTERNAL_RESEARCH,
     FEDERATED_AGENT,
+    DOMAIN_INTELLIGENCE,
     COMPOSITE
 }

@@ -22,6 +22,38 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FederatedAgentAnalysisWorkflowTest {
+    @Test void selectedDomainProviderReceivesInferencePackageMarkerAndPinnedTarget() {
+        java.util.concurrent.atomic.AtomicReference<AgentExecutionRequest> seen = new java.util.concurrent.atomic.AtomicReference<>();
+        ExecutionUnit<AgentExecutionRequest, AgentExecutionOutcome> agent = new ExecutionUnit<>() {
+            @Override public ComputeNodeType nodeType() { return ComputeNodeType.AGENT; }
+            @Override public Class<AgentExecutionRequest> inputType() { return AgentExecutionRequest.class; }
+            @Override public Class<AgentExecutionOutcome> outputType() { return AgentExecutionOutcome.class; }
+            @Override public AgentExecutionOutcome execute(AgentExecutionRequest input, KernelDataScope scope) {
+                seen.set(input);
+                return new AgentExecutionOutcome(null, input.executionId(), "group.agent",
+                    AgentExecutionOutcome.Status.COMPLETED, List.of(new AgentExecutionOutcome.GroundedClaim(
+                        "claim-1", "analysis", List.of("seed"), .9)), List.of(), List.of(), List.of(),
+                    "", "", Map.of(), Map.of());
+            }
+        };
+        var seed = new ProjectedAnalysisEvidence("seed", AnalysisCapability.DOCUMENT_SEARCH,
+            "approved excerpt", Map.of("sourceType", "DocumentAnalysisEvidence"));
+        AnalysisContext context = context()
+            .withAttribute(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE, "group.agent")
+            .withAttribute(AnalysisContext.EVIDENCE_BUNDLE_ATTRIBUTE,
+                new EvidenceBundle(null, List.of(seed), List.of(), Map.of()));
+        var domain = new DomainIntelligenceAnalysisWorkflow(new ComputeNodeRouter(List.of(agent)));
+
+        assertThat(domain.supports(context, context.intent())).isTrue();
+        assertThat(new FederatedAgentAnalysisWorkflow(new ComputeNodeRouter(List.of(agent)))
+            .supports(context, context.intent())).isFalse();
+        assertThat(domain.execute(context, context.kernelScope()).verification().accepted()).isTrue();
+        assertThat(seen.get().metadata()).containsEntry(AgentExecutionRequest.TARGET_AGENT_METADATA_KEY,
+            "group.agent").containsEntry(AgentExecutionRequest.DOMAIN_PACKAGE_METADATA_KEY,
+                "analysis_package.v1");
+        assertThat(seen.get().executionMode()).isEqualTo(AgentExecutionMode.DOMAIN_INFERENCE);
+    }
+
     @Test void collaborationRunsDependentAgentsAndMergesTheirEvidence() {
         java.util.List<AgentExecutionRequest> requests = new java.util.ArrayList<>();
         ExecutionUnit<AgentExecutionRequest, AgentExecutionOutcome> agent = new ExecutionUnit<>() {

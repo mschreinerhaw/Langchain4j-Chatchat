@@ -11,12 +11,18 @@ import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.agent.AgentCollaborationPlan;
+import com.chatchat.common.runtime.agent.AgentDescriptor;
+import com.chatchat.common.runtime.agent.AgentRegistryPort;
+import com.chatchat.common.runtime.capability.CapabilityId;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.net.URI;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +31,50 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentAnalysisControllerTest {
+    @Test void domainAnalysisPinsTenantAdmittedProviderAndPlansEvidenceBeforeInference() {
+        AtomicReference<AnalysisContext> observed = new AtomicReference<>();
+        AnalysisRuntimePort runtime = context -> {
+            observed.set(context);
+            return new AnalysisExecutionOutcome(null, null, null, null, null, "", Map.of());
+        };
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of("requested-doc"), List.of(),
+                List.of("analyst"), true, true);
+        AgentRegistryPort registry = mock(AgentRegistryPort.class);
+        AgentDescriptor provider = new AgentDescriptor("group.analysis", "v1", AgentDescriptor.Origin.GROUP,
+            AgentDescriptor.Protocol.A2A_HTTP_JSON, URI.create("https://group.example/a2a"),
+            Set.of(CapabilityId.parse("finance.analysis.v1")), AgentDescriptor.TrustLevel.GROUP_TRUSTED,
+            AgentDescriptor.DataAccessMode.RUNTIME_MANAGED, Set.of(), Set.of("DocumentAnalysisEvidence",
+                "ToolAnalysisEvidence"), null, "", 50, true,
+            Map.of("allowedTenantIds", List.of("tenant-1"),
+                "supportedExecutionModes", List.of("DOMAIN_INFERENCE")));
+        when(registry.find("group.analysis")).thenReturn(Optional.of(provider));
+        when(registry.list()).thenReturn(List.of(provider));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+        var controller = new AgentAnalysisController(runtime, scopes, registry);
+        controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest("Analyze", "skill-1",
+            "group.analysis", "finance.analysis.v1", List.of("requested-doc"), List.of(),
+            List.of(new AgentAnalysisController.DomainToolCall("market_read", Map.of("symbol", "A"))),
+            null, null, null, null, 2, 60_000L, true), request);
+        assertThat(observed.get().attributes().get(AnalysisContext.DOMAIN_PROVIDER_ATTRIBUTE))
+            .isEqualTo("group.analysis");
+        assertThat(observed.get().attributes().get(AnalysisContext.AGENT_EXECUTION_MODE_ATTRIBUTE))
+            .isEqualTo("DOMAIN_INFERENCE");
+        assertThat(observed.get().intent().requiredCapabilities()).containsExactlyInAnyOrder(
+            AnalysisCapability.DOCUMENT_SEARCH, AnalysisCapability.TOOL_CALL,
+            AnalysisCapability.DOMAIN_INTELLIGENCE);
+        assertThat(observed.get().documentIds()).containsExactly("requested-doc");
+        assertThat(controller.domainProviders(request).getData()).hasSize(1);
+        assertThat(controller.domainResources(new AgentAnalysisController.DomainSkillResourcesRequest(
+            "skill-1", List.of(), List.of()), request).getData()).containsExactly("requested-doc");
+        assertThatThrownBy(() -> controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest(
+            "Analyze", "skill-1", "group.analysis", "finance.analysis.v1", List.of("forbidden-doc"),
+            List.of(), List.of(), null, null, null, null, 2, 60_000L, true), request))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("not authorized");
+    }
+
     @Test void collaborationEndpointBuildsBoundedPlanInsideExistingAnalysisRuntime() {
         AtomicReference<AnalysisContext> observed = new AtomicReference<>();
         AnalysisRuntimePort runtime = context -> {

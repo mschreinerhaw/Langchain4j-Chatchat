@@ -185,7 +185,8 @@ function emptyRemoteForm() {
   return {
     agentId: "", displayName: "", endpoint: "", origin: "GROUP", capabilities: "",
     selectedCapabilities: [], professionalCapabilities: "", selectedDocumentIds: [], selectedSkillIds: [],
-    autoMcp: true, allowDocumentSupplement: false, allowDataSupplement: false,
+    autoMcp: true, selectedMcpToolNames: [], workflowConfig: defaultWorkflowConfig(),
+    allowDocumentSupplement: false, allowDataSupplement: false,
     defaultInstruction: "根据提供的知识和业务数据进行专业分析。所有结论必须基于提供的数据，不允许自行补充未经验证的事实。",
     tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
     supportedExecutionModes: ["DOMAIN_INFERENCE"],
@@ -199,9 +200,6 @@ function remoteSlug(value) {
   return String(value || "agent").toLowerCase().replace(/[^a-z0-9.-]+/g, "-")
     .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "") || "agent";
 }
-
-const remoteDataCategories = ["客户基本信息", "资产数据", "持仓数据", "交易数据", "收益数据", "市场行情"]
-  .map((label, index) => ({ key: String(index), label }));
 
 function fixedRequestParameters(text, format) {
   if (!String(text || "").trim()) return {};
@@ -237,6 +235,9 @@ function fixedRequestParameters(text, format) {
 
 export default {
   name: "AgentWorkshopView",
+  props: {
+    remoteManagement: { type: Boolean, default: false }
+  },
   data() {
     return {
       summary: {},
@@ -260,6 +261,8 @@ export default {
       remotePreview: null,
       remoteSkills: [],
       remoteAgents: [],
+      systemAgentSearch: "",
+      apiExampleAgentId: "",
       remoteDocumentPickerOpen: false,
       remoteSkillPickerOpen: false,
       remoteDocSearch: "",
@@ -270,6 +273,7 @@ export default {
       remoteAdvancedOpen: false,
       documentPickerOpen: false,
       toolPickerOpen: false,
+      remoteToolPickerOpen: false,
       dialogMode: "create",
       activeAgent: null,
       recallConfirmOpen: false,
@@ -320,7 +324,6 @@ export default {
       const session = getStoredAuthSession();
       return String(session?.user?.username || "").toLowerCase() === "admin";
     },
-    remoteDataCategories() { return remoteDataCategories; },
     remoteDocumentOptions() {
       const query = this.remoteDocSearch.toLowerCase();
       return (this.documents || []).filter((item) => item.docId && !item.deletedAt
@@ -385,6 +388,35 @@ export default {
     visibleRemoteAgents() {
       return this.agentPage === 1 ? this.matchingRemoteAgents : [];
     },
+    systemRemoteAgents() {
+      const keyword = this.systemAgentSearch.trim().toLowerCase();
+      return (this.remoteAgents || []).filter((agent) => !keyword || [
+        agent.agentId, agent.metadata?.displayName,
+        ...(agent.metadata?.professionalCapabilities || [])
+      ].filter(Boolean).join(" ").toLowerCase().includes(keyword));
+    },
+    apiExampleAgent() {
+      return this.remoteAgents.find((agent) => agent.agentId === this.apiExampleAgentId) || null;
+    },
+    domainAnalysisApiRequest() {
+      const agent = this.apiExampleAgent;
+      if (!agent) return "";
+      const grants = agent.metadata?.analysisGrants || {};
+      const skillId = grants.skillIds?.[0] || "<已授权 Skill ID>";
+      const documentId = grants.documentIds?.[0] || "<已授权文档 ID>";
+      return JSON.stringify({
+        query: "请根据提供的证据完成专业分析",
+        providerId: agent.agentId,
+        capability: agent.capabilities?.[0]?.namespace
+          ? [agent.capabilities[0].namespace, agent.capabilities[0].name,
+            agent.capabilities[0].version].filter(Boolean).join(".")
+          : (agent.capabilities?.[0] || "<Agent Card 能力 ID>"),
+        skillId,
+        documentIds: [documentId],
+        tools: [],
+        confirmRemoteTransfer: true
+      }, null, 2);
+    },
     selectedAgentCount() {
       return this.selectedAgentIds.length;
     },
@@ -397,6 +429,15 @@ export default {
     },
     selectedToolNames() {
       return parseList(this.form.boundMcpToolNames);
+    },
+    remoteSelectedToolNames() {
+      return uniqueList(this.remoteForm.selectedMcpToolNames || []);
+    },
+    pickerSelectedToolNames() {
+      return this.remoteToolPickerOpen ? this.remoteSelectedToolNames : this.selectedToolNames;
+    },
+    remoteWorkflowSteps() {
+      return Array.isArray(this.remoteForm.workflowConfig?.steps) ? this.remoteForm.workflowConfig.steps : [];
     },
     selectedDocumentIds() {
       return parseList(this.form.boundDocumentIds);
@@ -554,7 +595,7 @@ export default {
       });
     },
     mcpToolGroups() {
-      const selected = new Set(this.selectedToolNames);
+      const selected = new Set(this.pickerSelectedToolNames);
       const groups = new Map();
       this.filteredMcpTools.forEach((tool) => {
         const group = this.resolveToolGroup(tool);
@@ -605,7 +646,7 @@ export default {
       }
       const filteredCount = this.filteredMcpTools.length;
       const totalCount = this.normalizedMcpTools.length;
-      return `已勾选 ${this.selectedToolNames.length} / ${totalCount}，当前 ${filteredCount} 个`;
+      return `已勾选 ${this.pickerSelectedToolNames.length} / ${totalCount}，当前 ${filteredCount} 个`;
     },
     mcpToolGroupSummary() {
       if (!this.filteredMcpTools.length) {
@@ -1014,6 +1055,7 @@ export default {
       this.remoteError = "";
       this.remoteDiagnostic = "";
       this.remoteAdvancedOpen = false;
+      this.remoteToolPickerOpen = false;
       this.remoteDialogOpen = true;
       await this.searchRemoteSkills();
     },
@@ -1062,12 +1104,16 @@ export default {
       const bodyParameters = fixedRequestParameters(form.requestBodyParameters, "body");
       const selectedDocuments = form.selectedDocumentIds || [];
       const selectedSkills = form.selectedSkillIds || [];
-      const selectedTools = this.remoteSelectedToolNames?.() || form.selectedMcpToolNames || [];
+      const selectedTools = uniqueList(form.selectedMcpToolNames || []);
+      const workflowConfig = this.normalizeWorkflowConfig?.(form.workflowConfig, selectedTools)
+        || { ...defaultWorkflowConfig(), ...(form.workflowConfig || {}),
+          steps: selectedTools.map((tool, index) => ({ step: index + 1, tool })) };
+      workflowConfig.enabled = Boolean(form.autoMcp && selectedTools.length && workflowConfig.enabled);
       const explicitGrants = Array.isArray(form.selectedDocumentIds)
         || Array.isArray(form.selectedSkillIds) || Array.isArray(form.selectedMcpToolNames);
       const evidenceTypes = explicitGrants ? [
         ...(selectedDocuments.length || selectedSkills.length ? ["DocumentAnalysisEvidence"] : []),
-        ...(form.autoMcp || selectedTools.length ? ["ToolAnalysisEvidence"] : []),
+        ...(selectedTools.length ? ["ToolAnalysisEvidence"] : []),
         ...(form.allowDataSupplement ? ["StructuredDataEvidence"] : [])
       ] : parseList(form.evidenceTypes);
       return {
@@ -1088,7 +1134,8 @@ export default {
             ? ["STRUCTURED_DATA"] : [],
           ...(explicitGrants ? { analysisGrants: {
             documentIds: selectedDocuments, skillIds: selectedSkills,
-            mcpToolNames: selectedTools, mcpRoleGoverned: Boolean(form.autoMcp),
+            mcpToolNames: selectedTools, mcpRoleGoverned: false,
+            mcpWorkflowConfig: workflowConfig,
             allowDocumentSupplement: Boolean(form.allowDocumentSupplement),
             allowDataSupplement: Boolean(form.allowDataSupplement),
             defaultInstruction: String(form.defaultInstruction || "").trim()
@@ -1159,8 +1206,11 @@ export default {
           throw new Error("请填写至少一项专业能力描述");
         if (!(this.remoteForm.selectedSkillIds || []).length)
           throw new Error("请至少选择一个已发布的知识 Skill");
+        if (this.normalizeWorkflowConfig) this.remoteForm.workflowConfig = this.normalizeWorkflowConfig(
+          this.remoteForm.workflowConfig, uniqueList(this.remoteForm.selectedMcpToolNames || []));
         await registerRemoteAgent(this.remoteDescriptor());
         this.remoteDialogOpen = false;
+        this.remoteToolPickerOpen = false;
         await this.loadRemoteAgents();
       } catch (error) { this.remoteError = error.message || "远程 Agent 接入失败"; }
       finally { this.remoteBusy = false; }
@@ -1187,8 +1237,15 @@ export default {
       this.documentPickerOpen = false;
       this.toolPickerOpen = true;
     },
+    openRemoteToolPicker() {
+      this.remoteToolPickerOpen = true;
+      this.toolPickerOpen = true;
+      this.toolSearchQuery = "";
+      this.toolBackendServiceTypeFilter = "all";
+    },
     closeToolPicker() {
       this.toolPickerOpen = false;
+      this.remoteToolPickerOpen = false;
     },
     agentToForm(agent) {
       return {
@@ -1799,6 +1856,33 @@ export default {
     syncWorkflowSteps(selectedToolNames = this.selectedToolNames) {
       this.form.workflowConfig = this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
     },
+    syncRemoteWorkflowSteps() {
+      this.remoteForm.workflowConfig = this.normalizeWorkflowConfig(
+        this.remoteForm.workflowConfig, this.remoteSelectedToolNames);
+    },
+    moveRemoteWorkflowStep(index, delta) {
+      const steps = [...this.remoteWorkflowSteps];
+      const nextIndex = index + delta;
+      if (nextIndex < 0 || nextIndex >= steps.length) return;
+      const [step] = steps.splice(index, 1);
+      steps.splice(nextIndex, 0, step);
+      this.remoteForm.selectedMcpToolNames = steps.map((item) => item.tool);
+      this.remoteForm.workflowConfig.steps = steps;
+      this.syncRemoteWorkflowSteps();
+    },
+    availableRemoteWorkflowDependencies(step) {
+      const selected = new Set(this.workflowStepDependencies(step));
+      return this.remoteSelectedToolNames.filter((name) => name !== step.tool && !selected.has(name));
+    },
+    addRemoteWorkflowDependency(step, name) {
+      if (!step || !name || name === step.tool) return;
+      step.dependsOn = uniqueList([...this.workflowStepDependencies(step), name]);
+      this.syncRemoteWorkflowSteps();
+    },
+    removeRemoteWorkflowDependency(step, name) {
+      step.dependsOn = this.workflowStepDependencies(step).filter((value) => value !== name);
+      this.syncRemoteWorkflowSteps();
+    },
     moveWorkflowStep(index, delta) {
       const steps = [...this.workflowSteps];
       const nextIndex = index + delta;
@@ -2054,14 +2138,19 @@ export default {
       }
     },
     toggleTool(toolName) {
-      const selected = new Set(this.selectedToolNames);
+      const selected = new Set(this.pickerSelectedToolNames);
       if (selected.has(toolName)) {
         selected.delete(toolName);
       } else {
         selected.add(toolName);
       }
-      this.form.boundMcpToolNames = [...selected].sort().join("\n");
-      this.syncWorkflowSteps([...selected].sort());
+      if (this.remoteToolPickerOpen) {
+        this.remoteForm.selectedMcpToolNames = [...selected];
+        this.syncRemoteWorkflowSteps();
+      } else {
+        this.form.boundMcpToolNames = [...selected].sort().join("\n");
+        this.syncWorkflowSteps([...selected].sort());
+      }
     },
     toggleDocument(resource) {
       const document = typeof resource === "string"
@@ -2094,17 +2183,22 @@ export default {
       this.documentTypeFilter = "all";
     },
     clearSelectedTools() {
-      this.form.boundMcpToolNames = "";
-      this.syncWorkflowSteps([]);
+      if (this.remoteToolPickerOpen) {
+        this.remoteForm.selectedMcpToolNames = [];
+        this.syncRemoteWorkflowSteps();
+      } else {
+        this.form.boundMcpToolNames = "";
+        this.syncWorkflowSteps([]);
+      }
     },
     isToolGroupFullySelected(group) {
-      return group?.tools?.length && group.tools.every((tool) => this.selectedToolNames.includes(tool.localToolName));
+      return group?.tools?.length && group.tools.every((tool) => this.pickerSelectedToolNames.includes(tool.localToolName));
     },
     toggleToolGroup(group) {
       if (!group?.tools?.length) {
         return;
       }
-      const selected = new Set(this.selectedToolNames);
+      const selected = new Set(this.pickerSelectedToolNames);
       const allSelected = group.tools.every((tool) => selected.has(tool.localToolName));
       group.tools.forEach((tool) => {
         if (allSelected) {
@@ -2113,8 +2207,13 @@ export default {
           selected.add(tool.localToolName);
         }
       });
-      this.form.boundMcpToolNames = [...selected].sort().join("\n");
-      this.syncWorkflowSteps([...selected].sort());
+      if (this.remoteToolPickerOpen) {
+        this.remoteForm.selectedMcpToolNames = [...selected];
+        this.syncRemoteWorkflowSteps();
+      } else {
+        this.form.boundMcpToolNames = [...selected].sort().join("\n");
+        this.syncWorkflowSteps([...selected].sort());
+      }
     },
     defaultModelName() {
       return this.backendDefaultModelName

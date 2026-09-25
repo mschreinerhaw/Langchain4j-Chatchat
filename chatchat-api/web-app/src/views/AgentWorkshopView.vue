@@ -1,5 +1,32 @@
 ﻿<template>
   <section class="feature-view skill-hub-view agent-workshop-view">
+    <template v-if="remoteManagement">
+      <header class="agent-workshop-header"><div><p>系统管理 · 专有分析 Agent</p></div></header>
+      <section class="agent-list-controls">
+        <header><div><strong>专有分析 Agent 接入</strong><span>{{ remoteAgents.length }} 个已登记</span></div><div class="agent-light-actions"><button v-if="isPlatformAdmin" type="button" class="primary-button" @click="openRemoteDialog">接入专有分析 Agent</button><button type="button" class="light-button" @click="refreshAgentList">刷新</button></div></header>
+        <p>登记集团或第三方专业分析算力。Runtime 准备已授权的知识与数据，远端 Agent 只接收经确认的证据并返回分析结果。</p>
+        <div class="agent-list-filters"><label class="agent-search-field"><span>检索已接入 Agent</span><input v-model.trim="systemAgentSearch" type="search" placeholder="名称、专业能力或标识"></label></div>
+      </section>
+      <p v-if="!isPlatformAdmin" class="agent-empty">仅平台管理员可以管理专有分析 Agent。</p>
+      <p v-else-if="!systemRemoteAgents.length" class="agent-empty">{{ remoteAgents.length ? '没有匹配的 Agent。' : '尚未接入专有分析 Agent。' }}</p>
+      <div v-else class="feature-grid">
+        <article v-for="agent in systemRemoteAgents" :key="agent.agentId" class="feature-card agent-card remote-agent-card">
+          <span class="remote-card-source">专有分析算力</span>
+          <div class="agent-card-head"><span>专</span><div><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }}</small></div><strong :class="{ off: !agent.enabled }">{{ agent.enabled ? '已接入' : '已停用' }}</strong></div>
+          <p>{{ agent.metadata?.professionalCapabilities?.join('、') || '尚未填写专业能力描述。' }}</p>
+          <dl class="agent-meta"><div><dt>Skill</dt><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div><div><dt>文档</dt><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div><div><dt>MCP</dt><dd>{{ agent.metadata?.analysisGrants?.mcpToolNames?.length || 0 }} 个</dd></div></dl>
+          <div class="agent-card-actions"><button type="button" class="secondary-button" @click="apiExampleAgentId = agent.agentId">查看分析 API</button><button type="button" class="secondary-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button></div>
+        </article>
+      </div>
+      <section v-if="apiExampleAgent" class="agent-list-controls" aria-label="专有分析 API 调用方式">
+        <header><div><strong>{{ apiExampleAgent.metadata?.displayName || apiExampleAgent.agentId }} · 分析 API</strong><span>同步返回分析结果</span></div><button type="button" class="light-button" @click="apiExampleAgentId = ''">收起</button></header>
+        <p><code>POST /api/v1/agent/analysis/domain-intelligence</code></p>
+        <p>请求头：<code>Authorization: Bearer &lt;登录会话令牌&gt;</code>，<code>Content-Type: application/json</code>。使用有权访问所选 Skill 和证据的账号；Agent API Token 不能调用此接口。</p>
+        <pre class="remote-api-example">{{ domainAnalysisApiRequest }}</pre>
+        <p>响应中的 <code>data.synthesis</code> 为分析文本，<code>data.verification</code> 为校验信息。示例里的 Skill、文档和工具均须在调用者与该 Agent 的授权范围内；如果没有可用文档，请改为提供已授权的只读 MCP 工具证据。</p>
+      </section>
+    </template>
+    <template v-else>
     <header class="agent-workshop-header">
       <div>
         <p>Agent管理</p>
@@ -9,7 +36,7 @@
     <section class="agent-summary">
       <article>
         <span>Agent总数</span>
-        <strong>{{ (summary.agentCount || 0) + remoteAgents.length }}</strong>
+        <strong>{{ summary.agentCount || 0 }}</strong>
       </article>
       <article>
         <span>自定义</span>
@@ -37,11 +64,10 @@
       <header>
         <div>
           <strong>Agent列表</strong>
-          <span>{{ agentTotal + matchingRemoteAgents.length }} / {{ (summary.agentCount || 0) + remoteAgents.length }} 个</span>
+          <span>{{ agentTotal }} / {{ summary.agentCount || 0 }} 个</span>
         </div>
         <div class="agent-light-actions">
           <button type="button" class="primary-button" @click="openCreateDialog">新增Agent</button>
-          <button v-if="isPlatformAdmin" type="button" class="light-button" @click="openRemoteDialog">接入专有分析 Agent</button>
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
           <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
             导出已选JSON（{{ selectedAgentCount }}）
@@ -95,26 +121,10 @@
 
     <p v-if="error" class="agent-error">{{ error }}</p>
     <p v-else-if="loading && agents.length === 0" class="agent-empty">正在加载后端Agent配置...</p>
-    <p v-else-if="(summary.agentCount || 0) + remoteAgents.length === 0" class="agent-empty">暂无Agent配置，请先新增或接入一个。</p>
-    <p v-else-if="agentTotal + matchingRemoteAgents.length === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
+    <p v-else-if="(summary.agentCount || 0) === 0" class="agent-empty">暂无Agent配置，请先新增一个。</p>
+    <p v-else-if="agentTotal === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
 
     <div v-else class="feature-grid">
-      <article v-for="agent in visibleRemoteAgents" :key="`remote:${agent.agentId}`" class="feature-card agent-card remote-agent-card">
-        <span class="remote-card-source">专有分析算力</span>
-        <div class="agent-card-head">
-          <span>专</span>
-          <div><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }}</small></div>
-          <strong :class="{ off: !agent.enabled }">{{ agent.enabled ? '已接入' : '已停用' }}</strong>
-        </div>
-        <p>{{ agent.metadata?.professionalCapabilities?.join('、') || '尚未填写专业能力描述。' }}</p>
-        <dl class="agent-meta">
-          <div><dt>模式</dt><dd>专有分析</dd></div>
-          <div><dt>Skill</dt><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div>
-          <div><dt>文档</dt><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div>
-          <div><dt>MCP</dt><dd>{{ agent.metadata?.analysisGrants?.mcpRoleGoverned ? '角色授权' : '固定范围' }}</dd></div>
-        </dl>
-        <div class="agent-card-actions"><button type="button" class="secondary-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button></div>
-      </article>
       <article
         v-for="agent in paginatedAgents"
         :key="agent.id"
@@ -264,6 +274,8 @@
         </button>
       </div>
     </nav>
+
+    </template>
 
     <div v-if="curlExampleOpen" class="agent-dialog-backdrop">
       <section class="agent-dialog agent-curl-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-curl-title">
@@ -517,25 +529,36 @@
             <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowDocumentSupplement" type="checkbox"><span>资料不足时，允许 Runtime 查询其他已授权文档</span></label>
           </section>
           <section class="remote-step">
-            <h3><span>4</span> 允许使用的数据能力</h3>
-            <p>数据能力在 MCP 服务与资源授权中按角色配置，这里不再重复勾选。Runtime 只会使用当前调用用户有权访问的数据。</p>
-            <div class="remote-data-grid" aria-label="可能的数据类型示例"><span v-for="category in remoteDataCategories" :key="category.key" class="remote-data-example">{{ category.label }}</span></div>
-            <small class="remote-hint">以上是数据类型示例，不表示当前用户已获授权。</small>
-            <button type="button" class="remote-advanced-toggle" @click="remoteDialogOpen = false; $emit('navigate', 'systemResources')">查看角色与数据来源授权 →</button>
-          </section>
-          <section class="remote-step">
-            <h3><span>5</span> MCP 工具</h3>
+            <h3><span>4</span> MCP 工具</h3>
             <div class="agent-resource-selector">
-              <div class="agent-resource-selector-copy"><strong>已注册 MCP 工具</strong><span>由 MCP 服务、所选 Skill 和调用用户角色共同决定，不在此处授予工具权限。</span></div>
-              <div class="agent-resource-selector-action"><span class="is-selected">角色授权</span><button type="button" class="agent-picker-text-button" @click="remoteDialogOpen = false; $emit('navigate', 'systemResources')">查看授权 <span aria-hidden="true">›</span></button></div>
+              <div class="agent-resource-selector-copy"><strong>已注册 MCP 工具</strong><span>选择 Runtime 为分析准备证据时可编排的工具；实际调用仍受 Skill 和角色授权约束。</span></div>
+              <div class="agent-resource-selector-action"><span :class="{ 'is-selected': remoteSelectedToolNames.length }">{{ remoteSelectedToolNames.length ? `已选 ${remoteSelectedToolNames.length} 个工具` : '未选择工具' }}</span><button type="button" class="agent-picker-text-button" @click="openRemoteToolPicker">{{ remoteSelectedToolNames.length ? '调整选择' : '选择工具' }} <span aria-hidden="true">›</span></button></div>
             </div>
-            <div class="agent-workflow-builder remote-mcp-workflow">
-              <div class="agent-tool-picker-head"><div><strong>MCP 工具编排</strong><span>Runtime 根据已授权数据准备证据，远端 Agent 不直接访问本地工具。</span></div><label class="workflow-enable"><input v-model="remoteForm.autoMcp" type="checkbox"><span>启用</span></label></div>
-              <span class="remote-hint">工具执行仍受只读策略、Skill 绑定和当前调用用户权限控制。</span>
+            <div v-if="remoteSelectedToolNames.length" class="agent-workflow-builder remote-mcp-workflow">
+              <div class="agent-tool-picker-head"><div><strong>MCP 工具编排</strong><span>由 Runtime 按步骤准备证据，远端 Agent 不直接调用工具。</span></div><label class="workflow-enable"><input v-model="remoteForm.autoMcp" type="checkbox"><span>启用</span></label></div>
+              <div v-if="remoteForm.autoMcp" class="workflow-strategy">
+                <label><span>执行模式</span><select v-model="remoteForm.workflowConfig.executionStrategy.mode"><option value="sequential">顺序执行</option><option value="hybrid">混合执行</option><option value="parallel">并行优先</option></select></label>
+                <label><span>最大步骤（上限）</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.maxSteps" type="number" min="1" max="50"></label>
+                <label><span>成本预算上限（额度）</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.costBudget" type="number" min="0" max="1000000" step="0.1"></label>
+                <label><span>时延预算上限（毫秒）</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.latencyBudgetMs" type="number" min="1000" max="3600000" step="1000"></label>
+                <label><span>工具失败重试次数</span><input v-model.number="remoteForm.workflowConfig.executionStrategy.toolRetryAttempts" type="number" min="0" max="5"></label>
+                <label class="checkbox-row"><input v-model="remoteForm.workflowConfig.executionStrategy.stopOnError" type="checkbox"><span>失败后停止</span></label>
+                <label class="checkbox-row"><input v-model="remoteForm.workflowConfig.executionStrategy.allowParallel" type="checkbox"><span>允许并行</span></label>
+              </div>
+              <div v-if="remoteForm.autoMcp" class="workflow-step-list">
+                <article v-for="(step, index) in remoteWorkflowSteps" :key="step.tool" class="workflow-step-row">
+                  <div class="workflow-step-order"><strong>{{ index + 1 }}</strong><div><button type="button" :disabled="index === 0" title="上移" @click="moveRemoteWorkflowStep(index, -1)">↑</button><button type="button" :disabled="index === remoteWorkflowSteps.length - 1" title="下移" @click="moveRemoteWorkflowStep(index, 1)">↓</button></div></div>
+                  <div class="workflow-step-main"><header><strong>{{ step.tool }}</strong><label><input v-model="step.required" type="checkbox"><span>必需</span></label></header>
+                    <div class="workflow-step-controls"><label><span>确认策略</span><select v-model="step.confirmation"><option value="inherit_policy">继承策略</option><option value="auto_execute">自动执行</option><option value="ask_before_execute">执行前确认</option><option value="deny">禁止执行</option></select></label><label><span>条件表达式</span><input v-model.trim="step.condition" placeholder="例如 asset_total &gt; 1000000"></label></div>
+                    <div v-if="remoteSelectedToolNames.length > 1" class="workflow-dependencies"><span>前置依赖</span><div class="workflow-dependency-picker"><select value="" @change="addRemoteWorkflowDependency(step, $event.target.value); $event.target.value = ''"><option value="">选择前置依赖</option><option v-for="name in availableRemoteWorkflowDependencies(step)" :key="`${step.tool}-${name}`" :value="name">{{ name }}</option></select><div v-if="workflowStepDependencies(step).length" class="workflow-dependency-tags"><button v-for="name in workflowStepDependencies(step)" :key="`${step.tool}-${name}-dependency`" type="button" title="移除前置依赖" @click="removeRemoteWorkflowDependency(step, name)"><span>{{ name }}</span><strong>x</strong></button></div></div></div>
+                  </div>
+                </article>
+              </div>
+              <span class="remote-hint">工具执行仍受只读策略、Skill 绑定和调用用户权限控制。</span>
             </div>
           </section>
           <section class="remote-step">
-            <h3><span>6</span> 默认分析要求</h3>
+            <h3><span>5</span> 默认分析要求</h3>
             <textarea v-model.trim="remoteForm.defaultInstruction" rows="4" maxlength="1000" aria-label="默认分析要求"></textarea>
           </section>
           <p v-if="remoteError" class="agent-error" role="alert">{{ remoteError }}</p>
@@ -562,7 +585,7 @@
           <section v-if="dialogMode === 'create'" class="wide-field">
             <strong>选择算力来源</strong>
             <p>当前创建自研 Agent，可组合 Workflow、Skills 与知识证据；集团或第三方 Agent 通过 A2A 接入，由 Runtime 管理数据边界与补证。</p>
-            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; openRemoteDialog()">切换到接入专有分析 Agent</button>
+            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; $emit('navigate', 'systemAgents')">前往系统管理接入专有分析 Agent</button>
           </section>
           <label>
             <span>Agent ID</span>
@@ -874,7 +897,7 @@
         >
           <header>
             <div>
-              <p>Agent 设置</p>
+              <p>{{ remoteToolPickerOpen ? '专有分析 Agent' : 'Agent 设置' }}</p>
               <h2 id="agent-document-picker-title">选择文档</h2>
               <span>知识文档与已发布领域技能分开绑定，选择会在保存 Agent 后生效。</span>
             </div>
@@ -1022,12 +1045,12 @@
                     v-for="tool in group.tools"
                     :key="tool.localToolName"
                     class="agent-tool-check"
-                    :class="{ active: selectedToolNames.includes(tool.localToolName) }"
+                    :class="{ active: pickerSelectedToolNames.includes(tool.localToolName) }"
                     :title="applicabilityTooltip(tool)"
                   >
                     <input
                       type="checkbox"
-                      :checked="selectedToolNames.includes(tool.localToolName)"
+                      :checked="pickerSelectedToolNames.includes(tool.localToolName)"
                       @change="toggleTool(tool.localToolName)"
                     >
                     <span>
@@ -1052,7 +1075,7 @@
 
           <footer>
             <button
-              v-if="selectedToolNames.length"
+              v-if="pickerSelectedToolNames.length"
               type="button"
               class="agent-resource-clear-button"
               @click="clearSelectedTools"
@@ -1061,7 +1084,7 @@
             </button>
             <span v-else></span>
             <button type="button" class="primary-button" @click="closeToolPicker">
-              完成（已选 {{ selectedToolNames.length }} 个）
+              完成（已选 {{ pickerSelectedToolNames.length }} 个）
             </button>
           </footer>
         </section>

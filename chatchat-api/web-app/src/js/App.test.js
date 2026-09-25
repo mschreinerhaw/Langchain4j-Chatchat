@@ -130,9 +130,13 @@ describe("document Ask AI conversation isolation", () => {
       "systemUsers",
       "systemRoles",
       "systemLogins",
-      "systemResources"
+      "systemResources",
+      "systemAgents"
     ]);
     expect(system.children.every((item) => item.permissionCode === "system")).toBe(true);
+
+    expect(App.computed.activeComponentProps.call({ activeView: "systemAgents",
+      userId: "user-1", tenantId: "tenant-1" }).remoteManagement).toBe(true);
 
     for (const child of system.children) {
       expect(App.methods.canAccessView.call({ hasPermission: (permission) => permission === "system" }, child.id)).toBe(true);

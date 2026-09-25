@@ -2739,6 +2739,17 @@
 .agent-workshop-view .remote-grant-section .agent-resource-selector { min-height: 70px; }
 .agent-workshop-view .remote-grant-section .agent-document-checklist { grid-template-columns: 1fr; }
 .agent-workshop-view .remote-mcp-workflow { margin-top: 12px; }
+.agent-workshop-view .remote-api-example {
+  margin: 12px 0;
+  padding: 16px;
+  overflow-x: auto;
+  border: 1px solid #dce5f4;
+  border-radius: 12px;
+  background: #f7faff;
+  color: #1d2b44;
+  font-size: 13px;
+  line-height: 1.6;
+}
 .agent-workshop-view .remote-selected-list { display: grid; gap: 5px; color: #226e4b; font-size: 12px; }
 .agent-workshop-view .remote-selected-list small { color: var(--muted); }
 .agent-workshop-view .remote-picker-panel {

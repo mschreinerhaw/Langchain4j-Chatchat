@@ -100,6 +100,7 @@ const VIEW_PERMISSIONS = {
   systemRoles: "system",
   systemLogins: "system",
   systemResources: "system",
+  systemAgents: "system",
   models: "platform:models"
 };
 
@@ -128,6 +129,7 @@ const views = {
   systemRoles: SystemRolesView,
   systemLogins: SystemLoginAuditView,
   systemResources: SystemResourceAuthorizationView,
+  systemAgents: AgentWorkshopView,
   models: ModelManagementView
 };
 
@@ -252,7 +254,8 @@ export default {
                 { id: "systemUsers", label: "用户管理", icon: "users", permissionCode: "system" },
                 { id: "systemRoles", label: "角色管理", icon: "shield", permissionCode: "system" },
                 { id: "systemLogins", label: "登录审计", icon: "schedule", permissionCode: "system" },
-                { id: "systemResources", label: "资源授权", icon: "key", permissionCode: "system" }
+                { id: "systemResources", label: "资源授权", icon: "key", permissionCode: "system" },
+                { id: "systemAgents", label: "专有分析 Agent", icon: "agent", permissionCode: "system" }
               ]
             }
           ]
@@ -294,6 +297,7 @@ export default {
               ? { initialTab: DATA_SCIENCE_TABS[this.activeView] }
               : {}),
             ...(this.activeView === "tasks" ? { tenantName: this.tenantName } : {}),
+            ...(this.activeView === "systemAgents" ? { remoteManagement: true } : {}),
             pendingDocumentShortcut: this.activeView === "search" ? this.pendingDocumentShortcut : null
           };
     },

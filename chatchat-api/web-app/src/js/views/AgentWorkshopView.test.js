@@ -27,11 +27,47 @@ vi.mock("../../services/api.js", () => ({
 import AgentWorkshopView from "./AgentWorkshopView.js";
 
 describe("AgentWorkshopView remote compute registration", () => {
-  it("places remote Agent access in the same toolbar and card grid as new Agents", () => {
+  it("removes the data-capability section and reuses the MCP picker and workflow builder", () => {
     const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
-    const controls = template.split('<section class="agent-list-controls">')[1].split('</section>')[0];
-    expect(controls).toContain('@click="openCreateDialog"');
-    expect(controls).toContain('@click="openRemoteDialog"');
+    const registration = template.split('<form class="agent-dialog remote-agent-dialog"')[1]
+      .split('<div v-if="dialogOpen"')[0];
+    expect(registration).not.toContain("允许使用的数据能力");
+    expect(registration).toContain('@click="openRemoteToolPicker"');
+    expect(registration).toContain('v-for="(step, index) in remoteWorkflowSteps"');
+    expect(template).toContain('pickerSelectedToolNames.includes(tool.localToolName)');
+  });
+
+  it("keeps the remote MCP selection separate from local Agent tool bindings", () => {
+    const context = {
+      remoteToolPickerOpen: true,
+      pickerSelectedToolNames: [],
+      remoteForm: { selectedMcpToolNames: [] },
+      form: { boundMcpToolNames: "local_tool" },
+      syncRemoteWorkflowSteps: vi.fn()
+    };
+    AgentWorkshopView.methods.toggleTool.call(context, "position_query");
+    expect(context.remoteForm.selectedMcpToolNames).toEqual(["position_query"]);
+    expect(context.form.boundMcpToolNames).toBe("local_tool");
+    expect(context.syncRemoteWorkflowSteps).toHaveBeenCalledOnce();
+  });
+
+  it("builds a scoped external analysis request for a registered Agent", () => {
+    const agent = { agentId: "group.risk", capabilities: [
+      { namespace: "finance", name: "risk", version: "v1" }
+    ], metadata: { analysisGrants: { skillIds: ["risk-skill"], documentIds: ["doc-1"] } } };
+    const request = JSON.parse(AgentWorkshopView.computed.domainAnalysisApiRequest.call({ apiExampleAgent: agent }));
+    expect(request).toMatchObject({ providerId: "group.risk", capability: "finance.risk.v1",
+      skillId: "risk-skill", documentIds: ["doc-1"], confirmRemoteTransfer: true });
+  });
+  it("places remote Agent registration under system management and keeps local creation separate", () => {
+    const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
+    const management = template.split('<template v-if="remoteManagement">')[1].split('<template v-else>')[0];
+    const workshop = template.split('<template v-else>')[1].split('<div v-if="curlExampleOpen"')[0];
+    expect(management).toContain('@click="openRemoteDialog"');
+    expect(management).toContain("POST /api/v1/agent/analysis/domain-intelligence");
+    expect(management).toContain("Agent API Token 不能调用此接口");
+    expect(workshop).toContain('@click="openCreateDialog"');
+    expect(workshop).not.toContain('@click="openRemoteDialog"');
     expect(template).toContain('class="feature-card agent-card remote-agent-card"');
     expect(template).not.toContain('class="remote-registered-list"');
   });
@@ -64,8 +100,8 @@ describe("AgentWorkshopView remote compute registration", () => {
     const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({ remoteForm, remotePreview: { version: "v1" } });
     expect(descriptor.capabilities).toEqual([{ namespace: "finance", name: "research", version: "v1" }]);
     expect(descriptor.metadata.professionalCapabilities).toEqual(["Portfolio analysis", "Risk attribution"]);
-    expect(descriptor.metadata.analysisGrants).toMatchObject({ mcpToolNames: [], mcpRoleGoverned: true });
-    expect(descriptor.allowedEvidenceTypes).toContain("ToolAnalysisEvidence");
+    expect(descriptor.metadata.analysisGrants).toMatchObject({ mcpToolNames: [], mcpRoleGoverned: false });
+    expect(descriptor.allowedEvidenceTypes).not.toContain("ToolAnalysisEvidence");
   });
 
   it("does not expose runtime identifiers or evidence codes in the connection form", () => {
@@ -116,7 +152,7 @@ describe("AgentWorkshopView remote compute registration", () => {
       origin: "GROUP", capabilities: "finance.portfolio.v1\nfinance.risk.v1",
       selectedCapabilities: ["finance.risk.v1"], selectedDocumentIds: ["doc-1"],
       selectedSkillIds: ["investment-skill"], selectedDataCapabilities: ["position"],
-      selectedMcpToolNames: [], autoMcp: true, allowDataSupplement: false,
+      selectedMcpToolNames: ["position_query"], autoMcp: true, allowDataSupplement: false,
       allowDocumentSupplement: false, allowMcpSupplement: true,
       defaultInstruction: "只根据证据分析", tenantIds: "tenant-1", dataDomains: "",
       supportedExecutionModes: ["DOMAIN_INFERENCE"], supplementSkillTypes: "",
@@ -125,11 +161,13 @@ describe("AgentWorkshopView remote compute registration", () => {
       priority: 50, slaLatencyMs: 10000
     };
     const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({ remoteForm,
-      remotePreview: { version: "v1" }, remoteSelectedToolNames: () => ["position_query"] });
+      remotePreview: { version: "v1" } });
     expect(descriptor.capabilities).toEqual([{ namespace: "finance", name: "risk", version: "v1" }]);
     expect(descriptor.allowedEvidenceTypes).toEqual(["DocumentAnalysisEvidence", "ToolAnalysisEvidence"]);
     expect(descriptor.metadata.analysisGrants).toMatchObject({ skillIds: ["investment-skill"],
       documentIds: ["doc-1"], mcpToolNames: ["position_query"], defaultInstruction: "只根据证据分析" });
+    expect(descriptor.metadata.analysisGrants.mcpRoleGoverned).toBe(false);
+    expect(descriptor.metadata.analysisGrants.mcpWorkflowConfig.steps[0].tool).toBe("position_query");
   });
   it("keeps A2A credentials as references and exposes explicit evidence grants", () => {
     const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({

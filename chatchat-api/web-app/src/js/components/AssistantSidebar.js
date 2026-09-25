@@ -137,7 +137,8 @@ export default {
         platform: true
       },
       collapsedNavItems: {
-        dataScience: true
+        dataScience: true,
+        system: true
       },
       agentRuntimeLogo: "/lingdong-insight-logo.svg",
       historyKeyword: "",

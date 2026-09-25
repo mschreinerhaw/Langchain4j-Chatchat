@@ -235,6 +235,10 @@ function fixedRequestParameters(text, format) {
 
 export default {
   name: "AgentWorkshopView",
+  props: {
+    analysisAvailable: { type: Boolean, default: false },
+    chatAvailable: { type: Boolean, default: false }
+  },
   data() {
     return {
       summary: {},

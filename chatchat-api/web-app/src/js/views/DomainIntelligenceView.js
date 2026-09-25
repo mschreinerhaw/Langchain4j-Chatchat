@@ -4,9 +4,13 @@ import "../../styles/pages/domain-intelligence.css";
 
 export default {
   name: "DomainIntelligenceView",
+  props: {
+    initialProviderSelection: { type: Object, default: null }
+  },
   data() {
     return {
       loading: false, running: false, error: "", result: null, skillSearch: "",
+      appliedProviderRequestId: null,
       providers: [], skills: [], toolCatalog: [], documentsBySkill: {}, advancedOpen: false,
       form: {
         providerId: "", capability: "", skillId: "", skillIds: [], query: "",
@@ -18,6 +22,11 @@ export default {
   },
   computed: {
     selectedProvider() { return this.providers.find((item) => item.providerId === this.form.providerId) || null; },
+    selectedEvidenceCount() {
+      return (this.form.skillIds || []).reduce((count, skillId) =>
+        count + (this.form.documentsBySkill?.[skillId]?.length || 0), 0) + this.form.selectedTools.length
+        + (this.form.dataTemplateId?.trim() ? 1 : 0);
+    },
     selectableSkills() {
       const provider = this.selectedProvider;
       return provider?.grantRestricted
@@ -41,8 +50,38 @@ export default {
       });
     }
   },
+  watch: {
+    initialProviderSelection(selection) { this.applyProviderSelection(selection); }
+  },
   mounted() { this.loadOptions(); },
   methods: {
+    providerKindLabel(provider) {
+      if (provider?.kind === "GENERAL_LLM") return "通用模型";
+      if (provider?.origin === "GROUP") return "集团 Agent";
+      if (provider?.origin === "EXTERNAL") return "第三方 Agent";
+      return "分析算力";
+    },
+    selectProvider(providerId) {
+      if (this.form.providerId === providerId) return;
+      this.error = "";
+      this.form.providerId = providerId;
+      this.changeProvider();
+    },
+    applyProviderSelection(selection) {
+      if (!selection?.providerId) return;
+      const requestId = selection.requestId ?? selection.providerId;
+      if (this.appliedProviderRequestId === requestId) return;
+      const provider = this.providers.find((item) => item.providerId === selection.providerId);
+      if (!provider) return;
+      this.form.skillIds = [];
+      this.form.providerId = provider.providerId;
+      this.changeProvider();
+      if (!this.form.skillIds.length && this.selectableSkills.length) {
+        this.form.skillIds = [this.selectableSkills[0].value];
+        this.changeSkills();
+      }
+      this.appliedProviderRequestId = requestId;
+    },
     async loadOptions() {
       this.loading = true;
       this.error = "";
@@ -57,6 +96,11 @@ export default {
         const selected = this.selectedSkills.filter((item) => !found.some((next) => next.value === item.value));
         this.skills = [...selected, ...found];
         this.toolCatalog = Array.isArray(tools) ? tools : [];
+        this.applyProviderSelection(this.initialProviderSelection);
+        if (this.initialProviderSelection?.providerId
+          && !this.providers.some((item) => item.providerId === this.initialProviderSelection.providerId)) {
+          this.error = "所选 Agent 当前未向此账号开放分析能力，请联系管理员检查租户和资源授权。";
+        }
       } catch (error) { this.error = error.message || "可用能力加载失败"; }
       finally { this.loading = false; }
     },

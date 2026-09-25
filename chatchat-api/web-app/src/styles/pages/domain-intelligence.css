@@ -7,6 +7,20 @@
 .domain-intelligence-form > section, .domain-result { padding: 20px; border: 1px solid #dae4f4; border-radius: 12px; background: white; }
 .domain-intelligence-form h2, .domain-result h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; font-size: 17px; }
 .domain-intelligence-form h2 span { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #eaf2ff; color: #2468d5; font-size: 13px; }
+.domain-provider-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.domain-provider-card { display: flex; align-items: center; gap: 12px; min-height: 82px; padding: 14px; border: 1px solid #dae4f4; border-radius: 12px; background: #fff; color: #1d2939; text-align: left; cursor: pointer; }
+.domain-provider-card:hover, .domain-provider-card.selected { border-color: #3979e8; background: #f5f9ff; }
+.domain-provider-mark { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 10px; background: #e8f0ff; color: #2468d5; font-weight: 700; }
+.domain-provider-copy { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.domain-provider-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.domain-provider-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #66758d; font-size: 12px; }
+.domain-provider-state { color: #2468d5; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.domain-provider-detail { margin-top: 14px; padding: 12px 14px; border-radius: 9px; background: #f7faff; color: #52637f; font-size: 13px; line-height: 1.6; }
+.domain-provider-detail details { margin-top: 8px; }
+.domain-provider-detail summary { color: #2468d5; cursor: pointer; }
+.domain-provider-detail select { margin-top: 8px; }
+.domain-run-summary { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; padding: 12px 14px; border-radius: 9px; background: #f7faff; color: #52637f; font-size: 13px; }
+.domain-run-summary strong { color: #1d2939; }
 .domain-fields, .domain-resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .domain-intelligence-form label { display: grid; gap: 7px; font-size: 13px; font-weight: 650; }
 .domain-intelligence-form input:not([type="checkbox"]), .domain-intelligence-form select, .domain-intelligence-form textarea { width: 100%; min-height: 38px; padding: 9px 11px; border: 1px solid #ccd8eb; border-radius: 8px; background: white; color: #1d2939; font: inherit; }
@@ -35,4 +49,4 @@
 .domain-result h2 small { color: #66758d; font-size: 12px; font-weight: 400; }
 .domain-answer { white-space: pre-wrap; line-height: 1.75; }
 .domain-result details { margin-top: 16px; color: #66758d; font-size: 13px; }
-@media (max-width: 680px) { .domain-intelligence-view { padding: 16px; } .domain-fields, .domain-resource-grid { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .domain-intelligence-view { padding: 16px; } .domain-fields, .domain-resource-grid, .domain-provider-list { grid-template-columns: 1fr; } }

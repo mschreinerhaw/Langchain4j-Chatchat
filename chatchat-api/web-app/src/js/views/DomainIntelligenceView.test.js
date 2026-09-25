@@ -1,7 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import DomainIntelligenceView from "./DomainIntelligenceView.js";
 
 describe("domain intelligence analysis composer", () => {
+  it("preselects the Agent passed from unified management without sending evidence", () => {
+    const context = {
+      providers: [{ providerId: "group.analysis" }],
+      form: { providerId: "", skillIds: [], confirmRemoteTransfer: false },
+      appliedProviderRequestId: null,
+      selectableSkills: [{ value: "investment-skill" }],
+      changeProvider: vi.fn(),
+      changeSkills: vi.fn()
+    };
+    DomainIntelligenceView.methods.applyProviderSelection.call(context,
+      { providerId: "group.analysis", requestId: 1 });
+    expect(context.form.providerId).toBe("group.analysis");
+    expect(context.form.skillIds).toEqual(["investment-skill"]);
+    expect(context.form.confirmRemoteTransfer).toBe(false);
+    expect(context.changeSkills).toHaveBeenCalledOnce();
+    DomainIntelligenceView.methods.applyProviderSelection.call(context,
+      { providerId: "group.analysis", requestId: 1 });
+    expect(context.changeProvider).toHaveBeenCalledOnce();
+  });
+
+  it("counts only evidence selected for the current run", () => {
+    const count = DomainIntelligenceView.computed.selectedEvidenceCount.call({ form: {
+      skillIds: ["a"], documentsBySkill: { a: ["doc-1"], b: ["stale-doc"] },
+      selectedTools: ["tool-1"], dataTemplateId: ""
+    } });
+    expect(count).toBe(2);
+  });
   it("shows Skill-bound MCP tools for role-governed providers without a registration-time allowlist", () => {
     const selectedSkills = [{ value: "investment-skill", boundMcpToolNames: ["position_read"] }];
     const available = DomainIntelligenceView.computed.availableTools.call({ selectedSkills,

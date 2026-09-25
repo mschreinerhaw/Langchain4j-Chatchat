@@ -1829,6 +1829,7 @@
   align-items: flex-start;
   margin-bottom: 16px;
 }
+.agent-workshop-view .agent-management-intro { display: block; margin-top: 5px; color: #66758d; font-size: 13px; line-height: 1.6; }
 
 .agent-workshop-view .agent-actions,
 .agent-workshop-view .agent-card-actions,

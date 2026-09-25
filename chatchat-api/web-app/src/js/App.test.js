@@ -6,6 +6,20 @@ import AssistantSidebar from "./components/AssistantSidebar.js";
 import SystemManagementView from "./views/SystemManagementView.js";
 
 describe("document Ask AI conversation isolation", () => {
+  it("opens joint analysis with the Agent selected in management", () => {
+    const context = { pendingAnalysisProvider: null, analysisSelectionSerial: 0,
+      canAccessView: () => true, navigateToView: vi.fn() };
+    App.methods.handleAnalyzeWithAgent.call(context, "group.risk");
+    expect(context.pendingAnalysisProvider).toEqual({ providerId: "group.risk", requestId: 1 });
+    expect(context.navigateToView).toHaveBeenCalledWith("domainAnalysis");
+    expect(App.computed.activeComponentProps.call({ activeView: "domainAnalysis",
+      userId: "user-1", tenantId: "tenant-1", pendingAnalysisProvider: context.pendingAnalysisProvider
+    }).initialProviderSelection).toEqual(context.pendingAnalysisProvider);
+    expect(App.computed.activeComponentProps.call({ activeView: "agents",
+      userId: "user-1", tenantId: "tenant-1",
+      canAccessView: (view) => view === "domainAnalysis"
+    })).toMatchObject({ analysisAvailable: true, chatAvailable: false });
+  });
   it("does not emit delete for an in-progress conversation", () => {
     const emit = vi.fn();
     const context = {

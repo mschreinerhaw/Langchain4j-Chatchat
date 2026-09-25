@@ -42,6 +42,8 @@
         @history-saved="handleHistorySaved"
         @ask-ai="handleAskAiFromSearch"
         @navigate="handleNavigate"
+        @analyze-with-agent="handleAnalyzeWithAgent"
+        @select-agent="handleSelectAgentShortcut"
         @open-favorite="handleOpenFavoriteShortcut"
       />
     </KeepAlive>

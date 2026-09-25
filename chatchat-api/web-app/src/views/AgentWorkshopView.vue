@@ -3,6 +3,7 @@
     <header class="agent-workshop-header">
       <div>
         <p>Agent管理</p>
+        <span class="agent-management-intro">统一管理自建 Agent 与接入的专业 Agent；自建 Agent 可用于对话与任务，专业 Agent 可在联合分析中使用。</span>
       </div>
     </header>
 
@@ -104,7 +105,7 @@
         <div class="agent-card-head"><span>专</span><div><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }}</small></div><strong :class="{ off: !agent.enabled }">{{ agent.enabled ? '已接入' : '已停用' }}</strong></div>
         <p>{{ agent.metadata?.professionalCapabilities?.join('、') || '尚未填写专业能力描述。' }}</p>
         <dl class="agent-meta"><div><dt>模式</dt><dd>专有分析</dd></div><div><dt>Skill</dt><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div><div><dt>文档</dt><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div><div><dt>MCP</dt><dd>{{ agent.metadata?.analysisGrants?.mcpToolNames?.length || 0 }} 个</dd></div></dl>
-        <div class="agent-card-actions"><button type="button" class="secondary-button" @click="apiExampleAgentId = agent.agentId">分析 API</button><button type="button" class="secondary-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button></div>
+        <div class="agent-card-actions"><button type="button" class="secondary-button" @click="apiExampleAgentId = agent.agentId">分析 API</button><button v-if="analysisAvailable" type="button" class="secondary-button" @click="$emit('analyze-with-agent', agent.agentId)">使用此 Agent 分析</button></div>
       </article>
       <article
         v-for="agent in paginatedAgents"
@@ -176,6 +177,7 @@
         </div>
 
         <div class="agent-card-actions">
+          <button v-if="chatAvailable && agent.marketStatus === 'published'" type="button" class="secondary-button" @click="$emit('select-agent', { agentId: agent.id, title: agent.name, newSession: true })">对话使用</button>
           <button type="button" class="secondary-button" @click="openEditDialog(agent)">设置</button>
           <button
             v-if="!agent.defaultAgent"

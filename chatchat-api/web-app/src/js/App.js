@@ -200,6 +200,8 @@ export default {
       selectedConversation: null,
       pendingChatDraft: null,
       pendingDocumentShortcut: null,
+      pendingAnalysisProvider: null,
+      analysisSelectionSerial: 0,
       activeHistoryId: "",
       idleLogoutTimer: null,
       stopAgentTaskCancelledListener: null,
@@ -211,7 +213,7 @@ export default {
           items: [
             { id: "chat", label: "智能对话", icon: "chat", permissionCode: "workspace:chat" },
             { id: "search", label: "文档检索", icon: "search", permissionCode: "workspace:search" },
-            { id: "domainAnalysis", label: "专有模型分析", icon: "agent", permissionCode: "workspace:search" }
+            { id: "domainAnalysis", label: "联合分析", icon: "agent", permissionCode: "workspace:search" }
           ]
         },
         {
@@ -294,6 +296,11 @@ export default {
               ? { initialTab: DATA_SCIENCE_TABS[this.activeView] }
               : {}),
             ...(this.activeView === "tasks" ? { tenantName: this.tenantName } : {}),
+            ...(this.activeView === "domainAnalysis"
+              ? { initialProviderSelection: this.pendingAnalysisProvider } : {}),
+            ...(this.activeView === "agents"
+              ? { analysisAvailable: this.canAccessView("domainAnalysis"),
+                  chatAvailable: this.canAccessView("chat") } : {}),
             pendingDocumentShortcut: this.activeView === "search" ? this.pendingDocumentShortcut : null
           };
     },
@@ -746,6 +753,12 @@ export default {
     },
     handleNavigate(view) {
       this.navigateToView(view);
+    },
+    handleAnalyzeWithAgent(providerId) {
+      if (!providerId || !this.canAccessView("domainAnalysis")) return;
+      this.analysisSelectionSerial += 1;
+      this.pendingAnalysisProvider = { providerId, requestId: this.analysisSelectionSerial };
+      this.navigateToView("domainAnalysis");
     },
     handleNewConversation() {
       this.selectedConversation = null;

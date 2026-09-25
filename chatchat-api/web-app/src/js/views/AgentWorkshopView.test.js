@@ -66,6 +66,8 @@ describe("AgentWorkshopView remote compute registration", () => {
     expect(controls).toContain('@click="openCreateDialog"');
     expect(controls).toContain('@click="openRemoteDialog"');
     expect(template).toContain('class="feature-card agent-card remote-agent-card"');
+    expect(template).toContain("$emit('analyze-with-agent', agent.agentId)");
+    expect(template).toContain("$emit('select-agent', { agentId: agent.id");
     expect(template).toContain("POST /api/v1/agent/analysis/domain-intelligence");
     expect(template).not.toContain('remoteManagement');
   });

@@ -10,11 +10,23 @@
             <small>LingDong Nexus</small>
           </div>
         </div>
-        <el-menu class="sidebar-menu" :default-active="activeView" @select="activeView = $event">
-          <el-menu-item v-for="item in navItems" :key="item.key" :index="item.key">
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.label }}</span>
-          </el-menu-item>
+        <el-menu class="sidebar-menu" :default-active="activeView" :default-openeds="['settings']" @select="activeView = $event">
+          <template v-for="item in navItems" :key="item.key">
+            <el-sub-menu v-if="item.children?.length" :index="item.key">
+              <template #title>
+                <el-icon><component :is="item.icon" /></el-icon>
+                <span>{{ item.label }}</span>
+              </template>
+              <el-menu-item v-for="child in item.children" :key="child.key" :index="child.key">
+                <el-icon><component :is="child.icon" /></el-icon>
+                <span>{{ child.label }}</span>
+              </el-menu-item>
+            </el-sub-menu>
+            <el-menu-item v-else :index="item.key">
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+            </el-menu-item>
+          </template>
         </el-menu>
         <el-button class="sidebar-logout" @click="handleLogout">
           <el-icon><SwitchButton /></el-icon>
@@ -22,17 +34,21 @@
         </el-button>
       </aside>
 
-      <main class="app-main">
-        <header class="topbar">
-          <div>
+      <main class="app-main" :class="{ 'is-system-settings': isSystemSettingsView }">
+        <header class="topbar" :class="{ 'is-compact': isSystemSettingsView }">
+          <div v-if="!isSystemSettingsView">
             <h1>{{ activeNav.label }}</h1>
             <p>MCP Endpoint: <code>{{ mcpEndpoint }}</code></p>
           </div>
+          <div v-else class="topbar-context">系统设置 <span>/</span> {{ activeNav.label }}</div>
+          <p v-if="isSystemSettingsView" class="topbar-endpoint">MCP Endpoint: <code>{{ mcpEndpoint }}</code></p>
         </header>
 
         <KeepAlive include="ApiServicesView,AssetCenterView,DatabaseMcpView,TemplateQueryPublicationsView">
           <component
             :is="activeNav.component"
+            :key="activeView"
+            v-bind="activeNav.section ? { section: activeNav.section } : {}"
             @notify="notify"
             @error="handleError"
             @result="showResult"

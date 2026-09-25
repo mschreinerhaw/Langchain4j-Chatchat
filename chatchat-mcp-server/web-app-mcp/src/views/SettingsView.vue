@@ -3,10 +3,10 @@
     <template #header>
       <div class="panel-heading">
         <div>
-          <h2>系统设置</h2>
-          <p>管理管理员密码和角色权限。</p>
+          <h2>{{ pageTitle }}</h2>
+          <p>{{ pageDescription }}</p>
         </div>
-        <div class="panel-actions">
+        <div v-if="section === 'rolePermissions'" class="panel-actions">
           <el-button plain :loading="busy" @click="loadSnapshot">
             <el-icon><Refresh /></el-icon>
             <span>刷新授权</span>
@@ -19,8 +19,8 @@
       </div>
     </template>
 
-    <el-tabs v-model="activeTab" class="settings-tabs">
-      <el-tab-pane label="用户管理" name="users">
+    <div class="settings-sections">
+      <section v-if="section === 'users'">
         <div class="settings-section-head">
           <div>
             <h3>用户管理</h3>
@@ -75,9 +75,9 @@
             </template>
           </el-table-column>
         </el-table>
-      </el-tab-pane>
+      </section>
 
-      <el-tab-pane label="角色权限" name="rolePermissions">
+      <section v-if="section === 'rolePermissions'">
         <div class="settings-section-head">
           <div>
             <h3>已同步角色</h3>
@@ -217,9 +217,9 @@
             @size-change="changePermissionPageSize"
           />
         </footer>
-      </el-tab-pane>
+      </section>
 
-      <el-tab-pane label="登录审计" name="loginAudits">
+      <section v-if="section === 'loginAudits'">
         <div class="settings-section-head">
           <div>
             <h3>用户登录审计</h3>
@@ -293,9 +293,9 @@
             @size-change="changeLoginAuditPageSize"
           />
         </footer>
-      </el-tab-pane>
+      </section>
 
-    </el-tabs>
+    </div>
 
     <el-dialog
       v-model="userPasswordDialogVisible"

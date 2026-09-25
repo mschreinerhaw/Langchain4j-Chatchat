@@ -5,10 +5,12 @@ import '../../styles/views/settings.css';
 export default {
   name: 'SettingsView',
   emits: ['notify', 'error', 'password-changed'],
+  props: {
+    section: { type: String, default: 'users', validator: value => ['users', 'rolePermissions', 'loginAudits'].includes(value) }
+  },
   data() {
     return {
       busy: false,
-      activeTab: 'users',
       users: [],
       currentUser: null,
       userKeyword: '',
@@ -45,6 +47,16 @@ export default {
     };
   },
   computed: {
+    pageTitle() {
+      return { users: '用户管理', rolePermissions: '角色权限', loginAudits: '登录审计' }[this.section];
+    },
+    pageDescription() {
+      return {
+        users: '管理 MCP 本地管理员密码并查看远端同步用户。',
+        rolePermissions: '同步远端角色，并管理 MCP 本地资产与工具授权。',
+        loginAudits: '查询 MCP 管理后台的登录行为与失败记录。'
+      }[this.section];
+    },
     filteredUsers() {
       const keyword = this.userKeyword.toLowerCase();
       if (!keyword) return this.users;
@@ -163,9 +175,9 @@ export default {
     }
   },
   mounted() {
-    this.loadUsers();
-    this.loadRoles();
-    this.loadLoginAudits(false);
+    if (this.section === 'users') this.loadUsers();
+    if (this.section === 'rolePermissions') this.loadRoles();
+    if (this.section === 'loginAudits') this.loadLoginAudits(false);
   },
   methods: {
     async loadUsers() {

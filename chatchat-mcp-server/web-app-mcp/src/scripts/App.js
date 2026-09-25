@@ -44,6 +44,16 @@ const menuComponents = {
   settings: SettingsView
 };
 const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
+const settingsSections = [
+  { key: 'settingsUsers', label: '用户管理', icon: 'User', component: SettingsView, section: 'users' },
+  { key: 'settingsRoles', label: '角色权限', icon: 'UserFilled', component: SettingsView, section: 'rolePermissions' },
+  { key: 'settingsLoginAudits', label: '登录审计', icon: 'DocumentChecked', component: SettingsView, section: 'loginAudits' }
+];
+const systemSettingsMenu = (licensedSettings) => ({
+  ...(licensedSettings || {}),
+  key: 'settings', label: '系统设置', icon: 'Setting',
+  children: [...(licensedSettings ? settingsSections : []), licenseMenu]
+});
 const activityEvents = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
 const activityWriteThrottleMs = 1000;
 
@@ -64,15 +74,19 @@ export default {
       resultOpen: false,
       resultTitle: '',
       resultValue: null,
-      navItems: [licenseMenu],
+      navItems: [systemSettingsMenu(null)],
       idleTimer: null,
       lastActivityRecordedAt: 0,
       idleLogoutInProgress: false
     };
   },
   computed: {
+    isSystemSettingsView() {
+      return this.activeView === 'license' || settingsSections.some(item => item.key === this.activeView);
+    },
     activeNav() {
-      return this.navItems.find(item => item.key === this.activeView) || this.navItems[0];
+      return this.navItems.flatMap(item => item.children || [item])
+        .find(item => item.key === this.activeView) || this.navItems.flatMap(item => item.children || [item])[0];
     }
   },
   mounted() {
@@ -98,12 +112,14 @@ export default {
         const licensed = (Array.isArray(access) ? access : [])
           .filter(item => item.authorized && menuComponents[item.key])
           .map(item => ({ ...item, component: menuComponents[item.key] }));
-        this.navItems = [...licensed, licenseMenu];
-        if (!this.navItems.some(item => item.key === this.activeView)) {
-          this.activeView = licensed[0]?.key || 'license';
+        const settings = licensed.find(item => item.key === 'settings');
+        this.navItems = [...licensed.filter(item => item.key !== 'settings'), systemSettingsMenu(settings)];
+        const available = this.navItems.flatMap(item => item.children || [item]);
+        if (!available.some(item => item.key === this.activeView)) {
+          this.activeView = available[0]?.key || 'license';
         }
       } catch (error) {
-        this.navItems = [licenseMenu];
+        this.navItems = [systemSettingsMenu(null)];
         this.activeView = 'license';
         if (error instanceof UnauthorizedError) {
           this.authenticated = false;

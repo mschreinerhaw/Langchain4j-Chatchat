@@ -1,9 +1,5 @@
-.settings-tabs {
+.settings-sections {
   min-height: 420px;
-}
-
-.settings-tabs .el-tabs__header {
-  margin-bottom: 18px;
 }
 
 .settings-form {

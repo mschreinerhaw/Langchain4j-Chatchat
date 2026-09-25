@@ -52,6 +52,23 @@
   color: #fff;
 }
 
+.sidebar-menu .el-sub-menu__title {
+  height: 42px;
+  margin: 3px 0;
+  border-radius: 8px;
+  color: #d8e2f1;
+  font-weight: 650;
+}
+
+.sidebar-menu .el-sub-menu__title:hover,
+.sidebar-menu .el-sub-menu.is-active > .el-sub-menu__title {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.sidebar-menu .el-sub-menu .el-menu { background: transparent; }
+.sidebar-menu .el-sub-menu .el-menu-item { padding-left: 43px !important; font-size: 13px; }
+
 .sidebar-logout {
   width: 100%;
   margin-top: auto;
@@ -86,6 +103,8 @@
   padding: 22px 26px 32px;
 }
 
+.app-main.is-system-settings { padding-top: 12px; }
+
 .topbar {
   min-height: 70px;
   display: flex;
@@ -107,6 +126,16 @@
   font-size: 13px;
 }
 
+.topbar.is-compact {
+  min-height: 0;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.topbar-context { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.topbar-context span { margin: 0 6px; color: #9aa8ba; }
+.topbar .topbar-endpoint { margin: 0; font-size: 12px; }
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -120,6 +149,8 @@
   .app-main {
     padding: 18px 14px 28px;
   }
+
+  .app-main.is-system-settings { padding-top: 10px; }
 
   .topbar {
     align-items: stretch;

@@ -3,7 +3,6 @@
     <header class="system-header">
       <div>
         <p>系统管理</p>
-        <h1>{{ sectionTitle }}</h1>
         <span class="system-section-description">{{ sectionDescription }}</span>
       </div>
     </header>

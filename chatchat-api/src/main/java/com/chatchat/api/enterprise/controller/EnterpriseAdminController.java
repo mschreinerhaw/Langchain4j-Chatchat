@@ -6,6 +6,8 @@ import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.common.runtime.agent.AgentDescriptor;
+import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import com.chatchat.enterprise.entity.datasource.DataSourceConfig;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
@@ -36,6 +38,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -56,6 +60,7 @@ public class EnterpriseAdminController {
     private final SysAuditLogRepository auditLogRepository;
     private final SkillCatalogService skillCatalogService;
     private final LoginAuditService loginAuditService;
+    private final AgentRegistryPort agentRegistry;
 
     /**
      * Performs the login operation.
@@ -95,6 +100,31 @@ public class EnterpriseAdminController {
     @Operation(summary = "Enterprise operation summary")
     public ApiResponse<Map<String, Object>> summary() {
         return ApiResponse.success(adminService.summary());
+    }
+
+    @GetMapping("/agent-registry")
+    @Operation(summary = "List registered local, group and external agent compute providers")
+    public ApiResponse<List<AgentDescriptor>> listAgentComputeProviders(HttpServletRequest request) {
+        requirePlatformAgentRegistryAdmin(request);
+        return ApiResponse.success(agentRegistry.list());
+    }
+
+    @PostMapping("/agent-registry")
+    @Operation(summary = "Register or update an agent compute provider")
+    public ApiResponse<AgentDescriptor> registerAgentComputeProvider(HttpServletRequest request,
+                                                                      @RequestBody AgentDescriptor descriptor) {
+        requirePlatformAgentRegistryAdmin(request);
+        agentRegistry.register(descriptor);
+        return ApiResponse.success(agentRegistry.find(descriptor.agentId()).orElseThrow(), "agent registered");
+    }
+
+    @DeleteMapping("/agent-registry/{agentId}")
+    @Operation(summary = "Remove an agent compute provider")
+    public ApiResponse<Void> removeAgentComputeProvider(HttpServletRequest request,
+                                                         @PathVariable("agentId") String agentId) {
+        requirePlatformAgentRegistryAdmin(request);
+        agentRegistry.remove(agentId);
+        return ApiResponse.success(null, "agent removed");
     }
 
     /**
@@ -700,5 +730,13 @@ public class EnterpriseAdminController {
     private String currentUserId(HttpServletRequest request) {
         Object userId = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
         return userId == null ? "" : String.valueOf(userId);
+    }
+
+    private void requirePlatformAgentRegistryAdmin(HttpServletRequest request) {
+        String userId = currentUserId(request);
+        if (userId.isBlank() || !adminService.hasAllAgentAccess(adminService.getUserView(userId))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Agent Registry administration requires the platform administrator");
+        }
     }
 }

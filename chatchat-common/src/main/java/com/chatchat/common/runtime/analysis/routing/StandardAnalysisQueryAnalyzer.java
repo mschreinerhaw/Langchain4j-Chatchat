@@ -23,6 +23,8 @@ public final class StandardAnalysisQueryAnalyzer implements AnalysisQueryAnalyze
         Set<AnalysisCapability> required = declaredCapabilities(context);
         String query = context.query().toLowerCase(Locale.ROOT);
         if (required.isEmpty()) {
+            if (context.attributes().containsKey(AnalysisContext.AGENT_CAPABILITY_ATTRIBUTE))
+                required.add(AnalysisCapability.DOMAIN_INTELLIGENCE);
             if (containsAny(query, "sql", "database", "dataset", "table", "schema", "数据库", "数据集"))
                 required.add(AnalysisCapability.STRUCTURED_DATA);
             if (containsAny(query, "calculate", "compute", "ratio", "drawdown", "计算", "比率", "回撤"))

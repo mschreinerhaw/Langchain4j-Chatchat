@@ -1670,6 +1670,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("platform", "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
             new PermissionSeed("system", "system:resource-grants:manage", "Resource grants", "button", "/api/v1/enterprise/resource-grants/**", "*", "shield-check", 44),
             new PermissionSeed("system", "system:skill-resource-scopes:manage", "Skill resource scopes", "button", "/api/v1/enterprise/skill-resource-scopes/**", "*", "shield-check", 45),
+            new PermissionSeed("system", "system:agent-registry:manage", "Agent compute registry", "button", "/api/v1/enterprise/agent-registry/**", "*", "shield-check", 45),
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),
             new PermissionSeed("system", "system:org", "组织管理", "menu", "/api/v1/enterprise/orgs", "*", "building-2", 42),
             new PermissionSeed("system", "system:user", "用户管理", "menu", "/api/v1/enterprise/users", "*", "users", 43),

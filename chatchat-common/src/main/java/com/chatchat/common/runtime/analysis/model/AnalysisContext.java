@@ -17,6 +17,8 @@ public record AnalysisContext(
     Map<String, Object> attributes
 ) {
     public static final String EXECUTION_MODE_ATTRIBUTE = "runtime.analysis.executionMode";
+    public static final String AGENT_CAPABILITY_ATTRIBUTE = "runtime.agent.capability";
+    public static final String EVIDENCE_BUNDLE_ATTRIBUTE = "runtime.analysis.evidenceBundle";
 
     public AnalysisContext {
         if (query == null || query.isBlank()) throw new IllegalArgumentException("analysis query is required");
@@ -31,6 +33,13 @@ public record AnalysisContext(
 
     public AnalysisContext withIntent(AnalysisIntent value) {
         return new AnalysisContext(query, kernelScope, skillId, documentIds, documentTags, roles, value, attributes);
+    }
+
+    public AnalysisContext withAttribute(String name, Object value) {
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("attribute name is required");
+        Map<String, Object> next = new LinkedHashMap<>(attributes);
+        if (value == null) next.remove(name); else next.put(name, value);
+        return new AnalysisContext(query, kernelScope, skillId, documentIds, documentTags, roles, intent, next);
     }
 
     public AnalysisExecutionMode executionMode() {

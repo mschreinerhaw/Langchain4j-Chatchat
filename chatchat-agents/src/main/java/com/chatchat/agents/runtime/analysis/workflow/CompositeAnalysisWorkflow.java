@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.analysis.workflow;
 
 import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.execution.VerificationResult;
 import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
@@ -69,7 +70,10 @@ public class CompositeAnalysisWorkflow extends AbstractAnalysisWorkflow {
         for (AnalysisCapability capability : context.intent().requiredCapabilities()) {
             AnalysisIntent childIntent = new AnalysisIntent(context.intent().intent(), context.intent().entities(),
                 Set.of(capability), context.intent().freshness(), context.intent().evidenceRequired());
-            AnalysisContext childContext = context.withIntent(childIntent);
+            EvidenceBundle accumulated = new EvidenceBundle(EvidenceBundle.SCHEMA_VERSION, evidence,
+                observations, Map.of("source", "composite-analysis"));
+            AnalysisContext childContext = context.withIntent(childIntent)
+                .withAttribute(AnalysisContext.EVIDENCE_BUNDLE_ATTRIBUTE, accumulated);
             AnalysisWorkflow child = workflows.orderedStream()
                 .filter(workflow -> workflow != this && workflow.type() != AnalysisWorkflowType.COMPOSITE)
                 .filter(workflow -> workflow.supports(childContext, childIntent)).findFirst().orElse(null);

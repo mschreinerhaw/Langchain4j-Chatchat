@@ -47,6 +47,7 @@ public final class AnalysisWorkflowRouter {
         values.put(AnalysisCapability.TOOL_CALL, AnalysisWorkflowType.TOOL);
         values.put(AnalysisCapability.COMPUTATION, AnalysisWorkflowType.COMPUTATION);
         values.put(AnalysisCapability.EXTERNAL_RESEARCH, AnalysisWorkflowType.EXTERNAL_RESEARCH);
+        values.put(AnalysisCapability.DOMAIN_INTELLIGENCE, AnalysisWorkflowType.FEDERATED_AGENT);
         return Map.copyOf(values);
     }
 

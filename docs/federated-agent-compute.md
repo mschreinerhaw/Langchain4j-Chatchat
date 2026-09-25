@@ -23,7 +23,12 @@ evidence, and stops domain dispatch if a required upstream child fails. Agent `R
 policy-admitted provider; `INPUT_REQUIRED`/`SUPPLEMENT_EVIDENCE` can run bounded local Knowledge Skill acquisition
 and resume the same A2A Task.
 
-Remaining production integrations are explicit: structured-data, tool, computation, and external-research analysis
+The read-only tool analysis branch now has a production `AnalysisCapabilityOperator` binding. It accepts only a
+tool explicitly bound to the selected local Skill, checks the published tool's read-only metadata, and executes
+through the existing governed Tool Runtime (including enterprise MCP asset authorization). Failed calls yield no
+evidence. This is a single-tool invocation, not an autonomous multi-tool planner.
+
+Remaining production integrations are explicit: structured-data, computation, and external-research analysis
 workflows currently have no production `AnalysisCapabilityOperator` bindings; they fail closed instead of fabricating
 evidence. The separate legacy orchestrator has PostgreSQL/OpenSearch and RocksDB integrations, but the new
 `EvidenceBundle` workflow has not yet consolidated those persistence/index adapters into one durable evidence
@@ -141,6 +146,33 @@ Content-Type: application/json
 
 Tenant, user, roles, effective document scope, and request identity come from the authenticated Runtime context,
 not from request-provided claims. A denied local Skill or document scope prevents execution.
+
+For an explicitly bound read-only registered tool, use the separate governed path:
+
+```http
+POST /api/v1/agent/analysis/tool
+Content-Type: application/json
+
+{"query":"Summarize 2025 revenue","skillId":"authorized-local-skill",
+ "toolName":"published_revenue_query","arguments":{"year":2025}}
+```
+
+The selected Skill and the enterprise tool asset policy must both authorize the call. Tool arguments and evidence
+size are bounded; tools published as write/send/delete or confirmation-required are refused for analysis.
+
+To combine local evidence with federated Agent reasoning in one verified run:
+
+```http
+POST /api/v1/agent/analysis/composite
+Content-Type: application/json
+
+{"query":"Analyze portfolio risk","skillId":"authorized-local-skill",
+ "capability":"finance.portfolio-analysis.v1","documentIds":["doc-1"],
+ "toolName":"published_risk_metrics","arguments":{"portfolioId":"p-1"}}
+```
+
+Document and tool evidence are verified before the Agent is dispatched. Either source can be omitted, but at least
+one is required. If a required evidence branch fails, the composite Judge rejects the run and skips Agent dispatch.
 
 Set `runtime.agent.capability` on `AnalysisContext`. The query analyzer selects `DOMAIN_INTELLIGENCE`; in a composite
 analysis, evidence produced by earlier structured-data, document, computation, tool, or research workflows is passed to

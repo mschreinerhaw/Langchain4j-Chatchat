@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.analysis.workflow;
 
 import com.chatchat.common.runtime.analysis.execution.VerificationResult;
 import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
+import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
 import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
@@ -66,8 +67,13 @@ abstract class OperatorBackedAnalysisWorkflow extends AbstractAnalysisWorkflow {
     @Override
     protected VerificationResult verify(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
                                         WorkflowExecutionResult execution) {
-        boolean accepted = !execution.evidence().isEmpty();
-        return new VerificationResult(accepted, accepted ? execution.evidence() : List.of(),
-            accepted ? List.of() : execution.observations());
+        List<AnalysisEvidence> matching = execution.evidence().stream()
+            .filter(evidence -> evidence != null && evidence.capability() == capability
+                && evidence.content() != null && !evidence.content().isBlank())
+            .toList();
+        boolean accepted = !matching.isEmpty() && matching.size() == execution.evidence().size();
+        return new VerificationResult(accepted, accepted ? matching : List.of(),
+            accepted ? execution.observations() : execution.observations().isEmpty()
+                ? List.of("No valid " + capability + " evidence was produced") : execution.observations());
     }
 }

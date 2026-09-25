@@ -1,9 +1,11 @@
 package com.chatchat.api.controller.agent;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.api.runtime.RegisteredToolAnalysisOperator;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
+import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
@@ -55,5 +57,53 @@ class AgentAnalysisControllerTest {
                 "finance.risk.v1", List.of(), List.of(), null, null), request))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("403");
+    }
+
+    @Test void toolAnalysisUsesAuthenticatedScopeAndToolIntent() {
+        AtomicReference<AnalysisContext> observed = new AtomicReference<>();
+        AnalysisRuntimePort runtime = context -> {
+            observed.set(context);
+            return new AnalysisExecutionOutcome(null, null, null, null, null, "", Map.of());
+        };
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of(), List.of(), List.of("analyst"), true, true);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+
+        new AgentAnalysisController(runtime, scopes).analyzeTool(
+            new AgentAnalysisController.ToolAnalyzeRequest("Find revenue", "finance",
+                "revenue_query", Map.of("year", 2025)), request);
+
+        assertThat(observed.get().intent().requiredCapabilities()).containsExactly(AnalysisCapability.TOOL_CALL);
+        assertThat(observed.get().attributes()).containsEntry(RegisteredToolAnalysisOperator.TOOL_NAME,
+            "revenue_query");
+        assertThat(observed.get().kernelScope().userId()).isEqualTo("user-1");
+    }
+
+    @Test void compositeAnalysisPlansAuthorizedEvidenceBeforeAgent() {
+        AtomicReference<AnalysisContext> observed = new AtomicReference<>();
+        AnalysisRuntimePort runtime = context -> {
+            observed.set(context);
+            return new AnalysisExecutionOutcome(null, null, null, null, null, "", Map.of());
+        };
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of("allowed-doc"), List.of(),
+                List.of("analyst"), true, true);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+
+        new AgentAnalysisController(runtime, scopes).analyzeComposite(
+            new AgentAnalysisController.CompositeAnalyzeRequest("Analyze the metric", "finance",
+                "finance.risk.v1", List.of("requested-doc"), List.of(), "read_tool",
+                Map.of("year", 2025), 2, 60000L), request);
+
+        assertThat(observed.get().intent().requiredCapabilities()).containsExactlyInAnyOrder(
+            AnalysisCapability.DOCUMENT_SEARCH, AnalysisCapability.TOOL_CALL,
+            AnalysisCapability.DOMAIN_INTELLIGENCE);
+        assertThat(observed.get().documentIds()).containsExactly("allowed-doc");
+        assertThat(observed.get().attributes()).containsEntry(RegisteredToolAnalysisOperator.TOOL_NAME,
+            "read_tool");
     }
 }

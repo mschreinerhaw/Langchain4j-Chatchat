@@ -3,6 +3,7 @@ package com.chatchat.agents.runtime.analysis.workflow;
 import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
 import com.chatchat.common.runtime.analysis.evidence.ComputationEvidence;
 import com.chatchat.common.runtime.analysis.evidence.StructuredDataEvidence;
+import com.chatchat.common.runtime.analysis.evidence.ToolAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import com.chatchat.common.runtime.analysis.evidence.AgentAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.execution.VerificationResult;
@@ -32,6 +33,29 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultAnalysisWorkflowRuntimeTest {
+    @Test
+    void operatorRejectsEvidenceForAnotherCapability() {
+        AnalysisCapabilityOperator wrong = new AnalysisCapabilityOperator() {
+            @Override public AnalysisCapability capability() { return AnalysisCapability.COMPUTATION; }
+            @Override public boolean available(AnalysisContext context) { return true; }
+            @Override public WorkflowExecutionResult execute(AnalysisContext context, AnalysisScope scope,
+                                                             WorkflowPlan plan) {
+                return new WorkflowExecutionResult(List.of(new ToolAnalysisEvidence(
+                    "tool-1", "calculator", "call-1", "42", Map.of())), Map.of(), List.of());
+            }
+        };
+        var runtime = new DefaultAnalysisWorkflowRuntime(List.of(new ComputationAnalysisWorkflow(
+            new AnalysisOperatorRegistry(List.of(wrong)))));
+        var intent = new AnalysisIntent("CALCULATION", List.of(), Set.of(AnalysisCapability.COMPUTATION),
+            "UNSPECIFIED", true);
+
+        var result = runtime.analyze(new AnalysisContext("calculate", KernelDataScope.system("request-1"),
+            "skill", List.of(), List.of(), List.of(), intent, Map.of()));
+
+        assertThat(result.verification().accepted()).isFalse();
+        assertThat(result.evidenceBundle().evidence()).isEmpty();
+    }
+
     @Test
     void compositeNeverPassesRejectedChildEvidenceToDomainAgent() {
         java.util.concurrent.atomic.AtomicInteger domainCalls = new java.util.concurrent.atomic.AtomicInteger();

@@ -4,6 +4,7 @@ import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.runtime.RegisteredToolAnalysisOperator;
 import com.chatchat.api.runtime.PreauthorizedStructuredDataOperator;
 import com.chatchat.api.runtime.VerifiedEvidenceComputationOperator;
+import com.chatchat.api.runtime.GovernedExternalResearchOperator;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
@@ -59,6 +60,28 @@ class AgentAnalysisControllerTest {
                 "finance.risk.v1", List.of(), List.of(), null, null), request))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("403");
+    }
+
+    @Test void singleAgentAnalysisCarriesOnlyApprovedTemplateIdentityForLaterSupplementation() {
+        AtomicReference<AnalysisContext> observed = new AtomicReference<>();
+        AnalysisRuntimePort runtime = context -> {
+            observed.set(context);
+            return new AnalysisExecutionOutcome(null, null, null, null, null, "", Map.of());
+        };
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of(), List.of(), List.of(), true, true);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+
+        new AgentAnalysisController(runtime, scopes).analyze(
+            new AgentAnalysisController.AnalyzeRequest("Analyze sales", "sales-skill", "finance.sales.v1",
+                List.of(), List.of(), 2, 60000L, "SALES_TOTAL", "sales", "PROD", Map.of("year", 2025)),
+            request);
+
+        assertThat(observed.get().intent().requiredCapabilities()).containsExactly(AnalysisCapability.DOMAIN_INTELLIGENCE);
+        assertThat(observed.get().attributes()).containsEntry(PreauthorizedStructuredDataOperator.TEMPLATE_ID,
+            "SALES_TOTAL");
     }
 
     @Test void toolAnalysisUsesAuthenticatedScopeAndToolIntent() {
@@ -131,5 +154,30 @@ class AgentAnalysisControllerTest {
             AnalysisCapability.DOMAIN_INTELLIGENCE);
         assertThat(observed.get().attributes()).containsEntry(PreauthorizedStructuredDataOperator.TEMPLATE_ID,
             "SALES_TOTAL").containsEntry(VerifiedEvidenceComputationOperator.OPERATION, "SUM");
+    }
+
+    @Test void compositeCanRequireGovernedResearchBeforeAgent() {
+        AtomicReference<AnalysisContext> observed = new AtomicReference<>();
+        AnalysisRuntimePort runtime = context -> {
+            observed.set(context);
+            return new AnalysisExecutionOutcome(null, null, null, null, null, "", Map.of());
+        };
+        SkillExecutionScopePort scopes = (tenant, user, skill, docs, tags) ->
+            new SkillExecutionScopePort.EffectiveScope(List.of(), List.of(), List.of(), true, true);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID)).thenReturn("tenant-1");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-1");
+
+        new AgentAnalysisController(runtime, scopes).analyzeComposite(
+            new AgentAnalysisController.CompositeAnalyzeRequest("Research trends", "research-skill",
+                "finance.trends.v1", List.of(), List.of(), null, null, 2, 60000L,
+                null, null, null, null, null, null, "mcp_news_web_search", List.of("public trends")), request);
+
+        assertThat(observed.get().intent().requiredCapabilities()).containsExactlyInAnyOrder(
+            AnalysisCapability.EXTERNAL_RESEARCH, AnalysisCapability.DOMAIN_INTELLIGENCE);
+        assertThat(observed.get().intent().freshness()).isEqualTo("CURRENT");
+        assertThat(observed.get().attributes()).containsEntry(GovernedExternalResearchOperator.TOOL_NAME,
+            "mcp_news_web_search").containsEntry(GovernedExternalResearchOperator.SEARCH_TERMS,
+            List.of("public trends"));
     }
 }

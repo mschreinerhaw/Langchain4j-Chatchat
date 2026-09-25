@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +29,10 @@ class AgentEvidenceArchiveControllerTest {
                 return "tenant".equals(tenant) && "user".equals(user) && ID.equals(id)
                     ? Optional.of(new ArchivedEvidence(new Reference(ID, "sha", 2), "{}")) : Optional.empty();
             }
+            @Override public List<Reference> listByRun(String tenant, String user, String run) {
+                return "tenant".equals(tenant) && "user".equals(user) && "run".equals(run)
+                    ? List.of(new Reference(ID, "sha", 2)) : List.of();
+            }
         };
         var controller = new AgentEvidenceArchiveController(archive, new ObjectMapper());
         HttpServletRequest request = mock(HttpServletRequest.class);
@@ -35,6 +40,7 @@ class AgentEvidenceArchiveControllerTest {
         when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user");
 
         assertThat(controller.get(ID, request).getData().bundle().isObject()).isTrue();
+        assertThat(controller.list("run", request).getData()).hasSize(1);
         when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("other");
         assertThatThrownBy(() -> controller.get(ID, request))
             .isInstanceOfSatisfying(ResponseStatusException.class,

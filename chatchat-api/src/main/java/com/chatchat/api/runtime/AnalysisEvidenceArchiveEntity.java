@@ -26,6 +26,8 @@ public class AnalysisEvidenceArchiveEntity {
     String bundleJson;
     @Column(name = "created_at_epoch_ms", nullable = false)
     long createdAtEpochMs;
+    @Column(name = "index_status", length = 16)
+    String indexStatus;
 
     protected AnalysisEvidenceArchiveEntity() { }
 
@@ -39,5 +41,6 @@ public class AnalysisEvidenceArchiveEntity {
         this.byteLength = byteLength;
         this.bundleJson = bundleJson;
         this.createdAtEpochMs = System.currentTimeMillis();
+        this.indexStatus = "PENDING";
     }
 }

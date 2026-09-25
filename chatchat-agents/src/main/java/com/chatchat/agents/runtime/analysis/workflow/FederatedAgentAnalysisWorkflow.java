@@ -73,6 +73,11 @@ public class FederatedAgentAnalysisWorkflow extends AbstractAnalysisWorkflow {
         localMetadata.put("knowledgeDomains", stringSet(context.attributes().get("knowledgeDomains")));
         if (context.skillId() != null && !context.skillId().isBlank())
             localMetadata.put("localSkillId", context.skillId());
+        for (String key : List.of("runtime.analysis.dataTemplateId", "runtime.analysis.dataAssetName",
+            "runtime.analysis.dataEnvironment", "runtime.analysis.dataParameters")) {
+            Object value = context.attributes().get(key);
+            if (value != null) localMetadata.put(key, value);
+        }
         AgentExecutionRequest request = new AgentExecutionRequest(AgentExecutionRequest.SCHEMA_VERSION,
             UUID.randomUUID().toString(), capability,
             new AgentExecutionRequest.TaskContract(context.intent().intent(), context.query(),

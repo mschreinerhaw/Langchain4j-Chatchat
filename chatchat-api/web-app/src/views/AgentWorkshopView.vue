@@ -435,6 +435,7 @@
           <label><span>允许的数据域</span><textarea v-model="remoteForm.dataDomains" rows="2" placeholder="portfolio"></textarea></label>
           <label><span>可出站的证据类型</span><textarea v-model="remoteForm.evidenceTypes" rows="2" placeholder="DocumentAnalysisEvidence"></textarea></label>
           <label><span>允许本地补证的 Knowledge Skill 类型</span><textarea v-model="remoteForm.supplementSkillTypes" rows="2" placeholder="RULE_LOOKUP"></textarea><small>仅白名单类型；文档 ID / 标签 / 领域由每次请求的授权上下文限定。</small></label>
+          <label><span>允许的结构化数据补证</span><select v-model="remoteForm.structuredSupplement"><option value="">不允许</option><option value="STRUCTURED_DATA">仅预授权只读 SQL 模板</option></select><small>还需本地 Skill 绑定模板工具、数据资产授权，并在上方允许 `StructuredDataEvidence` 出站；远端仅收到最小化证据。</small></label>
           <label><span>凭据引用</span><input v-model.trim="remoteForm.credentialRef" placeholder="环境变量引用，不填写令牌"></label>
           <label><span>签名 Key ID (kid)</span><input v-model.trim="remoteForm.cardKeyId" required></label>
           <label class="wide-field"><span>Agent Card 验签公钥（PEM，RS256）</span><textarea v-model.trim="remoteForm.cardPublicKeyPem" rows="4" required placeholder="-----BEGIN PUBLIC KEY-----"></textarea></label>

@@ -5,6 +5,7 @@ import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.spi.AnalysisEvidenceArchivePort;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -12,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 /** PostgreSQL/JPA evidence archive with owner-scoped reads and content integrity checks. */
@@ -20,10 +22,18 @@ public class JpaAnalysisEvidenceArchive implements AnalysisEvidenceArchivePort {
     private static final int MAX_BUNDLE_BYTES = 2 * 1024 * 1024;
     private final AnalysisEvidenceArchiveRepository repository;
     private final ObjectMapper mapper;
+    private final AnalysisEvidenceSearchIndex searchIndex;
 
     public JpaAnalysisEvidenceArchive(AnalysisEvidenceArchiveRepository repository, ObjectMapper mapper) {
+        this(repository, mapper, null);
+    }
+
+    @Autowired
+    public JpaAnalysisEvidenceArchive(AnalysisEvidenceArchiveRepository repository, ObjectMapper mapper,
+                                      AnalysisEvidenceSearchIndex searchIndex) {
         this.repository = repository;
         this.mapper = mapper;
+        this.searchIndex = searchIndex;
     }
 
     @Override
@@ -42,8 +52,17 @@ public class JpaAnalysisEvidenceArchive implements AnalysisEvidenceArchivePort {
             String sha = sha256(bytes);
             String id = UUID.nameUUIDFromBytes((tenant + "\u0000" + user + "\u0000" + run + "\u0000" + sha)
                 .getBytes(StandardCharsets.UTF_8)).toString();
-            repository.saveAndFlush(new AnalysisEvidenceArchiveEntity(id, tenant, user, run,
-                sha, bytes.length, json));
+            AnalysisEvidenceArchiveEntity entity = repository.saveAndFlush(
+                new AnalysisEvidenceArchiveEntity(id, tenant, user, run, sha, bytes.length, json));
+            if (searchIndex != null && searchIndex.enabled()) {
+                try {
+                    searchIndex.index(entity);
+                    entity.indexStatus = "INDEXED";
+                    repository.saveAndFlush(entity);
+                } catch (RuntimeException ignored) {
+                    // The immutable PostgreSQL archive is authoritative; maintenance retries the index.
+                }
+            }
             return new Reference(id, sha, bytes.length);
         } catch (JsonProcessingException invalid) {
             throw new IllegalStateException("Evidence bundle is not serializable", invalid);
@@ -61,6 +80,15 @@ public class JpaAnalysisEvidenceArchive implements AnalysisEvidenceArchivePort {
                 return new ArchivedEvidence(new Reference(entity.archiveId, entity.sha256, entity.byteLength),
                     entity.bundleJson);
             });
+    }
+
+    @Override
+    public List<Reference> listByRun(String tenantId, String userId, String runId) {
+        if (blank(tenantId) || blank(userId) || blank(runId)) return List.of();
+        return repository.findByTenantIdAndUserIdAndRunIdOrderByCreatedAtEpochMsDesc(tenantId, userId, runId,
+            org.springframework.data.domain.PageRequest.of(0, 100))
+            .stream().map(entity -> new Reference(entity.archiveId, entity.sha256,
+                entity.byteLength)).toList();
     }
 
     private String sha256(byte[] bytes) {

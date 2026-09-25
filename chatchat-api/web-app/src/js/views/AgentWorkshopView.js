@@ -183,7 +183,7 @@ function emptyRemoteForm() {
   return {
     agentId: "", endpoint: "", origin: "GROUP", capabilities: "",
     tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
-    supplementSkillTypes: "", cardKeyId: "", cardPublicKeyPem: "",
+    supplementSkillTypes: "", structuredSupplement: "", cardKeyId: "", cardPublicKeyPem: "",
     credentialRef: "", priority: 50, slaLatencyMs: 10000, maxAttempts: 2
   };
 }
@@ -937,6 +937,7 @@ export default {
         metadata: {
           allowedTenantIds: parseList(form.tenantIds),
           supplementSkillTypes: parseList(form.supplementSkillTypes),
+          supplementCapabilities: form.structuredSupplement === "STRUCTURED_DATA" ? ["STRUCTURED_DATA"] : [],
           cardKeyId: form.cardKeyId.trim(), cardPublicKeyPem: form.cardPublicKeyPem.trim(),
           requireSignedCard: true, slaLatencyMs: Number(form.slaLatencyMs) || 10000,
           supplementMaxAttempts: Number(form.maxAttempts) || 2

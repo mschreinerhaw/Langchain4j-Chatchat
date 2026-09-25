@@ -22,6 +22,12 @@ composite workflow executes evidence-producing capabilities before domain Agent 
 evidence, and stops domain dispatch if a required upstream child fails. Agent `REPLAN_REQUIRED` reselects another
 policy-admitted provider; `INPUT_REQUIRED`/`SUPPLEMENT_EVIDENCE` can run bounded local Knowledge Skill acquisition
 and resume the same A2A Task.
+An opted-in provider may also request `STRUCTURED_DATA` supplementation. This requires
+`metadata.supplementCapabilities` to contain `STRUCTURED_DATA`, the request to carry a published template and
+logical asset, and the caller's local Skill plus enterprise MCP policy to authorize
+`sql_template_analysis_execute`. The Runtime never accepts provider-supplied SQL or datasource IDs; only the
+preauthorized template result's `remoteProjection` crosses the A2A boundary. This branch shares the same bounded
+attempt/deadline budget as Knowledge Skill supplementation.
 
 The read-only tool analysis branch now has a production `AnalysisCapabilityOperator` binding. It accepts only a
 tool explicitly bound to the selected local Skill, checks the published tool's read-only metadata, and executes
@@ -39,15 +45,23 @@ The computation branch supports bounded, deterministic COUNT/SUM/AVG/MIN/MAX ove
 structured result. It records the source evidence ID and projects only the derived metric to remote Agents;
 arbitrary expressions, Python code and incomplete/truncated rows are refused.
 
-Remaining production integrations are explicit: external-research analysis currently has no production
-`AnalysisCapabilityOperator` binding and fails closed instead of fabricating evidence.
-The separate legacy orchestrator has PostgreSQL/OpenSearch and RocksDB integrations. The new final
-`EvidenceBundle` is now archived with a checksum in PostgreSQL, but search indexing, cache invalidation,
-retention and replay from that archive are not yet consolidated into one evidence protocol.
+The external-research branch now invokes only an explicitly Skill-bound, read-only unified `web_search` tool
+through Tool Runtime. It converts at most five public, attributed URLs into source evidence, excludes invalid/private
+URLs and duplicates, and reports the source and distinct-host counts. A single source, an old publication date, or
+an undated source is preserved rather than vetoed: sufficiency, freshness and credibility are user judgments.
+This validates evidence shape and boundedness, not the truth of source claims;
+the Agent must cite source evidence IDs and the Judge still evaluates its output.
+The final `EvidenceBundle` is archived with a SHA-256 checksum in PostgreSQL. A rebuildable OpenSearch index stores
+only archive metadata (owner, run, digest, size, timestamp), never full evidence content. Index failures leave the
+PostgreSQL result authoritative and pending for a scheduled retry. Existing RocksDB analysis spill/checkpoint storage
+remains the bounded working-data tier, not a second authoritative archive. Owner-scoped archive read/list APIs enable
+evidence retrieval by run; they do not re-execute an analysis. Retention is opt-in with
+`chatchat.analysis.evidence.retention-days`; disabled by default, and expired
+PostgreSQL records are removed only after their OpenSearch metadata is removed.
 A2A Task links are stored in `agent_a2a_task_link`, so a resumed workflow carrying the same execution
 identity can recover its remote task after gateway restart;
 the link contains only execution/tenant/agent/task/context IDs and expiry, never credentials or evidence.
-Health history and circuit state are now stored in `agent_provider_health` with transactional row locking;
+Health history and circuit state are stored in `agent_provider_health` with transactional row locking;
 the in-process state is a fallback if health storage is temporarily unavailable. This is a global provider
 health signal, not a replacement for tenant-specific admission policy. The remaining evidence and capability
 integrations are still required before the entire pictured OS can be marked complete.
@@ -165,6 +179,9 @@ Content-Type: application/json
 
 Tenant, user, roles, effective document scope, and request identity come from the authenticated Runtime context,
 not from request-provided claims. A denied local Skill or document scope prevents execution.
+For a remote Agent that may request structured-data evidence later, this endpoint also accepts optional
+`dataTemplateId`, `dataAssetName`, `dataEnvironment` and `dataParameters`. They remain Runtime-local and are
+used only if an admitted provider requests `STRUCTURED_DATA` within the bounded A2A supplement loop.
 
 For an explicitly bound read-only registered tool, use the separate governed path:
 
@@ -195,6 +212,10 @@ one is required. If a required evidence branch fails, the composite Judge reject
 For preauthorized SQL data evidence, add `dataTemplateId`, `dataAssetName`, `dataEnvironment`, and
 `dataParameters` to this request. Add `metricOperation` (COUNT/SUM/AVG/MIN/MAX) and `metricField` when a deterministic
 calculation is required. Raw SQL, arbitrary formulas and concrete datasource IDs are not accepted.
+To require governed public-source research before Agent dispatch, add `researchToolName` pointing to the selected
+Skill's explicitly bound `web_search` or registered MCP `*_web_search` tool, and explicit bounded `researchTerms`
+for the external provider. The original user query remains local to the unified search bridge. A missing or inadmissible search result
+rejects the composite run before the Agent is called.
 Automatic SQL execution is restricted to an enabled, datasource-allowlisted, published single-statement
 read-only template bound to the caller's authorized Skill. The generic `sql_query_execute` remains
 confirmation-required. SQL results marked truncated or whose reported row count does not match the returned rows
@@ -203,8 +224,9 @@ are rejected before they can be used as structured evidence or fed to a remote A
 Accepted final evidence is stored in PostgreSQL with a SHA-256 integrity digest, and analysis metadata returns
 `evidenceArchiveId`, `evidenceSha256` and `evidenceByteLength`. Retrieve it through
 `GET /api/v1/agent/analysis/evidence/{evidenceArchiveId}`; access is limited to the authenticated tenant and user.
+`GET /api/v1/agent/analysis/evidence?runId={runId}` lists that owner's archive references for a run.
 An archive write failure changes the Judge result to rejected rather than returning a misleading accepted result.
-Evidence archive retention and deletion policy still need deployment-specific configuration.
+Production deployments should set and review the retention period against their data-governance obligations.
 
 Set `runtime.agent.capability` on `AnalysisContext`. The query analyzer selects `DOMAIN_INTELLIGENCE`; in a composite
 analysis, evidence produced by earlier structured-data, document, computation, tool, or research workflows is passed to
@@ -221,14 +243,15 @@ AnalysisExecutionOutcome outcome = analysisRuntime.analyze(context);
 
 An external provider does not receive MCP credentials or Skill names. If it returns `INPUT_REQUIRED` or
 `SUPPLEMENT_EVIDENCE` with `missingEvidence`, Runtime may run only an operator-allowlisted local Knowledge Skill
-type against caller-authorized document IDs and tags. Runtime rechecks
+or an explicitly authorized read-only SQL template. Runtime rechecks
 `SkillExecutionScopePort` authorization for the local `AnalysisContext.skillId`; without an authorized
-local Skill and document scope, supplementation is denied. A nonempty result is minimized through
+local Skill and applicable document scope, Knowledge supplementation is denied. Structured-data supplementation
+has the separate explicit template, asset, Skill binding and MCP permissions described above. A nonempty result is minimized through
 `remoteProjection` and sent as a new A2A message carrying the original `taskId` and `contextId`. The loop is bounded
 by request `maxAttempts` (the federated workflow defaults to two), provider `supplementMaxAttempts` and the original
 deadline. Missing authorization, no evidence, repeated requirement, or exhausted budget leaves the interrupted
-status visible to the caller. Supplementation is currently wired to Knowledge Skills, not arbitrary MCP, Python,
-or SQL execution. The caller can provide `agentMaxAttempts`, `documentTags`, and `knowledgeDomains` in the analysis
+status visible to the caller. Supplementation is wired only to Knowledge Skills and the preauthorized read-only
+SQL-template path, never arbitrary MCP, Python or raw SQL execution. The caller can provide `agentMaxAttempts`, `documentTags`, and `knowledgeDomains` in the analysis
 context; document IDs and roles are inherited from the authorized context.
 
 Routing filters tenant/data/evidence policy first. A health tracker backed by PostgreSQL then excludes remote providers for 30

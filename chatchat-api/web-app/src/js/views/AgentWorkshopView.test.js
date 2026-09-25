@@ -29,7 +29,7 @@ describe("AgentWorkshopView remote compute registration", () => {
         agentId: "group.research", endpoint: "https://group.example/a2a", origin: "GROUP",
         capabilities: "finance.research.v1", tenantIds: "tenant-1",
         dataDomains: "market", evidenceTypes: "DocumentAnalysisEvidence",
-        supplementSkillTypes: "RULE_LOOKUP", cardKeyId: "group-key",
+        supplementSkillTypes: "RULE_LOOKUP", structuredSupplement: "STRUCTURED_DATA", cardKeyId: "group-key",
         cardPublicKeyPem: "public-pem", credentialRef: "env:GROUP_TOKEN",
         priority: 50, slaLatencyMs: 10000, maxAttempts: 2
       }
@@ -38,6 +38,7 @@ describe("AgentWorkshopView remote compute registration", () => {
     expect(descriptor.capabilities).toEqual([{ namespace: "finance", name: "research", version: "v1" }]);
     expect(descriptor.metadata.allowedTenantIds).toEqual(["tenant-1"]);
     expect(descriptor.metadata.supplementSkillTypes).toEqual(["RULE_LOOKUP"]);
+    expect(descriptor.metadata.supplementCapabilities).toEqual(["STRUCTURED_DATA"]);
     expect(descriptor.metadata.requireSignedCard).toBe(true);
     expect(descriptor.credentialRef).toBe("env:GROUP_TOKEN");
   });

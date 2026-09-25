@@ -8,9 +8,16 @@ import com.chatchat.common.knowledge.skill.KnowledgeSkillType;
 import com.chatchat.common.runtime.agent.*;
 import com.chatchat.common.runtime.analysis.evidence.AnalysisEvidence;
 import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.StructuredDataEvidence;
+import com.chatchat.common.runtime.analysis.model.AnalysisCapability;
+import com.chatchat.common.runtime.analysis.model.AnalysisContext;
+import com.chatchat.common.runtime.analysis.model.AnalysisIntent;
+import com.chatchat.common.runtime.analysis.model.AnalysisScope;
 import com.chatchat.common.runtime.analysis.plan.EvidenceRequirement;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
+import com.chatchat.agents.runtime.analysis.workflow.AnalysisOperatorRegistry;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -23,16 +30,22 @@ import java.util.Set;
 public class KnowledgeAgentEvidenceSupplement implements AgentEvidenceSupplementPort {
     private final KnowledgeSkillExecutionUnit skills;
     private final ObjectProvider<SkillExecutionScopePort> scopes;
+    private final ObjectProvider<AnalysisOperatorRegistry> operators;
 
+    @Autowired
     public KnowledgeAgentEvidenceSupplement(KnowledgeSkillExecutionUnit skills,
-                                            ObjectProvider<SkillExecutionScopePort> scopes) {
+                                            ObjectProvider<SkillExecutionScopePort> scopes,
+                                            ObjectProvider<AnalysisOperatorRegistry> operators) {
         this.skills = skills;
         this.scopes = scopes;
+        this.operators = operators;
     }
 
     @Override
     public List<AnalysisEvidence> supplement(AgentDescriptor agent, AgentExecutionRequest request,
                                              EvidenceRequirement requirement) {
+        if ("STRUCTURED_DATA".equals(requirement.type()))
+            return supplementStructuredData(agent, request);
         KnowledgeSkillType type;
         try { type = KnowledgeSkillType.valueOf(requirement.type()); }
         catch (RuntimeException invalid) { return List.of(); }
@@ -75,6 +88,39 @@ public class KnowledgeAgentEvidenceSupplement implements AgentEvidenceSupplement
                     "localSkillType", type.name())));
         }
         return List.copyOf(evidence);
+    }
+
+    private List<AnalysisEvidence> supplementStructuredData(AgentDescriptor agent,
+                                                            AgentExecutionRequest request) {
+        if (!strings(agent.metadata().get("supplementCapabilities")).contains("STRUCTURED_DATA"))
+            return List.of();
+        Object localSkillId = request.metadata().get("localSkillId");
+        SkillExecutionScopePort resolver = scopes.getIfAvailable();
+        AnalysisOperatorRegistry registry = operators.getIfAvailable();
+        if (!(localSkillId instanceof String skillId) || skillId.isBlank()
+            || resolver == null || registry == null) return List.of();
+        var effective = resolver.resolve(request.scope().tenantId(), request.scope().userId(), skillId,
+            strings(request.metadata().get("documentIds")), strings(request.metadata().get("documentTags")));
+        if (!effective.skillAllowed() || effective.documentIds().contains(SkillExecutionScopePort.DENIED_DOCUMENT_ID))
+            return List.of();
+        Map<String, Object> attributes = new java.util.LinkedHashMap<>();
+        for (String key : List.of("runtime.analysis.dataTemplateId", "runtime.analysis.dataAssetName",
+            "runtime.analysis.dataEnvironment", "runtime.analysis.dataParameters")) {
+            Object value = request.metadata().get(key);
+            if (value != null) attributes.put(key, value);
+        }
+        if (!attributes.containsKey("runtime.analysis.dataTemplateId")) return List.of();
+        AnalysisContext context = new AnalysisContext(request.task().instruction(), request.scope(), skillId,
+            effective.documentIds(), effective.tags(), effective.roles(),
+            new AnalysisIntent("SUPPLEMENT_STRUCTURED_DATA", List.of(),
+                Set.of(AnalysisCapability.STRUCTURED_DATA), "UNSPECIFIED", true), attributes);
+        var operator = registry.resolve(AnalysisCapability.STRUCTURED_DATA, context).orElse(null);
+        if (operator == null) return List.of();
+        var result = operator.execute(context, new AnalysisScope(request.scope().tenantId(),
+            request.scope().userId(), effective.roles(), effective.documentIds(), Map.of("skillId", skillId)), null);
+        if (result.evidence().size() != 1 || !(result.evidence().get(0) instanceof StructuredDataEvidence data)
+            || !request.scope().tenantId().equals(data.attributes().get("tenantId"))) return List.of();
+        return List.of(data);
     }
 
     private List<String> strings(Object value) {

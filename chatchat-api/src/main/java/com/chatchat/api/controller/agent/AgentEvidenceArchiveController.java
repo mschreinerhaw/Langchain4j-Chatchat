@@ -12,9 +12,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.List;
 
 /** Read-only, owner-scoped access to a Judge-accepted evidence bundle. */
 @RestController
@@ -49,6 +51,19 @@ public class AgentEvidenceArchiveController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                 "Archived evidence cannot be decoded", invalid);
         }
+    }
+
+    @GetMapping
+    @Operation(summary = "List evidence archives for a run owned by the authenticated tenant and user")
+    public ApiResponse<List<AnalysisEvidenceArchivePort.Reference>> list(@RequestParam String runId,
+                                                                           HttpServletRequest request) {
+        String tenant = attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        String user = attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID);
+        if (tenant == null || user == null)
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated tenant and user are required");
+        if (runId == null || runId.isBlank() || runId.length() > 128)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A bounded runId is required");
+        return ApiResponse.success(archive.listByRun(tenant, user, runId));
     }
 
     private String attribute(HttpServletRequest request, String key) {

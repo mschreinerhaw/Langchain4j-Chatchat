@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 const { fetchPublishedAgentCurlExample, discoverRemoteAgent, registerRemoteAgent, authSession } = vi.hoisted(() => ({
   fetchPublishedAgentCurlExample: vi.fn(),
@@ -26,6 +27,37 @@ vi.mock("../../services/api.js", () => ({
 import AgentWorkshopView from "./AgentWorkshopView.js";
 
 describe("AgentWorkshopView remote compute registration", () => {
+  it("stores user-written expertise without using data-category checkboxes as MCP grants", () => {
+    const remoteForm = {
+      agentId: "group.research", displayName: "Research Agent", endpoint: "https://group.example/a2a",
+      origin: "GROUP", capabilities: "finance.research.v1", selectedCapabilities: ["finance.research.v1"],
+      professionalCapabilities: "Portfolio analysis\nRisk attribution", selectedDocumentIds: [],
+      selectedSkillIds: ["research-skill"], autoMcp: true, allowDocumentSupplement: false,
+      allowDataSupplement: false, tenantIds: "tenant-1", dataDomains: "",
+      supportedExecutionModes: ["DOMAIN_INFERENCE"], cardKeyId: "kid", cardPublicKeyPem: "pem",
+      credentialRef: "", requestQueryParameters: "", requestBodyParameters: ""
+    };
+    const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({ remoteForm, remotePreview: { version: "v1" } });
+    expect(descriptor.capabilities).toEqual([{ namespace: "finance", name: "research", version: "v1" }]);
+    expect(descriptor.metadata.professionalCapabilities).toEqual(["Portfolio analysis", "Risk attribution"]);
+    expect(descriptor.metadata.analysisGrants).toMatchObject({ mcpToolNames: [], mcpRoleGoverned: true });
+    expect(descriptor.allowedEvidenceTypes).toContain("ToolAnalysisEvidence");
+  });
+
+  it("does not expose runtime identifiers or evidence codes in the connection form", () => {
+    const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
+    const registration = template.split('<form class="agent-dialog remote-agent-dialog"')[1]
+      .split('<div v-if="dialogOpen"')[0];
+    for (const label of ["允许使用的租户编号", "Agent 标识", "业务能力 ID", "允许的数据域代码",
+      "证据类型代码", "补证 Skill 类型", "路由优先级", "SLA 延迟阈值"])
+      expect(registration).not.toContain(label);
+    expect(registration).toContain("发布方验签公钥");
+    expect(registration).toContain("URL 查询参数");
+    expect(registration).toContain('v-model.trim="remoteForm.professionalCapabilities"');
+    expect(registration).not.toContain('v-model="remoteForm.selectedDataCapabilities"');
+    expect(registration).not.toContain('v-model="remoteForm.selectedMcpToolNames"');
+  });
+
   it("uses only checked capabilities even when the verified Card lists more", () => {
     const descriptor = AgentWorkshopView.methods.remoteDescriptor.call({
       remotePreview: { version: "v1" },
@@ -45,7 +77,7 @@ describe("AgentWorkshopView remote compute registration", () => {
   it("saves from the single-page form after connection and authorization", async () => {
     registerRemoteAgent.mockResolvedValueOnce({});
     const remoteForm = { tenantIds: "tenant-1", selectedCapabilities: ["finance.risk.v1"],
-      selectedSkillIds: ["investment-skill"] };
+      selectedSkillIds: ["investment-skill"], professionalCapabilities: "Risk analysis" };
     const context = { remoteForm, remotePreview: { name: "Risk Agent" }, remoteError: "",
       remoteBusy: false, remoteDialogOpen: true, remoteDescriptor: () => ({ agentId: "group.risk" }),
       loadRemoteAgents: vi.fn() };

@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import DomainIntelligenceView from "./DomainIntelligenceView.js";
 
 describe("domain intelligence analysis composer", () => {
+  it("shows Skill-bound MCP tools for role-governed providers without a registration-time allowlist", () => {
+    const selectedSkills = [{ value: "investment-skill", boundMcpToolNames: ["position_read"] }];
+    const available = DomainIntelligenceView.computed.availableTools.call({ selectedSkills,
+      selectedProvider: { grantRestricted: true, mcpRoleGoverned: true, mcpToolNames: [] } });
+    expect(available).toEqual([{ skillId: "investment-skill", toolName: "position_read",
+      key: "investment-skill::position_read" }]);
+  });
+
   it("preserves documents and tools by Skill when selecting multiple Skills", () => {
     const form = {
       providerId: "llm:general", capability: "general.analysis.v1", skillId: "skill-a",

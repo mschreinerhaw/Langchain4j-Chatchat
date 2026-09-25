@@ -54,6 +54,32 @@ class DefaultAgentComputeRuntimeTest {
         assertThat(planner.candidates(forged)).isEmpty();
     }
 
+    @Test void roleGovernedMcpUsesRuntimeAuthorizationInsteadOfRegistrationTimeToolNames() {
+        InMemoryAgentRegistry registry = new InMemoryAgentRegistry(List.of());
+        AgentDescriptor original = remoteDescriptor(Set.of("ToolAnalysisEvidence"), Set.of());
+        AgentExecutionRequest base = request(Set.of("portfolio"));
+        AgentExecutionRequest selected = new AgentExecutionRequest(null, base.executionId(), base.capability(),
+            base.task(), base.evidence(), base.capabilityGrants(), base.constraints(), base.outputContract(),
+            base.scope(), Map.of("localSkillId", "approved-skill"));
+        AgentCapabilityPlanner planner = new AgentCapabilityPlanner(registry);
+        registry.register(new AgentDescriptor(original.agentId(), original.version(), original.origin(),
+            original.protocol(), original.endpoint(), original.capabilities(), original.trustLevel(),
+            original.dataAccessMode(), original.allowedDataDomains(), original.allowedEvidenceTypes(),
+            original.outputSchema(), original.credentialRef(), original.priority(), true,
+            Map.of("allowedTenantIds", List.of("tenant-1"), "analysisGrants",
+                Map.of("skillIds", List.of("approved-skill"), "documentIds", List.of(),
+                    "mcpToolNames", List.of()))));
+        assertThat(planner.candidates(selected)).isEmpty();
+        registry.register(new AgentDescriptor(original.agentId(), original.version(), original.origin(),
+            original.protocol(), original.endpoint(), original.capabilities(), original.trustLevel(),
+            original.dataAccessMode(), original.allowedDataDomains(), original.allowedEvidenceTypes(),
+            original.outputSchema(), original.credentialRef(), original.priority(), true,
+            Map.of("allowedTenantIds", List.of("tenant-1"), "analysisGrants",
+                Map.of("skillIds", List.of("approved-skill"), "documentIds", List.of(),
+                    "mcpToolNames", List.of(), "mcpRoleGoverned", true))));
+        assertThat(planner.candidates(selected)).hasSize(1);
+    }
+
     @Test void toolRequestProtocolRejectsRawExecutableToolNames() {
         assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> AgentToolRequest.from(Map.of(
             "requestId", "unsafe", "type", "SUPPLEMENT_EVIDENCE", "evidenceType", "STRUCTURED_DATA",

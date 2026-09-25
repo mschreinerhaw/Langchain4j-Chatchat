@@ -80,6 +80,21 @@ class AgentAnalysisControllerTest {
             List.of(new AgentAnalysisController.DomainToolCall("two", "unlisted", Map.of())),
             null, null, null, null, 1, 60000L, true, skills, null), request))
             .isInstanceOf(ResponseStatusException.class).hasMessageContaining("provider analysis grants");
+        AgentDescriptor roleGoverned = new AgentDescriptor(provider.agentId(), provider.version(),
+            provider.origin(), provider.protocol(), provider.endpoint(), provider.capabilities(),
+            provider.trustLevel(), provider.dataAccessMode(), provider.allowedDataDomains(),
+            provider.allowedEvidenceTypes(), provider.outputSchema(), provider.credentialRef(),
+            provider.priority(), true, Map.of("allowedTenantIds", List.of("tenant-1"),
+                "supportedExecutionModes", List.of("DOMAIN_INFERENCE"),
+                "analysisGrants", Map.of("skillIds", List.of("one", "two"),
+                    "documentIds", List.of("doc-one", "doc-two"), "mcpToolNames", List.of(),
+                    "mcpRoleGoverned", true)));
+        when(registry.find("group.analysis")).thenReturn(Optional.of(roleGoverned));
+        controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest("Analyze", null,
+            "group.analysis", "finance.analysis.v1", List.of(), List.of(),
+            List.of(new AgentAnalysisController.DomainToolCall("two", "market_read", Map.of())),
+            null, null, null, null, 1, 60000L, true, skills, null), request);
+        when(registry.find("group.analysis")).thenReturn(Optional.of(provider));
         assertThatThrownBy(() -> controller.analyzeDomain(new AgentAnalysisController.DomainAnalyzeRequest(
             "Analyze", null, "group.analysis", "finance.analysis.v1", List.of(), List.of(),
             List.of(), null, null, null, null, 1, 60000L, true,

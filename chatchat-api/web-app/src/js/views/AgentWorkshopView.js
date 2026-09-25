@@ -184,9 +184,8 @@ function emptyForm() {
 function emptyRemoteForm() {
   return {
     agentId: "", displayName: "", endpoint: "", origin: "GROUP", capabilities: "",
-    selectedCapabilities: [], selectedDocumentIds: [], selectedSkillIds: [],
-    selectedDataCapabilities: [], selectedMcpToolNames: [], autoMcp: true,
-    allowDocumentSupplement: false, allowDataSupplement: false, allowMcpSupplement: false,
+    selectedCapabilities: [], professionalCapabilities: "", selectedDocumentIds: [], selectedSkillIds: [],
+    autoMcp: true, allowDocumentSupplement: false, allowDataSupplement: false,
     defaultInstruction: "根据提供的知识和业务数据进行专业分析。所有结论必须基于提供的数据，不允许自行补充未经验证的事实。",
     tenantIds: "", dataDomains: "", evidenceTypes: "DocumentAnalysisEvidence",
     supportedExecutionModes: ["DOMAIN_INFERENCE"],
@@ -201,24 +200,8 @@ function remoteSlug(value) {
     .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "") || "agent";
 }
 
-const remoteDataCategories = [
-  { key: "customer", label: "客户基本信息", keywords: ["customer", "客户", "profile", "画像"] },
-  { key: "asset", label: "资产数据", keywords: ["asset", "资产"] },
-  { key: "position", label: "持仓数据", keywords: ["position", "持仓", "portfolio"] },
-  { key: "transaction", label: "交易数据", keywords: ["transaction", "交易", "order"] },
-  { key: "return", label: "收益数据", keywords: ["return", "收益", "pnl"] },
-  { key: "market", label: "市场行情", keywords: ["market", "行情", "quote"] }
-];
-
-function remoteCapabilityLabel(value) {
-  const text = String(value || "").toLowerCase();
-  if (/attribution|pnl/.test(text)) return "收益归因分析";
-  if (/behavior|transaction/.test(text)) return "交易行为分析";
-  if (/risk/.test(text)) return "风险分析";
-  if (/financial|finance/.test(text)) return "财务分析";
-  if (/portfolio|investment/.test(text)) return "客户投资分析";
-  return String(value || "专业分析能力").replace(/[._-]+/g, " ");
-}
+const remoteDataCategories = ["客户基本信息", "资产数据", "持仓数据", "交易数据", "收益数据", "市场行情"]
+  .map((label, index) => ({ key: String(index), label }));
 
 function fixedRequestParameters(text, format) {
   if (!String(text || "").trim()) return {};
@@ -281,8 +264,6 @@ export default {
       remoteSkillPickerOpen: false,
       remoteDocSearch: "",
       remoteSkillSearch: "",
-      remoteToolSearch: "",
-      remoteDataSourcesOpen: false,
       remoteError: "",
       remoteDiagnostic: "",
       remoteBusy: false,
@@ -339,10 +320,7 @@ export default {
       const session = getStoredAuthSession();
       return String(session?.user?.username || "").toLowerCase() === "admin";
     },
-    remoteCapabilityOptions() {
-      return parseList(this.remoteForm.capabilities).map((id, index) => ({ id,
-        label: remoteCapabilityLabel(this.remotePreview?.skills?.[index] || id) }));
-    },
+    remoteDataCategories() { return remoteDataCategories; },
     remoteDocumentOptions() {
       const query = this.remoteDocSearch.toLowerCase();
       return (this.documents || []).filter((item) => item.docId && !item.deletedAt
@@ -352,22 +330,6 @@ export default {
       const query = this.remoteSkillSearch.toLowerCase();
       return this.remoteSkills.filter((item) => !query
         || `${item.label || ""} ${item.value}`.toLowerCase().includes(query));
-    },
-    remoteToolOptions() {
-      const query = this.remoteToolSearch.toLowerCase();
-      return (this.registeredMcpTools || []).filter((item) => item.localToolName
-        && (!query || `${item.chineseAlias || ""} ${item.description || ""} ${item.localToolName}`
-          .toLowerCase().includes(query)));
-    },
-    remoteDataOptions() {
-      const tools = this.registeredMcpTools || [];
-      return remoteDataCategories.map((category) => ({ ...category,
-        tools: tools.filter((tool) => {
-          const text = [tool.localToolName, tool.remoteToolName, tool.chineseAlias,
-            tool.description, tool.category, ...(tool.categories || []), ...(tool.tags || [])]
-            .filter(Boolean).join(" ").toLowerCase();
-          return category.keywords.some((keyword) => text.includes(keyword));
-        }).map((tool) => tool.localToolName).filter(Boolean) }));
     },
     filteredAgents() {
       return this.agents;
@@ -410,6 +372,18 @@ export default {
     },
     paginatedAgents() {
       return this.agents;
+    },
+    matchingRemoteAgents() {
+      if (!this.isPlatformAdmin || this.agentCategoryFilter !== "all"
+        || this.agentStatusFilter !== "all" || this.agentModelFilter !== "all") return [];
+      const keyword = this.searchQuery.trim().toLowerCase();
+      return (this.remoteAgents || []).filter((agent) => !keyword || [
+        agent.metadata?.displayName, agent.agentId, agent.origin,
+        ...(agent.metadata?.professionalCapabilities || [])
+      ].filter(Boolean).join(" ").toLowerCase().includes(keyword));
+    },
+    visibleRemoteAgents() {
+      return this.agentPage === 1 ? this.matchingRemoteAgents : [];
     },
     selectedAgentCount() {
       return this.selectedAgentIds.length;
@@ -692,6 +666,9 @@ export default {
     if (this.isPlatformAdmin) this.loadRemoteAgents();
   },
   methods: {
+    async refreshAgentList() {
+      await Promise.all([this.loadWorkshop(), this.isPlatformAdmin ? this.loadRemoteAgents() : Promise.resolve()]);
+    },
     async loadRemoteAgents() {
       try {
         const agents = await fetchRegisteredAgents();
@@ -1034,8 +1011,6 @@ export default {
       this.remoteSkillPickerOpen = false;
       this.remoteDocSearch = "";
       this.remoteSkillSearch = "";
-      this.remoteToolSearch = "";
-      this.remoteDataSourcesOpen = false;
       this.remoteError = "";
       this.remoteDiagnostic = "";
       this.remoteAdvancedOpen = false;
@@ -1059,6 +1034,8 @@ export default {
     invalidateRemotePreview() {
       this.remotePreview = null;
       this.remoteForm.selectedCapabilities = [];
+      this.remoteForm.capabilities = "";
+      this.remoteForm.agentId = "";
       this.remoteError = "";
       this.remoteDiagnostic = "";
     },
@@ -1069,16 +1046,6 @@ export default {
     remoteSkillLabel(id) {
       const skill = (this.remoteSkills || []).find((item) => String(item.value) === String(id));
       return skill?.label || id;
-    },
-    remoteSelectedToolNames() {
-      const selected = new Set(this.remoteForm.selectedMcpToolNames || []);
-      if (this.remoteForm.autoMcp) {
-        for (const category of this.remoteDataOptions || []) {
-          if ((this.remoteForm.selectedDataCapabilities || []).includes(category.key))
-            category.tools.forEach((name) => selected.add(name));
-        }
-      }
-      return [...selected];
     },
     remoteDescriptor() {
       const form = this.remoteForm;
@@ -1100,7 +1067,7 @@ export default {
         || Array.isArray(form.selectedSkillIds) || Array.isArray(form.selectedMcpToolNames);
       const evidenceTypes = explicitGrants ? [
         ...(selectedDocuments.length || selectedSkills.length ? ["DocumentAnalysisEvidence"] : []),
-        ...(selectedTools.length ? ["ToolAnalysisEvidence"] : []),
+        ...(form.autoMcp || selectedTools.length ? ["ToolAnalysisEvidence"] : []),
         ...(form.allowDataSupplement ? ["StructuredDataEvidence"] : [])
       ] : parseList(form.evidenceTypes);
       return {
@@ -1121,12 +1088,12 @@ export default {
             ? ["STRUCTURED_DATA"] : [],
           ...(explicitGrants ? { analysisGrants: {
             documentIds: selectedDocuments, skillIds: selectedSkills,
-            mcpToolNames: selectedTools, dataCapabilityKeys: form.selectedDataCapabilities || [],
-            autoMcp: Boolean(form.autoMcp), allowMcpSupplement: Boolean(form.allowMcpSupplement),
+            mcpToolNames: selectedTools, mcpRoleGoverned: Boolean(form.autoMcp),
             allowDocumentSupplement: Boolean(form.allowDocumentSupplement),
             allowDataSupplement: Boolean(form.allowDataSupplement),
             defaultInstruction: String(form.defaultInstruction || "").trim()
           } } : {}),
+          professionalCapabilities: parseList(form.professionalCapabilities),
           cardKeyId: form.cardKeyId.trim(), cardPublicKeyPem: form.cardPublicKeyPem.trim(),
           ...(form.displayName || this.remotePreview?.name
             ? { displayName: form.displayName || this.remotePreview.name } : {}),
@@ -1161,8 +1128,7 @@ export default {
           throw new Error("无法验证 Agent 身份，请检查服务地址或联系发布方。");
         if (!this.remoteForm.agentId.trim())
           this.remoteForm.agentId = `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(discovered.name)}`;
-        if (!this.remoteForm.capabilities.trim() && Array.isArray(discovered.skills))
-          this.remoteForm.capabilities = discovered.skills.map((skill) => {
+        this.remoteForm.capabilities = (Array.isArray(discovered.skills) ? discovered.skills : []).map((skill) => {
             const value = String(skill || "").toLowerCase();
             return /^[a-z0-9][a-z0-9.-]*\.[a-z0-9][a-z0-9.-]*$/.test(value)
               ? value : `${this.remoteForm.origin.toLowerCase()}.${remoteSlug(skill)}`;
@@ -1186,9 +1152,11 @@ export default {
       try {
         if (!this.remotePreview) throw new Error("请先发现并验证 Agent Card");
         if (!parseList(this.remoteForm.tenantIds).length)
-          throw new Error("请填写至少一个允许使用的租户编号");
+          throw new Error("无法识别当前租户，请重新登录后再试");
         if (!(this.remoteForm.selectedCapabilities || []).length)
-          throw new Error("请至少选择一项已发现的专业能力");
+          throw new Error("Agent Card 未声明可调用能力，请联系发布方");
+        if (!parseList(this.remoteForm.professionalCapabilities).length)
+          throw new Error("请填写至少一项专业能力描述");
         if (!(this.remoteForm.selectedSkillIds || []).length)
           throw new Error("请至少选择一个已发布的知识 Skill");
         await registerRemoteAgent(this.remoteDescriptor());

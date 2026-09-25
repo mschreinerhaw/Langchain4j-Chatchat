@@ -14,6 +14,7 @@
               <option value="">请选择已发布的分析算力</option>
               <option v-for="provider in providers" :key="provider.providerId" :value="provider.providerId">{{ provider.displayName || provider.providerId }} · {{ provider.kind === 'GENERAL_LLM' ? '通用 LLM' : provider.origin === 'GROUP' ? '集团 Agent' : '第三方 Agent' }}</option>
             </select>
+            <small v-if="selectedProvider?.professionalCapabilities?.length" class="domain-hint">擅长：{{ selectedProvider.professionalCapabilities.join('、') }}</small>
           </label>
           <label>分析能力
             <select v-model="form.capability" required>

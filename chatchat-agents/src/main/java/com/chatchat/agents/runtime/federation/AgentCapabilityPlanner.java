@@ -67,6 +67,8 @@ public class AgentCapabilityPlanner {
         var required = request.constraints().allowedDataDomains();
         if (required.isEmpty()) return true;
         if (agent.origin() == AgentDescriptor.Origin.LOCAL) return true;
+        if (agent.metadata().get("analysisGrants") instanceof Map<?, ?> grants
+            && Boolean.TRUE.equals(grants.get("mcpRoleGoverned"))) return true;
         return !agent.allowedDataDomains().isEmpty() && agent.allowedDataDomains().containsAll(required);
     }
 
@@ -84,6 +86,7 @@ public class AgentCapabilityPlanner {
         Set<String> skills = strings(grants.get("skillIds"));
         Set<String> documents = strings(grants.get("documentIds"));
         Set<String> tools = strings(grants.get("mcpToolNames"));
+        boolean roleGovernedMcp = Boolean.TRUE.equals(grants.get("mcpRoleGoverned"));
         Object localSkill = request.metadata().get("localSkillId");
         if (localSkill instanceof String id && !id.isBlank() && !skills.contains(id)) return false;
         if (!Boolean.TRUE.equals(grants.get("allowDocumentSupplement"))
@@ -101,7 +104,7 @@ public class AgentCapabilityPlanner {
                 Object sourceSkill = tool.attributes().get("skillId");
                 String skillId = sourceSkill instanceof String id && !id.isBlank() ? id
                     : localSkill instanceof String fallback ? fallback : "";
-                if (!skills.contains(skillId) || !tools.contains(tool.toolName())) return false;
+                if (!skills.contains(skillId) || !roleGovernedMcp && !tools.contains(tool.toolName())) return false;
             }
         }
         return true;

@@ -2112,6 +2112,12 @@
   gap: 13px;
 }
 
+.agent-workshop-view .remote-card-source {
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .agent-workshop-view .agent-card.export-selected {
   border-color: rgba(47, 124, 246, 0.48);
   box-shadow: 0 12px 30px rgba(47, 124, 246, 0.12);
@@ -2692,23 +2698,6 @@
   max-height: min(90dvh, 900px);
 }
 
-.agent-workshop-view .remote-registered-list {
-  display: grid; gap: 10px; margin-bottom: 16px; padding: 14px 16px;
-  border: 1px solid var(--line); border-radius: 9px; background: #fff;
-}
-.agent-workshop-view .remote-registered-list > header {
-  display: flex; justify-content: space-between; color: var(--text); font-size: 14px;
-}
-.agent-workshop-view .remote-registered-list > header span,
-.agent-workshop-view .remote-registered-list p { color: var(--muted); font-size: 12px; }
-.agent-workshop-view .remote-registered-items { display: grid; gap: 8px; }
-.agent-workshop-view .remote-registered-items article {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
-}
-.agent-workshop-view .remote-registered-items article > div { display: grid; gap: 3px; }
-.agent-workshop-view .remote-registered-items small { color: var(--muted); }
-
 .agent-workshop-view .remote-dialog-body {
   display: block;
 }
@@ -2740,11 +2729,16 @@
 .agent-workshop-view .remote-data-grid {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
 }
-.agent-workshop-view .remote-grant-grid > div {
-  display: grid; align-content: start; gap: 9px; min-width: 0;
-  padding: 12px; border: 1px solid var(--line); border-radius: 9px;
+.agent-workshop-view .remote-data-example {
+  padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: #f8faff; color: var(--text); font-size: 12px;
 }
-.agent-workshop-view .remote-picker-button { justify-self: start; }
+.agent-workshop-view .remote-grant-section {
+  display: grid; align-content: start; gap: 9px; min-width: 0;
+}
+.agent-workshop-view .remote-grant-section .agent-resource-selector { min-height: 70px; }
+.agent-workshop-view .remote-grant-section .agent-document-checklist { grid-template-columns: 1fr; }
+.agent-workshop-view .remote-mcp-workflow { margin-top: 12px; }
 .agent-workshop-view .remote-selected-list { display: grid; gap: 5px; color: #226e4b; font-size: 12px; }
 .agent-workshop-view .remote-selected-list small { color: var(--muted); }
 .agent-workshop-view .remote-picker-panel {

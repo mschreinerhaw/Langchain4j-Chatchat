@@ -35,7 +35,7 @@ export default {
         const configured = (skill.toolConfigs || []).filter((item) => item?.enabled !== false)
           .map((item) => item.toolName);
         return [...new Set([...(skill.boundMcpToolNames || []), ...configured].filter(Boolean))]
-          .filter((name) => !this.selectedProvider?.grantRestricted
+          .filter((name) => !this.selectedProvider?.grantRestricted || this.selectedProvider?.mcpRoleGoverned
             || this.selectedProvider.mcpToolNames?.includes(name))
           .map((toolName) => ({ skillId: skill.value, toolName, key: `${skill.value}::${toolName}` }));
       });

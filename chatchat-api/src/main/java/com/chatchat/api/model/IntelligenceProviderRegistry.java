@@ -24,7 +24,8 @@ public class IntelligenceProviderRegistry {
     public record Provider(String providerId, String displayName, String kind, String origin,
                            List<String> capabilities, List<String> evidenceTypes,
                            boolean grantRestricted, List<String> skillIds, List<String> documentIds,
-                           List<String> mcpToolNames) { }
+                           List<String> mcpToolNames, boolean mcpRoleGoverned,
+                           List<String> professionalCapabilities) { }
 
     public List<Provider> list(String tenantId) {
         List<Provider> result = new ArrayList<>();
@@ -34,7 +35,7 @@ public class IntelligenceProviderRegistry {
                     model.alias() == null || model.alias().isBlank() ? model.name() : model.alias(),
                     "GENERAL_LLM", "PLATFORM", List.of("general.analysis.v1"),
                     List.of("DocumentAnalysisEvidence", "ToolAnalysisEvidence", "StructuredDataEvidence"),
-                    false, List.of(), List.of(), List.of()));
+                    false, List.of(), List.of(), List.of(), false, List.of()));
         }
         for (AgentDescriptor agent : agents.list()) {
             if (!agent.enabled() || agent.origin() == AgentDescriptor.Origin.LOCAL
@@ -52,7 +53,9 @@ public class IntelligenceProviderRegistry {
                 agent.allowedEvidenceTypes().stream().sorted().toList(),
                 rawGrants instanceof Map<?, ?>,
                 strings(grants.get("skillIds")), strings(grants.get("documentIds")),
-                strings(grants.get("mcpToolNames"))));
+                strings(grants.get("mcpToolNames")),
+                Boolean.TRUE.equals(grants.get("mcpRoleGoverned")),
+                strings(agent.metadata().get("professionalCapabilities"))));
         }
         return List.copyOf(result);
     }

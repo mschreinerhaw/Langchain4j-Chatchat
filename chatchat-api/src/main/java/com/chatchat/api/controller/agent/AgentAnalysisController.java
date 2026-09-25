@@ -253,7 +253,8 @@ public class AgentAnalysisController {
         if (!Boolean.TRUE.equals(grants.get("allowDocumentSupplement"))
             && !allowedDocuments.containsAll(documents))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Document is outside provider analysis grants");
-        if (tools.stream().anyMatch(item -> !allowedTools.contains(item.toolName())))
+        if (!Boolean.TRUE.equals(grants.get("mcpRoleGoverned"))
+            && tools.stream().anyMatch(item -> !allowedTools.contains(item.toolName())))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "MCP tool is outside provider analysis grants");
         if (structured && !Boolean.TRUE.equals(grants.get("allowDataSupplement")))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Structured data is outside provider analysis grants");

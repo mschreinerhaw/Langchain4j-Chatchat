@@ -9,7 +9,7 @@
     <section class="agent-summary">
       <article>
         <span>Agent总数</span>
-        <strong>{{ summary.agentCount || 0 }}</strong>
+        <strong>{{ (summary.agentCount || 0) + remoteAgents.length }}</strong>
       </article>
       <article>
         <span>自定义</span>
@@ -33,25 +33,15 @@
       </article>
     </section>
 
-    <section v-if="isPlatformAdmin" class="remote-registered-list">
-      <header><strong>已接入的专有分析 Agent <span>· {{ remoteAgents.length }} 个</span></strong><button type="button" class="light-button" @click="openRemoteDialog">接入 Agent</button></header>
-      <div v-if="remoteAgents.length" class="remote-registered-items">
-        <article v-for="agent in remoteAgents" :key="agent.agentId">
-          <div><strong>{{ agent.metadata?.displayName || agent.agentId }}</strong><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }} · {{ agent.enabled ? '已启用' : '已停用' }}</small></div>
-          <button type="button" class="light-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button>
-        </article>
-      </div>
-      <p v-else>尚未接入专有分析 Agent。点击“接入 Agent”开始配置。</p>
-    </section>
-
     <section class="agent-list-controls">
       <header>
         <div>
           <strong>Agent列表</strong>
-          <span>{{ agentTotal }} / {{ summary.agentCount || 0 }} 个</span>
+          <span>{{ agentTotal + matchingRemoteAgents.length }} / {{ (summary.agentCount || 0) + remoteAgents.length }} 个</span>
         </div>
         <div class="agent-light-actions">
           <button type="button" class="primary-button" @click="openCreateDialog">新增Agent</button>
+          <button v-if="isPlatformAdmin" type="button" class="light-button" @click="openRemoteDialog">接入专有分析 Agent</button>
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
           <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
             导出已选JSON（{{ selectedAgentCount }}）
@@ -62,7 +52,7 @@
           <button v-if="selectedAgentCount" type="button" class="light-button" @click="clearAgentExportSelection">
             清除勾选
           </button>
-          <button type="button" class="light-button" :disabled="loading" @click="loadWorkshop">
+          <button type="button" class="light-button" :disabled="loading" @click="refreshAgentList">
             {{ loading ? "刷新中" : "刷新" }}
           </button>
         </div>
@@ -105,10 +95,26 @@
 
     <p v-if="error" class="agent-error">{{ error }}</p>
     <p v-else-if="loading && agents.length === 0" class="agent-empty">正在加载后端Agent配置...</p>
-    <p v-else-if="(summary.agentCount || 0) === 0" class="agent-empty">暂无Agent配置，请先新增一个。</p>
-    <p v-else-if="agentTotal === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
+    <p v-else-if="(summary.agentCount || 0) + remoteAgents.length === 0" class="agent-empty">暂无Agent配置，请先新增或接入一个。</p>
+    <p v-else-if="agentTotal + matchingRemoteAgents.length === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
 
     <div v-else class="feature-grid">
+      <article v-for="agent in visibleRemoteAgents" :key="`remote:${agent.agentId}`" class="feature-card agent-card remote-agent-card">
+        <span class="remote-card-source">专有分析算力</span>
+        <div class="agent-card-head">
+          <span>专</span>
+          <div><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }}</small></div>
+          <strong :class="{ off: !agent.enabled }">{{ agent.enabled ? '已接入' : '已停用' }}</strong>
+        </div>
+        <p>{{ agent.metadata?.professionalCapabilities?.join('、') || '尚未填写专业能力描述。' }}</p>
+        <dl class="agent-meta">
+          <div><dt>模式</dt><dd>专有分析</dd></div>
+          <div><dt>Skill</dt><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div>
+          <div><dt>文档</dt><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div>
+          <div><dt>MCP</dt><dd>{{ agent.metadata?.analysisGrants?.mcpRoleGoverned ? '角色授权' : '固定范围' }}</dd></div>
+        </dl>
+        <div class="agent-card-actions"><button type="button" class="secondary-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button></div>
+      </article>
       <article
         v-for="agent in paginatedAgents"
         :key="agent.id"
@@ -439,21 +445,13 @@
           <p class="remote-intro">将集团或第三方 Agent 作为专业分析算力使用。Runtime 负责准备已授权的知识与业务数据，Agent 负责按要求进行专业推理。</p>
           <button v-if="isPlatformAdmin" type="button" class="remote-advanced-toggle" :aria-expanded="remoteAdvancedOpen" @click="remoteAdvancedOpen = !remoteAdvancedOpen">{{ remoteAdvancedOpen ? '收起高级接入配置' : '高级接入配置' }} {{ remoteAdvancedOpen ? '⌃' : '⌄' }}</button>
           <section v-if="isPlatformAdmin && remoteAdvancedOpen" class="remote-advanced-panel">
-            <p>仅供平台管理员配置身份认证、协议参数与路由。远端不能直接调用本地 Skill 或数据源。</p>
+            <p>仅供平台管理员配置发布方身份和必要的请求参数。租户、能力及证据授权由 Runtime 自动确定；远端不能直接调用本地 Skill 或数据源。</p>
             <div class="remote-field-grid">
               <label><span>发布方签名 Key ID</span><input v-model.trim="remoteForm.cardKeyId" placeholder="由发布方提供" @input="invalidateRemotePreview"></label>
               <label><span>凭据引用</span><input v-model.trim="remoteForm.credentialRef" placeholder="env:GROUP_AGENT_TOKEN" @input="invalidateRemotePreview"></label>
               <label class="wide-field"><span>发布方验签公钥（PEM）</span><textarea v-model.trim="remoteForm.cardPublicKeyPem" rows="3" placeholder="-----BEGIN PUBLIC KEY-----" @input="invalidateRemotePreview"></textarea></label>
-              <label><span>允许使用的租户编号</span><textarea v-model.trim="remoteForm.tenantIds" rows="2" placeholder="每行一个租户编号"></textarea></label>
               <label><span>URL 查询参数（每行 名称=值）</span><textarea v-model="remoteForm.requestQueryParameters" rows="2" @input="invalidateRemotePreview"></textarea></label>
               <label><span>A2A 消息参数（JSON 对象）</span><textarea v-model="remoteForm.requestBodyParameters" rows="2" placeholder="{}"></textarea></label>
-              <label><span>Agent 标识</span><input v-model.trim="remoteForm.agentId" placeholder="发现后自动生成"></label>
-              <label><span>路由优先级</span><input v-model.number="remoteForm.priority" type="number" min="0" max="1000"></label>
-              <label><span>SLA 延迟阈值（毫秒）</span><input v-model.number="remoteForm.slaLatencyMs" type="number" min="100" max="600000"></label>
-              <label><span>业务能力 ID（仅异常时补充）</span><textarea v-model="remoteForm.capabilities" rows="2" placeholder="正常情况下由 Agent Card 自动发现"></textarea></label>
-              <label><span>允许的数据域代码</span><textarea v-model="remoteForm.dataDomains" rows="2" placeholder="可选"></textarea></label>
-              <label><span>证据类型代码</span><textarea v-model="remoteForm.evidenceTypes" rows="2" placeholder="由授权选择自动推导"></textarea></label>
-              <label><span>补证 Skill 类型</span><textarea v-model="remoteForm.supplementSkillTypes" rows="2" placeholder="由下方补证选择自动推导"></textarea></label>
             </div>
           </section>
           <section class="remote-step">
@@ -465,39 +463,76 @@
             </div>
             <p class="remote-hint">测试连接会自动检查服务、身份与协议。首次接入时，请平台管理员配置发布方身份信息。</p>
             <button type="button" class="secondary-button" :disabled="remoteBusy" @click="previewRemoteAgent">{{ remoteBusy ? '正在测试连接…' : '测试连接' }}</button>
-            <div v-if="remotePreview" class="remote-connection-status" aria-live="polite">✓ 连接成功　✓ 身份验证通过　✓ 已识别 {{ remoteCapabilityOptions.length }} 项专业能力</div>
+            <div v-if="remotePreview" class="remote-connection-status" aria-live="polite">✓ 连接成功　✓ 身份验证通过　✓ 协议兼容</div>
           </section>
           <section class="remote-step">
             <h3><span>2</span> 专业能力</h3>
-            <p>这个 Agent 擅长什么？测试连接后可勾选已发现的能力。</p>
-            <div class="remote-choice-list">
-              <label v-for="option in remoteCapabilityOptions" :key="option.id" class="remote-choice"><input v-model="remoteForm.selectedCapabilities" type="checkbox" :value="option.id"><span>{{ option.label }}<small v-if="remoteAdvancedOpen">{{ option.id }}</small></span></label>
-              <p v-if="!remoteCapabilityOptions.length" class="remote-hint">未发现可用能力，请联系发布方或在高级配置中核对能力标识。</p>
-            </div>
+            <p>请用业务语言描述这个 Agent 擅长的分析任务，每行一项。Runtime 会将其作为对外展示的能力描述，调用所需的技术能力仍从已验证的 Agent Card 获取。</p>
+            <textarea v-model.trim="remoteForm.professionalCapabilities" rows="4" maxlength="1000" aria-label="专业能力描述" placeholder="客户投资分析&#10;收益归因&#10;交易行为分析&#10;风险分析"></textarea>
           </section>
           <section class="remote-step">
             <h3><span>3</span> 允许使用的知识</h3>
             <p>选择分析时允许 Runtime 提供的知识。至少选择一个已发布的 Skill；实际可用范围还受调用用户权限约束。</p>
             <div class="remote-grant-grid">
-              <div><strong>文档知识</strong><button type="button" class="secondary-button remote-picker-button" :aria-expanded="remoteDocumentPickerOpen" @click="remoteDocumentPickerOpen = !remoteDocumentPickerOpen">{{ remoteDocumentPickerOpen ? '收起文档选择' : '＋ 选择文档 / 知识库' }}</button><small class="remote-hint">当前按知识库中的文档逐项授权。</small><div class="remote-selected-list"><span v-for="id in remoteForm.selectedDocumentIds" :key="id">✓ {{ remoteDocumentLabel(id) }}</span><small v-if="!remoteForm.selectedDocumentIds.length">尚未选择文档</small></div><div v-if="remoteDocumentPickerOpen" class="remote-picker-panel"><input v-model.trim="remoteDocSearch" type="search" placeholder="搜索文档名称"><div class="remote-choice-list remote-scroll-list"><label v-for="document in remoteDocumentOptions" :key="document.docId" class="remote-choice"><input v-model="remoteForm.selectedDocumentIds" type="checkbox" :value="document.docId"><span>{{ document.title || document.fileName || document.docId }}<small>{{ document.category || '文档' }}</small></span></label><small v-if="!remoteDocumentOptions.length">暂无可选文档</small></div></div></div>
-              <div><strong>Skills</strong><button type="button" class="secondary-button remote-picker-button" :aria-expanded="remoteSkillPickerOpen" @click="remoteSkillPickerOpen = !remoteSkillPickerOpen">{{ remoteSkillPickerOpen ? '收起 Skill 选择' : '＋ 选择 Skill' }}</button><div class="remote-selected-list"><span v-for="id in remoteForm.selectedSkillIds" :key="id">✓ {{ remoteSkillLabel(id) }}</span><small v-if="!remoteForm.selectedSkillIds.length">尚未选择 Skill</small></div><div v-if="remoteSkillPickerOpen" class="remote-picker-panel"><div class="remote-search-row"><input v-model.trim="remoteSkillSearch" type="search" placeholder="搜索已发布 Skill" @keyup.enter.prevent="searchRemoteSkills"><button type="button" class="secondary-button" @click="searchRemoteSkills">查找</button></div><div class="remote-choice-list remote-scroll-list"><label v-for="skill in remoteSkillOptions" :key="skill.value" class="remote-choice"><input v-model="remoteForm.selectedSkillIds" type="checkbox" :value="skill.value"><span>{{ skill.label || skill.value }}</span></label><small v-if="!remoteSkillOptions.length">暂无可选 Skill</small></div></div></div>
+              <section class="remote-grant-section">
+                <div class="agent-resource-selector">
+                  <div class="agent-resource-selector-copy"><strong>知识文档</strong><span>按知识库中的文档逐项选择。</span></div>
+                  <div class="agent-resource-selector-action">
+                    <span :class="{ 'is-selected': remoteForm.selectedDocumentIds.length }">{{ remoteForm.selectedDocumentIds.length ? `已选 ${remoteForm.selectedDocumentIds.length} 份` : '未选择文档' }}</span>
+                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteDocumentPickerOpen" @click="remoteDocumentPickerOpen = !remoteDocumentPickerOpen">{{ remoteDocumentPickerOpen ? '收起选择' : '选择文档' }} <span aria-hidden="true">›</span></button>
+                  </div>
+                </div>
+                <div v-if="remoteForm.selectedDocumentIds.length" class="remote-selected-list"><span v-for="id in remoteForm.selectedDocumentIds" :key="id">✓ {{ remoteDocumentLabel(id) }}</span></div>
+                <div v-if="remoteDocumentPickerOpen" class="remote-picker-panel">
+                  <input v-model.trim="remoteDocSearch" type="search" placeholder="搜索文档名称或 ID">
+                  <div class="agent-document-checklist">
+                    <label v-for="document in remoteDocumentOptions" :key="document.docId" class="agent-document-check" :class="{ active: remoteForm.selectedDocumentIds.includes(document.docId) }">
+                      <input v-model="remoteForm.selectedDocumentIds" type="checkbox" :value="document.docId">
+                      <span><strong>{{ document.title || document.fileName || document.docId }}</strong><small>{{ document.category || '未分类' }}</small></span>
+                    </label>
+                  </div>
+                  <small v-if="!remoteDocumentOptions.length">暂无可选文档</small>
+                </div>
+              </section>
+              <section class="remote-grant-section">
+                <div class="agent-resource-selector">
+                  <div class="agent-resource-selector-copy"><strong>Skills</strong><span>选择已发布的分析 Skill。</span></div>
+                  <div class="agent-resource-selector-action">
+                    <span :class="{ 'is-selected': remoteForm.selectedSkillIds.length }">{{ remoteForm.selectedSkillIds.length ? `已选 ${remoteForm.selectedSkillIds.length} 个` : '未选择 Skill' }}</span>
+                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteSkillPickerOpen" @click="remoteSkillPickerOpen = !remoteSkillPickerOpen">{{ remoteSkillPickerOpen ? '收起选择' : '选择 Skill' }} <span aria-hidden="true">›</span></button>
+                  </div>
+                </div>
+                <div v-if="remoteForm.selectedSkillIds.length" class="remote-selected-list"><span v-for="id in remoteForm.selectedSkillIds" :key="id">✓ {{ remoteSkillLabel(id) }}</span></div>
+                <div v-if="remoteSkillPickerOpen" class="remote-picker-panel">
+                  <div class="remote-search-row"><input v-model.trim="remoteSkillSearch" type="search" placeholder="搜索已发布 Skill" @keyup.enter.prevent="searchRemoteSkills"><button type="button" class="secondary-button" @click="searchRemoteSkills">查找</button></div>
+                  <div class="agent-document-checklist">
+                    <label v-for="skill in remoteSkillOptions" :key="skill.value" class="agent-document-check" :class="{ active: remoteForm.selectedSkillIds.includes(skill.value) }">
+                      <input v-model="remoteForm.selectedSkillIds" type="checkbox" :value="skill.value"><span><strong>{{ skill.label || skill.value }}</strong><small>已发布 Skill</small></span>
+                    </label>
+                  </div>
+                  <small v-if="!remoteSkillOptions.length">暂无可选 Skill</small>
+                </div>
+              </section>
             </div>
             <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowDocumentSupplement" type="checkbox"><span>资料不足时，允许 Runtime 查询其他已授权文档</span></label>
           </section>
           <section class="remote-step">
             <h3><span>4</span> 允许使用的数据能力</h3>
-            <p>Runtime 可调用以下已授权能力取数，整理后再发送给 Agent。</p>
-            <div class="remote-data-grid"><label v-for="category in remoteDataOptions" :key="category.key" class="remote-choice"><input v-model="remoteForm.selectedDataCapabilities" type="checkbox" :value="category.key" :disabled="!category.tools.length"><span>{{ category.label }}<small v-if="!category.tools.length">尚未接入数据来源</small></span></label></div>
-            <button type="button" class="remote-advanced-toggle" @click="remoteDataSourcesOpen = !remoteDataSourcesOpen">{{ remoteDataSourcesOpen ? '收起数据来源' : '查看数据来源' }}</button>
-            <p v-if="remoteDataSourcesOpen" class="remote-hint"><span v-for="category in remoteDataOptions.filter(item => remoteForm.selectedDataCapabilities.includes(item.key))" :key="category.key">{{ category.label }}：{{ category.tools.join('、') }}<br></span></p>
-            <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowDataSupplement" type="checkbox"><span>资料不足时，允许 Runtime 使用已发布的只读模板补充业务数据</span></label>
+            <p>数据能力在 MCP 服务与资源授权中按角色配置，这里不再重复勾选。Runtime 只会使用当前调用用户有权访问的数据。</p>
+            <div class="remote-data-grid" aria-label="可能的数据类型示例"><span v-for="category in remoteDataCategories" :key="category.key" class="remote-data-example">{{ category.label }}</span></div>
+            <small class="remote-hint">以上是数据类型示例，不表示当前用户已获授权。</small>
+            <button type="button" class="remote-advanced-toggle" @click="remoteDialogOpen = false; $emit('navigate', 'systemResources')">查看角色与数据来源授权 →</button>
           </section>
           <section class="remote-step">
             <h3><span>5</span> MCP 工具</h3>
-            <p>选择 Runtime 在取数或补证时可使用的工具。</p>
-            <label class="remote-choice"><input v-model="remoteForm.autoMcp" type="checkbox"><span>自动编排 MCP 工具<small>按已选数据能力生成授权清单；调用仍受只读工作流与用户权限控制</small></span></label>
-            <details class="remote-tool-details"><summary>高级配置：指定允许的 MCP 工具</summary><input v-model.trim="remoteToolSearch" type="search" placeholder="搜索工具"><div class="remote-choice-list remote-scroll-list"><label v-for="tool in remoteToolOptions" :key="tool.localToolName" class="remote-choice"><input v-model="remoteForm.selectedMcpToolNames" type="checkbox" :value="tool.localToolName"><span>{{ tool.chineseAlias || tool.remoteToolName || tool.localToolName }}<small>{{ tool.localToolName }}</small></span></label><small v-if="!remoteToolOptions.length">暂无可选 MCP 工具</small></div></details>
-            <label class="remote-choice remote-supplement-choice"><input v-model="remoteForm.allowMcpSupplement" type="checkbox"><span>资料不足时，允许 Runtime 调用已授权的 MCP 工具</span></label>
+            <div class="agent-resource-selector">
+              <div class="agent-resource-selector-copy"><strong>已注册 MCP 工具</strong><span>由 MCP 服务、所选 Skill 和调用用户角色共同决定，不在此处授予工具权限。</span></div>
+              <div class="agent-resource-selector-action"><span class="is-selected">角色授权</span><button type="button" class="agent-picker-text-button" @click="remoteDialogOpen = false; $emit('navigate', 'systemResources')">查看授权 <span aria-hidden="true">›</span></button></div>
+            </div>
+            <div class="agent-workflow-builder remote-mcp-workflow">
+              <div class="agent-tool-picker-head"><div><strong>MCP 工具编排</strong><span>Runtime 根据已授权数据准备证据，远端 Agent 不直接访问本地工具。</span></div><label class="workflow-enable"><input v-model="remoteForm.autoMcp" type="checkbox"><span>启用</span></label></div>
+              <span class="remote-hint">工具执行仍受只读策略、Skill 绑定和当前调用用户权限控制。</span>
+            </div>
           </section>
           <section class="remote-step">
             <h3><span>6</span> 默认分析要求</h3>

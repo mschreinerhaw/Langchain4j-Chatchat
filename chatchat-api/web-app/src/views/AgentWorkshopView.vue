@@ -1,32 +1,5 @@
 ﻿<template>
   <section class="feature-view skill-hub-view agent-workshop-view">
-    <template v-if="remoteManagement">
-      <header class="agent-workshop-header"><div><p>系统管理 · 专有分析 Agent</p></div></header>
-      <section class="agent-list-controls">
-        <header><div><strong>专有分析 Agent 接入</strong><span>{{ remoteAgents.length }} 个已登记</span></div><div class="agent-light-actions"><button v-if="isPlatformAdmin" type="button" class="primary-button" @click="openRemoteDialog">接入专有分析 Agent</button><button type="button" class="light-button" @click="refreshAgentList">刷新</button></div></header>
-        <p>登记集团或第三方专业分析算力。Runtime 准备已授权的知识与数据，远端 Agent 只接收经确认的证据并返回分析结果。</p>
-        <div class="agent-list-filters"><label class="agent-search-field"><span>检索已接入 Agent</span><input v-model.trim="systemAgentSearch" type="search" placeholder="名称、专业能力或标识"></label></div>
-      </section>
-      <p v-if="!isPlatformAdmin" class="agent-empty">仅平台管理员可以管理专有分析 Agent。</p>
-      <p v-else-if="!systemRemoteAgents.length" class="agent-empty">{{ remoteAgents.length ? '没有匹配的 Agent。' : '尚未接入专有分析 Agent。' }}</p>
-      <div v-else class="feature-grid">
-        <article v-for="agent in systemRemoteAgents" :key="agent.agentId" class="feature-card agent-card remote-agent-card">
-          <span class="remote-card-source">专有分析算力</span>
-          <div class="agent-card-head"><span>专</span><div><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }}</small></div><strong :class="{ off: !agent.enabled }">{{ agent.enabled ? '已接入' : '已停用' }}</strong></div>
-          <p>{{ agent.metadata?.professionalCapabilities?.join('、') || '尚未填写专业能力描述。' }}</p>
-          <dl class="agent-meta"><div><dt>Skill</dt><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div><div><dt>文档</dt><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div><div><dt>MCP</dt><dd>{{ agent.metadata?.analysisGrants?.mcpToolNames?.length || 0 }} 个</dd></div></dl>
-          <div class="agent-card-actions"><button type="button" class="secondary-button" @click="apiExampleAgentId = agent.agentId">查看分析 API</button><button type="button" class="secondary-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button></div>
-        </article>
-      </div>
-      <section v-if="apiExampleAgent" class="agent-list-controls" aria-label="专有分析 API 调用方式">
-        <header><div><strong>{{ apiExampleAgent.metadata?.displayName || apiExampleAgent.agentId }} · 分析 API</strong><span>同步返回分析结果</span></div><button type="button" class="light-button" @click="apiExampleAgentId = ''">收起</button></header>
-        <p><code>POST /api/v1/agent/analysis/domain-intelligence</code></p>
-        <p>请求头：<code>Authorization: Bearer &lt;登录会话令牌&gt;</code>，<code>Content-Type: application/json</code>。使用有权访问所选 Skill 和证据的账号；Agent API Token 不能调用此接口。</p>
-        <pre class="remote-api-example">{{ domainAnalysisApiRequest }}</pre>
-        <p>响应中的 <code>data.synthesis</code> 为分析文本，<code>data.verification</code> 为校验信息。示例里的 Skill、文档和工具均须在调用者与该 Agent 的授权范围内；如果没有可用文档，请改为提供已授权的只读 MCP 工具证据。</p>
-      </section>
-    </template>
-    <template v-else>
     <header class="agent-workshop-header">
       <div>
         <p>Agent管理</p>
@@ -36,7 +9,7 @@
     <section class="agent-summary">
       <article>
         <span>Agent总数</span>
-        <strong>{{ summary.agentCount || 0 }}</strong>
+        <strong>{{ (summary.agentCount || 0) + remoteAgents.length }}</strong>
       </article>
       <article>
         <span>自定义</span>
@@ -64,10 +37,11 @@
       <header>
         <div>
           <strong>Agent列表</strong>
-          <span>{{ agentTotal }} / {{ summary.agentCount || 0 }} 个</span>
+          <span>{{ agentTotal + matchingRemoteAgents.length }} / {{ (summary.agentCount || 0) + remoteAgents.length }} 个</span>
         </div>
         <div class="agent-light-actions">
           <button type="button" class="primary-button" @click="openCreateDialog">新增Agent</button>
+          <button v-if="isPlatformAdmin" type="button" class="light-button" @click="openRemoteDialog">接入专有分析 Agent</button>
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
           <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
             导出已选JSON（{{ selectedAgentCount }}）
@@ -121,10 +95,17 @@
 
     <p v-if="error" class="agent-error">{{ error }}</p>
     <p v-else-if="loading && agents.length === 0" class="agent-empty">正在加载后端Agent配置...</p>
-    <p v-else-if="(summary.agentCount || 0) === 0" class="agent-empty">暂无Agent配置，请先新增一个。</p>
-    <p v-else-if="agentTotal === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
+    <p v-else-if="(summary.agentCount || 0) + remoteAgents.length === 0" class="agent-empty">暂无Agent配置，请先新增或接入一个。</p>
+    <p v-else-if="agentTotal + matchingRemoteAgents.length === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
 
     <div v-else class="feature-grid">
+      <article v-for="agent in visibleRemoteAgents" :key="`remote:${agent.agentId}`" class="feature-card agent-card remote-agent-card">
+        <span class="remote-card-source">专有分析算力</span>
+        <div class="agent-card-head"><span>专</span><div><h2>{{ agent.metadata?.displayName || agent.agentId }}</h2><small>{{ agent.origin === 'GROUP' ? '集团内部平台' : '第三方平台' }}</small></div><strong :class="{ off: !agent.enabled }">{{ agent.enabled ? '已接入' : '已停用' }}</strong></div>
+        <p>{{ agent.metadata?.professionalCapabilities?.join('、') || '尚未填写专业能力描述。' }}</p>
+        <dl class="agent-meta"><div><dt>模式</dt><dd>专有分析</dd></div><div><dt>Skill</dt><dd>{{ agent.metadata?.analysisGrants?.skillIds?.length || 0 }} 个</dd></div><div><dt>文档</dt><dd>{{ agent.metadata?.analysisGrants?.documentIds?.length || 0 }} 份</dd></div><div><dt>MCP</dt><dd>{{ agent.metadata?.analysisGrants?.mcpToolNames?.length || 0 }} 个</dd></div></dl>
+        <div class="agent-card-actions"><button type="button" class="secondary-button" @click="apiExampleAgentId = agent.agentId">分析 API</button><button type="button" class="secondary-button" @click="$emit('navigate', 'domainAnalysis')">开始分析</button></div>
+      </article>
       <article
         v-for="agent in paginatedAgents"
         :key="agent.id"
@@ -275,7 +256,13 @@
       </div>
     </nav>
 
-    </template>
+    <section v-if="apiExampleAgent" class="agent-list-controls" aria-label="专有分析 API 调用方式">
+      <header><div><strong>{{ apiExampleAgent.metadata?.displayName || apiExampleAgent.agentId }} · 分析 API</strong><span>同步返回分析结果</span></div><button type="button" class="light-button" @click="apiExampleAgentId = ''">收起</button></header>
+      <p><code>POST /api/v1/agent/analysis/domain-intelligence</code></p>
+      <p>请求头：<code>Authorization: Bearer &lt;登录会话令牌&gt;</code>，<code>Content-Type: application/json</code>。使用有权访问所选 Skill 和证据的账号；Agent API Token 不能调用此接口。</p>
+      <pre class="remote-api-example">{{ domainAnalysisApiRequest }}</pre>
+      <p>响应中的 <code>data.synthesis</code> 为分析文本，<code>data.verification</code> 为校验信息。示例里的 Skill、文档和工具均须在调用者与该 Agent 的授权范围内；如果没有可用文档，请改为提供已授权的只读 MCP 工具证据。</p>
+    </section>
 
     <div v-if="curlExampleOpen" class="agent-dialog-backdrop">
       <section class="agent-dialog agent-curl-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-curl-title">
@@ -585,7 +572,7 @@
           <section v-if="dialogMode === 'create'" class="wide-field">
             <strong>选择算力来源</strong>
             <p>当前创建自研 Agent，可组合 Workflow、Skills 与知识证据；集团或第三方 Agent 通过 A2A 接入，由 Runtime 管理数据边界与补证。</p>
-            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; $emit('navigate', 'systemAgents')">前往系统管理接入专有分析 Agent</button>
+            <button v-if="isPlatformAdmin" type="button" class="secondary-button" @click="dialogOpen = false; openRemoteDialog()">切换到接入专有分析 Agent</button>
           </section>
           <label>
             <span>Agent ID</span>
@@ -897,7 +884,7 @@
         >
           <header>
             <div>
-              <p>{{ remoteToolPickerOpen ? '专有分析 Agent' : 'Agent 设置' }}</p>
+              <p>Agent 设置</p>
               <h2 id="agent-document-picker-title">选择文档</h2>
               <span>知识文档与已发布领域技能分开绑定，选择会在保存 Agent 后生效。</span>
             </div>
@@ -978,6 +965,8 @@
         </section>
       </div>
 
+    </div>
+
       <div
         v-if="toolPickerOpen"
         class="agent-resource-dialog-backdrop"
@@ -993,7 +982,7 @@
         >
           <header>
             <div>
-              <p>Agent 设置</p>
+              <p>{{ remoteToolPickerOpen ? '专有分析 Agent' : 'Agent 设置' }}</p>
               <h2 id="agent-tool-picker-title">选择已注册 MCP 工具</h2>
               <span>可按服务类型、分组和关键词快速筛选。</span>
             </div>
@@ -1089,7 +1078,6 @@
           </footer>
         </section>
       </div>
-    </div>
 
     <div v-if="importDialogOpen" class="agent-dialog-backdrop">
       <form class="agent-dialog agent-import-dialog" @submit.prevent="importAgents">

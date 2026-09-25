@@ -235,9 +235,6 @@ function fixedRequestParameters(text, format) {
 
 export default {
   name: "AgentWorkshopView",
-  props: {
-    remoteManagement: { type: Boolean, default: false }
-  },
   data() {
     return {
       summary: {},
@@ -261,7 +258,6 @@ export default {
       remotePreview: null,
       remoteSkills: [],
       remoteAgents: [],
-      systemAgentSearch: "",
       apiExampleAgentId: "",
       remoteDocumentPickerOpen: false,
       remoteSkillPickerOpen: false,
@@ -387,13 +383,6 @@ export default {
     },
     visibleRemoteAgents() {
       return this.agentPage === 1 ? this.matchingRemoteAgents : [];
-    },
-    systemRemoteAgents() {
-      const keyword = this.systemAgentSearch.trim().toLowerCase();
-      return (this.remoteAgents || []).filter((agent) => !keyword || [
-        agent.agentId, agent.metadata?.displayName,
-        ...(agent.metadata?.professionalCapabilities || [])
-      ].filter(Boolean).join(" ").toLowerCase().includes(keyword));
     },
     apiExampleAgent() {
       return this.remoteAgents.find((agent) => agent.agentId === this.apiExampleAgentId) || null;

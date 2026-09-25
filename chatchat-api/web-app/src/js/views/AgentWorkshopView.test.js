@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { parse as parseVueTemplate } from "@vue/compiler-dom";
 
 const { fetchPublishedAgentCurlExample, discoverRemoteAgent, registerRemoteAgent, authSession } = vi.hoisted(() => ({
   fetchPublishedAgentCurlExample: vi.fn(),
@@ -59,17 +60,34 @@ describe("AgentWorkshopView remote compute registration", () => {
     expect(request).toMatchObject({ providerId: "group.risk", capability: "finance.risk.v1",
       skillId: "risk-skill", documentIds: ["doc-1"], confirmRemoteTransfer: true });
   });
-  it("places remote Agent registration under system management and keeps local creation separate", () => {
+  it("manages local and registered domain Agents in one workshop and exposes the analysis API", () => {
     const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
-    const management = template.split('<template v-if="remoteManagement">')[1].split('<template v-else>')[0];
-    const workshop = template.split('<template v-else>')[1].split('<div v-if="curlExampleOpen"')[0];
-    expect(management).toContain('@click="openRemoteDialog"');
-    expect(management).toContain("POST /api/v1/agent/analysis/domain-intelligence");
-    expect(management).toContain("Agent API Token 不能调用此接口");
-    expect(workshop).toContain('@click="openCreateDialog"');
-    expect(workshop).not.toContain('@click="openRemoteDialog"');
+    const controls = template.split('<section class="agent-list-controls">')[1].split('</section>')[0];
+    expect(controls).toContain('@click="openCreateDialog"');
+    expect(controls).toContain('@click="openRemoteDialog"');
     expect(template).toContain('class="feature-card agent-card remote-agent-card"');
-    expect(template).not.toContain('class="remote-registered-list"');
+    expect(template).toContain("POST /api/v1/agent/analysis/domain-intelligence");
+    expect(template).not.toContain('remoteManagement');
+  });
+
+  it("renders the MCP picker outside the local Agent dialog so the remote form can open it", () => {
+    const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
+    const ast = parseVueTemplate(template.slice(template.indexOf("<template>") + 10,
+      template.lastIndexOf("</template>")));
+    let pickerAncestors = null;
+    function walk(node, ancestors = []) {
+      if (node.type === 1) {
+        const condition = node.props.find((prop) => prop.type === 7 && prop.name === "if")?.exp?.content;
+        if (condition === "toolPickerOpen") pickerAncestors = ancestors;
+        for (const child of node.children) walk(child, [...ancestors, condition]);
+      } else if (node.children) {
+        for (const child of node.children) walk(child, ancestors);
+      }
+    }
+    walk(ast);
+    expect(pickerAncestors).not.toBeNull();
+    expect(pickerAncestors).not.toContain("dialogOpen");
+    expect(template).toContain("remoteToolPickerOpen ? '专有分析 Agent' : 'Agent 设置'");
   });
 
   it("filters remote Agent cards with the shared list search", () => {

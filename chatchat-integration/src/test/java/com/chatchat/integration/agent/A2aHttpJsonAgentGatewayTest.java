@@ -59,8 +59,9 @@ class A2aHttpJsonAgentGatewayTest {
         server.start();
         try {
             @SuppressWarnings("unchecked") ObjectProvider<AgentCredentialResolver> credentials = mock(ObjectProvider.class);
+            AgentTaskLinkStore links = new InMemoryAgentTaskLinkStore();
             var gateway = new A2aHttpJsonAgentGateway(WebClient.builder(), new ObjectMapper(), credentials,
-                new RemoteAgentEvidenceProjector(new ObjectMapper()));
+                new RemoteAgentEvidenceProjector(new ObjectMapper()), links);
             CapabilityId capability = CapabilityId.parse("finance.test.v1");
             AgentDescriptor agent = new AgentDescriptor("group-test", "v1", AgentDescriptor.Origin.GROUP,
                 AgentDescriptor.Protocol.A2A_HTTP_JSON, URI.create("http://127.0.0.1:" + port),
@@ -72,7 +73,15 @@ class A2aHttpJsonAgentGatewayTest {
                 new KernelDataScope("tenant", "user", "request", "conversation", "run", "test", Map.of()), Map.of());
 
             assertThat(gateway.invoke(agent, request).status()).isEqualTo(AgentExecutionOutcome.Status.SUPPLEMENT_EVIDENCE);
-            assertThat(gateway.resume(agent, request).status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
+            var recovered = new A2aHttpJsonAgentGateway(WebClient.builder(), new ObjectMapper(), credentials,
+                new RemoteAgentEvidenceProjector(new ObjectMapper()), links);
+            var otherTenant = new AgentExecutionRequest(null, request.executionId(), capability,
+                request.task(), request.evidence(), request.capabilityGrants(), request.constraints(),
+                request.outputContract(), new KernelDataScope("other-tenant", "user", "request",
+                    "conversation", "run", "test", Map.of()), Map.of());
+            assertThat(recovered.resume(agent, otherTenant).errorCode()).isEqualTo("AGENT_TASK_UNKNOWN");
+            assertThat(recovered.resume(agent, request).status()).isEqualTo(AgentExecutionOutcome.Status.COMPLETED);
+            assertThat(links.find(request.executionId())).isEmpty();
             assertThat(resumedBody.get()).contains("task-1", "ctx-1");
             assertThat(sends.get()).isEqualTo(2);
         } finally { server.stop(0); }

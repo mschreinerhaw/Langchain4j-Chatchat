@@ -17,6 +17,7 @@ import com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType;
 import com.chatchat.common.runtime.analysis.plan.WorkflowPlan;
 import com.chatchat.common.runtime.analysis.spi.AnalysisCapabilityOperator;
 import com.chatchat.common.runtime.analysis.spi.AnalysisWorkflow;
+import com.chatchat.common.runtime.analysis.spi.AnalysisEvidenceArchivePort;
 
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
@@ -33,6 +34,39 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultAnalysisWorkflowRuntimeTest {
+    @Test
+    void archiveFailureRejectsAcceptedEvidence() {
+        AnalysisCapabilityOperator operator = new AnalysisCapabilityOperator() {
+            @Override public AnalysisCapability capability() { return AnalysisCapability.COMPUTATION; }
+            @Override public boolean available(AnalysisContext context) { return true; }
+            @Override public WorkflowExecutionResult execute(AnalysisContext context, AnalysisScope scope,
+                                                             WorkflowPlan plan) {
+                return new WorkflowExecutionResult(List.of(new ComputationEvidence(
+                    "e-1", "sum", List.of("input"), "42", Map.of())), Map.of(), List.of());
+            }
+        };
+        AnalysisEvidenceArchivePort brokenArchive = new AnalysisEvidenceArchivePort() {
+            @Override public Reference archive(AnalysisContext context, EvidenceBundle bundle) {
+                throw new IllegalStateException("database unavailable");
+            }
+            @Override public java.util.Optional<ArchivedEvidence> read(String tenant, String user, String id) {
+                return java.util.Optional.empty();
+            }
+        };
+        var runtime = new DefaultAnalysisWorkflowRuntime(List.of(new ComputationAnalysisWorkflow(
+            new AnalysisOperatorRegistry(List.of(operator)))), null, brokenArchive);
+        var context = new AnalysisContext("sum input", new KernelDataScope("tenant", "user", "request",
+            null, "run", null, Map.of()), "skill", List.of(), List.of(), List.of(),
+            new AnalysisIntent("CALCULATION", List.of(), Set.of(AnalysisCapability.COMPUTATION),
+                "UNSPECIFIED", true), Map.of());
+
+        var result = runtime.analyze(context);
+
+        assertThat(result.verification().accepted()).isFalse();
+        assertThat(result.evidenceBundle().evidence()).isEmpty();
+        assertThat(result.metadata()).containsEntry("evidenceArchiveStatus", "FAILED");
+    }
+
     @Test
     void operatorRejectsEvidenceForAnotherCapability() {
         AnalysisCapabilityOperator wrong = new AnalysisCapabilityOperator() {

@@ -28,12 +28,31 @@ tool explicitly bound to the selected local Skill, checks the published tool's r
 through the existing governed Tool Runtime (including enterprise MCP asset authorization). Failed calls yield no
 evidence. This is a single-tool invocation, not an autonomous multi-tool planner.
 
-Remaining production integrations are explicit: structured-data, computation, and external-research analysis
-workflows currently have no production `AnalysisCapabilityOperator` bindings; they fail closed instead of fabricating
-evidence. The separate legacy orchestrator has PostgreSQL/OpenSearch and RocksDB integrations, but the new
-`EvidenceBundle` workflow has not yet consolidated those persistence/index adapters into one durable evidence
-protocol. A2A Task links, health history, and circuit state are also process-local. These are required before the
-entire pictured OS can be marked complete.
+The structured-data branch now uses the separately published `sql_template_analysis_execute` MCP capability.
+It accepts only an enabled SQL template explicitly allowlisted on one logical datasource, rejects raw SQL/scripts,
+DSL and high-risk or multi-statement templates, and runs the existing SQL safety and tenant/asset permission checks.
+The selected local Skill must explicitly bind this MCP tool. Results become bounded structured evidence; remote
+Agents receive only the asset/template identity and row count unless a richer projection is separately authorized.
+The generic `sql_query_execute` remains `confirm_required` and is never used for automatic evidence acquisition.
+
+The computation branch supports bounded, deterministic COUNT/SUM/AVG/MIN/MAX over one complete, same-tenant
+structured result. It records the source evidence ID and projects only the derived metric to remote Agents;
+arbitrary expressions, Python code and incomplete/truncated rows are refused.
+
+Remaining production integrations are explicit: external-research analysis currently has no production
+`AnalysisCapabilityOperator` binding and fails closed instead of fabricating evidence.
+The separate legacy orchestrator has PostgreSQL/OpenSearch and RocksDB integrations. The new final
+`EvidenceBundle` is now archived with a checksum in PostgreSQL, but search indexing, cache invalidation,
+retention and replay from that archive are not yet consolidated into one evidence protocol.
+A2A Task links are stored in `agent_a2a_task_link`, so a resumed workflow carrying the same execution
+identity can recover its remote task after gateway restart;
+the link contains only execution/tenant/agent/task/context IDs and expiry, never credentials or evidence.
+Health history and circuit state are now stored in `agent_provider_health` with transactional row locking;
+the in-process state is a fallback if health storage is temporarily unavailable. This is a global provider
+health signal, not a replacement for tenant-specific admission policy. The remaining evidence and capability
+integrations are still required before the entire pictured OS can be marked complete.
+
+The new template-only capability is a separate governance contract, not a change to the high-risk SQL gateway.
 
 ## Runtime flow
 
@@ -101,9 +120,9 @@ services, protocol `HTTP_JSON` posts a minimized `AgentExecutionRequest` JSON sh
 reference beginning with `env:` resolves from the named environment variable. Raw credentials must never be placed in
 the descriptor, Agent Card, workflow attributes, or evidence.
 
-The A2A gateway stores a bounded, one-hour in-process mapping from Runtime execution ID to active A2A task and context IDs.
+The A2A gateway stores a bounded, one-hour PostgreSQL mapping from Runtime execution ID to active A2A task and context IDs.
 `AgentGatewayPort.cancel(agent, executionId)` uses the SDK's `cancelTask` operation after rechecking the Agent Card.
-This mapping is not durable across process restarts; durable task resumption/cancellation requires persistence integration.
+The mapping can be recovered after a gateway restart while the execution and link are still valid.
 
 Remote agents are denied by default when an evidence type or requested data domain is not explicitly listed. Local
 agents remain inside the Runtime trust boundary.
@@ -173,6 +192,19 @@ Content-Type: application/json
 
 Document and tool evidence are verified before the Agent is dispatched. Either source can be omitted, but at least
 one is required. If a required evidence branch fails, the composite Judge rejects the run and skips Agent dispatch.
+For preauthorized SQL data evidence, add `dataTemplateId`, `dataAssetName`, `dataEnvironment`, and
+`dataParameters` to this request. Add `metricOperation` (COUNT/SUM/AVG/MIN/MAX) and `metricField` when a deterministic
+calculation is required. Raw SQL, arbitrary formulas and concrete datasource IDs are not accepted.
+Automatic SQL execution is restricted to an enabled, datasource-allowlisted, published single-statement
+read-only template bound to the caller's authorized Skill. The generic `sql_query_execute` remains
+confirmation-required. SQL results marked truncated or whose reported row count does not match the returned rows
+are rejected before they can be used as structured evidence or fed to a remote Agent.
+
+Accepted final evidence is stored in PostgreSQL with a SHA-256 integrity digest, and analysis metadata returns
+`evidenceArchiveId`, `evidenceSha256` and `evidenceByteLength`. Retrieve it through
+`GET /api/v1/agent/analysis/evidence/{evidenceArchiveId}`; access is limited to the authenticated tenant and user.
+An archive write failure changes the Judge result to rejected rather than returning a misleading accepted result.
+Evidence archive retention and deletion policy still need deployment-specific configuration.
 
 Set `runtime.agent.capability` on `AnalysisContext`. The query analyzer selects `DOMAIN_INTELLIGENCE`; in a composite
 analysis, evidence produced by earlier structured-data, document, computation, tool, or research workflows is passed to
@@ -199,9 +231,9 @@ status visible to the caller. Supplementation is currently wired to Knowledge Sk
 or SQL execution. The caller can provide `agentMaxAttempts`, `documentTags`, and `knowledgeDomains` in the analysis
 context; document IDs and roles are inherited from the authorized context.
 
-Routing filters tenant/data/evidence policy first. A local health tracker then excludes remote providers for 30
+Routing filters tenant/data/evidence policy first. A health tracker backed by PostgreSQL then excludes remote providers for 30
 seconds after three consecutive failures and deprioritizes providers whose observed latency exceeds
-`slaLatencyMs`. `GET /api/v1/enterprise/agent-registry/{agentId}/health` exposes this process-local signal.
+`slaLatencyMs`. `GET /api/v1/enterprise/agent-registry/{agentId}/health` exposes this signal.
 
 ## Result contract
 

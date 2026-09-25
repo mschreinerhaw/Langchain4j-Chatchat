@@ -27,9 +27,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** SDK-backed A2A HTTP+JSON gateway. Only registry-approved endpoints are callable. */
 @Component
@@ -45,23 +45,32 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
     private final AgentCredentialResolver credentials;
     private final RemoteAgentEvidenceProjector projector;
     private final AgentCardDiscoveryService cards;
-    private final Map<String, TaskLink> taskLinks = new ConcurrentHashMap<>();
+    private final AgentTaskLinkStore taskLinks;
 
     @Autowired
     public A2aHttpJsonAgentGateway(WebClient.Builder clients, ObjectMapper mapper,
                                    ObjectProvider<AgentCredentialResolver> credentials,
-                                   RemoteAgentEvidenceProjector projector, AgentCardDiscoveryService cards) {
+                                   RemoteAgentEvidenceProjector projector, AgentCardDiscoveryService cards,
+                                   AgentTaskLinkStore taskLinks) {
         this.clients = clients;
         this.mapper = mapper;
         this.credentials = credentials.getIfAvailable();
         this.projector = projector;
         this.cards = cards;
+        this.taskLinks = taskLinks;
     }
 
     A2aHttpJsonAgentGateway(WebClient.Builder clients, ObjectMapper mapper,
                             ObjectProvider<AgentCredentialResolver> credentials,
                             RemoteAgentEvidenceProjector projector) {
-        this(clients, mapper, credentials, projector, new AgentCardDiscoveryService(mapper));
+        this(clients, mapper, credentials, projector, new AgentCardDiscoveryService(mapper),
+            new InMemoryAgentTaskLinkStore());
+    }
+
+    A2aHttpJsonAgentGateway(WebClient.Builder clients, ObjectMapper mapper,
+                            ObjectProvider<AgentCredentialResolver> credentials,
+                            RemoteAgentEvidenceProjector projector, AgentTaskLinkStore taskLinks) {
+        this(clients, mapper, credentials, projector, new AgentCardDiscoveryService(mapper), taskLinks);
     }
 
     @Override
@@ -105,10 +114,11 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
     private AgentExecutionOutcome invokeSdk(AgentDescriptor agent, AgentExecutionRequest request, String token,
                                             boolean resume) throws Exception {
         purgeTaskLinks();
-        TaskLink link = resume ? taskLinks.get(request.executionId()) : null;
-        if (resume && (link == null || !agent.agentId().equals(link.agentId())))
+        AgentTaskLinkStore.TaskLink link = resume ? taskLinks.find(request.executionId()).orElse(null) : null;
+        if (resume && (link == null || !agent.agentId().equals(link.agentId())
+            || !Objects.equals(request.scope().tenantId(), link.tenantId())))
             return failure(agent, request, "AGENT_TASK_UNKNOWN", "No resumable A2A task belongs to this execution");
-        if (!resume && taskLinks.size() >= 10_000)
+        if (!resume && taskLinks.count() >= 10_000)
             return failure(agent, request, "AGENT_TASK_CAPACITY", "A2A task tracking capacity exhausted");
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER).build();
@@ -143,16 +153,26 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
             client.sendMessage(params, List.of((event, ignored) -> events.add(event)), error -> {}, context);
             if (events.isEmpty()) return failure(agent, request, "AGENT_EMPTY_RESPONSE", "A2A returned no event");
             var event = events.get(events.size() - 1);
-            if (event instanceof MessageEvent direct) return decodeParts(agent, request,
-                AgentExecutionOutcome.Status.PARTIAL, direct.getMessage().parts(), "A2A direct message");
+            if (event instanceof MessageEvent direct) {
+                if (resume) taskLinks.delete(request.executionId());
+                return decodeParts(agent, request, AgentExecutionOutcome.Status.PARTIAL,
+                    direct.getMessage().parts(), "A2A direct message");
+            }
             if (!(event instanceof TaskEvent taskEvent)) return failure(agent, request,
                 "AGENT_RESPONSE_INVALID", "A2A returned no task or message");
             Task task = taskEvent.getTask();
             if (task.id() == null || task.id().isBlank())
                 return failure(agent, request, "AGENT_RESPONSE_INVALID", "A2A task has no identifier");
-            if (resume && !link.taskId().equals(task.id()))
+            if (resume && !link.taskId().equals(task.id())) {
+                taskLinks.delete(request.executionId());
                 return failure(agent, request, "AGENT_TASK_MISMATCH", "A2A response changed the task identity");
-            taskLinks.put(request.executionId(), new TaskLink(agent.agentId(), task.id(), task.contextId(), System.currentTimeMillis()));
+            }
+            if (resume && link.contextId() != null && !link.contextId().equals(task.contextId())) {
+                taskLinks.delete(request.executionId());
+                return failure(agent, request, "AGENT_CONTEXT_MISMATCH", "A2A response changed the task context");
+            }
+            taskLinks.save(new AgentTaskLinkStore.TaskLink(request.executionId(),
+                request.scope().tenantId(), agent.agentId(), task.id(), task.contextId(), System.currentTimeMillis()));
             long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(request.constraints().timeoutMs());
             while (task.status() != null && !task.status().state().isFinal()
                 && !task.status().state().isInterrupted() && System.nanoTime() < deadline) {
@@ -160,7 +180,7 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
                 task = client.getTask(new TaskQueryParams(task.id()), context);
             }
             if (task.status() != null && task.status().state().isFinal())
-                taskLinks.remove(request.executionId());
+                taskLinks.delete(request.executionId());
             return decodeTask(agent, request, task);
         }
     }
@@ -168,7 +188,7 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
     @Override
     public AgentExecutionOutcome cancel(AgentDescriptor agent, String executionId) {
         purgeTaskLinks();
-        TaskLink link = taskLinks.get(executionId);
+        AgentTaskLinkStore.TaskLink link = taskLinks.find(executionId).orElse(null);
         if (link == null || !agent.agentId().equals(link.agentId()))
             return new AgentExecutionOutcome(null, executionId, agent.agentId(),
                 AgentExecutionOutcome.Status.BLOCKED, List.of(), List.of(), List.of(), List.of(),
@@ -184,7 +204,8 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
         }
     }
 
-    private AgentExecutionOutcome cancelSdk(AgentDescriptor agent, String executionId, TaskLink link) throws Exception {
+    private AgentExecutionOutcome cancelSdk(AgentDescriptor agent, String executionId,
+                                            AgentTaskLinkStore.TaskLink link) throws Exception {
         String token = bearerToken(agent);
         Map<String, String> headers = token == null ? Map.of() : Map.of("Authorization", "Bearer " + token);
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
@@ -204,7 +225,7 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
             .withTransport(RestTransport.class, new RestTransportConfig(transport)).build()) {
             Task task = client.cancelTask(new CancelTaskParams(link.taskId()),
                 new ClientCallContext(Map.of(), headers));
-            if (task.status() != null && task.status().state().isFinal()) taskLinks.remove(executionId, link);
+            if (task.status() != null && task.status().state().isFinal()) taskLinks.delete(executionId);
             AgentExecutionOutcome.Status status = task.status() != null
                 && task.status().state() == TaskState.TASK_STATE_CANCELED
                 ? AgentExecutionOutcome.Status.CANCELLED : AgentExecutionOutcome.Status.PARTIAL;
@@ -217,10 +238,8 @@ public class A2aHttpJsonAgentGateway implements AgentGatewayPort {
 
     private void purgeTaskLinks() {
         long cutoff = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1);
-        taskLinks.entrySet().removeIf(entry -> entry.getValue().createdAt() < cutoff);
+        taskLinks.deleteExpired(cutoff);
     }
-
-    private record TaskLink(String agentId, String taskId, String contextId, long createdAt) { }
 
     private Map<String, Object> projectRemoteRequest(AgentExecutionRequest request) {
         Map<String, Object> projected = new LinkedHashMap<>();

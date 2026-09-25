@@ -864,6 +864,7 @@ public class McpAuthorizationService {
             case "jmx_capability_query" -> new ToolScope("jmx_endpoint", "capability", "query");
             case "database_capability_query" -> new ToolScope("sql_datasource", "capability", "query");
             case "sql_query_execute" -> new ToolScope("sql_datasource", "execute", "query");
+            case "sql_template_analysis_execute" -> new ToolScope("sql_datasource", "execute", "query");
             case "sql_script_execute" -> new ToolScope("sql_datasource", "execute", "script");
             case "sql_metadata_search" -> new ToolScope("sql_datasource", "metadata", "search");
             case "sql_schema_context_query" -> new ToolScope("sql_datasource", "metadata", "query");

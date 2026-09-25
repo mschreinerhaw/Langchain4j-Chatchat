@@ -2,6 +2,8 @@ package com.chatchat.api.controller.agent;
 
 import com.chatchat.api.config.RequestCorrelationFilter;
 import com.chatchat.api.runtime.RegisteredToolAnalysisOperator;
+import com.chatchat.api.runtime.PreauthorizedStructuredDataOperator;
+import com.chatchat.api.runtime.VerifiedEvidenceComputationOperator;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.response.ApiResponse;
@@ -138,6 +140,19 @@ public class AgentAnalysisController {
             required.add(AnalysisCapability.DOCUMENT_SEARCH);
         if (body.toolName() != null && !body.toolName().isBlank())
             required.add(AnalysisCapability.TOOL_CALL);
+        if (body.dataTemplateId() != null && !body.dataTemplateId().isBlank()) {
+            if (body.dataAssetName() == null || body.dataAssetName().isBlank()
+                || body.dataEnvironment() == null || body.dataEnvironment().isBlank())
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "dataAssetName and dataEnvironment are required with dataTemplateId");
+            required.add(AnalysisCapability.STRUCTURED_DATA);
+        }
+        if (body.metricOperation() != null && !body.metricOperation().isBlank()) {
+            if (!required.contains(AnalysisCapability.STRUCTURED_DATA))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Deterministic metric requires structured data evidence");
+            required.add(AnalysisCapability.COMPUTATION);
+        }
         if (required.size() == 1)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one document or tool evidence source is required");
         int attempts = Math.max(1, Math.min(3, body.maxAttempts() == null ? 2 : body.maxAttempts()));
@@ -150,6 +165,18 @@ public class AgentAnalysisController {
             attributes.put(RegisteredToolAnalysisOperator.TOOL_NAME, body.toolName());
             attributes.put(RegisteredToolAnalysisOperator.TOOL_ARGUMENTS,
                 body.arguments() == null ? Map.of() : body.arguments());
+        }
+        if (required.contains(AnalysisCapability.STRUCTURED_DATA)) {
+            attributes.put(PreauthorizedStructuredDataOperator.TEMPLATE_ID, body.dataTemplateId());
+            attributes.put(PreauthorizedStructuredDataOperator.ASSET_NAME, body.dataAssetName());
+            attributes.put(PreauthorizedStructuredDataOperator.ENVIRONMENT, body.dataEnvironment());
+            attributes.put(PreauthorizedStructuredDataOperator.PARAMETERS,
+                body.dataParameters() == null ? Map.of() : body.dataParameters());
+        }
+        if (required.contains(AnalysisCapability.COMPUTATION)) {
+            attributes.put(VerifiedEvidenceComputationOperator.OPERATION, body.metricOperation());
+            attributes.put(VerifiedEvidenceComputationOperator.FIELD,
+                body.metricField() == null ? "" : body.metricField());
         }
         AnalysisIntent intent = new AnalysisIntent("COMPOSITE_DOMAIN_ANALYSIS", List.of(), required,
             "UNSPECIFIED", true);
@@ -180,5 +207,26 @@ public class AgentAnalysisController {
     public record CompositeAnalyzeRequest(String query, String skillId, String capability,
                                           List<String> documentIds, List<String> documentTags,
                                           String toolName, Map<String, Object> arguments,
-                                          Integer maxAttempts, Long timeoutMs) { }
+                                          Integer maxAttempts, Long timeoutMs,
+                                          String dataTemplateId, String dataAssetName,
+                                          String dataEnvironment, Map<String, Object> dataParameters,
+                                          String metricOperation, String metricField) {
+        public CompositeAnalyzeRequest(String query, String skillId, String capability,
+                                       List<String> documentIds, List<String> documentTags,
+                                       String toolName, Map<String, Object> arguments,
+                                       Integer maxAttempts, Long timeoutMs) {
+            this(query, skillId, capability, documentIds, documentTags, toolName, arguments,
+                maxAttempts, timeoutMs, null, null, null, null, null, null);
+        }
+        public CompositeAnalyzeRequest(String query, String skillId, String capability,
+                                       List<String> documentIds, List<String> documentTags,
+                                       String toolName, Map<String, Object> arguments,
+                                       Integer maxAttempts, Long timeoutMs,
+                                       String dataTemplateId, String dataAssetName,
+                                       String dataEnvironment, Map<String, Object> dataParameters) {
+            this(query, skillId, capability, documentIds, documentTags, toolName, arguments,
+                maxAttempts, timeoutMs, dataTemplateId, dataAssetName, dataEnvironment, dataParameters,
+                null, null);
+        }
+    }
 }

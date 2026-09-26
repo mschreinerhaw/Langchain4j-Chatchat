@@ -652,7 +652,10 @@
           <div class="role-config-body">
             <section class="role-config-panel permission-config-panel">
               <div class="manage-list-head">
-                <strong>功能权限</strong>
+                <div class="permission-panel-heading">
+                  <strong>功能权限</strong>
+                  <small>按菜单分组，展开后逐项配置子菜单与操作权限</small>
+                </div>
                 <div class="mini-actions">
                   <button type="button" @click="selectAllPermissions">全选</button>
                   <button type="button" @click="clearPermissions">清空</button>
@@ -663,9 +666,12 @@
                   v-for="group in permissionGroups"
                   :key="group.root.id"
                   class="permission-category"
-                  open
+                  :class="{ 'has-children': group.children.length > 0 }"
                 >
-                  <summary class="permission-category-head">
+                  <summary
+                    class="permission-category-head"
+                    @click="!group.children.length && $event.preventDefault()"
+                  >
                     <input
                       type="checkbox"
                       :checked="group.selectedCount === group.totalCount"
@@ -681,16 +687,23 @@
                     <span class="permission-category-count">{{ group.selectedCount }} / {{ group.totalCount }}</span>
                   </summary>
                   <div v-if="group.children.length" class="permission-category-items">
+                    <div class="permission-category-columns" aria-hidden="true">
+                      <span>子菜单 / 权限项</span>
+                      <span>类型</span>
+                    </div>
                     <label
                       v-for="permission in group.children"
                       :key="permission.id"
                       class="permission-item"
-                      :style="{ '--level': permission.displayLevel }"
+                      :style="{ '--indent': `${Math.min(permission.displayLevel, 4) * 18}px` }"
                     >
                       <input v-model="draftPermissionIds" type="checkbox" :value="permission.id" />
-                      <span>
-                        <strong>{{ permissionDisplayName(permission) }}</strong>
-                        <small>{{ permission.permissionCode }}</small>
+                      <span class="permission-item-content">
+                        <i class="permission-level-line" aria-hidden="true"></i>
+                        <span>
+                          <strong :title="permissionDisplayName(permission)">{{ permissionDisplayName(permission) }}</strong>
+                          <small :title="permission.permissionCode">{{ permission.permissionCode }}</small>
+                        </span>
                       </span>
                       <em>{{ typeLabel(permission.permissionType) }}</em>
                     </label>

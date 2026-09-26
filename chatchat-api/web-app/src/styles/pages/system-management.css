@@ -726,7 +726,7 @@
 }
 
 .permission-tree .permission-item {
-  padding-left: calc(10px + min(var(--level), 2) * 14px);
+  padding-left: 12px;
 }
 
 .permission-category {
@@ -734,7 +734,7 @@
   border: 1px solid #edf0f6;
   border-radius: 8px;
   background: #fff;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .permission-category-head {
@@ -746,6 +746,7 @@
   padding: 8px 10px;
   cursor: pointer;
   list-style: none;
+  border-radius: 8px;
 }
 
 .permission-category-head::-webkit-details-marker {
@@ -753,19 +754,32 @@
 }
 
 .permission-category-head::after {
+  content: "单项";
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.permission-category.has-children > .permission-category-head::after {
   content: "展开";
   color: var(--primary);
-  font-size: 12px;
   font-weight: 800;
 }
 
 .permission-category[open] > .permission-category-head {
+  position: relative;
+  z-index: 1;
   border-bottom: 1px solid #edf0f6;
+  border-radius: 8px 8px 0 0;
   background: #fafcff;
 }
 
-.permission-category[open] > .permission-category-head::after {
+.permission-category.has-children[open] > .permission-category-head::after {
   content: "收起";
+}
+
+.permission-category:not(.has-children) > .permission-category-head {
+  cursor: default;
 }
 
 .permission-category-head input {
@@ -817,10 +831,78 @@
 }
 
 .permission-category-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 12px 10px 42px;
+  background: #fafcff;
+  border-radius: 0 0 8px 8px;
+}
+
+.permission-category-columns {
+  min-height: 34px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 8px;
-  padding: 10px;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  color: #8a94a6;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.permission-category-columns span:last-child {
+  text-align: right;
+}
+
+.permission-category-items .permission-item {
+  min-height: 50px;
+  grid-template-columns: 18px minmax(0, 1fr) 52px;
+  gap: 10px;
+  padding-top: 7px;
+  padding-right: 10px;
+  padding-bottom: 7px;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.permission-category-items .permission-item:last-child {
+  border-bottom-width: 1px;
+}
+
+.permission-item-content {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: calc(var(--indent) + 12px) minmax(0, 1fr);
+  align-items: center;
+}
+
+.permission-level-line {
+  width: calc(var(--indent) + 8px);
+  height: 18px;
+  align-self: start;
+  border-left: 1px solid #cdd8eb;
+  border-bottom: 1px solid #cdd8eb;
+  border-radius: 0 0 0 5px;
+}
+
+.permission-item-content strong,
+.permission-item-content small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.permission-item-content strong {
+  color: #172033;
+  font-size: 13px;
+}
+
+.permission-item-content small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .user-item {
@@ -963,7 +1045,7 @@
 }
 
 .role-modal {
-  width: min(1080px, 100%);
+  width: min(1240px, 100%);
   max-height: calc(100dvh - 32px);
 }
 
@@ -1497,7 +1579,7 @@
 .role-config-body {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) minmax(390px, 1.05fr);
+  grid-template-columns: minmax(350px, 0.8fr) minmax(520px, 1.2fr);
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas: "side permissions";
   gap: 14px;
@@ -1524,6 +1606,18 @@
 .permission-config-panel .auth-check-list {
   min-height: 0;
   overflow: auto;
+}
+
+.permission-panel-heading {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.permission-panel-heading small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .role-config-side-stack {

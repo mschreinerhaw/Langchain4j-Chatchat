@@ -64,6 +64,12 @@ class EnterpriseAdminServiceIntegrationTest {
                 assertThat(permission.getHttpMethod()).isEqualTo("*");
             });
         assertThat(login.user().permissionCodes()).contains("capability:data-science");
+        assertThat(service.listMenuConfigurations().stream()
+            .map(item -> item.menu().getMenuCode())
+            .filter(code -> code.startsWith("system") && !"system".equals(code))
+            .toList())
+            .containsSubsequence(
+                "systemUsers", "systemRoles", "systemOrganizations", "systemResources", "systemLogins");
         assertThat(resourceGrantRepository.findAll())
             .hasSize(5)
             .allSatisfy(grant -> {

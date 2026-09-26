@@ -1544,8 +1544,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .findByPermissionCode("system:api:all").isEmpty();
         boolean resourceGrantMigrationRequired = permissionRepository
             .findByPermissionCode("system:resource-grants:model:v1").isEmpty();
+        boolean systemMenuOrderMigrationRequired = permissionRepository
+            .findByPermissionCode("system:menu-order:v2").isEmpty();
         List<SysPermission> permissions = ensureDefaultPermissions();
         ensureDefaultMenus();
+        if (systemMenuOrderMigrationRequired) {
+            migrateSystemMenuOrder();
+        }
         ensureRolePermissions(tenant.getId(), superAdmin.getId(), permissions, permissionModelMigrationRequired);
         if (permissionModelMigrationRequired) {
             migrateRolePermissionModel(permissions, superAdmin.getId());
@@ -1832,6 +1837,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<PermissionSeed> seeds = List.of(
             new PermissionSeed(null, "system:api:all", "All API access", "api", "/api/v1/**", "*", "shield", 1),
             new PermissionSeed(null, "system:resource-grants:model:v1", "Resource grant model v1", "internal", null, null, null, 1),
+            new PermissionSeed(null, "system:menu-order:v2", "System menu order v2", "internal", null, null, null, 1),
             new PermissionSeed(null, "account:self:read", "Current account", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
             new PermissionSeed(null, "account:menus:read", "Current account menus", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
             new PermissionSeed(null, "system:health:read", "System health", "api", "/api/v1/health/**", "GET", "activity", 4),
@@ -1943,10 +1949,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new MenuSeed("platform", "models", "模型管理", "menu", "/index.html#models", "platform:models", 36),
             new MenuSeed("platform", "system", "系统管理", "menu", "/index.html#system", "system", 40),
             new MenuSeed("system", "systemUsers", "用户管理", "menu", "/index.html#systemUsers", "system", 41),
-            new MenuSeed("system", "systemOrganizations", "组织管理", "menu", "/index.html#systemOrganizations", "system", 42),
-            new MenuSeed("system", "systemRoles", "角色管理", "menu", "/index.html#systemRoles", "system", 43),
-            new MenuSeed("system", "systemLogins", "登录审计", "menu", "/index.html#systemLogins", "system", 44),
-            new MenuSeed("system", "systemResources", "资源授权", "menu", "/index.html#systemResources", "system", 45)
+            new MenuSeed("system", "systemRoles", "角色管理", "menu", "/index.html#systemRoles", "system", 42),
+            new MenuSeed("system", "systemOrganizations", "组织管理", "menu", "/index.html#systemOrganizations", "system", 43),
+            new MenuSeed("system", "systemResources", "资源授权", "menu", "/index.html#systemResources", "system", 44),
+            new MenuSeed("system", "systemLogins", "登录审计", "menu", "/index.html#systemLogins", "system", 45)
         );
         Map<String, String> idsByCode = menuRepository.findAll().stream()
             .collect(Collectors.toMap(SysMenu::getMenuCode, SysMenu::getId, (left, right) -> left));
@@ -1974,6 +1980,21 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 });
             }
         }
+    }
+
+    /** Applies the requested system submenu order once, then leaves database configuration authoritative. */
+    private void migrateSystemMenuOrder() {
+        Map<String, Integer> orderByCode = Map.of(
+            "systemUsers", 41,
+            "systemRoles", 42,
+            "systemOrganizations", 43,
+            "systemResources", 44,
+            "systemLogins", 45
+        );
+        orderByCode.forEach((code, sortOrder) -> menuRepository.findByMenuCode(code).ifPresent(menu -> {
+            menu.setSortOrder(sortOrder);
+            menuRepository.save(menu);
+        }));
     }
 
     private String defaultMenuIcon(String menuCode) {

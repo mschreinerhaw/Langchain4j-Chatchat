@@ -108,7 +108,7 @@ chatchat:
     crypto-key-file: ./config/internal-credential.key
   mcp:
     capability-retrieval:
-      enabled: ${CHATCHAT_MCP_CAPABILITY_RETRIEVAL_ENABLED:true}
+      enabled: true
     remote-provider:
       enabled: true
     grpc:

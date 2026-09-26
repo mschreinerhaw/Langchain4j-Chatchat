@@ -28,9 +28,9 @@ class DatabaseSchemaGeneratorTest {
         generate("org.hibernate.dialect.MySQLDialect", output.resolve("chatchat-mcp-server-mysql.sql"));
         generate("org.hibernate.dialect.H2Dialect", output.resolve("chatchat-mcp-server-h2.sql"));
         generate("org.hibernate.dialect.PostgreSQLDialect", output.resolve("chatchat-mcp-server-postgresql.sql"));
-        assertSchemaMatches(output.resolve("chatchat-mcp-server-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-mcp-server.sql"), 37);
-        assertSchemaMatches(output.resolve("chatchat-mcp-server-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-mcp-server.sql"), 37);
-        assertSchemaMatches(output.resolve("chatchat-mcp-server-postgresql.sql"), Path.of("..", "database", "init", "postgresql", "chatchat-mcp-server.sql"), 37);
+        assertSchemaMatches(output.resolve("chatchat-mcp-server-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-mcp-server.sql"), 38);
+        assertSchemaMatches(output.resolve("chatchat-mcp-server-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-mcp-server.sql"), 38);
+        assertSchemaMatches(output.resolve("chatchat-mcp-server-postgresql.sql"), Path.of("..", "database", "init", "postgresql", "chatchat-mcp-server.sql"), 38);
     }
 
     private void generate(String dialect, Path target) throws Exception {

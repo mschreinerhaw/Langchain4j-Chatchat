@@ -344,33 +344,39 @@ public class McpTemplateLuceneIndexService {
 
     private List<LuceneMcpSearchService.TemplateDoc> externalTemplateDocs(String requiredAssetType) {
         if (externalMcpRegistryService == null) return List.of();
-        List<LuceneMcpSearchService.TemplateDoc> docs = new ArrayList<>();
-        for (ExternalMcpService service : safe(externalMcpRegistryService.list())) {
-            if (service == null || !service.isEnabled()) continue;
-            String assetType = externalMcpRegistryService.parentAssetType(service);
-            if (requiredAssetType != null && !requiredAssetType.equals(assetType)) continue;
-            for (ExternalMcpRegistryService.ToolTemplate template
-                    : safe(externalMcpRegistryService.templates(service))) {
-                if (template == null || !template.readOnly()) continue;
-                String templateId = ExternalMcpToolPublisher.publishedName(service.getId(), template.name());
-                List<String> signals = new ArrayList<>();
-                addTerms(signals, service.getName(), service.getEndpoint(), template.name(), template.title(),
-                    template.description(), assetType, "external_mcp");
-                docs.add(new LuceneMcpSearchService.TemplateDoc(
-                    templateId,
-                    assetType,
-                    firstText(template.title(), template.name()),
-                    firstText(template.description(), "External MCP read-only tool"),
-                    "external_mcp",
-                    "generic",
-                    String.join(" ", signals),
-                    "read_only",
-                    distinct(signals),
-                    "external_mcp_template_registry"
-                ));
+        try {
+            List<LuceneMcpSearchService.TemplateDoc> docs = new ArrayList<>();
+            for (ExternalMcpService service : safe(externalMcpRegistryService.list())) {
+                if (service == null || !service.isEnabled()) continue;
+                String assetType = externalMcpRegistryService.parentAssetType(service);
+                if (requiredAssetType != null && !requiredAssetType.equals(assetType)) continue;
+                for (ExternalMcpRegistryService.ToolTemplate template
+                        : safe(externalMcpRegistryService.templates(service))) {
+                    if (template == null || !template.readOnly()) continue;
+                    String templateId = ExternalMcpToolPublisher.publishedName(service.getId(), template.name());
+                    List<String> signals = new ArrayList<>();
+                    addTerms(signals, service.getName(), service.getEndpoint(), template.name(), template.title(),
+                        template.description(), assetType, "external_mcp");
+                    docs.add(new LuceneMcpSearchService.TemplateDoc(
+                        templateId,
+                        assetType,
+                        firstText(template.title(), template.name()),
+                        firstText(template.description(), "External MCP read-only tool"),
+                        "external_mcp",
+                        "generic",
+                        String.join(" ", signals),
+                        "read_only",
+                        distinct(signals),
+                        "external_mcp_template_registry"
+                    ));
+                }
             }
+            return List.copyOf(docs);
+        } catch (RuntimeException exception) {
+            log.warn("External MCP template registry is unavailable; continuing without external template indexes: {}",
+                exception.getMessage());
+            return List.of();
         }
-        return List.copyOf(docs);
     }
 
     private LuceneMcpSearchService.TemplateDoc commandTemplateDoc(CommandTemplateConfig template) {

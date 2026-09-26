@@ -16,7 +16,7 @@ public class ExternalMcpService {
     @Id @Column(length = 64) private String id;
     @Column(nullable = false, length = 200) private String name;
     @Column(nullable = false, length = 2000) private String endpoint;
-    @Column(length = 2000) private String authorization;
+    @Column(name = "authorization_header", length = 2000) private String authorization;
     @Column(nullable = false, length = 128) private String parentToolName;
     @Column(nullable = false, length = 64) private String workflowId = "mcp_streamable_http";
     @Column(nullable = false) private boolean enabled;

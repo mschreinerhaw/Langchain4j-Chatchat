@@ -168,6 +168,21 @@
         primary key (id)
     );
 
+    create table mcp_external_service (
+        enabled boolean not null,
+        discovered_at timestamp(6) with time zone,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        workflow_id varchar(64) not null,
+        parent_tool_name varchar(128) not null,
+        name varchar(200) not null,
+        endpoint varchar(2000) not null,
+        authorization_header varchar(2000),
+        templates_json text,
+        primary key (id)
+    );
+
     create table mcp_execution_target (
         enabled boolean not null,
         priority integer not null,

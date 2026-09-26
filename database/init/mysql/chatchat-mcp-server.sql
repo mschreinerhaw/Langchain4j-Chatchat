@@ -167,6 +167,21 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create table mcp_external_service (
+        enabled bit not null,
+        discovered_at datetime(6),
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        workflow_id varchar(64) not null,
+        parent_tool_name varchar(128) not null,
+        name varchar(200) not null,
+        endpoint varchar(2000) not null,
+        authorization_header varchar(2000),
+        templates_json longtext,
+        primary key (id)
+    ) engine=InnoDB;
+
     create table mcp_execution_target (
         enabled bit not null,
         priority integer not null,

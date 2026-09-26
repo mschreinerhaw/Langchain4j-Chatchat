@@ -5,6 +5,9 @@ import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.definition.DatabaseQuerySqlStep;
+import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
+import com.chatchat.mcpserver.external.ExternalMcpService;
+import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
 import com.chatchat.mcpserver.ops.command.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfig;
@@ -63,6 +66,8 @@ public class McpTemplateLuceneIndexService {
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private PythonTemplateSearchService pythonTemplateSearchService;
+    @Autowired(required = false)
+    private ExternalMcpRegistryService externalMcpRegistryService;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -90,6 +95,7 @@ public class McpTemplateLuceneIndexService {
         }
         if (!refreshed) {
             log.info("MCP template index startup check skipped rebuild because all template indexes already exist");
+            upsertExternalTemplateIndexes();
         }
     }
 
@@ -97,6 +103,17 @@ public class McpTemplateLuceneIndexService {
         refreshTemplateIndex();
         refreshDatabaseQueryTemplateIndex();
         refreshApiServiceTemplateIndex();
+    }
+
+    private void upsertExternalTemplateIndexes() {
+        List<LuceneMcpSearchService.TemplateDoc> all = externalTemplateDocs(null);
+        if (all.isEmpty()) return;
+        luceneSearchService.upsertTemplates(all);
+        List<LuceneMcpSearchService.TemplateDoc> databaseQueries = externalTemplateDocs("database_query");
+        if (!databaseQueries.isEmpty()) luceneSearchService.upsertDatabaseQueryTemplates(databaseQueries);
+        List<LuceneMcpSearchService.TemplateDoc> apiServices = externalTemplateDocs("api_service");
+        if (!apiServices.isEmpty()) luceneSearchService.upsertApiServiceTemplates(apiServices);
+        log.info("MCP external template indexes synchronized, indexed {} read-only tools", all.size());
     }
 
     public synchronized void refreshTemplateIndex() {
@@ -120,6 +137,7 @@ public class McpTemplateLuceneIndexService {
         if (pythonTemplateSearchService != null) {
             docs.addAll(pythonTemplateSearchService.publishedDocuments());
         }
+        docs.addAll(externalTemplateDocs(null));
         luceneSearchService.indexTemplates(docs);
         log.info("MCP Lucene template index refreshed, indexed {} templates", docs.size());
     }
@@ -128,9 +146,10 @@ public class McpTemplateLuceneIndexService {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return;
         }
-        List<LuceneMcpSearchService.TemplateDoc> docs = safe(databaseQueryConfigService.listAll()).stream()
+        List<LuceneMcpSearchService.TemplateDoc> docs = new ArrayList<>(safe(databaseQueryConfigService.listAll()).stream()
             .map(this::databaseQueryTemplateDoc)
-            .toList();
+            .toList());
+        docs.addAll(externalTemplateDocs("database_query"));
         luceneSearchService.indexDatabaseQueryTemplates(docs);
         log.info("MCP database query template identity index refreshed, indexed {} templateId documents", docs.size());
     }
@@ -139,10 +158,11 @@ public class McpTemplateLuceneIndexService {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return;
         }
-        List<LuceneMcpSearchService.TemplateDoc> docs = safe(apiServiceConfigService.listAll()).stream()
+        List<LuceneMcpSearchService.TemplateDoc> docs = new ArrayList<>(safe(apiServiceConfigService.listAll()).stream()
             .filter(ApiServiceConfig::isEnabled)
             .map(this::apiServiceTemplateDoc)
-            .toList();
+            .toList());
+        docs.addAll(externalTemplateDocs("api_service"));
         luceneSearchService.indexApiServiceTemplates(docs);
         log.info("MCP Lucene API service template index refreshed, indexed {} templates", docs.size());
     }
@@ -320,6 +340,37 @@ public class McpTemplateLuceneIndexService {
             .map(this::apiServiceTemplateDoc)
             .toList());
         log.info("MCP Lucene API service template index upserted {} templates", safe(templates).size());
+    }
+
+    private List<LuceneMcpSearchService.TemplateDoc> externalTemplateDocs(String requiredAssetType) {
+        if (externalMcpRegistryService == null) return List.of();
+        List<LuceneMcpSearchService.TemplateDoc> docs = new ArrayList<>();
+        for (ExternalMcpService service : safe(externalMcpRegistryService.list())) {
+            if (service == null || !service.isEnabled()) continue;
+            String assetType = externalMcpRegistryService.parentAssetType(service);
+            if (requiredAssetType != null && !requiredAssetType.equals(assetType)) continue;
+            for (ExternalMcpRegistryService.ToolTemplate template
+                    : safe(externalMcpRegistryService.templates(service))) {
+                if (template == null || !template.readOnly()) continue;
+                String templateId = ExternalMcpToolPublisher.publishedName(service.getId(), template.name());
+                List<String> signals = new ArrayList<>();
+                addTerms(signals, service.getName(), service.getEndpoint(), template.name(), template.title(),
+                    template.description(), assetType, "external_mcp");
+                docs.add(new LuceneMcpSearchService.TemplateDoc(
+                    templateId,
+                    assetType,
+                    firstText(template.title(), template.name()),
+                    firstText(template.description(), "External MCP read-only tool"),
+                    "external_mcp",
+                    "generic",
+                    String.join(" ", signals),
+                    "read_only",
+                    distinct(signals),
+                    "external_mcp_template_registry"
+                ));
+            }
+        }
+        return List.copyOf(docs);
     }
 
     private LuceneMcpSearchService.TemplateDoc commandTemplateDoc(CommandTemplateConfig template) {

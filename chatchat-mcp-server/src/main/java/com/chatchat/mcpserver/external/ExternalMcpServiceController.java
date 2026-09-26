@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.external;
 
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.mcpserver.templatepublication.catalog.TemplateQueryParentCatalog;
+import com.chatchat.mcpserver.search.index.McpTemplateLuceneIndexService;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class ExternalMcpServiceController {
     private final ExternalMcpRegistryService registry;
     private final ExternalMcpToolPublisher publisher;
+    private final McpTemplateLuceneIndexService templateIndexService;
 
     @GetMapping public ApiResponse<List<ServiceView>> list() {
         return ApiResponse.success(registry.list().stream().map(this::view).toList());
@@ -39,18 +41,18 @@ public class ExternalMcpServiceController {
     @PutMapping("/{id}") public ApiResponse<ServiceView> update(@PathVariable String id,
         @RequestBody ExternalMcpRegistryService.UpsertRequest request) {
         ServiceView result = view(registry.update(id, request));
-        publisher.refreshPublication();
+        refreshRuntimeCatalog();
         return ApiResponse.success(result);
     }
     @PostMapping("/{id}/discover") public ApiResponse<ServiceView> discover(@PathVariable String id) {
         ServiceView result = view(registry.discover(id));
-        publisher.refreshPublication();
+        refreshRuntimeCatalog();
         return ApiResponse.success(result, "MCP tool templates discovered; review and enable explicitly");
     }
     @PostMapping("/{id}/enabled") public ApiResponse<ServiceView> enabled(@PathVariable String id,
         @RequestParam boolean enabled) {
         ServiceView result = view(registry.setEnabled(id, enabled));
-        publisher.refreshPublication();
+        refreshRuntimeCatalog();
         return ApiResponse.success(result);
     }
     @PostMapping("/{id}/tools/{toolName}/invoke")
@@ -60,7 +62,7 @@ public class ExternalMcpServiceController {
     }
     @DeleteMapping("/{id}") public ApiResponse<Void> delete(@PathVariable String id) {
         registry.delete(id);
-        publisher.refreshPublication();
+        refreshRuntimeCatalog();
         return ApiResponse.success(null);
     }
 
@@ -69,6 +71,11 @@ public class ExternalMcpServiceController {
             service.getAuthorization() != null && !service.getAuthorization().isBlank(),
             service.getParentToolName(), service.getWorkflowId(), service.isEnabled(),
             registry.templates(service), service.getDiscoveredAt(), service.getCreatedAt(), service.getUpdatedAt());
+    }
+
+    private void refreshRuntimeCatalog() {
+        publisher.refreshPublication();
+        templateIndexService.refreshAll();
     }
 
     public record ServiceView(String id, String name, String endpoint, boolean hasAuthorization,

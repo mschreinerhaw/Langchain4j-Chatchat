@@ -22,7 +22,7 @@ export default {
       externalColumns: [
         { key: 'name', label: '服务名称' },
         { key: 'endpoint', label: 'MCP 端点' },
-        { key: 'parentToolName', label: '父类模板' },
+        { key: 'parentToolName', label: '父类模板', formatter: value => this.parentTitle(value) },
         { key: 'workflowId', label: '执行工作流' },
         { key: 'discoveredAt', label: '发现时间' },
         { key: 'enabled', label: '状态', type: 'badge', formatter: value => value ? '启用' : '待审核 / 停用' }
@@ -140,6 +140,7 @@ export default {
         { key: 'parentToolName', label: '归属父类模板', type: 'select', required: true,
           section: 'binding', sectionTitle: '模板归属与执行',
           sectionSubtitle: 'API、数据库、HTTP 使用同一注册流程；新增工作流由后端插件扩展。',
+          help: '决定工具进入哪一类模板索引以及 Runtime 使用的父级检索工具。',
           options: this.parents.map(item => ({ value: item.toolName, label: `${item.title} (${item.assetType})` })) },
         { key: 'workflowId', label: '执行工作流', type: 'select', required: true, section: 'binding',
           options: this.workflows.map(value => ({ value, label: value })) }
@@ -155,9 +156,13 @@ export default {
     }
   },
   async mounted() {
-    try {
-      [this.parents, this.workflows] = await Promise.all([this.externalApi.parents(), this.externalApi.workflows()]);
-    } catch (error) { this.$emit('error', error); }
+    const [parents, workflows] = await Promise.allSettled([
+      this.externalApi.parents(), this.externalApi.workflows()
+    ]);
+    if (parents.status === 'fulfilled') this.parents = Array.isArray(parents.value) ? parents.value : [];
+    else this.$emit('error', parents.reason);
+    if (workflows.status === 'fulfilled') this.workflows = Array.isArray(workflows.value) ? workflows.value : [];
+    else this.$emit('error', workflows.reason);
   },
   methods: {
     parentTitle(name) { return this.parents.find(item => item.toolName === name)?.title || name || '未选择'; },

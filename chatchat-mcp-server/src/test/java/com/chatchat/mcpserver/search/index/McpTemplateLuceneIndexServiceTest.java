@@ -4,6 +4,9 @@ import com.chatchat.mcpserver.api.registry.ApiServiceConfig;
 import com.chatchat.mcpserver.api.registry.ApiServiceConfigService;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
+import com.chatchat.mcpserver.external.ExternalMcpService;
+import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
 import com.chatchat.mcpserver.ops.command.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
@@ -18,6 +21,7 @@ import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -124,6 +128,46 @@ class McpTemplateLuceneIndexServiceTest {
             "jmx_endpoint", "java", "kafka replica jvm monitoring", 10
         ))).extracting(LuceneMcpSearchService.SearchHit::id)
             .contains("JMX_KAFKA_BROKER_OVERVIEW");
+    }
+
+    @Test
+    void indexesEnabledReadOnlyExternalToolsIntoParentTemplateIndexes() {
+        LuceneMcpSearchService lucene = lucene();
+        ExternalMcpRegistryService externalRegistry = mock(ExternalMcpRegistryService.class);
+        ExternalMcpService service = new ExternalMcpService();
+        service.setId("external-service-1");
+        service.setName("Partner Risk MCP");
+        service.setEndpoint("https://partner.example/mcp");
+        service.setEnabled(true);
+        when(externalRegistry.list()).thenReturn(List.of(service));
+        when(externalRegistry.parentAssetType(service)).thenReturn("api_service");
+        when(externalRegistry.templates(service)).thenReturn(List.of(
+            new ExternalMcpRegistryService.ToolTemplate("risk_lookup", "风险指标查询", "查询客户风险指标",
+                java.util.Map.of("type", "object", "properties", java.util.Map.of()), true),
+            new ExternalMcpRegistryService.ToolTemplate("risk_update", "风险指标更新", "更新风险指标",
+                java.util.Map.of("type", "object", "properties", java.util.Map.of()), false)));
+        McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
+            lucene,
+            mock(CommandTemplateService.class),
+            mock(SqlTemplateService.class),
+            mock(JmxTemplateService.class),
+            mock(HttpEndpointConfigService.class),
+            mock(ApiServiceConfigService.class),
+            mock(DatabaseQueryConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            new ObjectMapper()
+        );
+        ReflectionTestUtils.setField(indexService, "externalMcpRegistryService", externalRegistry);
+
+        indexService.refreshAll();
+
+        String expectedId = ExternalMcpToolPublisher.publishedName(service.getId(), "risk_lookup");
+        assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+            "api_service", null, "客户风险指标", 10))).extracting(LuceneMcpSearchService.SearchHit::id)
+            .containsExactly(expectedId);
+        assertThat(lucene.searchApiServiceTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+            "api_service", null, "客户风险指标", 10))).extracting(LuceneMcpSearchService.SearchHit::id)
+            .containsExactly(expectedId);
     }
 
     @Test

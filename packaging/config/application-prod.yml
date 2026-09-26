@@ -265,6 +265,7 @@ chatchat:
         model: text-embedding-v4
         # text-embedding-v4 默认按 1024 维建 knn_vector；如果模型输出维度变化，只需要改这里并重建索引。
         dimension: 1024
+        dimension-request-mode: ${CHATCHAT_SEARCH_EMBEDDING_DIMENSION_REQUEST_MODE:AUTO}
         vector-field: contentVector
         max-input-chars: 6000
         vector-candidate-limit: 50

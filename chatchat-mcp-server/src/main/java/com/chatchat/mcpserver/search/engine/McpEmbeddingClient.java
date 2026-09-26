@@ -17,6 +17,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
@@ -26,6 +29,7 @@ class McpEmbeddingClient {
     private final LuceneSearchProperties properties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().build();
+    private final Set<String> dimensionParameterUnsupported = ConcurrentHashMap.newKeySet();
 
     boolean enabled() {
         LuceneSearchProperties.OpenSearch.Embedding config = config();
@@ -74,21 +78,18 @@ class McpEmbeddingClient {
             return result;
         }
         Object payloadInput = requestInputs.size() == 1 ? requestInputs.get(0) : requestInputs;
-        Map<String, Object> body = Map.of(
-            "model", config.getModel(),
-            "input", payloadInput,
-            "dimensions", config.getDimension()
-        );
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(config.getEndpoint().trim()))
-                .timeout(Duration.ofMillis(Math.max(1, config.getRequestTimeoutMs())))
-                .header("Accept", "application/json")
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + config.getApiKey().trim())
-                .POST(HttpRequest.BodyPublishers.ofString(json(body)))
-                .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            String capabilityKey = config.getEndpoint().trim() + "|" + config.getModel().trim();
+            boolean includeDimension = shouldSendDimension(config, capabilityKey);
+            HttpResponse<String> response = send(config, payloadInput, includeDimension);
+            if (includeDimension && shouldRetryWithoutDimension(config, response)) {
+                log.warn("MCP embedding endpoint rejected the dimensions parameter; retrying without it "
+                    + "endpoint={} model={}", config.getEndpoint(), config.getModel());
+                response = send(config, payloadInput, false);
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    dimensionParameterUnsupported.add(capabilityKey);
+                }
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("MCP embedding request failed status={} body={}", response.statusCode(), response.body());
                 return result;
@@ -116,6 +117,46 @@ class McpEmbeddingClient {
             log.warn("MCP embedding request interrupted endpoint={}", config.getEndpoint(), ex);
             return result;
         }
+    }
+
+    private HttpResponse<String> send(LuceneSearchProperties.OpenSearch.Embedding config,
+                                      Object input,
+                                      boolean includeDimension) throws IOException, InterruptedException {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", config.getModel());
+        body.put("input", input);
+        if (includeDimension) {
+            body.put("dimensions", config.getDimension());
+        }
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(config.getEndpoint().trim()))
+            .timeout(Duration.ofMillis(Math.max(1, config.getRequestTimeoutMs())))
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + config.getApiKey().trim())
+            .POST(HttpRequest.BodyPublishers.ofString(json(body)))
+            .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private boolean shouldSendDimension(LuceneSearchProperties.OpenSearch.Embedding config,
+                                        String capabilityKey) {
+        LuceneSearchProperties.OpenSearch.Embedding.DimensionRequestMode mode = config.getDimensionRequestMode();
+        return switch (mode == null
+            ? LuceneSearchProperties.OpenSearch.Embedding.DimensionRequestMode.AUTO : mode) {
+            case ALWAYS -> true;
+            case NEVER -> false;
+            case AUTO -> !dimensionParameterUnsupported.contains(capabilityKey);
+        };
+    }
+
+    private boolean shouldRetryWithoutDimension(LuceneSearchProperties.OpenSearch.Embedding config,
+                                                HttpResponse<String> response) {
+        return (config.getDimensionRequestMode() == null
+            ? LuceneSearchProperties.OpenSearch.Embedding.DimensionRequestMode.AUTO
+            : config.getDimensionRequestMode())
+            == LuceneSearchProperties.OpenSearch.Embedding.DimensionRequestMode.AUTO
+            && (response.statusCode() == 400 || response.statusCode() == 422);
     }
 
     private List<List<Float>> parseEmbeddings(JsonNode root) {

@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
@@ -33,6 +35,7 @@ public class OpenSearchEmbeddingClient {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().build();
     private final AtomicLong incompatibleDimensionUntil = new AtomicLong();
+    private final Set<String> dimensionParameterUnsupported = ConcurrentHashMap.newKeySet();
     private final Map<String, List<Float>> embeddingCache = java.util.Collections.synchronizedMap(
         new LinkedHashMap<>(64, 0.75f, true) {
             @Override
@@ -69,21 +72,18 @@ public class OpenSearchEmbeddingClient {
         if (System.currentTimeMillis() < incompatibleDimensionUntil.get()) {
             return List.of();
         }
-        Map<String, Object> body = Map.of(
-            "model", config.getModel(),
-            "input", text,
-            "dimensions", config.getDimension()
-        );
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(config.getEndpoint().trim()))
-                .timeout(Duration.ofMillis(Math.max(1, config.getRequestTimeoutMs())))
-                .header("Accept", "application/json")
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + config.getApiKey().trim())
-                .POST(HttpRequest.BodyPublishers.ofString(json(body)))
-                .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            String capabilityKey = config.getEndpoint().trim() + "|" + config.getModel().trim();
+            boolean includeDimension = shouldSendDimension(config, capabilityKey);
+            HttpResponse<String> response = send(config, text, includeDimension);
+            if (includeDimension && shouldRetryWithoutDimension(config, response)) {
+                log.warn("Embedding endpoint rejected the dimensions parameter; retrying without it endpoint={} model={}",
+                    config.getEndpoint(), config.getModel());
+                response = send(config, text, false);
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    dimensionParameterUnsupported.add(capabilityKey);
+                }
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Embedding request failed status={} body={}", response.statusCode(), response.body());
                 return List.of();
@@ -111,6 +111,44 @@ public class OpenSearchEmbeddingClient {
             log.warn("Embedding request interrupted endpoint={}", config.getEndpoint(), ex);
             return List.of();
         }
+    }
+
+    private HttpResponse<String> send(SearchProperties.OpenSearch.Embedding config,
+                                      String input,
+                                      boolean includeDimension) throws IOException, InterruptedException {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", config.getModel());
+        body.put("input", input);
+        if (includeDimension) {
+            body.put("dimensions", config.getDimension());
+        }
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(config.getEndpoint().trim()))
+            .timeout(Duration.ofMillis(Math.max(1, config.getRequestTimeoutMs())))
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + config.getApiKey().trim())
+            .POST(HttpRequest.BodyPublishers.ofString(json(body)))
+            .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private boolean shouldSendDimension(SearchProperties.OpenSearch.Embedding config, String capabilityKey) {
+        SearchProperties.OpenSearch.Embedding.DimensionRequestMode mode = config.getDimensionRequestMode();
+        return switch (mode == null
+            ? SearchProperties.OpenSearch.Embedding.DimensionRequestMode.AUTO : mode) {
+            case ALWAYS -> true;
+            case NEVER -> false;
+            case AUTO -> !dimensionParameterUnsupported.contains(capabilityKey);
+        };
+    }
+
+    private boolean shouldRetryWithoutDimension(SearchProperties.OpenSearch.Embedding config,
+                                                HttpResponse<String> response) {
+        return (config.getDimensionRequestMode() == null
+            ? SearchProperties.OpenSearch.Embedding.DimensionRequestMode.AUTO : config.getDimensionRequestMode())
+            == SearchProperties.OpenSearch.Embedding.DimensionRequestMode.AUTO
+            && (response.statusCode() == 400 || response.statusCode() == 422);
     }
 
     private List<Float> parseEmbedding(JsonNode root) {

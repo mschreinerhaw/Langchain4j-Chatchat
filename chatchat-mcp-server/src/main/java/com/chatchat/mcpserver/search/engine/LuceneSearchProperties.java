@@ -76,11 +76,18 @@ public class LuceneSearchProperties {
 
         @Data
         public static class Embedding {
+            public enum DimensionRequestMode {
+                AUTO,
+                ALWAYS,
+                NEVER
+            }
+
             private boolean enabled = false;
             private String endpoint = "";
             private String apiKey = "";
             private String model = "";
             private int dimension = 1024;
+            private DimensionRequestMode dimensionRequestMode = DimensionRequestMode.AUTO;
             private String vectorField = "mcpContentVector";
             private int maxInputChars = 6000;
             private int requestTimeoutMs = 300000;

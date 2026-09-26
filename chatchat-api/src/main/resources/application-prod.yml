@@ -272,6 +272,7 @@ chatchat:
         api-key: ${CHATCHAT_SEARCH_EMBEDDING_API_KEY:}
         model: ${CHATCHAT_SEARCH_EMBEDDING_MODEL:}
         dimension: ${CHATCHAT_SEARCH_EMBEDDING_DIMENSION:1024}
+        dimension-request-mode: ${CHATCHAT_SEARCH_EMBEDDING_DIMENSION_REQUEST_MODE:AUTO}
         vector-field: contentVector
         vector-candidate-limit: 30
   tools:

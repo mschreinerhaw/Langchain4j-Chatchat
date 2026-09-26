@@ -223,6 +223,7 @@ chatchat:
         api-key:
         model: text-embedding-v4
         dimension: 1024
+        dimension-request-mode: ${CHATCHAT_SEARCH_EMBEDDING_DIMENSION_REQUEST_MODE:AUTO}
         vector-field: contentVector
         max-input-chars: 6000
         vector-candidate-limit: 50

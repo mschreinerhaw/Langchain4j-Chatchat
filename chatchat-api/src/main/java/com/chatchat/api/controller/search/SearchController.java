@@ -124,7 +124,8 @@ public class SearchController {
                                           @RequestParam(value = "limit", required = false) Integer limit,
                                           @RequestParam(value = "tenantId", required = false) String tenantId,
                                           @RequestParam(value = "userId", required = false) String userId,
-                                          @RequestParam(value = "roles", required = false) String roles) {
+                                          @RequestParam(value = "roles", required = false) String roles,
+                                          HttpServletRequest servletRequest) {
         return ApiResponse.success(searchService.search(
             keyword,
             tag,
@@ -133,7 +134,7 @@ public class SearchController {
             docIds,
             page,
             pageSize == null ? limit : pageSize,
-            permissionContext(tenantId, userId, roles)
+            authenticatedPermissionContext(servletRequest, tenantId, userId, roles)
         ));
     }
 
@@ -238,13 +239,14 @@ public class SearchController {
                                                 @RequestParam(value = "limit", required = false) Integer limit,
                                                 @RequestParam(value = "tenantId", required = false) String tenantId,
                                                 @RequestParam(value = "userId", required = false) String userId,
-                                                @RequestParam(value = "roles", required = false) String roles) {
+                                                @RequestParam(value = "roles", required = false) String roles,
+                                                HttpServletRequest servletRequest) {
         return ApiResponse.success(searchService.listLibrary(
             category,
             title,
             page,
             pageSize == null ? limit : pageSize,
-            permissionContext(tenantId, userId, roles)
+            authenticatedPermissionContext(servletRequest, tenantId, userId, roles)
         ));
     }
 
@@ -286,11 +288,13 @@ public class SearchController {
                                                               @RequestBody DocumentCategoryUpdateRequest request,
                                                               @RequestParam(value = "tenantId", required = false) String tenantId,
                                                               @RequestParam(value = "userId", required = false) String userId,
-                                                              @RequestParam(value = "roles", required = false) String roles) {
+                                                              @RequestParam(value = "roles", required = false) String roles,
+                                                              HttpServletRequest servletRequest) {
         if (request == null || request.category() == null || request.category().isBlank()) {
             return ApiResponse.badRequest("category is required");
         }
-        return searchService.updateDocumentCategory(docId, request.category(), permissionContext(tenantId, userId, roles))
+        return searchService.updateDocumentCategory(docId, request.category(),
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles))
             .map(document -> ApiResponse.success(document, "Document category updated"))
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
@@ -306,8 +310,10 @@ public class SearchController {
     public ApiResponse<TitleExistsResult> titleExists(@RequestParam("title") String title,
                                                       @RequestParam(value = "tenantId", required = false) String tenantId,
                                                       @RequestParam(value = "userId", required = false) String userId,
-                                                      @RequestParam(value = "roles", required = false) String roles) {
-        return ApiResponse.success(searchService.titleExists(title, permissionContext(tenantId, userId, roles)));
+                                                      @RequestParam(value = "roles", required = false) String roles,
+                                                      HttpServletRequest servletRequest) {
+        return ApiResponse.success(searchService.titleExists(title,
+            authenticatedPermissionContext(servletRequest, tenantId, userId, roles)));
     }
 
     /**
@@ -321,8 +327,9 @@ public class SearchController {
     public ApiResponse<SearchDocument> getDocument(@PathVariable("docId") String docId,
                                                    @RequestParam(value = "tenantId", required = false) String tenantId,
                                                    @RequestParam(value = "userId", required = false) String userId,
-                                                   @RequestParam(value = "roles", required = false) String roles) {
-        return searchService.get(docId, permissionContext(tenantId, userId, roles))
+                                                   @RequestParam(value = "roles", required = false) String roles,
+                                                   HttpServletRequest servletRequest) {
+        return searchService.get(docId, authenticatedPermissionContext(servletRequest, tenantId, userId, roles))
             .map(ApiResponse::success)
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
@@ -338,8 +345,9 @@ public class SearchController {
     public ApiResponse<List<SearchDocumentVersionItem>> listDocumentVersions(@PathVariable("docId") String docId,
                                                                              @RequestParam(value = "tenantId", required = false) String tenantId,
                                                                              @RequestParam(value = "userId", required = false) String userId,
-                                                                             @RequestParam(value = "roles", required = false) String roles) {
-        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+                                                                             @RequestParam(value = "roles", required = false) String roles,
+                                                                             HttpServletRequest servletRequest) {
+        SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, roles);
         if (searchService.get(docId, context).isEmpty()) {
             return ApiResponse.notFound("document not found: " + docId);
         }
@@ -359,8 +367,10 @@ public class SearchController {
                                                           @PathVariable("version") Integer version,
                                                           @RequestParam(value = "tenantId", required = false) String tenantId,
                                                           @RequestParam(value = "userId", required = false) String userId,
-                                                          @RequestParam(value = "roles", required = false) String roles) {
-        return searchService.getVersion(docId, version, permissionContext(tenantId, userId, roles))
+                                                          @RequestParam(value = "roles", required = false) String roles,
+                                                          HttpServletRequest servletRequest) {
+        return searchService.getVersion(docId, version,
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles))
             .map(ApiResponse::success)
             .orElseGet(() -> ApiResponse.notFound("document version not found: " + docId + " v" + version));
     }
@@ -381,7 +391,8 @@ public class SearchController {
         if (!isAdminOperator(request)) {
             return ApiResponse.error(403, "document delete permission is required");
         }
-        if (!searchService.deleteDocument(docId, permissionContext(tenantId, userId, roles))) {
+        if (!searchService.deleteDocument(docId,
+            authenticatedPermissionContext(request, tenantId, userId, roles))) {
             return ApiResponse.notFound("document not found: " + docId);
         }
         return ApiResponse.success(null, "document deleted");
@@ -401,7 +412,7 @@ public class SearchController {
         if (docIds.isEmpty()) {
             return ApiResponse.badRequest("docIds are required");
         }
-        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, roles);
         List<String> deletedDocIds = new ArrayList<>();
         List<String> notFoundDocIds = new ArrayList<>();
         for (String docId : docIds) {
@@ -432,7 +443,8 @@ public class SearchController {
                     "document transferred to MCP and indexed"))
                 .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
         }
-        return searchService.reindexDocument(docId, permissionContext(tenantId, userId, roles))
+        return searchService.reindexDocument(docId,
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles))
             .map(document -> ApiResponse.success(document, "document reindexed"))
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
@@ -480,9 +492,11 @@ public class SearchController {
     public ApiResponse<SearchService.ReindexSummary> reindexUploadedSqlDocuments(
         @RequestParam(value = "tenantId", required = false) String tenantId,
         @RequestParam(value = "userId", required = false) String userId,
-        @RequestParam(value = "roles", required = false) String roles) {
+        @RequestParam(value = "roles", required = false) String roles,
+        HttpServletRequest servletRequest) {
         return ApiResponse.success(
-            searchService.reindexUploadedSqlDocuments(permissionContext(tenantId, userId, roles)),
+            searchService.reindexUploadedSqlDocuments(
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles)),
             "sql documents reindexed"
         );
     }
@@ -498,8 +512,10 @@ public class SearchController {
     public ResponseEntity<Resource> getDocumentFile(@PathVariable("docId") String docId,
                                                     @RequestParam(value = "tenantId", required = false) String tenantId,
                                                     @RequestParam(value = "userId", required = false) String userId,
-                                                    @RequestParam(value = "roles", required = false) String roles) {
-        return searchService.getFileResource(docId, permissionContext(tenantId, userId, roles))
+                                                    @RequestParam(value = "roles", required = false) String roles,
+                                                    HttpServletRequest servletRequest) {
+        return searchService.getFileResource(docId,
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles))
             .map(file -> ResponseEntity.ok()
                 .contentType(mediaTypeFor(file))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))
@@ -520,8 +536,10 @@ public class SearchController {
                                                            @PathVariable("version") Integer version,
                                                            @RequestParam(value = "tenantId", required = false) String tenantId,
                                                            @RequestParam(value = "userId", required = false) String userId,
-                                                           @RequestParam(value = "roles", required = false) String roles) {
-        return searchService.getVersionFileResource(docId, version, permissionContext(tenantId, userId, roles))
+                                                           @RequestParam(value = "roles", required = false) String roles,
+                                                           HttpServletRequest servletRequest) {
+        return searchService.getVersionFileResource(docId, version,
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles))
             .map(file -> ResponseEntity.ok()
                 .contentType(mediaTypeFor(file))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))
@@ -815,10 +833,6 @@ public class SearchController {
     private String encodeFileName(String fileName) {
         String safeName = fileName == null || fileName.isBlank() ? "document" : fileName;
         return URLEncoder.encode(safeName, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
-    private SearchPermissionContext permissionContext(String tenantId, String userId, String roles) {
-        return SearchPermissionContext.of(tenantId, userId, parseCsv(roles));
     }
 
     private SearchPermissionContext authenticatedPermissionContext(HttpServletRequest request,

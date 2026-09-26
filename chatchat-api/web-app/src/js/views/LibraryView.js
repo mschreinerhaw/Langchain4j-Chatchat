@@ -131,13 +131,16 @@ export default {
     };
   },
   computed: {
+    authenticatedUserId() {
+      return getStoredAuthSession()?.user?.id || this.userId;
+    },
     effectiveTenantId() {
       return this.tenantId || this.userId || "default";
     },
     permissionFilters() {
       return {
         tenantId: this.effectiveTenantId,
-        userId: this.userId
+        userId: this.authenticatedUserId
       };
     },
     canDeleteDocuments() {
@@ -150,8 +153,8 @@ export default {
       if (this.effectiveTenantId) {
         params.set("tenantId", this.effectiveTenantId);
       }
-      if (this.userId) {
-        params.set("userId", this.userId);
+      if (this.authenticatedUserId) {
+        params.set("userId", this.authenticatedUserId);
       }
       const query = params.toString();
       return query ? `?${query}` : "";
@@ -308,7 +311,7 @@ export default {
       formData.append("tags", [this.documentUploadCategory, this.documentUploadTags.trim()].filter(Boolean).join(","));
       formData.append("documentType", "auto");
       formData.append("tenantId", this.effectiveTenantId);
-      formData.append("userId", this.userId);
+      formData.append("userId", this.authenticatedUserId);
       this.documentUploadSubmitting = true;
       this.error = "";
       try {
@@ -938,7 +941,7 @@ export default {
       try {
         await addUserFavorite({
           tenantId: this.effectiveTenantId,
-          userId: this.userId,
+          userId: this.authenticatedUserId,
           targetType: "DOCUMENT",
           targetId: docId,
           title: item.title || docId,

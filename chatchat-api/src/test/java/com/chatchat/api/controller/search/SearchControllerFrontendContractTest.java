@@ -7,6 +7,7 @@ import com.chatchat.api.search.DocumentRemoteImporter;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
+import com.chatchat.knowledgebase.search.document.LibraryPage;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
@@ -73,6 +74,32 @@ class SearchControllerFrontendContractTest {
         verify(searchService).frontendQuickSearch(
             eq(""), any(), any(), any(), any(), eq(1), eq(6),
             eq(SearchPermissionContext.of("authenticated-tenant", "authenticated-user", List.of()))
+        );
+    }
+
+    @Test
+    void libraryUsesAuthenticatedDatabaseIdentityInsteadOfCallerSuppliedUsername() {
+        SearchService searchService = mock(SearchService.class);
+        SearchController controller = new SearchController(
+            searchService,
+            mock(SearchFeedbackService.class),
+            new DocumentUploadCancellationRegistry(),
+            new DocumentSearchCancellationRegistry(),
+            mock(CategoryReindexTaskService.class),
+            new ApiLimitProperties()
+        );
+        when(searchService.listLibrary(any(), any(), any(), any(), any(SearchPermissionContext.class)))
+            .thenReturn(mock(LibraryPage.class));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-uuid");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "admin-uuid");
+
+        controller.listLibrary("all", null, 1, 20, null,
+            "caller-tenant", "admin", "caller-role", request);
+
+        verify(searchService).listLibrary(
+            eq("all"), eq(null), eq(1), eq(20),
+            eq(SearchPermissionContext.of("tenant-uuid", "admin-uuid", List.of("caller-role")))
         );
     }
 

@@ -283,6 +283,9 @@ export default {
       if (this.documentUploadSubmitting) return;
       this.documentUploadDialogOpen = false;
     },
+    triggerDocumentUploadFilePicker() {
+      this.$refs.documentUploadFileInput?.click();
+    },
     onDocumentUploadFileChange(event) {
       this.documentUploadFile = event.target.files?.[0] || null;
       if (this.documentUploadFile && !this.documentUploadTitle.trim()) {

@@ -225,7 +225,29 @@
           <div><p>文档管理</p><h2>新增文档</h2></div>
           <button type="button" class="app-dialog-close" aria-label="关闭" :disabled="documentUploadSubmitting" @click="closeDocumentUploadDialog">×</button>
         </header>
-        <label><span>文件（最大 55MB）</span><input type="file" required :disabled="documentUploadSubmitting" @change="onDocumentUploadFileChange"></label>
+        <label>
+          <span>文件（最大 55MB）</span>
+          <div class="document-file-picker" :class="{ selected: documentUploadFile }">
+            <input
+              ref="documentUploadFileInput"
+              type="file"
+              accept=".txt,.md,.sql,.csv,.pdf,.doc,.docx,.xls,.xlsx"
+              :disabled="documentUploadSubmitting"
+              @change="onDocumentUploadFileChange"
+            >
+            <button
+              type="button"
+              class="document-file-picker-button"
+              :disabled="documentUploadSubmitting"
+              @click="triggerDocumentUploadFilePicker"
+            >
+              选择文件
+            </button>
+            <span class="document-file-picker-name" :title="documentUploadFile?.name || '未选择文件'">
+              {{ documentUploadFile?.name || "未选择文件" }}
+            </span>
+          </div>
+        </label>
         <label><span>标题</span><input v-model="documentUploadTitle" required maxlength="255" :disabled="documentUploadSubmitting"></label>
         <label><span>分类</span>
           <select v-model="documentUploadCategory" :disabled="documentUploadSubmitting">

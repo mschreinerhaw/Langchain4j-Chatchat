@@ -12,6 +12,7 @@ import com.chatchat.chat.skills.release.AgentReleaseService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.config.ModelResourceRegistry;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.license.AgentPublicationLicenseService;
@@ -61,6 +62,7 @@ public class AgentWorkshopController {
     private final AgentPublicationLicenseService agentPublicationLicenseService;
     private final AgentReleaseService agentReleaseService;
     private final DomainSkillService domainSkillService;
+    private final ResourceAuthorizationPort resourceAuthorization;
 
     @GetMapping("/{agentId}/releases")
     @Operation(summary = "List immutable Agent releases and quality-gate reports")
@@ -133,7 +135,7 @@ public class AgentWorkshopController {
             modelOptions(),
             modelResources.defaultChatModel(),
             documentLibrary.list(documentPermissionContext(request)),
-            domainSkillService.publishedOptions(tenantId(request)).stream().map(DomainSkillOption::from).toList(),
+            authorizedDomainSkills(request),
             pageInfo,
             agentCategories(allAgents)
         ));
@@ -164,7 +166,9 @@ public class AgentWorkshopController {
      */
     @PostMapping
     @Operation(summary = "Create one workshop Agent")
-    public ApiResponse<AgentCard> createAgent(@RequestBody AgentUpsertRequest request) {
+    public ApiResponse<AgentCard> createAgent(@RequestBody AgentUpsertRequest request,
+                                               HttpServletRequest servletRequest) {
+        validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, null));
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent created");
     }
@@ -179,7 +183,9 @@ public class AgentWorkshopController {
     @PutMapping("/{agentId}")
     @Operation(summary = "Update one workshop Agent")
     public ApiResponse<AgentCard> updateAgent(@PathVariable("agentId") String agentId,
-                                              @RequestBody AgentUpsertRequest request) {
+                                              @RequestBody AgentUpsertRequest request,
+                                              HttpServletRequest servletRequest) {
+        validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, agentId));
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent updated");
     }
@@ -552,6 +558,56 @@ public class AgentWorkshopController {
             userId,
             enterpriseAdminService.authorizationRoleKeys(userId)
         );
+    }
+
+    private List<DomainSkillOption> authorizedDomainSkills(HttpServletRequest request) {
+        String tenantId = tenantId(request);
+        List<DomainSkillEntity> published = domainSkillService.publishedOptions(tenantId);
+        String userId = currentUserId(request);
+        if (userId == null || published.isEmpty()) {
+            return published.stream().map(DomainSkillOption::from).toList();
+        }
+        Set<String> candidateIds = published.stream()
+            .map(DomainSkillEntity::getId)
+            .filter(id -> id != null && !id.isBlank())
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> allowedIds = resourceAuthorization.allowedIds(
+            ResourceAuthorizationPort.SKILL,
+            tenantId,
+            userId,
+            Set.copyOf(enterpriseAdminService.authorizationRoleKeys(userId)),
+            candidateIds
+        );
+        return published.stream()
+            .filter(skill -> allowedIds.contains(skill.getId()))
+            .map(DomainSkillOption::from)
+            .toList();
+    }
+
+    private void validateResourceBindings(AgentUpsertRequest input, HttpServletRequest request) {
+        if (input == null || request == null || currentUserId(request) == null) {
+            return;
+        }
+        Set<String> allowedDocuments = documentLibrary.list(documentPermissionContext(request)).stream()
+            .map(LibraryDocumentItem::docId)
+            .filter(id -> id != null && !id.isBlank())
+            .collect(java.util.stream.Collectors.toSet());
+        List<String> requestedDocuments = existingDocumentIds(input.getBoundDocumentIds());
+        if (requestedDocuments != null && !allowedDocuments.containsAll(requestedDocuments)) {
+            throw new SecurityException("Agent contains knowledge documents outside the current user's permissions");
+        }
+        Set<String> allowedSkills = authorizedDomainSkills(request).stream()
+            .map(DomainSkillOption::id)
+            .collect(java.util.stream.Collectors.toSet());
+        List<String> requestedSkills = input.getBoundDomainSkillIds() == null ? List.of()
+            : input.getBoundDomainSkillIds().stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        if (!allowedSkills.containsAll(requestedSkills)) {
+            throw new SecurityException("Agent contains domain Skills outside the current user's permissions");
+        }
     }
 
     private EnterpriseAdminService.UserView currentUserView(HttpServletRequest request) {

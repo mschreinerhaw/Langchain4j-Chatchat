@@ -272,6 +272,7 @@ export default {
       remoteBusy: false,
       remoteAdvancedOpen: false,
       documentPickerOpen: false,
+      skillPickerOpen: false,
       toolPickerOpen: false,
       remoteToolPickerOpen: false,
       dialogMode: "create",
@@ -309,6 +310,11 @@ export default {
       documentSearchQuery: "",
       documentCategoryFilter: "all",
       documentTypeFilter: "all",
+      documentPickerPage: 1,
+      skillSearchQuery: "",
+      skillCategoryFilter: "all",
+      skillPickerPage: 1,
+      resourcePickerPageSize: 20,
       error: "",
       dialogError: "",
       importError: "",
@@ -441,6 +447,12 @@ export default {
     selectedResourceCount() {
       return this.selectedDocumentIds.length + this.selectedDomainSkillIds.length;
     },
+    normalizedKnowledgeDocuments() {
+      return this.normalizedDocuments.filter((resource) => resource.resourceKind === "knowledge_document");
+    },
+    normalizedDomainSkills() {
+      return this.normalizedDocuments.filter((resource) => resource.resourceKind === "domain_skill");
+    },
     normalizedDocuments() {
       const selectedDocuments = new Set(this.selectedDocumentIds);
       const selectedSkills = new Set(this.selectedDomainSkillIds);
@@ -483,13 +495,42 @@ export default {
     },
     filteredDocuments() {
       const keyword = this.documentSearchQuery.trim().toLowerCase();
-      return this.normalizedDocuments.filter((document) => {
+      return this.normalizedKnowledgeDocuments.filter((document) => {
         const categoryMatches = this.documentCategoryFilter === "all"
           || document.category === this.documentCategoryFilter;
         const typeMatches = this.documentTypeFilter === "all"
           || document.documentType === this.documentTypeFilter;
         return categoryMatches && typeMatches && (!keyword || this.documentSearchText(document).includes(keyword));
       });
+    },
+    pagedDocuments() {
+      const start = (this.documentPickerPage - 1) * this.resourcePickerPageSize;
+      return this.filteredDocuments.slice(start, start + this.resourcePickerPageSize);
+    },
+    documentPickerPageCount() {
+      return Math.max(1, Math.ceil(this.filteredDocuments.length / this.resourcePickerPageSize));
+    },
+    documentPageFullySelected() {
+      const selectable = this.pagedDocuments.filter((document) => this.documentSelectable(document));
+      return selectable.length > 0 && selectable.every((document) => this.selectedDocumentIds.includes(document.docId));
+    },
+    filteredDomainSkills() {
+      const keyword = this.skillSearchQuery.trim().toLowerCase();
+      return this.normalizedDomainSkills.filter((skill) => {
+        const categoryMatches = this.skillCategoryFilter === "all" || skill.category === this.skillCategoryFilter;
+        return categoryMatches && (!keyword || this.documentSearchText(skill).includes(keyword));
+      });
+    },
+    pagedDomainSkills() {
+      const start = (this.skillPickerPage - 1) * this.resourcePickerPageSize;
+      return this.filteredDomainSkills.slice(start, start + this.resourcePickerPageSize);
+    },
+    skillPickerPageCount() {
+      return Math.max(1, Math.ceil(this.filteredDomainSkills.length / this.resourcePickerPageSize));
+    },
+    skillPageFullySelected() {
+      return this.pagedDomainSkills.length > 0
+        && this.pagedDomainSkills.every((skill) => this.selectedDomainSkillIds.includes(skill.docId));
     },
     selectedDocuments() {
       const resourcesByKey = new Map(this.normalizedDocuments.map((document) => [document.resourceKey, document]));
@@ -518,28 +559,40 @@ export default {
     documentCategoryOptions() {
       return [
         { value: "all", label: "全部业务分类" },
-        ...uniqueList(this.normalizedDocuments.map((document) => document.category))
+        ...uniqueList(this.normalizedKnowledgeDocuments.map((document) => document.category))
           .sort((left, right) => left.localeCompare(right, "zh-CN"))
           .map((category) => ({ value: category, label: category }))
       ];
     },
     documentTypeOptions() {
-      const knowledgeTypes = uniqueList(this.normalizedDocuments
-        .filter((document) => document.resourceKind !== "domain_skill")
+      const knowledgeTypes = uniqueList(this.normalizedKnowledgeDocuments
         .map((document) => document.documentType));
       return [
         { value: "all", label: "全部文档类型" },
         ...knowledgeTypes
           .sort((left, right) => left.localeCompare(right, "zh-CN"))
-          .map((type) => ({ value: type, label: type })),
-        { value: "领域技能", label: "领域技能（仅已发布）" }
+          .map((type) => ({ value: type, label: type }))
+      ];
+    },
+    skillCategoryOptions() {
+      return [
+        { value: "all", label: "全部技能分类" },
+        ...uniqueList(this.normalizedDomainSkills.map((skill) => skill.category))
+          .sort((left, right) => left.localeCompare(right, "zh-CN"))
+          .map((category) => ({ value: category, label: category }))
       ];
     },
     documentResultLabel() {
-      if (!this.normalizedDocuments.length) {
-        return "暂无可选文档或领域技能";
+      if (!this.normalizedKnowledgeDocuments.length) {
+        return "暂无有权访问的知识文档";
       }
-      return `已勾选 ${this.selectedResourceCount} / ${this.normalizedDocuments.length}，当前 ${this.filteredDocuments.length} 个`;
+      return `已选 ${this.selectedDocumentIds.length} / ${this.normalizedKnowledgeDocuments.length}，匹配 ${this.filteredDocuments.length} 份`;
+    },
+    skillResultLabel() {
+      if (!this.normalizedDomainSkills.length) {
+        return "暂无有权访问的已发布 Skill";
+      }
+      return `已选 ${this.selectedDomainSkillIds.length} / ${this.normalizedDomainSkills.length}，匹配 ${this.filteredDomainSkills.length} 个`;
     },
     normalizedMcpTools() {
       return this.registeredMcpTools
@@ -693,6 +746,21 @@ export default {
     agentModelFilter() {
       this.agentPage = 1;
       this.loadWorkshop();
+    },
+    documentSearchQuery() {
+      this.documentPickerPage = 1;
+    },
+    documentCategoryFilter() {
+      this.documentPickerPage = 1;
+    },
+    documentTypeFilter() {
+      this.documentPickerPage = 1;
+    },
+    skillSearchQuery() {
+      this.skillPickerPage = 1;
+    },
+    skillCategoryFilter() {
+      this.skillPickerPage = 1;
     }
   },
   mounted() {
@@ -963,6 +1031,7 @@ export default {
       this.dialogError = "";
       this.resetDocumentFilters();
       this.documentPickerOpen = false;
+      this.skillPickerOpen = false;
       this.toolPickerOpen = false;
       this.dialogOpen = true;
     },
@@ -1032,6 +1101,7 @@ export default {
       this.dialogError = "";
       this.resetDocumentFilters();
       this.documentPickerOpen = false;
+      this.skillPickerOpen = false;
       this.toolPickerOpen = false;
       this.dialogOpen = true;
     },
@@ -1213,6 +1283,7 @@ export default {
         return;
       }
       this.documentPickerOpen = false;
+      this.skillPickerOpen = false;
       this.toolPickerOpen = false;
       this.dialogOpen = false;
       this.dialogError = "";
@@ -1221,13 +1292,25 @@ export default {
     },
     openDocumentPicker() {
       this.toolPickerOpen = false;
+      this.skillPickerOpen = false;
+      this.documentPickerPage = 1;
       this.documentPickerOpen = true;
     },
     closeDocumentPicker() {
       this.documentPickerOpen = false;
     },
+    openSkillPicker() {
+      this.toolPickerOpen = false;
+      this.documentPickerOpen = false;
+      this.skillPickerPage = 1;
+      this.skillPickerOpen = true;
+    },
+    closeSkillPicker() {
+      this.skillPickerOpen = false;
+    },
     openToolPicker() {
       this.documentPickerOpen = false;
+      this.skillPickerOpen = false;
       this.toolPickerOpen = true;
     },
     openRemoteToolPicker() {
@@ -2168,12 +2251,40 @@ export default {
     },
     clearSelectedDocuments() {
       this.form.boundDocumentIds = [];
+    },
+    clearSelectedSkills() {
       this.form.boundDomainSkillIds = [];
+    },
+    toggleDocumentPage(checked) {
+      const selected = new Set(this.selectedDocumentIds);
+      this.pagedDocuments.filter((document) => this.documentSelectable(document)).forEach((document) => {
+        if (checked) selected.add(document.docId);
+        else selected.delete(document.docId);
+      });
+      this.form.boundDocumentIds = [...selected];
+    },
+    toggleSkillPage(checked) {
+      const selected = new Set(this.selectedDomainSkillIds);
+      this.pagedDomainSkills.forEach((skill) => {
+        if (checked) selected.add(skill.docId);
+        else selected.delete(skill.docId);
+      });
+      this.form.boundDomainSkillIds = [...selected];
     },
     resetDocumentFilters() {
       this.documentSearchQuery = "";
       this.documentCategoryFilter = "all";
       this.documentTypeFilter = "all";
+      this.documentPickerPage = 1;
+      this.skillSearchQuery = "";
+      this.skillCategoryFilter = "all";
+      this.skillPickerPage = 1;
+    },
+    changeDocumentPickerPage(page) {
+      this.documentPickerPage = Math.min(Math.max(1, Number(page) || 1), this.documentPickerPageCount);
+    },
+    changeSkillPickerPage(page) {
+      this.skillPickerPage = Math.min(Math.max(1, Number(page) || 1), this.skillPickerPageCount);
     },
     clearSelectedTools() {
       if (this.remoteToolPickerOpen) {

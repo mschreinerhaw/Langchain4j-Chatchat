@@ -654,14 +654,29 @@
           <section class="agent-resource-selector wide-field">
             <div class="agent-resource-selector-copy">
               <strong>知识文档</strong>
-              <span>统一选择知识文档和已发布的领域技能。</span>
+              <span>选择当前账号有权读取且已完成解析的文档。</span>
             </div>
             <div class="agent-resource-selector-action">
-              <span :class="{ 'is-selected': selectedResourceCount }">
-                {{ selectedResourceCount ? `已选 ${selectedResourceCount} 项资源` : "未选择文档" }}
+              <span :class="{ 'is-selected': selectedDocumentIds.length }">
+                {{ selectedDocumentIds.length ? `已选 ${selectedDocumentIds.length} 份` : "未选择文档" }}
               </span>
               <button type="button" class="agent-picker-text-button" @click="openDocumentPicker">
-                {{ selectedResourceCount ? "调整选择" : "选择文档" }}
+                {{ selectedDocumentIds.length ? "调整文档" : "选择文档" }}
+                <span aria-hidden="true">›</span>
+              </button>
+            </div>
+          </section>
+          <section class="agent-resource-selector wide-field">
+            <div class="agent-resource-selector-copy">
+              <strong>Skills</strong>
+              <span>选择当前账号已获授权且处于已发布状态的领域技能。</span>
+            </div>
+            <div class="agent-resource-selector-action">
+              <span :class="{ 'is-selected': selectedDomainSkillIds.length }">
+                {{ selectedDomainSkillIds.length ? `已选 ${selectedDomainSkillIds.length} 个` : "未选择 Skill" }}
+              </span>
+              <button type="button" class="agent-picker-text-button" @click="openSkillPicker">
+                {{ selectedDomainSkillIds.length ? "调整 Skills" : "选择 Skills" }}
                 <span aria-hidden="true">›</span>
               </button>
             </div>
@@ -887,14 +902,14 @@
           <header>
             <div>
               <p>Agent 设置</p>
-              <h2 id="agent-document-picker-title">选择文档</h2>
-              <span>知识文档与已发布领域技能分开绑定，选择会在保存 Agent 后生效。</span>
+              <h2 id="agent-document-picker-title">选择知识文档</h2>
+              <span>仅展示当前账号有权访问的文档；选择会在保存 Agent 后生效。</span>
             </div>
             <button type="button" class="app-dialog-close" aria-label="关闭文档选择" title="关闭" @click="closeDocumentPicker">×</button>
           </header>
 
           <div class="agent-resource-dialog-body">
-            <div v-if="normalizedDocuments.length" class="agent-document-searchbar">
+            <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-searchbar">
               <label>
                 <span>搜索已有文档</span>
                 <input
@@ -921,13 +936,16 @@
                 </select>
               </label>
             </div>
-            <div v-if="normalizedDocuments.length" class="agent-document-batchbar">
-              <span>解析中或失败的知识文档不可新绑定；领域技能仅展示已发布内容。</span>
+            <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-batchbar">
+              <label class="agent-document-select-current">
+                <input type="checkbox" :checked="documentPageFullySelected" @change="toggleDocumentPage($event.target.checked)">
+                <span>选择本页</span>
+              </label>
               <strong>{{ documentResultLabel }}</strong>
             </div>
-            <div v-if="filteredDocuments.length" class="agent-document-checklist">
+            <div v-if="pagedDocuments.length" class="agent-document-checklist">
               <label
-                v-for="document in filteredDocuments"
+                v-for="document in pagedDocuments"
                 :key="document.resourceKey"
                 class="agent-document-check"
                 :class="{ active: resourceSelected(document), disabled: !documentSelectable(document) }"
@@ -946,13 +964,18 @@
                 </span>
               </label>
             </div>
-            <p v-else-if="normalizedDocuments.length" class="agent-tool-empty">没有匹配的文档或领域技能，请调整关键词或筛选条件。</p>
-            <p v-else class="agent-tool-empty">暂无可选知识文档或已发布领域技能。</p>
+            <p v-else-if="normalizedKnowledgeDocuments.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p>
+            <p v-else class="agent-tool-empty">暂无有权访问的知识文档。</p>
+            <nav v-if="filteredDocuments.length" class="agent-resource-pagination" aria-label="知识文档分页">
+              <button type="button" :disabled="documentPickerPage <= 1" @click="changeDocumentPickerPage(documentPickerPage - 1)">上一页</button>
+              <span>第 {{ documentPickerPage }} / {{ documentPickerPageCount }} 页，共 {{ filteredDocuments.length }} 份</span>
+              <button type="button" :disabled="documentPickerPage >= documentPickerPageCount" @click="changeDocumentPickerPage(documentPickerPage + 1)">下一页</button>
+            </nav>
           </div>
 
           <footer>
             <button
-              v-if="selectedResourceCount"
+              v-if="selectedDocumentIds.length"
               type="button"
               class="agent-resource-clear-button"
               @click="clearSelectedDocuments"
@@ -961,8 +984,78 @@
             </button>
             <span v-else></span>
             <button type="button" class="primary-button" @click="closeDocumentPicker">
-              完成（已选 {{ selectedResourceCount }} 项）
+              完成（已选 {{ selectedDocumentIds.length }} 份）
             </button>
+          </footer>
+        </section>
+      </div>
+
+      <div
+        v-if="skillPickerOpen"
+        class="agent-resource-dialog-backdrop"
+        role="presentation"
+        @click.self="closeSkillPicker"
+        @keydown.esc="closeSkillPicker"
+      >
+        <section class="agent-resource-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-skill-picker-title">
+          <header>
+            <div>
+              <p>Agent 设置</p>
+              <h2 id="agent-skill-picker-title">选择 Skills</h2>
+              <span>仅展示权限设置允许访问的已发布 Skills；选择会在保存 Agent 后生效。</span>
+            </div>
+            <button type="button" class="app-dialog-close" aria-label="关闭 Skill 选择" title="关闭" @click="closeSkillPicker">×</button>
+          </header>
+
+          <div class="agent-resource-dialog-body">
+            <div v-if="normalizedDomainSkills.length" class="agent-skill-searchbar">
+              <label>
+                <span>搜索 Skills</span>
+                <input v-model.trim="skillSearchQuery" type="search" placeholder="搜索 Skill 名称、分类、说明或 ID" autofocus>
+              </label>
+              <label>
+                <span>技能分类</span>
+                <select v-model="skillCategoryFilter">
+                  <option v-for="option in skillCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                </select>
+              </label>
+            </div>
+            <div v-if="normalizedDomainSkills.length" class="agent-document-batchbar">
+              <label class="agent-document-select-current">
+                <input type="checkbox" :checked="skillPageFullySelected" @change="toggleSkillPage($event.target.checked)">
+                <span>选择本页</span>
+              </label>
+              <strong>{{ skillResultLabel }}</strong>
+            </div>
+            <div v-if="pagedDomainSkills.length" class="agent-document-checklist">
+              <label
+                v-for="skill in pagedDomainSkills"
+                :key="skill.resourceKey"
+                class="agent-document-check"
+                :class="{ active: resourceSelected(skill) }"
+                :title="skill.title"
+              >
+                <input type="checkbox" :checked="resourceSelected(skill)" @change="toggleDocument(skill)">
+                <span>
+                  <strong>{{ skill.title }}</strong>
+                  <small>{{ skill.category }} · 已发布</small>
+                  <em>{{ skill.description || skill.docId }}</em>
+                </span>
+              </label>
+            </div>
+            <p v-else-if="normalizedDomainSkills.length" class="agent-tool-empty">没有匹配的 Skill，请调整关键词或分类。</p>
+            <p v-else class="agent-tool-empty">暂无有权访问的已发布 Skill。</p>
+            <nav v-if="filteredDomainSkills.length" class="agent-resource-pagination" aria-label="Skills 分页">
+              <button type="button" :disabled="skillPickerPage <= 1" @click="changeSkillPickerPage(skillPickerPage - 1)">上一页</button>
+              <span>第 {{ skillPickerPage }} / {{ skillPickerPageCount }} 页，共 {{ filteredDomainSkills.length }} 个</span>
+              <button type="button" :disabled="skillPickerPage >= skillPickerPageCount" @click="changeSkillPickerPage(skillPickerPage + 1)">下一页</button>
+            </nav>
+          </div>
+
+          <footer>
+            <button v-if="selectedDomainSkillIds.length" type="button" class="agent-resource-clear-button" @click="clearSelectedSkills">清空已选</button>
+            <span v-else></span>
+            <button type="button" class="primary-button" @click="closeSkillPicker">完成（已选 {{ selectedDomainSkillIds.length }} 个）</button>
           </footer>
         </section>
       </div>

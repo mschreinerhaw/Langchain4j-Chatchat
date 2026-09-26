@@ -3348,7 +3348,8 @@
 }
 
 .agent-workshop-view .agent-tool-searchbar label,
-.agent-workshop-view .agent-document-searchbar label {
+.agent-workshop-view .agent-document-searchbar label,
+.agent-workshop-view .agent-skill-searchbar label {
   display: grid;
   gap: 6px;
 }
@@ -3365,6 +3366,43 @@
   grid-template-columns: minmax(240px, 1fr) 170px 150px;
   align-items: end;
   gap: 10px;
+}
+
+.agent-workshop-view .agent-skill-searchbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 220px;
+  align-items: end;
+  gap: 10px;
+}
+
+.agent-workshop-view .agent-resource-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.agent-workshop-view .agent-resource-pagination span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.agent-workshop-view .agent-resource-pagination button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .agent-resource-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
 }
 
 .agent-workshop-view .agent-document-selected {
@@ -4937,6 +4975,7 @@
   .agent-workshop-view .agent-import-list,
   .agent-workshop-view .agent-tool-searchbar,
   .agent-workshop-view .agent-document-searchbar,
+  .agent-workshop-view .agent-skill-searchbar,
   .agent-workshop-view .agent-tool-checklist,
   .agent-workshop-view .agent-document-checklist,
   .agent-workshop-view .workflow-strategy,

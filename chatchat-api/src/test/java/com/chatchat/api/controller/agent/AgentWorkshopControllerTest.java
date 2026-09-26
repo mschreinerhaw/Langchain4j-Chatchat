@@ -8,6 +8,7 @@ import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.skills.release.AgentReleaseService;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.mcp.catalog.McpToolCatalogQueryPort;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -51,7 +52,8 @@ class AgentWorkshopControllerTest {
             mock(EnterpriseAdminService.class),
             mock(AgentPublicationLicenseService.class),
             mock(AgentReleaseService.class),
-            mock(DomainSkillService.class)
+            mock(DomainSkillService.class),
+            mock(ResourceAuthorizationPort.class)
         );
         AgentWorkshopController.AgentUpsertRequest request = new AgentWorkshopController.AgentUpsertRequest();
         request.setId("migrated-agent");
@@ -59,7 +61,7 @@ class AgentWorkshopControllerTest {
         request.setModelName("test-model");
         request.setBoundDocumentIds(List.of("existing-doc", "missing-doc", "deleted-doc", "existing-doc"));
 
-        controller.updateAgent("migrated-agent", request);
+        controller.updateAgent("migrated-agent", request, null);
 
         ArgumentCaptor<SkillDefinition> savedAgent = ArgumentCaptor.forClass(SkillDefinition.class);
         org.mockito.Mockito.verify(skillCatalogService).upsert(savedAgent.capture());

@@ -386,6 +386,7 @@ describe("AgentWorkshopView knowledge document selection", () => {
       documentSearchText: AgentWorkshopView.methods.documentSearchText
     };
     context.normalizedDocuments = AgentWorkshopView.computed.normalizedDocuments.call(context);
+    context.normalizedKnowledgeDocuments = AgentWorkshopView.computed.normalizedKnowledgeDocuments.call(context);
 
     const result = AgentWorkshopView.computed.filteredDocuments.call(context);
 
@@ -408,14 +409,46 @@ describe("AgentWorkshopView knowledge document selection", () => {
     expect(context.form.boundDocumentIds).toEqual([]);
   });
 
+  it("paginates large document catalogs and supports selecting the current page", () => {
+    const context = {
+      normalizedKnowledgeDocuments: Array.from({ length: 105 }, (_, index) => ({
+        docId: `doc-${index + 1}`,
+        title: `文档 ${index + 1}`,
+        resourceKind: "knowledge_document",
+        lifecycleStatus: "INDEXED"
+      })),
+      documentSearchQuery: "",
+      documentCategoryFilter: "all",
+      documentTypeFilter: "all",
+      documentPickerPage: 3,
+      resourcePickerPageSize: 20,
+      form: { boundDocumentIds: [] },
+      documentSearchText: AgentWorkshopView.methods.documentSearchText,
+      documentSelectable: AgentWorkshopView.methods.documentSelectable
+    };
+    Object.defineProperty(context, "selectedDocumentIds", {
+      get: () => AgentWorkshopView.computed.selectedDocumentIds.call(context)
+    });
+    context.filteredDocuments = AgentWorkshopView.computed.filteredDocuments.call(context);
+    context.pagedDocuments = AgentWorkshopView.computed.pagedDocuments.call(context);
+
+    expect(context.filteredDocuments).toHaveLength(105);
+    expect(context.pagedDocuments[0].docId).toBe("doc-41");
+    expect(AgentWorkshopView.computed.documentPickerPageCount.call(context)).toBe(6);
+
+    AgentWorkshopView.methods.toggleDocumentPage.call(context, true);
+    expect(context.form.boundDocumentIds).toHaveLength(20);
+    expect(context.form.boundDocumentIds).toContain("doc-41");
+    expect(context.form.boundDocumentIds).toContain("doc-60");
+  });
+
   it("filters published domain skills separately and stores them as skill bindings", () => {
     const context = {
       documents: [{ docId: "doc-1", title: "普通研报", documentType: "PDF", lifecycleStatus: "INDEXED" }],
       domainSkills: [{ id: "skill-risk", name: "风险识别", category: "合规风控", description: "识别风险事项" }],
       form: { boundDocumentIds: [], boundDomainSkillIds: [] },
-      documentSearchQuery: "",
-      documentCategoryFilter: "all",
-      documentTypeFilter: "领域技能",
+      skillSearchQuery: "",
+      skillCategoryFilter: "all",
       documentSearchText: AgentWorkshopView.methods.documentSearchText
     };
     Object.defineProperty(context, "selectedDocumentIds", {
@@ -425,12 +458,11 @@ describe("AgentWorkshopView knowledge document selection", () => {
       get: () => AgentWorkshopView.computed.selectedDomainSkillIds.call(context)
     });
     context.normalizedDocuments = AgentWorkshopView.computed.normalizedDocuments.call(context);
+    context.normalizedDomainSkills = AgentWorkshopView.computed.normalizedDomainSkills.call(context);
 
-    const result = AgentWorkshopView.computed.filteredDocuments.call(context);
-    const typeOptions = AgentWorkshopView.computed.documentTypeOptions.call(context);
+    const result = AgentWorkshopView.computed.filteredDomainSkills.call(context);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ docId: "skill-risk", documentType: "领域技能", lifecycleStatus: "PUBLISHED" });
-    expect(typeOptions).toContainEqual({ value: "领域技能", label: "领域技能（仅已发布）" });
 
     AgentWorkshopView.methods.toggleDocument.call(context, result[0]);
     expect(context.form.boundDomainSkillIds).toEqual(["skill-risk"]);
@@ -442,6 +474,9 @@ describe("AgentWorkshopView resource picker dialogs", () => {
   it("opens only one lightweight picker at a time and closes it independently", () => {
     const context = {
       documentPickerOpen: false,
+      skillPickerOpen: false,
+      documentPickerPage: 2,
+      skillPickerPage: 2,
       toolPickerOpen: false
     };
 
@@ -449,8 +484,14 @@ describe("AgentWorkshopView resource picker dialogs", () => {
     expect(context.documentPickerOpen).toBe(true);
     expect(context.toolPickerOpen).toBe(false);
 
+    AgentWorkshopView.methods.openSkillPicker.call(context);
+    expect(context.documentPickerOpen).toBe(false);
+    expect(context.skillPickerOpen).toBe(true);
+    expect(context.skillPickerPage).toBe(1);
+
     AgentWorkshopView.methods.openToolPicker.call(context);
     expect(context.documentPickerOpen).toBe(false);
+    expect(context.skillPickerOpen).toBe(false);
     expect(context.toolPickerOpen).toBe(true);
 
     AgentWorkshopView.methods.closeToolPicker.call(context);

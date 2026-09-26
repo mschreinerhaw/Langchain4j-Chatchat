@@ -9,6 +9,7 @@
   {"key":"notificationChannels","label":"通知告警","icon":"Bell","navigation":true,"parentKey":"","description":"通知通道、模板与告警策略","enabled":true,"catalogVersion":"2026.08"},
   {"key":"auditLogs","label":"调用审计","icon":"Tickets","navigation":true,"parentKey":"","description":"MCP 调用记录与审计检索","enabled":true,"catalogVersion":"2026.08"},
   {"key":"commandAuditLogs","label":"命令审计","icon":"Tickets","navigation":true,"parentKey":"","description":"SSH、SQL、HTTP 与 JMX 执行审计","enabled":true,"catalogVersion":"2026.08"},
+  {"key":"authorizationManagement","label":"授权管理","icon":"Key","navigation":true,"parentKey":"","description":"角色与 MCP 工具、资产访问授权配置","enabled":true,"catalogVersion":"2026.09"},
   {"key":"settings","label":"系统设置","icon":"Setting","navigation":true,"parentKey":"","description":"授权、用户、目标与系统参数配置","enabled":true,"catalogVersion":"2026.08"},
   {"key":"assetSsh","label":"SSH 运维","icon":"Cpu","navigation":false,"parentKey":"assetCenter","description":"服务器资产、SSH 命令模板与命令执行","enabled":true,"catalogVersion":"2026.08"},
   {"key":"assetSql","label":"SQL 运维","icon":"Coin","navigation":false,"parentKey":"assetCenter","description":"数据库资产、SQL 模板及受控查询执行","enabled":true,"catalogVersion":"2026.08"},

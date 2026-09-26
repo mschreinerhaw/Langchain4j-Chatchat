@@ -42,18 +42,25 @@ const menuComponents = {
   notificationChannels: NotificationChannelsView,
   auditLogs: AuditLogsView,
   commandAuditLogs: CommandAuditLogsView,
+  authorizationManagement: SettingsView,
   settings: SettingsView
 };
 const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
-const settingsSections = [
+const userSettingsSections = [
   { key: 'settingsUsers', label: '用户管理', icon: 'User', component: SettingsView, section: 'users' },
-  { key: 'settingsRoles', label: '角色权限', icon: 'UserFilled', component: SettingsView, section: 'rolePermissions' },
   { key: 'settingsLoginAudits', label: '登录审计', icon: 'DocumentChecked', component: SettingsView, section: 'loginAudits' }
 ];
-const systemSettingsMenu = (licensedSettings) => ({
-  ...(licensedSettings || {}),
+const authorizationSettingsSection =
+  { key: 'settingsRoles', label: '角色权限', icon: 'UserFilled', component: SettingsView, section: 'rolePermissions' };
+const settingsSections = [...userSettingsSections, authorizationSettingsSection];
+const systemSettingsMenu = (licensedSettings, licensedAuthorization) => ({
+  ...(licensedSettings || licensedAuthorization || {}),
   key: 'settings', label: '系统设置', icon: 'Setting',
-  children: [...(licensedSettings ? settingsSections : []), licenseMenu]
+  children: [
+    ...(licensedSettings ? userSettingsSections : []),
+    ...(licensedSettings || licensedAuthorization ? [authorizationSettingsSection] : []),
+    licenseMenu
+  ]
 });
 const activityEvents = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
 const activityWriteThrottleMs = 1000;
@@ -114,7 +121,11 @@ export default {
           .filter(item => item.authorized && menuComponents[item.key])
           .map(item => ({ ...item, component: menuComponents[item.key] }));
         const settings = licensed.find(item => item.key === 'settings');
-        this.navItems = [...licensed.filter(item => item.key !== 'settings'), systemSettingsMenu(settings)];
+        const authorization = licensed.find(item => item.key === 'authorizationManagement');
+        this.navItems = [
+          ...licensed.filter(item => !['settings', 'authorizationManagement'].includes(item.key)),
+          systemSettingsMenu(settings, authorization)
+        ];
         const available = this.navItems.flatMap(item => item.children || [item]);
         if (!available.some(item => item.key === this.activeView)) {
           this.activeView = available[0]?.key || 'license';

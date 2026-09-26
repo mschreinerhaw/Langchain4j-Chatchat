@@ -45,8 +45,12 @@ class LicenseModuleCatalogServiceTest {
         assertTrue(keys.contains("databaseMcp"));
         assertTrue(keys.contains("assetSql"));
         assertTrue(keys.contains("enterpriseMetadata"));
+        assertTrue(keys.contains("authorizationManagement"));
         assertTrue(service.listEnabled().stream()
             .anyMatch(module -> "assetSql".equals(module.key()) && !module.navigation()));
+        assertTrue(service.listEnabled().stream()
+            .anyMatch(module -> "authorizationManagement".equals(module.key())
+                && "2026.09".equals(module.catalogVersion())));
     }
 
     @Test

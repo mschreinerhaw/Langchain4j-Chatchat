@@ -17,5 +17,6 @@
   {"key":"notificationChannels","label":"通知告警","icon":"Bell","navigation":true,"description":"通知通道、模板与告警策略","apiPrefixes":["/api/v1/notifications"]},
   {"key":"auditLogs","label":"调用审计","icon":"Tickets","navigation":true,"description":"MCP 调用记录与审计检索","apiPrefixes":["/api/v1/audit-logs"]},
   {"key":"commandAuditLogs","label":"命令审计","icon":"Tickets","navigation":true,"description":"SSH、SQL、HTTP 与 JMX 执行审计","apiPrefixes":["/api/v1/audit-logs/commands"]},
-  {"key":"settings","label":"系统设置","icon":"Setting","navigation":true,"description":"授权、用户、目标与系统参数配置","apiPrefixes":["/api/v1/mcp-authorization","/api/v1/admin/login-audits","/api/v1/execution-targets","/api/v1/admin/market/security-master","/internal/v1/market"]}
+  {"key":"authorizationManagement","label":"授权管理","icon":"Key","navigation":true,"description":"角色与 MCP 工具、资产访问授权配置","apiPrefixes":["/api/v1/mcp-authorization"],"impliedBy":["settings"]},
+  {"key":"settings","label":"系统设置","icon":"Setting","navigation":true,"description":"用户、登录审计、目标与系统参数配置","apiPrefixes":["/api/v1/admin/login-audits","/api/v1/execution-targets","/api/v1/admin/market/security-master","/internal/v1/market"]}
 ]

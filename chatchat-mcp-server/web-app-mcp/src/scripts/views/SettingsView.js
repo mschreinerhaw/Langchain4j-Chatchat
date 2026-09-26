@@ -401,7 +401,7 @@ export default {
       }
     },
     async fetchAuthorizationAssets() {
-      const [authorizationSnapshot, databaseQueries, apiServices, httpAssets, sshHosts, sqlDatasources] = await Promise.all([
+      const results = await Promise.allSettled([
         authorizationApi.sync(),
         databaseApi.list(),
         apiServicesApi.list(),
@@ -409,6 +409,9 @@ export default {
         assetsApi.listSsh(),
         assetsApi.listSql()
       ]);
+      const [authorizationSnapshot, databaseQueries, apiServices, httpAssets, sshHosts, sqlDatasources] =
+        results.map(result => result.status === 'fulfilled' ? result.value : []);
+      if (results[0].status === 'rejected') throw results[0].reason;
       return [
         ...((authorizationSnapshot && authorizationSnapshot.tools) || []).map(item => this.toAuthorizationAsset({
           ...item,

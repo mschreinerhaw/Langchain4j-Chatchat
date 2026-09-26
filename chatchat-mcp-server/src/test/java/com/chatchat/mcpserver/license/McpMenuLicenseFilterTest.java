@@ -52,6 +52,42 @@ class McpMenuLicenseFilterTest {
     }
 
     @Test
+    void authorizationManagementIsIndependentlyLicensedAndKeepsSettingsBackwardCompatibility() {
+        var authorizationOnly = valid(List.of("authorizationManagement"));
+        var legacySettings = valid(List.of("settings"));
+
+        assertThat(catalog.authorized(authorizationOnly, "authorizationManagement")).isTrue();
+        assertThat(catalog.authorized(authorizationOnly, "settings")).isFalse();
+        assertThat(catalog.authorized(legacySettings, "authorizationManagement")).isTrue();
+        assertThat(catalog.menuForPath("/api/v1/mcp-authorization/sync"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("authorizationManagement");
+        assertThat(catalog.menuForPath("/api/v1/admin/login-audits"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("settings");
+    }
+
+    @Test
+    void authorizationLicenseAllowsAuthorizationApiButNotOtherSettingsApis() throws Exception {
+        McpLicenseService licenses = mock(McpLicenseService.class);
+        when(licenses.status()).thenReturn(valid(List.of("authorizationManagement")));
+        McpMenuLicenseFilter filter = new McpMenuLicenseFilter(licenses, catalog, objectMapper);
+        AtomicInteger calls = new AtomicInteger();
+
+        MockHttpServletResponse authorizationResponse = new MockHttpServletResponse();
+        filter.doFilter(request("/api/v1/mcp-authorization/sync", "tenant-a"),
+            authorizationResponse, countingChain(calls));
+        MockHttpServletResponse settingsResponse = new MockHttpServletResponse();
+        filter.doFilter(request("/api/v1/admin/login-audits", "tenant-a"),
+            settingsResponse, countingChain(calls));
+
+        assertThat(authorizationResponse.getStatus()).isEqualTo(200);
+        assertThat(settingsResponse.getStatus()).isEqualTo(403);
+        assertThat(settingsResponse.getContentAsString()).contains("settings");
+        assertThat(calls).hasValue(1);
+    }
+
+    @Test
     void internalPythonControlPlaneCannotBypassMenuLicense() throws Exception {
         McpLicenseService licenses = mock(McpLicenseService.class);
         when(licenses.status()).thenReturn(valid(List.of("databaseMcp")));
@@ -121,7 +157,7 @@ class McpMenuLicenseFilterTest {
             .isEqualTo("mcpServices");
         assertThat(catalog.menuForPath("/api/v1/mcp-authorization/sync"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
-            .isEqualTo("settings");
+            .isEqualTo("authorizationManagement");
         assertThat(catalog.menuForPath("/api/v1/cache/financial-query/config"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("newsCollection");

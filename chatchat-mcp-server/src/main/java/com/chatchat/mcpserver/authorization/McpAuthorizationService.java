@@ -4,6 +4,7 @@ import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
 import com.chatchat.mcpserver.external.ExternalMcpService;
 import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePolicy;
 import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
@@ -59,10 +60,16 @@ public class McpAuthorizationService {
     private volatile long lastUnavailableRefreshAttemptMs = Long.MIN_VALUE;
     private volatile String bearerToken;
     private ExternalMcpRegistryService externalMcpRegistryService;
+    private McpLicenseService licenseService;
 
     @Autowired(required = false)
     public void setExternalMcpRegistryService(ExternalMcpRegistryService externalMcpRegistryService) {
         this.externalMcpRegistryService = externalMcpRegistryService;
+    }
+
+    @Autowired(required = false)
+    public void setLicenseService(McpLicenseService licenseService) {
+        this.licenseService = licenseService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -265,6 +272,7 @@ public class McpAuthorizationService {
         snapshot.tools().stream()
             .filter(tool -> externalMcpRegistryService == null
                 || !tool.localToolName().startsWith("external_"))
+            .filter(tool -> licenseAllowsTool(tool.localToolName()))
             .map(tool -> new ToolView(
                 tool.id(),
                 tool.localToolName(),
@@ -289,6 +297,7 @@ public class McpAuthorizationService {
                     if (!template.readOnly()) continue;
                     String publishedName = ExternalMcpToolPublisher.publishedName(
                         service.getId(), template.name());
+                    if (!licenseAllowsTool(publishedName)) continue;
                     tools.put(publishedName, new ToolView(
                         publishedName,
                         publishedName,
@@ -307,6 +316,10 @@ public class McpAuthorizationService {
             log.debug("External MCP authorization catalog synchronization stack trace", ex);
         }
         return List.copyOf(tools.values());
+    }
+
+    private boolean licenseAllowsTool(String toolName) {
+        return licenseService == null || licenseService.allowsTool(toolName);
     }
 
     public AuthorizationSyncView refreshNow() {

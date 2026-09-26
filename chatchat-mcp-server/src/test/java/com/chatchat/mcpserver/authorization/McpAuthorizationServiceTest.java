@@ -4,6 +4,7 @@ import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
 import com.chatchat.mcpserver.external.ExternalMcpService;
 import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
+import com.chatchat.mcpserver.license.McpLicenseService;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.sun.net.httpserver.HttpServer;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -71,6 +72,12 @@ class McpAuthorizationServiceTest {
                 "risk_update", "Risk update", "Writes partner risk data", Map.of(), false)
         ));
         service.setExternalMcpRegistryService(registry);
+        McpLicenseService licenses = mock(McpLicenseService.class);
+        service.setLicenseService(licenses);
+
+        when(licenses.allowsTool(org.mockito.ArgumentMatchers.anyString())).thenReturn(false);
+        assertThat(service.currentView().tools()).isEmpty();
+        when(licenses.allowsTool(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
 
         assertThat(service.currentView().tools())
             .singleElement()

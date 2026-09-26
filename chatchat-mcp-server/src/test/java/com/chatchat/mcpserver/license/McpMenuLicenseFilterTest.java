@@ -119,6 +119,9 @@ class McpMenuLicenseFilterTest {
         assertThat(catalog.menuForPath("/api/v1/external-mcp-services/parents"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("mcpServices");
+        assertThat(catalog.menuForPath("/api/v1/mcp-authorization/sync"))
+            .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
+            .isEqualTo("settings");
         assertThat(catalog.menuForPath("/api/v1/cache/financial-query/config"))
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key)
             .isEqualTo("newsCollection");

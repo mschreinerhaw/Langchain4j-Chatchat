@@ -16,7 +16,6 @@
         >
       </label>
       <button type="button" @click="searchByTitle">检索</button>
-      <button type="button" class="library-add-button" @click="openDocumentUploadDialog">新增文档</button>
     </section>
 
     <p v-if="message" :class="titleExists ? 'library-success' : 'library-empty'">{{ message }}</p>

@@ -1,6 +1,6 @@
 .library-view .library-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px 112px;
+  grid-template-columns: minmax(0, 1fr) 88px;
   align-items: end;
   gap: 10px;
   max-width: 1040px;

@@ -46,19 +46,20 @@ const menuComponents = {
   settings: SettingsView
 };
 const licenseMenu = { key: 'license', label: 'License 授权', icon: 'Key', component: LicenseView };
-const userSettingsSections = [
-  { key: 'settingsUsers', label: '用户管理', icon: 'User', component: SettingsView, section: 'users' },
-  { key: 'settingsLoginAudits', label: '登录审计', icon: 'DocumentChecked', component: SettingsView, section: 'loginAudits' }
-];
+const userSettingsSection =
+  { key: 'settingsUsers', label: '用户管理', icon: 'User', component: SettingsView, section: 'users' };
 const authorizationSettingsSection =
   { key: 'settingsRoles', label: '角色权限', icon: 'UserFilled', component: SettingsView, section: 'rolePermissions' };
-const settingsSections = [...userSettingsSections, authorizationSettingsSection];
+const loginAuditSettingsSection =
+  { key: 'settingsLoginAudits', label: '登录审计', icon: 'DocumentChecked', component: SettingsView, section: 'loginAudits' };
+const settingsSections = [userSettingsSection, authorizationSettingsSection, loginAuditSettingsSection];
 const systemSettingsMenu = (licensedSettings, licensedAuthorization) => ({
   ...(licensedSettings || licensedAuthorization || {}),
   key: 'settings', label: '系统设置', icon: 'Setting',
   children: [
-    ...(licensedSettings ? userSettingsSections : []),
+    ...(licensedSettings ? [userSettingsSection] : []),
     ...(licensedSettings || licensedAuthorization ? [authorizationSettingsSection] : []),
+    ...(licensedSettings ? [loginAuditSettingsSection] : []),
     licenseMenu
   ]
 });

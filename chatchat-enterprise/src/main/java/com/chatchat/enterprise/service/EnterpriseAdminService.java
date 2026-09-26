@@ -408,8 +408,20 @@ public class EnterpriseAdminService implements ApplicationRunner {
             userRepository.findById(input.getId()).orElseGet(SysUser::new);
         String tenantId = requireText(input.getTenantId(), "tenantId");
         List<SysRole> assignedRoles = validateRolesForTenant(tenantId, roleIds);
+        String orgId = trimToNull(input.getOrgId());
+        if (orgId != null) {
+            SysOrg assignedOrg = orgRepository.findById(orgId)
+                .orElseThrow(() -> new IllegalArgumentException("organization not found: " + orgId));
+            if (!tenantId.equals(assignedOrg.getTenantId())) {
+                throw new IllegalArgumentException("organization does not belong to user tenant: " + orgId);
+            }
+            if (!"enabled".equalsIgnoreCase(defaultText(assignedOrg.getStatus(), "enabled"))
+                && !orgId.equals(entity.getOrgId())) {
+                throw new IllegalArgumentException("organization is disabled: " + orgId);
+            }
+        }
         entity.setTenantId(tenantId);
-        entity.setOrgId(trimToNull(input.getOrgId()));
+        entity.setOrgId(orgId);
         entity.setUsername(requireText(input.getUsername(), "username"));
         entity.setDisplayName(requireText(input.getDisplayName(), "displayName"));
         String suppliedPassword = trimToNull(input.getPasswordHash());

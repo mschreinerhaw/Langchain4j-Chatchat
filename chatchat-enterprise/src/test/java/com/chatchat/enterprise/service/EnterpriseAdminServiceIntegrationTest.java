@@ -95,6 +95,11 @@ class EnterpriseAdminServiceIntegrationTest {
             user(tenantA.getId(), orgA.getId(), "cross-tenant-role"), List.of(roleB.getId())))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("does not belong");
+        SysOrg orgB = service.saveOrg(org(tenantB.getId(), "ORG-B"));
+        assertThatThrownBy(() -> service.saveUser(
+            user(tenantA.getId(), orgB.getId(), "cross-tenant-org"), List.of(roleA.getId())))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("organization does not belong");
 
         service.saveRoleAuthorization(roleA.getId(),
             new EnterpriseAdminService.RoleAuthorizationRequest(

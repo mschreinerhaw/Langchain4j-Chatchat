@@ -63,6 +63,7 @@ const AgentRuntimeView = asyncView(() => import("../views/AgentRuntimeView.vue")
 const RetrievalRulesView = asyncView(() => import("../views/RetrievalRulesView.vue"));
 const EvidenceDebuggerView = asyncView(() => import("../views/EvidenceDebuggerView.vue"));
 const SystemUsersView = asyncView(() => import("../views/SystemUsersView.vue"));
+const SystemOrganizationsView = asyncView(() => import("../views/SystemOrganizationsView.vue"));
 const SystemRolesView = asyncView(() => import("../views/SystemRolesView.vue"));
 const SystemLoginAuditView = asyncView(() => import("../views/SystemLoginAuditView.vue"));
 const SystemResourceAuthorizationView = asyncView(() => import("../views/SystemResourceAuthorizationView.vue"));
@@ -97,6 +98,7 @@ const VIEW_PERMISSIONS = {
   tasks: "platform:tasks",
   system: "system",
   systemUsers: "system",
+  systemOrganizations: "system",
   systemRoles: "system",
   systemLogins: "system",
   systemResources: "system",
@@ -125,6 +127,7 @@ const views = {
   tasks: TasksView,
   system: SystemUsersView,
   systemUsers: SystemUsersView,
+  systemOrganizations: SystemOrganizationsView,
   systemRoles: SystemRolesView,
   systemLogins: SystemLoginAuditView,
   systemResources: SystemResourceAuthorizationView,
@@ -252,6 +255,7 @@ export default {
               id: "system", label: "系统管理", icon: "gear", permissionCode: "system",
               children: [
                 { id: "systemUsers", label: "用户管理", icon: "users", permissionCode: "system" },
+                { id: "systemOrganizations", label: "组织管理", icon: "organization", permissionCode: "system" },
                 { id: "systemRoles", label: "角色管理", icon: "shield", permissionCode: "system" },
                 { id: "systemLogins", label: "登录审计", icon: "schedule", permissionCode: "system" },
                 { id: "systemResources", label: "资源授权", icon: "key", permissionCode: "system" }

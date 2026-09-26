@@ -2,6 +2,7 @@ import {
   BookOpen,
   Bot,
   Boxes,
+  Building2,
   CalendarClock,
   ChevronDown,
   ClipboardList,
@@ -250,6 +251,7 @@ export default {
       return {
         agent: Bot,
         book: BookOpen,
+        organization: Building2,
         schedule: CalendarClock,
         chat: MessageSquare,
         code: Code2,

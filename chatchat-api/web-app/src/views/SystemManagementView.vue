@@ -98,6 +98,48 @@
         </div>
       </aside>
 
+      <aside v-else-if="activeManagementTab === 'organizations'" class="rbac-panel organization-panel system-tab-panel">
+        <div class="panel-head">
+          <div>
+            <p>组织机构</p>
+            <h2>组织档案</h2>
+          </div>
+          <div class="mini-actions">
+            <span class="organization-source">数据来源：lborganization</span>
+            <button type="button" title="从 lborganization 同步组织" @click="syncOrgs" :disabled="loading">
+              <RefreshCw :size="14" />
+              {{ loading ? "同步中" : "同步组织" }}
+            </button>
+          </div>
+        </div>
+
+        <div class="entity-table">
+          <div class="entity-table-head organization-table-row">
+            <span>组织名称</span>
+            <span>组织编码</span>
+            <span>上级组织</span>
+            <span>层级</span>
+            <span>成员数</span>
+            <span>状态</span>
+          </div>
+          <div v-for="org in orgTree" :key="org.id" class="entity-table-row organization-table-row">
+            <span class="organization-name-cell">
+              <i :style="{ width: `${org.level * 22}px` }" aria-hidden="true"></i>
+              <Building2 :size="16" />
+              <strong>{{ org.orgName }}</strong>
+            </span>
+            <span>{{ org.orgCode }}</span>
+            <span>{{ org.parentId ? orgName(org.parentId) : "根组织" }}</span>
+            <span>{{ org.level + 1 }}</span>
+            <span>{{ orgUserCounts[org.id] || 0 }}</span>
+            <span><em :class="['status-pill', org.status]">{{ statusLabel(org.status) }}</em></span>
+          </div>
+          <div v-if="orgTree.length === 0" class="empty-state">
+            暂无组织机构，请从 lborganization 同步
+          </div>
+        </div>
+      </aside>
+
       <aside v-else-if="activeManagementTab === 'roles'" class="rbac-panel role-panel system-tab-panel">
         <div class="panel-head">
           <div>
@@ -105,14 +147,6 @@
             <h2>角色档案</h2>
           </div>
           <div class="mini-actions">
-            <button type="button" title="同步组织" @click="syncOrgs" :disabled="loading">
-              <RefreshCw :size="14" />
-              组织
-            </button>
-            <button type="button" @click="openOrgModal()">
-              <Plus :size="14" />
-              新增组织
-            </button>
             <button type="button" @click="openRoleModal()">
               <Plus :size="14" />
               新增角色
@@ -361,8 +395,8 @@
               <span>所属组织</span>
               <select v-model="userForm.orgId">
                 <option value="">未分配组织</option>
-                <option v-for="org in orgTree" :key="org.id" :value="org.id">
-                  {{ `${"　".repeat(org.level)}${org.orgName}` }}
+                <option v-for="org in selectableOrgTree" :key="org.id" :value="org.id">
+                  {{ `${"　".repeat(org.level)}${org.orgName}${org.status === "enabled" ? "" : "（已停用）"}` }}
                 </option>
               </select>
             </label>

@@ -142,6 +142,7 @@ describe("document Ask AI conversation isolation", () => {
     expect(system.permissionCode).toBe("system");
     expect(system.children.map((item) => item.id)).toEqual([
       "systemUsers",
+      "systemOrganizations",
       "systemRoles",
       "systemLogins",
       "systemResources"
@@ -165,6 +166,7 @@ describe("document Ask AI conversation isolation", () => {
   it("shows the matching title for each system management page", () => {
     const labels = {
       users: "用户管理",
+      organizations: "组织管理",
       roles: "角色管理",
       logins: "登录审计",
       resources: "资源授权"

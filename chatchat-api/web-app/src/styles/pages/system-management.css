@@ -250,6 +250,16 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.organization-panel {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.organization-source {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .entity-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -357,6 +367,28 @@
   min-width: 680px;
   display: grid;
   grid-template-columns: minmax(170px, 1.1fr) minmax(120px, 0.85fr) 62px 74px 86px;
+}
+
+.organization-table-row {
+  min-width: 860px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.35fr) minmax(150px, 0.9fr) minmax(180px, 1fr) 70px 78px 82px;
+}
+
+.organization-name-cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.organization-name-cell i {
+  flex: 0 0 auto;
+}
+
+.organization-name-cell svg {
+  flex: 0 0 auto;
+  color: var(--primary);
 }
 
 .user-table-row {

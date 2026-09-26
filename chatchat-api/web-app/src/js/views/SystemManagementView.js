@@ -87,7 +87,7 @@ export default {
     section: {
       type: String,
       default: "users",
-      validator: (value) => ["users", "roles", "logins", "resources"].includes(value)
+      validator: (value) => ["users", "organizations", "roles", "logins", "resources"].includes(value)
     }
   },
   components: {
@@ -172,6 +172,7 @@ export default {
     sectionTitle() {
       return {
         users: "用户管理",
+        organizations: "组织管理",
         roles: "角色管理",
         logins: "登录审计",
         resources: "资源授权"
@@ -180,7 +181,8 @@ export default {
     sectionDescription() {
       return {
         users: "管理账号、组织归属、角色分配与 Agent API 令牌",
-        roles: "维护角色档案、组织层级与成员关系",
+        organizations: "查看机构层级与成员归属，组织档案同步自 lborganization 表",
+        roles: "维护角色档案、成员关系与授权范围",
         logins: "查询用户登录和 Agent API 认证记录",
         resources: "按角色配置可访问的资源与 Agent 能力"
       }[this.section];
@@ -219,6 +221,9 @@ export default {
         }
         return counts;
       }, {});
+    },
+    selectableOrgTree() {
+      return this.orgTree.filter((org) => org.status === "enabled" || org.id === this.userForm.orgId);
     },
     permissionTree() {
       const children = new Map();

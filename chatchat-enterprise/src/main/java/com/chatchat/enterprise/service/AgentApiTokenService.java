@@ -1,13 +1,11 @@
 package com.chatchat.enterprise.service;
 
 import com.chatchat.enterprise.entity.audit.SysAuditLog;
-import com.chatchat.enterprise.entity.identity.SysTenant;
 import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.entity.identity.SysUserRole;
 import com.chatchat.enterprise.entity.security.AgentApiToken;
 import com.chatchat.enterprise.entity.security.RoleAgentBinding;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
-import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
@@ -32,8 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
-
 @Service
 @RequiredArgsConstructor
 public class AgentApiTokenService {
@@ -47,9 +43,9 @@ public class AgentApiTokenService {
     private final SysUserRoleRepository userRoleRepository;
     private final SysRoleRepository roleRepository;
     private final RoleAgentBindingRepository roleAgentBindingRepository;
-    private final SysTenantRepository tenantRepository;
     private final SysAuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
+    private final EnterpriseAdminService enterpriseAdminService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional(readOnly = true)
@@ -161,13 +157,9 @@ public class AgentApiTokenService {
     private SysUser requirePlatformAdmin(String userId) {
         SysUser user = userRepository.findById(requireText(userId, "operatorUserId"))
             .orElseThrow(() -> new IllegalArgumentException("operator not found"));
-        boolean platformTenant = tenantRepository.findById(user.getTenantId())
-            .map(SysTenant::getTenantNo)
-            .map(number -> number == PLATFORM_TENANT_NO)
-            .orElse(false);
-        if (!platformTenant || !"admin".equalsIgnoreCase(user.getUsername())
-            || !"enabled".equalsIgnoreCase(user.getStatus())) {
-            throw new IllegalArgumentException("only the platform administrator can manage Agent API tokens");
+        if (!"enabled".equalsIgnoreCase(user.getStatus())
+            || !enterpriseAdminService.hasPermission(user.getId(), "system:user:agent-api-token")) {
+            throw new IllegalArgumentException("operator lacks Agent API token management permission");
         }
         return user;
     }
@@ -178,7 +170,7 @@ public class AgentApiTokenService {
         if (!"enabled".equalsIgnoreCase(user.getStatus())) {
             throw new IllegalArgumentException("disabled users cannot receive Agent API tokens");
         }
-        if ("admin".equalsIgnoreCase(user.getUsername())) {
+        if (enterpriseAdminService.hasAllAgentAccess(user.getId())) {
             return user;
         }
         Instant now = Instant.now();

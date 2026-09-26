@@ -58,6 +58,19 @@ class ApiPermissionAuthorizationFilterTest {
         verify(chain).doFilter(request, response);
     }
 
+    @Test
+    void deniesAuthenticatedApiWhenNoDatabasePolicyMatches() throws Exception {
+        MockHttpServletRequest request = request();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(adminService.listPermissions()).thenReturn(List.of());
+
+        filter.doFilterInternal(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentAsString()).contains("no enabled database permission policy");
+        verify(chain, never()).doFilter(request, response);
+    }
+
     private MockHttpServletRequest request() {
         MockHttpServletRequest request = new MockHttpServletRequest(
             "GET", "/api/v1/data-science/python/workbench");

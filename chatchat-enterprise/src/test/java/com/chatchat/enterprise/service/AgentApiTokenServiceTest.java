@@ -1,11 +1,9 @@
 package com.chatchat.enterprise.service;
 
-import com.chatchat.enterprise.entity.identity.SysTenant;
 import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.entity.security.AgentApiToken;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
-import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import com.chatchat.enterprise.repository.security.AgentApiTokenRepository;
@@ -21,7 +19,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.Optional;
 
-import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -36,8 +33,8 @@ class AgentApiTokenServiceTest {
     @Mock private SysUserRoleRepository userRoleRepository;
     @Mock private SysRoleRepository roleRepository;
     @Mock private RoleAgentBindingRepository roleAgentBindingRepository;
-    @Mock private SysTenantRepository tenantRepository;
     @Mock private SysAuditLogRepository auditLogRepository;
+    @Mock private EnterpriseAdminService enterpriseAdminService;
 
     private AgentApiTokenService service;
     private SysUser admin;
@@ -45,18 +42,17 @@ class AgentApiTokenServiceTest {
     @BeforeEach
     void setUp() {
         service = new AgentApiTokenService(tokenRepository, userRepository, userRoleRepository, roleRepository,
-            roleAgentBindingRepository, tenantRepository, auditLogRepository, new ObjectMapper());
+            roleAgentBindingRepository, auditLogRepository, new ObjectMapper(), enterpriseAdminService);
         admin = new SysUser();
         admin.setId("admin-id");
         admin.setTenantId("platform-id");
         admin.setUsername("admin");
         admin.setDisplayName("Administrator");
         admin.setStatus("enabled");
-        SysTenant tenant = new SysTenant();
-        tenant.setId("platform-id");
-        tenant.setTenantNo(PLATFORM_TENANT_NO);
         lenient().when(userRepository.findById("admin-id")).thenReturn(Optional.of(admin));
-        lenient().when(tenantRepository.findById("platform-id")).thenReturn(Optional.of(tenant));
+        lenient().when(enterpriseAdminService.hasPermission("admin-id", "system:user:agent-api-token"))
+            .thenReturn(true);
+        lenient().when(enterpriseAdminService.hasAllAgentAccess("admin-id")).thenReturn(true);
         lenient().when(tokenRepository.save(any())).thenAnswer(invocation -> {
             AgentApiToken token = invocation.getArgument(0);
             token.onCreate();

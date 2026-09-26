@@ -96,6 +96,7 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
         Object view = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
         if (view instanceof EnterpriseAdminService.UserView user) {
             outgoing.header("X-Document-Roles", String.join(",", documentRoleKeys(user)));
+            outgoing.header("X-Document-Permissions", String.join(",", user.permissionCodes()));
         }
         for (String name : List.of("Content-Type", "Accept", "X-Upload-Request-Id")) {
             String value = request.getHeader(name);
@@ -212,9 +213,6 @@ public class DocumentMcpGatewayFilter extends OncePerRequestFilter {
         }
         LinkedHashSet<String> fallback = new LinkedHashSet<>(
             user.roleIds() == null ? List.of() : user.roleIds());
-        if ("admin".equalsIgnoreCase(user.username())) {
-            fallback.add("SUPER_ADMIN");
-        }
         return List.copyOf(fallback);
     }
 

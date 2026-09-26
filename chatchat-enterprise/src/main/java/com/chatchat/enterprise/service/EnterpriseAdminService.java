@@ -174,7 +174,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .orElseThrow(() -> new IllegalArgumentException("embed token is invalid or expired"));
         SysUser user = userRepository.findById(record.getUserId())
             .orElseThrow(() -> new IllegalArgumentException("user not found"));
-        if (!isAdminUser(user) || !"enabled".equalsIgnoreCase(user.getStatus())) {
+        if (!"enabled".equalsIgnoreCase(user.getStatus())
+            || !hasPermission(user.getId(), "system:admin:operate")) {
             throw new IllegalArgumentException("embed token user is not available");
         }
         Instant now = Instant.now();
@@ -1166,32 +1167,19 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return users.stream().map(user -> {
             List<String> assignedRoleIds = roleIdsByUser.getOrDefault(user.getId(), List.of());
             SysTenant tenant = tenantsById.get(user.getTenantId());
-            boolean platformAdmin = "admin".equalsIgnoreCase(user.getUsername())
-                && tenant != null
-                && tenant.getTenantNo() != null
-                && tenant.getTenantNo() == PLATFORM_TENANT_NO;
-            List<String> permissionCodes;
-            if (platformAdmin) {
-                permissionCodes = orderedPermissions.stream()
-                    .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
-                    .map(SysPermission::getPermissionCode)
-                    .distinct()
-                    .toList();
-            } else {
-                Set<String> allowedPermissionIds = assignedRoleIds.stream()
-                    .map(rolesById::get)
-                    .filter(Objects::nonNull)
-                    .filter(role -> Objects.equals(user.getTenantId(), role.getTenantId()))
-                    .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
-                    .flatMap(role -> permissionIdsByRole.getOrDefault(role.getId(), List.of()).stream())
-                    .collect(Collectors.toSet());
-                permissionCodes = orderedPermissions.stream()
-                    .filter(permission -> allowedPermissionIds.contains(permission.getId()))
-                    .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
-                    .map(SysPermission::getPermissionCode)
-                    .distinct()
-                    .toList();
-            }
+            Set<String> allowedPermissionIds = assignedRoleIds.stream()
+                .map(rolesById::get)
+                .filter(Objects::nonNull)
+                .filter(role -> Objects.equals(user.getTenantId(), role.getTenantId()))
+                .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+                .flatMap(role -> permissionIdsByRole.getOrDefault(role.getId(), List.of()).stream())
+                .collect(Collectors.toSet());
+            List<String> permissionCodes = orderedPermissions.stream()
+                .filter(permission -> allowedPermissionIds.contains(permission.getId()))
+                .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
+                .map(SysPermission::getPermissionCode)
+                .distinct()
+                .toList();
             return new UserView(
                 user.getId(),
                 user.getTenantId(),
@@ -1255,8 +1243,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     /**
      * Returns trusted role identifiers used by downstream resource ACLs.
      * IDs preserve persisted grants, while codes and names preserve legacy
-     * document ACLs. The platform administrator receives the same explicit
-     * super-admin marker as a database SUPER_ADMIN role.
+     * document ACLs. Every returned key comes from an enabled persisted role.
      */
     @Transactional(readOnly = true)
     public List<String> authorizationRoleKeys(String userId) {
@@ -1282,9 +1269,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
             addRoleKey(keys, role.getRoleCode());
             addRoleKey(keys, role.getRoleName());
         }
-        if (isAdminUser(user)) {
-            keys.add("SUPER_ADMIN");
-        }
         return List.copyOf(keys);
     }
 
@@ -1306,12 +1290,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private Set<String> effectivePermissionIds(SysUser user, List<String> roleIds) {
-        if (isAdminUser(user)) {
-            return permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc().stream()
-                .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
-                .map(SysPermission::getId)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        }
         Set<String> enabledRoleIds = roleRepository.findAllById(roleIds).stream()
             .filter(role -> user.getTenantId().equals(role.getTenantId()))
             .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
@@ -1342,10 +1320,22 @@ public class EnterpriseAdminService implements ApplicationRunner {
 
     /** Returns whether an already resolved user snapshot has unrestricted Agent access. */
     public boolean hasAllAgentAccess(UserView user) {
-        return user != null
-            && "admin".equalsIgnoreCase(user.username())
-            && user.tenantNo() != null
-            && user.tenantNo().longValue() == PLATFORM_TENANT_NO;
+        return user != null && user.permissionCodes() != null
+            && user.permissionCodes().contains("platform:agents:all");
+    }
+
+    /** Returns whether an enabled user receives a permission through an enabled persisted role. */
+    @Transactional(readOnly = true)
+    public boolean hasPermission(String userId, String permissionCode) {
+        if (userId == null || userId.isBlank() || permissionCode == null || permissionCode.isBlank()) {
+            return false;
+        }
+        return resolveUser(userId)
+            .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
+            .map(user -> permissionCodes(user, userRoleRepository.findByUserId(user.getId()).stream()
+                .map(SysUserRole::getRoleId)
+                .toList()).contains(permissionCode.trim()))
+            .orElse(false);
     }
 
     /**
@@ -1399,8 +1389,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private SysUser requireAdminOperator(String username) {
         SysUser user = userRepository.findByUsername(requireText(username, "username"))
             .orElseThrow(() -> new IllegalArgumentException("admin user not found"));
-        if (!isAdminUser(user) || !"enabled".equalsIgnoreCase(user.getStatus())) {
-            throw new IllegalArgumentException("only enabled admin user can perform this operation");
+        if (!"enabled".equalsIgnoreCase(user.getStatus())
+            || !hasPermission(user.getId(), "system:admin:operate")) {
+            throw new IllegalArgumentException("operator lacks system administration permission");
         }
         return user;
     }
@@ -1450,17 +1441,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
         );
     }
 
-    private boolean isAdminUser(SysUser user) {
-        if (user == null || !"admin".equalsIgnoreCase(user.getUsername())
-            || user.getTenantId() == null || user.getTenantId().isBlank()) {
-            return false;
-        }
-        return tenantRepository.findById(user.getTenantId())
-            .map(SysTenant::getTenantNo)
-            .map(tenantNo -> tenantNo == PLATFORM_TENANT_NO)
-            .orElse(false);
-    }
-
     private boolean isProtectedUser(SysUser user) {
         if (user == null) {
             return false;
@@ -1488,7 +1468,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private boolean hasAllAgentAccess(SysUser user) {
-        return isAdminUser(user);
+        return user != null && hasPermission(user.getId(), "platform:agents:all");
     }
 
     private Set<String> accessibleAgentIdsForUser(SysUser user) {
@@ -1556,9 +1536,14 @@ public class EnterpriseAdminService implements ApplicationRunner {
         ensureRole(tenant.getId(), "BUSINESS_ADMIN", "业务管理员", "business");
         ensureRole(tenant.getId(), "USER", "普通用户", "business");
         ensureRole(tenant.getId(), "GUEST", "访客", "guest");
+        boolean permissionModelMigrationRequired = permissionRepository
+            .findByPermissionCode("system:api:all").isEmpty();
         List<SysPermission> permissions = ensureDefaultPermissions();
         ensureDefaultMenus();
-        ensureRolePermissions(tenant.getId(), superAdmin.getId(), permissions);
+        ensureRolePermissions(tenant.getId(), superAdmin.getId(), permissions, permissionModelMigrationRequired);
+        if (permissionModelMigrationRequired) {
+            migrateRolePermissionModel(permissions, superAdmin.getId());
+        }
         ensureAllOrgScope(tenant.getId(), superAdmin.getId());
 
         SysUser admin = userRepository.findByUsername("admin").orElseGet(() -> {
@@ -1836,6 +1821,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
      */
     private List<SysPermission> ensureDefaultPermissions() {
         List<PermissionSeed> seeds = List.of(
+            new PermissionSeed(null, "system:api:all", "All API access", "api", "/api/v1/**", "*", "shield", 1),
+            new PermissionSeed(null, "account:self:read", "Current account", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
+            new PermissionSeed(null, "account:menus:read", "Current account menus", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
+            new PermissionSeed(null, "system:health:read", "System health", "api", "/api/v1/health/**", "GET", "activity", 4),
             new PermissionSeed(null, "workspace", "工作台", "menu", "/index.html", null, "layout-dashboard", 10),
             new PermissionSeed("workspace", "workspace:chat", "智能对话", "menu", "/index.html#chat", null, "message-circle", 11),
             new PermissionSeed("workspace", "workspace:search", "文档检索", "menu", "/index.html#search", null, "search", 12),
@@ -1874,7 +1863,24 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("system", "system:permission", "权限管理", "menu", "/api/v1/enterprise/permissions", "*", "list-tree", 46),
             new PermissionSeed("system:permission", "system:menu:manage", "功能菜单管理", "button", "/api/v1/enterprise/menu-configurations/**", "*", "menu", 46),
             new PermissionSeed("system", "system:external-sync", "外部组织用户同步", "button", "/api/v1/enterprise/sync/**", "*", "refresh-cw", 47),
-            new PermissionSeed(null, "audit", "审计中心", "menu", "/api/v1/enterprise/audit-logs", "GET", "file-search", 50)
+            new PermissionSeed(null, "audit", "审计中心", "menu", "/api/v1/enterprise/audit-logs", "GET", "file-search", 50),
+            new PermissionSeed("workspace:chat", "workspace:chat:interact", "Chat interaction API", "api", "/api/v1/interactions/**", "*", "message-circle", 11),
+            new PermissionSeed("workspace:chat", "workspace:chat:conversation", "Conversation API", "api", "/api/v1/conversations/**", "*", "message-circle", 11),
+            new PermissionSeed("workspace:search", "workspace:search:api", "Document search API", "api", "/api/v1/search/**", "*", "search", 12),
+            new PermissionSeed("workspace:search", "workspace:search:delete", "Document delete permission", "button", null, null, "trash-2", 12),
+            new PermissionSeed("workspace:search", "workspace:analysis:api", "Joint analysis API", "api", "/api/v1/agent/analysis/**", "*", "bot", 13),
+            new PermissionSeed("capability:data-science", "capability:data-science:data", "Data capability API", "api", "/api/v1/data/**", "*", "database", 24),
+            new PermissionSeed("capability:data-science", "capability:data-science:images", "Image understanding API", "api", "/api/v1/images/**", "*", "image", 24),
+            new PermissionSeed("capability:data-science", "capability:data-science:profiles", "Analysis profile API", "api", "/api/v1/analysis-profiles/**", "*", "settings", 24),
+            new PermissionSeed("platform:agents", "platform:agents:all", "All Agent access", "button", null, null, "shield-check", 34),
+            new PermissionSeed("platform:agents", "platform:agents:workshop", "Agent workshop API", "api", "/api/v1/agents/workshop/**", "*", "bot", 34),
+            new PermissionSeed("platform:agents", "platform:agents:published", "Published Agent API", "api", "/api/v1/published-agents/**", "*", "bot", 34),
+            new PermissionSeed("platform:agents", "platform:agents:optimization", "Agent optimization API", "api", "/api/v1/agent-optimizations/**", "*", "bot", 34),
+            new PermissionSeed("platform:agents", "platform:agents:runtime", "Agent runtime API", "api", "/api/v1/agent/runtime/**", "*", "bot", 34),
+            new PermissionSeed("platform:schedules", "platform:schedules:all", "All scheduled task access", "button", null, null, "shield-check", 35),
+            new PermissionSeed("platform:agents", "platform:tasks:all", "All agent task access", "button", null, null, "shield-check", 35),
+            new PermissionSeed("platform:rules", "platform:rules:manage", "Retrieval rule management", "api", "/api/v1/retrieval/rules/**", "*", "list-filter", 36),
+            new PermissionSeed("system:user", "system:admin:operate", "System administration operations", "button", "/api/v1/enterprise/users/admin/password", "*", "shield-check", 43)
         );
         Map<String, String> idsByCode = permissionRepository.findAll().stream()
             .collect(Collectors.toMap(SysPermission::getPermissionCode, SysPermission::getId, (left, right) -> left));
@@ -1990,10 +1996,14 @@ public class EnterpriseAdminService implements ApplicationRunner {
      * @param roleId the role id value
      * @param permissions the permissions value
      */
-    private void ensureRolePermissions(String tenantId, String roleId, List<SysPermission> permissions) {
+    private void ensureRolePermissions(String tenantId, String roleId, List<SysPermission> permissions,
+                                       boolean migrationRequired) {
         Set<String> exists = rolePermissionRepository.findByRoleId(roleId).stream()
             .map(SysRolePermission::getPermissionId)
             .collect(Collectors.toSet());
+        if (!exists.isEmpty() && !migrationRequired) {
+            return;
+        }
         for (SysPermission permission : permissions) {
             if (exists.contains(permission.getId())) {
                 continue;
@@ -2004,6 +2014,58 @@ public class EnterpriseAdminService implements ApplicationRunner {
             rolePermission.setPermissionId(permission.getId());
             rolePermissionRepository.save(rolePermission);
         }
+    }
+
+    /**
+     * One-time upgrade from menu-only grants to explicit API grants. Existing roles retain their
+     * functional access through persisted child relations; unrestricted permissions remain limited
+     * to the separately initialized super-admin role.
+     */
+    private void migrateRolePermissionModel(List<SysPermission> permissions, String superAdminRoleId) {
+        Map<String, SysPermission> permissionsById = permissions.stream()
+            .collect(Collectors.toMap(SysPermission::getId, permission -> permission));
+        Set<String> accountPermissionIds = permissions.stream()
+            .filter(permission -> Set.of("account:self:read", "account:menus:read")
+                .contains(permission.getPermissionCode()))
+            .map(SysPermission::getId)
+            .collect(Collectors.toSet());
+        for (SysRole role : roleRepository.findAll()) {
+            if (role.getId().equals(superAdminRoleId)) {
+                continue;
+            }
+            Set<String> existing = rolePermissionRepository.findByRoleId(role.getId()).stream()
+                .map(SysRolePermission::getPermissionId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+            Set<String> additions = new LinkedHashSet<>(accountPermissionIds);
+            permissions.stream()
+                .filter(permission -> "api".equalsIgnoreCase(permission.getPermissionType()))
+                .filter(permission -> !"system:api:all".equals(permission.getPermissionCode()))
+                .filter(permission -> hasGrantedAncestor(permission, existing, permissionsById))
+                .map(SysPermission::getId)
+                .forEach(additions::add);
+            additions.removeAll(existing);
+            for (String permissionId : additions) {
+                SysRolePermission relation = new SysRolePermission();
+                relation.setTenantId(role.getTenantId());
+                relation.setRoleId(role.getId());
+                relation.setPermissionId(permissionId);
+                rolePermissionRepository.save(relation);
+            }
+        }
+    }
+
+    private boolean hasGrantedAncestor(SysPermission permission, Set<String> grantedIds,
+                                       Map<String, SysPermission> permissionsById) {
+        String parentId = permission.getParentId();
+        Set<String> visited = new java.util.HashSet<>();
+        while (parentId != null && visited.add(parentId)) {
+            if (grantedIds.contains(parentId)) {
+                return true;
+            }
+            SysPermission parent = permissionsById.get(parentId);
+            parentId = parent == null ? null : parent.getParentId();
+        }
+        return false;
     }
 
     /**

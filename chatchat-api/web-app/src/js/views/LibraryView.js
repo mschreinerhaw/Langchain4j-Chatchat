@@ -141,7 +141,9 @@ export default {
       };
     },
     canDeleteDocuments() {
-      return String(this.userId || "").toLowerCase() === "admin";
+      const session = getStoredAuthSession();
+      return Array.isArray(session?.user?.permissionCodes)
+        && session.user.permissionCodes.includes("workspace:search:api");
     },
     permissionQuery() {
       const params = new URLSearchParams();

@@ -499,7 +499,8 @@ public class AgentTaskController {
 
     private String scopedUserId(HttpServletRequest request, String requestedUserId) {
         String currentUserId = currentUserId(request);
-        if (currentUserId == null || "admin".equalsIgnoreCase(currentUsername(request))) {
+        if (currentUserId == null
+            || enterpriseAdminService.hasPermission(currentUserId, "platform:tasks:all")) {
             return normalizeText(requestedUserId);
         }
         return currentUserId;

@@ -74,7 +74,9 @@ export default {
   computed: {
     isAdmin() {
       const session = getStoredAuthSession() || {};
-      return String(session.username || session.userName || session.user?.username || "").toLowerCase() === "admin";
+      const permissionCodes = session.user?.permissionCodes || session.permissionCodes;
+      return Array.isArray(permissionCodes)
+        && permissionCodes.includes("capability:data-science");
     },
     categoryOptions() {
       return this.categories.map((category) => typeof category === "string"

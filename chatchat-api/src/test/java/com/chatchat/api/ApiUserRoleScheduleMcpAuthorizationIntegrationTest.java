@@ -90,6 +90,7 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
         SysRole viewerRole = adminService.saveRole(role(tenantB.getId(), "VIEWER_" + suffix));
         SysPermission scheduleManage = permission("platform:schedules:manage");
         SysPermission workspaceChat = permission("workspace:chat");
+        SysPermission menuRead = permission("account:menus:read");
 
         EnterpriseAdminService.UserView scheduler = adminService.saveUser(
             user(tenantA.getId(), "scheduler-" + suffix), List.of(schedulerRole.getId())
@@ -103,14 +104,14 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
         String agentId = "joint-agent-" + suffix;
         adminService.saveRoleAuthorization(schedulerRole.getId(),
             new EnterpriseAdminService.RoleAuthorizationRequest(
-                List.of(scheduleManage.getId()),
+                List.of(scheduleManage.getId(), menuRead.getId()),
                 List.of(),
                 null,
                 List.of(agentId)
             ));
         adminService.saveRoleAuthorization(viewerRole.getId(),
             new EnterpriseAdminService.RoleAuthorizationRequest(
-                List.of(workspaceChat.getId()), List.of(), null, List.of()
+                List.of(workspaceChat.getId(), menuRead.getId()), List.of(), null, List.of()
             ));
         skillConfigRepository.save(publishedAgent(agentId));
 

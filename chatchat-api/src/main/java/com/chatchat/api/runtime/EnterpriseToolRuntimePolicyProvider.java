@@ -13,7 +13,6 @@ import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
-import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,8 +28,6 @@ import java.util.Set;
 import java.util.LinkedHashSet;
 import java.time.Instant;
 
-import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
-
 @Component
 @RequiredArgsConstructor
 public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyProvider {
@@ -40,7 +37,6 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
     private final SysRoleRepository roleRepository;
     private final SysUserRoleRepository userRoleRepository;
     private final SysUserRepository userRepository;
-    private final SysTenantRepository tenantRepository;
     @Autowired(required = false)
     private ResourceAuthorizationPort resourceAuthorization;
 
@@ -92,10 +88,6 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
             .contains(toolName)) {
             return denied("MCP tool denied by resource grant policy");
         }
-        if (isAdminUser(userId) || hasRoleCode(roleIds, tenantId, "super_admin")) {
-            return ToolRuntimePolicy.builder().allowed(true).build();
-        }
-
         List<McpToolPermission> matched = new ArrayList<>();
         if (userId != null) {
             matched.addAll(toolPermissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
@@ -243,29 +235,6 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
             }
         }
         input.setContext(context);
-    }
-
-    private boolean hasRoleCode(Set<String> roleIds, String tenantId, String expectedCode) {
-        if (roleIds.contains(normalize(expectedCode))) {
-            return true;
-        }
-        return roleRepository.findByTenantIdOrderByRoleNameAsc(tenantId).stream()
-            .filter(role -> expectedCode.equals(normalize(role.getRoleCode())))
-            .map(SysRole::getId)
-            .map(this::normalize)
-            .anyMatch(roleIds::contains);
-    }
-
-    private boolean isAdminUser(String userId) {
-        if (userId == null) {
-            return false;
-        }
-        return userRepository.findById(userId)
-            .or(() -> userRepository.findByUsername(userId))
-                .filter(user -> "admin".equalsIgnoreCase(user.getUsername()))
-                .flatMap(user -> tenantRepository.findById(user.getTenantId()))
-                .map(tenant -> tenant.getTenantNo() != null && tenant.getTenantNo() == PLATFORM_TENANT_NO)
-            .orElse(false);
     }
 
     private SysUser resolveUser(String userId) {

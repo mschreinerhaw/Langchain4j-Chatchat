@@ -8,13 +8,11 @@ import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.identity.SysRole;
-import com.chatchat.enterprise.entity.identity.SysTenant;
 import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.entity.identity.SysUserRole;
 import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
-import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,14 +36,12 @@ class EnterpriseToolRuntimePolicyProviderTest {
     private final SysRoleRepository roleRepository = mock(SysRoleRepository.class);
     private final SysUserRoleRepository userRoleRepository = mock(SysUserRoleRepository.class);
     private final SysUserRepository userRepository = mock(SysUserRepository.class);
-    private final SysTenantRepository tenantRepository = mock(SysTenantRepository.class);
     private final EnterpriseToolRuntimePolicyProvider provider = new EnterpriseToolRuntimePolicyProvider(
         permissionRepository,
         toolAssetRepository,
         roleRepository,
         userRoleRepository,
-        userRepository,
-        tenantRepository
+        userRepository
     );
 
     @BeforeEach
@@ -171,7 +167,7 @@ class EnterpriseToolRuntimePolicyProviderTest {
     }
 
     @Test
-    void assignedSuperAdminBypassesAssetAllowList() {
+    void assignedSuperAdminStillRequiresPersistedAssetAuthorization() {
         SysRole role = role("role-super", "tenant-a", "SUPER_ADMIN");
         SysUser user = user("user-a", "tenant-a", "business-admin");
         when(userRepository.findById("user-a")).thenReturn(Optional.of(user));
@@ -180,7 +176,8 @@ class EnterpriseToolRuntimePolicyProviderTest {
 
         ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-a", Map.of()), null);
 
-        assertThat(policy.allowed()).isTrue();
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("No MCP asset authorization");
     }
 
     @Test
@@ -218,20 +215,17 @@ class EnterpriseToolRuntimePolicyProviderTest {
     }
 
     @Test
-    void adminUserIdBypassesAssetAllowListAfterUsernameResolution() {
+    void adminUsernameStillRequiresPersistedAssetAuthorization() {
         SysUser admin = new SysUser();
         admin.setId("user-admin-id");
         admin.setTenantId("tenant-a");
         admin.setUsername("admin");
-        SysTenant platformTenant = new SysTenant();
-        platformTenant.setId("tenant-a");
-        platformTenant.setTenantNo(100000L);
         when(userRepository.findById("user-admin-id")).thenReturn(Optional.of(admin));
-        when(tenantRepository.findById("tenant-a")).thenReturn(Optional.of(platformTenant));
 
         ToolRuntimePolicy policy = provider.resolve(request("tenant-a", "user-admin-id", Map.of()), null);
 
-        assertThat(policy.allowed()).isTrue();
+        assertThat(policy.allowed()).isFalse();
+        assertThat(policy.reason()).contains("No MCP asset authorization");
     }
 
     private ToolRuntimeRequest request(String tenantId, String userId, Map<String, Object> context) {

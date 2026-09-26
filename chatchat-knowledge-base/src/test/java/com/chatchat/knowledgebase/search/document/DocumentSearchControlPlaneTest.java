@@ -399,7 +399,7 @@ class DocumentSearchControlPlaneTest {
     }
 
     @Test
-    void superAdminBypassesDocumentVisibilityConstraint() {
+    void superAdminRoleNameDoesNotBypassDocumentVisibilityConstraint() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.frontendQuickSearch(
             eq("ACME 2025 revenue policy"),
@@ -442,10 +442,10 @@ class DocumentSearchControlPlaneTest {
 
         assertThat(result.results())
             .extracting(DocumentEvidenceChunk::fileId)
-            .containsExactlyInAnyOrder("doc-blocked", "doc-1");
+            .containsExactly("doc-1");
         assertThat(result.retrievalEvents())
             .extracting(RetrievalEvent::reason)
-            .anyMatch(reason -> reason.contains("document_visibility_bypassed reason=super_admin"));
+            .anyMatch(reason -> reason.contains("document_visibility_enforced"));
     }
 
     @Test

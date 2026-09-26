@@ -48,7 +48,8 @@ public class DocumentInternalAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         DocumentPrincipalContext.attach(request, tenantId, userId,
-            request.getHeader("X-Document-Username"), request.getHeader("X-Document-Roles"));
+            request.getHeader("X-Document-Username"), request.getHeader("X-Document-Roles"),
+            request.getHeader("X-Document-Permissions"));
         chain.doFilter(request, response);
     }
 }

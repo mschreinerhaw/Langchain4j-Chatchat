@@ -90,8 +90,8 @@ public class AdminAuthService {
      */
     public void changePassword(String token, String currentPassword, String newPassword) {
         String username = username(token);
-        if (!"admin".equalsIgnoreCase(username)) {
-            throw new SecurityException("只有 admin 用户可以修改管理员密码");
+        if (username == null || username.isBlank()) {
+            throw new SecurityException("authenticated administrator is required");
         }
         if (currentPassword == null || currentPassword.isBlank()
             || !passwordStore.matches(username, currentPassword)) {

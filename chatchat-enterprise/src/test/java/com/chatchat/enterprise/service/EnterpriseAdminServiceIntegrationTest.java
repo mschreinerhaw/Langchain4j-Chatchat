@@ -6,6 +6,7 @@ import com.chatchat.enterprise.entity.datasource.DataSourceConfig;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.identity.SysOrg;
 import com.chatchat.enterprise.entity.identity.SysMenu;
+import com.chatchat.enterprise.entity.identity.SysPermission;
 import com.chatchat.enterprise.entity.identity.SysRole;
 import com.chatchat.enterprise.entity.identity.SysTenant;
 import com.chatchat.enterprise.entity.identity.SysUser;
@@ -55,7 +56,7 @@ class EnterpriseAdminServiceIntegrationTest {
             .anySatisfy(permission -> {
                 assertThat(permission.getPermissionCode()).isEqualTo("capability:data-science");
                 assertThat(permission.getParentId()).isNotBlank();
-                assertThat(permission.getResourcePath()).isEqualTo("/api/v1/data-science/python/**");
+                assertThat(permission.getResourcePath()).isEqualTo("/api/v1/data-science/**");
                 assertThat(permission.getHttpMethod()).isEqualTo("*");
             });
         assertThat(login.user().permissionCodes()).contains("capability:data-science");
@@ -79,6 +80,24 @@ class EnterpriseAdminServiceIntegrationTest {
 
         assertThat(service.authorizationRoleKeys(login.user().id()))
             .contains("SUPER_ADMIN", "超级管理员");
+    }
+
+    @Test
+    void adminUsernameDoesNotBypassPersistedRolePermissions() {
+        EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
+        SysPermission selfRead = service.listPermissions().stream()
+            .filter(permission -> "account:self:read".equals(permission.getPermissionCode()))
+            .findFirst()
+            .orElseThrow();
+        service.saveRoleAuthorization(login.user().roleIds().get(0),
+            new EnterpriseAdminService.RoleAuthorizationRequest(
+                List.of(selfRead.getId()), List.of(), null, List.of()));
+
+        service.run(null);
+        EnterpriseAdminService.UserView reloaded = service.login("admin", "123456").user();
+
+        assertThat(reloaded.permissionCodes()).containsExactly("account:self:read");
+        assertThat(service.hasAllAgentAccess(reloaded)).isFalse();
     }
 
     @Test

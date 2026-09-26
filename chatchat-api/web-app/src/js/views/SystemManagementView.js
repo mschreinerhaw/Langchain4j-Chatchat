@@ -1183,10 +1183,10 @@ export default {
       }
     },
     isAdminUser(user) {
-      return String(user?.username || "").toLowerCase() === "admin";
+      return user?.protectedAccount === true;
     },
     isProtectedUser(user) {
-      return user?.protectedAccount === true || this.isAdminUser(user);
+      return user?.protectedAccount === true;
     },
     apiTokenStatusLabel(token) {
       if (this.isApiTokenInactive(token)) {

@@ -29,9 +29,6 @@ public class SearchPermissionGuard {
         if (request == null) {
             return DocumentVisibilityContext.unrestricted();
         }
-        if (permissionContext != null && permissionContext.isSuperAdmin() && visibilityRequested(request)) {
-            return DocumentVisibilityContext.unrestricted();
-        }
         List<String> selected = !safeList(request.selectedDocumentIds()).isEmpty()
             ? safeList(request.selectedDocumentIds())
             : safeList(request.selectedFileIds());
@@ -40,9 +37,6 @@ public class SearchPermissionGuard {
 
     public DocumentVisibilityContext visibilityContext(DocumentSearchExpandRequest request, SearchPermissionContext permissionContext) {
         if (request == null) {
-            return DocumentVisibilityContext.unrestricted();
-        }
-        if (permissionContext != null && permissionContext.isSuperAdmin() && visibilityRequested(request)) {
             return DocumentVisibilityContext.unrestricted();
         }
         List<String> selected = !safeList(request.selectedDocumentIds()).isEmpty()

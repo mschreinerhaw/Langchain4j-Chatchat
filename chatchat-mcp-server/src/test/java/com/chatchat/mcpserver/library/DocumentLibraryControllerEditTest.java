@@ -73,7 +73,7 @@ class DocumentLibraryControllerEditTest {
 
     private MockHttpServletRequest principal(String userId) {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        DocumentPrincipalContext.attach(request, "tenant-1", userId, userId, "");
+        DocumentPrincipalContext.attach(request, "tenant-1", userId, userId, "", "");
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         return request;
     }

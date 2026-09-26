@@ -115,8 +115,7 @@
           </el-table-column>
           <el-table-column fixed="right" label="操作" width="150">
             <template #default="{ row }">
-              <el-tag v-if="isSuperAdmin(row)" type="success" effect="light">默认全权限</el-tag>
-              <el-button v-else link type="primary" @click.stop="openAuthorizationDialog(row)">管理授权</el-button>
+              <el-button link type="primary" @click.stop="openAuthorizationDialog(row)">管理授权</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -141,7 +140,7 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-button plain :disabled="!selectedRole || isSuperAdmin(selectedRole)" :loading="busy" @click="loadRolePermissions">
+            <el-button plain :disabled="!selectedRole" :loading="busy" @click="loadRolePermissions">
               <el-icon><Refresh /></el-icon>
               <span>刷新授权明细</span>
             </el-button>

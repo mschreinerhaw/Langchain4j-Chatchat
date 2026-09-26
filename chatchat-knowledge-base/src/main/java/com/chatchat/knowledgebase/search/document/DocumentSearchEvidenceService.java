@@ -191,23 +191,6 @@ public class DocumentSearchEvidenceService {
             if (visibilityScopeIds.isEmpty()) {
                 return controlledResult(query, intent, List.of(), state, events, elapsedMs(startedAt));
             }
-        } else if (permissionGuard.visibilityRequested(request) && permissionContext.isSuperAdmin()) {
-            log.info(
-                "document_visibility_bypass query='{}' reason=super_admin roles={}",
-                safeLogQuery(query),
-                permissionContext.roles()
-            );
-            events.add(event(
-                traceId,
-                RetrievalControlStep.GATE,
-                RetrievalControlAction.ALLOW,
-                query,
-                scopedFileIds.size(),
-                state.budgetUsed(),
-                state.budgetUsed(),
-                elapsedMs(startedAt),
-                "document_visibility_bypassed reason=super_admin"
-            ));
         }
 
         if (!effectiveScopedFileIds.isEmpty() && !properties.isDocumentFirstEnabled()) {
@@ -357,14 +340,6 @@ public class DocumentSearchEvidenceService {
         DocumentVisibilityContext visibilityContext = permissionGuard.visibilityContext(request, permissionContext);
         if (visibilityContext.active() && !visibilityContext.allows(docId.trim())) {
             throw new IllegalArgumentException("document is not visible in current selection: " + docId.trim());
-        }
-        if (!visibilityContext.active() && permissionGuard.visibilityRequested(request) && permissionContext.isSuperAdmin()) {
-            log.info(
-                "document_visibility_bypass_expand query='{}' docId={} reason=super_admin roles={}",
-                safeLogQuery(query),
-                docId.trim(),
-                permissionContext.roles()
-            );
         }
         SearchDocument document = perDocumentIndexService.openDocumentIndex(docId.trim(), permissionContext)
             .orElseThrow(() -> new IllegalArgumentException("document not found: " + docId.trim()));

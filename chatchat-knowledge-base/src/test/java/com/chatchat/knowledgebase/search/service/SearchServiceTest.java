@@ -1425,7 +1425,7 @@ class SearchServiceTest {
             10,
             SearchPermissionContext.of("tenant-a", "bob", List.of("secops"))
         );
-        SearchPage superAdminPage = service.search(
+        SearchPage namedSuperAdminPage = service.search(
             "deployment rollback checklist",
             null,
             null,
@@ -1443,9 +1443,9 @@ class SearchServiceTest {
         assertThat(secopsPage.results()).extracting(SearchResult::docId)
             .containsExactlyInAnyOrder("tenant-a-role", "tenant-a-public");
         assertThat(secopsPage.results()).allSatisfy(result -> assertThat(result.tenantId()).isEqualTo("tenant-a"));
-        assertThat(superAdminPage.results()).extracting(SearchResult::docId)
-            .containsExactlyInAnyOrder("tenant-a-private", "tenant-a-role", "tenant-a-public");
-        assertThat(superAdminPage.results()).noneMatch(result -> "tenant-b-public".equals(result.docId()));
+        assertThat(namedSuperAdminPage.results()).extracting(SearchResult::docId)
+            .containsExactly("tenant-a-public");
+        assertThat(namedSuperAdminPage.results()).noneMatch(result -> "tenant-b-public".equals(result.docId()));
     }
 
     @Test

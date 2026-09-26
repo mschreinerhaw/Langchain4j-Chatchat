@@ -38,8 +38,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -169,14 +167,8 @@ public class McpAuthorizationService {
         if (properties.isRequireTenantContext() && principal.tenantId() == null) {
             return AuthorizationDecision.denyDecision("MCP caller tenant context is missing");
         }
-        if (isAdminPrincipal(principal)) {
-            return AuthorizationDecision.allowDecision();
-        }
         if (principal.tenantMismatch()) {
             return AuthorizationDecision.denyDecision("MCP caller tenant does not match synchronized user tenant");
-        }
-        if (principal.snapshotResolved() && snapshot.hasRoleCode(principal, "SUPER_ADMIN")) {
-            return AuthorizationDecision.allowDecision();
         }
 
         List<ToolPermission> matched = snapshot.matchedPermissions(principal);
@@ -226,12 +218,6 @@ public class McpAuthorizationService {
             .contains(normalized);
     }
 
-    private boolean isAdminPrincipal(Principal principal) {
-        return "admin".equalsIgnoreCase(principal.username())
-            && principal.tenantNo() != null
-            && principal.tenantNo() == PLATFORM_TENANT_NO;
-    }
-
     public AuthorizationSyncView currentView() {
         Snapshot snapshot = snapshotRef.get();
         return new AuthorizationSyncView(
@@ -241,7 +227,6 @@ public class McpAuthorizationService {
             snapshot.refreshedAt(),
             snapshot.isStale(properties.getStaleTtlSeconds()),
             snapshot.usersById().values().stream()
-                .filter(user -> user.username() == null || !"admin".equalsIgnoreCase(user.username()))
                 .map(user -> new UserView(user.id(), user.tenantId(), user.tenantNo(), user.username(), user.roleIds()))
                 .toList(),
             localRoleViews(),
@@ -388,9 +373,6 @@ public class McpAuthorizationService {
         if (role == null || !snapshot.activeRole(role) || !snapshot.sameTenant(role.tenantId(), tenantId)) {
             return false;
         }
-        if ("super_admin".equals(normalize(role.roleCode()))) {
-            return true;
-        }
         String normalizedRoleId = normalize(role.id());
         String normalizedRoleCode = normalize(role.roleCode());
         List<ToolPermission> permissions = snapshot.permissions().stream()
@@ -448,12 +430,10 @@ public class McpAuthorizationService {
         Instant syncedAt = Instant.now();
         Set<String> incomingRoleIds = snapshot.rolesById().values().stream()
             .filter(role -> role.id() != null && !role.id().isBlank())
-            .filter(role -> !"admin".equalsIgnoreCase(role.roleCode()))
             .map(Role::id)
             .collect(java.util.stream.Collectors.toSet());
         List<McpSynchronizedRole> roles = snapshot.rolesById().values().stream()
             .filter(role -> role.id() != null && !role.id().isBlank())
-            .filter(role -> !"admin".equalsIgnoreCase(role.roleCode()))
             .map(role -> {
                 McpSynchronizedRole entity = roleRepository.findById(role.id()).orElseGet(McpSynchronizedRole::new);
                 entity.setId(role.id());
@@ -751,7 +731,7 @@ public class McpAuthorizationService {
         User user = snapshot.resolveUser(userId, username);
         // Once the caller is found in the synchronized snapshot, always use its
         // canonical identity. Request arguments are tool input and must not be
-        // able to replace a normal user's username with the admin whitelist name.
+        // able to replace a normal user's username with another synchronized identity.
         String resolvedUserId = firstText(user == null ? null : user.id(), userId);
         String resolvedUsername = firstText(user == null ? null : user.username(), username);
         String requestedTenantId = firstText(
@@ -1259,7 +1239,7 @@ public class McpAuthorizationService {
         User resolveUser(String userId, String username) {
             User user = userId == null ? null : usersById.get(normalize(userId));
             // Legacy schedules used the login name as userId. Keep them
-            // resolvable without weakening the admin whitelist.
+            // resolvable while retaining synchronized identity checks.
             if (user == null && userId != null) {
                 user = usersByUsername.get(normalize(userId));
             }

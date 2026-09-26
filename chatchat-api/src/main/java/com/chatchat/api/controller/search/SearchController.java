@@ -19,6 +19,7 @@ import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
 import com.chatchat.knowledgebase.search.document.TitleExistsResult;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -68,6 +69,8 @@ public class SearchController {
     private final DocumentRemoteImporter documentRemoteImporter;
     @Autowired(required = false)
     private LegacyDocumentMcpTransferService legacyDocumentMcpTransferService;
+    @Autowired(required = false)
+    private EnterpriseAdminService enterpriseAdminService;
 
     @Autowired
     public SearchController(SearchService searchService,
@@ -376,7 +379,7 @@ public class SearchController {
                                             @RequestParam(value = "roles", required = false) String roles,
                                             HttpServletRequest request) {
         if (!isAdminOperator(request)) {
-            return ApiResponse.error(403, "only admin can delete documents");
+            return ApiResponse.error(403, "document delete permission is required");
         }
         if (!searchService.deleteDocument(docId, permissionContext(tenantId, userId, roles))) {
             return ApiResponse.notFound("document not found: " + docId);
@@ -392,7 +395,7 @@ public class SearchController {
                                                                   @RequestParam(value = "roles", required = false) String roles,
                                                                   HttpServletRequest servletRequest) {
         if (!isAdminOperator(servletRequest)) {
-            return ApiResponse.error(403, "only admin can delete documents");
+            return ApiResponse.error(403, "document delete permission is required");
         }
         List<String> docIds = normalizeDocIds(request == null ? null : request.docIds());
         if (docIds.isEmpty()) {
@@ -792,11 +795,12 @@ public class SearchController {
     }
 
     private boolean isAdminOperator(HttpServletRequest request) {
-        if (request == null) {
+        if (request == null || enterpriseAdminService == null) {
             return false;
         }
-        Object username = request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
-        return username != null && "admin".equalsIgnoreCase(String.valueOf(username));
+        Object userId = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+        return userId != null
+            && enterpriseAdminService.hasPermission(String.valueOf(userId), "workspace:search:delete");
     }
 
     /**

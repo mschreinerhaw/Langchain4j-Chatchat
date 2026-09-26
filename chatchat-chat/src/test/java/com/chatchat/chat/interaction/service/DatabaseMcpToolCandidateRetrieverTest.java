@@ -8,7 +8,6 @@ import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
-import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
@@ -35,7 +34,6 @@ class DatabaseMcpToolCandidateRetrieverTest {
         SysUserRepository users = mock(SysUserRepository.class);
         SysUserRoleRepository userRoles = mock(SysUserRoleRepository.class);
         SysRoleRepository roles = mock(SysRoleRepository.class);
-        SysTenantRepository tenants = mock(SysTenantRepository.class);
         McpToolSemanticIndex index = mock(McpToolSemanticIndex.class);
         McpToolAsset allowed = tool("allowed", true);
         McpToolAsset disabled = tool("disabled", false);
@@ -54,7 +52,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
             eq("tenant-1"), eq("USER"), eq("user-1"))).thenReturn(List.of(grant("allowed"), grant("disabled")));
         when(index.rank(any(), any(), eq(3))).thenReturn(List.of("forbidden", "allowed"));
         DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
-            tools, permissions, users, userRoles, roles, tenants, index,
+            tools, permissions, users, userRoles, roles, index,
             mock(ToolWorkflowContractCatalog.class));
 
         McpToolCandidateRetriever.Selection result = retriever.retrieve(
@@ -80,7 +78,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
         when(users.findById("user-1")).thenReturn(Optional.of(user));
         DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
             tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
-            mock(SysTenantRepository.class), index, mock(ToolWorkflowContractCatalog.class));
+            index, mock(ToolWorkflowContractCatalog.class));
 
         assertThat(retriever.retrieve(InteractionRequest.builder().tenantId("tenant-1")
             .userId("user-1").query("assets").build(), List.of("allowed"), 3).allowedNames()).isEmpty();
@@ -103,7 +101,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
             "tenant-1", "USER", "user-1")).thenReturn(List.of(unrelated));
         DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
             tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
-            mock(SysTenantRepository.class), index, mock(ToolWorkflowContractCatalog.class));
+            index, mock(ToolWorkflowContractCatalog.class));
 
         McpToolCandidateRetriever.Selection result = retriever.retrieve(InteractionRequest.builder()
             .tenantId("tenant-1").userId("user-1").query("restricted").build(),
@@ -130,7 +128,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
             "tenant-1", "USER", "user-1")).thenReturn(List.of(grant("report_generation")));
         DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
             tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
-            mock(SysTenantRepository.class), index, mock(ToolWorkflowContractCatalog.class));
+            index, mock(ToolWorkflowContractCatalog.class));
 
         McpToolCandidateRetriever.Selection result = retriever.retrieve(InteractionRequest.builder()
             .tenantId("tenant-1").userId("user-1").query("generate report").build(),
@@ -159,7 +157,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
             java.util.Set.of(), java.util.Set.of("report_generation"))).thenReturn(java.util.Set.of());
         DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
             tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
-            mock(SysTenantRepository.class), index, mock(ToolWorkflowContractCatalog.class));
+            index, mock(ToolWorkflowContractCatalog.class));
         ReflectionTestUtils.setField(retriever, "resourceAuthorization", grants);
 
         var result = retriever.retrieve(InteractionRequest.builder().tenantId("tenant-1")
@@ -195,7 +193,7 @@ class DatabaseMcpToolCandidateRetrieverTest {
             .thenReturn(Optional.of(contract));
         DatabaseMcpToolCandidateRetriever retriever = new DatabaseMcpToolCandidateRetriever(
             tools, permissions, users, mock(SysUserRoleRepository.class), mock(SysRoleRepository.class),
-            mock(SysTenantRepository.class), index, contracts);
+            index, contracts);
 
         assertThat(retriever.retrieve(InteractionRequest.builder().tenantId("tenant-1")
             .userId("user-1").query("profit report").build(),

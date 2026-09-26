@@ -10,7 +10,6 @@ import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
-import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
@@ -37,7 +36,6 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
     private final SysUserRepository users;
     private final SysUserRoleRepository userRoles;
     private final SysRoleRepository roles;
-    private final SysTenantRepository tenants;
     private final McpToolSemanticIndex semanticIndex;
     private final ToolWorkflowContractCatalog contracts;
 
@@ -74,20 +72,12 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
         assignedRoleIds.stream()
             .filter(activeRoles::containsKey)
             .forEach(roleIds::add);
-        boolean admin = ("admin".equalsIgnoreCase(user.getUsername())
-            && tenants.findById(user.getTenantId())
-                .map(tenant -> tenant.getTenantNo() != null
-                    && tenant.getTenantNo() == com.chatchat.common.constants.TenantConstants.PLATFORM_TENANT_NO)
-                .orElse(false))
-            || roleIds.stream().map(activeRoles::get).anyMatch(role ->
-                "super_admin".equalsIgnoreCase(role.getRoleCode()));
-
         List<McpToolPermission> grants = loadGrants(user, roleIds);
         List<McpToolPermission> activeGrants = grants.stream().filter(this::active).toList();
 
         List<McpToolAsset> nativeAllowed = catalog.stream()
             .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
-            .filter(tool -> admin || permitted(tool, activeGrants))
+            .filter(tool -> permitted(tool, activeGrants))
             .toList();
         Set<String> grantAllowedIds = resourceAuthorization == null ? nativeAllowed.stream()
             .map(McpToolAsset::getLocalToolName).collect(java.util.stream.Collectors.toSet())
@@ -103,7 +93,7 @@ public class DatabaseMcpToolCandidateRetriever implements McpToolCandidateRetrie
             .filter(this::active).toList();
         java.util.function.Predicate<String> stillAllowed = name -> tools.findByLocalToolName(name)
             .filter(tool -> tool.isEnabled() && "online".equalsIgnoreCase(tool.getStatus()))
-            .filter(tool -> admin || permitted(tool, finalGrants))
+            .filter(tool -> permitted(tool, finalGrants))
             .filter(tool -> resourceAuthorization == null
                 || resourceAuthorization.allowedIds(ResourceAuthorizationPort.MCP_TOOL,
                     user.getTenantId(), user.getId(), roleIds, Set.of(tool.getLocalToolName()))

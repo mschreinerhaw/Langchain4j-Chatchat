@@ -313,11 +313,11 @@ describe("AgentWorkshopView published Agent curl access", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows the API action only for the admin account", () => {
-    authSession.current = { user: { username: "admin" } };
+  it("shows the API action only with the persisted registry permission", () => {
+    authSession.current = { user: { username: "operator", permissionCodes: ["system:agent-registry:manage"] } };
     expect(AgentWorkshopView.computed.isPlatformAdmin()).toBe(true);
 
-    authSession.current = { user: { username: "analyst" } };
+    authSession.current = { user: { username: "admin", permissionCodes: [] } };
     expect(AgentWorkshopView.computed.isPlatformAdmin()).toBe(false);
   });
 

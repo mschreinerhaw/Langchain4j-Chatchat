@@ -11,7 +11,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -39,9 +38,6 @@ public record DocumentSelectionContext(
 
     public static DocumentSelectionContext fromToolData(Object data) {
         Map<?, ?> root = data instanceof Map<?, ?> map ? map : Map.of();
-        if (hasSuperAdminRole(root)) {
-            return unrestricted();
-        }
         List<Object> ids = firstList(root,
             "selectedDocumentIds",
             "selected_document_ids",
@@ -157,40 +153,6 @@ public record DocumentSelectionContext(
         }
         Object mode = firstPresent(root, "scope_mode", "scopeMode");
         return mode != null && "strict".equalsIgnoreCase(String.valueOf(mode).trim());
-    }
-
-    private static boolean hasSuperAdminRole(Map<?, ?> root) {
-        List<Object> roles = new ArrayList<>();
-        roles.addAll(firstList(root, "roles", "role"));
-        Object requestContext = firstPresent(root, "requestContext", "request_context", "context");
-        if (requestContext instanceof Map<?, ?> context) {
-            roles.addAll(firstList(context, "roles", "role"));
-        }
-        return roles.stream()
-            .map(DocumentSelectionContext::stringValue)
-            .map(DocumentSelectionContext::normalizeRole)
-            .anyMatch(DocumentSelectionContext::isSuperAdminRole);
-    }
-
-    private static boolean isSuperAdminRole(String role) {
-        return Set.of(
-            "superadmin",
-            "rolesuperadmin",
-            "superadministrator",
-            "rolesuperadministrator",
-            "超级管理员"
-        ).contains(role);
-    }
-
-    private static String normalizeRole(String role) {
-        if (role == null || role.isBlank()) {
-            return "";
-        }
-        return role.trim()
-            .toLowerCase(Locale.ROOT)
-            .replace("_", "")
-            .replace("-", "")
-            .replace(" ", "");
     }
 
     private static boolean boolValue(Object value) {

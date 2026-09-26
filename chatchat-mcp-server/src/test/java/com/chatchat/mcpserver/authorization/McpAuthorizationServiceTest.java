@@ -345,7 +345,7 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
-    void adminUserIdIsResolvedToWhitelistedUsername() throws Exception {
+    void adminUsernameDoesNotBypassDatabaseToolPermissions() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
 
         McpAuthorizationService.AuthorizationDecision decision = service.authorize(
@@ -353,11 +353,12 @@ class McpAuthorizationServiceTest {
             Map.of("userId", "user-admin-id", "tenantId", "tenant-1")
         );
 
-        assertThat(decision.allowed()).isTrue();
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.reason()).contains("no MCP asset authorization");
     }
 
     @Test
-    void legacyAdminUsernameStoredAsUserIdStillUsesWhitelist() throws Exception {
+    void legacyAdminUsernameStoredAsUserIdDoesNotBypassDatabaseToolPermissions() throws Exception {
         McpAuthorizationService service = service(snapshot("[]"));
 
         McpAuthorizationService.AuthorizationDecision decision = service.authorize(
@@ -365,7 +366,8 @@ class McpAuthorizationServiceTest {
             Map.of("userId", "admin", "tenantId", "tenant-1")
         );
 
-        assertThat(decision.allowed()).isTrue();
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.reason()).contains("no MCP asset authorization");
     }
 
     @Test
@@ -491,6 +493,27 @@ class McpAuthorizationServiceTest {
     }
 
     @Test
+    void persistedSuperAdminRoleCodeDoesNotBypassDatabaseToolPermissions() throws Exception {
+        Object snapshot = snapshotFrom(objectMapper.readTree("""
+            {
+              "users":[{"id":"admin-1","tenantId":"tenant-1","username":"admin","roleIds":["role-super"]}],
+              "roles":[{"id":"role-super","tenantId":"tenant-1","roleCode":"SUPER_ADMIN","roleName":"Super Admin","status":"enabled"}],
+              "tenants":[],
+              "tools":[],
+              "permissions":[]
+            }
+            """));
+        McpAuthorizationService service = service(snapshot);
+
+        McpAuthorizationService.AuthorizationDecision decision = service.authorize(
+            "web_search", Map.of("userId", "admin-1", "tenantId", "tenant-1"));
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.reason()).contains("no MCP asset authorization");
+        assertThat(service.roleAllows("role-super", "tenant-1", "web_search", null)).isFalse();
+    }
+
+    @Test
     void rolePermissionTenantMustMatchSynchronizedRoleTenant() throws Exception {
         McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
         McpSynchronizedRole role = synchronizedRole("role-business-a", "chatchat-api");
@@ -540,7 +563,16 @@ class McpAuthorizationServiceTest {
 
     @Test
     void nestedMcpIdentityIsResolvedForAuthorization() throws Exception {
-        McpAuthorizationService service = service(snapshot("[]"));
+        McpAuthorizationService service = service(snapshot("""
+            [{
+              "tenantId":"tenant-1",
+              "targetType":"user",
+              "targetId":"user-admin-id",
+              "localToolName":"web_search",
+              "effect":"allow",
+              "enabled":true
+            }]
+            """));
 
         McpAuthorizationService.AuthorizationDecision decision = service.authorize(
             "web_search",
@@ -614,7 +646,15 @@ class McpAuthorizationServiceTest {
             byte[] body = """
                 {"data":{
                   "users":[{"id":"user-admin-id","tenantId":"tenant-1","tenantNo":100000,"username":"admin","roleIds":[]}],
-                  "roles":[],"tenants":[],"tools":[],"permissions":[]
+                  "roles":[],"tenants":[],"tools":[],
+                  "permissions":[{
+                    "tenantId":"tenant-1",
+                    "targetType":"user",
+                    "targetId":"user-admin-id",
+                    "localToolName":"database_asset_search",
+                    "effect":"allow",
+                    "enabled":true
+                  }]
                 }}
                 """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");

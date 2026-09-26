@@ -672,9 +672,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         }
         SearchPermissionContext context = permissionContext == null
             ? SearchPermissionContext.system() : permissionContext;
-        if (!context.isSuperAdmin()) {
-            filters.add(permissionFilter(context));
-        }
+        filters.add(permissionFilter(context));
         if (allowedDocumentIds != null && !allowedDocumentIds.isEmpty()) {
             filters.add(Map.of("terms", Map.of(FILE_ID, allowedDocumentIds.stream()
                 .filter(id -> id != null && !id.isBlank()).distinct().toList())));

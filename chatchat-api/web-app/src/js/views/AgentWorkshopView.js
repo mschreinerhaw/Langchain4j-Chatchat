@@ -331,7 +331,8 @@ export default {
   computed: {
     isPlatformAdmin() {
       const session = getStoredAuthSession();
-      return String(session?.user?.username || "").toLowerCase() === "admin";
+      return Array.isArray(session?.user?.permissionCodes)
+        && session.user.permissionCodes.includes("system:agent-registry:manage");
     },
     remoteDocumentOptions() {
       const query = this.remoteDocSearch.trim().toLowerCase();

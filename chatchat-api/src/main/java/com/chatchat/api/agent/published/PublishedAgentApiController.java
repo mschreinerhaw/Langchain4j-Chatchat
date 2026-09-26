@@ -440,8 +440,7 @@ public class PublishedAgentApiController {
     }
 
     private boolean isPlatformAdmin(RequestIdentity identity, HttpServletRequest request) {
-        String username = requestAttribute(request, ApiAuthenticationFilter.CURRENT_USERNAME);
-        return "admin".equalsIgnoreCase(username) && enterpriseAdminService.hasAllAgentAccess(identity.userId());
+        return enterpriseAdminService.hasAllAgentAccess(identity.userId());
     }
 
     private boolean terminal(AgentTaskResponse task) {

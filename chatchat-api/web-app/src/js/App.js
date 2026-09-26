@@ -78,34 +78,6 @@ const DATA_SCIENCE_TABS = {
   dataScienceData: "data",
   dataScienceScripts: "scripts"
 };
-const VIEW_PERMISSIONS = {
-  chat: "workspace:chat",
-  search: "workspace:search",
-  domainAnalysis: "workspace:search",
-  market: "capability:market",
-  favorites: "capability:market",
-  library: "capability:library",
-  mcp: "mcp",
-  dataScience: "capability:data-science",
-  dataScienceEnvironment: "capability:data-science",
-  dataScienceDevelop: "capability:data-science",
-  dataScienceData: "capability:data-science",
-  dataScienceScripts: "capability:data-science",
-  dataScienceSkills: "capability:data-science",
-  agents: "platform:agents",
-  schedules: "platform:schedules",
-  runtime: "platform:tasks",
-  rules: "platform:rules",
-  tasks: "platform:tasks",
-  system: "system",
-  systemUsers: "system",
-  systemOrganizations: "system",
-  systemRoles: "system",
-  systemLogins: "system",
-  systemResources: "system",
-  models: "platform:models"
-};
-
 const views = {
   chat: ChatAssistantView,
   search: AiSearchView,
@@ -219,12 +191,10 @@ export default {
         ...group,
         items: Array.isArray(group.items)
           ? group.items
-              .filter((item) => item.id !== "debugger" && (!item.permissionCode || this.hasPermission(item.permissionCode)))
+              .filter((item) => item.id !== "debugger")
               .map((item) => ({
                 ...item,
-                children: Array.isArray(item.children)
-                  ? item.children.filter((child) => !child.permissionCode || this.hasPermission(child.permissionCode))
-                  : undefined
+                children: Array.isArray(item.children) ? item.children : undefined
               }))
           : []
       })).filter((group) => group.items.length > 0);
@@ -337,20 +307,30 @@ export default {
     },
     hasPermission(permissionCode) {
       const user = this.authSession?.user || {};
-      if (String(user.username || "").toLowerCase() === "admin") {
-        return true;
-      }
       if (!Array.isArray(user.permissionCodes)) {
-        return true;
+        return false;
       }
-      return user.permissionCodes.some((code) => code === permissionCode || code.startsWith(`${permissionCode}:`));
+      return user.permissionCodes.includes(permissionCode);
     },
     canAccessView(view) {
-      const permissionCode = VIEW_PERMISSIONS[view];
-      return Boolean(permissionCode && this.hasPermission(permissionCode));
+      const contains = (items) => (Array.isArray(items) ? items : []).some((item) =>
+        item?.id === view || contains(item?.children));
+      return this.navItems.some((group) => contains(group?.items));
     },
     firstAccessibleView() {
-      return Object.keys(VIEW_PERMISSIONS).find((view) => views[view] && this.canAccessView(view)) || "";
+      const firstView = (items) => {
+        for (const item of Array.isArray(items) ? items : []) {
+          if (item?.id && views[item.id]) return item.id;
+          const child = firstView(item?.children);
+          if (child) return child;
+        }
+        return "";
+      };
+      for (const group of this.navItems) {
+        const view = firstView(group?.items);
+        if (view) return view;
+      }
+      return "";
     },
     async refreshAuthSession() {
       if (!isAuthenticatedSession(this.authSession)) return;

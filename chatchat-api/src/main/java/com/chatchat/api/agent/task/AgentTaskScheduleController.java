@@ -451,7 +451,7 @@ public class AgentTaskScheduleController {
     }
 
     private boolean isAdmin(HttpServletRequest request) {
-        return "admin".equalsIgnoreCase(currentUsername(request));
+        return enterpriseAdminService.hasPermission(currentUserId(request), "platform:schedules:all");
     }
 
     private String visibleUserId(HttpServletRequest request) {

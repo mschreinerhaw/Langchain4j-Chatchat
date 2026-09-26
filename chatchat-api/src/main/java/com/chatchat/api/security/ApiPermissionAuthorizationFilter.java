@@ -63,7 +63,11 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
             .sorted(Comparator.comparing(ResourcePermission::pattern, pathMatcher.getPatternComparator(path)))
             .toList();
         if (matches.isEmpty()) {
-            filterChain.doFilter(request, response);
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            objectMapper.writeValue(response.getWriter(),
+                ApiResponse.error(403, "API resource has no enabled database permission policy"));
             return;
         }
         ResourcePermission required = matches.get(0);

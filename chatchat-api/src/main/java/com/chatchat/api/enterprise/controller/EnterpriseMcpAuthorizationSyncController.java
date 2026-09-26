@@ -69,7 +69,6 @@ public class EnterpriseMcpAuthorizationSyncController {
                     || !internalCredentialProperties.resolvedUsername().equalsIgnoreCase(user.username()))
                 .toList(),
             roleRepository.findAll().stream()
-                .filter(role -> !isAdminRole(role))
                 .map(this::toRoleView)
                 .toList(),
             tenantRepository.findAllByOrderByTenantNameAsc().stream()
@@ -89,12 +88,6 @@ public class EnterpriseMcpAuthorizationSyncController {
             role.getRoleType(),
             role.getStatus()
         );
-    }
-
-    private boolean isAdminRole(SysRole role) {
-        return role != null
-            && ("admin".equalsIgnoreCase(role.getRoleCode())
-            || "admin".equalsIgnoreCase(role.getRoleName()));
     }
 
     public record McpAuthorizationSnapshot(

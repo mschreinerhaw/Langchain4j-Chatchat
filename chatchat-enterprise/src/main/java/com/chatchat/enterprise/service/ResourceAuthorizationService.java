@@ -67,7 +67,6 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
             for (SysRole role : assigned.isEmpty() ? List.<SysRole>of()
                 : roles.findByTenantIdAndIdIn(tenantId, assigned)) {
                 if (assigned.contains(role.getId()) && "enabled".equalsIgnoreCase(role.getStatus())) {
-                    if ("super_admin".equalsIgnoreCase(role.getRoleCode())) return Set.copyOf(candidateIds);
                     activeRoleIds.add(role.getId());
                 }
             }

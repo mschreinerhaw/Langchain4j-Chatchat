@@ -1375,7 +1375,7 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
-    void superAdminBypassesDocumentVisibilityFilteringInObservation() {
+    void superAdminRoleNameDoesNotBypassDocumentVisibilityFilteringInObservation() {
         ToolOutput output = ToolOutput.success(Map.of(
             "contractVersion", "document_evidence_v1",
             "selectedDocumentIds", List.of("doc-allowed"),
@@ -1400,9 +1400,9 @@ class ToolObservationBuilderEvidenceTest {
         String observation = builder.buildSuccessObservation("document_search", output, "");
 
         assertThat(observation)
-            .doesNotContain("Document visibility constraint (contractVersion=document_visibility_v1)")
+            .contains("Document visibility constraint (contractVersion=document_visibility_v1)")
             .contains("visible selected document evidence")
-            .contains("super admin can inspect unselected document evidence");
+            .doesNotContain("super admin can inspect unselected document evidence");
     }
 
     @Test

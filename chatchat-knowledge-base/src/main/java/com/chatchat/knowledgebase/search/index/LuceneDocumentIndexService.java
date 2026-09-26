@@ -512,9 +512,6 @@ public class LuceneDocumentIndexService implements DocumentSearchIndex {
         if (properties.isTenantIsolationEnabled()) {
             query.add(new TermQuery(new Term(TENANT_ID, tenantId)), BooleanClause.Occur.MUST);
         }
-        if (context.isSuperAdmin()) {
-            return;
-        }
         query.add(access.build(), BooleanClause.Occur.MUST);
     }
 

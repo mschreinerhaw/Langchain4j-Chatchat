@@ -62,7 +62,7 @@ public class AdminAuthController {
         return ApiResponse.success(Map.of(
             "authenticated", username != null,
             "username", username == null ? "" : username,
-            "admin", "admin".equalsIgnoreCase(username)
+            "admin", username != null
         ));
     }
 

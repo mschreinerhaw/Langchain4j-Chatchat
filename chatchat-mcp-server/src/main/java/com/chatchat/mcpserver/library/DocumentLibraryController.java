@@ -808,8 +808,9 @@ public class DocumentLibraryController {
         if (request == null) {
             return false;
         }
-        Object username = request.getAttribute(DocumentPrincipalContext.CURRENT_USERNAME);
-        return username != null && "admin".equalsIgnoreCase(String.valueOf(username));
+        Object permissions = request.getAttribute(DocumentPrincipalContext.CURRENT_PERMISSIONS);
+        return parseCsv(permissions == null ? null : String.valueOf(permissions))
+            .contains("workspace:search:delete");
     }
 
     /**

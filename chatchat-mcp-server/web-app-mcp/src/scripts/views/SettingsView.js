@@ -77,7 +77,6 @@ export default {
     },
     selectedRoleTitle() {
       if (!this.selectedRole) return '从上方角色列表点击“管理授权”后查看。';
-      if (this.isSuperAdmin(this.selectedRole)) return 'SUPER_ADMIN 默认拥有全部资产访问权限。';
       const roleName = this.selectedRole.roleName || this.selectedRole.roleCode || this.selectedRole.id;
       return `${roleName} 已授权 ${this.permissions.length} 条权限。`;
     },
@@ -352,7 +351,6 @@ export default {
     async selectRole(role) {
       if (!role?.id) return;
       this.resetRolePermissionView(role);
-      if (this.isSuperAdmin(role)) return;
       await this.loadRolePermissions();
     },
     roleRowClassName({ row }) {
@@ -360,10 +358,6 @@ export default {
     },
     async openAuthorizationDialog(role) {
       this.resetRolePermissionView(role);
-      if (this.isSuperAdmin(role)) {
-        this.$emit('notify', { title: 'SUPER_ADMIN 默认拥有全部访问权限' });
-        return;
-      }
       this.authorizationDialogVisible = true;
       this.authorizationLoading = true;
       this.assetTypeFilter = 'all';
@@ -472,7 +466,7 @@ export default {
       return `mcp:${assetType}:${capability}:${action}@${attrs.join(';')}`;
     },
     async loadRolePermissions() {
-      if (!this.selectedRole || this.isSuperAdmin(this.selectedRole)) return;
+      if (!this.selectedRole) return;
       const role = this.selectedRole;
       await this.run(async () => {
         const permissions = await authorizationApi.rolePermissions(role.id, role.tenantId) || [];
@@ -521,9 +515,6 @@ export default {
     clearSelectedPermissions() {
       this.selectedPermissionIds = [];
     },
-    isSuperAdmin(role) {
-      return String(role?.roleCode || '').toUpperCase() === 'SUPER_ADMIN';
-    },
     isAssetSelected(asset) {
       return this.selectedAssetKeys.includes(this.assetAuthorizationKey(asset));
     },
@@ -565,7 +556,7 @@ export default {
       return `${permission?.localToolName || permission?.toolId || ''}::${permission?.scopeExpression || ''}`;
     },
     async saveAssetAuthorizations() {
-      if (!this.selectedRole || this.isSuperAdmin(this.selectedRole)) return;
+      if (!this.selectedRole) return;
       this.authorizationSaving = true;
       try {
         const selected = new Set(this.selectedAssetKeys);

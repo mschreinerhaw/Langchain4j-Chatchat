@@ -36,7 +36,7 @@ class OpenSearchDocumentIndexServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void superAdminKeepsTenantFilterButBypassesDocumentVisibilityFilter() {
+    void superAdminRoleNameDoesNotBypassDocumentVisibilityFilter() {
         SearchProperties properties = new SearchProperties();
         properties.setTenantIsolationEnabled(true);
         OpenSearchDocumentIndexService service = service(properties);
@@ -47,7 +47,8 @@ class OpenSearchDocumentIndexServiceTest {
 
         Map<String, Object> bool = (Map<String, Object>) query.get("bool");
         assertThat((List<Object>) bool.get("filter"))
-            .containsExactly(Map.of("term", Map.of("tenantId", "tenant-1")));
+            .hasSize(2)
+            .contains(Map.of("term", Map.of("tenantId", "tenant-1")));
     }
 
     @Test

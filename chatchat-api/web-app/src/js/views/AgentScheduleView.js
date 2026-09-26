@@ -6,6 +6,7 @@ import {
   fetchAgentScheduleNotificationHistory,
   fetchAgentSchedules,
   fetchAgentWorkshop,
+  getStoredAuthSession,
   pauseAgentSchedule,
   rerunAgentSchedule,
   resumeAgentSchedule,
@@ -211,7 +212,9 @@ export default {
       return this.tenantId || this.userId || "default-user";
     },
     isAdmin() {
-      return String(this.userId || "").toLowerCase() === "admin";
+      const session = getStoredAuthSession();
+      return Array.isArray(session?.user?.permissionCodes)
+        && session.user.permissionCodes.includes("platform:schedules:all");
     },
     currentPageState() {
       return this.activeTab === "audit" ? this.auditPage : this.taskPage;

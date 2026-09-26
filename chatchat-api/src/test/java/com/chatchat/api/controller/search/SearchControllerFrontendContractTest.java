@@ -5,6 +5,7 @@ import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.search.CategoryReindexTaskService;
 import com.chatchat.api.search.DocumentRemoteImporter;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.knowledgebase.search.feedback.SearchFeedbackService;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.model.SearchPage;
@@ -16,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -250,8 +252,11 @@ class SearchControllerFrontendContractTest {
         );
         when(searchService.deleteDocument(eq("doc-1"), any(SearchPermissionContext.class))).thenReturn(true);
         when(searchService.deleteDocument(eq("doc-2"), any(SearchPermissionContext.class))).thenReturn(false);
+        EnterpriseAdminService adminService = mock(EnterpriseAdminService.class);
+        when(adminService.hasPermission("user-admin-id", "workspace:search:delete")).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "enterpriseAdminService", adminService);
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME)).thenReturn("admin");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("user-admin-id");
 
         ApiResponse<SearchController.DocumentBatchDeleteResult> response = controller.deleteDocuments(
             new SearchController.DocumentBatchDeleteRequest(List.of("doc-1", "", "doc-1", "doc-2", " ")),
@@ -267,7 +272,7 @@ class SearchControllerFrontendContractTest {
     }
 
     @Test
-    void deleteDocumentsRequiresAdminOperator() {
+    void deleteDocumentsRequiresDatabasePermission() {
         SearchController controller = new SearchController(
             mock(SearchService.class),
             mock(SearchFeedbackService.class),
@@ -276,8 +281,10 @@ class SearchControllerFrontendContractTest {
             mock(CategoryReindexTaskService.class),
             new ApiLimitProperties()
         );
+        EnterpriseAdminService adminService = mock(EnterpriseAdminService.class);
+        ReflectionTestUtils.setField(controller, "enterpriseAdminService", adminService);
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME)).thenReturn("analyst");
+        when(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)).thenReturn("analyst-id");
 
         ApiResponse<SearchController.DocumentBatchDeleteResult> response = controller.deleteDocuments(
             new SearchController.DocumentBatchDeleteRequest(List.of("doc-1")),
@@ -288,7 +295,7 @@ class SearchControllerFrontendContractTest {
         );
 
         assertThat(response.getCode()).isEqualTo(403);
-        assertThat(response.getMessage()).isEqualTo("only admin can delete documents");
+        assertThat(response.getMessage()).isEqualTo("document delete permission is required");
         assertThat(response.getData()).isNull();
     }
 

@@ -116,17 +116,19 @@ public final class DocumentGrpcTransferService extends DocumentTransferServiceGr
         }
         if (!"MIGRATE".equals(start.getOperation())) throw new IllegalArgumentException("unknown transfer operation");
         SearchDocument document = mapper.readValue(start.getDocumentJson().toByteArray(), SearchDocument.class);
+        boolean admin = "admin".equalsIgnoreCase(start.getUsername());
         boolean owner = caller.tenantId().equals(document.getTenantId())
             && caller.userId().equals(document.getUserId());
-        if (!owner && !"admin".equalsIgnoreCase(start.getUsername()))
+        if (!owner && !admin)
             throw new IllegalArgumentException("only document owner or admin can transfer documents");
         if (document.getDocId() == null || !document.getDocId().matches("[A-Za-z0-9._:-]{1,128}"))
             throw new IllegalArgumentException("invalid document ID");
         if (document.getContent() == null || document.getContent().isBlank())
             throw new IllegalArgumentException("document content is required");
         search.get(document.getDocId()).ifPresent(existing -> {
-            if (!Objects.equals(existing.getTenantId(), document.getTenantId())
-                || !Objects.equals(existing.getUserId(), document.getUserId()))
+            boolean ownerMismatch = !Objects.equals(existing.getTenantId(), document.getTenantId())
+                || !Objects.equals(existing.getUserId(), document.getUserId());
+            if (ownerMismatch && !admin)
                 throw new IllegalArgumentException("document ID belongs to another owner");
         });
         Path savedFile = null;

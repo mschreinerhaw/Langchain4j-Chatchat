@@ -103,6 +103,31 @@ class DocumentGrpcTransferServiceTest {
         assertThat(error.get()).hasMessageContaining("document ID belongs to another owner");
     }
 
+    @Test
+    void allowsAdminToMigrateDocumentWhenExistingOwnerIsLegacy() throws Exception {
+        SearchService search = mock(SearchService.class);
+        when(search.get("legacy-1")).thenReturn(Optional.of(SearchDocument.builder()
+            .docId("legacy-1").tenantId("default").userId("admin").build()));
+        when(search.createOrUpdate(any(SearchDocument.class))).thenAnswer(call -> call.getArgument(0));
+        SearchProperties properties = new SearchProperties();
+        properties.setFilePath(storage.toString());
+        DocumentGrpcTransferService service = new DocumentGrpcTransferService(search, properties, new ObjectMapper());
+        AtomicReference<DocumentTransferReply> result = new AtomicReference<>();
+        StreamObserver<DocumentTransferChunk> sender = service.transfer(observer(result));
+        sender.onNext(DocumentTransferChunk.newBuilder().setStart(DocumentTransferStart.newBuilder()
+            .setOperation("MIGRATE").setTenantId("tenant-1").setUserId("admin-uuid").setUsername("admin")
+            .setDocumentJson(ByteString.copyFromUtf8(
+                "{\"docId\":\"legacy-1\",\"title\":\"Guide\",\"content\":\"searchable\","
+                    + "\"tenantId\":\"tenant-1\",\"userId\":\"admin-uuid\"}"))
+            .build()).build());
+        sender.onCompleted();
+
+        SearchDocument saved = new ObjectMapper().readValue(result.get().getDocumentJson().toByteArray(),
+            SearchDocument.class);
+        assertThat(saved.getTenantId()).isEqualTo("tenant-1");
+        assertThat(saved.getUserId()).isEqualTo("admin-uuid");
+    }
+
     private StreamObserver<DocumentTransferReply> observer(AtomicReference<DocumentTransferReply> result) {
         return new StreamObserver<>() {
             @Override public void onNext(DocumentTransferReply value) { result.set(value); }

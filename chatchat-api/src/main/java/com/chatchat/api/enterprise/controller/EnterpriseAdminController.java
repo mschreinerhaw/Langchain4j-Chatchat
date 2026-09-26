@@ -23,6 +23,7 @@ import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.audit.SysAuditLog;
 import com.chatchat.enterprise.entity.identity.SysOrg;
+import com.chatchat.enterprise.entity.identity.SysMenu;
 import com.chatchat.enterprise.entity.identity.SysPermission;
 import com.chatchat.enterprise.entity.identity.SysRole;
 import com.chatchat.enterprise.entity.identity.SysTenant;
@@ -181,42 +182,8 @@ public class EnterpriseAdminController {
      */
     @GetMapping("/menus")
     @Operation(summary = "Enterprise portal menu")
-    public ApiResponse<List<MenuGroup>> menus(HttpServletRequest servletRequest) {
-        List<String> permissionCodes = adminService.getUserView(currentUserId(servletRequest)).permissionCodes();
-        List<MenuGroup> catalog = List.of(
-            new MenuGroup("workspace", "工作台", List.of(
-                new MenuItem("chat", "智能对话", "/index.html#chat"),
-                new MenuItem("search", "文档检索", "/index.html#search")
-            )),
-            new MenuGroup("capability", "能力管理", List.of(
-                new MenuItem("market", "能力市场", "/index.html#market"),
-                new MenuItem("library", "文档库", "/index.html#library"),
-                new MenuItem("data-science", "数据科学", "/index.html#dataScience")
-            )),
-            new MenuGroup("platform", "平台管理", List.of(
-                new MenuItem("mcp", "MCP服务", "/index.html#mcp"),
-                new MenuItem("agents", "Agent管理", "/index.html#agents"),
-                new MenuItem("schedules", "Agent调度", "/index.html#schedules"),
-                new MenuItem("rules", "关键词规则", "/index.html#rules"),
-                new MenuItem("tasks", "运行监控", "/index.html#tasks"),
-                new MenuItem("models", "模型管理", "/index.html#models"),
-                new MenuItem("system", "系统管理", "/index.html#system")
-            ))
-        );
-        return ApiResponse.success(catalog.stream()
-            .map(group -> new MenuGroup(group.id(), group.title(), group.children().stream()
-                .filter(item -> hasMenuPermission(permissionCodes, group.id(), item.id()))
-                .toList()))
-            .filter(group -> !group.children().isEmpty())
-            .toList());
-    }
-
-    private boolean hasMenuPermission(List<String> permissionCodes, String groupId, String itemId) {
-        String permissionCode = "platform".equals(groupId) && "mcp".equals(itemId)
-            ? "mcp"
-            : groupId + ":" + itemId;
-        return permissionCodes != null && permissionCodes.stream()
-            .anyMatch(code -> permissionCode.equals(code) || code.startsWith(permissionCode + ":"));
+    public ApiResponse<List<EnterpriseAdminService.MenuNode>> menus(HttpServletRequest servletRequest) {
+        return ApiResponse.success(adminService.listAuthorizedMenus(currentUserId(servletRequest)));
     }
 
     /**
@@ -399,6 +366,44 @@ public class EnterpriseAdminController {
     @GetMapping("/permissions")
     public ApiResponse<List<SysPermission>> listPermissions() {
         return ApiResponse.success(adminService.listPermissions());
+    }
+
+    @GetMapping("/menu-configurations")
+    @Operation(summary = "List persisted menu definitions and permission mappings")
+    public ApiResponse<List<EnterpriseAdminService.MenuConfigurationView>> listMenuConfigurations() {
+        return ApiResponse.success(adminService.listMenuConfigurations());
+    }
+
+    @PostMapping("/menu-configurations")
+    @Operation(summary = "Create a menu definition and its permission mappings")
+    public ApiResponse<EnterpriseAdminService.MenuConfigurationView> createMenu(
+        @RequestBody MenuUpsertRequest request
+    ) {
+        return ApiResponse.success(adminService.saveMenu(
+            request == null ? null : request.menu(),
+            request == null ? null : request.permissionIds()
+        ), "menu saved");
+    }
+
+    @PutMapping("/menu-configurations/{id}")
+    @Operation(summary = "Update a menu definition and its permission mappings")
+    public ApiResponse<EnterpriseAdminService.MenuConfigurationView> updateMenu(
+        @PathVariable("id") String id,
+        @RequestBody MenuUpsertRequest request
+    ) {
+        if (request == null || request.menu() == null) {
+            throw new IllegalArgumentException("menu must not be null");
+        }
+        SysMenu menu = request.menu();
+        menu.setId(id);
+        return ApiResponse.success(adminService.saveMenu(menu, request.permissionIds()), "menu saved");
+    }
+
+    @DeleteMapping("/menu-configurations/{id}")
+    @Operation(summary = "Delete a leaf menu and its permission mappings")
+    public ApiResponse<Void> deleteMenu(@PathVariable("id") String id) {
+        adminService.delete("menu", id);
+        return ApiResponse.success(null, "menu deleted");
     }
 
     /**
@@ -742,10 +747,7 @@ public class EnterpriseAdminController {
     public record ToolPermissionBatchDeleteResult(int deleted) {
     }
 
-    public record MenuGroup(String id, String title, List<MenuItem> children) {
-    }
-
-    public record MenuItem(String id, String title, String path) {
+    public record MenuUpsertRequest(SysMenu menu, List<String> permissionIds) {
     }
 
     public record AgentOption(

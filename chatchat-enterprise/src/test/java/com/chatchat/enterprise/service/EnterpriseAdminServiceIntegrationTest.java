@@ -5,6 +5,7 @@ import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.enterprise.entity.datasource.DataSourceConfig;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.identity.SysOrg;
+import com.chatchat.enterprise.entity.identity.SysMenu;
 import com.chatchat.enterprise.entity.identity.SysRole;
 import com.chatchat.enterprise.entity.identity.SysTenant;
 import com.chatchat.enterprise.entity.identity.SysUser;
@@ -78,6 +79,33 @@ class EnterpriseAdminServiceIntegrationTest {
 
         assertThat(service.authorizationRoleKeys(login.user().id()))
             .contains("SUPER_ADMIN", "超级管理员");
+    }
+
+    @Test
+    void persistsMenuPermissionRelationsAndDoesNotOverwriteConfigurationOnRestart() {
+        EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
+        EnterpriseAdminService.MenuConfigurationView chatConfig = service.listMenuConfigurations().stream()
+            .filter(item -> "chat".equals(item.menu().getMenuCode()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(chatConfig.permissionIds()).hasSize(1);
+        assertThat(service.listAuthorizedMenus(login.user().id()))
+            .flatExtracting(EnterpriseAdminService.MenuNode::children)
+            .anySatisfy(menu -> assertThat(menu.id()).isEqualTo("chat"));
+
+        SysMenu chat = chatConfig.menu();
+        chat.setMenuName("数据库配置的对话入口");
+        chat.setRoutePath("/index.html#chat-configured");
+        service.saveMenu(chat, chatConfig.permissionIds());
+        service.run(null);
+
+        EnterpriseAdminService.MenuConfigurationView reloaded = service.listMenuConfigurations().stream()
+            .filter(item -> "chat".equals(item.menu().getMenuCode()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(reloaded.menu().getMenuName()).isEqualTo("数据库配置的对话入口");
+        assertThat(reloaded.menu().getRoutePath()).isEqualTo("/index.html#chat-configured");
+        assertThat(reloaded.permissionIds()).containsExactlyElementsOf(chatConfig.permissionIds());
     }
 
     @Test

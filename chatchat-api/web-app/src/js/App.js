@@ -15,6 +15,7 @@ import {
   fetchConversationHistory,
   fetchConversationHistoryPage,
   fetchCurrentEnterpriseUser,
+  fetchEnterpriseMenus,
   fetchTrendSemanticConfig,
   fetchWorkbenchShortcuts,
   getStoredAuthSession,
@@ -209,61 +210,7 @@ export default {
       idleLogoutTimer: null,
       stopAgentTaskCancelledListener: null,
       lastActivityAt: Date.now(),
-      navItems: [
-        {
-          id: "workspace",
-          label: "工作台",
-          items: [
-            { id: "chat", label: "智能对话", icon: "chat", permissionCode: "workspace:chat" },
-            { id: "search", label: "文档检索", icon: "search", permissionCode: "workspace:search" },
-            { id: "domainAnalysis", label: "联合分析", icon: "agent", permissionCode: "workspace:search" }
-          ]
-        },
-        {
-          id: "capability",
-          label: "能力管理",
-          items: [
-            { id: "market", label: "能力市场", icon: "grid", permissionCode: "capability:market" },
-            { id: "library", label: "文档库", icon: "book", permissionCode: "capability:library" },
-            {
-              id: "dataScience",
-              label: "数据科学",
-              icon: "code",
-              permissionCode: "capability:data-science",
-              children: [
-                { id: "dataScienceEnvironment", label: "Python 环境", icon: "runtime", permissionCode: "capability:data-science" },
-                { id: "dataScienceDevelop", label: "Python 开发", icon: "code", permissionCode: "capability:data-science" },
-                { id: "dataScienceData", label: "我的数据", icon: "file", permissionCode: "capability:data-science" },
-                { id: "dataScienceScripts", label: "我的脚本", icon: "book", permissionCode: "capability:data-science" },
-                { id: "dataScienceSkills", label: "领域技能", icon: "book", permissionCode: "capability:data-science" }
-              ]
-            }
-          ]
-        },
-        {
-          id: "platform",
-          label: "平台管理",
-          items: [
-            { id: "mcp", label: "MCP能力", icon: "mcp", permissionCode: "mcp" },
-            { id: "agents", label: "Agent管理", icon: "agent", permissionCode: "platform:agents" },
-            { id: "schedules", label: "Agent调度", icon: "schedule", permissionCode: "platform:schedules" },
-            { id: "rules", label: "关键词规则", icon: "search", permissionCode: "platform:rules" },
-            { id: "debugger", label: "证据调试", icon: "tasks" },
-            { id: "tasks", label: "运行监控", icon: "tasks", permissionCode: "platform:tasks" },
-            { id: "models", label: "模型管理", icon: "gear", permissionCode: "platform:models" },
-            {
-              id: "system", label: "系统管理", icon: "gear", permissionCode: "system",
-              children: [
-                { id: "systemUsers", label: "用户管理", icon: "users", permissionCode: "system" },
-                { id: "systemOrganizations", label: "组织管理", icon: "organization", permissionCode: "system" },
-                { id: "systemRoles", label: "角色管理", icon: "shield", permissionCode: "system" },
-                { id: "systemLogins", label: "登录审计", icon: "schedule", permissionCode: "system" },
-                { id: "systemResources", label: "资源授权", icon: "key", permissionCode: "system" }
-              ]
-            }
-          ]
-        }
-      ]
+      navItems: []
     };
   },
   computed: {
@@ -272,11 +219,11 @@ export default {
         ...group,
         items: Array.isArray(group.items)
           ? group.items
-              .filter((item) => item.id !== "debugger" && this.hasPermission(item.permissionCode))
+              .filter((item) => item.id !== "debugger" && (!item.permissionCode || this.hasPermission(item.permissionCode)))
               .map((item) => ({
                 ...item,
                 children: Array.isArray(item.children)
-                  ? item.children.filter((child) => this.hasPermission(child.permissionCode))
+                  ? item.children.filter((child) => !child.permissionCode || this.hasPermission(child.permissionCode))
                   : undefined
               }))
           : []
@@ -326,6 +273,7 @@ export default {
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
     if (isAuthenticatedSession(this.authSession)) {
       this.loadTrendSemanticConfig();
+      this.loadEnterpriseMenus();
       this.refreshAuthSession();
       this.ensureAuthenticatedRoute();
       this.loadConversationHistory({ suppressError: true });
@@ -352,6 +300,34 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
+    async loadEnterpriseMenus() {
+      if (!isAuthenticatedSession(this.authSession)) return;
+      try {
+        const groups = await fetchEnterpriseMenus();
+        const toNavItem = (node) => {
+          if (!node?.id || !views[node.id]) return null;
+          const children = (Array.isArray(node.children) ? node.children : [])
+            .map(toNavItem)
+            .filter(Boolean);
+          return {
+            id: node.id,
+            label: node.title || node.id,
+            icon: node.icon || "grid",
+            ...(children.length ? { children } : {})
+          };
+        };
+        const configured = (Array.isArray(groups) ? groups : [])
+          .map((group) => ({
+            id: group.id,
+            label: group.title || group.id,
+            items: (Array.isArray(group.children) ? group.children : []).map(toNavItem).filter(Boolean)
+          }))
+          .filter((group) => group.items.length > 0);
+        if (Array.isArray(groups)) this.navItems = configured;
+      } catch (_) {
+        this.navItems = [];
+      }
+    },
     loadTrendSemanticConfig() {
       fetchTrendSemanticConfig()
         .then((config) => configureTrendSemantics(config))
@@ -386,6 +362,7 @@ export default {
         this.tenantId = resolveSessionTenantId(session, this.userId);
         this.tenantName = user.tenantName || user.tenant_name || "";
         storeAuthSession(session);
+        await this.loadEnterpriseMenus();
         if (!this.canAccessView(this.activeView)) {
           const fallback = this.firstAccessibleView();
           if (fallback) this.navigateToView(fallback);
@@ -405,6 +382,7 @@ export default {
       this.tenantId = resolveSessionTenantId(session, this.userId);
       this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
+      this.loadEnterpriseMenus();
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();

@@ -14,6 +14,8 @@ import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.security.RoleAgentBinding;
 import com.chatchat.enterprise.entity.audit.SysAuditLog;
 import com.chatchat.enterprise.entity.identity.SysOrg;
+import com.chatchat.enterprise.entity.identity.SysMenu;
+import com.chatchat.enterprise.entity.identity.SysMenuPermission;
 import com.chatchat.enterprise.entity.identity.SysPermission;
 import com.chatchat.enterprise.entity.identity.SysRole;
 import com.chatchat.enterprise.entity.identity.SysRoleOrgScope;
@@ -30,6 +32,8 @@ import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.security.RoleAgentBindingRepository;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.identity.SysOrgRepository;
+import com.chatchat.enterprise.repository.identity.SysMenuRepository;
+import com.chatchat.enterprise.repository.identity.SysMenuPermissionRepository;
 import com.chatchat.enterprise.repository.identity.SysPermissionRepository;
 import com.chatchat.enterprise.repository.identity.SysRoleOrgScopeRepository;
 import com.chatchat.enterprise.repository.identity.SysRolePermissionRepository;
@@ -76,6 +80,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final SysRoleRepository roleRepository;
     private final SysUserRepository userRepository;
     private final SysUserRoleRepository userRoleRepository;
+    private final SysMenuRepository menuRepository;
+    private final SysMenuPermissionRepository menuPermissionRepository;
     private final SysPermissionRepository permissionRepository;
     private final SysRolePermissionRepository rolePermissionRepository;
     private final SysRoleOrgScopeRepository roleOrgScopeRepository;
@@ -119,6 +125,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
         data.put("roleCount", roleRepository.count());
         data.put("permissionCount", permissionRepository.count());
         data.put("rolePermissionCount", rolePermissionRepository.count());
+        data.put("menuCount", menuRepository.count());
+        data.put("menuPermissionCount", menuPermissionRepository.count());
         data.put("mcpToolCount", toolAssetRepository.count());
         data.put("toolPermissionCount", toolPermissionRepository.count());
         data.put("dataSourceCount", dataSourceRepository.count());
@@ -493,6 +501,165 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     /**
+     * Returns the enabled menu tree authorized by the user's persisted role permissions.
+     * Directory ancestors are included automatically and never grant access by themselves.
+     */
+    @Transactional(readOnly = true)
+    public List<MenuNode> listAuthorizedMenus(String userId) {
+        SysUser user = userRepository.findById(requireText(userId, "userId"))
+            .orElseThrow(() -> new IllegalArgumentException("user not found"));
+        List<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
+            .map(SysUserRole::getRoleId)
+            .toList();
+        Set<String> permissionIds = effectivePermissionIds(user, roleIds);
+        Set<String> menuPermissionIds = permissionIdsWithAncestors(permissionIds);
+        Set<String> directlyAuthorizedMenuIds = menuPermissionIds.isEmpty()
+            ? Set.of()
+            : menuPermissionRepository.findByPermissionIdIn(menuPermissionIds).stream()
+                .map(SysMenuPermission::getMenuId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<SysMenu> enabledMenus = menuRepository.findAllByOrderBySortOrderAscMenuNameAsc().stream()
+            .filter(menu -> "enabled".equalsIgnoreCase(menu.getStatus()))
+            .toList();
+        Map<String, SysMenu> menusById = enabledMenus.stream()
+            .collect(Collectors.toMap(SysMenu::getId, menu -> menu));
+        LinkedHashSet<String> visibleMenuIds = new LinkedHashSet<>(directlyAuthorizedMenuIds);
+        for (String menuId : directlyAuthorizedMenuIds) {
+            SysMenu current = menusById.get(menuId);
+            Set<String> visited = new LinkedHashSet<>();
+            while (current != null && current.getParentId() != null && visited.add(current.getId())) {
+                visibleMenuIds.add(current.getParentId());
+                current = menusById.get(current.getParentId());
+            }
+        }
+        Map<String, List<SysMenu>> childrenByParent = enabledMenus.stream()
+            .filter(menu -> visibleMenuIds.contains(menu.getId()))
+            .collect(Collectors.groupingBy(
+                menu -> menu.getParentId() == null ? "" : menu.getParentId(),
+                LinkedHashMap::new,
+                Collectors.toList()
+            ));
+        return childrenByParent.getOrDefault("", List.of()).stream()
+            .map(menu -> toMenuNode(menu, childrenByParent))
+            .toList();
+    }
+
+    private Set<String> permissionIdsWithAncestors(Set<String> permissionIds) {
+        if (permissionIds.isEmpty()) return Set.of();
+        Map<String, SysPermission> permissionsById = permissionRepository.findAll().stream()
+            .collect(Collectors.toMap(SysPermission::getId, permission -> permission));
+        LinkedHashSet<String> expanded = new LinkedHashSet<>(permissionIds);
+        for (String permissionId : permissionIds) {
+            SysPermission current = permissionsById.get(permissionId);
+            Set<String> visited = new LinkedHashSet<>();
+            while (current != null && current.getParentId() != null && visited.add(current.getId())) {
+                expanded.add(current.getParentId());
+                current = permissionsById.get(current.getParentId());
+            }
+        }
+        return expanded;
+    }
+
+    @Transactional(readOnly = true)
+    public List<MenuConfigurationView> listMenuConfigurations() {
+        Map<String, List<String>> permissionIdsByMenu = menuPermissionRepository.findAll().stream()
+            .collect(Collectors.groupingBy(
+                SysMenuPermission::getMenuId,
+                Collectors.mapping(SysMenuPermission::getPermissionId, Collectors.toList())
+            ));
+        return menuRepository.findAllByOrderBySortOrderAscMenuNameAsc().stream()
+            .map(menu -> new MenuConfigurationView(
+                menu,
+                permissionIdsByMenu.getOrDefault(menu.getId(), List.of())
+            ))
+            .toList();
+    }
+
+    @Transactional
+    public MenuConfigurationView saveMenu(SysMenu input, List<String> permissionIds) {
+        if (input == null) {
+            throw new IllegalArgumentException("menu must not be null");
+        }
+        SysMenu menu = input.getId() == null ? new SysMenu()
+            : menuRepository.findById(input.getId()).orElseThrow(() -> new IllegalArgumentException("menu not found"));
+        String parentId = trimToNull(input.getParentId());
+        if (parentId != null) {
+            SysMenu parent = menuRepository.findById(parentId)
+                .orElseThrow(() -> new IllegalArgumentException("parent menu not found"));
+            if (Objects.equals(parent.getId(), menu.getId()) || isMenuDescendant(parent, menu.getId())) {
+                throw new IllegalArgumentException("menu hierarchy contains a cycle");
+            }
+        }
+        menu.setParentId(parentId);
+        menu.setMenuCode(requireText(input.getMenuCode(), "menuCode"));
+        menu.setMenuName(requireText(input.getMenuName(), "menuName"));
+        menu.setMenuType(defaultText(input.getMenuType(), "menu").toLowerCase());
+        menu.setRoutePath(trimToNull(input.getRoutePath()));
+        menu.setIcon(trimToNull(input.getIcon()));
+        menu.setSortOrder(input.getSortOrder() == null ? 0 : input.getSortOrder());
+        menu.setStatus(defaultText(input.getStatus(), "enabled"));
+        SysMenu saved = menuRepository.save(menu);
+        if (permissionIds != null) {
+            Set<String> normalizedPermissionIds = normalizePermissionIds(permissionIds);
+            menuPermissionRepository.deleteByMenuId(saved.getId());
+            menuPermissionRepository.flush();
+            normalizedPermissionIds.forEach(permissionId -> {
+                SysMenuPermission relation = new SysMenuPermission();
+                relation.setMenuId(saved.getId());
+                relation.setPermissionId(permissionId);
+                menuPermissionRepository.save(relation);
+            });
+        }
+        audit(null, null, "system", "menu", input.getId() == null ? "create" : "update",
+            "sys_menu", saved.getId(), saved.getMenuCode());
+        List<String> savedPermissionIds = menuPermissionRepository.findByMenuId(saved.getId()).stream()
+            .map(SysMenuPermission::getPermissionId)
+            .toList();
+        return new MenuConfigurationView(saved, savedPermissionIds);
+    }
+
+    private MenuNode toMenuNode(SysMenu menu, Map<String, List<SysMenu>> childrenByParent) {
+        return new MenuNode(
+            menu.getMenuCode(),
+            menu.getMenuName(),
+            menu.getRoutePath(),
+            menu.getIcon(),
+            menu.getMenuType(),
+            childrenByParent.getOrDefault(menu.getId(), List.of()).stream()
+                .map(child -> toMenuNode(child, childrenByParent))
+                .toList()
+        );
+    }
+
+    private boolean isMenuDescendant(SysMenu candidateParent, String menuId) {
+        if (menuId == null) return false;
+        SysMenu current = candidateParent;
+        Set<String> visited = new LinkedHashSet<>();
+        while (current != null && visited.add(current.getId())) {
+            if (menuId.equals(current.getId())) return true;
+            current = current.getParentId() == null ? null : menuRepository.findById(current.getParentId()).orElse(null);
+        }
+        return false;
+    }
+
+    private Set<String> normalizePermissionIds(List<String> permissionIds) {
+        LinkedHashSet<String> normalized = permissionIds.stream()
+            .map(this::trimToNull)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> existing = permissionRepository.findAllById(normalized).stream()
+            .map(SysPermission::getId)
+            .collect(Collectors.toSet());
+        if (!existing.equals(normalized)) {
+            LinkedHashSet<String> missing = new LinkedHashSet<>(normalized);
+            missing.removeAll(existing);
+            throw new IllegalArgumentException("permission not found: " + String.join(",", missing));
+        }
+        return normalized;
+    }
+
+    /**
      * Returns the role authorization.
      *
      * @param roleId the role id value
@@ -539,13 +706,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         );
 
         rolePermissionRepository.deleteByRoleId(role.getId());
+        rolePermissionRepository.flush();
         List<String> permissionIds = request == null || request.permissionIds() == null
             ? List.of()
             : request.permissionIds();
-        permissionIds.stream()
-            .filter(id -> id != null && !id.isBlank())
-            .map(String::trim)
-            .distinct()
+        Set<String> normalizedPermissionIds = normalizePermissionIds(permissionIds);
+        normalizedPermissionIds.stream()
             .forEach(permissionId -> {
                 SysRolePermission rolePermission = new SysRolePermission();
                 rolePermission.setTenantId(tenantId);
@@ -600,7 +766,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             });
 
         audit(tenantId, null, "system", "role", "authorize",
-            "sys_role", role.getId(), "permissions=" + permissionIds.size()
+            "sys_role", role.getId(), "permissions=" + normalizedPermissionIds.size()
                 + ", scopes=" + orgScopes.size()
                 + ", agents=" + agentIds.size());
         return getRoleAuthorization(role.getId());
@@ -926,8 +1092,16 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 roleRepository.deleteById(id);
             }
             case "permission" -> {
+                menuPermissionRepository.deleteByPermissionId(id);
                 rolePermissionRepository.deleteByPermissionId(id);
                 permissionRepository.deleteById(id);
+            }
+            case "menu" -> {
+                if (!menuRepository.findByParentId(id).isEmpty()) {
+                    throw new IllegalArgumentException("menu with children cannot be deleted");
+                }
+                menuPermissionRepository.deleteByMenuId(id);
+                menuRepository.deleteById(id);
             }
             case "user" -> {
                 SysUser user = userRepository.findById(id)
@@ -1121,12 +1295,22 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private List<String> permissionCodes(SysUser user, List<String> roleIds) {
+        Set<String> permissionIds = effectivePermissionIds(user, roleIds);
+        return permissionRepository.findAllById(permissionIds).stream()
+            .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
+            .sorted(java.util.Comparator.comparing(SysPermission::getSortOrder)
+                .thenComparing(SysPermission::getPermissionName))
+            .map(SysPermission::getPermissionCode)
+            .distinct()
+            .toList();
+    }
+
+    private Set<String> effectivePermissionIds(SysUser user, List<String> roleIds) {
         if (isAdminUser(user)) {
             return permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc().stream()
                 .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
-                .map(SysPermission::getPermissionCode)
-                .distinct()
-                .toList();
+                .map(SysPermission::getId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         }
         Set<String> enabledRoleIds = roleRepository.findAllById(roleIds).stream()
             .filter(role -> user.getTenantId().equals(role.getTenantId()))
@@ -1139,11 +1323,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .collect(java.util.stream.Collectors.toSet());
         return permissionRepository.findAllById(permissionIds).stream()
             .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
-            .sorted(java.util.Comparator.comparing(SysPermission::getSortOrder)
-                .thenComparing(SysPermission::getPermissionName))
-            .map(SysPermission::getPermissionCode)
-            .distinct()
-            .toList();
+            .map(SysPermission::getId)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /**
@@ -1376,6 +1557,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         ensureRole(tenant.getId(), "USER", "普通用户", "business");
         ensureRole(tenant.getId(), "GUEST", "访客", "guest");
         List<SysPermission> permissions = ensureDefaultPermissions();
+        ensureDefaultMenus();
         ensureRolePermissions(tenant.getId(), superAdmin.getId(), permissions);
         ensureAllOrgScope(tenant.getId(), superAdmin.getId());
 
@@ -1690,13 +1872,17 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("system", "system:role", "角色管理", "menu", "/api/v1/enterprise/roles", "*", "shield", 44),
             new PermissionSeed("system:role", "system:role:authorize", "角色授权", "button", "/api/v1/enterprise/roles/*/authorization", "*", "shield-check", 45),
             new PermissionSeed("system", "system:permission", "权限管理", "menu", "/api/v1/enterprise/permissions", "*", "list-tree", 46),
+            new PermissionSeed("system:permission", "system:menu:manage", "功能菜单管理", "button", "/api/v1/enterprise/menu-configurations/**", "*", "menu", 46),
             new PermissionSeed("system", "system:external-sync", "外部组织用户同步", "button", "/api/v1/enterprise/sync/**", "*", "refresh-cw", 47),
             new PermissionSeed(null, "audit", "审计中心", "menu", "/api/v1/enterprise/audit-logs", "GET", "file-search", 50)
         );
         Map<String, String> idsByCode = permissionRepository.findAll().stream()
             .collect(Collectors.toMap(SysPermission::getPermissionCode, SysPermission::getId, (left, right) -> left));
         for (PermissionSeed seed : seeds) {
-            SysPermission permission = permissionRepository.findByPermissionCode(seed.code()).orElseGet(SysPermission::new);
+            if (permissionRepository.findByPermissionCode(seed.code()).isPresent()) {
+                continue;
+            }
+            SysPermission permission = new SysPermission();
             permission.setParentId(seed.parentCode() == null ? null : idsByCode.get(seed.parentCode()));
             permission.setPermissionCode(seed.code());
             permission.setPermissionName(seed.name());
@@ -1710,6 +1896,91 @@ public class EnterpriseAdminService implements ApplicationRunner {
             idsByCode.put(saved.getPermissionCode(), saved.getId());
         }
         return permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc();
+    }
+
+    /**
+     * Bootstraps the initial navigation catalog once. Existing rows and mappings are deliberately
+     * left untouched so database configuration remains authoritative after first startup.
+     */
+    private void ensureDefaultMenus() {
+        List<MenuSeed> seeds = List.of(
+            new MenuSeed(null, "workspace", "工作台", "directory", null, null, 10),
+            new MenuSeed("workspace", "chat", "智能对话", "menu", "/index.html#chat", "workspace:chat", 11),
+            new MenuSeed("workspace", "search", "文档检索", "menu", "/index.html#search", "workspace:search", 12),
+            new MenuSeed("workspace", "domainAnalysis", "联合分析", "menu", "/index.html#domainAnalysis", "workspace:search", 13),
+            new MenuSeed(null, "capability", "能力管理", "directory", null, null, 20),
+            new MenuSeed("capability", "market", "能力市场", "menu", "/index.html#market", "capability:market", 21),
+            new MenuSeed("capability", "favorites", "我的收藏", "menu", "/index.html#favorites", "capability:market", 22),
+            new MenuSeed("capability", "library", "文档库", "menu", "/index.html#library", "capability:library", 23),
+            new MenuSeed("capability", "dataScience", "数据科学", "menu", "/index.html#dataScience", "capability:data-science", 24),
+            new MenuSeed("dataScience", "dataScienceEnvironment", "Python 环境", "menu", "/index.html#dataScienceEnvironment", "capability:data-science", 25),
+            new MenuSeed("dataScience", "dataScienceDevelop", "Python 开发", "menu", "/index.html#dataScienceDevelop", "capability:data-science", 26),
+            new MenuSeed("dataScience", "dataScienceData", "我的数据", "menu", "/index.html#dataScienceData", "capability:data-science", 27),
+            new MenuSeed("dataScience", "dataScienceScripts", "我的脚本", "menu", "/index.html#dataScienceScripts", "capability:data-science", 28),
+            new MenuSeed("dataScience", "dataScienceSkills", "领域技能", "menu", "/index.html#dataScienceSkills", "capability:data-science", 29),
+            new MenuSeed(null, "platform", "平台管理", "directory", null, null, 30),
+            new MenuSeed("platform", "mcp", "MCP能力", "menu", "/index.html#mcp", "mcp", 31),
+            new MenuSeed("platform", "agents", "Agent管理", "menu", "/index.html#agents", "platform:agents", 32),
+            new MenuSeed("platform", "schedules", "Agent调度", "menu", "/index.html#schedules", "platform:schedules", 33),
+            new MenuSeed("platform", "rules", "关键词规则", "menu", "/index.html#rules", "platform:rules", 34),
+            new MenuSeed("platform", "tasks", "运行监控", "menu", "/index.html#tasks", "platform:tasks", 35),
+            new MenuSeed("platform", "models", "模型管理", "menu", "/index.html#models", "platform:models", 36),
+            new MenuSeed("platform", "system", "系统管理", "menu", "/index.html#system", "system", 40),
+            new MenuSeed("system", "systemUsers", "用户管理", "menu", "/index.html#systemUsers", "system", 41),
+            new MenuSeed("system", "systemOrganizations", "组织管理", "menu", "/index.html#systemOrganizations", "system", 42),
+            new MenuSeed("system", "systemRoles", "角色管理", "menu", "/index.html#systemRoles", "system", 43),
+            new MenuSeed("system", "systemLogins", "登录审计", "menu", "/index.html#systemLogins", "system", 44),
+            new MenuSeed("system", "systemResources", "资源授权", "menu", "/index.html#systemResources", "system", 45)
+        );
+        Map<String, String> idsByCode = menuRepository.findAll().stream()
+            .collect(Collectors.toMap(SysMenu::getMenuCode, SysMenu::getId, (left, right) -> left));
+        for (MenuSeed seed : seeds) {
+            if (menuRepository.findByMenuCode(seed.code()).isPresent()) {
+                continue;
+            }
+            SysMenu menu = new SysMenu();
+            menu.setParentId(seed.parentCode() == null ? null : idsByCode.get(seed.parentCode()));
+            menu.setMenuCode(seed.code());
+            menu.setMenuName(seed.name());
+            menu.setMenuType(seed.type());
+            menu.setRoutePath(seed.path());
+            menu.setIcon(defaultMenuIcon(seed.code()));
+            menu.setSortOrder(seed.sortOrder());
+            menu.setStatus("enabled");
+            SysMenu saved = menuRepository.save(menu);
+            idsByCode.put(saved.getMenuCode(), saved.getId());
+            if (seed.permissionCode() != null) {
+                permissionRepository.findByPermissionCode(seed.permissionCode()).ifPresent(permission -> {
+                    SysMenuPermission relation = new SysMenuPermission();
+                    relation.setMenuId(saved.getId());
+                    relation.setPermissionId(permission.getId());
+                    menuPermissionRepository.save(relation);
+                });
+            }
+        }
+    }
+
+    private String defaultMenuIcon(String menuCode) {
+        return switch (menuCode) {
+            case "chat" -> "chat";
+            case "search", "rules" -> "search";
+            case "domainAnalysis", "agents" -> "agent";
+            case "market" -> "grid";
+            case "favorites" -> "star";
+            case "library", "dataScienceScripts", "dataScienceSkills" -> "book";
+            case "dataScience", "dataScienceDevelop" -> "code";
+            case "dataScienceEnvironment" -> "runtime";
+            case "dataScienceData" -> "file";
+            case "mcp" -> "mcp";
+            case "schedules", "systemLogins" -> "schedule";
+            case "tasks" -> "tasks";
+            case "system", "models" -> "gear";
+            case "systemUsers" -> "users";
+            case "systemOrganizations" -> "organization";
+            case "systemRoles" -> "shield";
+            case "systemResources" -> "key";
+            default -> null;
+        };
     }
 
     /**
@@ -1959,6 +2230,30 @@ public class EnterpriseAdminService implements ApplicationRunner {
         String icon,
         int sortOrder
     ) {
+    }
+
+    private record MenuSeed(
+        String parentCode,
+        String code,
+        String name,
+        String type,
+        String path,
+        String permissionCode,
+        int sortOrder
+    ) {
+    }
+
+    public record MenuNode(
+        String id,
+        String title,
+        String path,
+        String icon,
+        String type,
+        List<MenuNode> children
+    ) {
+    }
+
+    public record MenuConfigurationView(SysMenu menu, List<String> permissionIds) {
     }
 
     public record UserView(

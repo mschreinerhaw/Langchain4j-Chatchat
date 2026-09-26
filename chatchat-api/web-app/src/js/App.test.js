@@ -110,21 +110,9 @@ describe("document Ask AI conversation isolation", () => {
     expect(emit).toHaveBeenCalledWith("delete-conversations", selected);
   });
 
-  it("exposes data science sections as sidebar child routes", () => {
+  it("does not package a hard-coded menu catalog", () => {
     const state = App.data();
-    const capability = state.navItems.find((group) => group.id === "capability");
-    const dataScience = capability.items.find((item) => item.id === "dataScience");
-
-    expect(dataScience.permissionCode).toBe("capability:data-science");
-    expect(dataScience.children.every((item) => item.permissionCode === "capability:data-science")).toBe(true);
-
-    expect(dataScience.children.map((item) => item.id)).toEqual([
-      "dataScienceEnvironment",
-      "dataScienceDevelop",
-      "dataScienceData",
-      "dataScienceScripts",
-      "dataScienceSkills"
-    ]);
+    expect(state.navItems).toEqual([]);
 
     const props = App.computed.activeComponentProps.call({
       activeView: "dataScienceData",
@@ -134,25 +122,7 @@ describe("document Ask AI conversation isolation", () => {
     expect(props.initialTab).toBe("data");
   });
 
-  it("exposes system management sections as permission-protected child routes", () => {
-    const state = App.data();
-    const platform = state.navItems.find((group) => group.id === "platform");
-    const system = platform.items.find((item) => item.id === "system");
-
-    expect(system.permissionCode).toBe("system");
-    expect(system.children.map((item) => item.id)).toEqual([
-      "systemUsers",
-      "systemOrganizations",
-      "systemRoles",
-      "systemLogins",
-      "systemResources"
-    ]);
-    expect(system.children.every((item) => item.permissionCode === "system")).toBe(true);
-
-    for (const child of system.children) {
-      expect(App.methods.canAccessView.call({ hasPermission: (permission) => permission === "system" }, child.id)).toBe(true);
-    }
-
+  it("routes the database-backed system menu to its default child view", () => {
     const context = {
       activeView: "",
       canAccessView: () => true,

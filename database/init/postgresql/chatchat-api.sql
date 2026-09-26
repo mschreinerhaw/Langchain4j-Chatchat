@@ -1237,6 +1237,31 @@
         primary key (id)
     );
 
+    create table sys_menu (
+        sort_order integer not null,
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        menu_type varchar(32) not null,
+        status varchar(32) not null,
+        id varchar(64) not null,
+        parent_id varchar(64),
+        icon varchar(128),
+        menu_code varchar(128) not null unique,
+        menu_name varchar(128) not null,
+        route_path varchar(512),
+        primary key (id)
+    );
+
+    create table sys_menu_permission (
+        created_at timestamp(6) with time zone not null,
+        updated_at timestamp(6) with time zone not null,
+        id varchar(64) not null,
+        menu_id varchar(64) not null,
+        permission_id varchar(64) not null,
+        primary key (id),
+        constraint uk_sys_menu_permission unique (menu_id, permission_id)
+    );
+
     create table sys_org (
         sort_order integer not null,
         created_at timestamp(6) with time zone not null,
@@ -1757,6 +1782,15 @@
 
     create index idx_skill_resource_scope
        on skill_resource_scope (tenant_id, skill_id, resource_type);
+
+    create index idx_sys_menu_parent_order
+       on sys_menu (parent_id, sort_order);
+
+    create index idx_sys_menu_status
+       on sys_menu (status);
+
+    create index idx_sys_menu_permission_permission
+       on sys_menu_permission (permission_id);
 
     create index idx_task_confirm_task_created
        on task_confirm (task_id, created_at);

@@ -1530,6 +1530,10 @@ export function fetchCurrentEnterpriseUser() {
   return apiRequest("/enterprise/auth/me");
 }
 
+export function fetchEnterpriseMenus() {
+  return apiRequest("/enterprise/menus");
+}
+
 export function updateSearchDocument(docId, document, filters = {}) {
   return apiRequest(`/search/documents/${encodeURIComponent(docId)}${searchPermissionQuery(filters)}`, {
     method: "PUT",

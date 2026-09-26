@@ -51,7 +51,15 @@
           <span>全部技能</span><strong>{{ skillCount }}</strong>
         </button>
         <div v-if="categoryMenuId || skillMenuId" class="domain-skill-category-action-backdrop" @click="categoryMenuId = ''; skillMenuId = ''"></div>
-        <div v-for="category in categoryOptions" :key="category.name" class="domain-skill-category-entry" :class="{ active: filters.category === category.name }">
+        <div
+          v-for="category in categoryOptions"
+          :key="category.name"
+          class="domain-skill-category-entry"
+          :class="{
+            active: filters.category === category.name,
+            'menu-open': categoryMenuId === (category.id || category.name)
+          }"
+        >
           <button type="button" class="domain-skill-category-row" @click="selectCategory(category.name)">
             <span>{{ category.name }}</span><strong>{{ category.count }}</strong>
           </button>
@@ -76,7 +84,12 @@
         </div>
         <div v-if="loading" class="domain-skills-empty" role="status">正在加载领域技能…</div>
         <template v-else>
-          <article v-for="skill in skills" :key="skill.id" class="domain-skill-item">
+          <article
+            v-for="skill in skills"
+            :key="skill.id"
+            class="domain-skill-item"
+            :class="{ 'menu-open': skillMenuId === skill.id }"
+          >
             <div class="domain-skill-item-body">
               <div class="domain-skill-item-title">
                 <strong>{{ skill.name }}</strong>

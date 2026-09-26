@@ -157,6 +157,12 @@
   overflow: visible;
 }
 
+.library-view .category-row.menu-open,
+.library-view .library-document.menu-open {
+  position: relative;
+  z-index: 12;
+}
+
 .library-view .category-row.active {
   border-color: var(--primary);
   color: var(--primary);
@@ -185,7 +191,6 @@
 
 .library-view .category-row-actions {
   position: relative;
-  z-index: 12;
   display: flex;
   align-items: center;
   padding-right: 6px;
@@ -397,7 +402,6 @@
 
 .library-view .document-more-actions {
   position: relative;
-  z-index: 12;
   width: 100%;
 }
 

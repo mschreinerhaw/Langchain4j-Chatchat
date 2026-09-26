@@ -232,6 +232,12 @@
   overflow: visible;
 }
 
+.domain-skills-page .domain-skill-category-entry.menu-open,
+.domain-skills-page .domain-skill-item.menu-open {
+  position: relative;
+  z-index: 12;
+}
+
 .domain-skills-page .domain-skill-category-entry .domain-skill-category-row {
   flex: 1;
   min-width: 0;
@@ -248,7 +254,6 @@
 
 .domain-skills-page .domain-skill-category-row-actions {
   position: relative;
-  z-index: 12;
   display: flex;
   align-items: center;
   padding-right: 6px;
@@ -423,7 +428,6 @@
 
 .domain-skills-page .domain-skill-item-actions {
   position: relative;
-  z-index: 12;
 }
 
 .domain-skills-page .domain-skills-pagination button {

@@ -50,7 +50,10 @@
           v-for="category in categories"
           :key="category.name"
           class="category-row"
-          :class="{ active: activeCategory === category.name }"
+          :class="{
+            active: activeCategory === category.name,
+            'menu-open': openCategoryActionName === category.name
+          }"
         >
           <button type="button" class="category-select-button" @click="selectCategory(category.name)">
             <span>{{ categoryLabel(category.name) }}</span>
@@ -122,7 +125,11 @@
           v-for="item in pagedDocuments"
           :key="item.docId"
           class="library-document"
-          :class="{ selected: selectedDocumentIdSet.has(item.docId), 'no-delete': !canDeleteDocuments }"
+          :class="{
+            selected: selectedDocumentIdSet.has(item.docId),
+            'no-delete': !canDeleteDocuments,
+            'menu-open': openDocumentActionId === item.docId
+          }"
         >
           <label v-if="canDeleteDocuments" class="library-document-select" @click.stop>
             <input

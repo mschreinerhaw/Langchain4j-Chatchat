@@ -1,6 +1,9 @@
 package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
+import com.chatchat.mcpserver.external.ExternalMcpService;
+import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.sun.net.httpserver.HttpServer;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -51,6 +54,35 @@ class McpAuthorizationServiceTest {
         } finally {
             server.stop(0);
         }
+    }
+
+    @Test
+    void exposesOnlyApprovedReadOnlyExternalToolsInAuthorizationCatalog() throws Exception {
+        McpAuthorizationService service = service(snapshotWithStaleExternalTool());
+        ExternalMcpRegistryService registry = mock(ExternalMcpRegistryService.class);
+        ExternalMcpService approved = externalService("partner-risk", "Partner Risk", true);
+        ExternalMcpService disabled = externalService("partner-disabled", "Disabled Partner", false);
+        when(registry.list()).thenReturn(List.of(approved, disabled));
+        when(registry.parentAssetType(approved)).thenReturn("api_service");
+        when(registry.templates(approved)).thenReturn(List.of(
+            new ExternalMcpRegistryService.ToolTemplate(
+                "risk_lookup", "Risk lookup", "Read partner risk data", Map.of(), true),
+            new ExternalMcpRegistryService.ToolTemplate(
+                "risk_update", "Risk update", "Writes partner risk data", Map.of(), false)
+        ));
+        service.setExternalMcpRegistryService(registry);
+
+        assertThat(service.currentView().tools())
+            .singleElement()
+            .satisfies(tool -> {
+                assertThat(tool.localToolName()).isEqualTo(
+                    ExternalMcpToolPublisher.publishedName("partner-risk", "risk_lookup"));
+                assertThat(tool.serviceId()).isEqualTo("external:partner-risk");
+                assertThat(tool.serviceName()).isEqualTo("Partner Risk");
+                assertThat(tool.remoteToolName()).isEqualTo("Risk lookup");
+                assertThat(tool.resourceType()).isEqualTo("api_service");
+                assertThat(tool.enabled()).isTrue();
+            });
     }
 
     @Test
@@ -626,6 +658,15 @@ class McpAuthorizationServiceTest {
         return role;
     }
 
+    private ExternalMcpService externalService(String id, String name, boolean enabled) {
+        ExternalMcpService service = new ExternalMcpService();
+        service.setId(id);
+        service.setName(name);
+        service.setEnabled(enabled);
+        service.setParentToolName("api_template_query");
+        return service;
+    }
+
     private McpSynchronizedRoleRepository transportRoleRepository() {
         McpSynchronizedRoleRepository repository = mock(McpSynchronizedRoleRepository.class);
         McpSynchronizedRole role = synchronizedRole("role-1", "chatchat-api");
@@ -666,6 +707,28 @@ class McpAuthorizationServiceTest {
               "permissions":%s
             }
             """.formatted(permissions));
+        return snapshotFrom(data);
+    }
+
+    private Object snapshotWithStaleExternalTool() throws Exception {
+        JsonNode data = objectMapper.readTree("""
+            {
+              "users":[],
+              "roles":[],
+              "tenants":[],
+              "tools":[{
+                "id":"stale-external",
+                "localToolName":"external_deleted_old_tool",
+                "serviceId":"mcp-server",
+                "serviceName":"Deleted external service",
+                "remoteToolName":"old_tool",
+                "resourceType":"tool",
+                "enabled":true,
+                "status":"online"
+              }],
+              "permissions":[]
+            }
+            """);
         return snapshotFrom(data);
     }
 

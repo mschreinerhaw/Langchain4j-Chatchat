@@ -1,6 +1,9 @@
 package com.chatchat.mcpserver.authorization;
 
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.mcpserver.external.ExternalMcpRegistryService;
+import com.chatchat.mcpserver.external.ExternalMcpService;
+import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.templatepublication.policy.TemplateQueryToolNamePolicy;
 import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
@@ -8,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -54,6 +58,12 @@ public class McpAuthorizationService {
     private final Object snapshotRefreshMonitor = new Object();
     private volatile long lastUnavailableRefreshAttemptMs = Long.MIN_VALUE;
     private volatile String bearerToken;
+    private ExternalMcpRegistryService externalMcpRegistryService;
+
+    @Autowired(required = false)
+    public void setExternalMcpRegistryService(ExternalMcpRegistryService externalMcpRegistryService) {
+        this.externalMcpRegistryService = externalMcpRegistryService;
+    }
 
     @EventListener(ApplicationReadyEvent.class)
     public void initialize() {
@@ -228,19 +238,7 @@ public class McpAuthorizationService {
                 .map(user -> new UserView(user.id(), user.tenantId(), user.tenantNo(), user.username(), user.roleIds()))
                 .toList(),
             localRoleViews(),
-            snapshot.tools().stream()
-                .map(tool -> new ToolView(
-                    tool.id(),
-                    tool.localToolName(),
-                    tool.serviceId(),
-                    tool.serviceName(),
-                    tool.remoteToolName(),
-                    tool.resourceType(),
-                    tool.description(),
-                    tool.enabled(),
-                    tool.status()
-                ))
-                .toList(),
+            authorizationToolViews(snapshot),
             snapshot.permissions().stream()
                 .map(permission -> new PermissionView(
                     permission.tenantId(),
@@ -254,6 +252,61 @@ public class McpAuthorizationService {
                 ))
                 .toList()
         );
+    }
+
+    /**
+     * Combines the centrally synchronized tool assets with the external MCP
+     * tools published by this node. External tools are local dynamic assets,
+     * so they must be exposed here immediately after approval instead of
+     * waiting for a separate chatchat-api registry synchronization cycle.
+     */
+    private List<ToolView> authorizationToolViews(Snapshot snapshot) {
+        Map<String, ToolView> tools = new LinkedHashMap<>();
+        snapshot.tools().stream()
+            .filter(tool -> externalMcpRegistryService == null
+                || !tool.localToolName().startsWith("external_"))
+            .map(tool -> new ToolView(
+                tool.id(),
+                tool.localToolName(),
+                tool.serviceId(),
+                tool.serviceName(),
+                tool.remoteToolName(),
+                tool.resourceType(),
+                tool.description(),
+                tool.enabled(),
+                tool.status()
+            ))
+            .forEach(tool -> tools.put(tool.localToolName(), tool));
+        if (externalMcpRegistryService == null) {
+            return List.copyOf(tools.values());
+        }
+        try {
+            for (ExternalMcpService service : externalMcpRegistryService.list()) {
+                if (!service.isEnabled()) continue;
+                String assetType = externalMcpRegistryService.parentAssetType(service);
+                for (ExternalMcpRegistryService.ToolTemplate template
+                    : externalMcpRegistryService.templates(service)) {
+                    if (!template.readOnly()) continue;
+                    String publishedName = ExternalMcpToolPublisher.publishedName(
+                        service.getId(), template.name());
+                    tools.put(publishedName, new ToolView(
+                        publishedName,
+                        publishedName,
+                        "external:" + service.getId(),
+                        service.getName(),
+                        template.title(),
+                        assetType,
+                        template.description(),
+                        true,
+                        "online"
+                    ));
+                }
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Failed to synchronize external MCP tools into authorization catalog: {}", ex.getMessage());
+            log.debug("External MCP authorization catalog synchronization stack trace", ex);
+        }
+        return List.copyOf(tools.values());
     }
 
     public AuthorizationSyncView refreshNow() {

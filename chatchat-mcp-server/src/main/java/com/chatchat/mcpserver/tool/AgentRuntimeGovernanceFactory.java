@@ -194,7 +194,7 @@ public class AgentRuntimeGovernanceFactory {
      * @return the operation result
      */
     private Map<String, Object> normalizeGovernance(Map<String, Object> governance) {
-        Map<String, Object> normalized = new LinkedHashMap<>(governance == null ? Map.of() : governance);
+        Map<String, Object> normalized = mutableMap(governance);
         alias(normalized, "risk_level", "riskLevel");
         alias(normalized, "operation_type", "operationType");
         alias(normalized, "runtime_level", "runtimeLevel");
@@ -233,7 +233,7 @@ public class AgentRuntimeGovernanceFactory {
 
     public Map<String, Object> toMeta(String source, String sourceId, Map<String, Object> governance,
                                       String governanceJson) {
-        Map<String, Object> merged = new LinkedHashMap<>(governance == null ? Map.of() : governance);
+        Map<String, Object> merged = mutableMap(governance);
         mergeGovernanceJson(merged, governanceJson);
         return toMeta(source, sourceId, merged);
     }
@@ -252,9 +252,11 @@ public class AgentRuntimeGovernanceFactory {
         for (Map.Entry<String, Object> entry : custom.entrySet()) {
             Object existing = target.get(entry.getKey());
             if (existing instanceof Map<?, ?> existingMap && entry.getValue() instanceof Map<?, ?> customMap) {
-                deepMerge((Map<String, Object>) existingMap, (Map<String, Object>) customMap);
+                Map<String, Object> mutableExisting = mutableMap((Map<String, Object>) existingMap);
+                target.put(entry.getKey(), mutableExisting);
+                deepMerge(mutableExisting, (Map<String, Object>) customMap);
             } else {
-                target.put(entry.getKey(), entry.getValue());
+                target.put(entry.getKey(), mutableValue(entry.getValue()));
             }
         }
     }
@@ -270,11 +272,36 @@ public class AgentRuntimeGovernanceFactory {
     private Map<String, Object> childMap(Map<String, Object> root, String key) {
         Object value = root.get(key);
         if (value instanceof Map<?, ?> map) {
-            return (Map<String, Object>) map;
+            Map<String, Object> child = mutableMap((Map<String, Object>) map);
+            root.put(key, child);
+            return child;
         }
         Map<String, Object> child = new LinkedHashMap<>();
         root.put(key, child);
         return child;
+    }
+
+    private Map<String, Object> mutableMap(Map<String, Object> source) {
+        Map<String, Object> mutable = new LinkedHashMap<>();
+        if (source == null || source.isEmpty()) {
+            return mutable;
+        }
+        source.forEach((key, value) -> mutable.put(key, mutableValue(value)));
+        return mutable;
+    }
+
+    private Object mutableValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> mutable = new LinkedHashMap<>();
+            map.forEach((key, child) -> mutable.put(String.valueOf(key), mutableValue(child)));
+            return mutable;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            List<Object> mutable = new ArrayList<>();
+            iterable.forEach(child -> mutable.add(mutableValue(child)));
+            return mutable;
+        }
+        return value;
     }
 
     /**

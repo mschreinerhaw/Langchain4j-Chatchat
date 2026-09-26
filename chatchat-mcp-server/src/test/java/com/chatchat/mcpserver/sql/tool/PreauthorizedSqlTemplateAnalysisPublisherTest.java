@@ -31,6 +31,17 @@ class PreauthorizedSqlTemplateAnalysisPublisherTest {
             new AgentRuntimeGovernanceFactory(new ObjectMapper()), mock(McpToolConcurrencyManager.class),
             new ObjectMapper());
 
+    @Test void publishesGovernanceBuiltFromImmutablePolicyMaps() {
+        var specification = publisher.specification();
+
+        assertThat(specification.tool().name()).isEqualTo(PreauthorizedSqlTemplateAnalysisPublisher.TOOL_NAME);
+        assertThat(stringObjectMap(specification.tool().meta().get("confirmation")))
+            .containsEntry("default", "auto_execute")
+            .containsEntry("allow_user_override", false);
+        assertThat(stringObjectMap(specification.tool().meta().get("audit")))
+            .containsEntry("enabled", true);
+    }
+
     @Test void acceptsOnlyExplicitlyAllowlistedReadOnlyTemplateAndSanitizesArguments() {
         allowlisted("SELECT amount FROM sales WHERE year = {{year}}", "LOW");
 
@@ -84,5 +95,10 @@ class PreauthorizedSqlTemplateAnalysisPublisherTest {
         template.setRiskLevel(risk);
         template.setDatabaseType("postgresql");
         when(templates.listEnabled()).thenReturn(List.of(template));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> stringObjectMap(Object value) {
+        return (Map<String, Object>) value;
     }
 }

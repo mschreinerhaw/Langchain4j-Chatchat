@@ -3,6 +3,7 @@
     <header class="feature-page-header domain-skills-header">
       <span class="feature-breadcrumb">能力管理 / 数据科学 / 领域技能</span>
       <div v-if="isAdmin" class="feature-page-actions">
+        <button type="button" class="feature-button secondary" @click="openMcpSources">MCP Skill 源</button>
         <button type="button" class="feature-button secondary domain-skill-header-import" @click="openImport">
           <span v-if="importTaskRunning" class="domain-skill-header-import-spinner" aria-hidden="true"></span>
           {{ importTaskRunning ? '导入处理中' : '导入 ZIP / MD' }}
@@ -201,6 +202,60 @@
         </div>
         <label v-else class="file-picker"><input ref="importFileInput" type="file" accept=".zip,.md,.markdown,text/markdown,application/zip" required @change="chooseImport"><strong>{{ importFile?.name || '选择 ZIP 或 Markdown 文件' }}</strong><small>最大 5MB，导入后保存为草稿</small></label>
         <footer><button type="button" class="secondary-button" @click="requestCloseImport">取消</button><button :disabled="busy || importTaskRunning || !importCategory || (importMode === 'file' ? !importFile : !importUrl.trim())"><span v-if="busy || importTaskRunning" class="domain-skill-button-spinner" aria-hidden="true"></span>{{ busy ? '正在提交' : (importTaskRunning ? '后台处理中' : '导入') }}</button></footer>
+      </form>
+    </div>
+
+    <div v-if="mcpSourcesOpen" class="domain-skill-dialog-backdrop" @mousedown.self="mcpSourcesOpen = false">
+      <section class="domain-skill-dialog mcp-sources-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-sources-title">
+        <header>
+          <div><p>Skill Federation</p><h2 id="mcp-sources-title">MCP Skill 源</h2></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" @click="mcpSourcesOpen = false">×</button>
+        </header>
+        <div class="mcp-sources-intro">
+          <p>从支持 MCP Skills 扩展的服务发现技能。同步内容先进入草稿，审核发布后才可授权给用户、角色、组织和 Agent。</p>
+          <button type="button" @click="openMcpSourceEditor()">新增 Skill 源</button>
+        </div>
+        <div class="mcp-sources-list">
+          <p v-if="mcpSourcesLoading" class="domain-skills-empty">正在加载 Skill 源…</p>
+          <p v-else-if="!mcpSources.length" class="domain-skills-empty">暂无 MCP Skill 源</p>
+          <template v-else>
+          <article v-for="source in mcpSources" :key="source.id" class="mcp-source-card">
+            <div>
+              <div class="mcp-source-title">
+                <strong>{{ source.name }}</strong>
+                <span :class="['feature-status', source.status === 'SYNCED' ? 'published' : source.status === 'FAILED' ? 'recalled' : 'draft']">{{ source.status }}</span>
+                <span v-if="!source.enabled" class="feature-status draft">已停用</span>
+              </div>
+              <p>{{ source.endpoint }}</p>
+              <small>默认分类：{{ source.defaultCategory }} · 已发现 {{ source.lastDiscoveredCount || 0 }} · 最近同步 {{ formatTime(source.lastSyncedAt) || '从未' }}</small>
+              <small v-if="source.lastError" class="mcp-source-error">{{ source.lastError }}</small>
+            </div>
+            <div class="mcp-source-actions">
+              <button type="button" class="secondary-button" @click="openMcpSourceEditor(source)">编辑</button>
+              <button type="button" :disabled="mcpSyncingId === source.id || !source.enabled" @click="synchronizeMcpSource(source)">{{ mcpSyncingId === source.id ? '同步中…' : '发现并同步' }}</button>
+              <button type="button" class="danger-action" @click="removeMcpSource(source)">删除</button>
+            </div>
+          </article>
+          </template>
+        </div>
+        <footer><button type="button" class="secondary-button" @click="mcpSourcesOpen = false">关闭</button></footer>
+      </section>
+    </div>
+
+    <div v-if="mcpSourceEditorOpen" class="domain-skill-dialog-backdrop" @mousedown.self="mcpSourceEditorOpen = false">
+      <form class="domain-skill-dialog mcp-source-editor" @submit.prevent="saveMcpSource">
+        <header>
+          <div><p>MCP Skills 扩展</p><h2>{{ mcpSourceForm.id ? '编辑 Skill 源' : '新增 Skill 源' }}</h2></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" @click="mcpSourceEditorOpen = false">×</button>
+        </header>
+        <label><span>名称 *</span><input v-model.trim="mcpSourceForm.name" required maxlength="200" placeholder="例如：研究中心 Skills"></label>
+        <label><span>MCP Endpoint *</span><input v-model.trim="mcpSourceForm.endpoint" required maxlength="2000" type="url" placeholder="https://example.com/mcp"></label>
+        <label><span>Authorization 请求头</span><input v-model="mcpSourceForm.authorization" maxlength="2000" type="password" autocomplete="new-password" placeholder="Bearer …（编辑留空表示不修改）"><small>凭证加密保存，不会在列表和编辑接口回显。</small></label>
+        <label><span>同步到分类 *</span><input v-model.trim="mcpSourceForm.defaultCategory" required maxlength="120" placeholder="MCP Skills"></label>
+        <label class="mcp-source-check"><input v-model="mcpSourceForm.enabled" type="checkbox"><span>启用该来源</span></label>
+        <label class="mcp-source-check"><input v-model="mcpSourceForm.allowPrivateNetwork" type="checkbox"><span>允许连接可信内网地址</span></label>
+        <p class="domain-skill-field-hint">本机、回环和链路本地地址始终禁止。远端声明为动态或无法校验 digest 的 Skill 不会导入。</p>
+        <footer><button type="button" class="secondary-button" @click="mcpSourceEditorOpen = false">取消</button><button :disabled="mcpSourceSaving">{{ mcpSourceSaving ? '保存中…' : '保存' }}</button></footer>
       </form>
     </div>
 

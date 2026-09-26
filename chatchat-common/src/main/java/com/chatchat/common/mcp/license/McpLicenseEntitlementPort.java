@@ -21,6 +21,12 @@ public interface McpLicenseEntitlementPort extends RuntimeProtocolPort {
             5, true, "DEFAULT");
     }
 
+    /** MCP Skills federation is an explicit module and defaults to denied when the license service is unavailable. */
+    default SkillFederationEntitlement skillFederationEntitlement() {
+        return new SkillFederationEntitlement(false, "UNAVAILABLE",
+            "MCP Skills federation entitlement is unavailable", "DEFAULT");
+    }
+
     record AgentPublicationLimit(boolean licenseValid, String licenseStatus, String message,
                                  Integer maxPublishedAgents, boolean limited) {
     }
@@ -28,4 +34,6 @@ public interface McpLicenseEntitlementPort extends RuntimeProtocolPort {
     record SkillPublicationLimit(boolean licenseValid, String licenseStatus, String message,
                                  Integer maxPublishedSkills, boolean limited, String source) {
     }
+
+    record SkillFederationEntitlement(boolean allowed, String licenseStatus, String message, String source) { }
 }

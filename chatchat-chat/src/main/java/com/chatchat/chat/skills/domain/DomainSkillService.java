@@ -143,7 +143,9 @@ public class DomainSkillService implements DomainSkillRuntimePort {
                         || skillGrantAllowed(tenantId, userId, roleIds, Set.of(id)).contains(id));
             }, Math.min(12, ordered.size()));
         return verifiedIds.stream().map(finalFound::get)
-            .map(s -> new DomainSkillContent(s.getId(), s.getName(), s.getCategory(), trim(s.getMarkdownContent(), 64 * 1024))).toList();
+            .map(s -> new DomainSkillContent(s.getId(), s.getName(), s.getCategory(),
+                trim(s.getMarkdownContent(), 64 * 1024), s.getSourceType(), s.getFederatedSourceId(),
+                s.getFederatedSkillUri(), s.getFederatedDigest())).toList();
     }
 
     @Override

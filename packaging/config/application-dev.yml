@@ -145,6 +145,12 @@ chatchat:
     max-activated-skills: ${CHATCHAT_DOMAIN_SKILL_MAX_ACTIVATED:4}
     router-input-chars: ${CHATCHAT_DOMAIN_SKILL_ROUTER_INPUT_CHARS:49152}
     planning-token-budget: ${CHATCHAT_DOMAIN_SKILL_PLANNING_TOKEN_BUDGET:6000}
+  skills:
+    federation:
+      credential-key: ${CHATCHAT_SKILL_FEDERATION_CREDENTIAL_KEY:local-development-only}
+      max-skills-per-source: ${CHATCHAT_SKILL_FEDERATION_MAX_SKILLS:1000}
+      page-size: ${CHATCHAT_SKILL_FEDERATION_PAGE_SIZE:100}
+      max-skill-bytes: ${CHATCHAT_SKILL_FEDERATION_MAX_SKILL_BYTES:1048576}
   agent-runtime:
     # Safety deadline only. The seven-minute target is achieved through concurrency and reuse,
     # never by cutting off evidence collection, synthesis, or quality review.

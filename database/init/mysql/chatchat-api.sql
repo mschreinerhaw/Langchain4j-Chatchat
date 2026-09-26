@@ -1,4 +1,14 @@
 
+    create table agent_a2a_task_link (
+        created_at_epoch_ms bigint not null,
+        agent_id varchar(128) not null,
+        execution_id varchar(128) not null,
+        tenant_id varchar(128) not null,
+        context_id varchar(256),
+        task_id varchar(256) not null,
+        primary key (execution_id)
+    ) engine=InnoDB;
+
     create table agent_api_token (
         created_at datetime(6) not null,
         expires_at datetime(6),
@@ -21,6 +31,16 @@
         last_used_ip varchar(128),
         token_name varchar(128) not null,
         last_used_path varchar(512),
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table agent_compute_definition (
+        enabled bit not null,
+        created_at datetime(6) not null,
+        updated_at datetime(6) not null,
+        id varchar(64) not null,
+        agent_id varchar(160) not null,
+        descriptor_json longtext not null,
         primary key (id)
     ) engine=InnoDB;
 
@@ -94,6 +114,15 @@
         patch_json longtext not null,
         regression_report_json longtext,
         primary key (proposal_id)
+    ) engine=InnoDB;
+
+    create table agent_provider_health (
+        consecutive_failures integer not null,
+        samples integer not null,
+        ewma_latency_ms bigint not null,
+        open_until_epoch_ms bigint not null,
+        agent_id varchar(128) not null,
+        primary key (agent_id)
     ) engine=InnoDB;
 
     create table agent_release (
@@ -190,6 +219,19 @@
         primary key (task_id)
     ) engine=InnoDB;
 
+    create table analysis_evidence_archive (
+        byte_length bigint not null,
+        created_at_epoch_ms bigint not null,
+        index_status varchar(16),
+        archive_id varchar(64) not null,
+        sha256 varchar(64) not null,
+        run_id varchar(128) not null,
+        tenant_id varchar(128) not null,
+        user_id varchar(128) not null,
+        bundle_json longtext not null,
+        primary key (archive_id)
+    ) engine=InnoDB;
+
     create table chat_message_index (
         created_at datetime(6) not null,
         role varchar(32) not null,
@@ -271,18 +313,24 @@
         builtin boolean default false not null,
         publication_dirty bit not null,
         created_at datetime(6) not null,
+        federated_synced_at datetime(6),
         published_at datetime(6),
         updated_at datetime(6) not null,
         source_type varchar(24) not null,
         status varchar(24) not null,
+        federated_source_id varchar(64),
         id varchar(64) not null,
         owner_id varchar(64) not null,
         tenant_id varchar(64) not null,
+        federated_digest varchar(80),
         category varchar(120) not null,
+        federated_source_name varchar(200),
         name varchar(200) not null,
         original_file_name varchar(300),
         description varchar(2000),
+        federated_skill_uri varchar(2000),
         search_text varchar(4000) not null,
+        federated_manifest_json longtext,
         markdown_content longtext not null,
         primary key (id)
     ) engine=InnoDB;
@@ -339,6 +387,25 @@
         source_reference varchar(2000),
         original_artifact longblob not null,
         parsed_document_json longtext not null,
+        primary key (id)
+    ) engine=InnoDB;
+
+    create table ds_mcp_skill_source (
+        allow_private_network bit not null,
+        enabled bit not null,
+        last_discovered_count integer not null,
+        created_at datetime(6) not null,
+        last_synced_at datetime(6),
+        updated_at datetime(6) not null,
+        status varchar(24) not null,
+        id varchar(64) not null,
+        owner_id varchar(64) not null,
+        tenant_id varchar(64) not null,
+        default_category varchar(120) not null,
+        name varchar(200) not null,
+        authorization_header varchar(2000),
+        endpoint varchar(2000) not null,
+        last_error varchar(2000),
         primary key (id)
     ) engine=InnoDB;
 
@@ -1404,6 +1471,12 @@
         primary key (id)
     ) engine=InnoDB;
 
+    create index idx_agent_a2a_task_tenant
+       on agent_a2a_task_link (tenant_id, agent_id);
+
+    create index idx_agent_a2a_task_expiry
+       on agent_a2a_task_link (created_at_epoch_ms);
+
     create index idx_agent_api_token_user
        on agent_api_token (tenant_id, user_id);
 
@@ -1412,6 +1485,12 @@
 
     alter table agent_api_token
        add constraint UKokwwtfa59drvxvtugo5mwnhpk unique (token_hash);
+
+    create index idx_agent_compute_enabled
+       on agent_compute_definition (enabled);
+
+    alter table agent_compute_definition
+       add constraint idx_agent_compute_id unique (agent_id);
 
     create index idx_execution_event_task_seq
        on agent_execution_event (tenant_id, task_id, sequence_number);
@@ -1488,6 +1567,9 @@
     alter table agent_task_latest
        add constraint uk_agent_task_tenant_idempotency unique (tenant_id, idempotency_key);
 
+    create index idx_analysis_evidence_owner
+       on analysis_evidence_archive (tenant_id, user_id, run_id);
+
     create index idx_chat_message_session_created
        on chat_message_index (session_id, created_at);
 
@@ -1524,11 +1606,17 @@
     create index idx_domain_skill_category
        on ds_domain_skill (tenant_id, category, updated_at);
 
+    create index idx_domain_skill_federated_source
+       on ds_domain_skill (tenant_id, federated_source_id);
+
     create index idx_domain_skill_category_tenant
        on ds_domain_skill_category (tenant_id, updated_at);
 
     alter table ds_domain_skill_category
        add constraint uk_domain_skill_category_tenant_name unique (tenant_id, name);
+
+    create index idx_mcp_skill_source_tenant
+       on ds_mcp_skill_source (tenant_id, updated_at);
 
     create index idx_python_asset_owner
        on ds_python_asset (tenant_id, owner_id, status);

@@ -91,7 +91,15 @@ public class DomainSkillPlanningRouter {
     }
 
     private Map<String, Object> card(DomainSkillRuntimePort.DomainSkillContent skill) {
-        return Map.of("id", safe(skill.id()), "name", safe(skill.name()), "category", safe(skill.category()));
+        Map<String, Object> card = new LinkedHashMap<>();
+        card.put("id", safe(skill.id()));
+        card.put("name", safe(skill.name()));
+        card.put("category", safe(skill.category()));
+        card.put("sourceType", safe(skill.sourceType()));
+        card.put("sourceId", safe(skill.sourceId()));
+        card.put("sourceUri", safe(skill.sourceUri()));
+        card.put("sourceDigest", safe(skill.sourceDigest()));
+        return Map.copyOf(card);
     }
 
     private String prompt(String query, List<DomainSkillRuntimePort.DomainSkillContent> candidates) throws Exception {

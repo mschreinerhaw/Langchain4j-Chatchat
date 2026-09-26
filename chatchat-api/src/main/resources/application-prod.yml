@@ -62,6 +62,11 @@ chatchat:
   skills:
     domain:
       index-name: domain_skill_index
+    federation:
+      credential-key: ${CHATCHAT_SKILL_FEDERATION_CREDENTIAL_KEY:}
+      max-skills-per-source: ${CHATCHAT_SKILL_FEDERATION_MAX_SKILLS:1000}
+      page-size: ${CHATCHAT_SKILL_FEDERATION_PAGE_SIZE:100}
+      max-skill-bytes: ${CHATCHAT_SKILL_FEDERATION_MAX_SKILL_BYTES:1048576}
   domain-skills:
     compiler-model: ${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:deepseek-v4-pro}
     router-model: ${CHATCHAT_DOMAIN_SKILL_ROUTER_MODEL:${CHATCHAT_DOMAIN_SKILL_COMPILER_MODEL:deepseek-v4-pro}}

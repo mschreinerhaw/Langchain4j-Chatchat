@@ -60,4 +60,9 @@ public interface DomainSkillRepository extends JpaRepository<DomainSkillEntity, 
     List<DomainSkillEntity> findByTenantIdAndCategoryIgnoreCase(String tenantId, String category);
 
     long countByTenantIdAndCategoryIgnoreCase(String tenantId, String category);
+
+    Optional<DomainSkillEntity> findByTenantIdAndFederatedSourceIdAndFederatedSkillUri(
+        String tenantId, String federatedSourceId, String federatedSkillUri);
+
+    List<DomainSkillEntity> findByTenantIdAndFederatedSourceId(String tenantId, String federatedSourceId);
 }

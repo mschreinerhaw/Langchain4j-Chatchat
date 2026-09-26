@@ -20,9 +20,9 @@ class DatabaseSchemaGeneratorTest {
         generate("org.hibernate.dialect.MySQLDialect", output.resolve("chatchat-api-mysql.sql"));
         generate("org.hibernate.dialect.H2Dialect", output.resolve("chatchat-api-h2.sql"));
         generate("org.hibernate.dialect.PostgreSQLDialect", output.resolve("chatchat-api-postgresql.sql"));
-        assertSchemaMatches(output.resolve("chatchat-api-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-api.sql"), 84);
-        assertSchemaMatches(output.resolve("chatchat-api-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-api.sql"), 84);
-        assertSchemaMatches(output.resolve("chatchat-api-postgresql.sql"), Path.of("..", "database", "init", "postgresql", "chatchat-api.sql"), 84);
+        assertSchemaMatches(output.resolve("chatchat-api-mysql.sql"), Path.of("..", "database", "init", "mysql", "chatchat-api.sql"), 89);
+        assertSchemaMatches(output.resolve("chatchat-api-h2.sql"), Path.of("..", "database", "init", "h2", "chatchat-api.sql"), 89);
+        assertSchemaMatches(output.resolve("chatchat-api-postgresql.sql"), Path.of("..", "database", "init", "postgresql", "chatchat-api.sql"), 89);
     }
 
     private void generate(String dialect, Path target) throws Exception {

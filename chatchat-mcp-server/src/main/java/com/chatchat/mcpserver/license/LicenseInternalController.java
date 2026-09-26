@@ -46,4 +46,17 @@ public class LicenseInternalController {
 
     public record SkillPublicationLimit(boolean licenseValid, String licenseStatus, String message,
                                         Integer maxPublishedSkills, boolean limited) { }
+
+    @GetMapping("/skill-federation-entitlement")
+    public ApiResponse<SkillFederationEntitlement> skillFederationEntitlement() {
+        LicenseStatus status = licenseService.status();
+        boolean allowed = status != null && status.valid() && licenseService.allowsModule("mcpSkillFederation");
+        return ApiResponse.success(new SkillFederationEntitlement(
+            allowed,
+            status == null ? "INVALID" : status.status(),
+            allowed ? "MCP Skills federation is licensed" : "License does not include MCP Skills federation"
+        ));
+    }
+
+    public record SkillFederationEntitlement(boolean allowed, String licenseStatus, String message) { }
 }

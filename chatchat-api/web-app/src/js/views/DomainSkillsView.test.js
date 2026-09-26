@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 const api = vi.hoisted(() => ({
   createDomainSkill: vi.fn(), createDomainSkillCategory: vi.fn(), deleteDomainSkill: vi.fn(), deleteDomainSkillCategory: vi.fn(), fetchDomainSkills: vi.fn(),
   fetchDomainSkillImportTask: vi.fn(),
+  fetchMcpSkillSources: vi.fn(), createMcpSkillSource: vi.fn(), updateMcpSkillSource: vi.fn(),
+  syncMcpSkillSource: vi.fn(), deleteMcpSkillSource: vi.fn(),
   getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(), importDomainSkillFromUrl: vi.fn(),
   publishDomainSkill: vi.fn(), recallDomainSkill: vi.fn(), reindexDomainSkill: vi.fn(),
   reindexDomainSkillCategory: vi.fn(), renameDomainSkillCategory: vi.fn(), updateDomainSkill: vi.fn()
@@ -284,5 +286,22 @@ describe("DomainSkillsView", () => {
     await DomainSkillsView.methods.reindexCategory.call(context, { name: "合规风控" });
     expect(api.reindexDomainSkillCategory).toHaveBeenCalledWith("合规风控");
     expect(context.message).toContain("成功 2");
+  });
+
+  it("synchronizes an MCP Skill source and refreshes the governed catalog", async () => {
+    api.syncMcpSkillSource.mockResolvedValue({ discovered: 120, created: 4, updated: 2, skipped: 1 });
+    const context = {
+      mcpSyncingId: "", error: "", message: "",
+      loadMcpSources: vi.fn(), load: vi.fn()
+    };
+
+    await DomainSkillsView.methods.synchronizeMcpSource.call(context, { id: "source-1" });
+
+    expect(api.syncMcpSkillSource).toHaveBeenCalledWith("source-1");
+    expect(context.message).toContain("发现 120");
+    expect(context.message).toContain("新增 4");
+    expect(context.loadMcpSources).toHaveBeenCalled();
+    expect(context.load).toHaveBeenCalledWith(true, { silent: true });
+    expect(context.mcpSyncingId).toBe("");
   });
 });

@@ -20,6 +20,7 @@ public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
 
     static final String AGENT_LIMIT_PATH = "/internal/v1/license/agent-publication-limit";
     static final String SKILL_LIMIT_PATH = "/internal/v1/license/skill-publication-limit";
+    static final String SKILL_FEDERATION_PATH = "/internal/v1/license/skill-federation-entitlement";
 
     private final McpCenterProperties properties;
     private final InternalCredentialProperties credentials;
@@ -70,6 +71,18 @@ public class McpLicenseEntitlementClient implements McpLicenseEntitlementPort {
             );
         } catch (RuntimeException unavailable) {
             return McpLicenseEntitlementPort.super.skillPublicationLimit();
+        }
+    }
+
+    @Override
+    public SkillFederationEntitlement skillFederationEntitlement() {
+        try {
+            Map<?, ?> data = request(SKILL_FEDERATION_PATH);
+            return new SkillFederationEntitlement(
+                booleanValue(data.get("allowed")), text(data.get("licenseStatus")),
+                text(data.get("message")), "MCP");
+        } catch (RuntimeException unavailable) {
+            return McpLicenseEntitlementPort.super.skillFederationEntitlement();
         }
     }
 

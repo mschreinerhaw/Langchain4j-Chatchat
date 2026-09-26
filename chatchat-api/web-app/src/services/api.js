@@ -209,6 +209,32 @@ export function fetchDomainSkillImportTask(taskId) {
   return apiRequest(`/data-science/domain-skills/imports/${encodeURIComponent(taskId)}`);
 }
 
+export function fetchMcpSkillSources() {
+  return apiRequest("/data-science/domain-skills/mcp-sources");
+}
+
+export function createMcpSkillSource(payload) {
+  return apiRequest("/data-science/domain-skills/mcp-sources", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateMcpSkillSource(id, payload) {
+  return apiRequest(`/data-science/domain-skills/mcp-sources/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function syncMcpSkillSource(id) {
+  return apiRequest(`/data-science/domain-skills/mcp-sources/${encodeURIComponent(id)}/sync`, { method: "POST" });
+}
+
+export function deleteMcpSkillSource(id) {
+  return apiRequest(`/data-science/domain-skills/mcp-sources/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export function fetchTrendSemanticConfig() {
   return apiRequest("/ui-display/trend-semantics");
 }

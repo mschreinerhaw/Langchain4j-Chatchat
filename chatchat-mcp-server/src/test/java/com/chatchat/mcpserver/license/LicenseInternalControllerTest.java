@@ -67,4 +67,30 @@ class LicenseInternalControllerTest {
         assertThat(response.limited()).isFalse();
         assertThat(response.maxPublishedSkills()).isNull();
     }
+
+    @Test
+    void exposesMcpSkillFederationOnlyWhenTheModuleIsLicensed() {
+        McpLicenseService service = mock(McpLicenseService.class);
+        LicensePayload payload = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
+            List.of("mcpSkillFederation"), 100, 7, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
+        when(service.status()).thenReturn(LicenseStatus.valid("server", payload));
+        when(service.allowsModule("mcpSkillFederation")).thenReturn(true);
+
+        var response = new LicenseInternalController(service).skillFederationEntitlement().getData();
+
+        assertThat(response.allowed()).isTrue();
+        assertThat(response.licenseStatus()).isEqualTo("VALID");
+    }
+
+    @Test
+    void deniesMcpSkillFederationWhenTheModuleIsMissing() {
+        McpLicenseService service = mock(McpLicenseService.class);
+        LicensePayload payload = new LicensePayload("LIC", "Customer", "C", "LiveMCP", "enterprise",
+            List.of("assets"), 100, 7, "*", LocalDate.now().plusYears(1), Map.of(), LocalDate.now());
+        when(service.status()).thenReturn(LicenseStatus.valid("server", payload));
+
+        var response = new LicenseInternalController(service).skillFederationEntitlement().getData();
+
+        assertThat(response.allowed()).isFalse();
+    }
 }

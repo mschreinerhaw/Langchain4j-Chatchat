@@ -1,6 +1,7 @@
 [
   {"key":"apiServices","label":"API 服务","icon":"Connection","navigation":true,"description":"API 服务资产、模板发现与执行","apiPrefixes":["/api/v1/api-services","/api/v1/livedata-apis"],"toolPatterns":["api_*","livedata_*"]},
   {"key":"mcpServices","label":"MCP 服务","icon":"Cpu","navigation":true,"description":"MCP 服务注册、发布与运行管理","apiPrefixes":["/api/v1/mcp-services","/api/v1/external-mcp-services","/api/v1/search"],"toolPatterns":["*"]},
+  {"key":"mcpSkillFederation","label":"MCP Skills 联邦","icon":"Collection","navigation":false,"description":"远端 MCP Skills 发现、同步、审核和 Runtime 激活","apiPrefixes":["/api/v1/data-science/domain-skills/mcp-sources"]},
   {"key":"pythonManagement","label":"Python 管理","icon":"Monitor","navigation":true,"description":"Python 执行环境、同步模板与隔离运行治理","apiPrefixes":["/api/v1/python"],"toolPatterns":["python_*"],"impliedBy":["assetCenter","mcpServices"]},
   {"key":"templateQueryPublications","label":"模板工具发布","icon":"Share","navigation":true,"description":"模板查询工具及子工具发布","apiPrefixes":["/api/v1/template-query-publications"],"impliedBy":["mcpServices"]},
   {"key":"newsCollection","label":"资讯采集","icon":"Tickets","navigation":true,"description":"新闻采集、检索及金融数据查询","apiPrefixes":["/api/v1/news","/api/v1/cache/financial-query"],"toolPatterns":["news_*","web_search","financial_data_search"]},

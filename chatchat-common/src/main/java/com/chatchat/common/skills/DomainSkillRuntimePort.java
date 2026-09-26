@@ -28,7 +28,19 @@ public interface DomainSkillRuntimePort {
         return EvidenceSkillActivation.empty("UNSUPPORTED");
     }
 
-    record DomainSkillContent(String id, String name, String category, String markdownContent) { }
+    record DomainSkillContent(String id, String name, String category, String markdownContent,
+                              String sourceType, String sourceId, String sourceUri, String sourceDigest) {
+        public DomainSkillContent(String id, String name, String category, String markdownContent) {
+            this(id, name, category, markdownContent, "LOCAL", "", "", "");
+        }
+
+        public DomainSkillContent {
+            sourceType = clean(sourceType);
+            sourceId = clean(sourceId);
+            sourceUri = clean(sourceUri);
+            sourceDigest = clean(sourceDigest);
+        }
+    }
 
     record EvidencePreview(String evidenceId, String documentId, String documentName,
                            String section, String content) {

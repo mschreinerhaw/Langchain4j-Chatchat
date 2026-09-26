@@ -2,7 +2,8 @@ import { nextTick } from "vue";
 import { ChevronDown, MoreHorizontal, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
 import {
   createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills,
-  fetchDomainSkillImportTask, getStoredAuthSession,
+  fetchDomainSkillImportTask, getStoredAuthSession, fetchMcpSkillSources, createMcpSkillSource,
+  updateMcpSkillSource, syncMcpSkillSource, deleteMcpSkillSource,
   importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
   reindexDomainSkillCategory, renameDomainSkillCategory, updateDomainSkill
 } from "../../services/api.js";
@@ -22,6 +23,7 @@ const starter = `# 领域技能名称
 3. 输出结论、依据和风险提示。`;
 
 const emptyForm = () => ({ id: "", name: "", category: "", description: "", markdownContent: starter });
+const emptyMcpSource = () => ({ id: "", name: "", endpoint: "", authorization: "", defaultCategory: "MCP Skills", allowPrivateNetwork: false, enabled: true });
 const editorStateKey = (form = {}) => JSON.stringify({
   id: form.id || "", name: form.name || "", category: form.category || "",
   description: form.description || "", markdownContent: form.markdownContent || ""
@@ -64,6 +66,8 @@ export default {
     editingCategoryId: "", editingCategoryOriginalName: "", categoryMenuId: "", skillMenuId: "", publicationLimitOpen: false,
     publicationLimit: { maximum: 5, published: 5, skillName: "" }, editorMessage: "", importMessage: "",
     editorSnapshot: "", importSnapshot: "", importTask: null, importPollTimer: null,
+    mcpSourcesOpen: false, mcpSourceEditorOpen: false, mcpSourcesLoading: false, mcpSources: [],
+    mcpSourceForm: emptyMcpSource(), mcpSyncingId: "", mcpSourceSaving: false,
     noticeTimers: { message: null, error: null },
     confirmDialog: { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null, category: null }
   }),
@@ -91,6 +95,58 @@ export default {
   },
   methods: {
     formatTime: formatDateTime,
+    async openMcpSources() {
+      this.mcpSourcesOpen = true;
+      await this.loadMcpSources();
+    },
+    async loadMcpSources() {
+      this.mcpSourcesLoading = true;
+      this.error = "";
+      try { this.mcpSources = await fetchMcpSkillSources() || []; }
+      catch (error) { this.error = error.message || "MCP Skill 源加载失败"; }
+      finally { this.mcpSourcesLoading = false; }
+    },
+    openMcpSourceEditor(source = null) {
+      this.mcpSourceForm = source ? {
+        id: source.id, name: source.name || "", endpoint: source.endpoint || "", authorization: "",
+        defaultCategory: source.defaultCategory || "MCP Skills",
+        allowPrivateNetwork: Boolean(source.allowPrivateNetwork), enabled: Boolean(source.enabled)
+      } : emptyMcpSource();
+      this.mcpSourceEditorOpen = true;
+    },
+    async saveMcpSource() {
+      if (!this.mcpSourceForm.name.trim() || !this.mcpSourceForm.endpoint.trim() || !this.mcpSourceForm.defaultCategory.trim()) return;
+      this.mcpSourceSaving = true;
+      this.error = "";
+      try {
+        const payload = { ...this.mcpSourceForm };
+        if (payload.id) await updateMcpSkillSource(payload.id, payload);
+        else await createMcpSkillSource(payload);
+        this.mcpSourceEditorOpen = false;
+        this.message = payload.id ? "MCP Skill 源已更新" : "MCP Skill 源已创建，可开始发现同步";
+        await this.loadMcpSources();
+      } catch (error) { this.error = error.message || "MCP Skill 源保存失败"; }
+      finally { this.mcpSourceSaving = false; }
+    },
+    async synchronizeMcpSource(source) {
+      this.mcpSyncingId = source.id;
+      this.error = "";
+      try {
+        const result = await syncMcpSkillSource(source.id);
+        this.message = `同步完成：发现 ${result?.discovered || 0}，新增 ${result?.created || 0}，更新 ${result?.updated || 0}，跳过 ${result?.skipped || 0}`;
+        await Promise.all([this.loadMcpSources(), this.load(true, { silent: true })]);
+      } catch (error) { this.error = error.message || "MCP Skill 同步失败"; }
+      finally { this.mcpSyncingId = ""; }
+    },
+    async removeMcpSource(source) {
+      if (!window.confirm(`确定删除 MCP Skill 源“${source.name}”吗？已发布技能需先回收。`)) return;
+      this.error = "";
+      try {
+        await deleteMcpSkillSource(source.id);
+        this.message = "MCP Skill 源已删除";
+        await this.loadMcpSources();
+      } catch (error) { this.error = error.message || "MCP Skill 源删除失败"; }
+    },
     async load(resetPage = false, options = {}) {
       if (resetPage) this.filters.page = 0;
       const silent = Boolean(options?.silent);

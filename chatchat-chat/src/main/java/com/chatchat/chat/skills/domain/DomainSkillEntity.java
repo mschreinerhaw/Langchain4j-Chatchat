@@ -19,7 +19,8 @@ import java.util.UUID;
 @Table(name = "ds_domain_skill", indexes = {
     @Index(name = "idx_domain_skill_owner", columnList = "tenant_id,owner_id,updated_at"),
     @Index(name = "idx_domain_skill_status", columnList = "tenant_id,status,updated_at"),
-    @Index(name = "idx_domain_skill_category", columnList = "tenant_id,category,updated_at")
+    @Index(name = "idx_domain_skill_category", columnList = "tenant_id,category,updated_at"),
+    @Index(name = "idx_domain_skill_federated_source", columnList = "tenant_id,federated_source_id")
 })
 public class DomainSkillEntity {
     @Id
@@ -43,6 +44,18 @@ public class DomainSkillEntity {
     private String sourceType;
     @Column(name = "original_file_name", length = 300)
     private String originalFileName;
+    @Column(name = "federated_source_id", length = 64)
+    private String federatedSourceId;
+    @Column(name = "federated_source_name", length = 200)
+    private String federatedSourceName;
+    @Column(name = "federated_skill_uri", length = 2000)
+    private String federatedSkillUri;
+    @Column(name = "federated_digest", length = 80)
+    private String federatedDigest;
+    @Column(name = "federated_manifest_json", length = org.hibernate.Length.LONG32)
+    private String federatedManifestJson;
+    @Column(name = "federated_synced_at")
+    private Instant federatedSyncedAt;
     @Column(length = 24, nullable = false)
     private String status;
     @Column(name = "publication_dirty", nullable = false)

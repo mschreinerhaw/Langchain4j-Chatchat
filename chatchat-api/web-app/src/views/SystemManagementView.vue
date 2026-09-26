@@ -26,10 +26,6 @@
             <h2>用户档案</h2>
           </div>
           <div class="mini-actions">
-            <button type="button" title="同步组织" @click="syncOrgs" :disabled="loading">
-              <RefreshCw :size="14" />
-              组织
-            </button>
             <button type="button" title="同步用户" @click="syncUsers" :disabled="loading">
               <RefreshCw :size="14" />
               用户
@@ -105,8 +101,7 @@
             <h2>组织档案</h2>
           </div>
           <div class="mini-actions">
-            <span class="organization-source">数据来源：lborganization</span>
-            <button type="button" title="从 lborganization 同步组织" @click="syncOrgs" :disabled="loading">
+            <button type="button" title="同步组织" @click="syncOrgs" :disabled="loading">
               <RefreshCw :size="14" />
               {{ loading ? "同步中" : "同步组织" }}
             </button>
@@ -134,9 +129,7 @@
             <span>{{ orgUserCounts[org.id] || 0 }}</span>
             <span><em :class="['status-pill', org.status]">{{ statusLabel(org.status) }}</em></span>
           </div>
-          <div v-if="orgTree.length === 0" class="empty-state">
-            暂无组织机构，请从 lborganization 同步
-          </div>
+          <div v-if="orgTree.length === 0" class="empty-state">暂无组织机构，请先同步组织</div>
         </div>
       </aside>
 

@@ -122,6 +122,7 @@ export default {
       apiTokenCopyDialogOpen: false,
       error: "",
       message: "",
+      noticeTimer: null,
       activeManagementTab: this.section,
       summary: {},
       tenants: [],
@@ -181,7 +182,7 @@ export default {
     sectionDescription() {
       return {
         users: "管理账号、组织归属、角色分配与 Agent API 令牌",
-        organizations: "查看机构层级与成员归属，组织档案同步自 lborganization 表",
+        organizations: "查看机构层级与成员归属，维护组织档案",
         roles: "维护角色档案、成员关系与授权范围",
         logins: "查询用户登录和 Agent API 认证记录",
         resources: "按角色配置可访问的资源与 Agent 能力"
@@ -411,6 +412,12 @@ export default {
   },
   mounted() {
     this.loadInitialData();
+  },
+  beforeUnmount() {
+    if (this.noticeTimer) {
+      globalThis.clearTimeout(this.noticeTimer);
+      this.noticeTimer = null;
+    }
   },
   watch: {
     section(value) {
@@ -1237,8 +1244,19 @@ export default {
       return labels[type] || type || "未配置";
     },
     setNotice(text, isError = false) {
+      if (this.noticeTimer) {
+        globalThis.clearTimeout(this.noticeTimer);
+        this.noticeTimer = null;
+      }
       this.message = text;
       this.error = isError ? text : "";
+      if (text) {
+        this.noticeTimer = globalThis.setTimeout(() => {
+          this.message = "";
+          this.error = "";
+          this.noticeTimer = null;
+        }, 3500);
+      }
     }
   }
 };

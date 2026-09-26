@@ -92,6 +92,38 @@ class EnterpriseAdminServiceIntegrationTest {
     }
 
     @Test
+    void migratesPermissionAliasesAndHierarchyToTheChineseDatabaseCatalogOnce() {
+        SysPermission allApi = service.listPermissions().stream()
+            .filter(permission -> "system:api:all".equals(permission.getPermissionCode()))
+            .findFirst()
+            .orElseThrow();
+        SysPermission workspace = service.listPermissions().stream()
+            .filter(permission -> "workspace".equals(permission.getPermissionCode()))
+            .findFirst()
+            .orElseThrow();
+        SysPermission search = service.listPermissions().stream()
+            .filter(permission -> "workspace:search".equals(permission.getPermissionCode()))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(allApi.getPermissionName()).isEqualTo("系统全部接口权限");
+        assertThat(search.getPermissionName()).isEqualTo("文档检索");
+        assertThat(search.getParentId()).isEqualTo(workspace.getId());
+        assertThat(service.listPermissions())
+            .anySatisfy(permission -> assertThat(permission.getPermissionCode())
+                .isEqualTo("system:permission-catalog:zh:v1"));
+
+        allApi.setPermissionName("数据库自定义接口别名");
+        service.savePermission(allApi);
+        service.run(null);
+
+        assertThat(service.listPermissions().stream()
+            .filter(permission -> "system:api:all".equals(permission.getPermissionCode()))
+            .findFirst().orElseThrow().getPermissionName())
+            .isEqualTo("数据库自定义接口别名");
+    }
+
+    @Test
     void exposesTrustedSuperAdminKeysForDownstreamDocumentAuthorization() {
         EnterpriseAdminService.AuthResult login = service.login("admin", "123456");
 

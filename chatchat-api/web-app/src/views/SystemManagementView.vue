@@ -674,7 +674,7 @@
                       @change="togglePermissionGroup(group, $event.target.checked)"
                     />
                     <span class="permission-category-title">
-                      <strong>{{ group.root.permissionName }}</strong>
+                      <strong>{{ permissionDisplayName(group.root) }}</strong>
                       <small>{{ group.root.permissionCode }}</small>
                     </span>
                     <em class="permission-category-type">{{ typeLabel(group.root.permissionType) }}</em>
@@ -689,7 +689,7 @@
                     >
                       <input v-model="draftPermissionIds" type="checkbox" :value="permission.id" />
                       <span>
-                        <strong>{{ permission.permissionName }}</strong>
+                        <strong>{{ permissionDisplayName(permission) }}</strong>
                         <small>{{ permission.permissionCode }}</small>
                       </span>
                       <em>{{ typeLabel(permission.permissionType) }}</em>

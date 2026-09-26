@@ -29,6 +29,7 @@ import {
   fetchAgentOptions,
   fetchEnterpriseSummary,
   fetchLoginAuditLogs,
+  fetchMenuConfigurations,
   fetchOrgs,
   fetchPermissions,
   fetchRoleAuthorization,
@@ -138,6 +139,7 @@ export default {
       loginAuditResult: "",
       loginAuditTenantId: "",
       permissions: [],
+      menuConfigurations: [],
       agentOptions: [],
       apiTokens: [],
       apiTokenDuration: 2592000,
@@ -228,8 +230,10 @@ export default {
     },
     permissionTree() {
       const children = new Map();
-      this.permissions.forEach((item) => {
-        const parent = item.parentId || "root";
+      const visiblePermissions = this.permissions.filter((item) => item.permissionType !== "internal");
+      const visibleIds = new Set(visiblePermissions.map((item) => item.id));
+      visiblePermissions.forEach((item) => {
+        const parent = item.parentId && visibleIds.has(item.parentId) ? item.parentId : "root";
         if (!children.has(parent)) {
           children.set(parent, []);
         }
@@ -243,7 +247,22 @@ export default {
         });
       };
       walk("root", 0);
-      return result.length ? result : this.permissions.map((item) => ({ ...item, level: 0 }));
+      return result.length ? result : visiblePermissions.map((item) => ({ ...item, level: 0 }));
+    },
+    menuAliasesByPermissionId() {
+      const aliases = {};
+      this.menuConfigurations.forEach((configuration) => {
+        const menuName = configuration?.menu?.menuName;
+        if (!menuName) {
+          return;
+        }
+        (configuration.permissionIds || []).forEach((permissionId) => {
+          if (!aliases[permissionId]) {
+            aliases[permissionId] = menuName;
+          }
+        });
+      });
+      return aliases;
     },
     permissionGroups() {
       const selected = new Set(this.draftPermissionIds);
@@ -436,16 +455,18 @@ export default {
       this.loading = true;
       this.setNotice("");
       try {
-        const [summary, tenants, permissions, agentOptions] = await Promise.all([
+        const [summary, tenants, permissions, agentOptions, menuConfigurations] = await Promise.all([
           fetchEnterpriseSummary(),
           fetchTenants(),
           fetchPermissions(),
-          fetchAgentOptions()
+          fetchAgentOptions(),
+          fetchMenuConfigurations().catch(() => [])
         ]);
         this.summary = summary || {};
         this.tenants = Array.isArray(tenants) ? tenants : [];
         this.permissions = Array.isArray(permissions) ? permissions : [];
         this.agentOptions = Array.isArray(agentOptions) ? agentOptions : [];
+        this.menuConfigurations = Array.isArray(menuConfigurations) ? menuConfigurations : [];
         this.selectedTenantId = this.tenants[0]?.id || "";
         await this.loadTenantData();
       } catch (error) {
@@ -975,7 +996,7 @@ export default {
       }
     },
     selectAllPermissions() {
-      this.draftPermissionIds = this.permissions.map((permission) => permission.id);
+      this.draftPermissionIds = this.permissionTree.map((permission) => permission.id);
     },
     clearPermissions() {
       this.draftPermissionIds = [];
@@ -1137,6 +1158,12 @@ export default {
     },
     orgName(orgId) {
       return this.orgs.find((org) => org.id === orgId)?.orgName || "未分配组织";
+    },
+    permissionDisplayName(permission) {
+      return this.menuAliasesByPermissionId[permission?.id]
+        || permission?.permissionName
+        || permission?.permissionCode
+        || "";
     },
     typeLabel(type) {
       const labels = {

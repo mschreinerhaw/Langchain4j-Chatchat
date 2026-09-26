@@ -1834,13 +1834,15 @@ public class EnterpriseAdminService implements ApplicationRunner {
      * @return the operation result
      */
     private List<SysPermission> ensureDefaultPermissions() {
+        final String catalogMigrationCode = "system:permission-catalog:zh:v1";
+        boolean migrateCatalog = permissionRepository.findByPermissionCode(catalogMigrationCode).isEmpty();
         List<PermissionSeed> seeds = List.of(
-            new PermissionSeed(null, "system:api:all", "All API access", "api", "/api/v1/**", "*", "shield", 1),
-            new PermissionSeed(null, "system:resource-grants:model:v1", "Resource grant model v1", "internal", null, null, null, 1),
-            new PermissionSeed(null, "system:menu-order:v2", "System menu order v2", "internal", null, null, null, 1),
-            new PermissionSeed(null, "account:self:read", "Current account", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
-            new PermissionSeed(null, "account:menus:read", "Current account menus", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
-            new PermissionSeed(null, "system:health:read", "System health", "api", "/api/v1/health/**", "GET", "activity", 4),
+            new PermissionSeed(null, "system:api:all", "系统全部接口权限", "api", "/api/v1/**", "*", "shield", 1),
+            new PermissionSeed(null, "system:resource-grants:model:v1", "资源授权模型 V1", "internal", null, null, null, 1),
+            new PermissionSeed(null, "system:menu-order:v2", "系统菜单排序 V2", "internal", null, null, null, 1),
+            new PermissionSeed(null, "account:self:read", "当前账户", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
+            new PermissionSeed(null, "account:menus:read", "当前账户菜单", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
+            new PermissionSeed(null, "system:health:read", "系统健康检查", "api", "/api/v1/health/**", "GET", "activity", 4),
             new PermissionSeed(null, "workspace", "工作台", "menu", "/index.html", null, "layout-dashboard", 10),
             new PermissionSeed("workspace", "workspace:chat", "智能对话", "menu", "/index.html#chat", null, "message-circle", 11),
             new PermissionSeed("workspace", "workspace:search", "文档检索", "menu", "/index.html#search", null, "search", 12),
@@ -1851,11 +1853,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed(null, "platform", "平台管理", "menu", "/index.html#tasks", null, "boxes", 30),
             new PermissionSeed("platform", "mcp", "MCP服务", "menu", "/index.html#mcp", null, "plug", 31),
             new PermissionSeed("mcp", "mcp:service:manage", "服务管理", "button", "/api/v1/mcp/**", "*", "server", 32),
-            new PermissionSeed("mcp", "mcp:runtime:read", "Runtime契约查询", "button", "/api/v1/mcp/runtime/**", "GET", "scan-search", 32),
-            new PermissionSeed("mcp", "mcp:runtime:invoke", "Runtime工具执行", "button", "/api/v1/mcp/runtime/invoke*", "POST", "play", 32),
-            new PermissionSeed("mcp", "mcp:runtime:repair", "Runtime结果修复", "button", "/api/v1/mcp/runtime/repair*", "POST", "wrench", 32),
-            new PermissionSeed("mcp", "mcp:runtime:refresh", "Runtime目录刷新", "button", "/api/v1/mcp/runtime/refresh*", "POST", "refresh-cw", 32),
-            new PermissionSeed("mcp", "mcp:runtime:audit", "Runtime契约审计", "button", "/api/v1/mcp/runtime/contracts/audit*", "POST", "shield-check", 32),
+            new PermissionSeed("mcp", "mcp:runtime:read", "运行时契约查询", "button", "/api/v1/mcp/runtime/**", "GET", "scan-search", 32),
+            new PermissionSeed("mcp", "mcp:runtime:invoke", "运行时工具执行", "button", "/api/v1/mcp/runtime/invoke*", "POST", "play", 32),
+            new PermissionSeed("mcp", "mcp:runtime:repair", "运行时结果修复", "button", "/api/v1/mcp/runtime/repair*", "POST", "wrench", 32),
+            new PermissionSeed("mcp", "mcp:runtime:refresh", "运行时目录刷新", "button", "/api/v1/mcp/runtime/refresh*", "POST", "refresh-cw", 32),
+            new PermissionSeed("mcp", "mcp:runtime:audit", "运行时契约审计", "button", "/api/v1/mcp/runtime/contracts/audit*", "POST", "shield-check", 32),
             new PermissionSeed("mcp", "mcp:tool:authorize", "工具授权", "button", "/api/v1/enterprise/tool-permissions", "*", "key-round", 33),
             new PermissionSeed("platform", "platform:agents", "Agent管理", "menu", "/index.html#agents", null, "bot", 34),
             new PermissionSeed("platform:agents", "platform:agents:curl-example", "Agent API示例", "button", "/api/v1/published-agents/*/curl-example", "GET", "terminal", 34),
@@ -1867,9 +1869,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("platform:models", "platform:models:manage", "模型配置管理", "button", "/api/v1/platform/models/**", "*", "key-round", 39),
             new PermissionSeed("platform:tasks", "platform:tasks:monitor", "运行监控查询", "button", "/api/v1/agent/tasks/**", "GET", "activity", 38),
             new PermissionSeed("platform", "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
-            new PermissionSeed("system", "system:resource-grants:manage", "Resource grants", "button", "/api/v1/enterprise/resource-grants/**", "*", "shield-check", 44),
-            new PermissionSeed("system", "system:skill-resource-scopes:manage", "Skill resource scopes", "button", "/api/v1/enterprise/skill-resource-scopes/**", "*", "shield-check", 45),
-            new PermissionSeed("system", "system:agent-registry:manage", "Agent compute registry", "button", "/api/v1/enterprise/agent-registry/**", "*", "shield-check", 45),
+            new PermissionSeed("system", "system:resource-grants:manage", "资源授权管理", "button", "/api/v1/enterprise/resource-grants/**", "*", "shield-check", 44),
+            new PermissionSeed("system", "system:skill-resource-scopes:manage", "技能资源范围管理", "button", "/api/v1/enterprise/skill-resource-scopes/**", "*", "shield-check", 45),
+            new PermissionSeed("system", "system:agent-registry:manage", "Agent 计算资源注册管理", "button", "/api/v1/enterprise/agent-registry/**", "*", "shield-check", 45),
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),
             new PermissionSeed("system", "system:org", "组织管理", "menu", "/api/v1/enterprise/orgs", "*", "building-2", 42),
             new PermissionSeed("system", "system:user", "用户管理", "menu", "/api/v1/enterprise/users", "*", "users", 43),
@@ -1880,28 +1882,36 @@ public class EnterpriseAdminService implements ApplicationRunner {
             new PermissionSeed("system:permission", "system:menu:manage", "功能菜单管理", "button", "/api/v1/enterprise/menu-configurations/**", "*", "menu", 46),
             new PermissionSeed("system", "system:external-sync", "外部组织用户同步", "button", "/api/v1/enterprise/sync/**", "*", "refresh-cw", 47),
             new PermissionSeed(null, "audit", "审计中心", "menu", "/api/v1/enterprise/audit-logs", "GET", "file-search", 50),
-            new PermissionSeed("workspace:chat", "workspace:chat:interact", "Chat interaction API", "api", "/api/v1/interactions/**", "*", "message-circle", 11),
-            new PermissionSeed("workspace:chat", "workspace:chat:conversation", "Conversation API", "api", "/api/v1/conversations/**", "*", "message-circle", 11),
-            new PermissionSeed("workspace:search", "workspace:search:api", "Document search API", "api", "/api/v1/search/**", "*", "search", 12),
-            new PermissionSeed("workspace:search", "workspace:search:delete", "Document delete permission", "button", null, null, "trash-2", 12),
-            new PermissionSeed("workspace:search", "workspace:analysis:api", "Joint analysis API", "api", "/api/v1/agent/analysis/**", "*", "bot", 13),
-            new PermissionSeed("capability:data-science", "capability:data-science:data", "Data capability API", "api", "/api/v1/data/**", "*", "database", 24),
-            new PermissionSeed("capability:data-science", "capability:data-science:images", "Image understanding API", "api", "/api/v1/images/**", "*", "image", 24),
-            new PermissionSeed("capability:data-science", "capability:data-science:profiles", "Analysis profile API", "api", "/api/v1/analysis-profiles/**", "*", "settings", 24),
-            new PermissionSeed("platform:agents", "platform:agents:all", "All Agent access", "button", null, null, "shield-check", 34),
-            new PermissionSeed("platform:agents", "platform:agents:workshop", "Agent workshop API", "api", "/api/v1/agents/workshop/**", "*", "bot", 34),
-            new PermissionSeed("platform:agents", "platform:agents:published", "Published Agent API", "api", "/api/v1/published-agents/**", "*", "bot", 34),
-            new PermissionSeed("platform:agents", "platform:agents:optimization", "Agent optimization API", "api", "/api/v1/agent-optimizations/**", "*", "bot", 34),
-            new PermissionSeed("platform:agents", "platform:agents:runtime", "Agent runtime API", "api", "/api/v1/agent/runtime/**", "*", "bot", 34),
-            new PermissionSeed("platform:schedules", "platform:schedules:all", "All scheduled task access", "button", null, null, "shield-check", 35),
-            new PermissionSeed("platform:agents", "platform:tasks:all", "All agent task access", "button", null, null, "shield-check", 35),
-            new PermissionSeed("platform:rules", "platform:rules:manage", "Retrieval rule management", "api", "/api/v1/retrieval/rules/**", "*", "list-filter", 36),
-            new PermissionSeed("system:user", "system:admin:operate", "System administration operations", "button", "/api/v1/enterprise/users/admin/password", "*", "shield-check", 43)
+            new PermissionSeed("workspace:chat", "workspace:chat:interact", "智能对话交互接口", "api", "/api/v1/interactions/**", "*", "message-circle", 11),
+            new PermissionSeed("workspace:chat", "workspace:chat:conversation", "会话管理接口", "api", "/api/v1/conversations/**", "*", "message-circle", 11),
+            new PermissionSeed("workspace:search", "workspace:search:api", "文档检索接口", "api", "/api/v1/search/**", "*", "search", 12),
+            new PermissionSeed("workspace:search", "workspace:search:delete", "文档删除权限", "button", null, null, "trash-2", 12),
+            new PermissionSeed("workspace:search", "workspace:analysis:api", "联合分析接口", "api", "/api/v1/agent/analysis/**", "*", "bot", 13),
+            new PermissionSeed("capability:data-science", "capability:data-science:data", "数据能力接口", "api", "/api/v1/data/**", "*", "database", 24),
+            new PermissionSeed("capability:data-science", "capability:data-science:images", "图像理解接口", "api", "/api/v1/images/**", "*", "image", 24),
+            new PermissionSeed("capability:data-science", "capability:data-science:profiles", "分析配置接口", "api", "/api/v1/analysis-profiles/**", "*", "settings", 24),
+            new PermissionSeed("platform:agents", "platform:agents:all", "全部 Agent 访问权限", "button", null, null, "shield-check", 34),
+            new PermissionSeed("platform:agents", "platform:agents:workshop", "Agent 工作台接口", "api", "/api/v1/agents/workshop/**", "*", "bot", 34),
+            new PermissionSeed("platform:agents", "platform:agents:published", "已发布 Agent 接口", "api", "/api/v1/published-agents/**", "*", "bot", 34),
+            new PermissionSeed("platform:agents", "platform:agents:optimization", "Agent 优化接口", "api", "/api/v1/agent-optimizations/**", "*", "bot", 34),
+            new PermissionSeed("platform:agents", "platform:agents:runtime", "Agent 运行接口", "api", "/api/v1/agent/runtime/**", "*", "bot", 34),
+            new PermissionSeed("platform:schedules", "platform:schedules:all", "全部调度任务访问权限", "button", null, null, "shield-check", 35),
+            new PermissionSeed("platform:agents", "platform:tasks:all", "全部 Agent 任务访问权限", "button", null, null, "shield-check", 35),
+            new PermissionSeed("platform:rules", "platform:rules:manage", "检索规则管理", "api", "/api/v1/retrieval/rules/**", "*", "list-filter", 36),
+            new PermissionSeed("system:user", "system:admin:operate", "系统管理操作", "button", "/api/v1/enterprise/users/admin/password", "*", "shield-check", 43),
+            new PermissionSeed(null, catalogMigrationCode, "权限中文目录 V1", "internal", null, null, null, 99)
         );
         Map<String, String> idsByCode = permissionRepository.findAll().stream()
             .collect(Collectors.toMap(SysPermission::getPermissionCode, SysPermission::getId, (left, right) -> left));
         for (PermissionSeed seed : seeds) {
-            if (permissionRepository.findByPermissionCode(seed.code()).isPresent()) {
+            Optional<SysPermission> existing = permissionRepository.findByPermissionCode(seed.code());
+            if (existing.isPresent()) {
+                if (migrateCatalog) {
+                    SysPermission permission = existing.get();
+                    permission.setParentId(seed.parentCode() == null ? null : idsByCode.get(seed.parentCode()));
+                    permission.setPermissionName(seed.name());
+                    permissionRepository.save(permission);
+                }
                 continue;
             }
             SysPermission permission = new SysPermission();

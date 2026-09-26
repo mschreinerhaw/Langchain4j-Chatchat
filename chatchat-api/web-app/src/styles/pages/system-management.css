@@ -1498,12 +1498,8 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(360px, 0.95fr) minmax(390px, 1.05fr);
-  grid-template-rows: auto auto auto auto;
-  grid-template-areas:
-    "permissions info"
-    "permissions scope"
-    "permissions agents"
-    "permissions users";
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "side permissions";
   gap: 14px;
   overflow: hidden;
 }
@@ -1520,31 +1516,28 @@
   overflow: hidden;
 }
 
-.role-config-panel:nth-child(2) {
-  grid-area: scope;
-  grid-template-rows: auto auto;
-}
-
-.role-config-panel:nth-child(1) {
-  grid-area: info;
-  grid-template-rows: auto auto;
-  overflow: visible;
-}
-
-.role-config-panel:nth-child(3) {
-  grid-area: agents;
-  grid-template-rows: auto auto;
-}
-
-.role-config-panel:nth-child(4) {
+.permission-config-panel {
   grid-area: permissions;
   min-height: 0;
 }
 
-.role-config-panel:nth-child(5) {
-  grid-area: users;
-  min-height: 170px;
-  grid-template-rows: auto auto minmax(0, 1fr);
+.permission-config-panel .auth-check-list {
+  min-height: 0;
+  overflow: auto;
+}
+
+.role-config-side-stack {
+  grid-area: side;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+}
+
+.role-config-side-stack .role-config-panel {
+  grid-template-rows: auto auto;
+  overflow: visible;
 }
 
 .role-config-collapsible:not([open]) {
@@ -1589,12 +1582,6 @@
 
 .role-config-subhead {
   min-height: 30px;
-}
-
-.role-config-panel:nth-child(4) .auth-check-list,
-.role-config-panel:nth-child(5) .auth-check-list {
-  min-height: 0;
-  overflow: auto;
 }
 
 .agent-bind-dropdown {
@@ -2326,11 +2313,14 @@
 
   .role-config-body {
     grid-template-areas:
-      "info"
-      "scope"
-      "agents"
-      "permissions"
-      "users";
+      "side"
+      "permissions";
+    grid-template-rows: auto auto;
+    overflow: visible;
+  }
+
+  .role-config-side-stack {
+    overflow: visible;
   }
 
   .permission-modal,

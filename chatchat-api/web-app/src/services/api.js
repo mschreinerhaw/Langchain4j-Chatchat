@@ -1683,6 +1683,10 @@ export function fetchAgentOptions() {
   return apiRequest("/enterprise/agent-options");
 }
 
+export function fetchMenuConfigurations() {
+  return apiRequest("/enterprise/menu-configurations");
+}
+
 export function fetchResourceGrants(tenantId, resourceType) {
   const query = new URLSearchParams({ tenantId, resourceType });
   return apiRequest(`/enterprise/resource-grants?${query}`);

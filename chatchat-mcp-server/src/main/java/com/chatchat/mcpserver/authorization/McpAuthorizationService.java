@@ -147,16 +147,13 @@ public class McpAuthorizationService {
 
     public AuthorizationDecision authorize(String toolName, Map<String, Object> arguments) {
         if (!properties.isEnabled()) {
-            return AuthorizationDecision.allowDecision();
+            return AuthorizationDecision.denyDecision("MCP database authorization is disabled");
         }
         Snapshot snapshot = recoverUnavailableSnapshot();
         if (!snapshot.usable()) {
-            if (properties.isFailOpen()) {
-                return AuthorizationDecision.allowDecision();
-            }
             return AuthorizationDecision.denyDecision("MCP authorization snapshot is unavailable");
         }
-        if (snapshot.isStale(properties.getStaleTtlSeconds()) && !properties.isFailOpen()) {
+        if (snapshot.isStale(properties.getStaleTtlSeconds())) {
             return AuthorizationDecision.denyDecision("MCP authorization snapshot is stale");
         }
 

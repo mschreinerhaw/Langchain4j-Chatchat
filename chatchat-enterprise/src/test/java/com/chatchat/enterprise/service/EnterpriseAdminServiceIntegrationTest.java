@@ -11,6 +11,7 @@ import com.chatchat.enterprise.entity.identity.SysRole;
 import com.chatchat.enterprise.entity.identity.SysTenant;
 import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.repository.identity.SysTenantRepository;
+import com.chatchat.enterprise.repository.security.ResourceGrantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,9 @@ class EnterpriseAdminServiceIntegrationTest {
     @Autowired
     private EnterpriseAdminService service;
 
+    @Autowired
+    private ResourceGrantRepository resourceGrantRepository;
+
     @BeforeEach
     void initializeEnterpriseDomain() {
         service.run(null);
@@ -60,6 +64,13 @@ class EnterpriseAdminServiceIntegrationTest {
                 assertThat(permission.getHttpMethod()).isEqualTo("*");
             });
         assertThat(login.user().permissionCodes()).contains("capability:data-science");
+        assertThat(resourceGrantRepository.findAll())
+            .hasSize(5)
+            .allSatisfy(grant -> {
+                assertThat(grant.getResourceId()).isEqualTo("*");
+                assertThat(grant.getPrincipalType()).isEqualTo("ROLE");
+                assertThat(grant.getEffect()).isEqualTo("ALLOW");
+            });
         assertThatThrownBy(() -> service.login("admin", "wrong-password"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("invalid username or password");

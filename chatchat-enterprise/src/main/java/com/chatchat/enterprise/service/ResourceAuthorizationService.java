@@ -34,14 +34,14 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
     @Transactional(readOnly = true)
     public Set<String> allowedIds(String resourceType, String tenantId, String userId,
                                   Set<String> ignoredCallerRoles, Set<String> candidateIds) {
-        return evaluate(resourceType, tenantId, userId, candidateIds, false);
+        return evaluate(resourceType, tenantId, userId, candidateIds);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Set<String> explicitlyAllowedIds(String resourceType, String tenantId, String userId,
                                              Set<String> ignoredCallerRoles, Set<String> candidateIds) {
-        return evaluate(resourceType, tenantId, userId, candidateIds, true);
+        return evaluate(resourceType, tenantId, userId, candidateIds);
     }
 
     @Override
@@ -52,7 +52,7 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
     }
 
     private Set<String> evaluate(String resourceType, String tenantId, String userId,
-                                 Set<String> candidateIds, boolean explicitOnly) {
+                                 Set<String> candidateIds) {
         if (candidateIds == null || candidateIds.isEmpty()) return Set.of();
         if (tenantId == null || tenantId.isBlank() || resourceType == null || resourceType.isBlank()) return Set.of();
         SysUser user = userId == null ? null : users.findById(userId).orElse(null);
@@ -87,10 +87,7 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
         Set<String> allowed = new LinkedHashSet<>();
         for (String id : candidateIds) {
             List<ResourceGrant> directRules = rulesById.getOrDefault(id, List.of());
-            if (directRules.isEmpty() && wildcardRules.isEmpty()) {
-                if (!explicitOnly) allowed.add(id);
-                continue;
-            }
+            if (directRules.isEmpty() && wildcardRules.isEmpty()) continue;
             boolean deny = false;
             boolean allow = false;
             for (ResourceGrant rule : directRules) {

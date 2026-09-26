@@ -670,39 +670,11 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         if (properties.isTenantIsolationEnabled()) {
             filters.add(Map.of("term", Map.of(TENANT_ID, normalizeTenant(permissionContext == null ? null : permissionContext.tenantId()))));
         }
-        SearchPermissionContext context = permissionContext == null
-            ? SearchPermissionContext.system() : permissionContext;
-        filters.add(permissionFilter(context));
         if (allowedDocumentIds != null && !allowedDocumentIds.isEmpty()) {
             filters.add(Map.of("terms", Map.of(FILE_ID, allowedDocumentIds.stream()
                 .filter(id -> id != null && !id.isBlank()).distinct().toList())));
         }
         return filters;
-    }
-
-    private Map<String, Object> permissionFilter(SearchPermissionContext permissionContext) {
-        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
-        String userId = normalizeUser(context.userId());
-        List<Object> should = new ArrayList<>();
-        should.add(Map.of("term", Map.of(VISIBILITY, "tenant")));
-        should.add(Map.of("term", Map.of(VISIBILITY, "public")));
-        should.add(Map.of("bool", Map.of("must", List.of(
-            Map.of("term", Map.of(VISIBILITY, "private")),
-            Map.of("term", Map.of(USER_ID, userId))
-        ))));
-        for (String role : normalizeRoles(context.roles()).stream()
-            .limit(Math.max(0, config().getMaxPermissionRoles()))
-            .toList()) {
-            should.add(Map.of("bool", Map.of("must", List.of(
-                Map.of("term", Map.of(VISIBILITY, "role")),
-                Map.of("term", Map.of(PERMISSION_ROLE, role))
-            ))));
-        }
-        should.add(Map.of("bool", Map.of("must", List.of(
-            Map.of("term", Map.of(VISIBILITY, "role")),
-            Map.of("term", Map.of(USER_ID, userId))
-        ))));
-        return Map.of("bool", Map.of("should", should, "minimum_should_match", 1));
     }
 
     private DocumentBulkSummary indexDocumentChunks(SearchDocument document) {

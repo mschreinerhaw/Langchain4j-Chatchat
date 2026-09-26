@@ -49,7 +49,7 @@ class DatabaseSkillExecutionScopeServiceTest {
         when(users.findById("user-a")).thenReturn(Optional.of(user));
         when(userRoles.findByUserId("user-a")).thenReturn(List.of(membership));
         when(roles.findByTenantIdAndIdIn(eq("tenant-a"), anyCollection())).thenReturn(List.of(role));
-        when(grants.allowedIds(ResourceAuthorizationPort.AGENT_SKILL, "tenant-a", "user-a",
+        when(grants.explicitlyAllowedIds(ResourceAuthorizationPort.AGENT_SKILL, "tenant-a", "user-a",
             Set.of("role-a"), Set.of("agent-skill"))).thenReturn(Set.of("agent-skill"));
     }
 
@@ -108,7 +108,7 @@ class DatabaseSkillExecutionScopeServiceTest {
     }
 
     @Test
-    void legacyAgentBindingStillReceivesRoleFiltering() {
+    void legacyAgentBindingCannotReplacePersistedSkillResourceScope() {
         when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
             .thenReturn(List.of());
         when(units.findByDocumentIdInAndActiveTrue(anyList())).thenReturn(List.of());
@@ -120,13 +120,16 @@ class DatabaseSkillExecutionScopeServiceTest {
 
         var resolved = service.resolve("tenant-a", "user-a", "agent-skill", List.of("legacy-doc"), List.of());
 
-        assertThat(resolved.documentIds()).containsExactly("legacy-doc");
+        assertThat(resolved.documentIds()).containsExactly(
+            com.chatchat.common.retrieval.SkillExecutionScopePort.DENIED_DOCUMENT_ID);
         assertThat(resolved.managed()).isTrue();
     }
 
     @Test
     void configuredSkillRoleGrantsDoNotAuthorizeUnlistedAgentSkills() {
         when(grants.hasConfiguredRules(ResourceAuthorizationPort.AGENT_SKILL, "tenant-a")).thenReturn(true);
+        when(grants.explicitlyAllowedIds(ResourceAuthorizationPort.AGENT_SKILL, "tenant-a", "user-a",
+            Set.of("role-a"), Set.of("agent-skill"))).thenReturn(Set.of());
 
         var resolved = service.resolve("tenant-a", "user-a", "agent-skill", List.of("legacy-doc"), List.of());
 
@@ -136,16 +139,17 @@ class DatabaseSkillExecutionScopeServiceTest {
     }
 
     @Test
-    void legacyTagBindingRemainsAvailableBeforeRoleDocumentGrantsAreConfigured() {
+    void legacyTagBindingIsDeniedUntilDatabaseScopeIsConfigured() {
         when(scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc("tenant-a", "agent-skill"))
             .thenReturn(List.of());
 
         var resolved = service.resolve("tenant-a", "user-a", "agent-skill",
             List.of(), List.of("Legacy Research"));
 
-        assertThat(resolved.documentIds()).isEmpty();
-        assertThat(resolved.tags()).containsExactly("Legacy Research");
-        assertThat(resolved.managed()).isFalse();
+        assertThat(resolved.documentIds()).containsExactly(
+            com.chatchat.common.retrieval.SkillExecutionScopePort.DENIED_DOCUMENT_ID);
+        assertThat(resolved.tags()).isEmpty();
+        assertThat(resolved.managed()).isTrue();
     }
 
     private SkillResourceScope binding(String type, String id) {

@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "chatchat.mcp.authorization")
 public class McpAuthorizationProperties {
 
-    private boolean enabled = false;
+    private boolean enabled = true;
     private String apiBaseUrl = "http://localhost:8080";
     private String snapshotPath = "/api/v1/enterprise/mcp-auth/snapshot";
     private long refreshIntervalMs = 60000L;

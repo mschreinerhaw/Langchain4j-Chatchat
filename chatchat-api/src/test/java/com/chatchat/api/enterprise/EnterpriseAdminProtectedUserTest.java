@@ -11,6 +11,7 @@ import com.chatchat.enterprise.repository.federation.ExternalUserRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.security.RoleAgentBindingRepository;
+import com.chatchat.enterprise.repository.security.ResourceGrantRepository;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.identity.SysOrgRepository;
 import com.chatchat.enterprise.repository.identity.SysMenuRepository;
@@ -66,6 +67,7 @@ class EnterpriseAdminProtectedUserTest {
             mock(SysRolePermissionRepository.class),
             mock(SysRoleOrgScopeRepository.class),
             mock(RoleAgentBindingRepository.class),
+            mock(ResourceGrantRepository.class),
             mock(ExternalOrgRepository.class),
             mock(ExternalUserRepository.class),
             mock(McpToolAssetRepository.class),

@@ -1,5 +1,6 @@
 package com.chatchat.knowledgebase.search.service;
 
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryEntity;
 import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryRepository;
@@ -33,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import jakarta.annotation.PostConstruct;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -109,6 +111,9 @@ public class SearchService {
     private final SearchProperties properties;
     private final KnowledgeDocumentIngestionService knowledgeIngestionService;
     private final DocumentBusinessCategoryRepository categoryRepository;
+
+    @Autowired(required = false)
+    private ResourceAuthorizationPort resourceAuthorization;
 
     /**
      * Performs the rebuild lucene index operation.
@@ -3703,6 +3708,11 @@ public class SearchService {
         if (properties.isTenantIsolationEnabled()
             && !normalizeTenant(document.getTenantId()).equals(normalizeTenant(context.tenantId()))) {
             return false;
+        }
+        if (resourceAuthorization != null) {
+            return document.getDocId() != null && resourceAuthorization.allowedIds(
+                ResourceAuthorizationPort.KNOWLEDGE, context.tenantId(), context.userId(),
+                new LinkedHashSet<>(context.roles()), Set.of(document.getDocId())).contains(document.getDocId());
         }
         String visibility = normalizeVisibility(document.getVisibility());
         if ("public".equals(visibility) || "tenant".equals(visibility)) {

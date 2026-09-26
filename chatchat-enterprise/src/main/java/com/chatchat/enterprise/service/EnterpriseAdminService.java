@@ -5,6 +5,7 @@ import com.chatchat.common.security.PasswordHashCodec;
 import com.chatchat.common.mcp.runtime.McpRuntimeKernel;
 import com.chatchat.common.mcp.service.McpToolDescriptor;
 import com.chatchat.common.mcp.service.McpToolQuery;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.entity.datasource.DataSourceConfig;
 import com.chatchat.enterprise.entity.security.EmbedLoginToken;
 import com.chatchat.enterprise.entity.federation.ExternalOrg;
@@ -12,6 +13,7 @@ import com.chatchat.enterprise.entity.federation.ExternalUser;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.entity.mcp.McpToolPermission;
 import com.chatchat.enterprise.entity.security.RoleAgentBinding;
+import com.chatchat.enterprise.entity.security.ResourceGrant;
 import com.chatchat.enterprise.entity.audit.SysAuditLog;
 import com.chatchat.enterprise.entity.identity.SysOrg;
 import com.chatchat.enterprise.entity.identity.SysMenu;
@@ -30,6 +32,7 @@ import com.chatchat.enterprise.repository.federation.ExternalUserRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolPermissionRepository;
 import com.chatchat.enterprise.repository.security.RoleAgentBindingRepository;
+import com.chatchat.enterprise.repository.security.ResourceGrantRepository;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.identity.SysOrgRepository;
 import com.chatchat.enterprise.repository.identity.SysMenuRepository;
@@ -86,6 +89,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final SysRolePermissionRepository rolePermissionRepository;
     private final SysRoleOrgScopeRepository roleOrgScopeRepository;
     private final RoleAgentBindingRepository roleAgentBindingRepository;
+    private final ResourceGrantRepository resourceGrantRepository;
     private final ExternalOrgRepository externalOrgRepository;
     private final ExternalUserRepository externalUserRepository;
     private final McpToolAssetRepository toolAssetRepository;
@@ -1538,11 +1542,16 @@ public class EnterpriseAdminService implements ApplicationRunner {
         ensureRole(tenant.getId(), "GUEST", "访客", "guest");
         boolean permissionModelMigrationRequired = permissionRepository
             .findByPermissionCode("system:api:all").isEmpty();
+        boolean resourceGrantMigrationRequired = permissionRepository
+            .findByPermissionCode("system:resource-grants:model:v1").isEmpty();
         List<SysPermission> permissions = ensureDefaultPermissions();
         ensureDefaultMenus();
         ensureRolePermissions(tenant.getId(), superAdmin.getId(), permissions, permissionModelMigrationRequired);
         if (permissionModelMigrationRequired) {
             migrateRolePermissionModel(permissions, superAdmin.getId());
+        }
+        if (resourceGrantMigrationRequired) {
+            migrateResourceGrantModel(tenant.getId(), superAdmin.getId());
         }
         ensureAllOrgScope(tenant.getId(), superAdmin.getId());
 
@@ -1822,6 +1831,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private List<SysPermission> ensureDefaultPermissions() {
         List<PermissionSeed> seeds = List.of(
             new PermissionSeed(null, "system:api:all", "All API access", "api", "/api/v1/**", "*", "shield", 1),
+            new PermissionSeed(null, "system:resource-grants:model:v1", "Resource grant model v1", "internal", null, null, null, 1),
             new PermissionSeed(null, "account:self:read", "Current account", "api", "/api/v1/enterprise/auth/me", "GET", "user", 2),
             new PermissionSeed(null, "account:menus:read", "Current account menus", "api", "/api/v1/enterprise/menus", "GET", "menu", 3),
             new PermissionSeed(null, "system:health:read", "System health", "api", "/api/v1/health/**", "GET", "activity", 4),
@@ -2051,6 +2061,38 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 relation.setPermissionId(permissionId);
                 rolePermissionRepository.save(relation);
             }
+        }
+    }
+
+    /**
+     * Seeds the first database-owned resource policy once. The migration marker is persisted as a
+     * permission so later administrator changes to these grants are never undone on restart.
+     */
+    private void migrateResourceGrantModel(String tenantId, String superAdminRoleId) {
+        for (String resourceType : List.of(
+            ResourceAuthorizationPort.KNOWLEDGE,
+            ResourceAuthorizationPort.KNOWLEDGE_BASE,
+            ResourceAuthorizationPort.MCP_TOOL,
+            ResourceAuthorizationPort.SKILL,
+            ResourceAuthorizationPort.AGENT_SKILL
+        )) {
+            boolean exists = resourceGrantRepository
+                .findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(tenantId, resourceType).stream()
+                .anyMatch(grant -> "*".equals(grant.getResourceId())
+                    && "ROLE".equalsIgnoreCase(grant.getPrincipalType())
+                    && superAdminRoleId.equals(grant.getPrincipalId()));
+            if (exists) {
+                continue;
+            }
+            ResourceGrant grant = new ResourceGrant();
+            grant.setTenantId(tenantId);
+            grant.setResourceType(resourceType);
+            grant.setResourceId("*");
+            grant.setPrincipalType("ROLE");
+            grant.setPrincipalId(superAdminRoleId);
+            grant.setEffect("ALLOW");
+            grant.setEnabled(true);
+            resourceGrantRepository.save(grant);
         }
     }
 

@@ -26,6 +26,8 @@ import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.template.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
+import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService;
 import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -108,6 +110,12 @@ public class CommandTemplateDiscoveryService {
     private final TemplateDiscoveryProperties properties;
     private final LuceneMcpSearchService luceneSearchService;
     private final TargetKindRegistry targetKindRegistry;
+    private TemplateQueryBindingService templateBindings;
+
+    @Autowired(required = false)
+    void setTemplateBindings(TemplateQueryBindingService templateBindings) {
+        this.templateBindings = templateBindings;
+    }
 
     public CommandTemplateDiscoveryService(CommandTemplateService templateService,
                                            SshHostConfigService hostConfigService,
@@ -216,11 +224,11 @@ public class CommandTemplateDiscoveryService {
             filters
         );
         Set<String> rejectedTemplateIds = excludedTemplateIds(arguments);
-        Set<String> allowedTemplateIds = requestedTemplateIds(arguments);
         if (!rejectedTemplateIds.isEmpty()) {
             filters.put("excludeTemplateIds", rejectedTemplateIds);
         }
         String assetType = target.definition().assetType();
+        Set<String> allowedTemplateIds = authorizedTemplateIds(assetType, arguments);
         inferAssetScopeFromRegisteredMetadata(filters, assetType);
         filters.putIfAbsent("filtersSchemaVersion", target.filtersSchemaVersion());
         int limit = limit(arguments);
@@ -356,7 +364,7 @@ public class CommandTemplateDiscoveryService {
             templates.stream().map(this::templateDoc).toList(), assetType, "java", retrievalFilters,
             intent, Math.max(limit, MAX_LIMIT));
         List<ScoredTemplate<JmxTemplateConfig>> candidates = templates.stream()
-            .filter(template -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(template.getCode())))
+            .filter(template -> templateAllowed(allowedTemplateIds, template.getCode()))
             .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
             .map(template -> new ScoredTemplate<>(template,
                 decision(luceneAdjusted(relevance(template, retrievalFilters), templateSearchHit(luceneHits, template.getCode())),
@@ -396,7 +404,7 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<CommandTemplateConfig>> candidates = templates.stream()
-            .filter(template -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(template.getCode())))
+            .filter(template -> templateAllowed(allowedTemplateIds, template.getCode()))
             .filter(template -> !assetScoped || allowedByAsset.contains(normalize(template.getCode())))
             .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
             .map(template -> new ScoredTemplate<>(template,
@@ -448,7 +456,7 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<SqlTemplateConfig>> candidates = templates.stream()
-            .filter(template -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(template.getCode())))
+            .filter(template -> templateAllowed(allowedTemplateIds, template.getCode()))
             .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
             .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
             .filter(template -> !excludedTemplateIds(filters).contains(normalize(template.getCode())))
@@ -496,8 +504,8 @@ public class CommandTemplateDiscoveryService {
                                                    int limit,
                                                    Set<String> allowedTemplateIds) {
         List<HttpEndpointConfig> endpoints = httpEndpointConfigService.listEnabled().stream()
-            .filter(endpoint -> allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalize(
-                firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId())))))
+            .filter(endpoint -> templateAllowed(allowedTemplateIds,
+                firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId()))))
             .filter(endpoint -> matchesHttpEndpoint(endpoint, filters))
             .filter(endpoint -> !excludedTemplateIds(filters).contains(normalize(
                 firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId())))))
@@ -550,8 +558,7 @@ public class CommandTemplateDiscoveryService {
             ? scopedDatabaseQueryTemplates(templates, filters)
             : templates;
         scopedDatabaseQueries = scopedDatabaseQueries.stream()
-            .filter(template -> allowedTemplateIds.isEmpty()
-                || allowedTemplateIds.contains(normalize(databaseQueryTemplateId(template))))
+            .filter(template -> templateAllowed(allowedTemplateIds, databaseQueryTemplateId(template)))
             .toList();
         // Candidate template text belongs in indexed documents, never in the query.
         // Feeding every scoped template's title/description back into intent makes
@@ -3021,6 +3028,23 @@ public class CommandTemplateDiscoveryService {
             }
         }
         return Set.copyOf(requested);
+    }
+
+    private Set<String> authorizedTemplateIds(String assetType, Map<String, Object> arguments) {
+        if (templateBindings == null) {
+            return requestedTemplateIds(arguments);
+        }
+        return templateBindings.resolvePolicy(McpInvocationContext.current(), null)
+            .allowedTemplates().getOrDefault(assetType, Set.of()).stream()
+            .map(this::normalize).filter(java.util.Objects::nonNull)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    private boolean templateAllowed(Set<String> allowedTemplateIds, String templateId) {
+        String normalized = normalize(templateId);
+        return templateBindings == null
+            ? allowedTemplateIds.isEmpty() || allowedTemplateIds.contains(normalized)
+            : normalized != null && allowedTemplateIds.contains(normalized);
     }
 
     private void rejectConcreteTargetFields(Map<String, Object> filters) {

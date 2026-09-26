@@ -1,10 +1,12 @@
 package com.chatchat.mcpserver.python;
 
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
+import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -27,9 +29,15 @@ public class PythonAnalysisBridge {
     private final PythonTemplateArgumentResolver argumentResolver;
     private final PythonDataFileService dataFiles;
     private final ObjectMapper objectMapper;
+    private TemplateQueryBindingService templateBindings;
+
+    @Autowired(required = false)
+    void setTemplateBindings(TemplateQueryBindingService templateBindings) {
+        this.templateBindings = templateBindings;
+    }
 
     public Result run(Map<String, Object> rawArguments) {
-        Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
+        Map<String, Object> arguments = authorizedArguments(rawArguments);
         String tenantId = tenantId(arguments);
         String explicitTemplateId = text(arguments.get("templateId"));
         if (explicitTemplateId == null) {
@@ -86,11 +94,15 @@ public class PythonAnalysisBridge {
     }
 
     public Result execute(Map<String, Object> rawArguments) {
-        Map<String, Object> arguments = rawArguments == null ? Map.of() : rawArguments;
+        Map<String, Object> arguments = authorizedArguments(rawArguments);
         String tenantId = tenantId(arguments);
         String ownerId = ownerId(arguments);
         String templateId = text(arguments.get("templateId"));
         if (templateId == null) throw new IllegalArgumentException("templateId is required");
+        Set<String> authorizedTemplateIds = stringSet(arguments.get("_authorizedTemplateIds"));
+        if (templateBindings != null && !authorizedTemplateIds.contains(templateId)) {
+            throw new IllegalArgumentException("Python template is not authorized for current caller");
+        }
         PythonTemplate template = templates.findByIdAndTenantId(templateId, tenantId)
             .filter(value -> "PUBLISHED".equals(value.getStatus()))
             .orElseThrow(() -> new IllegalArgumentException(
@@ -147,6 +159,16 @@ public class PythonAnalysisBridge {
         body.put("executionTool", PythonMcpToolPublisher.TEMPLATE_EXECUTE_TOOL);
         body.put("selectionPolicy", "Review every candidate; invoke the Runtime executor once per accepted template");
         return new Result(Map.copyOf(body), ranked.isEmpty());
+    }
+
+    private Map<String, Object> authorizedArguments(Map<String, Object> rawArguments) {
+        Map<String, Object> arguments = new LinkedHashMap<>(rawArguments == null ? Map.of() : rawArguments);
+        if (templateBindings != null) {
+            Set<String> allowed = templateBindings.resolvePolicy(McpInvocationContext.current(), null)
+                .allowedTemplates().getOrDefault("python", Set.of());
+            arguments.put("_authorizedTemplateIds", List.copyOf(allowed));
+        }
+        return Map.copyOf(arguments);
     }
 
     private Selection selectTemplate(String tenantId, Map<String, Object> arguments) {

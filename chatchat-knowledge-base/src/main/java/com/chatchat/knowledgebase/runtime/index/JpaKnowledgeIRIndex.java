@@ -7,11 +7,13 @@ import com.chatchat.common.knowledge.index.KnowledgeIndexDocument;
 import com.chatchat.common.knowledge.model.KnowledgeRule;
 import com.chatchat.common.knowledge.model.KnowledgeSourceReference;
 import com.chatchat.common.knowledge.model.KnowledgeType;
+import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.knowledgebase.search.query.SearchTokenizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -29,6 +31,12 @@ public class JpaKnowledgeIRIndex implements KnowledgeIRIndexPort {
     private final KnowledgeIRRepository repository;
     private final ObjectMapper objectMapper;
     private final SearchTokenizer tokenizer;
+    private ResourceAuthorizationPort resourceAuthorization;
+
+    @Autowired(required = false)
+    void setResourceAuthorization(ResourceAuthorizationPort resourceAuthorization) {
+        this.resourceAuthorization = resourceAuthorization;
+    }
 
     @Override
     @Transactional
@@ -125,6 +133,12 @@ public class JpaKnowledgeIRIndex implements KnowledgeIRIndexPort {
 
     private boolean visible(KnowledgeIREntity entity, KnowledgeIRQuery query) {
         if (!normalizeTenant(entity.getTenantId()).equals(normalizeTenant(query.scope().tenantId()))) return false;
+        if (resourceAuthorization != null) {
+            return entity.getDocumentId() != null && resourceAuthorization.allowedIds(
+                ResourceAuthorizationPort.KNOWLEDGE, query.scope().tenantId(), query.scope().userId(),
+                new LinkedHashSet<>(query.scope().roles()), Set.of(entity.getDocumentId()))
+                .contains(entity.getDocumentId());
+        }
         String visibility = entity.getVisibility() == null ? "tenant" : entity.getVisibility().toLowerCase(Locale.ROOT);
         if ("public".equals(visibility) || "tenant".equals(visibility)) return true;
         if ("role".equals(visibility)) {

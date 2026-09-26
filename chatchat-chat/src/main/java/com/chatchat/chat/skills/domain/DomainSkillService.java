@@ -204,11 +204,8 @@ public class DomainSkillService implements DomainSkillRuntimePort {
 
     private Set<String> skillGrantAllowed(String tenantId, String userId, Set<String> roleIds,
                                           Set<String> candidateIds) {
-        return resourceAuthorization.hasConfiguredRules(ResourceAuthorizationPort.SKILL, tenantId)
-            ? resourceAuthorization.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL,
-                tenantId, userId, roleIds, candidateIds)
-            : resourceAuthorization.allowedIds(ResourceAuthorizationPort.SKILL,
-                tenantId, userId, roleIds, candidateIds);
+        return resourceAuthorization.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL,
+            tenantId, userId, roleIds, candidateIds);
     }
 
     @Transactional

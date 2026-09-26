@@ -47,7 +47,7 @@ class ResourceAuthorizationServiceTest {
 
         assertThat(service.allowedIds(ResourceAuthorizationPort.SKILL, "tenant-1", "user-1",
             Set.of("forged-admin"), Set.of("skill-a", "skill-b", "legacy")))
-            .containsExactlyInAnyOrder("skill-a", "legacy");
+            .containsExactly("skill-a");
         assertThat(service.explicitlyAllowedIds(ResourceAuthorizationPort.SKILL, "tenant-1", "user-1",
             Set.of("forged-admin"), Set.of("skill-a", "skill-b", "legacy")))
             .containsExactly("skill-a");

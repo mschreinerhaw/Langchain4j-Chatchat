@@ -489,30 +489,9 @@ public class LuceneDocumentIndexService implements DocumentSearchIndex {
     private void addPermissionFilter(BooleanQuery.Builder query, SearchPermissionContext permissionContext) {
         SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
         String tenantId = normalizeTenant(context.tenantId());
-        String userId = normalizeUser(context.userId());
-        BooleanQuery.Builder access = new BooleanQuery.Builder();
-        access.add(new TermQuery(new Term(VISIBILITY, "tenant")), BooleanClause.Occur.SHOULD);
-        access.add(new TermQuery(new Term(VISIBILITY, "public")), BooleanClause.Occur.SHOULD);
-        BooleanQuery.Builder privateAccess = new BooleanQuery.Builder();
-        privateAccess.add(new TermQuery(new Term(VISIBILITY, "private")), BooleanClause.Occur.MUST);
-        privateAccess.add(new TermQuery(new Term(USER_ID, userId)), BooleanClause.Occur.MUST);
-        access.add(privateAccess.build(), BooleanClause.Occur.SHOULD);
-        for (String role : normalizeRoles(context.roles())) {
-            BooleanQuery.Builder roleAccess = new BooleanQuery.Builder();
-            roleAccess.add(new TermQuery(new Term(VISIBILITY, "role")), BooleanClause.Occur.MUST);
-            roleAccess.add(new TermQuery(new Term(PERMISSION_ROLE, role)), BooleanClause.Occur.MUST);
-            access.add(roleAccess.build(), BooleanClause.Occur.SHOULD);
-        }
-        BooleanQuery.Builder ownerRoleAccess = new BooleanQuery.Builder();
-        ownerRoleAccess.add(new TermQuery(new Term(VISIBILITY, "role")), BooleanClause.Occur.MUST);
-        ownerRoleAccess.add(new TermQuery(new Term(USER_ID, userId)), BooleanClause.Occur.MUST);
-        access.add(ownerRoleAccess.build(), BooleanClause.Occur.SHOULD);
-        access.setMinimumNumberShouldMatch(1);
-
         if (properties.isTenantIsolationEnabled()) {
             query.add(new TermQuery(new Term(TENANT_ID, tenantId)), BooleanClause.Occur.MUST);
         }
-        query.add(access.build(), BooleanClause.Occur.MUST);
     }
 
     private List<String> mergeTerms(List<String> baseTerms, List<String> additionalTerms) {

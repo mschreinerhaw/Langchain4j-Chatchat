@@ -63,40 +63,25 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
         }
         List<String> roleNames = List.copyOf(nativeRoles);
         boolean skillGranted = skillId != null && !skillId.isBlank()
-            && (authorization.hasConfiguredRules(ResourceAuthorizationPort.AGENT_SKILL, tenantId)
-                ? authorization.explicitlyAllowedIds(ResourceAuthorizationPort.AGENT_SKILL,
-                    tenantId, userId, roleIds, Set.of(skillId)).contains(skillId)
-                : authorization.allowedIds(ResourceAuthorizationPort.AGENT_SKILL,
-                    tenantId, userId, roleIds, Set.of(skillId)).contains(skillId));
+            && authorization.explicitlyAllowedIds(ResourceAuthorizationPort.AGENT_SKILL,
+                tenantId, userId, roleIds, Set.of(skillId)).contains(skillId);
         if (!skillGranted) {
             return EffectiveScope.denied(roleNames);
         }
 
         List<SkillResourceScope> configured = scopes.findByTenantIdAndSkillIdOrderByResourceTypeAscResourceIdAsc(
             tenantId, skillId);
-        boolean managed = !configured.isEmpty();
+        boolean managed = true;
         Set<String> directIds = new LinkedHashSet<>();
         Set<String> baseIds = new LinkedHashSet<>();
-        if (managed) {
-            for (SkillResourceScope binding : configured) {
-                if (!binding.isEnabled()) continue;
-                if ("DOCUMENT".equals(binding.getResourceType())) directIds.add(binding.getResourceId());
-                if ("KNOWLEDGE_BASE".equals(binding.getResourceType()))
-                    baseIds.add(binding.getResourceId().toLowerCase(Locale.ROOT));
-            }
-        } else {
-            directIds.addAll(clean(legacyDocumentIds));
-            clean(legacyTags).forEach(tag -> baseIds.add(tag.toLowerCase(Locale.ROOT)));
+        for (SkillResourceScope binding : configured) {
+            if (!binding.isEnabled()) continue;
+            if ("DOCUMENT".equals(binding.getResourceType())) directIds.add(binding.getResourceId());
+            if ("KNOWLEDGE_BASE".equals(binding.getResourceType()))
+                baseIds.add(binding.getResourceId().toLowerCase(Locale.ROOT));
         }
         if (directIds.isEmpty() && baseIds.isEmpty()) {
-            return managed ? new EffectiveScope(List.of(DENIED_DOCUMENT_ID), List.of(), roleNames, true, true)
-                : new EffectiveScope(List.of(), List.of(), roleNames, false, true);
-        }
-
-        boolean explicitRoleScope = authorization.hasConfiguredRules(ResourceAuthorizationPort.KNOWLEDGE, tenantId)
-            || authorization.hasConfiguredRules(ResourceAuthorizationPort.KNOWLEDGE_BASE, tenantId);
-        if (!managed && !explicitRoleScope) {
-            return new EffectiveScope(List.copyOf(directIds), clean(legacyTags), roleNames, false, true);
+            return new EffectiveScope(List.of(DENIED_DOCUMENT_ID), List.of(), roleNames, true, true);
         }
 
         Map<String, Set<String>> documentBases = new HashMap<>();
@@ -121,18 +106,16 @@ public class DatabaseSkillExecutionScopeService implements SkillExecutionScopePo
         candidates.addAll(documentBases.keySet());
         Set<String> allowedDocuments = authorization.allowedIds(ResourceAuthorizationPort.KNOWLEDGE,
             tenantId, userId, roleIds, candidates);
-        Set<String> explicitDocuments = explicitRoleScope
-            ? authorization.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE,
-                tenantId, userId, roleIds, candidates) : Set.of();
+        Set<String> explicitDocuments = authorization.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE,
+            tenantId, userId, roleIds, candidates);
         Set<String> categories = new LinkedHashSet<>();
         documentBases.values().forEach(categories::addAll);
-        Set<String> explicitBases = explicitRoleScope
-            ? authorization.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE_BASE,
-                tenantId, userId, roleIds, categories) : Set.of();
+        Set<String> explicitBases = authorization.explicitlyAllowedIds(ResourceAuthorizationPort.KNOWLEDGE_BASE,
+            tenantId, userId, roleIds, categories);
         Set<String> selected = new LinkedHashSet<>();
         for (String docId : candidates) {
             if (!allowedDocuments.contains(docId)) continue;
-            if (explicitRoleScope && !explicitDocuments.contains(docId)
+            if (!explicitDocuments.contains(docId)
                 && documentBases.getOrDefault(docId, Set.of()).stream().noneMatch(explicitBases::contains)) continue;
             selected.add(docId);
         }

@@ -107,6 +107,36 @@ describe("AgentWorkshopView remote compute registration", () => {
       matchingRemoteAgents: matching })).toEqual([]);
   });
 
+  it("paginates more than 100 authorized Skills without losing cross-page selections", () => {
+    const normalizedDomainSkills = Array.from({ length: 125 }, (_, index) => ({
+      docId: `skill-${String(index + 1).padStart(3, "0")}`,
+      resourceKey: `domain-skill:skill-${index + 1}`,
+      title: `Skill ${index + 1}`,
+      category: index % 2 ? "研究" : "风控",
+      description: `Authorized skill ${index + 1}`
+    }));
+    const context = {
+      normalizedDomainSkills,
+      remoteSkillSearch: "",
+      remoteSkillCategoryFilter: "all",
+      remoteSkillPickerPage: 6,
+      resourcePickerPageSize: 20,
+      remoteForm: { selectedSkillIds: ["skill-001", "skill-125"] },
+      documentSearchText: AgentWorkshopView.methods.documentSearchText
+    };
+    context.remoteSkillOptions = AgentWorkshopView.computed.remoteSkillOptions.call(context);
+    context.pagedRemoteSkills = AgentWorkshopView.computed.pagedRemoteSkills.call(context);
+
+    expect(context.remoteSkillOptions).toHaveLength(125);
+    expect(context.pagedRemoteSkills).toHaveLength(20);
+    expect(context.remoteSkillOptions.slice(0, 2).map((skill) => skill.docId))
+      .toEqual(["skill-001", "skill-125"]);
+    AgentWorkshopView.methods.toggleRemoteSkillPage.call(context, true);
+    expect(context.remoteForm.selectedSkillIds).toContain("skill-001");
+    expect(context.remoteForm.selectedSkillIds).toContain("skill-125");
+    expect(context.remoteForm.selectedSkillIds).toHaveLength(22);
+  });
+
   it("stores user-written expertise without using data-category checkboxes as MCP grants", () => {
     const remoteForm = {
       agentId: "group.research", displayName: "Research Agent", endpoint: "https://group.example/a2a",

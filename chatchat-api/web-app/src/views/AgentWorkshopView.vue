@@ -473,26 +473,15 @@
           </section>
           <section class="remote-step">
             <h3><span>3</span> 允许使用的知识</h3>
-            <p>选择分析时允许 Runtime 提供的知识。至少选择一个已发布的 Skill；实际可用范围还受调用用户权限约束。</p>
+            <p>知识文档和 Skills 分开管理，仅展示当前账号有权访问的资源。至少选择一个已发布的 Skill；实际调用仍会校验用户权限。</p>
             <div class="remote-grant-grid">
               <section class="remote-grant-section">
                 <div class="agent-resource-selector">
                   <div class="agent-resource-selector-copy"><strong>知识文档</strong><span>按知识库中的文档逐项选择。</span></div>
                   <div class="agent-resource-selector-action">
                     <span :class="{ 'is-selected': remoteForm.selectedDocumentIds.length }">{{ remoteForm.selectedDocumentIds.length ? `已选 ${remoteForm.selectedDocumentIds.length} 份` : '未选择文档' }}</span>
-                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteDocumentPickerOpen" @click="remoteDocumentPickerOpen = !remoteDocumentPickerOpen">{{ remoteDocumentPickerOpen ? '收起选择' : '选择文档' }} <span aria-hidden="true">›</span></button>
+                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteDocumentPickerOpen" @click="openRemoteDocumentPicker">{{ remoteForm.selectedDocumentIds.length ? '调整选择' : '选择文档' }} <span aria-hidden="true">›</span></button>
                   </div>
-                </div>
-                <div v-if="remoteForm.selectedDocumentIds.length" class="remote-selected-list"><span v-for="id in remoteForm.selectedDocumentIds" :key="id">✓ {{ remoteDocumentLabel(id) }}</span></div>
-                <div v-if="remoteDocumentPickerOpen" class="remote-picker-panel">
-                  <input v-model.trim="remoteDocSearch" type="search" placeholder="搜索文档名称或 ID">
-                  <div class="agent-document-checklist">
-                    <label v-for="document in remoteDocumentOptions" :key="document.docId" class="agent-document-check" :class="{ active: remoteForm.selectedDocumentIds.includes(document.docId) }">
-                      <input v-model="remoteForm.selectedDocumentIds" type="checkbox" :value="document.docId">
-                      <span><strong>{{ document.title || document.fileName || document.docId }}</strong><small>{{ document.category || '未分类' }}</small></span>
-                    </label>
-                  </div>
-                  <small v-if="!remoteDocumentOptions.length">暂无可选文档</small>
                 </div>
               </section>
               <section class="remote-grant-section">
@@ -500,18 +489,8 @@
                   <div class="agent-resource-selector-copy"><strong>Skills</strong><span>选择已发布的分析 Skill。</span></div>
                   <div class="agent-resource-selector-action">
                     <span :class="{ 'is-selected': remoteForm.selectedSkillIds.length }">{{ remoteForm.selectedSkillIds.length ? `已选 ${remoteForm.selectedSkillIds.length} 个` : '未选择 Skill' }}</span>
-                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteSkillPickerOpen" @click="remoteSkillPickerOpen = !remoteSkillPickerOpen">{{ remoteSkillPickerOpen ? '收起选择' : '选择 Skill' }} <span aria-hidden="true">›</span></button>
+                    <button type="button" class="agent-picker-text-button" :aria-expanded="remoteSkillPickerOpen" @click="openRemoteSkillPicker">{{ remoteForm.selectedSkillIds.length ? '调整选择' : '选择 Skill' }} <span aria-hidden="true">›</span></button>
                   </div>
-                </div>
-                <div v-if="remoteForm.selectedSkillIds.length" class="remote-selected-list"><span v-for="id in remoteForm.selectedSkillIds" :key="id">✓ {{ remoteSkillLabel(id) }}</span></div>
-                <div v-if="remoteSkillPickerOpen" class="remote-picker-panel">
-                  <div class="remote-search-row"><input v-model.trim="remoteSkillSearch" type="search" placeholder="搜索已发布 Skill" @keyup.enter.prevent="searchRemoteSkills"><button type="button" class="secondary-button" @click="searchRemoteSkills">查找</button></div>
-                  <div class="agent-document-checklist">
-                    <label v-for="skill in remoteSkillOptions" :key="skill.value" class="agent-document-check" :class="{ active: remoteForm.selectedSkillIds.includes(skill.value) }">
-                      <input v-model="remoteForm.selectedSkillIds" type="checkbox" :value="skill.value"><span><strong>{{ skill.label || skill.value }}</strong><small>已发布 Skill</small></span>
-                    </label>
-                  </div>
-                  <small v-if="!remoteSkillOptions.length">暂无可选 Skill</small>
                 </div>
               </section>
             </div>
@@ -558,6 +537,42 @@
           <button type="submit" class="primary-button" :disabled="remoteBusy || !remotePreview">{{ remoteBusy ? '正在保存…' : '保存并启用' }}</button>
         </footer>
       </form>
+    </div>
+
+    <div v-if="remoteDocumentPickerOpen" class="agent-resource-dialog-backdrop" role="presentation" @click.self="closeRemoteDocumentPicker" @keydown.esc="closeRemoteDocumentPicker">
+      <section class="agent-resource-dialog" role="dialog" aria-modal="true" aria-labelledby="remote-document-picker-title">
+        <header><div><p>接入专有分析 Agent</p><h2 id="remote-document-picker-title">选择知识文档</h2><span>仅展示当前账号有权访问的文档；支持跨页选择，保存接入配置后生效。</span></div><button type="button" class="app-dialog-close" aria-label="关闭文档选择" @click="closeRemoteDocumentPicker">×</button></header>
+        <div class="agent-resource-dialog-body">
+          <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-searchbar">
+            <label><span>搜索已有文档</span><input v-model.trim="remoteDocSearch" type="search" placeholder="搜索文档名称、标签、来源或 ID" autofocus></label>
+            <label><span>业务分类</span><select v-model="remoteDocumentCategoryFilter"><option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
+            <label><span>文档类型</span><select v-model="remoteDocumentTypeFilter"><option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label>
+          </div>
+          <div v-if="normalizedKnowledgeDocuments.length" class="agent-document-batchbar"><label class="agent-document-select-current"><input type="checkbox" :checked="remoteDocumentPageFullySelected" @change="toggleRemoteDocumentPage($event.target.checked)"><span>选择本页</span></label><strong>{{ remoteDocumentResultLabel }}</strong></div>
+          <div v-if="pagedRemoteDocuments.length" class="agent-document-checklist">
+            <label v-for="document in pagedRemoteDocuments" :key="document.resourceKey" class="agent-document-check" :class="{ active: remoteForm.selectedDocumentIds.includes(document.docId) }" :title="document.title">
+              <input type="checkbox" :checked="remoteForm.selectedDocumentIds.includes(document.docId)" @change="toggleRemoteDocument(document)"><span><strong>{{ document.title }}</strong><small>{{ document.category }} · {{ document.documentType }} · {{ documentStatusLabel(document.lifecycleStatus) }}</small><em>{{ document.source || document.fileName || document.docId }} · {{ documentUpdatedLabel(document) }}</em></span>
+            </label>
+          </div>
+          <p v-else-if="normalizedKnowledgeDocuments.length" class="agent-tool-empty">没有匹配的知识文档，请调整关键词或筛选条件。</p><p v-else class="agent-tool-empty">暂无有权访问的知识文档。</p>
+          <nav v-if="remoteDocumentOptions.length" class="agent-resource-pagination" aria-label="专有分析知识文档分页"><button type="button" :disabled="remoteDocumentPickerPage <= 1" @click="changeRemoteDocumentPickerPage(remoteDocumentPickerPage - 1)">上一页</button><span>第 {{ remoteDocumentPickerPage }} / {{ remoteDocumentPickerPageCount }} 页，共 {{ remoteDocumentOptions.length }} 份</span><button type="button" :disabled="remoteDocumentPickerPage >= remoteDocumentPickerPageCount" @click="changeRemoteDocumentPickerPage(remoteDocumentPickerPage + 1)">下一页</button></nav>
+        </div>
+        <footer><button v-if="remoteForm.selectedDocumentIds.length" type="button" class="agent-resource-clear-button" @click="clearRemoteDocuments">清空已选</button><span v-else></span><button type="button" class="primary-button" @click="closeRemoteDocumentPicker">完成（已选 {{ remoteForm.selectedDocumentIds.length }} 份）</button></footer>
+      </section>
+    </div>
+
+    <div v-if="remoteSkillPickerOpen" class="agent-resource-dialog-backdrop" role="presentation" @click.self="closeRemoteSkillPicker" @keydown.esc="closeRemoteSkillPicker">
+      <section class="agent-resource-dialog" role="dialog" aria-modal="true" aria-labelledby="remote-skill-picker-title">
+        <header><div><p>接入专有分析 Agent</p><h2 id="remote-skill-picker-title">选择 Skills</h2><span>仅展示权限设置允许访问的已发布 Skills；支持跨页选择，保存接入配置后生效。</span></div><button type="button" class="app-dialog-close" aria-label="关闭 Skill 选择" @click="closeRemoteSkillPicker">×</button></header>
+        <div class="agent-resource-dialog-body">
+          <div v-if="normalizedDomainSkills.length" class="agent-skill-searchbar"><label><span>搜索 Skills</span><input v-model.trim="remoteSkillSearch" type="search" placeholder="搜索 Skill 名称、分类、说明或 ID" autofocus></label><label><span>技能分类</span><select v-model="remoteSkillCategoryFilter"><option v-for="option in skillCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label></div>
+          <div v-if="normalizedDomainSkills.length" class="agent-document-batchbar"><label class="agent-document-select-current"><input type="checkbox" :checked="remoteSkillPageFullySelected" @change="toggleRemoteSkillPage($event.target.checked)"><span>选择本页</span></label><strong>{{ remoteSkillResultLabel }}</strong></div>
+          <div v-if="pagedRemoteSkills.length" class="agent-document-checklist"><label v-for="skill in pagedRemoteSkills" :key="skill.resourceKey" class="agent-document-check" :class="{ active: remoteForm.selectedSkillIds.includes(skill.docId) }" :title="skill.title"><input type="checkbox" :checked="remoteForm.selectedSkillIds.includes(skill.docId)" @change="toggleRemoteSkill(skill)"><span><strong>{{ skill.title }}</strong><small>{{ skill.category }} · 已发布</small><em>{{ skill.description || skill.docId }}</em></span></label></div>
+          <p v-else-if="normalizedDomainSkills.length" class="agent-tool-empty">没有匹配的 Skill，请调整关键词或分类。</p><p v-else class="agent-tool-empty">暂无有权访问的已发布 Skill。</p>
+          <nav v-if="remoteSkillOptions.length" class="agent-resource-pagination" aria-label="专有分析 Skills 分页"><button type="button" :disabled="remoteSkillPickerPage <= 1" @click="changeRemoteSkillPickerPage(remoteSkillPickerPage - 1)">上一页</button><span>第 {{ remoteSkillPickerPage }} / {{ remoteSkillPickerPageCount }} 页，共 {{ remoteSkillOptions.length }} 个</span><button type="button" :disabled="remoteSkillPickerPage >= remoteSkillPickerPageCount" @click="changeRemoteSkillPickerPage(remoteSkillPickerPage + 1)">下一页</button></nav>
+        </div>
+        <footer><button v-if="remoteForm.selectedSkillIds.length" type="button" class="agent-resource-clear-button" @click="clearRemoteSkills">清空已选</button><span v-else></span><button type="button" class="primary-button" @click="closeRemoteSkillPicker">完成（已选 {{ remoteForm.selectedSkillIds.length }} 个）</button></footer>
+      </section>
     </div>
 
     <div v-if="dialogOpen" class="agent-dialog-backdrop">

@@ -5,7 +5,6 @@
   deleteWorkshopAgent,
   fetchAgentWorkshop,
   fetchRegisteredAgents,
-  fetchSkills,
   fetchPublishedAgentCurlExample,
   getStoredAuthSession,
   publishWorkshopAgent,
@@ -260,13 +259,17 @@ export default {
       remoteDialogOpen: false,
       remoteForm: emptyRemoteForm(),
       remotePreview: null,
-      remoteSkills: [],
       remoteAgents: [],
       apiExampleAgentId: "",
       remoteDocumentPickerOpen: false,
       remoteSkillPickerOpen: false,
       remoteDocSearch: "",
       remoteSkillSearch: "",
+      remoteDocumentCategoryFilter: "all",
+      remoteDocumentTypeFilter: "all",
+      remoteDocumentPickerPage: 1,
+      remoteSkillCategoryFilter: "all",
+      remoteSkillPickerPage: 1,
       remoteError: "",
       remoteDiagnostic: "",
       remoteBusy: false,
@@ -331,14 +334,56 @@ export default {
       return String(session?.user?.username || "").toLowerCase() === "admin";
     },
     remoteDocumentOptions() {
-      const query = this.remoteDocSearch.toLowerCase();
-      return (this.documents || []).filter((item) => item.docId && !item.deletedAt
-        && (!query || `${item.title || ""} ${item.docId}`.toLowerCase().includes(query)));
+      const query = this.remoteDocSearch.trim().toLowerCase();
+      const selected = new Set(this.remoteForm.selectedDocumentIds || []);
+      return this.normalizedKnowledgeDocuments.filter((document) => {
+        const categoryMatches = this.remoteDocumentCategoryFilter === "all"
+          || document.category === this.remoteDocumentCategoryFilter;
+        const typeMatches = this.remoteDocumentTypeFilter === "all"
+          || document.documentType === this.remoteDocumentTypeFilter;
+        return categoryMatches && typeMatches && (!query || this.documentSearchText(document).includes(query));
+      }).sort((left, right) => Number(selected.has(right.docId)) - Number(selected.has(left.docId))
+        || left.title.localeCompare(right.title, "zh-CN"));
     },
     remoteSkillOptions() {
-      const query = this.remoteSkillSearch.toLowerCase();
-      return this.remoteSkills.filter((item) => !query
-        || `${item.label || ""} ${item.value}`.toLowerCase().includes(query));
+      const query = this.remoteSkillSearch.trim().toLowerCase();
+      const selected = new Set(this.remoteForm.selectedSkillIds || []);
+      return this.normalizedDomainSkills.filter((skill) => {
+        const categoryMatches = this.remoteSkillCategoryFilter === "all"
+          || skill.category === this.remoteSkillCategoryFilter;
+        return categoryMatches && (!query || this.documentSearchText(skill).includes(query));
+      }).sort((left, right) => Number(selected.has(right.docId)) - Number(selected.has(left.docId))
+        || left.title.localeCompare(right.title, "zh-CN"));
+    },
+    pagedRemoteDocuments() {
+      const start = (this.remoteDocumentPickerPage - 1) * this.resourcePickerPageSize;
+      return this.remoteDocumentOptions.slice(start, start + this.resourcePickerPageSize);
+    },
+    remoteDocumentPickerPageCount() {
+      return Math.max(1, Math.ceil(this.remoteDocumentOptions.length / this.resourcePickerPageSize));
+    },
+    remoteDocumentPageFullySelected() {
+      return this.pagedRemoteDocuments.length > 0
+        && this.pagedRemoteDocuments.every((document) => this.remoteForm.selectedDocumentIds.includes(document.docId));
+    },
+    pagedRemoteSkills() {
+      const start = (this.remoteSkillPickerPage - 1) * this.resourcePickerPageSize;
+      return this.remoteSkillOptions.slice(start, start + this.resourcePickerPageSize);
+    },
+    remoteSkillPickerPageCount() {
+      return Math.max(1, Math.ceil(this.remoteSkillOptions.length / this.resourcePickerPageSize));
+    },
+    remoteSkillPageFullySelected() {
+      return this.pagedRemoteSkills.length > 0
+        && this.pagedRemoteSkills.every((skill) => this.remoteForm.selectedSkillIds.includes(skill.docId));
+    },
+    remoteDocumentResultLabel() {
+      if (!this.normalizedKnowledgeDocuments.length) return "暂无有权访问的知识文档";
+      return `已选 ${this.remoteForm.selectedDocumentIds.length} / ${this.normalizedKnowledgeDocuments.length}，匹配 ${this.remoteDocumentOptions.length} 份`;
+    },
+    remoteSkillResultLabel() {
+      if (!this.normalizedDomainSkills.length) return "暂无有权访问的已发布 Skill";
+      return `已选 ${this.remoteForm.selectedSkillIds.length} / ${this.normalizedDomainSkills.length}，匹配 ${this.remoteSkillOptions.length} 个`;
     },
     filteredAgents() {
       return this.agents;
@@ -761,6 +806,21 @@ export default {
     },
     skillCategoryFilter() {
       this.skillPickerPage = 1;
+    },
+    remoteDocSearch() {
+      this.remoteDocumentPickerPage = 1;
+    },
+    remoteDocumentCategoryFilter() {
+      this.remoteDocumentPickerPage = 1;
+    },
+    remoteDocumentTypeFilter() {
+      this.remoteDocumentPickerPage = 1;
+    },
+    remoteSkillSearch() {
+      this.remoteSkillPickerPage = 1;
+    },
+    remoteSkillCategoryFilter() {
+      this.remoteSkillPickerPage = 1;
     }
   },
   mounted() {
@@ -1105,36 +1165,25 @@ export default {
       this.toolPickerOpen = false;
       this.dialogOpen = true;
     },
-    async openRemoteDialog() {
+    openRemoteDialog() {
       this.remoteForm = emptyRemoteForm();
       const session = getStoredAuthSession();
       this.remoteForm.tenantIds = String(session?.user?.tenantId || session?.tenantId || "");
       this.remotePreview = null;
-      this.remoteSkills = [];
       this.remoteDocumentPickerOpen = false;
       this.remoteSkillPickerOpen = false;
       this.remoteDocSearch = "";
       this.remoteSkillSearch = "";
+      this.remoteDocumentCategoryFilter = "all";
+      this.remoteDocumentTypeFilter = "all";
+      this.remoteDocumentPickerPage = 1;
+      this.remoteSkillCategoryFilter = "all";
+      this.remoteSkillPickerPage = 1;
       this.remoteError = "";
       this.remoteDiagnostic = "";
       this.remoteAdvancedOpen = false;
       this.remoteToolPickerOpen = false;
       this.remoteDialogOpen = true;
-      await this.searchRemoteSkills();
-    },
-    async searchRemoteSkills() {
-      try {
-        const page = await fetchSkills({ scope: "published", keyword: this.remoteSkillSearch.trim(), pageSize: 100 });
-        if (this.remoteDialogOpen) {
-          const found = Array.isArray(page?.items) ? page.items : [];
-          const selected = this.remoteSkills.filter((item) =>
-            this.remoteForm.selectedSkillIds.includes(item.value)
-            && !found.some((next) => next.value === item.value));
-          this.remoteSkills = [...selected, ...found];
-        }
-      } catch (error) {
-        if (this.remoteDialogOpen) this.remoteError = "知识 Skill 目录暂时不可用，请稍后重试。";
-      }
     },
     invalidateRemotePreview() {
       this.remotePreview = null;
@@ -1143,14 +1192,6 @@ export default {
       this.remoteForm.agentId = "";
       this.remoteError = "";
       this.remoteDiagnostic = "";
-    },
-    remoteDocumentLabel(id) {
-      const document = (this.documents || []).find((item) => String(item.docId) === String(id));
-      return document?.title || document?.fileName || id;
-    },
-    remoteSkillLabel(id) {
-      const skill = (this.remoteSkills || []).find((item) => String(item.value) === String(id));
-      return skill?.label || id;
     },
     remoteDescriptor() {
       const form = this.remoteForm;
@@ -1307,6 +1348,22 @@ export default {
     },
     closeSkillPicker() {
       this.skillPickerOpen = false;
+    },
+    openRemoteDocumentPicker() {
+      this.remoteSkillPickerOpen = false;
+      this.remoteDocumentPickerPage = 1;
+      this.remoteDocumentPickerOpen = true;
+    },
+    closeRemoteDocumentPicker() {
+      this.remoteDocumentPickerOpen = false;
+    },
+    openRemoteSkillPicker() {
+      this.remoteDocumentPickerOpen = false;
+      this.remoteSkillPickerPage = 1;
+      this.remoteSkillPickerOpen = true;
+    },
+    closeRemoteSkillPicker() {
+      this.remoteSkillPickerOpen = false;
     },
     openToolPicker() {
       this.documentPickerOpen = false;
@@ -2270,6 +2327,42 @@ export default {
         else selected.delete(skill.docId);
       });
       this.form.boundDomainSkillIds = [...selected];
+    },
+    toggleRemoteDocument(document) {
+      const selected = new Set(this.remoteForm.selectedDocumentIds);
+      if (selected.has(document.docId)) selected.delete(document.docId);
+      else selected.add(document.docId);
+      this.remoteForm.selectedDocumentIds = [...selected];
+    },
+    toggleRemoteSkill(skill) {
+      const selected = new Set(this.remoteForm.selectedSkillIds);
+      if (selected.has(skill.docId)) selected.delete(skill.docId);
+      else selected.add(skill.docId);
+      this.remoteForm.selectedSkillIds = [...selected];
+    },
+    toggleRemoteDocumentPage(checked) {
+      const selected = new Set(this.remoteForm.selectedDocumentIds);
+      this.pagedRemoteDocuments.forEach((document) => checked
+        ? selected.add(document.docId) : selected.delete(document.docId));
+      this.remoteForm.selectedDocumentIds = [...selected];
+    },
+    toggleRemoteSkillPage(checked) {
+      const selected = new Set(this.remoteForm.selectedSkillIds);
+      this.pagedRemoteSkills.forEach((skill) => checked
+        ? selected.add(skill.docId) : selected.delete(skill.docId));
+      this.remoteForm.selectedSkillIds = [...selected];
+    },
+    clearRemoteDocuments() {
+      this.remoteForm.selectedDocumentIds = [];
+    },
+    clearRemoteSkills() {
+      this.remoteForm.selectedSkillIds = [];
+    },
+    changeRemoteDocumentPickerPage(page) {
+      this.remoteDocumentPickerPage = Math.min(Math.max(1, Number(page) || 1), this.remoteDocumentPickerPageCount);
+    },
+    changeRemoteSkillPickerPage(page) {
+      this.remoteSkillPickerPage = Math.min(Math.max(1, Number(page) || 1), this.remoteSkillPickerPageCount);
     },
     resetDocumentFilters() {
       this.documentSearchQuery = "";

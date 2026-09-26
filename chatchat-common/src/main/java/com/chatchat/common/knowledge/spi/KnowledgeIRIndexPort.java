@@ -11,6 +11,8 @@ import java.util.List;
 /** Persistence/search boundary for native normalized Knowledge IR indexes. */
 public interface KnowledgeIRIndexPort extends RuntimeProtocolPort {
     void replaceDocument(KnowledgeIndexDocument document);
+    void updateDocumentAuthorization(String documentId, String tenantId, String ownerUserId,
+                                     String visibility, List<String> permissionRoles);
     void deleteDocument(String documentId);
     List<KnowledgeIR> search(KnowledgeIRQuery query);
 }

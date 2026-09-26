@@ -50,6 +50,13 @@ public class KnowledgeDocumentIngestionService {
         index.deleteDocument(documentId);
     }
 
+    public void updateAuthorization(SearchDocument document) {
+        if (document == null || document.getDocId() == null || document.getDocId().isBlank()) return;
+        index.updateDocumentAuthorization(
+            document.getDocId(), document.getTenantId(), document.getUserId(),
+            document.getVisibility(), document.getPermissionRoles());
+    }
+
     private String first(List<String> values, String fallback) {
         return values == null || values.isEmpty() || values.get(0) == null || values.get(0).isBlank()
             ? fallback : values.get(0).trim();

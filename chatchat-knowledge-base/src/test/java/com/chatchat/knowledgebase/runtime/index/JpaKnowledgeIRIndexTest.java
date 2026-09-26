@@ -43,6 +43,40 @@ class JpaKnowledgeIRIndexTest {
     }
 
     @Test
+    void removesDuplicateKnowledgeIdsBeforeWritingAReplacement() {
+        KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        JpaKnowledgeIRIndex index = new JpaKnowledgeIRIndex(repository, new ObjectMapper(), new SearchTokenizer());
+        KnowledgeIR duplicate = new KnowledgeIR("same-unit", "general", KnowledgeType.INTERPRETATION,
+            "Repeated section", "summary", List.of(), List.of(), List.of(), List.of(), "summary",
+            new KnowledgeSourceReference("doc-duplicate", "doc-duplicate", "chunk-1", "guide.doc",
+                "section", "1", "doc://doc-duplicate"), 0.7D);
+
+        index.replaceDocument(new KnowledgeIndexDocument("doc-duplicate", "tenant-1", "user-1", "tenant",
+            List.of(), List.of(), "1", List.of(duplicate, duplicate)));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Iterable<KnowledgeIREntity>> saved = ArgumentCaptor.forClass(Iterable.class);
+        verify(repository).saveAll(saved.capture());
+        assertThat(saved.getValue()).hasSize(1);
+    }
+
+    @Test
+    void updatesAuthorizationMetadataWithoutReplacingKnowledgeUnits() {
+        KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
+        JpaKnowledgeIRIndex index = new JpaKnowledgeIRIndex(repository, new ObjectMapper(), new SearchTokenizer());
+
+        index.updateDocumentAuthorization("doc-1", "tenant-2", "user-2", "private", List.of("advisor"));
+
+        verify(repository).updateAuthorizationByDocumentId(
+            org.mockito.ArgumentMatchers.eq("doc-1"),
+            org.mockito.ArgumentMatchers.eq("tenant-2"),
+            org.mockito.ArgumentMatchers.eq("user-2"),
+            org.mockito.ArgumentMatchers.eq("private"),
+            org.mockito.ArgumentMatchers.eq("[\"advisor\"]"),
+            org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
     void enforcesTenantOwnerTypeAndBoundDocumentScope() {
         KnowledgeIRRepository repository = mock(KnowledgeIRRepository.class);
         JpaKnowledgeIRIndex index = new JpaKnowledgeIRIndex(repository, new ObjectMapper(), new SearchTokenizer());

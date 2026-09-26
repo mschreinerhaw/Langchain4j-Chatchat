@@ -2,6 +2,7 @@ package com.chatchat.knowledgebase.runtime.index;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
 
@@ -30,6 +31,18 @@ public interface KnowledgeIRRepository extends JpaRepository<KnowledgeIREntity, 
     List<KnowledgeIREntity> findMatchingHeadings(@Param("tenantId") String tenantId,
                                                  @Param("pattern") String pattern,
                                                  Pageable pageable);
-    void deleteByDocumentId(String documentId);
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from KnowledgeIREntity u where u.documentId = :documentId")
+    int deleteAllByDocumentId(@Param("documentId") String documentId);
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update KnowledgeIREntity u set u.tenantId = :tenantId, u.ownerUserId = :ownerUserId, "
+        + "u.visibility = :visibility, u.permissionRolesJson = :permissionRolesJson, u.updatedAt = :updatedAt "
+        + "where u.documentId = :documentId")
+    int updateAuthorizationByDocumentId(@Param("documentId") String documentId,
+                                        @Param("tenantId") String tenantId,
+                                        @Param("ownerUserId") String ownerUserId,
+                                        @Param("visibility") String visibility,
+                                        @Param("permissionRolesJson") String permissionRolesJson,
+                                        @Param("updatedAt") long updatedAt);
     long countByDocumentIdAndActiveTrue(String documentId);
 }

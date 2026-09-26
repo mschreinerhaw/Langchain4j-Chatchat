@@ -214,8 +214,24 @@ public class SearchService {
         ensureDocumentOwnerGrant(document);
         store.put(document, buildIndexData(document), oldIndexData);
         syncLuceneIndex(document);
-        syncKnowledgeIndex(document);
+        knowledgeIngestionService.updateAuthorization(document);
         return Optional.of(document);
+    }
+
+    /**
+     * Repairs authorization projections for a document without extracting its content again.
+     * This is intentionally idempotent so an interrupted legacy migration can safely resume.
+     */
+    public Optional<SearchDocument> synchronizeDocumentAuthorization(String docId) {
+        if (isBlank(docId)) {
+            throw new IllegalArgumentException("docId is required");
+        }
+        Optional<SearchDocument> result = store.get(docId.trim());
+        result.ifPresent(document -> {
+            ensureDocumentOwnerGrant(document);
+            knowledgeIngestionService.updateAuthorization(document);
+        });
+        return result;
     }
 
     /**

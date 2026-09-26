@@ -132,6 +132,7 @@ class SearchServiceTest {
         assertThat(migrated.getUploadedAt()).isEqualTo(original.getUploadedAt());
         assertThat(migrated.getUpdatedAt()).isEqualTo(original.getUpdatedAt());
         assertThat(migrated.getVersion()).isEqualTo(original.getVersion());
+        verify(knowledgeIngestionService).updateAuthorization(migrated);
     }
 
     @Test

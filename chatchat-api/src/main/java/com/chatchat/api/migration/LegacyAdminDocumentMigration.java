@@ -35,6 +35,7 @@ public class LegacyAdminDocumentMigration {
         SysUser admin = adminResult.get();
         int examined = 0;
         int migrated = 0;
+        int synchronizedDocuments = 0;
         int failed = 0;
         for (String docId : store.listDocumentIds(0)) {
             Optional<SearchDocument> result = store.get(docId);
@@ -43,12 +44,18 @@ public class LegacyAdminDocumentMigration {
             }
             examined++;
             SearchDocument document = result.get();
-            if (!LEGACY_ADMIN_USER.equalsIgnoreCase(trim(document.getUserId()))) {
+            boolean legacyOwner = LEGACY_ADMIN_USER.equalsIgnoreCase(trim(document.getUserId()));
+            boolean currentAdminOwner = admin.getId().equals(trim(document.getUserId()));
+            if (!legacyOwner && !currentAdminOwner) {
                 continue;
             }
             try {
-                if (searchService.reassignDocumentOwner(docId, admin.getTenantId(), admin.getId()).isPresent()) {
+                if (legacyOwner
+                    && searchService.reassignDocumentOwner(docId, admin.getTenantId(), admin.getId()).isPresent()) {
                     migrated++;
+                } else if (currentAdminOwner && searchService.synchronizeDocumentAuthorization(docId).isPresent()) {
+                    // Repairs documents whose owner was already migrated by an older, partially failing run.
+                    synchronizedDocuments++;
                 }
             } catch (RuntimeException ex) {
                 failed++;
@@ -56,8 +63,9 @@ public class LegacyAdminDocumentMigration {
                     docId, ex.getMessage(), ex);
             }
         }
-        log.info("legacy_admin_document_migration_complete examined={} migrated={} failed={} adminUserId={} tenantId={}",
-            examined, migrated, failed, admin.getId(), admin.getTenantId());
+        log.info("legacy_admin_document_migration_complete examined={} migrated={} synchronized={} failed={} "
+                + "adminUserId={} tenantId={}",
+            examined, migrated, synchronizedDocuments, failed, admin.getId(), admin.getTenantId());
     }
 
     private String trim(String value) {

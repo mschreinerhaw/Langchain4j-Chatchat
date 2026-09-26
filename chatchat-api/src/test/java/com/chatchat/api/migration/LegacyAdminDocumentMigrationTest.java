@@ -28,18 +28,25 @@ class LegacyAdminDocumentMigrationTest {
 
         SearchDocument legacy = SearchDocument.builder().docId("legacy-doc").tenantId("tenant-uuid")
             .userId("admin").content("kept content").build();
-        SearchDocument current = SearchDocument.builder().docId("current-doc").tenantId("tenant-uuid")
+        SearchDocument currentAdmin = SearchDocument.builder().docId("current-admin-doc").tenantId("tenant-uuid")
+            .userId("admin-uuid").content("already migrated content").build();
+        SearchDocument other = SearchDocument.builder().docId("other-doc").tenantId("tenant-uuid")
             .userId("another-user-uuid").content("other content").build();
-        when(store.listDocumentIds(0)).thenReturn(List.of("legacy-doc", "current-doc"));
+        when(store.listDocumentIds(0)).thenReturn(List.of("legacy-doc", "current-admin-doc", "other-doc"));
         when(store.get("legacy-doc")).thenReturn(Optional.of(legacy));
-        when(store.get("current-doc")).thenReturn(Optional.of(current));
+        when(store.get("current-admin-doc")).thenReturn(Optional.of(currentAdmin));
+        when(store.get("other-doc")).thenReturn(Optional.of(other));
         when(search.reassignDocumentOwner("legacy-doc", "tenant-uuid", "admin-uuid"))
             .thenReturn(Optional.of(legacy));
+        when(search.synchronizeDocumentAuthorization("current-admin-doc"))
+            .thenReturn(Optional.of(currentAdmin));
 
         new LegacyAdminDocumentMigration(store, search, users).migrate();
 
         verify(search).reassignDocumentOwner("legacy-doc", "tenant-uuid", "admin-uuid");
-        verify(search, never()).reassignDocumentOwner("current-doc", "tenant-uuid", "admin-uuid");
+        verify(search).synchronizeDocumentAuthorization("current-admin-doc");
+        verify(search, never()).reassignDocumentOwner("other-doc", "tenant-uuid", "admin-uuid");
+        verify(search, never()).synchronizeDocumentAuthorization("other-doc");
     }
 
     @Test
@@ -54,5 +61,6 @@ class LegacyAdminDocumentMigrationTest {
         verify(store, never()).listDocumentIds(0);
         verify(search, never()).reassignDocumentOwner(
             org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(search, never()).synchronizeDocumentAuthorization(org.mockito.ArgumentMatchers.any());
     }
 }

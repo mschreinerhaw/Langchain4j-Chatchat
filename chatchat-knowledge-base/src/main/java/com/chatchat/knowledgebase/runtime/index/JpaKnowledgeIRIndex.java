@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -41,19 +42,34 @@ public class JpaKnowledgeIRIndex implements KnowledgeIRIndexPort {
     @Override
     @Transactional
     public void replaceDocument(KnowledgeIndexDocument document) {
-        repository.deleteByDocumentId(document.documentId());
+        repository.deleteAllByDocumentId(document.documentId());
         // Enforce delete-before-insert for the (document_id, knowledge_id) unique key.
         repository.flush();
         long now = System.currentTimeMillis();
-        List<KnowledgeIREntity> entities = document.units().stream()
-            .map(unit -> toEntity(document, unit, now)).toList();
-        repository.saveAll(entities);
+        // Extractors may emit the same deterministic knowledgeId more than once for repeated sections.
+        // Keep the first unit so one document can never violate (document_id, knowledge_id).
+        LinkedHashMap<String, KnowledgeIREntity> uniqueEntities = new LinkedHashMap<>();
+        document.units().stream()
+            .map(unit -> toEntity(document, unit, now))
+            .forEach(entity -> uniqueEntities.putIfAbsent(entity.getKnowledgeId(), entity));
+        repository.saveAll(uniqueEntities.values());
+    }
+
+    @Override
+    @Transactional
+    public void updateDocumentAuthorization(String documentId, String tenantId, String ownerUserId,
+                                            String visibility, List<String> permissionRoles) {
+        if (documentId == null || documentId.isBlank()) return;
+        repository.updateAuthorizationByDocumentId(
+            documentId.trim(), normalizeTenant(tenantId), ownerUserId,
+            visibility == null || visibility.isBlank() ? "tenant" : visibility.trim(),
+            write(permissionRoles == null ? List.of() : permissionRoles), System.currentTimeMillis());
     }
 
     @Override
     @Transactional
     public void deleteDocument(String documentId) {
-        if (documentId != null && !documentId.isBlank()) repository.deleteByDocumentId(documentId.trim());
+        if (documentId != null && !documentId.isBlank()) repository.deleteAllByDocumentId(documentId.trim());
     }
 
     @Override

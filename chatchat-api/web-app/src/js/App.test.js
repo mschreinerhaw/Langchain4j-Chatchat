@@ -133,6 +133,46 @@ describe("document Ask AI conversation isolation", () => {
     expect(context.setHashRoute).toHaveBeenCalledWith("systemUsers");
   });
 
+  it("reconciles an empty post-login view after database menus become available", () => {
+    const context = {
+      activeView: "",
+      navigateToView: vi.fn()
+    };
+
+    App.methods.reconcileAuthorizedRoute.call(context, "chat");
+
+    expect(context.navigateToView).toHaveBeenCalledWith("chat");
+  });
+
+  it("waits for database menus before selecting the post-login route", async () => {
+    const sequence = [];
+    const context = {
+      authSession: null,
+      userId: "",
+      tenantId: "",
+      tenantName: "",
+      loadTrendSemanticConfig: vi.fn(),
+      consumeRedirectView: vi.fn(() => "library"),
+      loadEnterpriseMenus: vi.fn(async () => sequence.push("menus")),
+      reconcileAuthorizedRoute: vi.fn((view) => sequence.push(`route:${view}`)),
+      stopIdleLogoutWatcher: vi.fn(),
+      startIdleLogoutWatcher: vi.fn(),
+      loadConversationHistory: vi.fn(),
+      loadFavoriteConversationIds: vi.fn(),
+      loadRuntimeTodos: vi.fn(),
+      startTodoRefresh: vi.fn(),
+      handleUnauthenticated: vi.fn()
+    };
+
+    await App.methods.handleLoginSuccess.call(context, {
+      token: "token-1",
+      user: { id: "user-1", username: "admin", tenantId: "tenant-1" }
+    });
+
+    expect(context.loadEnterpriseMenus).toHaveBeenCalledWith({ reconcileRoute: false });
+    expect(sequence).toEqual(["menus", "route:library"]);
+  });
+
   it("shows the matching title for each system management page", () => {
     const labels = {
       users: "用户管理",

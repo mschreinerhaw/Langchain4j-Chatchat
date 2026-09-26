@@ -182,7 +182,8 @@ export default {
       idleLogoutTimer: null,
       stopAgentTaskCancelledListener: null,
       lastActivityAt: Date.now(),
-      navItems: []
+      navItems: [],
+      menuAuthorizationReady: false
     };
   },
   computed: {
@@ -200,6 +201,9 @@ export default {
       })).filter((group) => group.items.length > 0);
     },
     activeComponent() {
+      if (!this.menuAuthorizationReady) {
+        return AsyncViewState;
+      }
       return this.canAccessView(this.activeView) ? (views[this.activeView] || ChatAssistantView) : AccessDeniedView;
     },
     activeComponentProps() {
@@ -270,7 +274,7 @@ export default {
     this.stopTodoTimeoutKill();
   },
   methods: {
-    async loadEnterpriseMenus() {
+    async loadEnterpriseMenus({ reconcileRoute = true } = {}) {
       if (!isAuthenticatedSession(this.authSession)) return;
       try {
         const groups = await fetchEnterpriseMenus();
@@ -293,9 +297,16 @@ export default {
             items: (Array.isArray(group.children) ? group.children : []).map(toNavItem).filter(Boolean)
           }))
           .filter((group) => group.items.length > 0);
-        if (Array.isArray(groups)) this.navItems = configured;
+        if (Array.isArray(groups)) {
+          this.navItems = configured;
+          if (reconcileRoute) {
+            this.reconcileAuthorizedRoute();
+          }
+        }
       } catch (_) {
         this.navItems = [];
+      } finally {
+        this.menuAuthorizationReady = true;
       }
     },
     loadTrendSemanticConfig() {
@@ -351,19 +362,21 @@ export default {
         // 认证失效由统一的 AUTH_REQUIRED_EVENT 处理；临时网络错误保留当前会话。
       }
     },
-    handleLoginSuccess(session) {
+    async handleLoginSuccess(session) {
       if (!isAuthenticatedSession(session)) {
         this.handleUnauthenticated();
         return;
       }
       this.authSession = session;
+      this.menuAuthorizationReady = false;
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
       this.tenantId = resolveSessionTenantId(session, this.userId);
       this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
-      this.loadEnterpriseMenus();
-      this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
+      const requestedView = this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW;
+      await this.loadEnterpriseMenus({ reconcileRoute: false });
+      this.reconcileAuthorizedRoute(requestedView);
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();
       } else {
@@ -394,6 +407,7 @@ export default {
       this.favoriteConversationRecordIds = {};
       this.favoriteSavingIds = {};
       this.runtimeTodos = [];
+      this.menuAuthorizationReady = false;
       this.todoActionLoadingIds = {};
       this.selectedConversation = null;
       this.activeHistoryId = "";
@@ -593,6 +607,10 @@ export default {
       } finally {
         this.historyLoading = false;
       }
+    },
+    reconcileAuthorizedRoute(preferredView = "") {
+      const requested = preferredView || this.activeView || viewFromHash() || DEFAULT_VIEW;
+      this.navigateToView(requested);
     },
     loadMoreConversationHistory() {
       return this.loadConversationHistory({ append: true });

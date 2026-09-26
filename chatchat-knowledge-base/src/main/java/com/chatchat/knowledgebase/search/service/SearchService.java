@@ -1,6 +1,7 @@
 package com.chatchat.knowledgebase.search.service;
 
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
+import com.chatchat.common.retrieval.ResourceGrantProvisioningPort;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryEntity;
 import com.chatchat.knowledgebase.search.category.DocumentBusinessCategoryRepository;
@@ -115,6 +116,9 @@ public class SearchService {
     @Autowired(required = false)
     private ResourceAuthorizationPort resourceAuthorization;
 
+    @Autowired(required = false)
+    private ResourceGrantProvisioningPort resourceGrantProvisioning;
+
     /**
      * Performs the rebuild lucene index operation.
      */
@@ -151,6 +155,7 @@ public class SearchService {
         }
         long startedAt = System.nanoTime();
         SearchDocument document = normalizeDocument(request);
+        ensureDocumentOwnerGrant(document);
         log.info(
             "search_document_save_start docId={} title={} source={} tenantId={} userId={} contentChars={}",
             document.getDocId(),
@@ -176,6 +181,41 @@ public class SearchService {
             elapsedMs(startedAt)
         );
         return document;
+    }
+
+    private void ensureDocumentOwnerGrant(SearchDocument document) {
+        if (resourceGrantProvisioning == null || document == null) {
+            return;
+        }
+        resourceGrantProvisioning.ensureUserOwnerGrant(
+            ResourceAuthorizationPort.KNOWLEDGE,
+            normalizeTenant(document.getTenantId()),
+            document.getDocId(),
+            normalizeUser(document.getUserId())
+        );
+    }
+
+    /**
+     * Reassigns only the authorization identity fields of an existing document.
+     * Content, file references, version data and original timestamps are preserved byte-for-byte.
+     */
+    public Optional<SearchDocument> reassignDocumentOwner(String docId, String tenantId, String userId) {
+        if (isBlank(docId) || isBlank(tenantId) || isBlank(userId)) {
+            throw new IllegalArgumentException("docId, tenantId and userId are required");
+        }
+        Optional<SearchDocument> result = store.get(docId.trim());
+        if (result.isEmpty()) {
+            return Optional.empty();
+        }
+        SearchDocument document = result.get();
+        SearchIndexData oldIndexData = buildIndexData(document);
+        document.setTenantId(tenantId.trim());
+        document.setUserId(userId.trim());
+        ensureDocumentOwnerGrant(document);
+        store.put(document, buildIndexData(document), oldIndexData);
+        syncLuceneIndex(document);
+        syncKnowledgeIndex(document);
+        return Optional.of(document);
     }
 
     /**

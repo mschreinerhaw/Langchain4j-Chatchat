@@ -573,7 +573,8 @@ public class SearchController {
                                                      @RequestParam(value = "userId", required = false) String userId,
                                                      @RequestParam(value = "roles", required = false) String roles,
                                                      @RequestParam(value = "visibility", required = false) String visibility,
-                                                     @RequestParam(value = "permissionRoles", required = false) String permissionRoles) {
+                                                     @RequestParam(value = "permissionRoles", required = false) String permissionRoles,
+                                                     HttpServletRequest servletRequest) {
         uploadCancellationRegistry.register(uploadRequestId);
         try {
             SearchDocument document = searchService.upload(
@@ -587,7 +588,7 @@ public class SearchController {
                 keywords,
                 documentType,
                 fallbackContent,
-                permissionContext(tenantId, userId, roles),
+                authenticatedPermissionContext(servletRequest, tenantId, userId, roles),
                 visibility,
                 parseCsv(permissionRoles)
             );
@@ -601,7 +602,8 @@ public class SearchController {
     @Operation(summary = "Download and index one document from an HTTP endpoint")
     public ApiResponse<SearchDocument> importDocumentUrl(@RequestBody DocumentUrlImportRequest body,
                                                          @RequestHeader(value = "X-Upload-Request-Id", required = false)
-                                                         String uploadRequestId) {
+                                                         String uploadRequestId,
+                                                         HttpServletRequest servletRequest) {
         if (body == null || body.url() == null || body.url().isBlank()) {
             return ApiResponse.badRequest("document URL is required");
         }
@@ -629,7 +631,7 @@ public class SearchController {
                 body.keywords(),
                 body.documentType(),
                 null,
-                permissionContext(body.tenantId(), body.userId(), body.roles()),
+                authenticatedPermissionContext(servletRequest, body.tenantId(), body.userId(), body.roles()),
                 body.visibility(),
                 parseCsv(body.permissionRoles())
             );
@@ -655,7 +657,8 @@ public class SearchController {
                                                             @RequestParam(value = "userId", required = false) String userId,
                                                             @RequestParam(value = "roles", required = false) String roles,
                                                             @RequestParam(value = "visibility", required = false) String visibility,
-                                                            @RequestParam(value = "permissionRoles", required = false) String permissionRoles) {
+                                                            @RequestParam(value = "permissionRoles", required = false) String permissionRoles,
+                                                            HttpServletRequest servletRequest) {
         if (files == null || files.isEmpty() || files.stream().allMatch(file -> file == null || file.isEmpty())) {
             return ApiResponse.badRequest("files are required");
         }
@@ -669,7 +672,7 @@ public class SearchController {
             return ApiResponse.badRequest("files larger than 5MB must be uploaded individually");
         }
         String mergedTags = mergeCategoryTag(category, tags);
-        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        SearchPermissionContext context = authenticatedPermissionContext(servletRequest, tenantId, userId, roles);
         uploadCancellationRegistry.register(uploadRequestId);
         try {
             List<SearchDocument> documents = files.stream()

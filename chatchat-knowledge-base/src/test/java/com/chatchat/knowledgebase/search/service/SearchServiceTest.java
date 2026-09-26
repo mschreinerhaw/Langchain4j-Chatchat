@@ -108,6 +108,33 @@ class SearchServiceTest {
     }
 
     @Test
+    void reassignsLegacyOwnerWithoutChangingDocumentData() {
+        SearchService service = newSearchService();
+        SearchDocument original = service.createOrUpdate(SearchDocument.builder()
+            .docId("legacy-admin-doc")
+            .title("Legacy admin upload")
+            .content("original document content")
+            .fileName("legacy.pdf")
+            .filePath("archive/legacy.pdf")
+            .uploadedAt(1234L)
+            .tenantId("legacy-tenant")
+            .userId("admin")
+            .build());
+
+        SearchDocument migrated = service.reassignDocumentOwner(
+            original.getDocId(), "tenant-uuid", "admin-uuid").orElseThrow();
+
+        assertThat(migrated.getTenantId()).isEqualTo("tenant-uuid");
+        assertThat(migrated.getUserId()).isEqualTo("admin-uuid");
+        assertThat(migrated.getContent()).isEqualTo(original.getContent());
+        assertThat(migrated.getFileName()).isEqualTo(original.getFileName());
+        assertThat(migrated.getFilePath()).isEqualTo(original.getFilePath());
+        assertThat(migrated.getUploadedAt()).isEqualTo(original.getUploadedAt());
+        assertThat(migrated.getUpdatedAt()).isEqualTo(original.getUpdatedAt());
+        assertThat(migrated.getVersion()).isEqualTo(original.getVersion());
+    }
+
+    @Test
     void listsLibraryByCategoryAndChecksTitleExistence() {
         SearchService service = newSearchService();
         saveSemiconductorDocument(service);

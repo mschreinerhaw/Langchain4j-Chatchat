@@ -8,6 +8,8 @@ import java.util.List;
 
 public interface ResourceGrantRepository extends JpaRepository<ResourceGrant, String> {
     boolean existsByTenantIdAndResourceType(String tenantId, String resourceType);
+    boolean existsByTenantIdAndResourceTypeAndResourceIdAndPrincipalTypeAndPrincipalIdAndEffectAndEnabledTrue(
+        String tenantId, String resourceType, String resourceId, String principalType, String principalId, String effect);
     List<ResourceGrant> findByTenantIdAndResourceTypeAndResourceIdIn(
         String tenantId, String resourceType, Collection<String> resourceIds);
 

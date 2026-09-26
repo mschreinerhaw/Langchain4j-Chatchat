@@ -60,10 +60,10 @@ chatchat:
     domain:
       index-name: domain_skill_index_dev
     federation:
-      credential-key: ${CHATCHAT_SKILL_FEDERATION_CREDENTIAL_KEY:local-development-only}
-      max-skills-per-source: ${CHATCHAT_SKILL_FEDERATION_MAX_SKILLS:1000}
-      page-size: ${CHATCHAT_SKILL_FEDERATION_PAGE_SIZE:100}
-      max-skill-bytes: ${CHATCHAT_SKILL_FEDERATION_MAX_SKILL_BYTES:1048576}
+      credential-key: local-development-only
+      max-skills-per-source: 1000
+      page-size: 100
+      max-skill-bytes: 1048576
   domain-skills:
     compiler-model: deepseek-v4-pro
     router-model: deepseek-v4-pro

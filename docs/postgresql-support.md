@@ -59,3 +59,10 @@ for the MCP process and remove any external
 `SPRING_DATASOURCE_HIKARI_CONNECTION_INIT_SQL` or
 `spring.datasource.hikari.connection-init-sql` override containing MySQL SQL.
 The PostgreSQL datasource config now sets `lock_timeout` using PostgreSQL syntax.
+
+The reverse error, MySQL reporting `Unknown system variable 'lock_timeout'`, means the
+JDBC URL was changed to MySQL while PostgreSQL datasource settings remained imported.
+Use `CHATCHAT_DATASOURCE_CONFIG=datasource-mysql.yml` instead of overriding only the
+URL, driver, and dialect. The MCP Server also validates the effective Hikari datasource
+before first use and repairs the built-in lock-timeout statement for MySQL, PostgreSQL,
+or H2. Custom connection initialization SQL is left unchanged.

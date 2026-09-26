@@ -213,7 +213,9 @@
         </header>
         <div class="mcp-sources-intro">
           <p>从支持 MCP Skills 扩展的服务发现技能。同步内容先进入草稿，审核发布后才可授权给用户、角色、组织和 Agent。</p>
-          <button type="button" @click="openMcpSourceEditor()">新增 Skill 源</button>
+          <button type="button" class="domain-skill-text-button" @click="openMcpSourceEditor()">
+            新增 Skill 源 <span aria-hidden="true">›</span>
+          </button>
         </div>
         <div class="mcp-sources-list">
           <p v-if="mcpSourcesLoading" class="domain-skills-empty">正在加载 Skill 源…</p>

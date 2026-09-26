@@ -273,8 +273,8 @@ chatchat:
       connect-timeout-ms: 5000
       request-timeout-ms: 30000
       bulk-batch-size: 200
-      bulk-max-bytes: ${CHATCHAT_SEARCH_OPENSEARCH_BULK_MAX_BYTES:4194304}
-      vector-rerank-max-bytes: ${CHATCHAT_SEARCH_OPENSEARCH_VECTOR_RERANK_MAX_BYTES:4194304}
+      bulk-max-bytes: 4194304
+      vector-rerank-max-bytes: 4194304
       max-query-terms: 20
       max-query-chars: 500
       max-permission-roles: 64
@@ -286,7 +286,7 @@ chatchat:
         api-key: 
         model: kinfra-text-embedding-4b
         dimension: 1024
-        dimension-request-mode: ${CHATCHAT_SEARCH_EMBEDDING_DIMENSION_REQUEST_MODE:AUTO}
+        dimension-request-mode: AUTO
         vector-field: contentVector
         max-input-chars: 6000
         vector-candidate-limit: 50

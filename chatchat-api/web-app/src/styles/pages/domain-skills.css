@@ -927,6 +927,39 @@
 .domain-skills-page .mcp-sources-intro button,
 .domain-skills-page .mcp-source-actions button { white-space: nowrap; }
 
+.domain-skills-page .mcp-sources-intro .domain-skill-text-button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--primary-strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.domain-skills-page .mcp-sources-intro .domain-skill-text-button:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.domain-skills-page .mcp-sources-intro .domain-skill-text-button:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid color-mix(in srgb, var(--primary) 38%, transparent);
+  outline-offset: 3px;
+}
+
+.domain-skills-page .mcp-sources-intro .domain-skill-text-button span {
+  color: inherit;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+}
+
 .domain-skills-page .mcp-sources-list {
   display: grid;
   gap: 12px;

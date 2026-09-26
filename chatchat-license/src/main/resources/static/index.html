@@ -86,18 +86,15 @@
           <div class="section-heading permission-heading">
             <span class="section-icon">03</span>
             <div><h2>产品功能权益</h2><p>权益目录从目标 MCP 服务实时同步，并在管理接口和工具调用链路强制执行</p></div>
-            <div class="permission-actions"><button type="button" id="selectAllModules">全部选择</button><button type="button" id="clearAllModules">清空</button></div>
+            <div class="permission-selection-summary"><strong id="selectedModuleCount">0</strong><span>项已选</span><small id="availableModuleCount">共 0 项</small></div>
           </div>
-          <div class="permission-grid">
-            <fieldset><legend>管理菜单</legend>
-              <p class="fieldset-help">控制管理端导航和对应管理接口。</p>
-              <div id="mcpMenuModules" class="module-list"><span>正在同步 MCP 授权目录...</span></div>
-            </fieldset>
-            <fieldset><legend>MCP 功能模块</legend>
-              <p class="fieldset-help">控制资产类型、模板管理以及 MCP 工具调用。</p>
-              <div id="mcpCapabilityModules" class="module-list"><span>正在同步 MCP 授权目录...</span></div>
-            </fieldset>
+          <div class="permission-toolbar">
+            <label class="module-search"><span>搜索功能模块</span><input id="moduleSearch" type="search" placeholder="按名称、功能码或说明搜索"></label>
+            <div class="permission-actions"><button type="button" id="selectVisibleModules">选择当前结果</button><button type="button" id="selectAllModules">全部选择</button><button type="button" id="clearAllModules">清空</button></div>
           </div>
+          <div class="permission-legend"><span><i class="navigation"></i>管理模块</span><span><i class="capability"></i>细分能力</span><span>旧版系统设置授权兼容“授权管理”</span></div>
+          <div id="moduleGroups" class="module-groups"><div class="module-loading">正在同步 MCP 授权目录...</div></div>
+          <div id="moduleSearchEmpty" class="module-search-empty" hidden>没有匹配的功能模块，请调整搜索条件。</div>
         </section>
 
         <section class="form-card">

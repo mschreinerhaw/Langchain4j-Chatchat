@@ -20,6 +20,31 @@ let availableModules = [];
 let auditRecords = [];
 let auditPage = { page: 0, size: 20, totalElements: 0, totalPages: 0, summary: {} };
 
+const moduleGroups = [
+  {
+    key: 'core', title: '核心接入与能力',
+    description: '服务接入、模板发布、业务查询和知识能力',
+    modules: new Set(['apiServices', 'mcpServices', 'templateQueryPublications', 'databaseMcp',
+      'businessCategories', 'newsCollection', 'pythonManagement'])
+  },
+  {
+    key: 'assets', title: '资产与数据能力',
+    description: '主机、数据库、HTTP、JMX、索引和元数据治理',
+    modules: new Set(['assetSsh', 'assetSql', 'assetHttp', 'assetJmx', 'assetSearchIndex', 'enterpriseMetadata'])
+  },
+  {
+    key: 'governance', title: '治理、安全与运营',
+    description: '权限、审计、通知和运行策略',
+    modules: new Set(['authorizationManagement', 'auditLogs', 'commandAuditLogs',
+      'notificationChannels', 'cacheSettings'])
+  },
+  {
+    key: 'system', title: '系统配置',
+    description: '用户、登录审计、执行目标及平台参数',
+    modules: new Set(['settings'])
+  }
+];
+
 const planCatalog = {
   standard: {
     label: '标准版', users: 25, agents: 5, skills: 5,
@@ -73,6 +98,116 @@ function updatePreview() {
   preview.agents.textContent = form.elements.maxAgents.value || '-';
   preview.skills.textContent = form.elements.maxSkills.value || '-';
   preview.expiry.textContent = form.elements.expireTime.value || '-';
+  updateModuleSelectionUi();
+}
+
+function groupForModule(module) {
+  return moduleGroups.find(group => group.modules.has(module.key)) || {
+    key: 'other', title: '其他功能', description: '由目标服务动态发布的扩展模块', modules: new Set()
+  };
+}
+
+function updateModuleSelectionUi() {
+  const inputs = [...form.querySelectorAll('input[name="modules"]')];
+  const selected = inputs.filter(input => input.checked).length;
+  const selectedCount = document.querySelector('#selectedModuleCount');
+  const availableCount = document.querySelector('#availableModuleCount');
+  if (selectedCount) selectedCount.textContent = selected;
+  if (availableCount) availableCount.textContent = `共 ${inputs.length} 项`;
+  document.querySelectorAll('.module-group').forEach(group => {
+    const groupInputs = [...group.querySelectorAll('input[name="modules"]')];
+    const groupSelected = groupInputs.filter(input => input.checked).length;
+    const count = group.querySelector('.module-group-count');
+    const button = group.querySelector('.module-group-action');
+    if (count) count.textContent = `${groupSelected}/${groupInputs.length}`;
+    if (button) button.textContent = groupInputs.length && groupSelected === groupInputs.length ? '取消本组' : '选择本组';
+  });
+}
+
+function filterModules() {
+  const keyword = String(document.querySelector('#moduleSearch')?.value || '').trim().toLowerCase();
+  let visibleCount = 0;
+  document.querySelectorAll('.module-card').forEach(card => {
+    const visible = !keyword || card.dataset.search.includes(keyword);
+    card.hidden = !visible;
+    if (visible) visibleCount += 1;
+  });
+  document.querySelectorAll('.module-group').forEach(group => {
+    group.hidden = !group.querySelector('.module-card:not([hidden])');
+  });
+  document.querySelector('#moduleSearchEmpty').hidden = visibleCount !== 0;
+}
+
+function renderModuleGroups(menus) {
+  const container = document.querySelector('#moduleGroups');
+  container.replaceChildren();
+  const grouped = new Map();
+  menus.forEach(module => {
+    const group = groupForModule(module);
+    if (!grouped.has(group.key)) grouped.set(group.key, { group, modules: [] });
+    grouped.get(group.key).modules.push(module);
+  });
+  const ordered = [...moduleGroups.map(group => grouped.get(group.key)).filter(Boolean)];
+  if (grouped.has('other')) ordered.push(grouped.get('other'));
+  ordered.forEach(({ group, modules }) => {
+    const section = document.createElement('section');
+    section.className = 'module-group';
+    section.dataset.group = group.key;
+    const heading = document.createElement('div');
+    heading.className = 'module-group-heading';
+    const copy = document.createElement('div');
+    const title = document.createElement('h3');
+    title.textContent = group.title;
+    const description = document.createElement('p');
+    description.textContent = group.description;
+    copy.append(title, description);
+    const controls = document.createElement('div');
+    controls.className = 'module-group-controls';
+    const count = document.createElement('span');
+    count.className = 'module-group-count';
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'module-group-action';
+    action.addEventListener('click', () => {
+      const inputs = [...section.querySelectorAll('input[name="modules"]')];
+      const shouldSelect = inputs.some(input => !input.checked);
+      inputs.forEach(input => { input.checked = shouldSelect; });
+      updatePreview();
+    });
+    controls.append(count, action);
+    heading.append(copy, controls);
+    const list = document.createElement('div');
+    list.className = 'module-list';
+    modules.forEach(module => {
+      moduleLabels[module.key] = module.label;
+      const label = document.createElement('label');
+      label.className = 'check-card module-card';
+      label.dataset.search = `${module.label} ${module.key} ${module.description || ''}`.toLowerCase();
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'modules';
+      input.value = module.key;
+      const text = document.createElement('span');
+      text.className = 'module-card-copy';
+      const titleRow = document.createElement('span');
+      titleRow.className = 'module-card-title';
+      const moduleTitle = document.createElement('b');
+      moduleTitle.textContent = module.label;
+      const type = document.createElement('i');
+      type.className = module.navigation === false ? 'capability' : 'navigation';
+      type.textContent = module.navigation === false ? '细分能力' : '管理模块';
+      titleRow.append(moduleTitle, type);
+      const detail = document.createElement('small');
+      detail.textContent = module.description || '暂无模块说明';
+      const code = document.createElement('code');
+      code.textContent = module.key;
+      text.append(titleRow, detail, code);
+      label.append(input, text);
+      list.append(label);
+    });
+    section.append(heading, list);
+    container.append(section);
+  });
 }
 
 const editionText = value => ({ standard: 'Standard 标准版', professional: 'Professional 专业版', enterprise: 'Enterprise 企业版' }[value] || value || '-');
@@ -131,42 +266,25 @@ form.elements.issuedTime.addEventListener('change', () => {
 updatePreview();
 
 async function loadMcpMenus({ preserveSelection = false, failOnError = false } = {}) {
-  const menuContainer = document.querySelector('#mcpMenuModules');
-  const capabilityContainer = document.querySelector('#mcpCapabilityModules');
+  const moduleContainer = document.querySelector('#moduleGroups');
   const previousSelection = new Set(selectedValues('modules'));
   try {
     const response = await fetch('/api/licenses/mcp-menus', { cache: 'no-store' });
     const menus = await response.json();
     if (!response.ok) throw new Error(menus.message || '同步 MCP 菜单失败');
-    menuContainer.replaceChildren();
-    capabilityContainer.replaceChildren();
     availableModules = menus;
+    renderModuleGroups(menus);
     const auditModule = document.querySelector('#auditModule');
     auditModule.querySelectorAll('option:not(:first-child)').forEach(option => option.remove());
     menus.forEach(menu => {
-      moduleLabels[menu.key] = menu.label;
-      const label = document.createElement('label');
-      label.className = 'check-card';
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.name = 'modules';
-      input.value = menu.key;
-      input.checked = preserveSelection && previousSelection.has(menu.key);
-      const text = document.createElement('span');
-      const title = document.createElement('b');
-      title.textContent = menu.label;
-      const detail = document.createElement('small');
-      detail.textContent = menu.description || `授权模块 ID：${menu.key}`;
-      text.append(title, detail);
-      label.append(input, text);
-      (menu.navigation === false ? capabilityContainer : menuContainer).append(label);
+      const input = form.querySelector(`input[name="modules"][value="${CSS.escape(menu.key)}"]`);
+      if (input) input.checked = preserveSelection && previousSelection.has(menu.key);
       const option = document.createElement('option');
       option.value = menu.key;
       option.textContent = menu.label;
       auditModule.append(option);
     });
-    if (!menuContainer.children.length) menuContainer.textContent = '目标服务未发布管理菜单';
-    if (!capabilityContainer.children.length) capabilityContainer.textContent = '目标服务未发布功能模块';
+    if (!menus.length) moduleContainer.textContent = '目标服务未发布功能模块';
     const publishedKeys = new Set(menus.map(menu => menu.key));
     const removed = [...previousSelection].filter(key => !publishedKeys.has(key));
     const migrated = [];
@@ -182,11 +300,11 @@ async function loadMcpMenus({ preserveSelection = false, failOnError = false } =
     }
     if (preserveSelection) updatePreview();
     else applyPlan(form.elements.edition.value || 'enterprise');
+    filterModules();
     return { menus, removed, migrated };
   } catch (error) {
     if (!preserveSelection) {
-      menuContainer.textContent = error.message;
-      capabilityContainer.textContent = error.message;
+      moduleContainer.textContent = error.message;
     }
     message.style.color = '#d14956';
     message.textContent = error.message;
@@ -201,6 +319,13 @@ document.querySelector('#selectAllModules').addEventListener('click', () => {
   form.querySelectorAll('input[name="modules"]').forEach(input => { input.checked = true; });
   updatePreview();
 });
+
+document.querySelector('#selectVisibleModules').addEventListener('click', () => {
+  form.querySelectorAll('.module-card:not([hidden]) input[name="modules"]').forEach(input => { input.checked = true; });
+  updatePreview();
+});
+
+document.querySelector('#moduleSearch').addEventListener('input', filterModules);
 
 document.querySelector('#clearAllModules').addEventListener('click', () => {
   form.querySelectorAll('input[name="modules"]').forEach(input => { input.checked = false; });

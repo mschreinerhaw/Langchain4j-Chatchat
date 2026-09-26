@@ -37,8 +37,9 @@ class CategoryReindexTaskServiceMcpTest {
         CategoryReindexTaskService service = new CategoryReindexTaskService(search);
         ReflectionTestUtils.setField(service, "legacyDocumentMcpTransferService", bridge);
         try {
-            service.start("all", context, "admin");
-            verify(bridge, timeout(2000)).transfer(eq(document), eq(null), eq(context), eq("admin"));
+            service.start("all", context, "admin", List.of("workspace:search:delete"));
+            verify(bridge, timeout(2000)).transfer(eq(document), eq(null), eq(context), eq("admin"),
+                eq(List.of("workspace:search:delete")));
             long deadline = System.nanoTime() + 2_000_000_000L;
             while (service.status().running() && System.nanoTime() < deadline) Thread.sleep(10);
             assertThat(service.status().status()).isEqualTo("COMPLETED");

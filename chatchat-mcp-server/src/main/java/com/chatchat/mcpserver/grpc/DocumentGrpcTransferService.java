@@ -27,6 +27,7 @@ import java.util.Objects;
 /** MCP-owned upload and legacy migration over authenticated, chunked gRPC. */
 public final class DocumentGrpcTransferService extends DocumentTransferServiceGrpc.DocumentTransferServiceImplBase {
     private static final long MAX_BYTES = 55L * 1024 * 1024;
+    private static final String OWNER_MIGRATION_PERMISSION = "workspace:search:delete";
     private final SearchService search;
     private final SearchProperties properties;
     private final ObjectMapper mapper;
@@ -116,11 +117,12 @@ public final class DocumentGrpcTransferService extends DocumentTransferServiceGr
         }
         if (!"MIGRATE".equals(start.getOperation())) throw new IllegalArgumentException("unknown transfer operation");
         SearchDocument document = mapper.readValue(start.getDocumentJson().toByteArray(), SearchDocument.class);
-        boolean admin = "admin".equalsIgnoreCase(start.getUsername());
+        boolean canMigrateOwner = csv(start.getPermissions()).stream()
+            .anyMatch(OWNER_MIGRATION_PERMISSION::equalsIgnoreCase);
         boolean owner = caller.tenantId().equals(document.getTenantId())
             && caller.userId().equals(document.getUserId());
-        if (!owner && !admin)
-            throw new IllegalArgumentException("only document owner or admin can transfer documents");
+        if (!owner && !canMigrateOwner)
+            throw new IllegalArgumentException("only document owner or an authorized caller can transfer documents");
         if (document.getDocId() == null || !document.getDocId().matches("[A-Za-z0-9._:-]{1,128}"))
             throw new IllegalArgumentException("invalid document ID");
         if (document.getContent() == null || document.getContent().isBlank())
@@ -128,7 +130,7 @@ public final class DocumentGrpcTransferService extends DocumentTransferServiceGr
         search.get(document.getDocId()).ifPresent(existing -> {
             boolean ownerMismatch = !Objects.equals(existing.getTenantId(), document.getTenantId())
                 || !Objects.equals(existing.getUserId(), document.getUserId());
-            if (ownerMismatch && !admin)
+            if (ownerMismatch && !canMigrateOwner)
                 throw new IllegalArgumentException("document ID belongs to another owner");
         });
         Path savedFile = null;

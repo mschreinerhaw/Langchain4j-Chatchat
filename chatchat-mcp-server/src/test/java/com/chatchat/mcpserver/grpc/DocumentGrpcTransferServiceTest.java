@@ -63,7 +63,7 @@ class DocumentGrpcTransferServiceTest {
         AtomicReference<DocumentTransferReply> result = new AtomicReference<>();
         StreamObserver<DocumentTransferChunk> sender = service.transfer(observer(result));
         sender.onNext(DocumentTransferChunk.newBuilder().setStart(DocumentTransferStart.newBuilder()
-            .setOperation("MIGRATE").setTenantId("tenant-1").setUserId("user-1")
+            .setOperation("MIGRATE").setTenantId("tenant-1").setUserId("user-1").setUsername("admin")
             .setFileName("guide.txt").setDocumentJson(ByteString.copyFromUtf8(
                 "{\"docId\":\"legacy-1\",\"title\":\"Guide\",\"content\":\"searchable\","
                     + "\"tenantId\":\"tenant-1\",\"userId\":\"user-1\"}"))
@@ -104,7 +104,7 @@ class DocumentGrpcTransferServiceTest {
     }
 
     @Test
-    void allowsAdminToMigrateDocumentWhenExistingOwnerIsLegacy() throws Exception {
+    void allowsAuthorizedCallerToMigrateDocumentWhenExistingOwnerIsLegacy() throws Exception {
         SearchService search = mock(SearchService.class);
         when(search.get("legacy-1")).thenReturn(Optional.of(SearchDocument.builder()
             .docId("legacy-1").tenantId("default").userId("admin").build()));
@@ -116,6 +116,7 @@ class DocumentGrpcTransferServiceTest {
         StreamObserver<DocumentTransferChunk> sender = service.transfer(observer(result));
         sender.onNext(DocumentTransferChunk.newBuilder().setStart(DocumentTransferStart.newBuilder()
             .setOperation("MIGRATE").setTenantId("tenant-1").setUserId("admin-uuid").setUsername("admin")
+            .setPermissions("workspace:search:delete")
             .setDocumentJson(ByteString.copyFromUtf8(
                 "{\"docId\":\"legacy-1\",\"title\":\"Guide\",\"content\":\"searchable\","
                     + "\"tenantId\":\"tenant-1\",\"userId\":\"admin-uuid\"}"))

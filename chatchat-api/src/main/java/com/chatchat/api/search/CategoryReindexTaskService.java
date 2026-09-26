@@ -39,6 +39,11 @@ public class CategoryReindexTaskService {
 
     public CategoryReindexTaskStartResponse start(String category, SearchPermissionContext permissionContext,
                                                   String username) {
+        return start(category, permissionContext, username, List.of());
+    }
+
+    public CategoryReindexTaskStartResponse start(String category, SearchPermissionContext permissionContext,
+                                                  String username, List<String> permissions) {
         synchronized (taskLock) {
             CategoryReindexTaskStatus current = currentTask.get();
             if (current.running()) {
@@ -71,7 +76,9 @@ public class CategoryReindexTaskService {
                 permissionContext == null ? SearchPermissionContext.DEFAULT_TENANT : permissionContext.tenantId(),
                 permissionContext == null ? SearchPermissionContext.ANONYMOUS_USER : permissionContext.userId()
             );
-            executor.submit(() -> runTask(taskId, normalizedCategory, permissionContext, username));
+            List<String> callerPermissions = permissions == null ? List.of() : List.copyOf(permissions);
+            executor.submit(() -> runTask(taskId, normalizedCategory, permissionContext, username,
+                callerPermissions));
             return new CategoryReindexTaskStartResponse(true, running);
         }
     }
@@ -85,13 +92,14 @@ public class CategoryReindexTaskService {
         executor.shutdownNow();
     }
 
-    private void runTask(String taskId, String category, SearchPermissionContext permissionContext, String username) {
+    private void runTask(String taskId, String category, SearchPermissionContext permissionContext, String username,
+                         List<String> permissions) {
         long startedAt = System.nanoTime();
         log.info("category_reindex_task_start taskId={} category={}", taskId, category);
         try {
             SearchService.ReindexSummary summary = legacyDocumentMcpTransferService != null
                 && legacyDocumentMcpTransferService.enabled()
-                ? transferCategoryToMcp(category, permissionContext, username)
+                ? transferCategoryToMcp(category, permissionContext, username, permissions)
                 : searchService.reindexDocumentsByCategory(category, permissionContext);
             log.info(
                 "category_reindex_task_complete taskId={} category={} scanned={} matched={} reindexed={} failed={} durationMs={}",
@@ -143,7 +151,8 @@ public class CategoryReindexTaskService {
 
     private SearchService.ReindexSummary transferCategoryToMcp(String category,
                                                                SearchPermissionContext permissionContext,
-                                                               String username) {
+                                                               String username,
+                                                               List<String> permissions) {
         List<String> succeeded = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int scanned = 0;
@@ -158,7 +167,7 @@ public class CategoryReindexTaskService {
                         .orElseThrow(() -> new IllegalStateException("document not found"));
                     legacyDocumentMcpTransferService.transfer(document,
                         searchService.getFileResource(item.docId(), permissionContext).orElse(null),
-                        permissionContext, username);
+                        permissionContext, username, permissions);
                     succeeded.add(item.docId());
                 } catch (Exception exception) {
                     failed.add(item.docId());

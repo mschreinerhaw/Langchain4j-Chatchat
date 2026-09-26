@@ -2,6 +2,7 @@ package com.chatchat.api.controller.search;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.security.InternalCredentialProperties;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.knowledgebase.search.document.DocumentFileResource;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 /** Sends legacy document content and its original file through the authenticated MCP gRPC channel. */
 @Component
@@ -35,11 +37,20 @@ public class LegacyDocumentMcpTransferService {
     public SearchDocument transfer(SearchDocument document, DocumentFileResource file,
                                    SearchPermissionContext context, HttpServletRequest request) {
         Object value = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
-        return transfer(document, file, context, value == null ? null : String.valueOf(value));
+        Object view = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+        List<String> permissions = view instanceof EnterpriseAdminService.UserView user
+            ? user.permissionCodes() : List.of();
+        return transfer(document, file, context, value == null ? null : String.valueOf(value), permissions);
     }
 
     public SearchDocument transfer(SearchDocument document, DocumentFileResource file,
                                    SearchPermissionContext context, String username) {
+        return transfer(document, file, context, username, List.of());
+    }
+
+    public SearchDocument transfer(SearchDocument document, DocumentFileResource file,
+                                   SearchPermissionContext context, String username,
+                                   List<String> permissions) {
         if (!enabled()) throw new IllegalStateException("MCP gRPC credential is not configured");
         try {
             DocumentTransferStart start = DocumentTransferStart.newBuilder()
@@ -47,6 +58,8 @@ public class LegacyDocumentMcpTransferService {
                 .setTenantId(context.tenantId())
                 .setUserId(context.userId())
                 .setUsername(username == null ? "" : username)
+                .setRoles(String.join(",", context.roles()))
+                .setPermissions(String.join(",", permissions == null ? List.of() : permissions))
                 .setFileName(file == null || file.fileName() == null ? "" : file.fileName())
                 .setContentType("application/octet-stream")
                 .setDocumentJson(ByteString.copyFrom(mapper.writeValueAsBytes(document)))

@@ -31,6 +31,7 @@ message DocumentTransferStart {
   string content_type = 7;
   map<string, string> fields = 8;
   bytes document_json = 9;
+  string permissions = 10;
 }
 
 message DocumentTransferChunk {

@@ -1,6 +1,5 @@
 package com.chatchat.api.controller.search;
 
-import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.knowledgebase.search.document.DocumentFileResource;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
@@ -21,8 +20,8 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mock.web.MockHttpServletRequest;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -52,7 +51,8 @@ class LegacyDocumentMcpTransferServiceTest {
                     return new StreamObserver<>() {
                         @Override public void onNext(DocumentTransferChunk chunk) {
                             if (chunk.hasStart()) received.set(chunk.getStart().getTenantId() + "|"
-                                + chunk.getStart().getUserId() + "|" + chunk.getStart().getFileName());
+                                + chunk.getStart().getUserId() + "|" + chunk.getStart().getRoles() + "|"
+                                + chunk.getStart().getPermissions() + "|" + chunk.getStart().getFileName());
                             if (chunk.hasData()) chunks.incrementAndGet();
                         }
                         @Override public void onError(Throwable failure) { }
@@ -76,14 +76,13 @@ class LegacyDocumentMcpTransferServiceTest {
                 .content("searchable text").tenantId("tenant-1").userId("user-1").build();
             byte[] bytes = new byte[2 * 1024 * 1024 + 17];
             DocumentFileResource file = new DocumentFileResource(new ByteArrayResource(bytes), "guide.txt", "text");
-            MockHttpServletRequest request = new MockHttpServletRequest();
-            request.setAttribute(ApiAuthenticationFilter.CURRENT_USERNAME, "user-1");
-
             SearchDocument transferred = service.transfer(document, file,
-                SearchPermissionContext.of("tenant-1", "user-1", null), request);
+                SearchPermissionContext.of("tenant-1", "user-1", List.of("SUPER_ADMIN")), "admin",
+                List.of("workspace:search:delete"));
 
             assertThat(transferred.getDocId()).isEqualTo("legacy-1");
-            assertThat(received.get()).isEqualTo("tenant-1|user-1|guide.txt");
+            assertThat(received.get()).isEqualTo(
+                "tenant-1|user-1|SUPER_ADMIN|workspace:search:delete|guide.txt");
             assertThat(chunks.get()).isGreaterThan(1);
         } finally {
             client.close();

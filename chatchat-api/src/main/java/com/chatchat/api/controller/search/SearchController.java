@@ -460,7 +460,8 @@ public class SearchController {
         return ApiResponse.success(
             categoryReindexTaskService.start(name,
                 authenticatedPermissionContext(servletRequest, tenantId, userId, roles),
-                requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USERNAME)),
+                requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USERNAME),
+                authenticatedPermissions(servletRequest)),
             "category reindex task submitted"
         );
     }
@@ -476,7 +477,8 @@ public class SearchController {
         return ApiResponse.success(
             categoryReindexTaskService.start(request == null ? "" : request.name(),
                 authenticatedPermissionContext(servletRequest, tenantId, userId, roles),
-                requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USERNAME)),
+                requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USERNAME),
+                authenticatedPermissions(servletRequest)),
             "category reindex task submitted"
         );
     }
@@ -822,6 +824,14 @@ public class SearchController {
         Object userId = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
         return userId != null
             && enterpriseAdminService.hasPermission(String.valueOf(userId), "workspace:search:delete");
+    }
+
+    private List<String> authenticatedPermissions(HttpServletRequest request) {
+        Object view = request == null ? null : request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+        if (view instanceof EnterpriseAdminService.UserView user && user.permissionCodes() != null) {
+            return List.copyOf(user.permissionCodes());
+        }
+        return List.of();
     }
 
     /**

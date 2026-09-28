@@ -269,7 +269,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
     private boolean knowledgeExpansionFailed(KnowledgeContext knowledge) {
         return knowledge != null && knowledge.status() != null
-            && knowledge.status().startsWith("evidence_");
+            && knowledge.status().startsWith("evidence_")
+            && !"evidence_recovery_partial".equals(knowledge.status());
     }
 
     private InteractionResponse knowledgeExpansionFailureResponse(String skillId, KnowledgeContext knowledge) {
@@ -500,6 +501,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .append("5. Never treat example numbers, historical cases, or sample customers in domain_knowledge as current facts.\n")
             .append("6. If a knowledge rule cannot be mapped to the retrieved data, state the limitation explicitly.\n")
             .append("7. If knowledge entries conflict, report the conflict; do not silently choose one.\n");
+        if ("evidence_recovery_partial".equals(knowledge.status())) {
+            builder.append("8. Evidence Recovery ended in PARTIAL state. Return only supported findings, "
+                + "name the remaining evidence gap, and do not reconstruct missing steps.\n");
+        }
         return builder.toString();
     }
 

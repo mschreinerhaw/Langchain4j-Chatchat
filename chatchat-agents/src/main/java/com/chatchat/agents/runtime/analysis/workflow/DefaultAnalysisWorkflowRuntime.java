@@ -8,6 +8,12 @@ import com.chatchat.common.runtime.analysis.routing.StandardAnalysisQueryAnalyze
 import com.chatchat.common.runtime.analysis.spi.AnalysisRuntimePort;
 import com.chatchat.common.runtime.analysis.spi.AnalysisEvidenceArchivePort;
 import com.chatchat.common.runtime.analysis.spi.AnalysisWorkflow;
+import com.chatchat.common.runtime.analysis.spi.EvidenceRecoveryWorkflow;
+import com.chatchat.common.runtime.analysis.recovery.EvidenceEvaluation;
+import com.chatchat.common.runtime.analysis.recovery.EvidenceGap;
+import com.chatchat.common.runtime.analysis.recovery.EvidenceRecoveryResult;
+import com.chatchat.common.runtime.analysis.recovery.RecoveryStatus;
+import com.chatchat.common.runtime.analysis.routing.AnalysisRuntimePath;
 import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import com.chatchat.common.runtime.analysis.execution.VerificationResult;
 
@@ -37,34 +43,47 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
     private final AnalysisWorkflowRouter router;
     private final Supplier<WorkflowRuntime> workflowRuntime;
     private final Supplier<AnalysisEvidenceArchivePort> evidenceArchive;
+    private final List<EvidenceRecoveryWorkflow> evidenceRecoveryWorkflows;
+    private final DeterministicEvidenceEvaluator evidenceEvaluator = new DeterministicEvidenceEvaluator();
     private final AtomicBoolean registered = new AtomicBoolean(false);
 
     public DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows) {
-        this(workflows, () -> null, () -> null);
+        this(workflows, () -> null, () -> null, List.of());
     }
 
     public DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows, WorkflowRuntime workflowRuntime) {
-        this(workflows, () -> workflowRuntime, () -> null);
+        this(workflows, () -> workflowRuntime, () -> null, List.of());
     }
 
     DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows, WorkflowRuntime workflowRuntime,
                                    AnalysisEvidenceArchivePort archive) {
-        this(workflows, () -> workflowRuntime, () -> archive);
+        this(workflows, () -> workflowRuntime, () -> archive, List.of());
+    }
+
+    DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows, WorkflowRuntime workflowRuntime,
+                                   AnalysisEvidenceArchivePort archive,
+                                   List<EvidenceRecoveryWorkflow> evidenceRecoveryWorkflows) {
+        this(workflows, () -> workflowRuntime, () -> archive, evidenceRecoveryWorkflows);
     }
 
     @Autowired
     public DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows,
                                           ObjectProvider<WorkflowRuntime> workflowRuntime,
-                                          ObjectProvider<AnalysisEvidenceArchivePort> evidenceArchive) {
-        this(workflows, workflowRuntime::getIfAvailable, evidenceArchive::getIfAvailable);
+                                          ObjectProvider<AnalysisEvidenceArchivePort> evidenceArchive,
+                                          ObjectProvider<EvidenceRecoveryWorkflow> evidenceRecoveryWorkflows) {
+        this(workflows, workflowRuntime::getIfAvailable, evidenceArchive::getIfAvailable,
+            evidenceRecoveryWorkflows.orderedStream().toList());
     }
 
     private DefaultAnalysisWorkflowRuntime(List<AnalysisWorkflow> workflows,
                                            Supplier<WorkflowRuntime> workflowRuntime,
-                                           Supplier<AnalysisEvidenceArchivePort> evidenceArchive) {
+                                           Supplier<AnalysisEvidenceArchivePort> evidenceArchive,
+                                           List<EvidenceRecoveryWorkflow> evidenceRecoveryWorkflows) {
         this.router = new AnalysisWorkflowRouter(new StandardAnalysisQueryAnalyzer(), workflows);
         this.workflowRuntime = workflowRuntime;
         this.evidenceArchive = evidenceArchive;
+        this.evidenceRecoveryWorkflows = evidenceRecoveryWorkflows == null
+            ? List.of() : List.copyOf(evidenceRecoveryWorkflows);
     }
 
     @Override
@@ -101,8 +120,127 @@ public class DefaultAnalysisWorkflowRuntime implements AnalysisRuntimePort {
 
     private AnalysisExecutionOutcome executeInline(AnalysisContext context) {
         AnalysisWorkflowRouter.RoutedWorkflow routed = router.route(context);
-        return routed.workflow().execute(routed.context(), routed.context().kernelScope());
+        AnalysisExecutionOutcome primary = routed.workflow().execute(
+            routed.context(), routed.context().kernelScope());
+        return evaluateAndRecover(routed.context(), primary);
     }
+
+    private AnalysisExecutionOutcome evaluateAndRecover(AnalysisContext context,
+                                                         AnalysisExecutionOutcome primary) {
+        EvidenceEvaluation evaluation = evidenceEvaluator.evaluate(context, primary.evidenceBundle(),
+            primary.verification(), primary.metadata());
+        Map<String, Object> metadata = routeMetadata(primary, evaluation);
+        if (evaluation.sufficient()) {
+            metadata.put("runtimeRoute", "FINAL_SYNTHESIS");
+            metadata.put("evidenceTerminalState", "COMPLETE");
+            return outcome(primary, primary.verification(), primary.evidenceBundle(), metadata);
+        }
+
+        metadata.put("runtimeRoute", AnalysisRuntimePath.EVIDENCE_RECOVERY.name());
+        EvidenceBundle current = primary.evidenceBundle();
+        VerificationResult currentVerification = primary.verification();
+        int maxRounds = recoveryMaxRounds(context);
+        List<Map<String, Object>> trace = new java.util.ArrayList<>();
+        RecoveryStatus lastStatus = RecoveryStatus.EXHAUSTED;
+        for (int round = 1; round <= maxRounds && !evaluation.gaps().isEmpty(); round++) {
+            EvidenceGap gap = evaluation.gaps().get(0);
+            EvidenceRecoveryWorkflow recovery = selectRecovery(context, gap);
+            if (recovery == null) {
+                trace.add(Map.of("round", round, "gap", gap.reason().name(), "status", "NO_WORKFLOW"));
+                lastStatus = RecoveryStatus.EXHAUSTED;
+                break;
+            }
+            EvidenceRecoveryResult recovered;
+            try {
+                recovered = recovery.recover(context, current, gap, round);
+            } catch (RuntimeException failure) {
+                trace.add(Map.of("round", round, "gap", gap.reason().name(), "status", "FAILED",
+                    "workflow", recovery.getClass().getSimpleName(), "error", safe(failure.getMessage())));
+                lastStatus = RecoveryStatus.FAILED;
+                break;
+            }
+            current = recovered.evidence();
+            lastStatus = recovered.status();
+            trace.add(Map.of("round", round, "gap", gap.reason().name(),
+                "strategy", recovered.strategy() == null ? "UNSPECIFIED" : recovered.strategy().name(),
+                "level", recovered.level() == null ? "UNSPECIFIED" : recovered.level().name(),
+                "status", recovered.status().name(), "workflow", recovery.getClass().getSimpleName(),
+                "evidenceCount", current.evidence().size()));
+            currentVerification = new VerificationResult(!current.evidence().isEmpty(), current.evidence(),
+                recovered.remainingGaps().stream().flatMap(item -> item.missingEvidence().stream()).toList());
+            evaluation = evidenceEvaluator.evaluate(context, current, currentVerification, recovered.metadata());
+            if (evaluation.sufficient() || recovered.status() == RecoveryStatus.COMPLETE) break;
+            if (recovered.status() == RecoveryStatus.EXHAUSTED
+                || recovered.status() == RecoveryStatus.FAILED) break;
+        }
+        metadata.put("evidenceRecoveryTrace", List.copyOf(trace));
+        metadata.put("evidenceEvaluation", evaluationProjection(evaluation));
+        if (evaluation.sufficient() || lastStatus == RecoveryStatus.COMPLETE) {
+            metadata.put("evidenceTerminalState", "COMPLETE");
+            return outcome(primary, new VerificationResult(true, current.evidence(), List.of()), current, metadata);
+        }
+        boolean partial = !current.evidence().isEmpty();
+        metadata.put("evidenceTerminalState", partial ? "PARTIAL" : "EXHAUSTED");
+        metadata.put("runtimeRoute", partial ? "PARTIAL_RESULT" : "EVIDENCE_INSUFFICIENT");
+        VerificationResult terminalVerification = new VerificationResult(partial, current.evidence(),
+            evaluation.gaps().stream().flatMap(gap -> gap.missingEvidence().stream()).toList());
+        return outcome(primary, terminalVerification, current, metadata);
+    }
+
+    private EvidenceRecoveryWorkflow selectRecovery(AnalysisContext context, EvidenceGap gap) {
+        return evidenceRecoveryWorkflows.stream()
+            .filter(workflow -> workflow.supports(context, gap))
+            .max(java.util.Comparator.comparingInt(EvidenceRecoveryWorkflow::priority))
+            .orElse(null);
+    }
+
+    private int recoveryMaxRounds(AnalysisContext context) {
+        Object value = context.attributes().get("evidenceRecoveryMaxRounds");
+        int resolved = value instanceof Number number ? number.intValue() : 5;
+        return Math.max(1, Math.min(6, resolved));
+    }
+
+    private Map<String, Object> routeMetadata(AnalysisExecutionOutcome outcome,
+                                              EvidenceEvaluation evaluation) {
+        Map<String, Object> metadata = new LinkedHashMap<>(outcome.metadata());
+        metadata.put("runtimePrimaryPath", (outcome.workflowType() == com.chatchat.common.runtime.analysis.model.AnalysisWorkflowType.DOCUMENT
+            ? AnalysisRuntimePath.DOCUMENT_RETRIEVAL : AnalysisRuntimePath.PRIMARY_ANALYSIS).name());
+        metadata.put("evidenceEvaluation", evaluationProjection(evaluation));
+        return metadata;
+    }
+
+    private Map<String, Object> evaluationProjection(EvidenceEvaluation evaluation) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("decision", evaluation.decision().name());
+        value.put("coverage", evaluation.coverage());
+        value.put("gaps", evaluation.gaps().stream().map(this::gapProjection).toList());
+        value.put("diagnostics", evaluation.diagnostics());
+        return Map.copyOf(value);
+    }
+
+    private Map<String, Object> gapProjection(EvidenceGap gap) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("reason", gap.reason().name());
+        if (gap.targetClaimId() != null) value.put("targetClaimId", gap.targetClaimId());
+        if (gap.documentId() != null) value.put("documentId", gap.documentId());
+        if (gap.sectionId() != null) value.put("sectionId", gap.sectionId());
+        value.put("currentCoverage", gap.currentCoverage());
+        value.put("requiredCoverage", gap.requiredCoverage());
+        value.put("sequenceSensitive", gap.sequenceSensitive());
+        value.put("truncated", gap.truncated());
+        value.put("missingEvidence", gap.missingEvidence());
+        return Map.copyOf(value);
+    }
+
+    private AnalysisExecutionOutcome outcome(AnalysisExecutionOutcome source,
+                                             VerificationResult verification,
+                                             EvidenceBundle evidence,
+                                             Map<String, Object> metadata) {
+        return new AnalysisExecutionOutcome(source.schemaVersion(), source.workflowType(), source.plan(),
+            verification, evidence, source.synthesis(), metadata);
+    }
+
+    private String safe(String value) { return value == null ? "unknown" : value; }
 
     private AnalysisExecutionOutcome executeDurably(AnalysisContext context) {
         WorkflowRuntime runtime = workflowRuntime.get();

@@ -42,6 +42,53 @@ import static org.mockito.Mockito.when;
 class AgentChatModeHandlerTest {
 
     @Test
+    void partialRecoveryContinuesToSynthesisWithAnExplicitPartialAnswerContract() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolCatalogQueryPort bridge = mock(McpToolCatalogQueryPort.class);
+        KnowledgeRuntimePort knowledgeRuntime = mock(KnowledgeRuntimePort.class);
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator, skillCatalogService,
+            new AgentToolPolicyResolver(toolRegistry, skillCatalogService, bridge), knowledgeRuntime);
+        when(skillCatalogService.resolve("ops")).thenReturn(skill(List.of(), List.of("doc-install")));
+        when(bridge.registeredTools()).thenReturn(List.of());
+        when(knowledgeRuntime.retrieveKnowledge(any())).thenReturn(new KnowledgeContext(
+            KnowledgeContext.SCHEMA_VERSION, null, List.of(), "verified installation step",
+            List.of(new KnowledgeSourceReference("source-1", "doc-install", "chunk-1",
+                "install.md", "Install", "v1", "install.md#Install")),
+            20, KnowledgeRequest.HARD_MAX_TOKENS, false, "evidence_recovery_partial"));
+        when(orchestrator.executeAgent(
+            any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), any())).thenReturn(agentResult("partial answer"));
+
+        var response = handler.handle(
+            InteractionRequest.builder().mode("agent_chat").skillId("ops")
+                .query("installation steps").tenantId("tenant-a").userId("user-a").build(),
+            InteractionContext.builder().requestId("req-partial").conversationId("conv-partial")
+                .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
+
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> runtimeAttributes = ArgumentCaptor.forClass(Map.class);
+        verify(orchestrator).executeAgent(
+            any(), any(), any(), systemPrompt.capture(), any(), any(), any(), any(), any(), any(), any(),
+            anyInt(), any(), anyBoolean(), runtimeAttributes.capture());
+        assertThat(systemPrompt.getValue())
+            .contains("PARTIAL")
+            .contains("only supported findings")
+            .contains("do not reconstruct missing steps");
+        assertThat(response.getMetadata())
+            .containsEntry("knowledgeRetrieval", "evidence_recovery_partial")
+            .doesNotContainEntry("runtimeStopped", true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> projection = (Map<String, Object>) runtimeAttributes.getValue()
+            .get(KnowledgeContext.RUNTIME_ATTRIBUTE);
+        assertThat(projection).containsEntry("completionState", "PARTIAL");
+        assertThat((Map<String, Object>) projection.get("usageContract"))
+            .containsEntry("partialAnswerRequired", true);
+    }
+
+    @Test
     void stopsBeforePlannerWhenDeterministicKnowledgeExpansionFails() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

@@ -6,6 +6,7 @@ import com.chatchat.common.runtime.analysis.evidence.StructuredDataEvidence;
 import com.chatchat.common.runtime.analysis.evidence.ToolAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import com.chatchat.common.runtime.analysis.evidence.AgentAnalysisEvidence;
+import com.chatchat.common.runtime.analysis.evidence.DocumentAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.execution.VerificationResult;
 import com.chatchat.common.runtime.analysis.execution.AnalysisExecutionOutcome;
 import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
@@ -18,6 +19,13 @@ import com.chatchat.common.runtime.analysis.plan.WorkflowPlan;
 import com.chatchat.common.runtime.analysis.spi.AnalysisCapabilityOperator;
 import com.chatchat.common.runtime.analysis.spi.AnalysisWorkflow;
 import com.chatchat.common.runtime.analysis.spi.AnalysisEvidenceArchivePort;
+import com.chatchat.common.runtime.analysis.spi.EvidenceRecoveryWorkflow;
+import com.chatchat.common.runtime.analysis.recovery.EvidenceGap;
+import com.chatchat.common.runtime.analysis.recovery.EvidenceGapReason;
+import com.chatchat.common.runtime.analysis.recovery.EvidenceRecoveryResult;
+import com.chatchat.common.runtime.analysis.recovery.RecoveryStatus;
+import com.chatchat.common.runtime.analysis.recovery.RecoveryStrategy;
+import com.chatchat.common.runtime.analysis.recovery.RecoveryLevel;
 
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.agents.runtime.config.AgentRuntimeProperties;
@@ -34,6 +42,89 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultAnalysisWorkflowRuntimeTest {
+    @Test
+    @SuppressWarnings("unchecked")
+    void routesStructuralEvidenceGapThroughDeterministicRecoveryBeforeSynthesis() {
+        DocumentAnalysisEvidence partial = new DocumentAnalysisEvidence(
+            "e-1", "doc-1", "chunk-6", "install.md", "3.1.1.6", "install.md#3.1.1.6",
+            "partial installation step", 0.9D, Map.of("truncated", true, "chunkIndex", 6));
+        AnalysisWorkflow document = new AnalysisWorkflow() {
+            @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.DOCUMENT; }
+            @Override public String workflowId() { return "test.document"; }
+            @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            @Override public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(true, List.of(partial), List.of()),
+                    new EvidenceBundle(null, List.of(partial), List.of(), Map.of("sourceTruncated", true)),
+                    "partial", Map.of());
+            }
+        };
+        java.util.concurrent.atomic.AtomicReference<EvidenceGap> routedGap = new java.util.concurrent.atomic.AtomicReference<>();
+        EvidenceRecoveryWorkflow recovery = new EvidenceRecoveryWorkflow() {
+            @Override public boolean supports(AnalysisContext context, EvidenceGap gap) { return true; }
+            @Override public int priority() { return 100; }
+            @Override public EvidenceRecoveryResult recover(AnalysisContext context, EvidenceBundle current,
+                                                             EvidenceGap gap, int round) {
+                routedGap.set(gap);
+                DocumentAnalysisEvidence next = new DocumentAnalysisEvidence(
+                    "e-2", "doc-1", "chunk-7", "install.md", "3.1.1.7", "install.md#3.1.1.7",
+                    "next installation step", 0.92D, Map.of("chunkIndex", 7, "recovered", true));
+                return new EvidenceRecoveryResult(RecoveryStatus.RETRY_REQUIRED,
+                    new EvidenceBundle(null, List.of(partial, next), List.of(), Map.of(
+                        "recoveryComplete", true, "sequenceComplete", true,
+                        "sourceTruncated", false, "evidenceCoverage", 1.0D)),
+                    List.of(), round, RecoveryStrategy.ADJACENT_SECTION_SEARCH,
+                    RecoveryLevel.L3_ADJACENT_SECTION,
+                    Map.of("recoveryComplete", true, "evidenceCoverage", 1.0D));
+            }
+        };
+        DefaultAnalysisWorkflowRuntime runtime = new DefaultAnalysisWorkflowRuntime(
+            List.of(document), null, null, List.of(recovery));
+        AnalysisIntent intent = new AnalysisIntent("INSTALL", List.of(),
+            Set.of(AnalysisCapability.DOCUMENT_SEARCH), "UNSPECIFIED", true);
+
+        AnalysisExecutionOutcome result = runtime.analyze(new AnalysisContext(
+            "获取安装步骤", KernelDataScope.system("request-recovery"), "skill",
+            List.of("doc-1"), List.of(), List.of(), intent, Map.of()));
+
+        assertThat(routedGap.get().reason()).isEqualTo(EvidenceGapReason.SOURCE_TRUNCATED);
+        assertThat(result.evidenceBundle().evidence()).hasSize(2);
+        assertThat(result.metadata())
+            .containsEntry("runtimePrimaryPath", "DOCUMENT_RETRIEVAL")
+            .containsEntry("runtimeRoute", "EVIDENCE_RECOVERY")
+            .containsEntry("evidenceTerminalState", "COMPLETE");
+        List<Map<String, Object>> trace = (List<Map<String, Object>>) result.metadata().get("evidenceRecoveryTrace");
+        assertThat(trace).singleElement().satisfies(entry -> assertThat(entry)
+            .containsEntry("gap", "SOURCE_TRUNCATED")
+            .containsEntry("status", "RETRY_REQUIRED"));
+    }
+
+    @Test
+    void routesEmptyEvidenceToInsufficientWhenNoRecoveryWorkflowExists() {
+        AnalysisWorkflow document = new AnalysisWorkflow() {
+            @Override public AnalysisWorkflowType type() { return AnalysisWorkflowType.DOCUMENT; }
+            @Override public String workflowId() { return "test.empty-document"; }
+            @Override public boolean supports(AnalysisContext context, AnalysisIntent intent) { return true; }
+            @Override public AnalysisExecutionOutcome execute(AnalysisContext context) {
+                return new AnalysisExecutionOutcome(null, type(), null,
+                    new VerificationResult(false, List.of(), List.of("empty")),
+                    EvidenceBundle.empty("empty"), "", Map.of());
+            }
+        };
+        DefaultAnalysisWorkflowRuntime runtime = new DefaultAnalysisWorkflowRuntime(List.of(document));
+        AnalysisIntent intent = new AnalysisIntent("LOOKUP", List.of(),
+            Set.of(AnalysisCapability.DOCUMENT_SEARCH), "UNSPECIFIED", true);
+
+        AnalysisExecutionOutcome result = runtime.analyze(new AnalysisContext(
+            "lookup document", KernelDataScope.system("request-empty"), "skill",
+            List.of("doc-1"), List.of(), List.of(), intent, Map.of()));
+
+        assertThat(result.metadata())
+            .containsEntry("runtimeRoute", "EVIDENCE_INSUFFICIENT")
+            .containsEntry("evidenceTerminalState", "EXHAUSTED");
+        assertThat(result.verification().accepted()).isFalse();
+    }
+
     @Test
     void archiveFailureRejectsAcceptedEvidence() {
         AnalysisCapabilityOperator operator = new AnalysisCapabilityOperator() {

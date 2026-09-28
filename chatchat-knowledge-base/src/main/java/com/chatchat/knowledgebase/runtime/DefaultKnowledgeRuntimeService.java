@@ -115,14 +115,15 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
     private RetrievalSnapshot retrieveOnce(KnowledgeRequest request) {
         KnowledgeSkillPlan plan = skillSynthesizer.synthesize(request);
         List<KnowledgeIR> units = new ArrayList<>();
+        List<String> executionStatuses = new ArrayList<>();
         long effectiveSkillTimeoutMs = requestSkillTimeoutMs(request);
-        List<Future<List<KnowledgeIR>>> executions = plan.skills().stream()
+        List<Future<SkillExecutionOutcome>> executions = plan.skills().stream()
             .map(skill -> submitSkill(request, skill))
             .toList();
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(Math.max(1L, totalTimeoutMs));
         for (int index = 0; index < executions.size(); index++) {
             KnowledgeSkillInstance skill = plan.skills().get(index);
-            Future<List<KnowledgeIR>> execution = executions.get(index);
+            Future<SkillExecutionOutcome> execution = executions.get(index);
             long remainingMs = Math.max(0L,
                 TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()));
             long waitMs = Math.min(effectiveSkillTimeoutMs, remainingMs);
@@ -133,7 +134,9 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
                 continue;
             }
             try {
-                units.addAll(execution.get(waitMs, TimeUnit.MILLISECONDS));
+                SkillExecutionOutcome result = execution.get(waitMs, TimeUnit.MILLISECONDS);
+                units.addAll(result.units());
+                executionStatuses.add(result.status());
             } catch (TimeoutException ex) {
                 execution.cancel(true);
                 log.warn("knowledgeSkillExecutionTimedOut instanceId={} type={} timeoutMs={}",
@@ -160,7 +163,10 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
                     || !allowed.contains(unit.source().documentId()));
             }
         }
-        return new RetrievalSnapshot(plan, List.copyOf(units), contextCompiler.compile(request, plan, units));
+        KnowledgeContext compiled = contextCompiler.compile(request, plan, units);
+        String terminalStatus = aggregateEvidenceStatus(executionStatuses, compiled.used());
+        if (terminalStatus != null) compiled = withStatus(compiled, terminalStatus);
+        return new RetrievalSnapshot(plan, List.copyOf(units), compiled);
     }
 
     private KnowledgeRequest expandedRequest(KnowledgeRequest source) {
@@ -179,22 +185,25 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
             0, KnowledgeRequest.HARD_MAX_TOKENS, false, status);
     }
 
-    private Future<List<KnowledgeIR>> submitSkill(KnowledgeRequest request, KnowledgeSkillInstance skill) {
+    private Future<SkillExecutionOutcome> submitSkill(KnowledgeRequest request, KnowledgeSkillInstance skill) {
         try {
             return knowledgeExecutor.submit(() -> executeSkill(request, skill));
         } catch (RejectedExecutionException ex) {
             log.warn("knowledgeSkillExecutionRejected instanceId={} type={}",
                 skill.instanceId(), skill.skillType());
-            return CompletableFuture.completedFuture(List.of());
+            return CompletableFuture.completedFuture(new SkillExecutionOutcome(List.of(), "rejected"));
         }
     }
 
-    private List<KnowledgeIR> executeSkill(KnowledgeRequest request, KnowledgeSkillInstance skill) {
+    private SkillExecutionOutcome executeSkill(KnowledgeRequest request, KnowledgeSkillInstance skill) {
         for (KnowledgeSkillExecutorPort executor : findExecutors(skill)) {
             try {
                 KnowledgeSkillResult result = executor.execute(new KnowledgeSkillExecutionContext(request, skill));
                 if (result != null && !result.knowledgeUnits().isEmpty()) {
-                    return result.knowledgeUnits();
+                    return new SkillExecutionOutcome(result.knowledgeUnits(), result.status());
+                }
+                if (result != null && result.status().startsWith("evidence_recovery_")) {
+                    return new SkillExecutionOutcome(List.of(), result.status());
                 }
             } catch (RuntimeException ex) {
                 log.warn("knowledgeSkillExecutionFailed instanceId={} type={} executor={} error={}",
@@ -202,7 +211,21 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
             }
         }
         log.warn("knowledgeSkillEvidenceMissing instanceId={} type={}", skill.instanceId(), skill.skillType());
-        return List.of();
+        return new SkillExecutionOutcome(List.of(), "empty");
+    }
+
+    private String aggregateEvidenceStatus(List<String> statuses, boolean evidenceUsed) {
+        if (statuses == null || statuses.isEmpty()) return null;
+        boolean exhausted = statuses.stream().anyMatch("evidence_recovery_exhausted"::equals);
+        boolean partial = statuses.stream().anyMatch("evidence_recovery_partial"::equals);
+        if (exhausted) return evidenceUsed ? "evidence_recovery_partial" : "evidence_recovery_exhausted";
+        return partial ? "evidence_recovery_partial" : null;
+    }
+
+    private KnowledgeContext withStatus(KnowledgeContext context, String status) {
+        return new KnowledgeContext(context.schemaVersion(), context.plan(), context.knowledgeUnits(),
+            context.compiledContext(), context.sources(), context.estimatedTokens(), context.maxTokens(),
+            context.truncated(), status);
     }
 
     private long requestSkillTimeoutMs(KnowledgeRequest request) {
@@ -228,5 +251,12 @@ public class DefaultKnowledgeRuntimeService implements KnowledgeRuntimePort {
     private record RetrievalSnapshot(KnowledgeSkillPlan plan,
                                      List<KnowledgeIR> units,
                                      KnowledgeContext context) {
+    }
+
+    private record SkillExecutionOutcome(List<KnowledgeIR> units, String status) {
+        private SkillExecutionOutcome {
+            units = units == null ? List.of() : List.copyOf(units);
+            status = status == null || status.isBlank() ? "empty" : status;
+        }
     }
 }

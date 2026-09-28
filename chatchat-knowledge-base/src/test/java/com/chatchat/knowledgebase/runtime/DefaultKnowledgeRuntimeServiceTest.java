@@ -32,6 +32,40 @@ import org.mockito.ArgumentCaptor;
 class DefaultKnowledgeRuntimeServiceTest {
 
     @Test
+    void preservesPartialEvidenceRecoveryStateInKnowledgeContext() {
+        KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
+        KnowledgeSkillExecutorPort executor = mock(KnowledgeSkillExecutorPort.class);
+        KnowledgeSkillInstance skill = new KnowledgeSkillInstance(
+            "procedure", KnowledgeSkillType.PROCEDURE_LOOKUP, "ops", "lookup procedure",
+            List.of(), 1, 1_500, Map.of());
+        when(planner.synthesize(any())).thenReturn(
+            new KnowledgeSkillPlan("v", "PROCEDURE", List.of(skill), 1_500));
+        when(executor.supports(KnowledgeSkillType.PROCEDURE_LOOKUP)).thenReturn(true);
+        KnowledgeIR unit = new KnowledgeIR(
+            "partial-unit", "ops", KnowledgeType.PROCEDURE, "Installation", "supported steps",
+            List.of(), List.of(), List.of(), List.of(), "supported steps",
+            new KnowledgeSourceReference("src", "doc", "chunk", "install.md", "Install", null, null), 0.9D);
+        when(executor.execute(any())).thenReturn(new KnowledgeSkillResult(
+            skill.instanceId(), skill.skillType(), List.of(unit), "evidence_recovery_partial", Map.of()));
+        DefaultKnowledgeRuntimeService runtime = new DefaultKnowledgeRuntimeService(
+            planner, List.of(executor), new BudgetedKnowledgeContextCompiler());
+
+        KnowledgeContext result = runtime.retrieveKnowledge(new KnowledgeRequest(
+            "v", "installation procedure", "PROCEDURE", 1_500,
+            new KnowledgeScope("agent", "tenant", "user", List.of("doc"), List.of(), List.of()),
+            null, Map.of()));
+
+        assertThat(result.used()).isTrue();
+        assertThat(result.status()).isEqualTo("evidence_recovery_partial");
+        assertThat(result.toRuntimeProjection())
+            .containsEntry("completionState", "PARTIAL")
+            .containsEntry("continuationRequired", false);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> usage = (Map<String, Object>) result.toRuntimeProjection().get("usageContract");
+        assertThat(usage).containsEntry("partialAnswerRequired", true);
+    }
+
+    @Test
     void treatsTruncationAsAControlSignalAndExpandsEvidenceBeforeReturning() {
         KnowledgeSkillSynthesizerPort planner = mock(KnowledgeSkillSynthesizerPort.class);
         KnowledgeSkillExecutorPort executor = mock(KnowledgeSkillExecutorPort.class);

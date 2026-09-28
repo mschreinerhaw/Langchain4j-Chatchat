@@ -1030,9 +1030,6 @@ public class DocumentSearchEvidenceService {
         for (int i = 0; i < chunks.size(); i++) {
             TextChunker.TextChunk chunk = chunks.get(i);
             String section = sectionLabel(chunk, i);
-            if (!normalizedRequestedSections.isEmpty() && !sectionRequested(section, normalizedRequestedSections)) {
-                continue;
-            }
             double score = expansionScore(chunk, section, queryTokens, normalizedRequestedSections, i);
             scored.add(new ScoredTextChunk(i, section, chunk.content(), score));
         }

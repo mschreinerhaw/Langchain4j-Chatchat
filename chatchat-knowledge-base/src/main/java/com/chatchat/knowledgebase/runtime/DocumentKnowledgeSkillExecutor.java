@@ -68,9 +68,16 @@ public class DocumentKnowledgeSkillExecutor implements KnowledgeSkillExecutorPor
         AnalysisExecutionOutcome result = analysisRuntime == null
             ? workflow.execute(analysisContext, kernelScope) : analysisRuntime.analyze(analysisContext);
         List<KnowledgeIR> units = toUnits(context, result);
+        String evidenceTerminalState = result == null ? null
+            : String.valueOf(result.metadata().getOrDefault("evidenceTerminalState", "COMPLETE"));
+        String status = switch (evidenceTerminalState) {
+            case "PARTIAL" -> "evidence_recovery_partial";
+            case "EXHAUSTED" -> "evidence_recovery_exhausted";
+            default -> units.isEmpty() ? "empty" : "used";
+        };
         return new KnowledgeSkillResult(skill.instanceId(), skill.skillType(), units,
-            units.isEmpty() ? "empty" : "used",
-            Map.of("adapter", "document-index", "topK", topK, "tokenBudget", skill.tokenBudget()));
+            status, Map.of("adapter", "document-index", "topK", topK,
+                "tokenBudget", skill.tokenBudget(), "evidenceTerminalState", evidenceTerminalState));
     }
 
     private List<KnowledgeIR> toUnits(KnowledgeSkillExecutionContext context, AnalysisExecutionOutcome result) {

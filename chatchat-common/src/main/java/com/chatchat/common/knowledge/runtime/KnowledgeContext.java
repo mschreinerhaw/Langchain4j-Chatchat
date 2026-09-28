@@ -54,9 +54,10 @@ public record KnowledgeContext(
         projection.put("estimatedTokens", estimatedTokens);
         projection.put("maxTokens", maxTokens);
         projection.put("truncated", truncated);
-        boolean expansionFailed = status.startsWith("evidence_");
+        boolean evidencePartial = "evidence_recovery_partial".equals(status);
+        boolean expansionFailed = status.startsWith("evidence_") && !evidencePartial;
         projection.put("completionState", expansionFailed ? "FAILED"
-            : truncated ? "EXPANSION_REQUIRED" : "COMPLETE");
+            : evidencePartial ? "PARTIAL" : truncated ? "EXPANSION_REQUIRED" : "COMPLETE");
         projection.put("continuationRequired", truncated && !expansionFailed);
         projection.put("skillTypes", plan == null ? List.of() : plan.skills().stream()
             .map(skill -> skill.skillType().name()).distinct().toList());
@@ -85,6 +86,7 @@ public record KnowledgeContext(
             "role", "AUTHORIZED_DOCUMENT_KNOWLEDGE_EVIDENCE",
             "answersSupportedByKnowledge", true,
             "directFinalAllowed", !truncated && !expansionFailed,
+            "partialAnswerRequired", evidencePartial,
             "sourceCitationRequired", true,
             "toolEvidenceRequiredForDynamicFacts", true,
             "examplesAreCurrentFacts", false));

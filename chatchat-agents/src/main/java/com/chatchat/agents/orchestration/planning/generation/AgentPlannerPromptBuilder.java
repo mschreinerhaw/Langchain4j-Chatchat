@@ -462,6 +462,12 @@ public final class AgentPlannerPromptBuilder {
             .append("Activated skills: ").append(activated).append("\n")
             .append("Document sources: ").append(sources).append("\n")
             .append("Compiled knowledge:\n").append(compiledContext);
+        if ("PARTIAL".equals(stringValue(context.get("completionState")))) {
+            section.append("\nRuntime evidence state:\n")
+                .append("- The deterministic Evidence Recovery workflow ended with PARTIAL evidence.\n")
+                .append("- Answer only claims supported by the supplied evidence and explicitly state the remaining evidence gap.\n")
+                .append("- Do not invent missing steps or silently present this as a complete result.\n");
+        }
         prompt.append(boundedText(section.toString(), ACTIVATED_KNOWLEDGE_PROMPT_CHARS,
             "activated knowledge skill context")).append("\n\n");
     }

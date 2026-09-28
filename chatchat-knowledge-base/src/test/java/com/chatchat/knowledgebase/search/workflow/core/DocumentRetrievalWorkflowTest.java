@@ -1,10 +1,14 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.core;
 
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchFilters;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.workflow.analysis.OriginalQueryStage;
+import com.chatchat.knowledgebase.search.workflow.authorization.SkillRoleContextStage;
+import com.chatchat.knowledgebase.search.workflow.ranking.CandidateRerankStage;
+import com.chatchat.knowledgebase.search.workflow.ranking.DocumentCandidateReranker;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

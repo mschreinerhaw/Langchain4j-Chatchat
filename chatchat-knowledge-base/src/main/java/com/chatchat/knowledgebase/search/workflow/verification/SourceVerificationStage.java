@@ -1,10 +1,12 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.verification;
 
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
 import com.chatchat.knowledgebase.search.index.application.PerDocumentIndexService;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
 import com.chatchat.knowledgebase.search.model.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.model.SearchResult;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalStage;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

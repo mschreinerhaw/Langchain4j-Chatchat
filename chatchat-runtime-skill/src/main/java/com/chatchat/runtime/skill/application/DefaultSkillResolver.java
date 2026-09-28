@@ -1,11 +1,11 @@
 package com.chatchat.runtime.skill.application;
 
-import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
-import com.chatchat.runtime.skill.api.ResolvedSkill;
-import com.chatchat.runtime.skill.api.SkillResolution;
-import com.chatchat.runtime.skill.api.SkillResolutionRequest;
-import com.chatchat.runtime.skill.api.SkillResourceContent;
-import com.chatchat.runtime.skill.api.SkillResourceRequest;
+import com.chatchat.runtime.skill.api.resolution.AuthorizedSkillScope;
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
+import com.chatchat.runtime.skill.api.resolution.SkillResolution;
+import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.resource.SkillResourceContent;
+import com.chatchat.runtime.skill.api.resource.SkillResourceRequest;
 import com.chatchat.runtime.skill.port.outbound.SkillPolicy;
 import com.chatchat.runtime.skill.port.inbound.SkillResolver;
 import com.chatchat.runtime.skill.port.outbound.SkillSource;

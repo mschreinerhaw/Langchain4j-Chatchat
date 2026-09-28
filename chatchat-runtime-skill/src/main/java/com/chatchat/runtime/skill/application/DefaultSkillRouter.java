@@ -1,8 +1,8 @@
 package com.chatchat.runtime.skill.application;
 
-import com.chatchat.runtime.skill.api.SkillDescriptor;
-import com.chatchat.runtime.skill.api.SkillRouteResult;
-import com.chatchat.runtime.skill.api.SkillSearchRequest;
+import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
+import com.chatchat.runtime.skill.api.discovery.SkillRouteResult;
+import com.chatchat.runtime.skill.api.discovery.SkillSearchRequest;
 import com.chatchat.runtime.skill.port.outbound.SkillPolicy;
 import com.chatchat.runtime.skill.port.inbound.SkillRouter;
 import com.chatchat.runtime.skill.port.outbound.SkillSource;

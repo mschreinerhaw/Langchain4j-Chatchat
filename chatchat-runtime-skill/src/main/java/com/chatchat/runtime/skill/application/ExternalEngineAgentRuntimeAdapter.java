@@ -1,9 +1,9 @@
 package com.chatchat.runtime.skill.application;
 
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
 import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
 import com.chatchat.runtime.skill.port.outbound.ExternalAgentEngine;
 

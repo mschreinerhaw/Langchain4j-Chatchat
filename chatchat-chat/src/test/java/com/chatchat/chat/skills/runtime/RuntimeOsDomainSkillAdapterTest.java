@@ -1,12 +1,12 @@
 package com.chatchat.chat.skills.runtime;
 
 import com.chatchat.common.skills.DomainSkillRuntimePort;
-import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
-import com.chatchat.runtime.skill.api.ResolvedSkill;
-import com.chatchat.runtime.skill.api.SkillDescriptor;
-import com.chatchat.runtime.skill.api.SkillRequirements;
-import com.chatchat.runtime.skill.api.SkillResolution;
-import com.chatchat.runtime.skill.api.SkillRouteResult;
+import com.chatchat.runtime.skill.api.resolution.AuthorizedSkillScope;
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
+import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
+import com.chatchat.runtime.skill.api.skill.SkillRequirements;
+import com.chatchat.runtime.skill.api.resolution.SkillResolution;
+import com.chatchat.runtime.skill.api.discovery.SkillRouteResult;
 import com.chatchat.runtime.skill.port.inbound.SkillResolver;
 import com.chatchat.runtime.skill.port.inbound.SkillRouter;
 import org.junit.jupiter.api.Test;
@@ -42,8 +42,8 @@ class RuntimeOsDomainSkillAdapterTest {
             assertThat(skill.id()).isEqualTo("install");
             assertThat(skill.markdownContent()).isEqualTo("verified instructions");
         });
-        ArgumentCaptor<com.chatchat.runtime.skill.api.SkillSearchRequest> search =
-            ArgumentCaptor.forClass(com.chatchat.runtime.skill.api.SkillSearchRequest.class);
+        ArgumentCaptor<com.chatchat.runtime.skill.api.discovery.SkillSearchRequest> search =
+            ArgumentCaptor.forClass(com.chatchat.runtime.skill.api.discovery.SkillSearchRequest.class);
         verify(router).route(search.capture());
         assertThat(search.getValue().requestedSkillIds()).containsExactly("install");
         verify(resolver).resolve(any());

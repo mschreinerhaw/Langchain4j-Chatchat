@@ -1,4 +1,4 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.skill;
 
 import java.util.List;
 

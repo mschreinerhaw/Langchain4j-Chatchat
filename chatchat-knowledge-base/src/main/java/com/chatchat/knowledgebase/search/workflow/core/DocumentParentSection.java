@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.core;
 
 /** PostgreSQL navigation metadata used to expand a ranked passage to its parent section. */
 public record DocumentParentSection(

@@ -1,11 +1,11 @@
 package com.chatchat.runtime.skill.application;
 
-import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
-import com.chatchat.runtime.skill.api.ResolvedSkill;
-import com.chatchat.runtime.skill.api.ResolvedWorkflow;
-import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.api.WorkflowResolution;
-import com.chatchat.runtime.skill.api.WorkflowType;
+import com.chatchat.runtime.skill.api.resolution.AuthorizedSkillScope;
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
+import com.chatchat.runtime.skill.api.workflow.ResolvedWorkflow;
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
+import com.chatchat.runtime.skill.api.workflow.WorkflowResolution;
+import com.chatchat.runtime.skill.api.workflow.WorkflowType;
 import com.chatchat.runtime.skill.port.inbound.WorkflowResolver;
 
 import java.util.ArrayList;

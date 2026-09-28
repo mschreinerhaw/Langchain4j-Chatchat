@@ -1,4 +1,4 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.resource;
 
 import java.util.Map;
 

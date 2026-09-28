@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.core;
 
 import com.chatchat.knowledgebase.search.document.api.search.DocumentRecallResult;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;

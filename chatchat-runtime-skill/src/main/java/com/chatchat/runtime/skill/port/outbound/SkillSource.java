@@ -1,11 +1,11 @@
 package com.chatchat.runtime.skill.port.outbound;
 
-import com.chatchat.runtime.skill.api.ResolvedSkill;
-import com.chatchat.runtime.skill.api.SkillDescriptor;
-import com.chatchat.runtime.skill.api.SkillResolutionRequest;
-import com.chatchat.runtime.skill.api.SkillResourceContent;
-import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.api.SkillSearchRequest;
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
+import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
+import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.resource.SkillResourceContent;
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
+import com.chatchat.runtime.skill.api.discovery.SkillSearchRequest;
 
 import java.util.List;
 import java.util.Optional;

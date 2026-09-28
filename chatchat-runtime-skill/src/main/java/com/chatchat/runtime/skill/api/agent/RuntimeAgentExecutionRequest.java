@@ -1,5 +1,9 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.agent;
 
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
+import com.chatchat.runtime.skill.api.resolution.AuthorizedSkillScope;
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
+import com.chatchat.runtime.skill.api.workflow.ResolvedWorkflow;
 import java.util.Map;
 
 /** Engine-neutral request passed from a resolved Skill workflow to an Agent runtime adapter. */

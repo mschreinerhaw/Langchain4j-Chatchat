@@ -10,11 +10,11 @@ import com.chatchat.common.runtime.agent.AgentGatewayPort;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import com.chatchat.common.runtime.analysis.evidence.EvidenceBundle;
 import com.chatchat.common.runtime.capability.CapabilityId;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
-import com.chatchat.runtime.skill.api.WorkflowType;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.workflow.WorkflowType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 

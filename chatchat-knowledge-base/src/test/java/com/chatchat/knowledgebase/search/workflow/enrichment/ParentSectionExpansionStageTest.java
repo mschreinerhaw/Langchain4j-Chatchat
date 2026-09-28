@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.enrichment;
 
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIREntity;
 import com.chatchat.knowledgebase.runtime.index.KnowledgeIRRepository;
@@ -8,6 +8,8 @@ import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 import com.chatchat.knowledgebase.search.model.SearchResult;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowContext;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentParentSection;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,12 +1,12 @@
 package com.chatchat.runtime.skill.application;
 
-import com.chatchat.runtime.skill.api.SkillExecutionRequest;
-import com.chatchat.runtime.skill.api.SkillExecutionResult;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
-import com.chatchat.runtime.skill.api.SkillResolution;
-import com.chatchat.runtime.skill.api.SkillResolutionRequest;
-import com.chatchat.runtime.skill.api.SkillSearchRequest;
+import com.chatchat.runtime.skill.api.execution.SkillExecutionRequest;
+import com.chatchat.runtime.skill.api.execution.SkillExecutionResult;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.resolution.SkillResolution;
+import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.discovery.SkillSearchRequest;
 import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
 import com.chatchat.runtime.skill.port.inbound.AgentRuntimeDispatcher;
 import com.chatchat.runtime.skill.port.inbound.SkillResolver;

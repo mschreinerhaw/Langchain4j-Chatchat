@@ -1,5 +1,6 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.resolution;
 
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
 import java.util.Map;
 
 public record SkillResolution(ResolvedSkill skill, AuthorizedSkillScope authorizedScope,

@@ -1,9 +1,9 @@
 package com.chatchat.runtime.skill.port.outbound;
 
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
 
 /** Extension point implemented by Google ADK and remote/external Agent protocol drivers. */
 public interface ExternalAgentEngine {

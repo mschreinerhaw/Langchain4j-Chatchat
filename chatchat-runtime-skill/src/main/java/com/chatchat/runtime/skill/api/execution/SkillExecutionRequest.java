@@ -1,5 +1,6 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.execution;
 
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
 import java.util.List;
 import java.util.Map;
 

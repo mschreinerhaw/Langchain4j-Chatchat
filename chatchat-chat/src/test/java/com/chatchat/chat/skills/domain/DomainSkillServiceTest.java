@@ -8,9 +8,9 @@ import com.chatchat.chat.skills.domain.adapter.SkillFormatDetector;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
-import com.chatchat.runtime.skill.api.SkillResolutionRequest;
-import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.api.SkillSearchRequest;
+import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
+import com.chatchat.runtime.skill.api.discovery.SkillSearchRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

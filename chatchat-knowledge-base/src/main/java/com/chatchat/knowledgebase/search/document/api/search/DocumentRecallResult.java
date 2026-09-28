@@ -2,7 +2,7 @@ package com.chatchat.knowledgebase.search.document.api.search;
 
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.model.SearchDocument;
-import com.chatchat.knowledgebase.search.workflow.DocumentParentSection;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentParentSection;
 
 import java.util.List;
 import java.util.Map;

@@ -1,10 +1,11 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.authorization;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;
 import com.chatchat.knowledgebase.search.document.application.KnowledgeIrDocumentRecall;
 import com.chatchat.knowledgebase.search.security.DocumentVisibilityContext;
 import com.chatchat.knowledgebase.search.security.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

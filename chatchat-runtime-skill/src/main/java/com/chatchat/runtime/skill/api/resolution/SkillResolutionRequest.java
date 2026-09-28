@@ -1,4 +1,6 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.resolution;
+
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
 
 public record SkillResolutionRequest(String skillId, String version, SkillRoleContext roleContext) {
     public SkillResolutionRequest {

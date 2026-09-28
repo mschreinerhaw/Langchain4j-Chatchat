@@ -12,7 +12,7 @@ import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.runtime.agent.AgentDescriptor;
 import com.chatchat.common.runtime.agent.AgentRegistryPort;
 import com.chatchat.common.runtime.agent.AgentCredentialResolver;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthResult;
 import com.chatchat.runtime.skill.port.inbound.AgentRuntimeDispatcher;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.knowledgebase.search.document.api.library.LibraryDocumentItem;

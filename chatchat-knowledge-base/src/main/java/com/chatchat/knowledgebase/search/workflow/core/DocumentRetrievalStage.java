@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.core;
 
 /** One replaceable step in the document retrieval workflow. */
 public interface DocumentRetrievalStage {

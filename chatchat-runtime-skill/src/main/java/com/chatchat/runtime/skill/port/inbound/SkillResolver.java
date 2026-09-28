@@ -1,9 +1,9 @@
 package com.chatchat.runtime.skill.port.inbound;
 
-import com.chatchat.runtime.skill.api.SkillResolution;
-import com.chatchat.runtime.skill.api.SkillResolutionRequest;
-import com.chatchat.runtime.skill.api.SkillResourceContent;
-import com.chatchat.runtime.skill.api.SkillResourceRequest;
+import com.chatchat.runtime.skill.api.resolution.SkillResolution;
+import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.resource.SkillResourceContent;
+import com.chatchat.runtime.skill.api.resource.SkillResourceRequest;
 
 import java.util.Optional;
 

@@ -1,5 +1,8 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.analysis;
 
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalStage;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowContext;
+import com.chatchat.knowledgebase.search.workflow.core.ProblemQueryAnalysis;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashSet;

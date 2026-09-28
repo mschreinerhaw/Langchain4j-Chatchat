@@ -1,4 +1,6 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.resource;
+
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
 
 public record SkillResourceRequest(String skillId, String resourceId, SkillRoleContext roleContext) {
     public SkillResourceRequest {

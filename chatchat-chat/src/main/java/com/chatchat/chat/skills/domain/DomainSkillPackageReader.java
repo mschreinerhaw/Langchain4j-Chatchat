@@ -1,8 +1,8 @@
 package com.chatchat.chat.skills.domain;
 
-import com.chatchat.runtime.skill.api.SkillRequirements;
-import com.chatchat.runtime.skill.api.SkillResourceContent;
-import com.chatchat.runtime.skill.api.SkillResourceDescriptor;
+import com.chatchat.runtime.skill.api.skill.SkillRequirements;
+import com.chatchat.runtime.skill.api.resource.SkillResourceContent;
+import com.chatchat.runtime.skill.api.resource.SkillResourceDescriptor;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

@@ -2,10 +2,10 @@ package com.chatchat.chat.skills.runtime;
 
 import com.chatchat.agents.model.ModelEndpoint;
 import com.chatchat.common.config.ModelCatalogOverride;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
 import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;

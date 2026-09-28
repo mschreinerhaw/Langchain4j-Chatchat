@@ -1,4 +1,4 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.workflow;
 
 /** Deterministic workflow families supported by the vendor-neutral Skill Runtime. */
 public enum WorkflowType {

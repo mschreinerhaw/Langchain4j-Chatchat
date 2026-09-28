@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.ranking;
 
 import com.chatchat.common.retrieval.AuthorizedRetrieval;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
@@ -6,6 +6,8 @@ import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandi
 import com.chatchat.knowledgebase.search.index.application.IndexVersionManager;
 import com.chatchat.knowledgebase.search.model.SearchPage;
 import com.chatchat.knowledgebase.search.model.SearchResult;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalStage;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

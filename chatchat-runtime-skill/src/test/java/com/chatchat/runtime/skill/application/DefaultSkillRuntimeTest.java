@@ -1,17 +1,17 @@
 package com.chatchat.runtime.skill.application;
 
-import com.chatchat.runtime.skill.api.AuthorizedSkillScope;
-import com.chatchat.runtime.skill.api.ResolvedSkill;
-import com.chatchat.runtime.skill.api.ResolvedWorkflow;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
-import com.chatchat.runtime.skill.api.SkillDescriptor;
-import com.chatchat.runtime.skill.api.SkillExecutionRequest;
-import com.chatchat.runtime.skill.api.SkillResolution;
-import com.chatchat.runtime.skill.api.SkillResourceRequest;
-import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.api.SkillRouteResult;
-import com.chatchat.runtime.skill.api.WorkflowResolution;
-import com.chatchat.runtime.skill.api.WorkflowType;
+import com.chatchat.runtime.skill.api.resolution.AuthorizedSkillScope;
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
+import com.chatchat.runtime.skill.api.workflow.ResolvedWorkflow;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
+import com.chatchat.runtime.skill.api.execution.SkillExecutionRequest;
+import com.chatchat.runtime.skill.api.resolution.SkillResolution;
+import com.chatchat.runtime.skill.api.resource.SkillResourceRequest;
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
+import com.chatchat.runtime.skill.api.discovery.SkillRouteResult;
+import com.chatchat.runtime.skill.api.workflow.WorkflowResolution;
+import com.chatchat.runtime.skill.api.workflow.WorkflowType;
 import com.chatchat.runtime.skill.port.outbound.AgentRuntimeAdapter;
 import com.chatchat.runtime.skill.port.inbound.SkillResolver;
 import com.chatchat.runtime.skill.port.inbound.WorkflowResolver;
@@ -77,12 +77,12 @@ class DefaultSkillRuntimeTest {
     private SkillResolver resolver(SkillResolution resolution) {
         return new SkillResolver() {
             @Override
-            public SkillResolution resolve(com.chatchat.runtime.skill.api.SkillResolutionRequest request) {
+            public SkillResolution resolve(com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest request) {
                 return resolution;
             }
 
             @Override
-            public Optional<com.chatchat.runtime.skill.api.SkillResourceContent> readResource(
+            public Optional<com.chatchat.runtime.skill.api.resource.SkillResourceContent> readResource(
                 SkillResourceRequest request) {
                 return Optional.empty();
             }

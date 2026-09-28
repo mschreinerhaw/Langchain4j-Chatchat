@@ -1,5 +1,8 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.authorization;
 
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalStage;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowContext;
+import com.chatchat.knowledgebase.search.workflow.core.SkillRoleRetrievalContext;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

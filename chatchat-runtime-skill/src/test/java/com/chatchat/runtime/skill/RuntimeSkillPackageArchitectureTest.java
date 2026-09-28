@@ -6,10 +6,42 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RuntimeSkillPackageArchitectureTest {
+
+    private static final Set<String> API_CAPABILITIES = Set.of(
+        "agent", "discovery", "execution", "identity",
+        "resolution", "resource", "skill", "workflow"
+    );
+
+    @Test
+    void apiContractsAreGroupedByCapability() {
+        Path apiRoot = sourceRoot("api");
+        List<String> rootContracts;
+        Set<String> capabilities;
+
+        try (var entries = Files.list(apiRoot)) {
+            List<Path> paths = entries.toList();
+            rootContracts = paths.stream()
+                .filter(Files::isRegularFile)
+                .map(path -> path.getFileName().toString())
+                .filter(name -> name.endsWith(".java"))
+                .filter(name -> !name.equals("package-info.java"))
+                .toList();
+            capabilities = paths.stream()
+                .filter(Files::isDirectory)
+                .map(path -> path.getFileName().toString())
+                .collect(java.util.stream.Collectors.toSet());
+        } catch (IOException error) {
+            throw new IllegalStateException("Cannot inspect Skill API packages", error);
+        }
+
+        assertThat(rootContracts).as("API root must not become a responsibility bucket").isEmpty();
+        assertThat(capabilities).containsExactlyInAnyOrderElementsOf(API_CAPABILITIES);
+    }
 
     @Test
     void apiContractsDoNotDependOnPortsOrApplicationImplementations() {

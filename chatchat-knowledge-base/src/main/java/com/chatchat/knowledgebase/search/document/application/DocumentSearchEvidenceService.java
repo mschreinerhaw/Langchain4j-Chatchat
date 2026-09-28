@@ -477,7 +477,7 @@ public class DocumentSearchEvidenceService {
                                                     String documentId,
                                                     String chunkId) {
         if (chunk == null || hasText(chunk.section()) || recall.parentSections().isEmpty()) return chunk;
-        com.chatchat.knowledgebase.search.workflow.DocumentParentSection parent = recall.parentSections()
+        com.chatchat.knowledgebase.search.workflow.core.DocumentParentSection parent = recall.parentSections()
             .getOrDefault(documentId, List.of()).stream()
             .filter(section -> !hasText(chunkId) || chunkId.equals(section.chunkId()))
             .filter(section -> hasText(firstNonBlank(section.section(), section.title())))

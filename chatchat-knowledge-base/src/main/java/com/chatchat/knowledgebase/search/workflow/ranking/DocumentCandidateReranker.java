@@ -1,4 +1,4 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.ranking;
 
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchCandidate;
 import com.chatchat.knowledgebase.search.document.api.search.DocumentSearchPlan;

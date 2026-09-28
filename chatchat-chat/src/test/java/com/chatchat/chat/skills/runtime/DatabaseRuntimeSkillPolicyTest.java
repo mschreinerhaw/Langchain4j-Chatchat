@@ -3,10 +3,10 @@ package com.chatchat.chat.skills.runtime;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.enterprise.entity.security.SkillResourceScope;
 import com.chatchat.enterprise.repository.security.SkillResourceScopeRepository;
-import com.chatchat.runtime.skill.api.ResolvedSkill;
-import com.chatchat.runtime.skill.api.SkillDescriptor;
-import com.chatchat.runtime.skill.api.SkillRequirements;
-import com.chatchat.runtime.skill.api.SkillRoleContext;
+import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
+import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
+import com.chatchat.runtime.skill.api.skill.SkillRequirements;
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

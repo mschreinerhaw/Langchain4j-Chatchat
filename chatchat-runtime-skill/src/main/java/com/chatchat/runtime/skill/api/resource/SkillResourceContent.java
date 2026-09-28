@@ -1,4 +1,4 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.resource;
 
 public record SkillResourceContent(SkillResourceDescriptor descriptor, byte[] content) {
     public SkillResourceContent {

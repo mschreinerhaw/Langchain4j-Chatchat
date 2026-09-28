@@ -1,11 +1,11 @@
 package com.chatchat.chat.skills.runtime;
 
 import com.chatchat.common.skills.DomainSkillRuntimePort;
-import com.chatchat.runtime.skill.api.SkillDescriptor;
-import com.chatchat.runtime.skill.api.SkillResolution;
-import com.chatchat.runtime.skill.api.SkillResolutionRequest;
-import com.chatchat.runtime.skill.api.SkillRoleContext;
-import com.chatchat.runtime.skill.api.SkillSearchRequest;
+import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
+import com.chatchat.runtime.skill.api.resolution.SkillResolution;
+import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
+import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
+import com.chatchat.runtime.skill.api.discovery.SkillSearchRequest;
 import com.chatchat.runtime.skill.port.inbound.SkillResolver;
 import com.chatchat.runtime.skill.port.inbound.SkillRouter;
 import lombok.RequiredArgsConstructor;

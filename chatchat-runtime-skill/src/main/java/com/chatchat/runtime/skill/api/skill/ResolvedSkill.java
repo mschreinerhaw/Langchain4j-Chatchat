@@ -1,5 +1,6 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.skill;
 
+import com.chatchat.runtime.skill.api.resource.SkillResourceDescriptor;
 import java.util.List;
 import java.util.Map;
 

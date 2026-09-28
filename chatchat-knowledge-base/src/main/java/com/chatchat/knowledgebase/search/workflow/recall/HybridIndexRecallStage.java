@@ -1,8 +1,10 @@
-package com.chatchat.knowledgebase.search.workflow;
+package com.chatchat.knowledgebase.search.workflow.recall;
 
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.application.GlobalChunkIndexService;
 import com.chatchat.knowledgebase.search.index.application.GlobalDocumentIndexService;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalStage;
+import com.chatchat.knowledgebase.search.workflow.core.DocumentRetrievalWorkflowContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

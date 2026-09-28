@@ -1,10 +1,10 @@
 package com.chatchat.integration.agent.skill;
 
 import com.chatchat.common.runtime.agent.AgentDescriptor;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthRequest;
-import com.chatchat.runtime.skill.api.AgentRuntimeHealthResult;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthRequest;
+import com.chatchat.runtime.skill.api.agent.AgentRuntimeHealthResult;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
 import com.chatchat.runtime.skill.port.outbound.ExternalAgentEngine;
 import org.springframework.stereotype.Component;
 

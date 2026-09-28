@@ -1,4 +1,4 @@
-package com.chatchat.runtime.skill.api;
+package com.chatchat.runtime.skill.api.identity;
 
 import java.util.List;
 import java.util.Map;

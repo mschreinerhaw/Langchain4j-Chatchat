@@ -2,8 +2,8 @@ package com.chatchat.chat.skills.runtime;
 
 import com.chatchat.common.config.ModelCatalogOverride;
 import com.chatchat.common.config.ModelsConfig;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionRequest;
-import com.chatchat.runtime.skill.api.RuntimeAgentExecutionResult;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionRequest;
+import com.chatchat.runtime.skill.api.agent.RuntimeAgentExecutionResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 

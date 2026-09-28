@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.importing;
 
 import com.chatchat.chat.task.core.AgentTaskProperties;
 import com.chatchat.chat.task.queue.AgentTaskExecutorConfig;

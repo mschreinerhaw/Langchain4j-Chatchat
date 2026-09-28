@@ -1,4 +1,6 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.application;
+
+import static com.chatchat.chat.skills.domain.source.DomainSkillImportPolicy.MAX_UPLOAD_BYTES;
 
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.skills.DomainSkillRuntimePort;
@@ -8,6 +10,14 @@ import com.chatchat.chat.skills.domain.adapter.ExternalSkillAdapterGateway;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillCompilation;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillSource;
 import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;
+import com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStore;
+import com.chatchat.chat.skills.domain.artifact.DomainSkillPackageReader;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryEntity;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryRepository;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillRepository;
+import com.chatchat.chat.skills.domain.indexing.DomainSkillIndexService;
+import com.chatchat.chat.skills.domain.source.DomainSkillRemoteImporter;
 import com.chatchat.runtime.skill.api.skill.ResolvedSkill;
 import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
 import com.chatchat.runtime.skill.api.resolution.SkillResolutionRequest;
@@ -35,7 +45,6 @@ import java.util.zip.ZipInputStream;
 @RequiredArgsConstructor
 public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     static final int DEFAULT_PUBLICATION_LIMIT = 5;
-    static final long MAX_UPLOAD_BYTES = 5L * 1024 * 1024;
     static final int MAX_MARKDOWN_CHARS = 512 * 1024;
     private static final String PUBLISHED = "PUBLISHED";
     private final DomainSkillRepository repository;

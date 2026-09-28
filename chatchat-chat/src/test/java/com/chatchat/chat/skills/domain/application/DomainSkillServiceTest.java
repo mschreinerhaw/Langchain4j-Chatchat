@@ -1,10 +1,18 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.application;
 
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillAdapterGateway;
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillCompilation;
 import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;
 import com.chatchat.chat.skills.domain.adapter.SkillMdExternalSkillAdapter;
 import com.chatchat.chat.skills.domain.adapter.SkillFormatDetector;
+import com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStore;
+import com.chatchat.chat.skills.domain.artifact.DomainSkillPackageReader;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryEntity;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryRepository;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillRepository;
+import com.chatchat.chat.skills.domain.indexing.DomainSkillIndexService;
+import com.chatchat.chat.skills.domain.source.DomainSkillRemoteImporter;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.skills.DomainSkillRuntimePort;

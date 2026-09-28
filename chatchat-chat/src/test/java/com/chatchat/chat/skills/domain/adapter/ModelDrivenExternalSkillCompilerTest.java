@@ -1,7 +1,7 @@
 package com.chatchat.chat.skills.domain.adapter;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
-import com.chatchat.chat.skills.domain.DomainSkillCompilerProperties;
+import com.chatchat.chat.skills.domain.planning.DomainSkillCompilerProperties;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;

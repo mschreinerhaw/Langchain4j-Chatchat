@@ -1,4 +1,6 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.source;
+
+import static com.chatchat.chat.skills.domain.source.DomainSkillImportPolicy.MAX_UPLOAD_BYTES;
 
 import org.springframework.stereotype.Component;
 
@@ -64,7 +66,7 @@ public class DomainSkillRemoteImporter {
                 throw new IllegalArgumentException("Skill URL returned HTTP " + response.statusCode());
             }
             long contentLength = response.headers().firstValueAsLong("content-length").orElse(-1L);
-            if (contentLength > DomainSkillService.MAX_UPLOAD_BYTES) {
+            if (contentLength > MAX_UPLOAD_BYTES) {
                 close(response.body());
                 throw new IllegalArgumentException("Remote skill file must not exceed 5MB");
             }
@@ -236,7 +238,7 @@ public class DomainSkillRemoteImporter {
             long total = 0;
             while ((read = input.read(buffer)) >= 0) {
                 total += read;
-                if (total > DomainSkillService.MAX_UPLOAD_BYTES) {
+                if (total > MAX_UPLOAD_BYTES) {
                     throw new IllegalArgumentException("Remote skill file must not exceed 5MB");
                 }
                 output.write(buffer, 0, read);

@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.artifact;
 
 import com.chatchat.chat.skills.domain.adapter.ExternalSkillCompilation;
 import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;

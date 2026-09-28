@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.planning;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.common.config.ModelResourceRegistry;

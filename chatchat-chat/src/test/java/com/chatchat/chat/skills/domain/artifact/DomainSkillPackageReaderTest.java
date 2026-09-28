@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.artifact;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.importing;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.annotation.Bean;

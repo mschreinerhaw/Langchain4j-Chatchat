@@ -1,5 +1,6 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.indexing;
 
+import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
 import com.chatchat.knowledgebase.search.config.SearchProperties;
 import com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchEmbeddingClient;
 import com.fasterxml.jackson.databind.ObjectMapper;

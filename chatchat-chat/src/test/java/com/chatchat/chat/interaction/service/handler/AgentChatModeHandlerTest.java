@@ -8,7 +8,7 @@ import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
 import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
-import com.chatchat.chat.skills.domain.DomainSkillPlanningRouter;
+import com.chatchat.chat.skills.domain.planning.DomainSkillPlanningRouter;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.skills.model.SkillRoutingSettings;
 import com.chatchat.common.interaction.InteractionToolTrace;

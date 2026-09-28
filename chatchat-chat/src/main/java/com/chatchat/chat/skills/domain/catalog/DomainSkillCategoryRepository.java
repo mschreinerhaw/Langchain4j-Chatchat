@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.catalog;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

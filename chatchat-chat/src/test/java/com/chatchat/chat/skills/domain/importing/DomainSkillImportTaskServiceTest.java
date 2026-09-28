@@ -1,5 +1,7 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.importing;
 
+import com.chatchat.chat.skills.domain.application.DomainSkillService;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.task.TaskExecutor;
 

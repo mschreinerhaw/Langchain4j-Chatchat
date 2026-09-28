@@ -1,5 +1,10 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.importing;
 
+import static com.chatchat.chat.skills.domain.source.DomainSkillImportPolicy.MAX_UPLOAD_BYTES;
+
+import com.chatchat.chat.skills.domain.application.DomainSkillService;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
+import com.chatchat.chat.skills.domain.source.DomainSkillRemoteImporter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -38,7 +43,7 @@ public class DomainSkillImportTaskService {
     public ImportTaskView enqueueFile(String tenantId, String ownerId, byte[] content, String fileName,
                                       String requestedName, String category) {
         if (content == null || content.length == 0) throw new IllegalArgumentException("Select a ZIP or Markdown file");
-        if (content.length > DomainSkillService.MAX_UPLOAD_BYTES) throw new IllegalArgumentException("Skill file must not exceed 5MB");
+        if (content.length > MAX_UPLOAD_BYTES) throw new IllegalArgumentException("Skill file must not exceed 5MB");
         return enqueue(tenantId, ownerId, "FILE", requestedName, category, fileName,
             new FileWorkItem(content.clone(), fileName, requestedName, category));
     }

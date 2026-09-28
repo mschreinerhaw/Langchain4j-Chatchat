@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.indexing;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,4 +1,2 @@
-/**
- * 领域技能的持久化、索引、初始化与应用服务。
- */
+/** Domain Skill capabilities grouped into responsibility-specific child packages. */
 package com.chatchat.chat.skills.domain;

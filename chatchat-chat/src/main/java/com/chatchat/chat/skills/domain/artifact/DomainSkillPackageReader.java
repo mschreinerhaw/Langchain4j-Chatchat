@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.artifact;
 
 import com.chatchat.runtime.skill.api.skill.SkillRequirements;
 import com.chatchat.runtime.skill.api.resource.SkillResourceContent;

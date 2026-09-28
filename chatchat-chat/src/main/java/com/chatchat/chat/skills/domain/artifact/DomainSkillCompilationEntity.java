@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.artifact;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

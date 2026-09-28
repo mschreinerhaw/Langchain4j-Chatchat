@@ -1,10 +1,10 @@
 package com.chatchat.chat.skills.federation;
 
-import com.chatchat.chat.skills.domain.DomainSkillCategoryEntity;
-import com.chatchat.chat.skills.domain.DomainSkillCategoryRepository;
-import com.chatchat.chat.skills.domain.DomainSkillEntity;
-import com.chatchat.chat.skills.domain.DomainSkillIndexService;
-import com.chatchat.chat.skills.domain.DomainSkillRepository;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryEntity;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryRepository;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
+import com.chatchat.chat.skills.domain.indexing.DomainSkillIndexService;
+import com.chatchat.chat.skills.domain.catalog.DomainSkillRepository;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.common.skills.federation.SkillSourceRepository;

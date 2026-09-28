@@ -5,7 +5,7 @@ import com.chatchat.api.controller.agent.DocumentLibraryReadPort;
 import com.chatchat.api.enterprise.LoginAuditService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
-import com.chatchat.chat.skills.domain.DomainSkillService;
+import com.chatchat.chat.skills.domain.application.DomainSkillService;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.runtime.agent.AgentCardDiscoveryPort;
 import com.chatchat.common.runtime.agent.AgentCredentialResolver;

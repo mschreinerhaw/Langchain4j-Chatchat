@@ -1,8 +1,8 @@
 package com.chatchat.api.controller.datascience;
 
-import com.chatchat.chat.skills.domain.DomainSkillImportTaskService;
-import com.chatchat.chat.skills.domain.DomainSkillRemoteImporter;
-import com.chatchat.chat.skills.domain.DomainSkillService;
+import com.chatchat.chat.skills.domain.importing.DomainSkillImportTaskService;
+import com.chatchat.chat.skills.domain.source.DomainSkillRemoteImporter;
+import com.chatchat.chat.skills.domain.application.DomainSkillService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;

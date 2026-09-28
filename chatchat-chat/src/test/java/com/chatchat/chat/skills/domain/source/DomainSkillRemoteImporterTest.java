@@ -1,4 +1,4 @@
-package com.chatchat.chat.skills.domain;
+package com.chatchat.chat.skills.domain.source;
 
 import org.junit.jupiter.api.Test;
 

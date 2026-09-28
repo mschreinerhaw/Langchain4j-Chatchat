@@ -1,12 +1,12 @@
 package com.chatchat.e2e;
 
 import com.chatchat.agents.runtime.run.AgentRunStatus;
-import com.chatchat.agents.runtime.evaluation.AgentEvaluationCase;
-import com.chatchat.agents.runtime.evaluation.AgentEvaluationReport;
-import com.chatchat.agents.runtime.evaluation.AgentEvaluationService;
-import com.chatchat.agents.runtime.evaluation.AgentQualityGateReport;
-import com.chatchat.agents.runtime.evaluation.AgentQualityGateService;
-import com.chatchat.agents.runtime.evaluation.AgentQualityGateThresholds;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationCase;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationReport;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationService;
+import com.chatchat.agents.runtime.evaluation.quality.AgentQualityGateReport;
+import com.chatchat.agents.runtime.evaluation.quality.AgentQualityGateService;
+import com.chatchat.agents.runtime.evaluation.quality.AgentQualityGateThresholds;
 import com.chatchat.agents.runtime.trace.AgentRunTrace;
 import com.chatchat.agents.runtime.trace.AnswerTrace;
 import com.chatchat.agents.runtime.trace.EvidenceTrace;

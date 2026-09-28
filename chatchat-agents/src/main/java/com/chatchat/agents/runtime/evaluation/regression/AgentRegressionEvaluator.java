@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.regression;
 
 import org.springframework.stereotype.Component;
 

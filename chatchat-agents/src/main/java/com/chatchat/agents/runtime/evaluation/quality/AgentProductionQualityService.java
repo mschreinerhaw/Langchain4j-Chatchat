@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.quality;
 
 import com.chatchat.agents.runtime.run.AgentRun;
 import com.chatchat.agents.runtime.AgentRunResult;

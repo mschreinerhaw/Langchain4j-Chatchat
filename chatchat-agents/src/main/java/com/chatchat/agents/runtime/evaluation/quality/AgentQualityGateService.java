@@ -1,5 +1,6 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.quality;
 
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationReport;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

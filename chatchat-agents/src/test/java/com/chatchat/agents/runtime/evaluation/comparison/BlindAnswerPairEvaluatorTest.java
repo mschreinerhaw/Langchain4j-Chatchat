@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.comparison;
 
 import org.junit.jupiter.api.Test;
 

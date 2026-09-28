@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.quality;
 
 /** Release thresholds shared by CI/offline suites and online observation windows. */
 public record AgentQualityGateThresholds(

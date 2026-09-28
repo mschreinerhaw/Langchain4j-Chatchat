@@ -1,5 +1,8 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.quality;
 
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationCase;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationReport;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationService;
 import com.chatchat.agents.runtime.trace.AgentRunTrace;
 import com.chatchat.agents.runtime.trace.AgentRunTraceBuilder;
 import com.chatchat.agents.runtime.trace.AgentRunTraceBuilderTest;
@@ -40,7 +43,7 @@ class AgentQualityGateServiceTest {
         ToolCallTrace wrong = new ToolCallTrace(original.step(), "web_search", original.displayName(), true,
             Map.of("query", "wrong"), original.outputPreview(), null, original.durationMs(), original.startedAt(),
             original.finishedAt(), original.mcpCallId(), null, original.governance(), original.runtimeMetadata());
-        AgentRunTrace degraded = AgentEvaluationServiceTest.copyWith(trace, List.of(wrong),
+        AgentRunTrace degraded = copyWith(trace, List.of(wrong),
             List.of(new EvidenceTrace("doc://noise", "DOCUMENT", "noise", "web_search", false,
                 "ALLOW", "irrelevant", Map.of())));
 
@@ -78,5 +81,14 @@ class AgentQualityGateServiceTest {
             List.of(new AgentEvaluationCase.ToolExpectation("document_search",
                 Map.of("query", "config restart"))),
             AgentEvaluationCase.Thresholds.strict());
+    }
+
+    private AgentRunTrace copyWith(AgentRunTrace trace, List<ToolCallTrace> tools,
+                                   List<EvidenceTrace> evidence) {
+        return new AgentRunTrace(trace.contractVersion(), trace.traceId(), trace.taskId(), trace.runId(),
+            trace.requestId(), trace.conversationId(), trace.tenantId(), trace.userId(), trace.agentId(),
+            trace.modelName(), trace.modelCallId(), trace.question(), trace.status(), trace.startedAt(),
+            trace.finishedAt(), trace.latencyMs(), trace.tokenUsage(), tools, evidence, trace.answer(),
+            trace.grounding(), trace.failureReasons(), trace.events());
     }
 }

@@ -1,8 +1,8 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.assessment;
 
-import com.chatchat.agents.runtime.evaluation.AgentEvaluationCase.RetrievalExpectation;
-import com.chatchat.agents.runtime.evaluation.AgentEvaluationCase.ToolExpectation;
-import com.chatchat.agents.runtime.evaluation.AgentEvaluationReport.QualityDimension;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationCase.RetrievalExpectation;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationCase.ToolExpectation;
+import com.chatchat.agents.runtime.evaluation.assessment.AgentEvaluationReport.QualityDimension;
 import com.chatchat.agents.runtime.trace.AgentRunTrace;
 import com.chatchat.agents.runtime.trace.EvidenceTrace;
 import com.chatchat.agents.runtime.trace.ToolCallTrace;

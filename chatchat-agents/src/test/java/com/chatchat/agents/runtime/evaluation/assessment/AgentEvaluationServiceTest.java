@@ -1,4 +1,4 @@
-package com.chatchat.agents.runtime.evaluation;
+package com.chatchat.agents.runtime.evaluation.assessment;
 
 import com.chatchat.agents.runtime.trace.AgentRunTrace;
 import com.chatchat.agents.runtime.trace.AgentRunTraceBuilder;
